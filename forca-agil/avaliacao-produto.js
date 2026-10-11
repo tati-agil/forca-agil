@@ -5766,7 +5766,7 @@
       html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
         return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
       }).join('') +
-        '<li data-item="APROVACAO" data-ok="false">✗ Aprovação explícita registrada (dupla, quem propõe ≠ quem aprova, vinculada à versão exata do motor e da redação) <em>(registro de aprovação: fase b)</em></li>' +
+        renderItemAprovacaoGov(cp, alvo) +
         '<li data-item="FRONTEIRA" data-ok="false">✗ Fronteira confiável para gravar e ativar <em>(fase b)</em></li></ul>';
       html += '<p class="avp-decisao-aviso" id="avpPosNaoAutoriza">' + esc(pr.aviso) + ' Nesta fase não há ação de ativar: a v' + alvo + ' continua inativa e a v' + emVigor + ' em vigor.</p>';
       /* simulação lógica */
@@ -5791,9 +5791,174 @@
         if (im.incomparaveis.length) html += '<p class="avp-decisao-aviso" id="avpPosIncomparavelExplica">Incomparável não significa resultado diferente: significa que faltam condições para uma comparação segura ' +
           '(por exemplo, a pergunta mudou de redação ou a v' + esc(N_VERSAO_ALVO(cp)) + ' pede uma resposta que a avaliação não tem). O resultado dessas avaliações na nova versão só se sabe reavaliando.</p>';
         if (im.incomparaveis.length) html += '<p class="avp-ficha-meta" id="avpPosIncomparaveisMotivos">Motivos: ' + Object.keys(motivos).map(function (m) { return esc(ROTULO_INCOMPARAVEL[m] || m) + ' (' + motivos[m] + ')'; }).join('; ') + '.</p>';
-        html += '<p class="avp-ficha-meta">Quem aprovar a entrada em vigor (fase b) terá de reconhecer explicitamente estes números, inclusive os incomparáveis. Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
+        html += '<p class="avp-ficha-meta">Quem aprovar a entrada em vigor terá de reconhecer explicitamente estes números, inclusive os incomparáveis. Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
+      }
+      html += renderGovernancaPosicionamento(cp, alvo, defA, pr);
+      return html + '</div>';
+    }
+    /* ---- B3: governança persistida — proposta de entrada em vigor e aprovação dupla. Toda a regra está em
+       faGovernancaPosicionamento (puro) e nas regras do banco; a tela só mostra e grava pela interface de serviços.
+       Nada aqui põe versão em vigor: a proposta aprovada espera a fronteira confiável (B4). ---- */
+    function servicosPos() { return window.faServicosPosicionamento; }
+    var cancelarOuvirGov = null;
+    function iniciarGovernanca(cp) {
+      var S = servicosPos(), G = window.faGovernancaPosicionamento;
+      if (!S || !G || cp.gov) return;
+      cp.gov = { propostas: null, vigencia: null, lido: { propostas: false, vigencia: false }, erroLeitura: null, gravando: null, flash: null };
+      if (cancelarOuvirGov) cancelarOuvirGov();
+      var g = cp.gov, cancelar = [];
+      function atual() { return state.configMotores && state.configMotores.posicionamento === cp && cp.gov === g; }
+      function ouvir(no, campo) {
+        cancelar.push(S.ouvir(no, function (v) { g[campo] = v || {}; g.lido[campo] = true; if (atual()) render(); },
+          function () { g.erroLeitura = 'Não foi possível ler as propostas de entrada em vigor agora.'; if (atual()) render(); }));
+      }
+      ouvir(G.NOS.propostas, 'propostas');
+      ouvir(G.NOS.vigencia, 'vigencia');
+      cancelarOuvirGov = function () { cancelar.forEach(function (f) { try { f(); } catch (e) { /* já cancelada */ } }); };
+    }
+    function usuarioGov() {
+      var S = servicosPos(), id = S && S.identidade();
+      if (!id) return null;
+      var adm = souAdminGeral();
+      return { uid: id.uid, email: id.email, adminGeral: adm, podeGravar: adm || !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()) };
+    }
+    function alvoDeAgoraGov(cp, versaoAlvo, defA) {
+      var Q = window.faQuestionarios, pub = Q.versoesPublicadasConteudoMotor(Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, versaoAlvo)[0];
+      if (!pub || !cp.impacto || cp.impactoRedacao !== pub.versao) return null;
+      return window.faGovernancaPosicionamento.alvoAtual({ definicao: defA, redacao: pub, impacto: cp.impacto });
+    }
+    function propostasDaVersao(cp, versaoAlvo) {
+      var ps = (cp.gov && cp.gov.propostas) || {};
+      return Object.keys(ps).map(function (id) { return { id: id, p: ps[id] }; }).filter(function (x) { return x.p && x.p.versaoMotor === versaoAlvo; })
+        .sort(function (a, b) { return (b.p.propostoEm || 0) - (a.p.propostoEm || 0); });
+    }
+    function renderItemAprovacaoGov(cp, versaoAlvo) {
+      var G = window.faGovernancaPosicionamento, defA = window.faMotorPosicionamentoNucleo.definicao(versaoAlvo), agora = alvoDeAgoraGov(cp, versaoAlvo, defA);
+      var aprov = propostasDaVersao(cp, versaoAlvo).filter(function (x) { return x.p.situacao === 'aprovada'; })[0];
+      var st = aprov ? G.situacaoProposta(aprov.p, agora) : null, ok = !!st && st.conferida && !st.desatualizada;
+      var det = !aprov ? 'nenhuma proposta aprovada' : !st.conferida ? 'aprovada — calcule o impacto para conferir se continua atual' : st.desatualizada ? 'a proposta aprovada está desatualizada' : null;
+      return '<li data-item="APROVACAO" data-ok="' + ok + '">' + (ok ? '✓ ' : '✗ ') + 'Aprovação dupla registrada (dois aprovadores distintos, ao menos um admin geral, quem propõe não aprova, vinculada à versão exata do motor, da redação e do impacto)' +
+        (det ? ' <em>(' + esc(det) + ')</em>' : '') + '</li>';
+    }
+    var ROTULO_FALTA_PROPOR = {
+      DEFINICAO_VALIDA: 'definição do motor válida', VERSAO_DIFERENTE_DA_EM_VIGOR: 'versão diferente da em vigor', REDACAO_PUBLICADA_COMPATIVEL: 'redação publicada e compatível',
+      SIMULACAO_EXECUTADA: 'simulação executada', SIMULACAO_SEM_VIOLACAO_LINHA_SQUAD: 'simulação sem violação de Linha × Squad', IMPACTO_CALCULADO: 'impacto calculado',
+      IMPACTO_SEM_VIOLACAO_LINHA_SQUAD: 'impacto sem violação de Linha × Squad', ALVO_NAO_CALCULADO: 'impacto calculado sobre a redação PUBLICADA',
+      IMPACTO_COM_VIOLACAO: 'impacto sem violação de Linha × Squad', JA_HA_PROPOSTA_ABERTA: 'nenhuma outra proposta em aberto para esta versão',
+      SEM_PERMISSAO: 'perfil Avaliação + Arquitetura ou admin geral', PRONTIDAO_NAO_AVALIADA: 'prontidão avaliada'
+    };
+    var ROTULO_NAO_APROVA = {
+      NAO_ABERTA: 'A proposta não está em aberto.', SEM_PERMISSAO: 'Só Avaliação + Arquitetura ou admin geral aprovam.', PROPONENTE_NAO_APROVA: 'Quem propôs não aprova a própria proposta.',
+      JA_APROVOU: 'Você já aprovou esta proposta: a segunda aprovação precisa ser de outra pessoa.', CONFERIR_IMPACTO: 'Calcule o impacto acima para conferir se a proposta continua atual antes de aprovar.',
+      DESATUALIZADA: 'A proposta está desatualizada: não pode ser aprovada. Retire-a e faça uma nova.', PRECISA_ADMIN_GERAL: 'A segunda aprovação precisa ser de um admin geral (a primeira não foi).'
+    };
+    function rotuloSituacaoGov(st) {
+      if (st.situacao === 'retirada') return 'Retirada';
+      var base = st.situacao === 'aprovada' ? 'Aprovada' : 'Em aberto (' + st.aprovacoes.length + ' de 2 aprovações)';
+      return base + (st.desatualizada ? ' — desatualizada' : '');
+    }
+    function renderPropostaGov(x, st, usuario, agora, aberta) {
+      var p = x.p, a = p.alvo || {}, im = a.impacto || {}, G = window.faGovernancaPosicionamento;
+      var html = '<div class="avp-dados-item avp-pos-proposta" data-proposta="' + esc(x.id) + '" data-situacao="' + esc(p.situacao) + '"' + (st.desatualizada ? ' data-desatualizada="true"' : '') + '>' +
+        '<p><strong>' + esc(rotuloSituacaoGov(st)) + '</strong> · motor v' + esc(p.versaoMotor) + ' · redação v' + esc(a.versaoRedacao) + '</p>' +
+        '<p class="avp-ficha-meta">Proposta por ' + esc((p.propostoPor || {}).email || '—') + ' em ' + esc(fmtData(p.propostoEm)) + '. Justificativa: ' + esc(p.justificativa || '') + '</p>' +
+        '<p class="avp-ficha-meta">Impacto reconhecido: ' + esc(im.total) + ' concluídas — ' + esc(im.iguais) + ' iguais, ' + esc(im.alterados) + ' mudariam, ' + esc(im.incomparaveis) + ' não comparáveis, ' + esc(im.violacoes) + ' violações (identificador <code>' + esc(a.digestImpacto) + '</code>).</p>';
+      html += '<ul class="avp-pos-aprovacoes">' + (st.aprovacoes.length ? st.aprovacoes.map(function (ap) {
+        return '<li data-posicao="' + ap.posicao + '">Aprovada por ' + esc(ap.email) + (ap.adminGeral ? ' (admin geral)' : ' (Avaliação + Arquitetura)') + ' em ' + esc(fmtData(ap.em)) + '</li>';
+      }).join('') : '<li>Nenhuma aprovação ainda.</li>') + '</ul>';
+      if (p.retirada) html += '<p class="avp-ficha-meta">Retirada por ' + esc((p.retirada.por || {}).email || '—') + ' em ' + esc(fmtData(p.retirada.em)) + '. Motivo: ' + esc(p.retirada.motivo || '') + '</p>';
+      if (st.desatualizada) html += '<p class="avp-decisao-aviso avp-pos-desatualizada">A redação publicada, a definição do motor ou o impacto calculado agora não são os desta proposta: ela não vale para a situação atual.</p>';
+      if (p.situacao === 'aprovada' && !st.desatualizada) html += '<p class="avp-decisao-aviso avp-pos-autorizada">' + (st.conferida ? 'Autorizada' : 'Aprovada (calcule o impacto para conferir se continua atual)') +
+        ' — a entrada em vigor depende da fronteira confiável (B4). Nada mudou: a v' + esc(window.faMotorPosicionamentoNucleo.versaoEmVigor()) + ' continua em vigor e nenhuma avaliação foi alterada.</p>';
+      if (aberta) {
+        var pa = G.podeAprovar(p, usuario, agora), pr = G.podeRetirar(p, usuario), ocupado = !!(state.configMotores.posicionamento.gov || {}).gravando;
+        if (pa.pode) html += '<label class="avp-pos-reconheco"><input type="checkbox" id="avpPosReconheco"> Reconheço o impacto desta versão: ' + esc(im.alterados) + ' resultado(s) mudariam e ' +
+          esc(im.incomparaveis) + ' não podem ser comparados com segurança.</label>';
+        else html += '<p class="avp-ficha-meta" id="avpPosNaoAprova">' + esc(ROTULO_NAO_APROVA[pa.motivo] || pa.motivo) + '</p>';
+        html += '<div class="avp-actions-footer">' + (pa.pode ? '<button type="button" class="btn btn--primary btn--sm" id="avpPosAprovarBtn" data-proposta="' + esc(x.id) + '"' + (ocupado ? ' disabled' : '') + '>Aprovar</button>' : '') +
+          (pr.pode ? '<button type="button" class="btn btn--sm" id="avpPosRetirarBtn" data-proposta="' + esc(x.id) + '"' + (ocupado ? ' disabled' : '') + '>Retirar proposta</button>' : '') + '</div>';
       }
       return html + '</div>';
+    }
+    function renderGovernancaPosicionamento(cp, versaoAlvo, defA, pr) {
+      var G = window.faGovernancaPosicionamento, g = cp.gov;
+      var html = '<div id="avpPosGovernanca"><h5>Entrada em vigor da v' + esc(versaoAlvo) + ' — proposta e aprovação dupla</h5>';
+      if (!g || !servicosPos()) return html + '<p class="admin-empty">Governança indisponível nesta página.</p></div>';
+      if (g.erroLeitura) return html + '<p class="avp-error-msg" role="alert">' + esc(g.erroLeitura) + '</p></div>';
+      if (!g.lido.propostas || !g.lido.vigencia) return html + '<p class="loading-msg">Carregando…</p></div>';
+      html += '<p class="avp-ficha-meta" id="avpPosVigenciaRegistrada">Versão em vigor registrada no banco: v' + esc(G.versaoEmVigorRegistrada(g.vigencia)) + (g.vigencia && g.vigencia.versaoEmVigor ? '' : ' (nenhum registro: v1)') + '.</p>';
+      if (g.flash) html += '<p class="' + (g.flash.erro ? 'avp-error-msg' : 'avp-success-msg') + '" id="avpPosGovFlash" role="' + (g.flash.erro ? 'alert' : 'status') + '">' + esc(g.flash.texto) + '</p>';
+      var usuario = usuarioGov(), agora = alvoDeAgoraGov(cp, versaoAlvo, defA), lista = propostasDaVersao(cp, versaoAlvo);
+      var aberta = lista.filter(function (x) { return x.p.situacao === 'aberta'; })[0];
+      if (aberta) html += '<div id="avpPosPropostaAberta">' + renderPropostaGov(aberta, G.situacaoProposta(aberta.p, agora), usuario, agora, true) + '</div>';
+      else {
+        var pp = G.podePropor(pr, { alvo: agora, propostaAberta: false, podeGravar: !!(usuario && usuario.podeGravar) });
+        if (pp.pode) {
+          html += '<div id="avpPosProporForm"><label for="avpPosJustificativa">Justificativa da proposta (obrigatória, até 1000 caracteres)</label>' +
+            '<textarea id="avpPosJustificativa" maxlength="1000" rows="3">' + esc(g.justificativa || '') + '</textarea>' +
+            '<p class="avp-ficha-meta">A proposta fica vinculada a esta definição do motor, à redação publicada v' + esc(agora.versaoRedacao) + ' e a este impacto (<code>' + esc(agora.digestImpacto) + '</code>). ' +
+            'Precisa de duas aprovações de pessoas diferentes de quem propõe, ao menos uma de admin geral. Propor não põe nada em vigor.</p>' +
+            '<div class="avp-actions-footer"><button type="button" class="btn btn--primary btn--sm" id="avpPosProporBtn"' + (g.gravando ? ' disabled' : '') + '>' + (g.gravando === 'propor' ? 'GRAVANDO…' : 'Propor entrada em vigor da v' + esc(versaoAlvo)) + '</button></div></div>';
+        } else {
+          html += '<p class="avp-ficha-meta" id="avpPosNaoPropoe">Para propor a entrada em vigor falta: ' + esc(listaComE(pp.faltando.map(function (f) { return ROTULO_FALTA_PROPOR[f] || f; }))) + '.</p>';
+        }
+      }
+      var outras = lista.filter(function (x) { return !aberta || x.id !== aberta.id; });
+      html += '<details class="avp-dados-item" id="avpPosPropostasHistorico"' + (g.historicoAberto ? ' open' : '') + '><summary>Histórico — ' + outras.length + ' proposta' + (outras.length === 1 ? '' : 's') + '</summary>' +
+        outras.map(function (x) { return renderPropostaGov(x, G.situacaoProposta(x.p, agora), usuario, agora, false); }).join('') + '</details>';
+      return html + '</div>';
+    }
+    function gravarGov(cp, acao, payload, okTexto) {
+      var g = cp.gov;
+      if (!g || g.gravando) return;
+      if (!payload) { g.flash = { erro: true, texto: 'Nada foi gravado: dados incompletos.' }; render(); return; }
+      g.gravando = acao; g.flash = null; render();
+      servicosPos().gravar(payload, 15000, function (err) {
+        g.gravando = null;
+        g.flash = err === 'sem-resposta' ? { erro: true, texto: 'A conexão está demorando e não deu para confirmar. Confira a situação da proposta antes de tentar de novo.' }
+          : err ? { erro: true, texto: 'O banco recusou a gravação (permissão, outra pessoa gravou antes, ou a proposta mudou). Nada foi alterado; confira a situação.' }
+          : { erro: false, texto: okTexto };
+        if (!err && acao === 'propor') g.justificativa = '';
+        if (state.configMotores && state.configMotores.posicionamento === cp) render();
+      });
+    }
+    function bindGovernancaPosicionamento(cp) {
+      var G = window.faGovernancaPosicionamento, S = servicosPos(), N = window.faMotorPosicionamentoNucleo;
+      if (!cp || !cp.gov || !S) return;
+      var g = cp.gov, emVigor = N.versaoEmVigor(), versaoAlvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+      var hist = document.getElementById('avpPosPropostasHistorico');
+      if (hist) hist.addEventListener('toggle', function () { g.historicoAberto = hist.open; });
+      var just = document.getElementById('avpPosJustificativa');
+      if (just) just.addEventListener('input', function () { g.justificativa = just.value; });
+      function proposta(id) { return (g.propostas || {})[id]; }
+      var prop = document.getElementById('avpPosProporBtn');
+      if (prop) prop.addEventListener('click', function () {
+        var u = usuarioGov(), alvo = alvoDeAgoraGov(cp, versaoAlvo, N.definicao(versaoAlvo)), texto = String(g.justificativa || '').trim();
+        if (!texto) { g.flash = { erro: true, texto: 'Informe a justificativa.' }; render(); return; }
+        if (!u || !alvo) { g.flash = { erro: true, texto: 'Sessão ou impacto indisponível: nada foi gravado.' }; render(); return; }
+        gravarGov(cp, 'propor', G.montarProposta({ propostaId: S.novaChave(G.NOS.propostas), auditoriaId: S.novaChave(G.NOS.auditoria), versaoMotor: versaoAlvo, alvo: alvo,
+          justificativa: texto, usuario: u, agora: S.agoraServidor() }), 'Proposta registrada. Ela precisa de duas aprovações; nada entrou em vigor.');
+      });
+      var apr = document.getElementById('avpPosAprovarBtn');
+      if (apr) apr.addEventListener('click', function () {
+        var chk = document.getElementById('avpPosReconheco'), u = usuarioGov(), id = apr.dataset.proposta, p = proposta(id);
+        if (!chk || !chk.checked) { g.flash = { erro: true, texto: 'Marque o reconhecimento do impacto para aprovar.' }; render(); return; }
+        if (!u || !p) return;
+        var pa = G.podeAprovar(p, u, alvoDeAgoraGov(cp, versaoAlvo, N.definicao(versaoAlvo)));
+        if (!pa.pode) { g.flash = { erro: true, texto: ROTULO_NAO_APROVA[pa.motivo] || pa.motivo }; render(); return; }
+        gravarGov(cp, 'aprovar', G.montarAprovacao({ propostaId: id, proposta: p, auditoriaId: S.novaChave(G.NOS.auditoria), usuario: u, adminGeral: u.adminGeral, agora: S.agoraServidor() }),
+          pa.posicao === 'a2' ? 'Segunda aprovação registrada: proposta aprovada. A entrada em vigor depende da fronteira confiável (B4); nada mudou.' : 'Primeira aprovação registrada. Falta a aprovação de outra pessoa.');
+      });
+      var ret = document.getElementById('avpPosRetirarBtn');
+      if (ret) ret.addEventListener('click', function () {
+        var u = usuarioGov(), id = ret.dataset.proposta, p = proposta(id);
+        if (!u || !p) return;
+        var motivo = window.prompt('Motivo para retirar a proposta (obrigatório, até 500 caracteres):', '');
+        if (motivo === null) return;
+        if (!String(motivo).trim()) { g.flash = { erro: true, texto: 'Informe o motivo.' }; render(); return; }
+        gravarGov(cp, 'retirar', G.montarRetirada({ propostaId: id, proposta: p, auditoriaId: S.novaChave(G.NOS.auditoria), motivo: motivo, usuario: u, agora: S.agoraServidor() }),
+          'Proposta retirada. Uma nova proposta pode ser feita.');
+      });
     }
     function N_VERSAO_ALVO() { var N = window.faMotorPosicionamentoNucleo, v = N.versaoEmVigor(); return N.versoes().filter(function (x) { return x > v; }).pop(); }
     function calcularImpactoPosicionamento() {
@@ -5809,6 +5974,7 @@
         var pub = Q.versoesPublicadasConteudoMotor(codigo, alvo)[0], ras = Q.rascunhoConteudoMotor(codigo, alvo);
         var destino = pub ? pub.perguntas : ras ? ras.perguntas : null;
         cp.fonteRedacao = pub ? 'versão publicada ' + pub.versao : ras ? 'RASCUNHO (não publicado)' : 'nenhuma (sem redação, nada pode ser comparado)';
+        cp.impactoRedacao = pub ? pub.versao : null;
         var porCodigo = {};
         (destino || []).forEach(function (p) { porCodigo[p.codigoEstavel] = p; });
         var lista = Object.keys(vig).map(function (item) { var id = vig[item]; return regs[id] ? { id: id, reg: regs[id], decisao: dec[id] || null } : null; }).filter(Boolean);
@@ -5825,6 +5991,9 @@
       });
     }
     function bindMotoresPainel() {
+      var cpGov = state.configMotores && state.configMotores.posicionamento;
+      if (cpGov && !cpGov.gov) { iniciarGovernanca(cpGov); if (cpGov.gov) { render(); return; } }
+      bindGovernancaPosicionamento(cpGov);
       var posSim = document.getElementById('avpPosSimularBtn');
       if (posSim) posSim.addEventListener('click', function () {
         var N = window.faMotorPosicionamentoNucleo, emVigor = N.versaoEmVigor(), alvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();

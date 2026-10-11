@@ -13,6 +13,8 @@
      novaChave(caminho)            chave nova, única e ordenável no tempo, sob o caminho.
      lerUmaVez(caminho)            Promise do valor (null se não existe); rejeita se a leitura for recusada.
      ouvir(caminho, aoValor, aoErro) → cancelar()   leitura ao vivo; aoValor(valor ou null) a cada mudança.
+     identidade()                  {uid, email} da sessão autenticada, ou null (B3: quem propõe/aprova é o UID).
+     agoraServidor()               marca "horário do servidor" para uma gravação (as regras exigem now).
 
    Sem regra de negócio aqui: só transporte. Operações que exigem autoridade (concluir v ≥ 2, publicar, aprovar,
    ativar) entram nesta mesma interface nas etapas seguintes, executadas pela fronteira confiável.
@@ -39,5 +41,12 @@
     ref.on('value', cb, aoErro);
     return function cancelar() { try { ref.off('value', cb); } catch (e) { /* já cancelada */ } };
   }
-  window.faServicosPosicionamento = Object.freeze({ implementacao: 'firebase-rtdb', gravar: gravar, novaChave: novaChave, lerUmaVez: lerUmaVez, ouvir: ouvir });
+  function identidade() {
+    var u = null;
+    try { u = firebase.auth().currentUser; } catch (e) { u = null; }
+    return u && u.uid && u.email ? { uid: u.uid, email: u.email } : null;
+  }
+  function agoraServidor() { return firebase.database.ServerValue.TIMESTAMP; }
+  window.faServicosPosicionamento = Object.freeze({ implementacao: 'firebase-rtdb', gravar: gravar, novaChave: novaChave, lerUmaVez: lerUmaVez, ouvir: ouvir,
+    identidade: identidade, agoraServidor: agoraServidor });
 })();

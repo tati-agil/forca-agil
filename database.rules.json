@@ -1559,6 +1559,244 @@
           ".validate": false
         }
       }
+    },
+
+    "posicionamento-motor-propostas": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
+      "$propostaId": {
+        ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists()",
+        ".validate": "$propostaId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['versaoMotor','alvo','justificativa','propostoPor','propostoEm','situacao','auditoriaId']) && (data.exists() || (newData.child('situacao').val() === 'aberta' && !newData.child('aprovacoes').exists() && !newData.child('retirada').exists() && newData.child('versaoMotor').val() !== (root.child('posicionamento-motor-vigencia').child('versaoEmVigor').exists() ? root.child('posicionamento-motor-vigencia').child('versaoEmVigor').val() : 1) && root.child('questionarios-config').child('POSICIONAMENTO_ORGANIZACIONAL').child('motores').child(''+newData.child('versaoMotor').val()).child('versoes').child(''+newData.child('alvo').child('versaoRedacao').val()).child('digestRedacao').val() === newData.child('alvo').child('digestRedacao').val() && newData.parent().parent().child('posicionamento-motor-proposta-aberta').child(''+newData.child('versaoMotor').val()).val() === $propostaId && !root.child('posicionamento-motor-proposta-aberta').child(''+newData.child('versaoMotor').val()).exists() && newData.parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('tipo').val() === 'proposta' && newData.parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('propostaId').val() === $propostaId && !root.child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).exists()))",
+        "versaoMotor": {
+          ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 99 && newData.val() % 1 === 0"
+        },
+        "alvo": {
+          ".validate": "newData.hasChildren(['digestDefinicao','versaoRedacao','digestRedacao','digestImpacto','impacto'])",
+          "digestDefinicao": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9a-f]{16}$/)"
+          },
+          "versaoRedacao": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() % 1 === 0"
+          },
+          "digestRedacao": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9a-f]{16}$/)"
+          },
+          "digestImpacto": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9a-f]{16}$/)"
+          },
+          "impacto": {
+            ".validate": "newData.hasChildren(['total','iguais','alterados','incomparaveis','violacoes']) && newData.child('violacoes').val() === 0 && newData.child('iguais').val() + newData.child('alterados').val() + newData.child('incomparaveis').val() === newData.child('total').val()",
+            "total": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+            },
+            "iguais": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+            },
+            "alterados": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+            },
+            "incomparaveis": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+            },
+            "violacoes": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "$outro": {
+            ".validate": false
+          }
+        },
+        "justificativa": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 1000"
+        },
+        "propostoPor": {
+          ".validate": "newData.hasChildren(['uid','email']) && newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email",
+          "uid": {
+            ".validate": "newData.isString()"
+          },
+          "email": {
+            ".validate": "newData.isString()"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        },
+        "propostoEm": {
+          ".validate": "newData.val() === now"
+        },
+        "auditoriaId": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+        },
+        "situacao": {
+          ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && newData.exists() && data.val() === 'aberta'",
+          ".validate": "newData.isString() && ((!data.exists() && newData.val() === 'aberta') || (data.val() === 'aberta' && newData.val() === 'aprovada' && newData.parent().child('aprovacoes').child('a2').exists() && !data.parent().child('aprovacoes').child('a2').exists() && !newData.parent().parent().parent().child('posicionamento-motor-proposta-aberta').child(''+data.parent().child('versaoMotor').val()).exists()) || (data.val() === 'aberta' && newData.val() === 'retirada' && newData.parent().child('retirada').exists() && !data.parent().child('retirada').exists() && !newData.parent().parent().parent().child('posicionamento-motor-proposta-aberta').child(''+data.parent().child('versaoMotor').val()).exists()))"
+        },
+        "aprovacoes": {
+          "a1": {
+            ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists() && data.parent().parent().child('situacao').val() === 'aberta'",
+            ".validate": "newData.hasChildren(['uid','email','em','adminGeral','reconhecimento','auditoriaId']) && newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email && newData.child('uid').val() !== newData.parent().parent().child('propostoPor').child('uid').val() && newData.child('email').val() !== newData.parent().parent().child('propostoPor').child('email').val() && (newData.child('adminGeral').val() === true) === ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && newData.child('reconhecimento').child('digestImpacto').val() === newData.parent().parent().child('alvo').child('digestImpacto').val() && newData.child('reconhecimento').child('alterados').val() === newData.parent().parent().child('alvo').child('impacto').child('alterados').val() && newData.child('reconhecimento').child('incomparaveis').val() === newData.parent().parent().child('alvo').child('impacto').child('incomparaveis').val() && newData.parent().parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('tipo').val() === 'aprovacao' && newData.parent().parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('posicao').val() === 'a1' && newData.parent().parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('propostaId').val() === $propostaId && !root.child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).exists() && newData.parent().parent().child('situacao').val() === 'aberta' && !newData.parent().parent().child('aprovacoes').child('a2').exists()",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "email": {
+              ".validate": "newData.isString()"
+            },
+            "em": {
+              ".validate": "newData.val() === now"
+            },
+            "adminGeral": {
+              ".validate": "newData.isBoolean()"
+            },
+            "reconhecimento": {
+              ".validate": "newData.hasChildren(['digestImpacto','alterados','incomparaveis'])",
+              "digestImpacto": {
+                ".validate": "newData.isString()"
+              },
+              "alterados": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+              },
+              "incomparaveis": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            },
+            "auditoriaId": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "a2": {
+            ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists() && data.parent().parent().child('situacao').val() === 'aberta'",
+            ".validate": "newData.hasChildren(['uid','email','em','adminGeral','reconhecimento','auditoriaId']) && newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email && newData.child('uid').val() !== newData.parent().parent().child('propostoPor').child('uid').val() && newData.child('email').val() !== newData.parent().parent().child('propostoPor').child('email').val() && (newData.child('adminGeral').val() === true) === ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && newData.child('reconhecimento').child('digestImpacto').val() === newData.parent().parent().child('alvo').child('digestImpacto').val() && newData.child('reconhecimento').child('alterados').val() === newData.parent().parent().child('alvo').child('impacto').child('alterados').val() && newData.child('reconhecimento').child('incomparaveis').val() === newData.parent().parent().child('alvo').child('impacto').child('incomparaveis').val() && newData.parent().parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('tipo').val() === 'aprovacao' && newData.parent().parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('posicao').val() === 'a2' && newData.parent().parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('propostaId').val() === $propostaId && !root.child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).exists() && data.parent().child('a1').exists() && newData.child('uid').val() !== data.parent().child('a1').child('uid').val() && newData.child('email').val() !== data.parent().child('a1').child('email').val() && (newData.child('adminGeral').val() === true || data.parent().child('a1').child('adminGeral').val() === true) && newData.parent().parent().child('situacao').val() === 'aprovada'",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "email": {
+              ".validate": "newData.isString()"
+            },
+            "em": {
+              ".validate": "newData.val() === now"
+            },
+            "adminGeral": {
+              ".validate": "newData.isBoolean()"
+            },
+            "reconhecimento": {
+              ".validate": "newData.hasChildren(['digestImpacto','alterados','incomparaveis'])",
+              "digestImpacto": {
+                ".validate": "newData.isString()"
+              },
+              "alterados": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+              },
+              "incomparaveis": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() % 1 === 0"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            },
+            "auditoriaId": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "$outro": {
+            ".validate": false
+          }
+        },
+        "retirada": {
+          ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || ((root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && auth.uid === data.parent().child('propostoPor').child('uid').val())) && !data.exists() && newData.exists() && data.parent().child('situacao').val() === 'aberta'",
+          ".validate": "newData.hasChildren(['motivo','por','em','auditoriaId']) && newData.parent().child('situacao').val() === 'retirada' && newData.parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('tipo').val() === 'retirada' && newData.parent().parent().parent().child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).child('propostaId').val() === $propostaId && !root.child('posicionamento-motor-governanca-auditoria').child(newData.child('auditoriaId').val()).exists()",
+          "motivo": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500"
+          },
+          "por": {
+            ".validate": "newData.hasChildren(['uid','email']) && newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "email": {
+              ".validate": "newData.isString()"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "em": {
+            ".validate": "newData.val() === now"
+          },
+          "auditoriaId": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+
+    "posicionamento-motor-proposta-aberta": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
+      "$versaoMotor": {
+        ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && newData.parent().parent().child('posicionamento-motor-propostas').child(data.val()).child('situacao').exists() && newData.parent().parent().child('posicionamento-motor-propostas').child(data.val()).child('situacao').val() !== 'aberta'))",
+        ".validate": "$versaoMotor.matches(/^([2-9]|[1-9][0-9])$/) && newData.isString() && newData.parent().parent().child('posicionamento-motor-propostas').child(newData.val()).child('situacao').val() === 'aberta' && ''+newData.parent().parent().child('posicionamento-motor-propostas').child(newData.val()).child('versaoMotor').val() === $versaoMotor && !root.child('posicionamento-motor-propostas').child(newData.val()).exists()"
+      }
+    },
+
+    "posicionamento-motor-governanca-auditoria": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
+      "$auditoriaId": {
+        ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists()",
+        ".validate": "$auditoriaId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['tipo','propostaId','versaoMotor','usuario','dataHora']) && newData.child('usuario').child('uid').val() === auth.uid && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').val() === now && newData.child('versaoMotor').val() === newData.parent().parent().child('posicionamento-motor-propostas').child(newData.child('propostaId').val()).child('versaoMotor').val() && ((newData.child('tipo').val() === 'proposta' && newData.parent().parent().child('posicionamento-motor-propostas').child(newData.child('propostaId').val()).child('auditoriaId').val() === $auditoriaId) || (newData.child('tipo').val() === 'aprovacao' && (newData.child('posicao').val() === 'a1' || newData.child('posicao').val() === 'a2') && newData.parent().parent().child('posicionamento-motor-propostas').child(newData.child('propostaId').val()).child('aprovacoes').child(newData.child('posicao').val()).child('auditoriaId').val() === $auditoriaId) || (newData.child('tipo').val() === 'retirada' && newData.child('motivo').isString() && newData.parent().parent().child('posicionamento-motor-propostas').child(newData.child('propostaId').val()).child('retirada').child('auditoriaId').val() === $auditoriaId))",
+        "tipo": {
+          ".validate": "newData.isString()"
+        },
+        "propostaId": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+        },
+        "versaoMotor": {
+          ".validate": "newData.isNumber()"
+        },
+        "posicao": {
+          ".validate": "newData.isString()"
+        },
+        "motivo": {
+          ".validate": "newData.isString() && newData.val().length <= 500"
+        },
+        "usuario": {
+          "uid": {
+            ".validate": "newData.isString()"
+          },
+          "email": {
+            ".validate": "newData.isString()"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        },
+        "dataHora": {
+          ".validate": "true"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+
+    "posicionamento-motor-vigencia": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
+      ".write": false
     }
   }
 }

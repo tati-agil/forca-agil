@@ -10,7 +10,11 @@
  *   D. Prontidão ≠ autorização; autorização só com proposta e aprovações da versão EXATA (digests), proponente ≠
  *      aprovador, aprovadores distintos (dupla por padrão, mesmo e-mail com caixa diferente conta uma vez) e
  *      reconhecimento do impacto atual; decisaoDeVigencia sem fronteira confiável é sempre "não".
- *   E. Estado de produção: v1 em vigor, v2 não pode entrar em vigor (sem redação publicada). */
+ *   E. Estado de produção: v1 em vigor, v2 não pode entrar em vigor (sem redação publicada).
+ *   G. B3 (governança persistida): identidade por UID, ao menos um admin geral, proponente ≠ aprovadores; alvo exato
+ *      (definição, redação PUBLICADA, impacto); podePropor sem a validação da fronteira (B4); situação, "desatualizada"
+ *      sem gravar; podeAprovar/podeRetirar; montadores: índice de proposta aberta criado com a proposta e liberado na
+ *      mesma gravação da aprovação final e da retirada; nada grava a vigência. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -147,8 +151,15 @@ const alvo = { versaoMotor: 2, digestDefinicao: G.digest(V2), versaoRedacao: 1, 
 const rec = { digestImpacto: imp.digest, incomparaveis: imp.incomparaveis.length, alterados: imp.alterados.length };
 const prop = { alvo, propostoPor: { email: 'ana@previ.com.br' } };
 const ap = (email, extra) => Object.assign({ alvo: clone(alvo), aprovadoPor: { email }, reconhecimento: clone(rec) }, extra || {});
-const ok = G.autorizacao(alvo, prop, [ap('bia@previ.com.br'), ap('caio@previ.com.br')], { impacto: imp });
-afirma(ok.autorizada && ok.aprovadores.length === 2, 'proposta + 2 aprovadores distintos, versão exata, impacto reconhecido → autorizada');
+afirma(G.autorizacao(alvo, prop, [ap('bia@previ.com.br'), ap('caio@previ.com.br')], { impacto: imp }).motivos.join() === 'SEM_ADMIN_GERAL', 'B3: dois aprovadores sem nenhum admin geral → não autorizada (SEM_ADMIN_GERAL)');
+const ok = G.autorizacao(alvo, prop, [ap('bia@previ.com.br'), ap('caio@previ.com.br', { adminGeral: true })], { impacto: imp });
+afirma(ok.autorizada && ok.aprovadores.length === 2, 'proposta + 2 aprovadores distintos (um admin geral), versão exata, impacto reconhecido → autorizada');
+const apU = (u, email, extra) => Object.assign({ alvo: clone(alvo), aprovadoPor: { uid: u, email }, reconhecimento: clone(rec) }, extra || {});
+const propU = { alvo, propostoPor: { uid: 'u-ana', email: 'ana@previ.com.br' } };
+afirma(G.autorizacao(alvo, propU, [apU('u-ana', 'outro@previ.com.br'), apU('u-caio', 'caio@previ.com.br', { adminGeral: true })], { impacto: imp }).recusadas.some((r) => r.motivo === 'PROPONENTE_NAO_APROVA'),
+  'B3: proponente identificado pelo UID (mesmo com outro e-mail) não aprova');
+afirma(!G.autorizacao(alvo, propU, [apU('u-bia', 'bia@previ.com.br'), apU('u-bia', 'bia2@previ.com.br', { adminGeral: true })], { impacto: imp }).autorizada, 'B3: o mesmo UID duas vezes conta uma');
+afirma(G.autorizacao(alvo, propU, [apU('u-bia', 'bia@previ.com.br'), apU('u-caio', 'caio@previ.com.br', { adminGeral: true })], { impacto: imp }).autorizada, 'B3: UIDs distintos, um admin geral → autorizada');
 afirma(!G.autorizacao(alvo, prop, [ap('bia@previ.com.br')], { impacto: imp }).autorizada, 'dupla aprovação por padrão: 1 aprovador não basta');
 afirma(G.autorizacao(alvo, prop, [ap('bia@previ.com.br'), ap('ANA@previ.com.br')], { impacto: imp }).recusadas.some((r) => r.motivo === 'PROPONENTE_NAO_APROVA'), 'quem propõe não aprova (nem com o e-mail em outra caixa)');
 afirma(!G.autorizacao(alvo, prop, [ap('bia@previ.com.br'), ap('Bia@previ.com.br ')], { impacto: imp }).autorizada, 'a mesma pessoa duas vezes conta uma');
@@ -209,6 +220,68 @@ afirma(nr3.versaoMotor === 2 && !nr3.predominancias && Object.keys(nr3.respostas
 afirma(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.liberada === true && cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.garantidaPeloBanco === true && Object.isFrozen(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR) &&
   /não põe o motor em vigor/.test(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.aviso), 'B2: publicação liberada só porque o banco garante a imutabilidade; publicar não põe o motor em vigor');
 afirma(T.textoVersoes(vig) === 'motor v1 · redação v1' && T.textoVersoes(nr3) === 'motor v2 · redação v1', 'identificação das versões: registro sem campo = motor v1');
+
+console.log('G. B3 — governança persistida (regra pura e montadores)');
+afirma(G.versaoEmVigorRegistrada(null) === 1 && G.versaoEmVigorRegistrada({}) === 1 && G.versaoEmVigorRegistrada({ versaoEmVigor: 2 }) === 2 && G.versaoEmVigorRegistrada({ versaoEmVigor: 'x' }) === 1,
+  'vigência registrada: ausente = v1');
+const PUBG = { versao: 1, perguntas: SEED };
+const alvoG = G.alvoAtual({ definicao: V2, redacao: PUBG, impacto: imp });
+afirma(alvoG.digestDefinicao === G.digest(V2) && alvoG.versaoRedacao === 1 && alvoG.digestRedacao === G.digestRedacao(SEED) && alvoG.digestImpacto === imp.digest &&
+  alvoG.impacto.total === imp.total && alvoG.impacto.iguais + alvoG.impacto.alterados + alvoG.impacto.incomparaveis === alvoG.impacto.total && alvoG.impacto.violacoes === 0,
+  'alvo: definição, redação publicada e impacto exatos, com os números coerentes (o banco confere a soma)');
+afirma(G.alvoAtual({ definicao: V2, redacao: null, impacto: imp }) === null && G.alvoAtual({ definicao: V2, redacao: PUBG, impacto: null }) === null, 'sem redação publicada ou sem impacto: não há alvo');
+const prSemFronteira = G.prontidao(N, V2, { emVigor: V1, redacoesPublicadas: [{ publicado: true, versao: 1, codigo: QCOD, motorCompativel: 2, perguntas: SEED }], simulacao: sim, impacto: imp });
+afirma(G.podePropor(prSemFronteira, { alvo: alvoG, podeGravar: true }).pode === true, 'pode propor sem a validação da fronteira confiável (ela é do B4, na ativação)');
+afirma(G.podePropor(prSemFronteira, { alvo: alvoG, podeGravar: true, propostaAberta: true }).faltando.join() === 'JA_HA_PROPOSTA_ABERTA', 'uma proposta aberta por versão');
+afirma(G.podePropor(prSemFronteira, { alvo: alvoG, podeGravar: false }).faltando.join() === 'SEM_PERMISSAO', 'sem permissão de gravar não propõe');
+afirma(G.podePropor(prSemFronteira, { alvo: null, podeGravar: true }).faltando.join() === 'ALVO_NAO_CALCULADO', 'sem alvo (impacto sobre a redação publicada) não propõe');
+afirma(G.podePropor(semRedacao, { alvo: alvoG, podeGravar: true }).faltando.includes('REDACAO_PUBLICADA_COMPATIVEL'), 'sem redação publicada não propõe');
+const alvoViola = clone(alvoG); alvoViola.impacto.violacoes = 1;
+afirma(G.podePropor(prSemFronteira, { alvo: alvoViola, podeGravar: true }).faltando.includes('IMPACTO_COM_VIOLACAO'), 'impacto com violação de Linha × Squad não propõe');
+const UP = { uid: 'u-ana', email: 'ana@previ.com.br' }, UA = { uid: 'u-bia', email: 'bia@previ.com.br' }, UB = { uid: 'u-caio', email: 'caio@previ.com.br' }, UADM = { uid: 'u-adm', email: 'adm@previ.com.br' };
+const up = G.montarProposta({ propostaId: 'p1', auditoriaId: 'a1', versaoMotor: 2, alvo: alvoG, justificativa: '  porque sim  ', usuario: Object.assign({ adminGeral: false }, UP), agora: 'TS' });
+afirma(Object.keys(up).sort().join() === [G.NOS.auditoria + '/a1', G.NOS.aberta + '/2', G.NOS.propostas + '/p1'].sort().join(), 'proposta: uma gravação com a proposta, o índice de proposta aberta e a auditoria — nada na vigência');
+const P = up[G.NOS.propostas + '/p1'];
+afirma(P.situacao === 'aberta' && P.justificativa === 'porque sim' && P.propostoEm === 'TS' && JSON.stringify(P.propostoPor) === JSON.stringify(UP) && !P.aprovacoes && up[G.NOS.aberta + '/2'] === 'p1',
+  'proposta aberta, autor = UID e e-mail da sessão (nada mais), horário do servidor, índice apontando para ela');
+afirma(up[G.NOS.auditoria + '/a1'].tipo === 'proposta' && up[G.NOS.auditoria + '/a1'].propostaId === 'p1' && P.auditoriaId === 'a1', 'auditoria vinculada nos dois sentidos');
+const usr = (u, adm) => Object.assign({ adminGeral: !!adm, podeGravar: true }, u);
+afirma(G.podeAprovar(P, usr(UP), alvoG).motivo === 'PROPONENTE_NAO_APROVA', 'quem propôs não aprova');
+afirma(G.podeAprovar(P, Object.assign(usr(UA), { podeGravar: false }), alvoG).motivo === 'SEM_PERMISSAO', 'sem permissão de gravar não aprova');
+afirma(G.podeAprovar(P, usr(UA), null).motivo === 'CONFERIR_IMPACTO', 'sem o impacto calculado agora não aprova (proteção contra simulação desatualizada)');
+const alvoNovo = clone(alvoG); alvoNovo.digestImpacto = 'ffffffffffffffff';
+afirma(G.situacaoProposta(P, alvoNovo).desatualizada === true && G.podeAprovar(P, usr(UA), alvoNovo).motivo === 'DESATUALIZADA', 'impacto mudou: desatualizada, não aprova');
+const alvoOutraRed = clone(alvoG); alvoOutraRed.versaoRedacao = 2;
+afirma(G.situacaoProposta(P, alvoOutraRed).desatualizada === true, 'redação publicada nova: desatualizada');
+const pa1 = G.podeAprovar(P, usr(UA), alvoG);
+afirma(pa1.pode && pa1.posicao === 'a1', '1ª aprovação: outra pessoa, alvo conferido');
+const ua1 = G.montarAprovacao({ propostaId: 'p1', proposta: P, auditoriaId: 'a2', usuario: UA, adminGeral: false, agora: 'TS' });
+afirma(Object.keys(ua1).sort().join() === [G.NOS.auditoria + '/a2', G.NOS.propostas + '/p1/aprovacoes/a1'].sort().join(), '1ª aprovação: só a1 e a auditoria (a proposta continua aberta, índice intacto)');
+const A1 = ua1[G.NOS.propostas + '/p1/aprovacoes/a1'];
+afirma(A1.uid === 'u-bia' && A1.adminGeral === false && A1.reconhecimento.digestImpacto === alvoG.digestImpacto && A1.reconhecimento.alterados === alvoG.impacto.alterados && A1.reconhecimento.incomparaveis === alvoG.impacto.incomparaveis,
+  'aprovação reconhece exatamente os números do alvo');
+const P_a1 = Object.assign(clone(P), { aprovacoes: { a1: A1 } });
+afirma(G.situacaoProposta(P_a1, alvoG).proximaPosicao === 'a2' && G.podeAprovar(P_a1, usr(UA), alvoG).motivo === 'JA_APROVOU', 'a mesma pessoa não ocupa a 2ª posição');
+afirma(G.podeAprovar(P_a1, usr(UB), alvoG).motivo === 'PRECISA_ADMIN_GERAL', 'nenhum dos dois admin geral: a 2ª aprovação é recusada');
+afirma(G.podeAprovar(P_a1, usr(UADM, true), alvoG).pode, 'admin geral pode dar a 2ª aprovação');
+const ua2 = G.montarAprovacao({ propostaId: 'p1', proposta: P_a1, auditoriaId: 'a3', usuario: UADM, adminGeral: true, agora: 'TS' });
+afirma(ua2[G.NOS.propostas + '/p1/situacao'] === 'aprovada' && G.NOS.aberta + '/2' in ua2 && ua2[G.NOS.aberta + '/2'] === null && !!ua2[G.NOS.propostas + '/p1/aprovacoes/a2'],
+  '2ª aprovação: marca "aprovada" e LIBERA o índice na mesma gravação');
+afirma(!Object.keys(ua2).some((k) => k.indexOf(G.NOS.vigencia) === 0) && !Object.keys(up).some((k) => k.indexOf(G.NOS.vigencia) === 0), 'nenhuma gravação toca a vigência (B4)');
+const P_ok = Object.assign(clone(P_a1), { situacao: 'aprovada' }); P_ok.aprovacoes.a2 = ua2[G.NOS.propostas + '/p1/aprovacoes/a2'];
+const stOk = G.situacaoProposta(P_ok, alvoG);
+afirma(stOk.situacao === 'aprovada' && stOk.autorizacao.autorizada === true && !stOk.desatualizada && stOk.proximaPosicao === null, 'aprovada: autorização dupla válida, alvo atual');
+afirma(G.podeAprovar(P_ok, usr(UB), alvoG).motivo === 'NAO_ABERTA' && G.podeRetirar(P_ok, usr(UADM, true)).motivo === 'NAO_ABERTA' && G.montarAprovacao({ propostaId: 'p1', proposta: P_ok, auditoriaId: 'x', usuario: UB, agora: 'TS' }) === null,
+  'aprovada é final: nem aprovação nem retirada');
+const P_adm1 = Object.assign(clone(P), { aprovacoes: { a1: Object.assign(clone(A1), { uid: 'u-adm', email: 'adm@previ.com.br', adminGeral: true }) } });
+afirma(G.podeAprovar(P_adm1, usr(UB), alvoG).pode, 'a 1ª foi de admin geral: a 2ª pode ser de Avaliação + Arquitetura');
+afirma(G.podeRetirar(P, usr(UP)).pode && G.podeRetirar(P, usr(UADM, true)).pode && G.podeRetirar(P, usr(UA)).motivo === 'SO_PROPONENTE_OU_ADMIN_GERAL', 'retira: só o proponente ou admin geral');
+afirma(G.montarRetirada({ propostaId: 'p1', proposta: P, auditoriaId: 'a9', motivo: '   ', usuario: UP, agora: 'TS' }) === null, 'retirada sem motivo não é montada');
+const ur = G.montarRetirada({ propostaId: 'p1', proposta: P, auditoriaId: 'a9', motivo: ' mudou ', usuario: UP, agora: 'TS' });
+afirma(ur[G.NOS.propostas + '/p1/situacao'] === 'retirada' && ur[G.NOS.propostas + '/p1/retirada'].motivo === 'mudou' && G.NOS.aberta + '/2' in ur && ur[G.NOS.aberta + '/2'] === null &&
+  ur[G.NOS.auditoria + '/a9'].tipo === 'retirada' && ur[G.NOS.propostas + '/p1/retirada'].auditoriaId === 'a9', 'retirada: motivo, auditoria e índice liberado na mesma gravação');
+afirma(G.situacaoProposta(Object.assign(clone(P), { situacao: 'retirada' }), alvoNovo).desatualizada === false, 'retirada nunca aparece como "desatualizada"');
+afirma(Object.isFrozen(G.NOS) && N.versaoEmVigor() === 1, 'nós da governança congelados; a v1 continua em vigor');
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);
