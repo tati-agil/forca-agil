@@ -446,7 +446,8 @@
   if (typeof document === 'undefined') return;
 
   /* ===================== TELA ===================== */
-  function db() { return firebase.database(); }
+  /* B1: a tela não chama o Firebase — tudo passa pela interface de serviços (posicionamento-servicos.js) */
+  function S() { return window.faServicosPosicionamento; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function agoraIso() { return new Date().toISOString(); }
   function fmtData(iso) { if (!iso) return '—'; var d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); }
@@ -1145,17 +1146,9 @@
 
     /* ---- gravação com prazo: sem resposta não é "falhou" — confere o banco antes de liberar ---- */
     function gravar(payload, aoOk, aoErro) {
-      var respondido = false;
-      var relogio = setTimeout(function () { if (respondido) return; respondido = true; aoErro('sem-resposta'); }, TEMPO_GRAVACAO);
-      try {
-        db().ref().update(payload, function (err) {
-          if (respondido) return;
-          respondido = true; clearTimeout(relogio);
-          if (err) aoErro(err); else aoOk();
-        });
-      } catch (e) { respondido = true; clearTimeout(relogio); aoErro(e); }
+      S().gravar(payload, TEMPO_GRAVACAO, function (err) { if (err) aoErro(err); else aoOk(); });
     }
-    function novaChave(caminho) { return db().ref(caminho).push().key; }
+    function novaChave(caminho) { return S().novaChave(caminho); }
 
     function iniciar() {
       if (!podeEscrever() || state.salvando) return;
@@ -1179,11 +1172,10 @@
       }, function (err) {
         state.salvando = null;
         /* outra pessoa iniciou o mesmo item ao mesmo tempo: abre o rascunho dela, nunca cria outro */
-        db().ref(RES + '/' + it.itemId).once('value').then(function (s) {
-          var outro = s.val();
+        S().lerUmaVez(RES + '/' + it.itemId).then(function (outro) {
           if (outro && outro !== id) { state.flash = 'Este item já tinha um rascunho iniciado por outra pessoa: ele foi aberto.'; irParaChave(outro); return; }
-          return db().ref(VIG + '/' + it.itemId).once('value').then(function (v) {
-            if (v.val()) { irParaChave(v.val()); return; }
+          return S().lerUmaVez(VIG + '/' + it.itemId).then(function (v) {
+            if (v) { irParaChave(v); return; }
             render();
             aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar o início. Confira a lista antes de tentar de novo.' : 'Não foi possível iniciar a avaliação. Tente novamente.');
           });
@@ -1194,8 +1186,8 @@
     function aposErroDeGravacao(err, acao) {
       state.salvando = null;
       var id = state.chave;
-      db().ref(NODE + '/' + id + '/revisao').once('value').then(function (s) {
-        if (s.val() !== state.revisaoBase) { state.conflito = true; render(); return; }
+      S().lerUmaVez(NODE + '/' + id + '/revisao').then(function (rev) {
+        if (rev !== state.revisaoBase) { state.conflito = true; render(); return; }
         render();
         aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar. Confira antes de tentar de novo.' : 'Não foi possível ' + acao + '. Tente novamente.');
       }).catch(function () { render(); aviso('Não foi possível ' + acao + '. Tente novamente.'); });
@@ -1231,8 +1223,8 @@
       }, function (err) {
         state.revisaoEmGravacao = null;
         var item = state.atual.itemId;
-        db().ref(VIG + '/' + item).once('value').then(function (v) {
-          if (v.val() && v.val() !== state.chave) { state.salvando = null; render(); aviso('Este item já tem um Posicionamento concluído. Abra-o pela lista.'); return; }
+        S().lerUmaVez(VIG + '/' + item).then(function (v) {
+          if (v && v !== state.chave) { state.salvando = null; render(); aviso('Este item já tem um Posicionamento concluído. Abra-o pela lista.'); return; }
           aposErroDeGravacao(err, 'concluir');
         }).catch(function () { aposErroDeGravacao(err, 'concluir'); });
       });
@@ -1293,10 +1285,10 @@
         state.flash = '✓ Decisão registrada.'; render();
       }, function (err) {
         /* por que não entrou? quem chegou antes: outra decisão ou uma reavaliação */
-        Promise.all([db().ref(DEC + '/' + key).once('value'), db().ref(RES + '/' + a.itemId).once('value')]).then(function (r) {
+        Promise.all([S().lerUmaVez(DEC + '/' + key), S().lerUmaVez(RES + '/' + a.itemId)]).then(function (r) {
           state.salvando = null;
-          if (r[0].val()) { state.decisoes[key] = r[0].val(); state.formDecisao = null; render(); aviso('Já havia uma decisão registrada para esta versão: ela foi mantida.'); return; }
-          if (r[1].val()) { state.reservas[a.itemId] = r[1].val(); render(); aviso('Há uma reavaliação em andamento. Conclua ou descarte essa reavaliação antes de registrar uma decisão para esta versão.'); return; }
+          if (r[0]) { state.decisoes[key] = r[0]; state.formDecisao = null; render(); aviso('Já havia uma decisão registrada para esta versão: ela foi mantida.'); return; }
+          if (r[1]) { state.reservas[a.itemId] = r[1]; render(); aviso('Há uma reavaliação em andamento. Conclua ou descarte essa reavaliação antes de registrar uma decisão para esta versão.'); return; }
           render();
           aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar a decisão. Confira a ficha antes de tentar de novo.' : 'Não foi possível registrar a decisão. Tente novamente.');
         }).catch(function () { state.salvando = null; render(); aviso('Não foi possível registrar a decisão. Tente novamente.'); });
@@ -1371,9 +1363,8 @@
         irParaChave(id);
         state.flash = 'Reavaliação iniciada. A versão anterior continua vigente até esta ser concluída.'; render();
       }, function (err) {
-        db().ref(RES + '/' + it.itemId).once('value').then(function (s) {
+        S().lerUmaVez(RES + '/' + it.itemId).then(function (outro) {
           state.salvando = null;
-          var outro = s.val();
           if (outro && outro !== id) { state.reservas[it.itemId] = outro; render(); aviso('Outra pessoa iniciou uma reavaliação deste item ao mesmo tempo: abra-a pela ficha.'); return; }
           render();
           aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar a reavaliação. Confira a ficha antes de tentar de novo.' : 'Não foi possível iniciar a reavaliação. Tente novamente.');
@@ -1399,7 +1390,7 @@
       var feito = false;
       var relogio = setTimeout(function () { if (feito) return; feito = true; cb({ ok: false }); }, TEMPO_TRILHA);
       function fim(r) { if (feito) return; feito = true; clearTimeout(relogio); cb(r); }
-      try { db().ref(caminho).once('value').then(function (s) { fim({ ok: true, valor: s.val() || {} }); }, function () { fim({ ok: false }); }); }
+      try { S().lerUmaVez(caminho).then(function (v) { fim({ ok: true, valor: v || {} }); }, function () { fim({ ok: false }); }); }
       catch (e) { fim({ ok: false }); }
     }
     function nomesAtuais() {
@@ -1460,16 +1451,14 @@
     /* ===================== LEITURAS AO VIVO ===================== */
     var ouvintes = [];
     function ouvir(caminho, chaveCarga, aplicar) {
-      var ref = db().ref(caminho);
-      var cb = function (snap) { aplicar(snap.val() || {}); state.carregou[chaveCarga] = true; aoChegar(chaveCarga); };
+      var cb = function (v) { aplicar(v || {}); state.carregou[chaveCarga] = true; aoChegar(chaveCarga); };
       var erro = function (e) {
         console.error('[avaliacao-posicionamento] não foi possível ler ' + caminho + ':', e); state.carregou[chaveCarga] = true;
         if (chaveCarga === 'av') state.erroLeitura = true;
         if (chaveCarga === 'dec') state.erroDec = true; /* leitura recusada não é "sem decisão" */
         aoChegar(chaveCarga);
       };
-      ref.on('value', cb, erro);
-      ouvintes.push({ ref: ref, cb: cb });
+      ouvintes.push(S().ouvir(caminho, cb, erro));
     }
     function aoChegar(qual) {
       if (qual === 'av' && state.atual && state.chave) {
@@ -1508,7 +1497,7 @@
       });
     }
     function desligar() {
-      ouvintes.forEach(function (o) { try { o.ref.off('value', o.cb); } catch (e) { /* já cancelada */ } });
+      ouvintes.forEach(function (cancelar) { cancelar(); });
       ouvintes = []; ligado = false;
     }
     /* troca de pessoa sem recarregar: nada do estado anterior sobrevive */

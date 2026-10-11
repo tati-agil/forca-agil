@@ -639,6 +639,12 @@
       "sobre": "H2-a/H3-a: ADMIN › Motores mostra v1 em vigor e v2 inativa, prontidão com o que falta, sem ação de ativar; simulação com 0 violações; impacto separa iguais, alterados, incomparáveis e violações contra o rascunho identificado, sem gravar. Questionários: edição do rascunho v2 só do texto, vínculo do sistema, nenhuma versão publicada, publicação bloqueada com motivo, recusa se outra pessoa salvou antes. Avaliação: motor v1 · redação v1 na lista e na ficha; sem \"Atualizar com motor atual\"."
     },
     {
+      "arquivo": ".github/scripts/teste-servicos-posicionamento.js",
+      "nome": "Posicionamento: interface de serviços — a tela só fala com ela; contrato do adaptador Firebase (sem navegador)",
+      "duracao": 1,
+      "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (resposta atrasada ignorada, cb uma vez)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita); ouvir e cancelar."
+    },
+    {
       "arquivo": ".github/scripts/teste-regras-compactas.js",
       "nome": "Regras do banco: versão compacta para deploy idêntica ao fonte legível (sem navegador)",
       "duracao": 1,
