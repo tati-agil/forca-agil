@@ -7,7 +7,7 @@ import { VERIFICADOR_BANCO, VerificacaoBanco } from '../src/modulos/saude/aplica
 
 /* A API inteira (mesmos módulos, prefixo e filtro de erros), com a porta do banco substituída por um dublê:
    prova que a API não depende do adaptador PostgreSQL para responder e que trata o banco indisponível. */
-const CONFIG = { porta: 0, banco: { host: 'nao-usado', porta: 5432, banco: 'x', usuario: 'x', senha: 'senha-que-nao-pode-vazar', timeoutMs: 200 } };
+const CONFIG = { porta: 0, banco: { host: 'nao-usado', porta: 5432, banco: 'x', usuario: 'x', senha: 'senha-que-nao-pode-vazar', timeoutMs: 200 }, firebase: { projetoId: null } };
 
 describe('API de saúde', () => {
   let app: INestApplication;
@@ -46,8 +46,10 @@ describe('API de saúde', () => {
     expect(r.body.erro.status).toBe(404);
   });
 
-  it('não há rotas de negócio expostas nesta entrega', async () => {
-    for (const rota of ['/api/estruturas', '/api/avaliacoes', '/api/taxonomia', '/api/mapa']) {
+  it('rotas de negócio não respondem sem identidade; Avaliações, Taxonomia e Mapa não existem no backend', async () => {
+    const r = await request(app.getHttpServer()).get('/api/estruturas').expect(401);
+    expect(r.body.erro.codigo).toBe('NAO_AUTENTICADO');
+    for (const rota of ['/api/avaliacoes', '/api/taxonomia', '/api/mapa']) {
       await request(app.getHttpServer()).get(rota).expect(404);
     }
   });

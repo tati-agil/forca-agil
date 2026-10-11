@@ -1,13 +1,11 @@
-/* Identidade — preparação para o Firebase Authentication (sem implementação nesta entrega).
+/* Identidade — a do Firebase Authentication, sempre. Sem autenticação paralela e sem mudar o login do site.
 
-   O site continua autenticando pelo Firebase Authentication. Quando houver rotas de negócio, o navegador enviará o
-   ID token do Firebase (Authorization: Bearer <token>) e o backend o validará com o Firebase Admin SDK
-   (verifyIdToken: assinatura pelas chaves públicas do Google, emissor e audiência = o projeto Firebase, validade),
-   implementando esta porta num adaptador próprio. Sem autenticação paralela: a identidade é sempre a do Firebase.
-   Os perfis (admin geral, Avaliação, Avaliação + Arquitetura) continuam vindo das mesmas listas oficiais.
+   O navegador envia o ID token do Firebase (Authorization: Bearer <token>) e o backend o valida
+   (verificador-identidade-firebase.ts: assinatura RS256 pelas chaves públicas do Google, emissor e audiência = o
+   projeto Firebase configurado, validade). O usuário de cada operação vem SÓ do token — nunca do corpo do pedido.
+   Os perfis (admin geral, Avaliação, Avaliação + Arquitetura) vêm das listas oficiais (perfis.ts).
 
-   Regra: nenhuma rota de negócio fica sem um guard que use esta porta. As rotas de saúde não expõem dados e são as
-   únicas públicas. Detalhes em backend/README.md (Autenticação). */
+   Regra: toda rota passa pela GuardaAcesso (global). Só as rotas de saúde são públicas e não expõem dados. */
 
 export interface Identidade {
   uid: string;
@@ -16,8 +14,21 @@ export interface Identidade {
 }
 
 export interface VerificadorIdentidade {
-  /* devolve a identidade do token ou lança erro se ele for inválido, expirado ou de outro projeto */
+  /* devolve a identidade do token; IdentidadeInvalida se ele for inválido, expirado ou de outro projeto;
+     AutenticacaoIndisponivel se não for possível verificar agora (sem configuração, chaves inalcançáveis) */
   verificar(idToken: string): Promise<Identidade>;
+}
+
+export class IdentidadeInvalida extends Error {
+  constructor() { super('IDENTIDADE_INVALIDA'); this.name = 'IdentidadeInvalida'; }
+}
+export class AutenticacaoIndisponivel extends Error {
+  constructor(readonly codigo: 'AUTENTICACAO_NAO_CONFIGURADA' | 'AUTENTICACAO_INDISPONIVEL') { super(codigo); this.name = 'AutenticacaoIndisponivel'; }
+}
+
+/* sem FIREBASE_PROJECT_ID: nenhuma identidade é aceita (nunca uma liberação por conveniência) */
+export class VerificadorIdentidadeNaoConfigurado implements VerificadorIdentidade {
+  async verificar(): Promise<Identidade> { throw new AutenticacaoIndisponivel('AUTENTICACAO_NAO_CONFIGURADA'); }
 }
 
 export const VERIFICADOR_IDENTIDADE = Symbol('VERIFICADOR_IDENTIDADE');

@@ -1,9 +1,11 @@
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import { Publica } from '../../../compartilhado/autenticacao/guarda-acesso';
 import { VerificarSaude } from '../aplicacao/verificar-saude';
 
 /* CAMADA 1 — API. Rotas técnicas, sem dado de negócio e sem detalhe de infraestrutura na resposta (nada de host,
    usuário, senha ou mensagem do driver): por isso podem ficar sem autenticação. Rotas de negócio NUNCA ficam. */
+@Publica()
 @Controller('saude')
 export class SaudeController {
   constructor(private readonly verificarSaude: VerificarSaude) {}

@@ -20,7 +20,7 @@ describe('migrações versionadas (arquivos)', () => {
     expect(() => listarMigracoes(dir)).toThrow(/Nome de migração inválido/);
   });
 
-  it('a pasta do projeto ainda não tem migrações de negócio', () => {
-    expect(listarMigracoes(join(__dirname, '..', 'migracoes'))).toEqual([]);
+  it('a pasta do projeto tem só a migração das Estruturas Concretas (nada de Avaliações, Taxonomia ou Mapa)', () => {
+    expect(listarMigracoes(join(__dirname, '..', 'migracoes')).map((m) => m.nome)).toEqual(['0001_estruturas_concretas.sql']);
   });
 });

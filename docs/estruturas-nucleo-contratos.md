@@ -101,6 +101,11 @@ serializando as operações que o afetam. O núcleo valida esses invariantes sob
 concorrência é responsabilidade da persistência. A referência em memória (`aplicar()`) é sequencial e não substitui
 essa garantia.
 
+**Implementação atual:** o backend local (`backend/`, módulo `estruturas`, migração `0001_estruturas_concretas.sql`)
+cumpre este contrato no PostgreSQL: transação serializável que lê o estado, chama o núcleo e grava operação, mudanças
+e eventos juntos; índices únicos parciais para relação ativa duplicada e responsável principal ativo; gatilhos que
+recusam exclusão, reativação, troca do que é imutável e alteração de eventos. Prova: `backend/test/integracao/`.
+
 Leitura: a persistência precisa poder devolver o estado acima (ou o recorte necessário) e os eventos de uma
 entidade, que `historico(eventos, entidade, id)` ordena.
 

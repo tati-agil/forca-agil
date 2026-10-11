@@ -25,20 +25,22 @@ describe('reaproveitamento do núcleo de Estruturas Concretas', () => {
   });
 
   it('executa uma operação do núcleo com os mesmos resultados do site', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nucleo: any = nucleoEstruturas;
     const ref = {
       conceitos: { NEGOCIOS: { ativo: true } }, relacoesConceituais: [], ligacoes: { NEGOCIOS: 'NEGOCIOS' },
       codigosFirmes: ['NEGOCIOS'], conceitosTrabalho: []
     };
     const ctx = { operacaoId: 'op-sintetica', novoId: 'est-sintetica', usuario: { id: 'u-sintetico' }, agora: '2026-10-11T12:00:00.000Z' };
-    const r = nucleoEstruturas.criarEstrutura({}, { tipo: 'NEGOCIOS', nome: 'Estrutura Sintética' }, ctx, ref);
+    const r = nucleo.criarEstrutura({}, { tipo: 'NEGOCIOS', nome: 'Estrutura Sintética' }, ctx, ref);
     expect(r.ok).toBe(true);
     expect(r.mudancas?.[0]).toMatchObject({ entidade: 'estrutura', id: 'est-sintetica', antes: null, revisaoAnterior: null });
-    const aplicado = nucleoEstruturas.aplicar({}, r.mudancas);
+    const aplicado = nucleo.aplicar({}, r.mudancas);
     expect(aplicado.ok).toBe(true);
-    const v = nucleoEstruturas.vincularResponsavel(aplicado.estado, { objetoId: 'obj-sintetico', estruturaId: 'est-sintetica' },
+    const v = nucleo.vincularResponsavel(aplicado.estado, { objetoId: 'obj-sintetico', estruturaId: 'est-sintetica' },
       { avaliacaoId: 'aval-sintetica', recomendacao: { codigoResultado: 'NEGOCIOS' } }, { ...ctx, operacaoId: 'op2', novoId: 'v1' }, ref);
     expect(v.ok).toBe(true);
-    const s = nucleoEstruturas.situacaoResponsavel(nucleoEstruturas.aplicar(aplicado.estado, v.mudancas).estado, 'obj-sintetico',
+    const s = nucleo.situacaoResponsavel(nucleo.aplicar(aplicado.estado, v.mudancas).estado, 'obj-sintetico',
       { avaliacaoId: 'aval-sintetica', recomendacao: { codigoResultado: 'NEGOCIOS' } }, ref);
     expect(s.situacao).toBe('valido');
   });

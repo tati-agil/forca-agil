@@ -40,7 +40,13 @@ describe('arquitetura em camadas', () => {
     expect(usam.every((f) => f.startsWith('persistencia/postgres/') || f === 'persistencia/persistencia.module.ts')).toBe(true);
   });
 
-  it('nenhum código do backend fala com o Firebase (o site continua com o dele)', () => {
-    todos.forEach((f) => expect([rel(f), /firebase-admin|firebase\/|from 'firebase'/.test(readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''))]).toEqual([rel(f), false]));
+  it('o backend só VALIDA o ID token do Firebase: sem SDK do Firebase e sem acesso ao banco do site', () => {
+    todos.forEach((f) => expect([rel(f), /firebase-admin|firebase\/|from 'firebase'|firebaseio\.com|firebasedatabase\.app/.test(readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''))]).toEqual([rel(f), false]));
+  });
+
+  it('o núcleo e as fontes oficiais não dependem do adaptador PostgreSQL; casos de uso só conhecem portas', () => {
+    todos.filter((f) => /^modulos\/estruturas\//.test(rel(f))).forEach((f) => {
+      importsDe(f).forEach((i) => expect([f, i]).not.toEqual([f, expect.stringMatching(/persistencia\/postgres|^pg$|^jose$/)]));
+    });
   });
 });
