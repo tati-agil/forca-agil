@@ -270,7 +270,7 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   await recusa('horário escolhido pelo servidor (não o "now" do banco)', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].ativadoEm = 1700000000000; } }));
   await recusa('apagar a vigência', { [GT.NOS.vigencia]: null });
   await recusa('só o registro da ativação, sem a vigência', (() => { const w = ativacaoManual(); return { [NOS_FRONTEIRA.ativacoes + '/pAdm3']: w[NOS_FRONTEIRA.ativacoes + '/pAdm3'] }; })());
-  await recusa('reescrever um registro de ativação já feito', { [NOS_FRONTEIRA.ativacoes + '/pOk/ativadoPor/email']: 'outra@previ.com.br' });
+  await recusa('reescrever um registro de ativação já feito (o da vigência atual)', { [NOS_FRONTEIRA.ativacoes + '/' + vgF.propostaId + '/ativadoPor/email']: 'outra@previ.com.br' });
   await recusa('a identidade restrita não grava fora do que é dela (fa-admins)', { ['fa-admins/x_y']: true });
   await recusa('nem decisões', { ['posicionamento-decisoes/gA']: { itemId: 'pA' } });
   await recusa('nem apaga o registro de uma ativação', { [NOS_FRONTEIRA.ativacoes + '/pOk']: null });
