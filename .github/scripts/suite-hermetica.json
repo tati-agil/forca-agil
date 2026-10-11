@@ -645,6 +645,12 @@
       "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (resposta atrasada ignorada, cb uma vez)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita); ouvir e cancelar."
     },
     {
+      "arquivo": ".github/scripts/teste-infra-somente-leitura.js",
+      "nome": "Infraestrutura: diagnóstico de Cloud Functions é só leitura e não expõe credencial (sem rede)",
+      "duracao": 1,
+      "sobre": "B0 do H2-b: workflow só manual, credencial só pela ação oficial de autenticação (nunca num run:), gcloud pela ação oficial, permissões mínimas; script só com as 4 leituras e nenhum verbo que altere nada; execução simulada com gcloud/npx falsos: e-mail da conta e conta de faturamento mascarados, falta de permissão = \"NÃO FOI POSSÍVEL VERIFICAR\", Blaze/Spark e APIs lidos corretamente."
+    },
+    {
       "arquivo": ".github/scripts/teste-regras-compactas.js",
       "nome": "Regras do banco: versão compacta para deploy idêntica ao fonte legível (sem navegador)",
       "duracao": 1,
