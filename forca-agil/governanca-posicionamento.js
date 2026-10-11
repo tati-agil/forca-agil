@@ -21,6 +21,12 @@
                                     como iguais) / violações de Linha × Squad.
      digest(v)                   → identificador determinístico do conteúdo (vínculo da aprovação à versão exata). Não é
                                     criptográfico: serve para "é exatamente esta versão?", não para segurança.
+   B3 (governança persistida — as regras do banco garantem o mesmo; nada aqui põe versão em vigor):
+     alvoAtual / podePropor / situacaoProposta / podeAprovar / podeRetirar → proposta vinculada à definição, à redação
+                                    PUBLICADA e ao impacto de agora; dois aprovadores de UIDs distintos, ao menos um admin
+                                    geral, quem propõe não aprova; "desatualizada" quando o alvo de agora não é o da proposta.
+     montarProposta / montarAprovacao / montarRetirada → as gravações (multipath) que a tela envia pela interface de
+                                    serviços e que o B4 reutilizará no servidor.
    ============================================================ */
 (function () {
   'use strict';
@@ -226,38 +232,45 @@
 
   /* ---------- autorização explícita (vinculada à versão exata) ---------- */
   function emailNorm(p) { return p && typeof p.email === 'string' ? p.email.trim().toLowerCase() : null; }
+  function uidDe(p) { return p && typeof p.uid === 'string' && p.uid ? p.uid : null; }
+  /* B3: a identidade é o UID autenticado (o e-mail também é conferido: nenhum dos dois pode repetir) */
+  function mesmaPessoa(a, b) {
+    var ua = uidDe(a), ub = uidDe(b), ea = emailNorm(a), eb = emailNorm(b);
+    return (!!ua && ua === ub) || (!!ea && ea === eb);
+  }
   /* alvo: { versaoMotor, digestDefinicao, versaoRedacao, digestRedacao, digestImpacto }
-     proposta: { alvo, propostoPor: {email} }
-     aprovacoes: [{ alvo, aprovadoPor: {email}, reconhecimento: { digestImpacto, incomparaveis, alterados } }]
-     o: { minimoAprovadores (padrão 2), impacto (classificarImpacto atual) } */
+     proposta: { alvo, propostoPor: {uid, email} }
+     aprovacoes: [{ alvo, aprovadoPor: {uid, email}, adminGeral, reconhecimento: { digestImpacto, incomparaveis, alterados } }]
+     o: { minimoAprovadores (padrão 2), minimoAdminGeral (padrão 1), impacto (classificarImpacto atual) } */
   function mesmoAlvo(a, b) {
     return !!a && !!b && ['versaoMotor', 'digestDefinicao', 'versaoRedacao', 'digestRedacao', 'digestImpacto'].every(function (k) { return a[k] !== undefined && a[k] !== null && a[k] === b[k]; });
   }
   function autorizacao(alvo, proposta, aprovacoes, o) {
     o = o || {};
     var minimo = typeof o.minimoAprovadores === 'number' && o.minimoAprovadores >= 1 ? o.minimoAprovadores : 2;
+    var minimoAdm = typeof o.minimoAdminGeral === 'number' && o.minimoAdminGeral >= 0 ? o.minimoAdminGeral : 1;
     var motivos = [];
     if (!proposta || !mesmoAlvo(proposta.alvo, alvo)) motivos.push('PROPOSTA_DE_OUTRA_VERSAO');
-    var proponente = proposta && emailNorm(proposta.propostoPor);
-    if (!proponente) motivos.push('PROPOSTA_SEM_AUTOR');
+    var proponente = proposta && proposta.propostoPor;
+    if (!uidDe(proponente) && !emailNorm(proponente)) motivos.push('PROPOSTA_SEM_AUTOR');
     var imp = o.impacto;
     if (!imp || imp.digest !== alvo.digestImpacto) motivos.push('IMPACTO_DESATUALIZADO');
-    var validos = {}, recusadas = [];
+    var validos = [], recusadas = [];
     (aprovacoes || []).forEach(function (a, i) {
-      var quem = emailNorm(a && a.aprovadoPor);
-      if (!quem) { recusadas.push({ i: i, motivo: 'SEM_AUTOR' }); return; }
-      if (quem === proponente) { recusadas.push({ i: i, motivo: 'PROPONENTE_NAO_APROVA' }); return; }
+      var quem = a && a.aprovadoPor;
+      if (!uidDe(quem) && !emailNorm(quem)) { recusadas.push({ i: i, motivo: 'SEM_AUTOR' }); return; }
+      if (mesmaPessoa(quem, proponente)) { recusadas.push({ i: i, motivo: 'PROPONENTE_NAO_APROVA' }); return; }
       if (!mesmoAlvo(a.alvo, alvo)) { recusadas.push({ i: i, motivo: 'APROVACAO_DE_OUTRA_VERSAO' }); return; }
       var rec = a.reconhecimento || {};
       if (!imp || rec.digestImpacto !== imp.digest || rec.incomparaveis !== imp.incomparaveis.length || rec.alterados !== imp.alterados.length) {
         recusadas.push({ i: i, motivo: 'SEM_RECONHECIMENTO_DO_IMPACTO' }); return;
       }
-      if (validos[quem]) { recusadas.push({ i: i, motivo: 'APROVADOR_REPETIDO' }); return; }
-      validos[quem] = true;
+      if (validos.some(function (v) { return mesmaPessoa(v.quem, quem); })) { recusadas.push({ i: i, motivo: 'APROVADOR_REPETIDO' }); return; }
+      validos.push({ quem: quem, adminGeral: a.adminGeral === true });
     });
-    var n = Object.keys(validos).length;
-    if (n < minimo) motivos.push('APROVACOES_INSUFICIENTES');
-    return { autorizada: !motivos.length, motivos: motivos, aprovadores: Object.keys(validos), recusadas: recusadas, minimo: minimo };
+    if (validos.length < minimo) motivos.push('APROVACOES_INSUFICIENTES');
+    if (validos.filter(function (v) { return v.adminGeral; }).length < minimoAdm) motivos.push('SEM_ADMIN_GERAL');
+    return { autorizada: !motivos.length, motivos: motivos, aprovadores: validos.map(function (v) { return uidDe(v.quem) || emailNorm(v.quem); }), recusadas: recusadas, minimo: minimo, minimoAdminGeral: minimoAdm };
   }
   /* a única resposta que "pode": prontidão + autorização + fronteira confiável (hoje inexistente: sempre não) */
   function decisaoDeVigencia(prontidaoRes, autorizacaoRes, fronteiraConfiavel) {
@@ -268,10 +281,112 @@
     return { pode: !motivos.length, motivos: motivos };
   }
 
+
+  /* ---------- B3: governança persistida (proposta → aprovação dupla → aprovada | retirada) ----------
+     Regra de negócio pura e montadores das gravações; as regras do banco garantem o mesmo (identidade por UID,
+     horário do servidor, separação de papéis, admin geral, imutabilidade, auditoria). Nada aqui põe versão em vigor:
+     quem consome uma proposta aprovada é a fronteira confiável (B4), que recalcula definição e impacto no servidor. */
+  var NOS = Object.freeze({ propostas: 'posicionamento-motor-propostas', aberta: 'posicionamento-motor-proposta-aberta',
+    auditoria: 'posicionamento-motor-governanca-auditoria', vigencia: 'posicionamento-motor-vigencia' });
+  /* ausente = 1 (nada grava este nó antes do B4) */
+  function versaoEmVigorRegistrada(vigencia) {
+    var v = vigencia && vigencia.versaoEmVigor;
+    return typeof v === 'number' && v >= 1 && v % 1 === 0 ? v : 1;
+  }
+  /* o alvo exato de uma proposta: definição do motor, redação PUBLICADA e impacto calculados agora */
+  function alvoAtual(o) {
+    if (!o || !o.definicao || !o.redacao || !o.impacto) return null;
+    var im = o.impacto;
+    return { digestDefinicao: digest(o.definicao), versaoRedacao: o.redacao.versao, digestRedacao: digestRedacao(o.redacao.perguntas),
+      digestImpacto: im.digest, impacto: { total: im.total, iguais: im.iguais.length, alterados: im.alterados.length, incomparaveis: im.incomparaveis.length, violacoes: im.violacoes.length } };
+  }
+  function mesmoAlvoPersistido(a, b) {
+    return !!a && !!b && ['digestDefinicao', 'versaoRedacao', 'digestRedacao', 'digestImpacto'].every(function (k) { return a[k] !== undefined && a[k] !== null && a[k] === b[k]; });
+  }
+  /* pode propor? tudo da prontidão técnica, menos a validação pela fronteira confiável (é do B4, na ativação) */
+  function podePropor(prontidaoRes, o) {
+    o = o || {};
+    var faltando = ((prontidaoRes && prontidaoRes.itens) || []).filter(function (i) { return !i.ok && i.codigo !== 'REDACAO_VALIDADA_FRONTEIRA'; }).map(function (i) { return i.codigo; });
+    if (!prontidaoRes) faltando.push('PRONTIDAO_NAO_AVALIADA');
+    if (!o.alvo) faltando.push('ALVO_NAO_CALCULADO');
+    else if (o.alvo.impacto.violacoes !== 0) faltando.push('IMPACTO_COM_VIOLACAO');
+    if (o.propostaAberta) faltando.push('JA_HA_PROPOSTA_ABERTA');
+    if (!o.podeGravar) faltando.push('SEM_PERMISSAO');
+    return { pode: !faltando.length, faltando: faltando };
+  }
+  function aprovacoesDe(prop) {
+    var a = (prop && prop.aprovacoes) || {};
+    return ['a1', 'a2'].filter(function (k) { return a[k]; }).map(function (k) { return { posicao: k, uid: a[k].uid, email: a[k].email, adminGeral: a[k].adminGeral === true, em: a[k].em, reconhecimento: a[k].reconhecimento }; });
+  }
+  /* situação de uma proposta gravada; "desatualizada" = o alvo calculado agora não é o da proposta (nada é gravado) */
+  function situacaoProposta(prop, alvoDeAgora) {
+    var sit = prop && prop.situacao, aps = aprovacoesDe(prop);
+    var desatualizada = sit !== 'retirada' && !!alvoDeAgora && !mesmoAlvoPersistido(prop.alvo, alvoDeAgora);
+    var r = { situacao: sit, aprovacoes: aps, desatualizada: desatualizada, conferida: !!alvoDeAgora, proximaPosicao: sit === 'aberta' ? (aps.length ? 'a2' : 'a1') : null };
+    if (sit === 'aprovada') {
+      var alvoAut = Object.assign({ versaoMotor: prop.versaoMotor }, prop.alvo);
+      var impFake = { digest: prop.alvo.digestImpacto, incomparaveis: { length: prop.alvo.impacto.incomparaveis }, alterados: { length: prop.alvo.impacto.alterados } };
+      r.autorizacao = autorizacao(alvoAut, { alvo: alvoAut, propostoPor: prop.propostoPor },
+        aps.map(function (a) { return { alvo: alvoAut, aprovadoPor: { uid: a.uid, email: a.email }, adminGeral: a.adminGeral, reconhecimento: a.reconhecimento }; }), { impacto: impFake });
+    }
+    return r;
+  }
+  /* usuario: { uid, email, adminGeral, podeGravar } */
+  function podeAprovar(prop, usuario, alvoDeAgora) {
+    var st = situacaoProposta(prop, alvoDeAgora);
+    if (st.situacao !== 'aberta') return { pode: false, motivo: 'NAO_ABERTA' };
+    if (!usuario || !usuario.uid || !usuario.podeGravar) return { pode: false, motivo: 'SEM_PERMISSAO' };
+    if (mesmaPessoa(usuario, prop.propostoPor)) return { pode: false, motivo: 'PROPONENTE_NAO_APROVA' };
+    if (st.aprovacoes.some(function (a) { return mesmaPessoa(usuario, a); })) return { pode: false, motivo: 'JA_APROVOU' };
+    if (!st.conferida) return { pode: false, motivo: 'CONFERIR_IMPACTO' };
+    if (st.desatualizada) return { pode: false, motivo: 'DESATUALIZADA' };
+    if (st.proximaPosicao === 'a2' && !usuario.adminGeral && !st.aprovacoes[0].adminGeral) return { pode: false, motivo: 'PRECISA_ADMIN_GERAL' };
+    return { pode: true, posicao: st.proximaPosicao };
+  }
+  function podeRetirar(prop, usuario) {
+    if (!prop || prop.situacao !== 'aberta') return { pode: false, motivo: 'NAO_ABERTA' };
+    if (!usuario || !usuario.uid) return { pode: false, motivo: 'SEM_PERMISSAO' };
+    if (usuario.adminGeral || (usuario.podeGravar && uidDe(prop.propostoPor) === usuario.uid)) return { pode: true };
+    return { pode: false, motivo: 'SO_PROPONENTE_OU_ADMIN_GERAL' };
+  }
+  function quemGrava(u) { return { uid: u.uid, email: u.email }; }
+  /* o: { propostaId, auditoriaId, versaoMotor, alvo, justificativa, usuario {uid,email}, agora (marca do horário do servidor) } */
+  function montarProposta(o) {
+    var u = {}, quem = quemGrava(o.usuario);
+    u[NOS.propostas + '/' + o.propostaId] = { versaoMotor: o.versaoMotor, alvo: o.alvo, justificativa: String(o.justificativa || '').trim().slice(0, 1000),
+      propostoPor: quem, propostoEm: o.agora, situacao: 'aberta', auditoriaId: o.auditoriaId };
+    u[NOS.aberta + '/' + o.versaoMotor] = o.propostaId;
+    u[NOS.auditoria + '/' + o.auditoriaId] = { tipo: 'proposta', propostaId: o.propostaId, versaoMotor: o.versaoMotor, usuario: quem, dataHora: o.agora };
+    return u;
+  }
+  /* o: { propostaId, proposta, auditoriaId, usuario {uid,email}, adminGeral, agora }; na 2ª aprovação a mesma gravação
+     marca "aprovada" e libera o índice de proposta aberta */
+  function montarAprovacao(o) {
+    var st = situacaoProposta(o.proposta, null), pos = st.proximaPosicao, u = {}, quem = quemGrava(o.usuario), base = NOS.propostas + '/' + o.propostaId;
+    if (!pos) return null;
+    u[base + '/aprovacoes/' + pos] = { uid: quem.uid, email: quem.email, em: o.agora, adminGeral: o.adminGeral === true, auditoriaId: o.auditoriaId,
+      reconhecimento: { digestImpacto: o.proposta.alvo.digestImpacto, alterados: o.proposta.alvo.impacto.alterados, incomparaveis: o.proposta.alvo.impacto.incomparaveis } };
+    if (pos === 'a2') { u[base + '/situacao'] = 'aprovada'; u[NOS.aberta + '/' + o.proposta.versaoMotor] = null; }
+    u[NOS.auditoria + '/' + o.auditoriaId] = { tipo: 'aprovacao', propostaId: o.propostaId, versaoMotor: o.proposta.versaoMotor, posicao: pos, usuario: quem, dataHora: o.agora };
+    return u;
+  }
+  /* o: { propostaId, proposta, auditoriaId, motivo, usuario {uid,email}, agora }; libera o índice na mesma gravação */
+  function montarRetirada(o) {
+    var u = {}, quem = quemGrava(o.usuario), base = NOS.propostas + '/' + o.propostaId, motivo = String(o.motivo || '').trim().slice(0, 500);
+    if (!motivo) return null;
+    u[base + '/situacao'] = 'retirada';
+    u[base + '/retirada'] = { motivo: motivo, por: quem, em: o.agora, auditoriaId: o.auditoriaId };
+    u[NOS.aberta + '/' + o.proposta.versaoMotor] = null;
+    u[NOS.auditoria + '/' + o.auditoriaId] = { tipo: 'retirada', propostaId: o.propostaId, versaoMotor: o.proposta.versaoMotor, motivo: motivo, usuario: quem, dataHora: o.agora };
+    return u;
+  }
+
   var api = {
     digest: digest, digestRedacao: digestRedacao, liberaSquadEsperado: liberaSquadEsperado, violaLinhaSquad: violaLinhaSquad,
     herdarEntreVersoes: herdarEntreVersoes, classificarImpacto: classificarImpacto,
     prontidao: prontidao, autorizacao: autorizacao, decisaoDeVigencia: decisaoDeVigencia,
+    NOS: NOS, versaoEmVigorRegistrada: versaoEmVigorRegistrada, alvoAtual: alvoAtual, podePropor: podePropor, situacaoProposta: situacaoProposta,
+    podeAprovar: podeAprovar, podeRetirar: podeRetirar, montarProposta: montarProposta, montarAprovacao: montarAprovacao, montarRetirada: montarRetirada,
     CAMPOS_CRITERIO_BINARIA: CAMPOS_CRITERIO_BINARIA.slice(), CAMPOS_CRITERIO_D1: CAMPOS_CRITERIO_D1.slice()
   };
   Object.freeze(api.CAMPOS_CRITERIO_BINARIA); Object.freeze(api.CAMPOS_CRITERIO_D1); Object.freeze(api);

@@ -6,6 +6,7 @@
   ],
   "foraDaSuite": {
     ".github/scripts/teste-rules-redacao-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-governanca-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-avaliacoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-taxonomia.js": "regras do banco: roda no emulador real (teste-rules.yml)",
@@ -636,8 +637,8 @@
     {
       "arquivo": ".github/scripts/teste-posicionamento-governanca-tela.js",
       "nome": "Motor de Posicionamento: painel de versões, prontidão e impacto, edição do rascunho v2 e versões na avaliação (desktop e 375 px)",
-      "duracao": 25,
-      "sobre": "H2-a/H3-a: ADMIN › Motores mostra v1 em vigor e v2 inativa, prontidão com o que falta, sem ação de ativar; simulação com 0 violações; impacto separa iguais, alterados, incomparáveis e violações contra o rascunho identificado, sem gravar. Questionários: edição do rascunho v2 só do texto, vínculo do sistema, nenhuma versão publicada, publicação bloqueada com motivo, recusa se outra pessoa salvou antes. Avaliação: motor v1 · redação v1 na lista e na ficha; sem \"Atualizar com motor atual\"."
+      "duracao": 30,
+      "sobre": "B3: proposta de entrada em vigor (só com redação publicada, simulação e impacto), aprovação dupla com três pessoas de UIDs distintos (quem propõe não aprova, conferir e reconhecer o impacto, 2ª sem admin geral não oferecida, 2ª de admin geral aprova e libera o índice), \"Autorizada — depende da fronteira confiável (B4)\", nada em vigor e nenhuma avaliação mudada, aprovada desatualizada com impacto novo, nova proposta e retirada com motivo, gravação recusada. H2-a/H3-a: ADMIN › Motores mostra v1 em vigor e v2 inativa, prontidão com o que falta, sem ação de ativar; simulação com 0 violações; impacto separa iguais, alterados, incomparáveis e violações contra o rascunho identificado, sem gravar. Questionários: edição do rascunho v2 só do texto, vínculo do sistema, nenhuma versão publicada, publicação bloqueada com motivo, recusa se outra pessoa salvou antes. Avaliação: motor v1 · redação v1 na lista e na ficha; sem \"Atualizar com motor atual\"."
     },
     {
       "arquivo": ".github/scripts/teste-servicos-posicionamento.js",

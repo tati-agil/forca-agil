@@ -7,7 +7,13 @@
  *   2. ADMIN › Questionários: editar o rascunho da redação v2 muda só o texto (códigos travados), salva com o vínculo
  *      do sistema e não cria versão publicada; a publicação aparece bloqueada com o motivo; outra pessoa salvando
  *      antes → recusa sem sobrescrever.
- *   3. Avaliação: a ficha, a lista e o histórico mostram "motor v1 · redação v1"; não há "Atualizar com motor atual". */
+ *   3. Avaliação: a ficha, a lista e o histórico mostram "motor v1 · redação v1"; não há "Atualizar com motor atual".
+ *   4. B3 — governança persistida, com três pessoas (UIDs distintos) e o mesmo banco passando de uma para outra:
+ *      propor (só com redação PUBLICADA, simulação e impacto), quem propôs não aprova, aprovar exige conferir o
+ *      impacto agora e reconhecê-lo, a 2ª aprovação sem admin geral não é oferecida, a 2ª de admin geral aprova e
+ *      libera o índice; "Autorizada — depende da fronteira confiável (B4)"; nada entra em vigor e nenhuma avaliação
+ *      muda; impacto novo → a aprovada aparece desatualizada e uma nova proposta pode ser feita; retirar com motivo;
+ *      gravação recusada avisa e não grava. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -98,9 +104,10 @@ function semente(comRascunho) {
     taxonomia: { organizacional: { conceitos, fontes } }
   };
 }
-async function abrir(browser, viewport, hash, comRedacaoV2, email) {
+let seqPagina = 0;
+async function abrir(browser, viewport, hash, comRedacaoV2, email, dbInicial, extraCfg) {
   email = email || ARQ;
-  const cfg = { db: semente(comRedacaoV2), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, delayDefault: 10, persistenciaReal: true, delays: {}, fail: [] };
+  const cfg = Object.assign({ db: dbInicial || semente(comRedacaoV2), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, uidDoUsuario: true, prefixoChave: 'k' + (++seqPagina) + 'x', delayDefault: 10, persistenciaReal: true, delays: {}, fail: [] }, extraCfg || {});
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   page.setDefaultTimeout(10000);
@@ -251,10 +258,151 @@ async function versoes(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
+/* ---------- 4. B3: governança persistida ---------- */
+const ARQ2 = 'arq2@previ.com.br', ARQ3 = 'arq3@previ.com.br';
+const G = require(path.join(RAIZ, 'governanca-posicionamento.js'));
+function sementeB3() {
+  const db = semente(false);
+  [ARQ2, ARQ3].forEach((e) => { db['fa-avaliacao-autorizados'][chave(e)] = { email: e, tipo: 'avaliacao-arquitetura' }; db['fa-users'][chave(e)] = { name: e, email: e, area: 'INFOR' }; });
+  db['questionarios-config'][QCOD] = { motores: { 2: { versaoPublicada: 1, versoes: { 1: { perguntas: REDACAO_V2_SEED, motorCompativel: 2, publicadoEm: 1, publicadoPor: { uid: 'u-x', email: outra.email }, auditoriaId: 'q1', digestRedacao: G.digestRedacao(REDACAO_V2_SEED) } } } } };
+  return db;
+}
+async function calcularImpacto(page) {
+  await page.click('#avpPosSimularBtn');
+  await page.waitForSelector('#avpPosSimulacao');
+  await page.click('#avpPosImpactoBtn');
+  await page.waitForSelector('#avpPosImpacto');
+}
+async function abrirMotores(browser, viewport, email, db, extra) {
+  const r = await abrir(browser, viewport, '#admin?arq=motores', false, email, db, extra);
+  await r.page.waitForSelector('#avpPosGovernanca #avpPosVigenciaRegistrada');
+  return r;
+}
+const textoDe = (page, sel) => page.locator(sel).innerText();
+async function governanca(browser, viewport, rotulo) {
+  console.log('[' + rotulo + '] 4. B3 — proposta, aprovação dupla e retirada');
+  /* 4a. propor (Avaliação + Arquitetura) */
+  let { ctx, page, erros } = await abrirMotores(browser, viewport, ARQ, sementeB3());
+  const antes = await banco(page);
+  afirma(/v1/.test(await textoDe(page, '#avpPosVigenciaRegistrada')) && /nenhum registro/.test(await textoDe(page, '#avpPosVigenciaRegistrada')), 'versão em vigor registrada no banco: nenhum registro = v1');
+  afirma(/simulação executada/.test(await textoDe(page, '#avpPosNaoPropoe')) && /impacto calculado/.test(await textoDe(page, '#avpPosNaoPropoe')) && await page.locator('#avpPosProporBtn').count() === 0,
+    'sem simulação e impacto não há como propor (a tela diz o que falta)');
+  await calcularImpacto(page);
+  await page.waitForSelector('#avpPosProporBtn');
+  afirma(/redação publicada v1/.test(await textoDe(page, '#avpPosProporForm')) && /ao menos uma de admin geral/.test(await textoDe(page, '#avpPosProporForm')) && /não põe nada em vigor/.test(await textoDe(page, '#avpPosProporForm')),
+    'formulário de proposta: vínculo com a redação publicada, regra da aprovação dupla, nada entra em vigor');
+  await page.click('#avpPosProporBtn');
+  await page.waitForSelector('#avpPosGovFlash');
+  afirma(/Informe a justificativa/.test(await textoDe(page, '#avpPosGovFlash')), 'justificativa obrigatória');
+  await page.fill('#avpPosJustificativa', 'Redação v2 revisada pela área');
+  await page.click('#avpPosProporBtn');
+  await page.waitForSelector('#avpPosPropostaAberta');
+  let db = await banco(page);
+  const props = db['posicionamento-motor-propostas'] || {}, pid = Object.keys(props)[0], P = props[pid];
+  afirma(Object.keys(props).length === 1 && P.situacao === 'aberta' && P.versaoMotor === 2 && P.propostoPor.uid === 'u-' + chave(ARQ) && P.propostoPor.email === ARQ && P.justificativa === 'Redação v2 revisada pela área',
+    'proposta gravada: aberta, motor v2, autoria pelo UID e e-mail da sessão');
+  afirma(P.alvo.versaoRedacao === 1 && P.alvo.digestRedacao === G.digestRedacao(REDACAO_V2_SEED) && P.alvo.impacto.violacoes === 0 && P.alvo.impacto.iguais + P.alvo.impacto.alterados + P.alvo.impacto.incomparaveis === P.alvo.impacto.total,
+    'alvo = redação publicada v1 (digest), impacto coerente e sem violação');
+  afirma(db['posicionamento-motor-proposta-aberta'][2] === pid && db['posicionamento-motor-governanca-auditoria'][P.auditoriaId].tipo === 'proposta', 'índice de proposta aberta e auditoria na mesma gravação');
+  afirma(/Quem propôs não aprova/.test(await textoDe(page, '#avpPosNaoAprova')) && await page.locator('#avpPosAprovarBtn').count() === 0 && await page.locator('#avpPosRetirarBtn').count() === 1,
+    'quem propôs não vê "Aprovar" (vê "Retirar")');
+  afirma(!/\bativar\b/i.test(await textoDe(page, '#avpMotorPosicionamento')) || await page.locator('#avpMotorPosicionamento button', { hasText: /ativar/i }).count() === 0, 'nenhuma ação de ativar');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 4b. 1ª aprovação (outra pessoa, Avaliação + Arquitetura) */
+  ({ ctx, page, erros } = await abrirMotores(browser, viewport, ARQ2, db));
+  await page.waitForSelector('#avpPosPropostaAberta');
+  afirma(/Calcule o impacto/.test(await textoDe(page, '#avpPosNaoAprova')) && await page.locator('#avpPosAprovarBtn').count() === 0, 'sem conferir o impacto agora não há como aprovar');
+  await calcularImpacto(page);
+  await page.waitForSelector('#avpPosAprovarBtn');
+  await page.click('#avpPosAprovarBtn');
+  await page.waitForSelector('#avpPosGovFlash');
+  afirma(/Marque o reconhecimento/.test(await textoDe(page, '#avpPosGovFlash')), 'aprovar exige marcar o reconhecimento do impacto');
+  afirma(/resultado\(s\) mudariam/.test(await textoDe(page, '.avp-pos-reconheco')) && /não podem ser comparados/.test(await textoDe(page, '.avp-pos-reconheco')), 'o reconhecimento diz os números de alterados e incomparáveis');
+  await page.check('#avpPosReconheco');
+  await page.click('#avpPosAprovarBtn');
+  await esperarCondicao(page, () => /Primeira aprovação registrada/.test((document.getElementById('avpPosGovFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  db = await banco(page);
+  let A1 = db['posicionamento-motor-propostas'][pid].aprovacoes.a1;
+  afirma(A1.uid === 'u-' + chave(ARQ2) && A1.adminGeral === false && db['posicionamento-motor-propostas'][pid].situacao === 'aberta' && db['posicionamento-motor-proposta-aberta'][2] === pid,
+    '1ª aprovação gravada (UID, não admin geral); continua aberta');
+  afirma(/Você já aprovou/.test(await textoDe(page, '#avpPosNaoAprova')), 'a mesma pessoa não aprova duas vezes');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 4c. terceira pessoa sem admin geral: a 2ª aprovação não é oferecida */
+  ({ ctx, page, erros } = await abrirMotores(browser, viewport, ARQ3, db));
+  await calcularImpacto(page);
+  await page.waitForSelector('#avpPosNaoAprova');
+  afirma(/precisa ser de um admin geral/.test(await textoDe(page, '#avpPosNaoAprova')) && await page.locator('#avpPosAprovarBtn').count() === 0 && await page.locator('#avpPosRetirarBtn').count() === 0,
+    'nenhum dos dois admin geral: a 2ª aprovação não é oferecida (nem retirar, a quem não propôs)');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 4d. 2ª aprovação: admin geral */
+  ({ ctx, page, erros } = await abrirMotores(browser, viewport, ADM, db));
+  await calcularImpacto(page);
+  await page.waitForSelector('#avpPosAprovarBtn');
+  await page.check('#avpPosReconheco');
+  await page.click('#avpPosAprovarBtn');
+  await esperarCondicao(page, () => /Segunda aprovação registrada/.test((document.getElementById('avpPosGovFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  db = await banco(page);
+  const Pd = db['posicionamento-motor-propostas'][pid];
+  afirma(Pd.situacao === 'aprovada' && Pd.aprovacoes.a2.uid === 'u-' + chave(ADM) && Pd.aprovacoes.a2.adminGeral === true && !(db['posicionamento-motor-proposta-aberta'] || {})[2],
+    '2ª aprovação (admin geral): aprovada e índice liberado');
+  afirma(!db['posicionamento-motor-vigencia'] && JSON.stringify(db['avaliacoes-posicionamento']) === JSON.stringify(antes['avaliacoes-posicionamento']) && JSON.stringify(db['posicionamento-decisoes']) === JSON.stringify(antes['posicionamento-decisoes']),
+    'nada entrou em vigor e nenhuma avaliação ou decisão mudou');
+  await page.click('#avpPosPropostasHistorico summary');
+  afirma(/Autorizada — a entrada em vigor depende da fronteira confiável \(B4\)/.test(await textoDe(page, '#avpPosPropostasHistorico')) && /continua em vigor/.test(await textoDe(page, '#avpPosPropostasHistorico')),
+    'a aprovada diz "Autorizada — depende da fronteira confiável (B4)" e que nada mudou');
+  afirma(await page.locator('li[data-item="APROVACAO"]').getAttribute('data-ok') === 'true' && await page.locator('li[data-item="FRONTEIRA"]').getAttribute('data-ok') === 'false', 'prontidão: aprovação dupla ✓, fronteira confiável ✗');
+  afirma(await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1 && /Inativa/.test(await textoDe(page, '#avpMotorPosicionamento tr[data-versao="2"]')), 'v1 continua em vigor e v2 inativa');
+  afirma(await page.locator('#avpPosProporBtn').count() === 1, 'com o índice livre, uma nova proposta pode ser feita');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 4e. impacto novo → a aprovada fica desatualizada; nova proposta e retirada */
+  db['avaliacoes-produto'].pD = produto('pD', 'Item Novo');
+  db['avaliacoes-posicionamento'].gD = concluidaReg('pD', 'Item Novo', { O1: 'SIM', O2: 'NAO', O3: 'NAO' });
+  db['posicionamento-vigente-por-item'].pD = 'gD';
+  ({ ctx, page, erros } = await abrirMotores(browser, viewport, ARQ, db));
+  await calcularImpacto(page);
+  await page.waitForSelector('#avpPosProporBtn');
+  await page.click('#avpPosPropostasHistorico summary');
+  afirma(await page.locator('.avp-pos-proposta[data-proposta="' + pid + '"]').getAttribute('data-desatualizada') === 'true' && /desatualizada/.test(await textoDe(page, '.avp-pos-proposta[data-proposta="' + pid + '"]')),
+    'impacto mudou: a proposta aprovada aparece desatualizada (nada gravado)');
+  afirma(await page.locator('li[data-item="APROVACAO"]').getAttribute('data-ok') === 'false', 'prontidão: a aprovação desatualizada não conta');
+  await page.fill('#avpPosJustificativa', 'Nova proposta com o impacto atual');
+  await page.click('#avpPosProporBtn');
+  await page.waitForSelector('#avpPosRetirarBtn');
+  page.once('dialog', (d) => d.accept('Revisar a redação antes'));
+  await page.click('#avpPosRetirarBtn');
+  await esperarCondicao(page, () => /Proposta retirada/.test((document.getElementById('avpPosGovFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  db = await banco(page);
+  const pids = Object.keys(db['posicionamento-motor-propostas']), pr2 = pids.find((x) => x !== pid), P2 = db['posicionamento-motor-propostas'][pr2];
+  afirma(pids.length === 2 && P2.situacao === 'retirada' && P2.retirada.motivo === 'Revisar a redação antes' && P2.retirada.por.uid === 'u-' + chave(ARQ) && !(db['posicionamento-motor-proposta-aberta'] || {})[2] &&
+    db['posicionamento-motor-governanca-auditoria'][P2.retirada.auditoriaId].tipo === 'retirada', 'retirada com motivo, autoria, auditoria e índice liberado', JSON.stringify({ n: pids.length, P2, idx: db['posicionamento-motor-proposta-aberta'] }));
+  await esperarCondicao(page, () => /2 propostas/i.test((document.querySelector('#avpPosPropostasHistorico summary') || {}).textContent || ''), undefined, { limite: 8000 }).catch(() => {});
+  afirma(/Histórico — 2 propostas/i.test(await textoDe(page, '#avpPosPropostasHistorico summary')), 'histórico: 2 propostas (nada apagado)', await textoDe(page, '#avpPosPropostasHistorico summary'));
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 4f. gravação recusada pelo banco */
+  ({ ctx, page, erros } = await abrirMotores(browser, viewport, ARQ, sementeB3(), { fail: ['posicionamento-motor-governanca-auditoria'] }));
+  await calcularImpacto(page);
+  await page.waitForSelector('#avpPosProporBtn');
+  await page.fill('#avpPosJustificativa', 'x');
+  await page.click('#avpPosProporBtn');
+  await esperarCondicao(page, () => /recusou/.test((document.getElementById('avpPosGovFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  db = await banco(page);
+  afirma(!db['posicionamento-motor-propostas'] && !db['posicionamento-motor-governanca-auditoria'] && await page.locator('#avpPosProporBtn').count() === 1, 'gravação recusada: avisa, nada gravado, pode tentar de novo');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+}
 (async () => {
   const browser = await chromium.launch();
   try {
-    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await publicar(browser, vp, r); await suspensao(browser, vp, r); await versoes(browser, vp, r); }
+    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await publicar(browser, vp, r); await suspensao(browser, vp, r); await versoes(browser, vp, r); await governanca(browser, vp, r); }
   } catch (e) { console.log('ERRO', e && e.stack || e); falhas++; }
   await browser.close();
   console.log(falhas ? '\n' + falhas + ' falha(s).' : '\nTudo certo.');

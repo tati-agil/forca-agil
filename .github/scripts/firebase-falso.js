@@ -348,7 +348,7 @@
      sobrescreveria um registro da carga anterior). */
   var _pushSeq = CFG.pushSeqInicial || 0;
   Ref.prototype.push   = function (v, cb) {
-    var key = 'fake' + (_pushSeq++);
+    var key = (CFG.prefixoChave || 'fake') + (_pushSeq++); /* prefixoChave: chaves únicas entre páginas que passam o banco adiante */
     var r = new Ref(this.path + '/' + key);
     r.key = key;
     if (v !== undefined) { r.set(v, cb); } else if (cb) { cb(null); }
@@ -372,7 +372,8 @@
      o site usa, senão o caminho que os chama estoura em vez de ser testado. */
   function novoUsuario(email) {
     return {
-      email: email, emailVerified: true, uid: 'u1',
+      /* CFG.uidDoUsuario: usa o uid de CFG.user (governança B3 distingue pessoas pelo UID); sem a opção, 'u1' como sempre */
+      email: email, emailVerified: true, uid: (CFG.uidDoUsuario && CFG.user && CFG.user.email === email && CFG.user.uid) || 'u1',
       updateEmail: function (novo) {
         if ((CFG.falharUpdateEmail || []).indexOf(novo) !== -1) {
           var err = new Error('e-mail já em uso (falso)');
