@@ -1,0 +1,25 @@
+name: Infraestrutura — verificar requisitos de Cloud Functions (só leitura)
+
+# B0 do H2-b. SÓ disparo manual. NÃO grava, NÃO habilita API, NÃO liga faturamento, NÃO faz deploy:
+# só LÊ, com a conta de serviço do CI, o que é preciso saber antes de decidir pela fronteira confiável em
+# Cloud Functions — plano/faturamento, APIs habilitadas, papéis da conta de serviço e região do banco.
+# Cada verificação que a conta não tem permissão para ler aparece como "NÃO FOI POSSÍVEL VERIFICAR",
+# nunca como "não tem". Ver .github/scripts/verificar-infra-functions.sh.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar (somente leitura)
+        env:
+          PROJETO: kyber-agil
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
+          bash .github/scripts/verificar-infra-functions.sh /tmp/sa.json
+          rm -f /tmp/sa.json

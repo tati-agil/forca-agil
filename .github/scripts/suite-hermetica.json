@@ -639,6 +639,12 @@
       "sobre": "H2-a/H3-a: ADMIN › Motores mostra v1 em vigor e v2 inativa, prontidão com o que falta, sem ação de ativar; simulação com 0 violações; impacto separa iguais, alterados, incomparáveis e violações contra o rascunho identificado, sem gravar. Questionários: edição do rascunho v2 só do texto, vínculo do sistema, nenhuma versão publicada, publicação bloqueada com motivo, recusa se outra pessoa salvou antes. Avaliação: motor v1 · redação v1 na lista e na ficha; sem \"Atualizar com motor atual\"."
     },
     {
+      "arquivo": ".github/scripts/teste-regras-compactas.js",
+      "nome": "Regras do banco: versão compacta para deploy idêntica ao fonte legível (sem navegador)",
+      "duracao": 1,
+      "sobre": "B0 do H2-b: a compacta tem a mesma estrutura, a mesma ordem de chaves e as mesmas expressões do database.rules.json; a conferência recusa diferença de valor, chave ou ordem; o deploy continua com o fonte legível."
+    },
+    {
       "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
       "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
       "duracao": 25,
