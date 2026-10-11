@@ -25,6 +25,7 @@ const TS = { '.sv': 'timestamp' };
 (async () => {
   const rules = fs.readFileSync(path.join(__dirname, '..', '..', 'database.rules.json'), 'utf8');
   const env = await initializeTestEnvironment({ projectId: 'demo-kyber-agil-redacao-motor', database: { rules } });
+  await env.clearDatabase(); /* cada execução começa do zero, mesmo numa sessão de emulador já usada */
   const k = (e) => e.replace(/[@.]/g, '_');
   const ARQ = 'arq@previ.com.br', ARQ2 = 'arq2@previ.com.br', AVAL = 'aval@previ.com.br', ADM = 'tatianefdirene@previ.com.br';
   const uid = (e) => 'uid-' + k(e);
@@ -82,6 +83,10 @@ const TS = { '.sv': 'timestamp' };
   await caso('sobrescrever a trilha motores/2 inteira com set', db(ADM).ref(M).set({ versaoPublicada: 1 }), false);
   await caso('apagar versão por update multipath (null)', raiz(ADM).update({ [M + '/versoes/2']: null }), false);
 
+  /* a ÚLTIMA versão (a do ponteiro) é a que mais depende do "só criar": as antigas também caem pela conferência do ponteiro */
+  await caso('alterar texto da ÚLTIMA versão publicada (a do ponteiro)', db(ADM).ref(M + '/versoes/2/perguntas/0/texto').set('mudado'), false);
+  await caso('sobrescrever a ÚLTIMA versão com o mesmo digest e auditoria', db(ADM).ref(M + '/versoes/2').set(Object.assign(pub(ADM, 2)[M + '/versoes/2'], { perguntas: [{ codigoEstavel: 'O1', texto: 'outro' }] })), false);
+  await caso('apagar a ÚLTIMA versão publicada', db(ADM).ref(M + '/versoes/2').remove(), false);
   console.log('D. ponteiro');
   await caso('voltar o ponteiro (2 → 1)', db(ADM).ref(M + '/versaoPublicada').set(1), false);
   await caso('apagar o ponteiro', db(ADM).ref(M + '/versaoPublicada').remove(), false);
