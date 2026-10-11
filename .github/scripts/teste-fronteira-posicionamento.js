@@ -182,6 +182,13 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   afirma(dsl.ativada === false && dsl.motivos.join() === 'ATIVACAO_DESABILITADA' && JSON.stringify(await ler()) === antesAtivar, 'desabilitada (como no servidor publicado): recusa e não grava NADA');
   afirma(await erroDe(F.ativarEntradaEmVigor(auth(ARQ), { propostaId: 'pOk' }, { habilitada: true })) === 'permission-denied', 'Avaliação + Arquitetura não ativa');
   afirma((await F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pAberta' }, { habilitada: true })).ativada === false && !(await ler(GT.NOS.vigencia)), 'proposta não apta: não ativa, vigência intacta');
+  /* aprovada, mas o impacto mudou depois da aprovação: as regras não recalculam o impacto — quem recusa é o servidor */
+  await database.ref('avaliacoes-posicionamento/gD').set(concluida('pD', { O1: 'SIM', O2: 'NAO', O3: 'NAO' }));
+  await database.ref('posicionamento-vigente-por-item/pD').set('gD');
+  const rImp = await F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true });
+  afirma(rImp.ativada === false && rImp.motivos.includes('IMPACTO_DESATUALIZADO') && !(await ler(GT.NOS.vigencia)) && !(await ler(NOS_FRONTEIRA.ativacoes)),
+    'aprovada mas com o impacto desatualizado: o servidor recalcula e não ativa (nada gravado)', JSON.stringify(rImp));
+  await database.ref('avaliacoes-posicionamento/gD').remove(); await database.ref('posicionamento-vigente-por-item/pD').remove();
   /* a vigência muda entre a conferência e a gravação: as regras recusam (compare-and-set da sequência) */
   const ioCorrida = Object.assign({}, io, { gravar: async (w) => { await database.ref(GT.NOS.vigencia).set({ versaoEmVigor: 1, seq: 7 }); return io.gravar(w); } });
   const rc = await criarFronteira(ioCorrida, modulos).ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true });
@@ -214,37 +221,6 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   const depois = await F.conferirEntradaEmVigor(auth(ADM), { propostaId: 'pOk' });
   afirma(depois.motivos.includes('PROPOSTA_JA_CONSUMIDA') && depois.motivos.includes('VERSAO_JA_EM_VIGOR'), 'a proposta consumida não vale de novo');
 
-  console.log('F. atomicidade: as regras recusam gravações incompletas do próprio servidor');
-  const vgF = await ler(GT.NOS.vigencia), TS = admin.database.ServerValue.TIMESTAMP;
-  const pAdm3 = await ler(GT.NOS.propostas + '/pAdm3');
-  function ativacaoManual(o) {
-    o = o || {};
-    const seq = o.seq || vgF.seq + 1, aud = o.aud || ('m' + Math.random().toString(36).slice(2, 9)), pid = o.pid || 'pAdm3', alvo = (o.prop || pAdm3).alvo, por = { uid: uidDe(ADM), email: ADM };
-    const comum = { versaoRedacao: alvo.versaoRedacao, digestRedacao: alvo.digestRedacao, digestDefinicao: alvo.digestDefinicao, digestImpacto: alvo.digestImpacto, ativadoEm: TS, ativadoPor: por, auditoriaId: aud };
-    const w = { [GT.NOS.vigencia]: Object.assign({ versaoEmVigor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor, seq, propostaId: pid }, comum),
-      [NOS_FRONTEIRA.ativacoes + '/' + pid]: Object.assign({ seq, versaoMotor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor }, comum),
-      [GT.NOS.auditoria + '/' + aud]: { tipo: 'ativacao', propostaId: pid, versaoMotor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor, seq, usuario: por, dataHora: TS, origem: 'fronteira' } };
-    if (o.mexer) o.mexer(w, aud, pid);
-    return w;
-  }
-  async function recusa(nome, w) { let ok = false; try { await restrito.ref().update(w); } catch (e) { ok = true; } afirma(ok, nome); }
-  /* pAdm3 é aprovada mas é da v2, já em vigor: para provar só a atomicidade, a "outra versão" é a v1 inexistente aqui —
-     então usamos a própria regra: versão em vigor 2 → a mesma versão é recusada */
-  await recusa('reativar a versão que já está em vigor (v2 → v2)', ativacaoManual());
-  await recusa('só a vigência, sem registro nem auditoria', (() => { const w = ativacaoManual(); return { [GT.NOS.vigencia]: w[GT.NOS.vigencia] }; })());
-  await recusa('vigência + registro, sem auditoria', ativacaoManual({ mexer: (w, aud) => { delete w[GT.NOS.auditoria + '/' + aud]; } }));
-  await recusa('vigência + auditoria, sem registro da ativação', ativacaoManual({ mexer: (w, aud, pid) => { delete w[NOS_FRONTEIRA.ativacoes + '/' + pid]; } }));
-  await recusa('sequência pulada (3 em vez de 2)', ativacaoManual({ seq: 3 }));
-  await recusa('proposta já consumida (pOk) de novo', ativacaoManual({ pid: 'pOk', prop: await ler(GT.NOS.propostas + '/pOk') }));
-  await recusa('proposta não aprovada (pAberta)', ativacaoManual({ pid: 'pAberta', prop: await ler(GT.NOS.propostas + '/pAberta') }));
-  await recusa('identificador do impacto diferente do aprovado', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].digestImpacto = 'ffffffffffffffff'; } }));
-  await recusa('horário escolhido pelo servidor (não o "now" do banco)', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].ativadoEm = 1700000000000; } }));
-  await recusa('apagar a vigência', { [GT.NOS.vigencia]: null });
-  await recusa('a identidade restrita não grava fora do que é dela (fa-admins)', { ['fa-admins/x_y']: true });
-  await recusa('nem decisões', { ['posicionamento-decisoes/gA']: { itemId: 'pA' } });
-  await recusa('nem apaga o registro de uma ativação', { [NOS_FRONTEIRA.ativacoes + '/pOk']: null });
-  afirma(JSON.stringify(await ler(GT.NOS.vigencia)) === JSON.stringify(vgF), 'depois de tudo isso, a vigência é exatamente a de antes');
-
   console.log('G. retorno governado à v1');
   const cfgDb = await ler('questionarios-config/' + QCOD);
   const QV1 = (cod, v) => QT.conteudoPergunta(QCOD, cod, v);
@@ -265,6 +241,47 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   afirma(JSON.stringify([await ler('avaliacoes-posicionamento'), await ler('posicionamento-decisoes'), await ler('posicionamento-vigente-por-item')]) === JSON.stringify(JSON.parse(avalAntes).slice(0, 3)),
     'nenhuma avaliação, decisão ou vigente mudou com as ativações');
 
+  console.log('F. atomicidade: as regras recusam gravações incompletas do próprio servidor');
+  const vgF = await ler(GT.NOS.vigencia), TS = admin.database.ServerValue.TIMESTAMP;
+  const pAdm3 = await ler(GT.NOS.propostas + '/pAdm3');
+  function ativacaoManual(o) {
+    o = o || {};
+    const seq = o.seq || vgF.seq + 1, aud = o.aud || ('m' + Math.random().toString(36).slice(2, 9)), pid = o.pid || 'pAdm3', alvo = (o.prop || pAdm3).alvo, por = { uid: uidDe(ADM), email: ADM };
+    const comum = { versaoRedacao: alvo.versaoRedacao, digestRedacao: alvo.digestRedacao, digestDefinicao: alvo.digestDefinicao, digestImpacto: alvo.digestImpacto, ativadoEm: TS, ativadoPor: por, auditoriaId: aud };
+    const w = { [GT.NOS.vigencia]: Object.assign({ versaoEmVigor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor, seq, propostaId: pid }, comum),
+      [NOS_FRONTEIRA.ativacoes + '/' + pid]: Object.assign({ seq, versaoMotor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor }, comum),
+      [GT.NOS.auditoria + '/' + aud]: { tipo: 'ativacao', propostaId: pid, versaoMotor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor, seq, usuario: por, dataHora: TS, origem: 'fronteira' } };
+    if (o.mexer) o.mexer(w, aud, pid);
+    return w;
+  }
+  async function recusa(nome, w) { let ok = false; try { await restrito.ref().update(w); } catch (e) { ok = true; } afirma(ok, nome); }
+  /* depois do retorno à v1 (seção G), pAdm3 — aprovada para a v2 e nunca consumida — é uma ativação VÁLIDA: cada caso
+     abaixo é essa gravação com UMA coisa faltando ou errada (o controle positivo, no fim, prova que a base é aceita) */
+  await recusa('reativar a versão que já está em vigor (v1 → v1)', ativacaoManual({ versao: 1, mexer: (w) => { w[GT.NOS.vigencia].versaoAnterior = 1; } }));
+  await recusa('versão diferente da aprovada na proposta (v3)', ativacaoManual({ versao: 3 }));
+  await recusa('versão anterior que não é a em vigor', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].versaoAnterior = 5; } }));
+  await recusa('só a vigência, sem registro nem auditoria', (() => { const w = ativacaoManual(); return { [GT.NOS.vigencia]: w[GT.NOS.vigencia] }; })());
+  await recusa('vigência + registro, sem auditoria', ativacaoManual({ mexer: (w, aud) => { delete w[GT.NOS.auditoria + '/' + aud]; } }));
+  await recusa('vigência + auditoria, sem registro da ativação', ativacaoManual({ mexer: (w, aud, pid) => { delete w[NOS_FRONTEIRA.ativacoes + '/' + pid]; } }));
+  await recusa('sequência pulada (+2 em vez de +1)', ativacaoManual({ seq: vgF.seq + 2 }));
+  await recusa('proposta já consumida (pOk) de novo', ativacaoManual({ pid: 'pOk', prop: await ler(GT.NOS.propostas + '/pOk') }));
+  await recusa('proposta não aprovada (pAberta)', ativacaoManual({ pid: 'pAberta', prop: await ler(GT.NOS.propostas + '/pAberta') }));
+  await recusa('identificador do impacto diferente do aprovado', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].digestImpacto = 'ffffffffffffffff'; } }));
+  await recusa('horário escolhido pelo servidor (não o "now" do banco)', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].ativadoEm = 1700000000000; } }));
+  await recusa('apagar a vigência', { [GT.NOS.vigencia]: null });
+  await recusa('só o registro da ativação, sem a vigência', (() => { const w = ativacaoManual(); return { [NOS_FRONTEIRA.ativacoes + '/pAdm3']: w[NOS_FRONTEIRA.ativacoes + '/pAdm3'] }; })());
+  await recusa('reescrever um registro de ativação já feito', { [NOS_FRONTEIRA.ativacoes + '/pOk/ativadoPor/email']: 'outra@previ.com.br' });
+  await recusa('a identidade restrita não grava fora do que é dela (fa-admins)', { ['fa-admins/x_y']: true });
+  await recusa('nem decisões', { ['posicionamento-decisoes/gA']: { itemId: 'pA' } });
+  await recusa('nem apaga o registro de uma ativação', { [NOS_FRONTEIRA.ativacoes + '/pOk']: null });
+  /* um CLIENTE (mesmo admin geral, com sessão) não grava a vigência — nem a gravação completa e válida */
+  const cliente = (admin.apps.find((a) => a && a.name === 'cliente-adm') || admin.initializeApp(Object.assign({}, app.options, { databaseAuthVariableOverride: { uid: uidDe(ADM), token: { email: ADM, email_verified: true } } }), 'cliente-adm')).database();
+  { let ok = false; try { await cliente.ref().update(ativacaoManual()); } catch (e) { ok = true; } afirma(ok, 'admin geral pelo cliente não ativa (só a identidade restrita)'); }
+  afirma(JSON.stringify(await ler(GT.NOS.vigencia)) === JSON.stringify(vgF), 'depois de tudo isso, a vigência é exatamente a de antes');
+  /* controle positivo: a mesma gravação, completa e correta, É aceita — as recusas acima foram pelo que faltava */
+  { let ok = true; try { await restrito.ref().update(ativacaoManual()); } catch (e) { ok = false; } const vgP = await ler(GT.NOS.vigencia);
+    afirma(ok && vgP.versaoEmVigor === 2 && vgP.seq === vgF.seq + 1 && (await ler(NOS_FRONTEIRA.ativacoes + '/pAdm3')).seq === vgF.seq + 1, 'controle: a ativação completa (vigência + registro + auditoria) é aceita'); }
+
   console.log('I. avaliação v2 concluída pela fronteira');
   const MOTOR_PRODUTO = require('./montar-regras-posicionamento.js').MOTOR_PRODUTO;
   await database.ref('avaliacoes-produto/pV').set({ itemId: 'pV', nome: 'Item V', status: 'concluido', excluido: false, versao: 1, motorVersion: MOTOR_PRODUTO, motorVersionArquitetura: 1 });
@@ -280,6 +297,10 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   await database.ref('avaliacoes-produto/pV2').set({ itemId: 'pV', status: 'concluido', excluido: false, versao: 2, versaoAnteriorKey: 'pV', motorVersion: MOTOR_PRODUTO, motorVersionArquitetura: 1 });
   afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gV', revisao: 3 })).motivos.join() === 'BASE_MUDOU', 'a base P1–P16 que vale hoje não é a do rascunho: recusada');
   await database.ref('avaliacoes-produto/pV2').remove();
+  await database.ref('avaliacoes-posicionamento/gV/respostas/O3').remove();
+  afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gV', revisao: 3 })).motivos.join() === 'FALTAM_RESPOSTAS' && (await ler('avaliacoes-posicionamento/gV')).status === 'rascunho',
+    'caminho incompleto: o servidor não conclui (as regras não conferem a completude da v2 — quem confere é o núcleo)');
+  await database.ref('avaliacoes-posicionamento/gV/respostas/O3').set(rv2('O3', 'NAO'));
   const cc = await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gV', revisao: 3 });
   const gV = await ler('avaliacoes-posicionamento/gV'), esperado = NT.avaliar(NT.definicao(2), { O1: 'NAO', O2: 'SIM', O3: 'NAO' }, {}, {});
   afirma(cc.concluida && gV.status === 'concluido' && gV.resultadoAutomatico.codigoResultado === esperado.codigoResultado && gV.resultadoAutomatico.versaoMotor === 2 &&

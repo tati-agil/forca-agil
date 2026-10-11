@@ -87,6 +87,12 @@ const resp = (q, v) => ({ resposta: v, codigoPergunta: q, questionnaireContentVe
   await caso('a v1 já aberta continua sendo salva (sem D2)', raiz(ARQ).update(T.payloadSalvar('a1', Object.assign(clone(a1), { respostas: { O1: resp('O1', 'NAO') } }), usuario(ARQ), QUANDO, 1)), true);
 
   console.log('C. conclusão: tela só v1, fronteira só v ≥ 2');
+  await caso('cria outra avaliação v2', raiz(ARQ).update(criacao('b4', 'i4', ARQ, 2)), true);
+  const b4 = Object.assign(clone(await ler(AV + '/b4')), { respostas: { O1: resp('O1', 'NAO'), O2: resp('O2', 'SIM'), O3: resp('O3', 'NAO') } });
+  await caso('salva o rascunho v2 completo', raiz(ARQ).update(T.payloadSalvar('b4', b4, usuario(ARQ), QUANDO, 1)), true);
+  const b4s = await ler(AV + '/b4'), b4v1 = clone(b4s); delete b4v1.versaoMotor;
+  const conclComoV1 = T.payloadConclusao('b4', b4v1, usuario(ARQ), QUANDO, b4s.revisao, 'kc4').payload; conclComoV1[AV + '/b4'].versaoMotor = 2;
+  await caso('a TELA não conclui v2 nem com o resultado exato da tabela v1', raiz(ARQ).update(conclComoV1), false);
   const b2c = await ler(AV + '/b2');
   const conclV2 = T.payloadConclusao('b2', b2c, usuario(ARQ), QUANDO, b2c.revisao, 'kc2');
   await caso('a TELA não conclui avaliação v2', raiz(ARQ).update(conclV2.payload), false);
@@ -128,6 +134,13 @@ const resp = (q, v) => ({ resposta: v, codigoPergunta: q, questionnaireContentVe
   await vig(3);
   await caso('origem "motor" para uma versão que não é a em vigor é recusada', raiz(ARQ).update(at.payload), false);
   await vig(2);
+  const b2v = await ler(AV + '/b2');
+  /* o núcleo nem monta isso (destino-nao-e-mais-novo): monta-se como se a anterior fosse v1 e devolve-se a versão real */
+  const b2comoV1 = clone(b2v); delete b2comoV1.versaoMotor;
+  const atMesma = T.payloadAtualizacaoMotor({ id: 'r4', audId: 'ar4', anteriorId: 'b2', anterior: b2comoV1, itemNome: 'Item i2', avaliacaoArquiteturalId: 'i2', versaoMotorDestino: 2, versaoRedacaoDestino: 1,
+    motivo: 'Atualização para o mesmo motor', usuario: usuario(ARQ), agora: QUANDO });
+  atMesma.payload[AUDP + '/r4/ar4'].versaoMotorAnterior = 2;
+  await caso('origem "motor" para a MESMA versão do registro anterior é recusada (só para uma mais nova)', raiz(ARQ).update(atMesma.payload), false);
 
   console.log('E. proposta de retorno à v1');
   const alvoV1 = { digestDefinicao: G.digest(NUC.definicao(1)), versaoRedacao: 1, digestRedacao: '0123456789abcdef', digestImpacto: '1111111111111111', impacto: { total: 0, iguais: 0, alterados: 0, incomparaveis: 0, violacoes: 0 } };
