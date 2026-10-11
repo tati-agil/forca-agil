@@ -8,6 +8,7 @@
     ".github/scripts/teste-rules-redacao-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-governanca-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-posicionamento-v2.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-squad-liberacao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-fronteira-posicionamento.js": "fronteira confiável: roda nos emuladores de banco, auth e functions (teste-rules.yml, job fronteira)",
     ".github/scripts/teste-rules.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-avaliacoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
@@ -545,6 +546,12 @@
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 9,
       "sobre": "Exportação da Taxonomia: JSON com cabeçalho, o nó taxonomia idêntico ao banco e conceitosConsolidados (um item por conceito, com domínio: definição e fonte vigentes, fontes históricas, perfis, relações de saída e de entrada, resumo da auditoria); Excel com a 1ª aba \"Visão consolidada por conceito\" (uma linha por conceito; cabeçalho congelado, 3 colunas fixas, autofiltro, larguras e quebra de linha conferidos no XML) e as abas Conceitos, Fontes (inclusive histórica e arquivada), Atributos, Perfis, Relações e Histórico, cabeçalhos em português; nenhuma escrita durante a exportação; leitura que não responde ou é recusada mostra erro visível com o ramo e não baixa nada; some no modo somente leitura. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-squad-liberacao.js",
+      "nome": "I2 — Adequação à Squad liberada pelo Posicionamento Organizacional: aviso, exigência, origem gravada, atalho e interruptor (desktop e 375 px)",
+      "duracao": 90,
+      "sobre": "Exigência desligada: aviso do Posicionamento vigente (decisão final ou recomendação automática), sem bloqueio, e a origem da liberação gravada na criação da avaliação S. Exigência ligada: item não liberado (Área/CoE, decisão CoE sobre recomendação Linha, item novo) não inicia e nada é gravado; A_VALIDAR com decisão liberadora inicia; rascunho anterior continua. Leitura lenta = Verificando; recusada = não foi possível verificar (nunca liberação fictícia). Atalho na ficha do Posicionamento abre a Squad do item sem duplicar. Interruptor no ADMIN: admin geral liga com motivo e auditoria; Avaliação + Arquitetura só consulta. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-squad-endereco.js",
