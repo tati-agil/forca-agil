@@ -608,6 +608,12 @@
       "sobre": "window.faCriterioReavaliacao (avaliacao-produto.js): objeto e lista de campos congelados; campos comparados titulo/textoAjuda/exemplo/exemplos/ajudaExtra; situacao(): texto ausente ou diferente → 'pergunta', sem prova da ajuda → 'ajuda', ajuda igual (chaves em outra ordem, null/''/ausente) → null, um campo de ajuda mudou → 'ajuda'; as 16 perguntas reais de Produto/Serviço passam pela mesma função."
     },
     {
+      "arquivo": ".github/scripts/teste-backend-isolado.js",
+      "nome": "Backend local (NestJS + PostgreSQL) isolado do site publicado (sem rede, sem Docker)",
+      "duracao": 1,
+      "sobre": "O Hosting não publica backend/ e o deploy da main continua só hosting + database; nenhum arquivo do site cita o backend ou a API local, nem a CSP a libera; o backend carrega forca-agil/estruturas-nucleo.js sem cópia e a imagem leva o mesmo arquivo; .env e compose.override.yaml não são versionados, o compose exige a senha do .env, o PostgreSQL não publica porta e a API só escuta na própria máquina; o CI do backend é isolado (só backend/ e o núcleo, sem segredos, sem Firebase)."
+    },
+    {
       "arquivo": ".github/scripts/teste-estruturas-nucleo.js",
       "nome": "Estruturas Organizacionais Concretas: núcleo puro, em memória (sem navegador, sem Firebase)",
       "duracao": 2,

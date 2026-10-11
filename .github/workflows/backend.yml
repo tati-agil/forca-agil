@@ -1,0 +1,68 @@
+# Backend local (NestJS + PostgreSQL): testes e ambiente Docker de verdade, só quando backend/ ou o núcleo mudam.
+# Isolado do site: não publica nada, não usa segredos, não toca no Firebase. A senha do banco é gerada na hora.
+name: Backend — testes e ambiente Docker
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - 'forca-agil/estruturas-nucleo.js'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'forca-agil/estruturas-nucleo.js'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  ambiente-docker:
+    runs-on: ubuntu-latest
+    needs: testes
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Criar .env sintético (senha aleatória, só para esta execução)
+        run: |
+          cp .env.example .env
+          sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/" .env
+      - name: Subir o ambiente
+        run: docker compose up --build -d
+      - name: Verificar o ambiente (saúde, rede interna, banco indisponível, volume, logs)
+        run: npm run verificar:ambiente
+      - name: Testes de integração contra o PostgreSQL do Docker
+        run: |
+          npm ci --no-audit --no-fund
+          set -a; . ./.env; set +a
+          docker run --rm --network forca-agil-local_interna -v "$GITHUB_WORKSPACE":/repo -w /repo/backend \
+            -e POSTGRES_HOST=postgres -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
+            node:22-alpine npx jest --config jest.integracao.config.js
+      - name: Logs (em caso de falha)
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Derrubar o ambiente
+        if: always()
+        run: docker compose down -v

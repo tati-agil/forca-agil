@@ -1,0 +1,57 @@
+# Ambiente LOCAL de desenvolvimento: API NestJS + PostgreSQL. Dados sintéticos apenas.
+#   cd backend && cp .env.example .env   (edite a senha)  &&  docker compose up --build -d
+# Nada aqui é usado pelo site publicado (Firebase), que continua independente.
+name: forca-agil-local
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-forca_agil}
+      POSTGRES_USER: ${POSTGRES_USER:-forca_agil}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo backend/.env (copie de .env.example)}
+    volumes:
+      - dados-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    networks: [interna]
+    restart: unless-stopped
+    # sem "ports": o banco só é alcançável pela rede interna do Docker (a API o encontra pelo nome "postgres")
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
+    environment:
+      PORT: "3000"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-forca_agil}
+      POSTGRES_USER: ${POSTGRES_USER:-forca_agil}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo backend/.env (copie de .env.example)}
+      BANCO_TIMEOUT_MS: ${BANCO_TIMEOUT_MS:-2000}
+    ports:
+      - "127.0.0.1:${API_PORTA:-3000}:3000"   # só na própria máquina, nunca na rede
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    networks: [interna]
+    restart: unless-stopped
+
+volumes:
+  dados-postgres:
+
+networks:
+  interna:
