@@ -7,6 +7,7 @@
   "foraDaSuite": {
     ".github/scripts/teste-rules-redacao-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-governanca-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-posicionamento-v2.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-fronteira-posicionamento.js": "fronteira confiável: roda nos emuladores de banco, auth e functions (teste-rules.yml, job fronteira)",
     ".github/scripts/teste-rules.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-avaliacoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",

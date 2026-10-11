@@ -355,8 +355,8 @@ async function governanca(browser, viewport, rotulo) {
   afirma(!db['posicionamento-motor-vigencia'] && JSON.stringify(db['avaliacoes-posicionamento']) === JSON.stringify(antes['avaliacoes-posicionamento']) && JSON.stringify(db['posicionamento-decisoes']) === JSON.stringify(antes['posicionamento-decisoes']),
     'nada entrou em vigor e nenhuma avaliação ou decisão mudou');
   await page.click('#avpPosPropostasHistorico summary');
-  afirma(/Autorizada — a entrada em vigor depende da fronteira confiável \(B4\)/.test(await textoDe(page, '#avpPosPropostasHistorico')) && /continua em vigor/.test(await textoDe(page, '#avpPosPropostasHistorico')),
-    'a aprovada diz "Autorizada — depende da fronteira confiável (B4)" e que nada mudou');
+  afirma(/Autorizada — a entrada em vigor depende da fronteira confiável\./.test(await textoDe(page, '#avpPosPropostasHistorico')) && /continua em vigor/.test(await textoDe(page, '#avpPosPropostasHistorico')),
+    'a aprovada diz "Autorizada — depende da fronteira confiável" e que nada mudou');
   afirma(await page.locator('li[data-item="APROVACAO"]').getAttribute('data-ok') === 'true' && await page.locator('li[data-item="FRONTEIRA"]').getAttribute('data-ok') === 'false', 'prontidão: aprovação dupla ✓, fronteira confiável ✗');
   afirma(await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1 && /Inativa/.test(await textoDe(page, '#avpMotorPosicionamento tr[data-versao="2"]')), 'v1 continua em vigor e v2 inativa');
   afirma(await page.locator('#avpPosProporBtn').count() === 1, 'com o índice livre, uma nova proposta pode ser feita');
@@ -440,10 +440,30 @@ async function fronteiraTela(browser, viewport, rotulo) {
   await page.evaluate(() => { window.__CFG.funcoes = { conferirEntradaEmVigor: { resultado: { apta: true, motivos: [], ativacaoHabilitada: false } } }; });
   await page.locator('.avp-pos-conferir-btn[data-proposta="' + pidAprovado + '"]').click();
   await page.waitForSelector('.avp-pos-conferencia[data-apta="true"]');
-  afirma(/apta para entrar em vigor/.test(await textoDe(page, '.avp-pos-conferencia')) && /A ativação está desabilitada nesta fase \(H3-b\): nada mudou/.test(await textoDe(page, '.avp-pos-conferencia')),
-    'apta: diz que a ativação está desabilitada nesta fase e que nada mudou');
+  afirma(/apta para entrar em vigor/.test(await textoDe(page, '.avp-pos-conferencia')) && /A ativação está desabilitada no servidor: nada mudou/.test(await textoDe(page, '.avp-pos-conferencia')),
+    'apta: diz que a ativação está desabilitada no servidor e que nada mudou (sem botão Ativar)');
   const ch2 = (await page.evaluate(() => window.__CFG.__chamadas)).filter((c) => c.nome === 'conferirEntradaEmVigor');
   afirma(ch2.length === 2 && ch2.every((c) => c.dados.propostaId === pidAprovado && Object.keys(c.dados).length === 1), 'a conferência envia só a proposta (o servidor recalcula o resto)');
+  /* H3-b: o botão Ativar só existe quando o SERVIDOR diz que a ativação está habilitada; a tela só chama a função */
+  await page.evaluate(() => { window.__CFG.funcoes = { conferirEntradaEmVigor: { resultado: { apta: true, motivos: [], ativacaoHabilitada: true } }, ativarEntradaEmVigor: { resultado: { ativada: true, versaoEmVigor: 2, seq: 1 } } }; });
+  await page.locator('.avp-pos-conferir-btn[data-proposta="' + pidAprovado + '"]').click();
+  await page.waitForSelector('.avp-pos-ativar-btn[data-proposta="' + pidAprovado + '"]');
+  afirma(/^Ativar a v2$/i.test((await textoDe(page, '.avp-pos-ativar-btn')).trim()), 'habilitada no servidor + apta + admin geral: botão "Ativar a v2"');
+  await page.click('.avp-pos-ativar-btn');
+  await page.waitForSelector('.avp-modal-confirm-btn');
+  afirma(/as existentes não mudam/.test(await page.locator('.avp-modal-confirm-btn').evaluate((b) => (b.closest('[role="dialog"]') || b.parentElement.parentElement).textContent)), 'confirmação diz que as avaliações existentes não mudam');
+  await page.click('.avp-modal-confirm-btn');
+  await esperarCondicao(page, () => /em vigor \(ativação nº 1\)/.test((document.getElementById('avpPosFronteiraFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  const cha = (await page.evaluate(() => window.__CFG.__chamadas)).filter((c) => c.nome === 'ativarEntradaEmVigor');
+  afirma(cha.length === 1 && cha[0].dados.propostaId === pidAprovado && Object.keys(cha[0].dados).length === 1 && await page.locator('.avp-pos-ativar-btn').count() === 0,
+    'Ativar envia só a proposta; "✓ v2 em vigor (ativação nº 1)"; o botão some (nova conferência para outra ação)');
+  await page.evaluate(() => { window.__CFG.funcoes = { conferirEntradaEmVigor: { resultado: { apta: true, motivos: [], ativacaoHabilitada: true } }, ativarEntradaEmVigor: { resultado: { ativada: false, motivos: ['VIGENCIA_MUDOU'] } } }; });
+  await page.locator('.avp-pos-conferir-btn[data-proposta="' + pidAprovado + '"]').click();
+  await page.waitForSelector('.avp-pos-ativar-btn');
+  await page.click('.avp-pos-ativar-btn');
+  await page.click('.avp-modal-confirm-btn');
+  await esperarCondicao(page, () => /não ativou/.test((document.getElementById('avpPosFronteiraFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  afirma(/outra ativação entrou antes/.test(await textoDe(page, '#avpPosFronteiraFlash')), 'ativação recusada pelo servidor: o motivo por extenso');
   await page.evaluate(() => { window.__CFG.funcoes = { conferirEntradaEmVigor: { erro: 'permission-denied' } }; });
   await page.locator('.avp-pos-conferir-btn[data-proposta="' + pidAprovado + '"]').click();
   await esperarCondicao(page, () => /Sem permissão/.test((document.getElementById('avpPosFronteiraFlash') || {}).textContent || ''), undefined, { limite: 8000 });
@@ -473,10 +493,112 @@ async function fronteiraTela(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
+/* ---------- 6. H3-b: a versão em vigor vem do banco; nascer na v2; concluir v2 pelo servidor; ativar e retorno à v1 ---------- */
+function vigencia(v) {
+  return { versaoEmVigor: v, versaoRedacao: 1, digestMotor: 'd', digestRedacao: 'r', propostaId: pidAprovado || 'px', seq: 1, versaoAnterior: 1, ativadoEm: 1760000000000,
+    ativadoPor: { uid: 'u-adm', email: ADM }, auditoriaId: 'ga1' };
+}
+function sementeH3b(v, comRedacaoV2) {
+  const db = comRedacaoV2 === false ? semente(false) : sementeB3();
+  db['avaliacoes-produto'].pE = produto('pE', 'Item Novo');
+  if (v) db['posicionamento-motor-vigencia'] = vigencia(v);
+  return db;
+}
+async function textoModal(page) { await page.waitForSelector('.po-modal'); const t = await page.locator('.po-modal').innerText(); await page.click('.po-modal .po-modal-sim'); return t; }
+async function ativacaoTela(browser, viewport, rotulo) {
+  console.log('[' + rotulo + '] 6. H3-b — versão em vigor lida do banco, v2 na tela, ativação e retorno');
+  /* 6a. vigência lenta: nada nasce enquanto não se sabe (nunca "v1 por falta") */
+  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(0), { delays: { 'posicionamento-motor-vigencia': 3500 } });
+  await page.waitForSelector('#poVerificandoMotor');
+  afirma(/Verificando a versão do motor/.test(await textoDe(page, '#poVerificandoMotor')) && await page.locator('#poIniciarBtn').count() === 0, 'vigência lenta: "Verificando a versão do motor…", sem Iniciar');
+  await page.waitForSelector('#poMotorEmVigor', { timeout: 10000 });
+  afirma(/Motor em vigor: v1/.test(await textoDe(page, '#poMotorEmVigor')) && await page.locator('#poIniciarBtn').count() === 1, 'chegou (sem registro): "Motor em vigor: v1" e Iniciar');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 6b. leitura recusada: não é v1 */
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(0), { fail: ['posicionamento-motor-vigencia'] }));
+  await esperarCondicao(page, () => /Não foi possível ler a versão do motor/.test((document.getElementById('poVerificandoMotor') || {}).textContent || ''), undefined, { limite: 8000 });
+  afirma(await page.locator('#poIniciarBtn').count() === 0, 'vigência recusada: "Não foi possível ler a versão do motor em vigor agora", sem Iniciar');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 6c. v2 em vigor: a avaliação nova nasce na v2, com a redação publicada da trilha do motor */
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(2)));
+  await page.waitForSelector('#poMotorEmVigor');
+  afirma(/Motor em vigor: v2/.test(await textoDe(page, '#poMotorEmVigor')), '"Motor em vigor: v2"');
+  let antes = await banco(page);
+  await page.click('#poIniciarBtn');
+  await esperarCondicao(page, () => !!(window.__CFG.__dbReal['posicionamento-rascunho-por-item'] || {}).pE, undefined, { limite: 8000 });
+  let db = await banco(page), idE = db['posicionamento-rascunho-por-item'].pE, rE = db['avaliacoes-posicionamento'][idE];
+  afirma(rE.versaoMotor === 2 && rE.questionnaireContentVersion === 1 && rE.status === 'rascunho' && !rE.origemReavaliacao, 'Iniciar grava versaoMotor 2 e a redação v1 da trilha do motor 2', JSON.stringify(rE));
+  afirma(JSON.stringify(db['avaliacoes-posicionamento'].gA) === JSON.stringify(antes['avaliacoes-posicionamento'].gA) && JSON.stringify(db['posicionamento-motor-vigencia']) === JSON.stringify(antes['posicionamento-motor-vigencia']),
+    'as avaliações existentes e a vigência não mudaram');
+  await page.waitForSelector('.po-pergunta[data-q="O1"]');
+  afirma(/fluxo de valor ou capacidade em funcionamento|O1/.test(await textoDe(page, '.po-pergunta[data-q="O1"]')), 'abre o formulário da v2');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 6d. v2 em vigor sem redação v2 publicada: não nasce */
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(2, false)));
+  await page.waitForSelector('#poIniciarBtn');
+  antes = await banco(page);
+  await page.click('#poIniciarBtn');
+  afirma(/Redação desta versão do motor indisponível/.test(await textoModal(page)), 'sem redação publicada do motor em vigor: "Redação desta versão do motor indisponível"');
+  afirma(JSON.stringify(await banco(page)) === JSON.stringify(antes), 'nada gravado');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 6e. concluir uma avaliação v2: pela fronteira confiável (a tela salva o rascunho e pede ao servidor) */
+  const dbC = sementeH3b(2);
+  dbC['avaliacoes-posicionamento'].rV = rascunho('pE', 'Item Novo', { O1: 'NAO', O2: 'SIM', O3: 'NAO' }, { versaoMotor: 2 });
+  dbC['posicionamento-rascunho-por-item'].pE = 'rV';
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=rV', false, ARQ, dbC));
+  await esperarCondicao(page, () => /^CONCLUIR$/.test(((document.querySelector('#poConcluirBtn') || {}).textContent || '').trim()), 'concluir liberado', { limite: 8000 });
+  await page.click('#poConcluirBtn');
+  afirma(/Fronteira confiável indisponível/.test(await textoModal(page)), 'funções não implantadas: "Fronteira confiável indisponível… O rascunho continua salvo"');
+  db = await banco(page);
+  afirma(db['avaliacoes-posicionamento'].rV.status === 'rascunho' && db['avaliacoes-posicionamento'].rV.revisao === 2 && !db['avaliacoes-posicionamento'].rV.resultadoAutomatico && !(db['posicionamento-vigente-por-item'] || {}).pE,
+    'a tela só salvou o rascunho (revisão 2): não grava conclusão nem resultado de v2');
+  await page.evaluate(() => { window.__CFG.funcoes = { concluirAvaliacaoPosicionamento: { resultado: { concluida: false, motivos: ['REVISAO_DESATUALIZADA'] } } }; });
+  await esperarCondicao(page, () => /^CONCLUIR$/.test(((document.querySelector('#poConcluirBtn') || {}).textContent || '').trim()), 'concluir de novo', { limite: 8000 });
+  await page.click('#poConcluirBtn');
+  afirma(/Outra pessoa alterou este rascunho/.test(await textoModal(page)), 'recusa do servidor: o motivo por extenso');
+  await page.evaluate(() => { window.__CFG.funcoes = { concluirAvaliacaoPosicionamento: { resultado: { concluida: true } } }; });
+  await esperarCondicao(page, () => /^CONCLUIR$/.test(((document.querySelector('#poConcluirBtn') || {}).textContent || '').trim()), 'concluir de novo', { limite: 8000 });
+  await page.click('#poConcluirBtn');
+  await esperarCondicao(page, () => (window.__CFG.__chamadas || []).filter((c) => c.nome === 'concluirAvaliacaoPosicionamento').length === 3, 'terceira chamada', { limite: 8000 });
+  db = await banco(page);
+  const chC = (await page.evaluate(() => window.__CFG.__chamadas)).filter((c) => c.nome === 'concluirAvaliacaoPosicionamento');
+  afirma(chC.every((c) => c.dados.avaliacaoId === 'rV' && Object.keys(c.dados).length === 2) && chC.map((c) => c.dados.revisao).join() === '2,3,4' && db['avaliacoes-posicionamento'].rV.revisao === 4,
+    'cada pedido leva só a avaliação e a revisão que a tela acabou de salvar', JSON.stringify(chC.map((c) => c.dados)));
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 6f. "Atualizar com motor atual": só com a vigência LIDA mais nova que a do registro */
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=gA', false, ARQ, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
+  await page.waitForSelector('#poReavaliarBtn');
+  afirma(await page.locator('#poAtualizarMotorBtn').count() === 0, 'vigência ainda não lida: sem "Atualizar com motor atual"');
+  await page.waitForSelector('#poAtualizarMotorBtn', { timeout: 10000 });
+  afirma(true, 'v2 em vigor lida: registro v1 vigente oferece "Atualizar com motor atual" (só por clique; nada muda sozinho)');
+  db = await banco(page);
+  afirma(!(db['posicionamento-rascunho-por-item'] || {}).pA && db['avaliacoes-posicionamento'].gA.status === 'concluido', 'nada foi criado nem alterado sem pedido');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* 6g. ADMIN com a v2 em vigor: a tabela diz isso e o alvo passa a ser o retorno à v1 */
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores', false, ADM, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
+  await page.waitForSelector('#avpPosVerificandoVigencia');
+  afirma(await page.locator('#avpPosGovernanca').count() === 0, 'ADMIN com vigência lenta: "Verificando a versão em vigor…", sem governança');
+  await page.waitForSelector('#avpPosGovernanca #avpPosVigenciaRegistrada', { timeout: 10000 });
+  const card = page.locator('#avpMotorPosicionamento');
+  afirma(/Em vigor/.test(await card.locator('tr[data-versao="2"]').innerText()) && !/Em vigor/.test(await card.locator('tr[data-versao="1"]').innerText()), 'v2 em vigor na tabela de versões');
+  afirma(/Retorno à v1/.test(await textoDe(page, '#avpPosGovernanca h5')) && /v2/.test(await textoDe(page, '#avpPosVigenciaRegistrada')), 'a governança passa a tratar o retorno à v1 (mesmo rito)');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+}
 (async () => {
   const browser = await chromium.launch();
   try {
-    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await publicar(browser, vp, r); await suspensao(browser, vp, r); await versoes(browser, vp, r); await governanca(browser, vp, r); await fronteiraTela(browser, vp, r); }
+    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await publicar(browser, vp, r); await suspensao(browser, vp, r); await versoes(browser, vp, r); await governanca(browser, vp, r); await fronteiraTela(browser, vp, r); await ativacaoTela(browser, vp, r); }
   } catch (e) { console.log('ERRO', e && e.stack || e); falhas++; }
   await browser.close();
   console.log(falhas ? '\n' + falhas + ' falha(s).' : '\nTudo certo.');

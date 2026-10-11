@@ -10,7 +10,13 @@
  *      mudou no meio → recusa; a proposta consumida não vale de novo; avaliações intactas;
  *   D. equivalência: o impacto e os digests do servidor (functions/site) são os da tela (forca-agil) nos mesmos dados;
  *   E. ponta a ponta pelas Cloud Functions do emulador, com tokens do Auth: sem login → recusa; perfis; a ativação
- *      publicada responde ATIVACAO_DESABILITADA. */
+ *      publicada responde ATIVACAO_DESABILITADA;
+ *   H3-b (o gravador do servidor é a identidade restrita 'fronteira-confiavel' — passa pelas REGRAS, carregadas aqui):
+ *   F. atomicidade nas regras: gravação de ativação incompleta, com sequência errada, proposta não aprovada ou já
+ *      consumida é recusada; duas ativações simultâneas → uma só; a identidade restrita não grava fora do que é dela;
+ *   G. retorno governado à v1 (proposta de motor 1, redação da trilha principal validada no servidor) — nova ativação;
+ *   I. avaliação v2 concluída pela fronteira: o resultado é o do núcleo do motor, com vigente e auditoria; v1 recusada;
+ *      revisão velha recusada; base que mudou recusada; as avaliações v1 existentes intactas. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -55,13 +61,15 @@ function concluida(itemId, respostas, diag) {
   return r;
 }
 /* o alvo exatamente como a tela calcula (calcularImpactoPosicionamento + alvoAtual), com os arquivos do site */
-function alvoDaTela(db) {
+function alvoDaTela(db, o) {
+  o = o || {};
+  const versao = o.versao || 2, red = o.redacao || { versao: 1, perguntas: REDACAO };
   const vig = db['posicionamento-vigente-por-item'] || {}, regs = db['avaliacoes-posicionamento'] || {}, dec = db['posicionamento-decisoes'] || {};
-  const porCodigo = {}; REDACAO.forEach((p) => { porCodigo[p.codigoEstavel] = p; });
+  const porCodigo = {}; red.perguntas.forEach((p) => { porCodigo[p.codigoEstavel] = p; });
   const lista = Object.keys(vig).map((i) => (regs[vig[i]] ? { id: vig[i], reg: regs[vig[i]], decisao: dec[vig[i]] || null } : null)).filter(Boolean);
-  const imp = GT.classificarImpacto(NT, { destino: NT.definicao(2), registros: lista,
+  const imp = GT.classificarImpacto(NT, { destino: NT.definicao(versao), registros: lista,
     conteudoOrigem: (reg, c, v) => QT.conteudoPergunta(QCOD, c, v), conteudoDestino: (c) => porCodigo[c] || null, mesmoConteudo: tela.faCriterioReavaliacao.mesmoConteudo });
-  return clone(GT.alvoAtual({ definicao: NT.definicao(2), redacao: { versao: 1, perguntas: REDACAO }, impacto: imp }));
+  return clone(GT.alvoAtual({ definicao: NT.definicao(versao), redacao: red, impacto: imp }));
 }
 
 const ARQ = 'arq@previ.com.br', ARQ2 = 'arq2@previ.com.br', AVAL = 'aval@previ.com.br', ADM = 'tatianefdirene@previ.com.br', ADM3 = 'adm3@previ.com.br';
@@ -81,10 +89,10 @@ function semente() {
 }
 function proposta(db, o) {
   o = o || {};
-  const alvo = Object.assign(alvoDaTela(db), o.alvo || {});
+  const alvo = o.alvoCompleto || Object.assign(alvoDaTela(db), o.alvo || {});
   const rec = { digestImpacto: alvo.digestImpacto, alterados: alvo.impacto.alterados, incomparaveis: alvo.impacto.incomparaveis };
   const ap = (e, adm) => ({ uid: uidDe(e), email: e, em: 1, adminGeral: adm, auditoriaId: 'x', reconhecimento: clone(rec) });
-  const p = { versaoMotor: 2, alvo, justificativa: 'j', propostoPor: { uid: uidDe(ARQ), email: ARQ }, propostoEm: 1, situacao: o.situacao || 'aprovada', auditoriaId: 'x',
+  const p = { versaoMotor: o.versaoMotor || 2, alvo, justificativa: 'j', propostoPor: { uid: uidDe(ARQ), email: ARQ }, propostoEm: 1, situacao: o.situacao || 'aprovada', auditoriaId: 'x',
     aprovacoes: { a1: ap(o.a1 || ARQ2, (o.a1 || ARQ2) === ADM || (o.a1 || ARQ2) === ADM3), a2: ap(o.a2 || ADM, (o.a2 || ADM) === ADM || (o.a2 || ADM) === ADM3) } };
   if (p.situacao === 'aberta') delete p.aprovacoes.a2;
   return p;
@@ -94,7 +102,13 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
 (async () => {
   const app = admin.initializeApp({ projectId: PROJETO, databaseURL: 'http://' + (process.env.FIREBASE_DATABASE_EMULATOR_HOST || '127.0.0.1:9000') + '?ns=' + PROJETO }, 'teste'); /* projeto demo-: o emulador de functions usa ns = id do projeto */
   const database = app.database();
-  const io = ioDoAdmin(database);
+  /* as regras do banco (o fonte legível = o artefato publicado) no namespace deste teste: o gravador restrito passa por elas */
+  const HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST || '127.0.0.1:9000';
+  const rr = await fetch('http://' + HOST + '/.settings/rules.json?ns=' + PROJETO, { method: 'PUT', headers: { Authorization: 'Bearer owner' }, body: fs.readFileSync(process.env.FA_REGRAS || path.join(RAIZ, 'database.rules.json'), 'utf8') }); /* FA_REGRAS: provas de mutação */
+  if (!rr.ok) throw new Error('não carregou as regras: ' + rr.status);
+  const restritoApp = admin.initializeApp({ projectId: PROJETO, databaseURL: 'http://' + HOST + '?ns=' + PROJETO, databaseAuthVariableOverride: { uid: 'fronteira-confiavel' } }, 'restrito');
+  const restrito = restritoApp.database();
+  const io = ioDoAdmin(database, restrito, admin.database.ServerValue.TIMESTAMP);
   const F = criarFronteira(io, modulos);
   const ler = async (c) => (await database.ref(c || '/').once('value')).val();
   const contarAud = async (tipo) => Object.values((await ler(GT.NOS.auditoria)) || {}).filter((a) => !tipo || a.tipo === tipo).length;
@@ -109,10 +123,10 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   console.log('A. validarRedacaoPublicada');
   afirma(await erroDe(F.validarRedacaoPublicada(null, { versaoMotor: 2, versaoRedacao: 1 })) === 'unauthenticated', 'sem login: recusada');
   afirma(await erroDe(F.validarRedacaoPublicada(auth(AVAL), { versaoMotor: 2, versaoRedacao: 1 })) === 'permission-denied', 'perfil Avaliação: recusada');
-  afirma(await erroDe(F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: 1, versaoRedacao: 1 })) === 'invalid-argument' && await erroDe(F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: '2', versaoRedacao: 1 })) === 'invalid-argument',
-    'versões inválidas (motor 1, texto): recusadas');
+  afirma(await erroDe(F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: 0, versaoRedacao: 1 })) === 'invalid-argument' && await erroDe(F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: '2', versaoRedacao: 1 })) === 'invalid-argument',
+    'versões inválidas (motor 0, texto): recusadas');
   const r0 = await F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: 2, versaoRedacao: 2 });
-  afirma(r0.valida === false && r0.motivos.includes('REDACAO_NAO_PUBLICADA') && !(await ler(NOS_FRONTEIRA.redacaoValidada)), 'redação não publicada: inválida, nada registrado como validado');
+  afirma(r0.valida === false && r0.motivos.includes('REDACAO_NAO_PUBLICADA') && !(await ler(NOS_FRONTEIRA.redacaoValidada)), 'redação não publicada: inválida, nada registrado como validado', JSON.stringify(r0));
   const r1 = await F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: 2, versaoRedacao: 1 });
   const val = await ler(NOS_FRONTEIRA.redacaoValidada + '/2/1');
   afirma(r1.valida && !r1.jaValidada && val && val.digestRedacao === GT.digestRedacao(REDACAO) && val.solicitadoPor.uid === uidDe(ARQ), 'Avaliação + Arquitetura valida: registro com o digest recalculado e o UID do token');
@@ -162,33 +176,126 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   afirma((await F.conferirEntradaEmVigor(auth(ADM), { propostaId: 'pOk' })).motivos.includes('PRONTIDAO_REDACAO_VALIDADA_FRONTEIRA'), 'sem a validação da redação pela fronteira: não apta');
   await F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: 2, versaoRedacao: 1 });
 
-  console.log('C. ativarEntradaEmVigor');
+  console.log('C. ativarEntradaEmVigor (uma gravação, pelas regras)');
   const antesAtivar = JSON.stringify(await ler());
   const dsl = await F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: false });
   afirma(dsl.ativada === false && dsl.motivos.join() === 'ATIVACAO_DESABILITADA' && JSON.stringify(await ler()) === antesAtivar, 'desabilitada (como no servidor publicado): recusa e não grava NADA');
   afirma(await erroDe(F.ativarEntradaEmVigor(auth(ARQ), { propostaId: 'pOk' }, { habilitada: true })) === 'permission-denied', 'Avaliação + Arquitetura não ativa');
   afirma((await F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pAberta' }, { habilitada: true })).ativada === false && !(await ler(GT.NOS.vigencia)), 'proposta não apta: não ativa, vigência intacta');
-  /* vigência que muda entre a conferência e a gravação */
-  const ioCorrida = Object.assign({}, io, { transacao: async (c, f) => { await database.ref(c).set({ versaoEmVigor: 1, seq: 7 }); return io.transacao(c, f); } });
+  /* a vigência muda entre a conferência e a gravação: as regras recusam (compare-and-set da sequência) */
+  const ioCorrida = Object.assign({}, io, { gravar: async (w) => { await database.ref(GT.NOS.vigencia).set({ versaoEmVigor: 1, seq: 7 }); return io.gravar(w); } });
   const rc = await criarFronteira(ioCorrida, modulos).ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true });
-  afirma(rc.ativada === false && rc.motivos.join() === 'VIGENCIA_MUDOU' && (await ler(GT.NOS.vigencia)).seq === 7, 'a vigência mudou no meio: recusa (compare-and-set)');
+  afirma(rc.ativada === false && rc.motivos.join() === 'VIGENCIA_MUDOU' && (await ler(GT.NOS.vigencia)).seq === 7 && !(await ler(NOS_FRONTEIRA.ativacoes)), 'a vigência mudou no meio: as regras recusam a gravação inteira');
   await database.ref(GT.NOS.vigencia).remove();
   const avalAntes = JSON.stringify([await ler('avaliacoes-posicionamento'), await ler('posicionamento-decisoes'), await ler('posicionamento-vigente-por-item'), await ler(GT.NOS.propostas)]);
+  /* duas propostas diferentes ao mesmo tempo: as duas partem da sequência 0, só uma entra */
+  const par2 = await Promise.all([F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true }), F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pAdm3' }, { habilitada: true })]);
+  afirma(par2.filter((x) => x.ativada).length === 1 && par2.filter((x) => !x.ativada && /VIGENCIA_MUDOU|VERSAO_JA_EM_VIGOR/.test(x.motivos.join())).length === 1 && (await ler(GT.NOS.vigencia)).seq === 1,
+    'duas ativações simultâneas (propostas diferentes): uma só entra, a outra é recusada', JSON.stringify(par2));
+  const ganhou = par2[0].ativada ? 'pOk' : 'pAdm3', perdeu = ganhou === 'pOk' ? 'pAdm3' : 'pOk';
+  afirma(!(await ler(NOS_FRONTEIRA.ativacoes + '/' + perdeu)) && await contarAud('ativacao') === 1, 'a recusada não deixa registro nem auditoria');
+  /* a mesma proposta duas vezes ao mesmo tempo */
+  await database.ref(GT.NOS.vigencia).remove(); await database.ref(NOS_FRONTEIRA.ativacoes).remove();
+  const audsAtv = Object.entries((await ler(GT.NOS.auditoria)) || {}).filter(([, a]) => a.tipo === 'ativacao').map(([k]) => k);
+  for (const k of audsAtv) await database.ref(GT.NOS.auditoria + '/' + k).remove();
   const par = await Promise.all([F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true }), F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true })]);
   const vg = await ler(GT.NOS.vigencia);
-  afirma(par.filter((x) => x.ativada && !x.jaAtivada).length === 1 && vg.versaoEmVigor === 2 && vg.seq === 1 && vg.versaoAnterior === 1 && vg.consumidas.pOk === 1 && vg.ativadoPor.uid === uidDe(ADM),
-    'ensaio habilitado: duas chamadas simultâneas → uma ativação só (v2, seq 1, quem ativou pelo UID)', JSON.stringify(par));
+  afirma(par.filter((x) => x.ativada).length === 1 && par.filter((x) => !x.ativada && x.motivos.join() === 'PROPOSTA_JA_CONSUMIDA').length === 1 &&
+    vg.versaoEmVigor === 2 && vg.seq === 1 && vg.versaoAnterior === 1 && vg.propostaId === 'pOk' && vg.ativadoPor.uid === uidDe(ADM) && typeof vg.ativadoEm === 'number',
+    'a mesma proposta duas vezes ao mesmo tempo: uma ativação (v2, seq 1, quem ativou pelo UID, horário do servidor)', JSON.stringify(par));
   const atv = await ler(NOS_FRONTEIRA.ativacoes + '/pOk');
-  afirma(atv && atv.seq === 1 && atv.versaoMotor === 2 && atv.digestImpacto === vg.digestImpacto && await contarAud('ativacao') === 1, 'registro da ativação e uma auditoria "ativacao"');
+  const audAtv = (await ler(GT.NOS.auditoria + '/' + vg.auditoriaId)) || {};
+  afirma(atv && atv.seq === 1 && atv.versaoMotor === 2 && atv.auditoriaId === vg.auditoriaId && audAtv.tipo === 'ativacao' && audAtv.seq === 1 && await contarAud('ativacao') === 1,
+    'vigência, registro da ativação e auditoria juntos, apontando uns para os outros');
   const rep = await F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true });
   afirma(rep.ativada && rep.jaAtivada && await contarAud('ativacao') === 1 && (await ler(GT.NOS.vigencia)).seq === 1, 'repetir: devolve a mesma ativação, nada gravado de novo');
   afirma(JSON.stringify([await ler('avaliacoes-posicionamento'), await ler('posicionamento-decisoes'), await ler('posicionamento-vigente-por-item'), await ler(GT.NOS.propostas)]) === avalAntes,
     'avaliações, decisões, vigentes por item e propostas idênticas byte a byte');
   const depois = await F.conferirEntradaEmVigor(auth(ADM), { propostaId: 'pOk' });
   afirma(depois.motivos.includes('PROPOSTA_JA_CONSUMIDA') && depois.motivos.includes('VERSAO_JA_EM_VIGOR'), 'a proposta consumida não vale de novo');
-  await database.ref(NOS_FRONTEIRA.ativacoes + '/pOk').remove();
-  const rep2 = await F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pOk' }, { habilitada: true });
-  afirma(rep2.jaAtivada && (await ler(NOS_FRONTEIRA.ativacoes + '/pOk')).seq === 1, 'se o registro faltou depois da transação, a repetição o completa (sem nova ativação)');
+
+  console.log('F. atomicidade: as regras recusam gravações incompletas do próprio servidor');
+  const vgF = await ler(GT.NOS.vigencia), TS = admin.database.ServerValue.TIMESTAMP;
+  const pAdm3 = await ler(GT.NOS.propostas + '/pAdm3');
+  function ativacaoManual(o) {
+    o = o || {};
+    const seq = o.seq || vgF.seq + 1, aud = o.aud || ('m' + Math.random().toString(36).slice(2, 9)), pid = o.pid || 'pAdm3', alvo = (o.prop || pAdm3).alvo, por = { uid: uidDe(ADM), email: ADM };
+    const comum = { versaoRedacao: alvo.versaoRedacao, digestRedacao: alvo.digestRedacao, digestDefinicao: alvo.digestDefinicao, digestImpacto: alvo.digestImpacto, ativadoEm: TS, ativadoPor: por, auditoriaId: aud };
+    const w = { [GT.NOS.vigencia]: Object.assign({ versaoEmVigor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor, seq, propostaId: pid }, comum),
+      [NOS_FRONTEIRA.ativacoes + '/' + pid]: Object.assign({ seq, versaoMotor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor }, comum),
+      [GT.NOS.auditoria + '/' + aud]: { tipo: 'ativacao', propostaId: pid, versaoMotor: o.versao || 2, versaoAnterior: vgF.versaoEmVigor, seq, usuario: por, dataHora: TS, origem: 'fronteira' } };
+    if (o.mexer) o.mexer(w, aud, pid);
+    return w;
+  }
+  async function recusa(nome, w) { let ok = false; try { await restrito.ref().update(w); } catch (e) { ok = true; } afirma(ok, nome); }
+  /* pAdm3 é aprovada mas é da v2, já em vigor: para provar só a atomicidade, a "outra versão" é a v1 inexistente aqui —
+     então usamos a própria regra: versão em vigor 2 → a mesma versão é recusada */
+  await recusa('reativar a versão que já está em vigor (v2 → v2)', ativacaoManual());
+  await recusa('só a vigência, sem registro nem auditoria', (() => { const w = ativacaoManual(); return { [GT.NOS.vigencia]: w[GT.NOS.vigencia] }; })());
+  await recusa('vigência + registro, sem auditoria', ativacaoManual({ mexer: (w, aud) => { delete w[GT.NOS.auditoria + '/' + aud]; } }));
+  await recusa('vigência + auditoria, sem registro da ativação', ativacaoManual({ mexer: (w, aud, pid) => { delete w[NOS_FRONTEIRA.ativacoes + '/' + pid]; } }));
+  await recusa('sequência pulada (3 em vez de 2)', ativacaoManual({ seq: 3 }));
+  await recusa('proposta já consumida (pOk) de novo', ativacaoManual({ pid: 'pOk', prop: await ler(GT.NOS.propostas + '/pOk') }));
+  await recusa('proposta não aprovada (pAberta)', ativacaoManual({ pid: 'pAberta', prop: await ler(GT.NOS.propostas + '/pAberta') }));
+  await recusa('identificador do impacto diferente do aprovado', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].digestImpacto = 'ffffffffffffffff'; } }));
+  await recusa('horário escolhido pelo servidor (não o "now" do banco)', ativacaoManual({ mexer: (w) => { w[GT.NOS.vigencia].ativadoEm = 1700000000000; } }));
+  await recusa('apagar a vigência', { [GT.NOS.vigencia]: null });
+  await recusa('a identidade restrita não grava fora do que é dela (fa-admins)', { ['fa-admins/x_y']: true });
+  await recusa('nem decisões', { ['posicionamento-decisoes/gA']: { itemId: 'pA' } });
+  await recusa('nem apaga o registro de uma ativação', { [NOS_FRONTEIRA.ativacoes + '/pOk']: null });
+  afirma(JSON.stringify(await ler(GT.NOS.vigencia)) === JSON.stringify(vgF), 'depois de tudo isso, a vigência é exatamente a de antes');
+
+  console.log('G. retorno governado à v1');
+  const cfgDb = await ler('questionarios-config/' + QCOD);
+  const QV1 = (cod, v) => QT.conteudoPergunta(QCOD, cod, v);
+  const redV1 = GT.redacaoDaTrilhaPrincipal(NT, QV1, QT.situacao(QCOD).versaoPublicada);
+  const alvoV1 = alvoDaTela(await ler(), { versao: 1, redacao: redV1 });
+  const pV1 = proposta(base, { alvoCompleto: alvoV1, versaoMotor: 1 });
+  await database.ref(GT.NOS.propostas + '/pV1').set(pV1);
+  const val1 = await F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: 1, versaoRedacao: redV1.versao });
+  afirma(val1.valida && val1.digestRedacao === GT.digestRedacao(redV1.perguntas) && (await ler(NOS_FRONTEIRA.redacaoValidada + '/1/' + redV1.versao)).digestRedacao === val1.digestRedacao,
+    'a redação da v1 (trilha principal) é validada no servidor, com o mesmo identificador da tela', JSON.stringify(val1));
+  afirma((await F.validarRedacaoPublicada(auth(ARQ), { versaoMotor: 1, versaoRedacao: redV1.versao + 1 })).motivos.includes('REDACAO_NAO_PUBLICADA'), 'versão da trilha principal que não é a publicada: recusada');
+  const cV1 = await F.conferirEntradaEmVigor(auth(ADM), { propostaId: 'pV1' }, { habilitada: true });
+  afirma(cV1.apta === true && cV1.ativacaoHabilitada === true, 'retorno à v1 aprovado e conferido: apto', cV1.motivos.join());
+  const aV1 = await F.ativarEntradaEmVigor(auth(ADM), { propostaId: 'pV1' }, { habilitada: true });
+  const vg1 = await ler(GT.NOS.vigencia);
+  afirma(aV1.ativada && vg1.versaoEmVigor === 1 && vg1.versaoAnterior === 2 && vg1.seq === 2 && (await ler(NOS_FRONTEIRA.ativacoes + '/pOk')).seq === 1 && (await ler(NOS_FRONTEIRA.ativacoes + '/pV1')).seq === 2,
+    'retorno à v1 = nova ativação (seq 2); a ativação da v2 continua no histórico');
+  afirma(JSON.stringify([await ler('avaliacoes-posicionamento'), await ler('posicionamento-decisoes'), await ler('posicionamento-vigente-por-item')]) === JSON.stringify(JSON.parse(avalAntes).slice(0, 3)),
+    'nenhuma avaliação, decisão ou vigente mudou com as ativações');
+
+  console.log('I. avaliação v2 concluída pela fronteira');
+  const MOTOR_PRODUTO = require('./montar-regras-posicionamento.js').MOTOR_PRODUTO;
+  await database.ref('avaliacoes-produto/pV').set({ itemId: 'pV', nome: 'Item V', status: 'concluido', excluido: false, versao: 1, motorVersion: MOTOR_PRODUTO, motorVersionArquitetura: 1 });
+  const rv2 = (q, v) => ({ resposta: v, codigoPergunta: q, questionnaireContentVersion: 1, dataResposta: QUANDO });
+  const rasc = { itemId: 'pV', itemNome: 'Item V', avaliacaoArquiteturalId: 'pV', questionarioCodigo: QCOD, questionnaireContentVersion: 1, versao: 1, versaoMotor: 2, status: 'rascunho', revisao: 3,
+    respostas: { O1: rv2('O1', 'NAO'), O2: rv2('O2', 'SIM'), O3: rv2('O3', 'NAO') }, criadoPor: outra, criadoEm: QUANDO, atualizadoPor: outra, atualizadoEm: QUANDO, auditoriaCriacaoId: 'acV' };
+  await database.ref('avaliacoes-posicionamento/gV').set(rasc);
+  await database.ref('posicionamento-rascunho-por-item/pV').set('gV');
+  const v1Antes = JSON.stringify([await ler('avaliacoes-posicionamento/gA'), await ler('avaliacoes-posicionamento/gB'), await ler('posicionamento-decisoes')]);
+  afirma(await erroDe(F.concluirAvaliacaoPosicionamento(auth(AVAL), { avaliacaoId: 'gV', revisao: 3 })) === 'permission-denied', 'perfil Avaliação não conclui');
+  afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gV', revisao: 2 })).motivos.join() === 'REVISAO_DESATUALIZADA', 'revisão velha: recusada (nada gravado)');
+  afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gA', revisao: 2 })).motivos.join() === 'NAO_E_RASCUNHO', 'avaliação já concluída: recusada');
+  await database.ref('avaliacoes-produto/pV2').set({ itemId: 'pV', status: 'concluido', excluido: false, versao: 2, versaoAnteriorKey: 'pV', motorVersion: MOTOR_PRODUTO, motorVersionArquitetura: 1 });
+  afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gV', revisao: 3 })).motivos.join() === 'BASE_MUDOU', 'a base P1–P16 que vale hoje não é a do rascunho: recusada');
+  await database.ref('avaliacoes-produto/pV2').remove();
+  const cc = await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gV', revisao: 3 });
+  const gV = await ler('avaliacoes-posicionamento/gV'), esperado = NT.avaliar(NT.definicao(2), { O1: 'NAO', O2: 'SIM', O3: 'NAO' }, {}, {});
+  afirma(cc.concluida && gV.status === 'concluido' && gV.resultadoAutomatico.codigoResultado === esperado.codigoResultado && gV.resultadoAutomatico.versaoMotor === 2 &&
+    gV.resultadoAutomatico.liberaSquad === esperado.liberaSquad && gV.concluidoPor.email === ARQ && gV.revisao === 4, 'concluída pelo servidor com o resultado do núcleo do motor v2', JSON.stringify(cc));
+  const audsV = Object.values((await ler('posicionamento-auditoria/gV')) || {});
+  afirma((await ler('posicionamento-vigente-por-item/pV')) === 'gV' && !(await ler('posicionamento-rascunho-por-item/pV')) && audsV.some((a) => a.tipo === 'conclusao' && a.versaoMotor === 2),
+    'vigente do item, reserva liberada e auditoria "conclusao" na mesma gravação');
+  afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gV', revisao: 4 })).motivos.join() === 'NAO_E_RASCUNHO', 'repetir: já concluída, nada muda');
+  await database.ref('avaliacoes-posicionamento/gW').set(Object.assign({}, rasc, { itemId: 'pA', avaliacaoArquiteturalId: 'pA', versaoMotor: null }));
+  afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gW', revisao: 3 })).motivos.join() === 'CONCLUSAO_PELA_TELA', 'avaliação v1: o servidor não conclui (é da tela)');
+  await database.ref('avaliacoes-posicionamento/gW').remove();
+  afirma(JSON.stringify([await ler('avaliacoes-posicionamento/gA'), await ler('avaliacoes-posicionamento/gB'), await ler('posicionamento-decisoes')]) === v1Antes, 'as avaliações v1 existentes e as decisões ficam idênticas');
+  /* a regra também recusa: a identidade restrita não conclui v1 nem altera o que é fixo */
+  await database.ref('avaliacoes-posicionamento/gX').set(Object.assign({}, rasc, { itemId: 'pX', avaliacaoArquiteturalId: 'pV', versaoMotor: null, revisao: 1 }));
+  await recusa('a fronteira não conclui avaliação v1 (nem pelas regras)', { ['avaliacoes-posicionamento/gX/status']: 'concluido' });
+  await database.ref('avaliacoes-posicionamento/gX').remove();
 
   console.log('D. equivalência tela × servidor');
   await database.ref(GT.NOS.vigencia).remove();
@@ -228,6 +335,16 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
     afirma(conf.result && conf.result.apta === true && conf.result.ativacaoHabilitada === false, 'admin geral confere pela função: apta, ativação desabilitada', JSON.stringify(conf).slice(0, 300));
     const atvF = await chamar('ativarEntradaEmVigor', { propostaId: 'pOk' }, tAdm);
     afirma(atvF.result && atvF.result.ativada === false && atvF.result.motivos.join() === 'ATIVACAO_DESABILITADA' && !(await ler(GT.NOS.vigencia)), 'a função publicada de ativação: ATIVACAO_DESABILITADA, vigência sem registro');
+    /* a função publicada grava COM a identidade restrita: com as regras fechando a auditoria, a conferência é recusada */
+    const regrasTxt = fs.readFileSync(process.env.FA_REGRAS || path.join(RAIZ, 'database.rules.json'), 'utf8'), regrasJ = JSON.parse(regrasTxt);
+    regrasJ.rules[GT.NOS.auditoria]['$auditoriaId']['.write'] = false;
+    await fetch('http://' + HOST + '/.settings/rules.json?ns=' + PROJETO, { method: 'PUT', headers: { Authorization: 'Bearer owner' }, body: JSON.stringify(regrasJ) });
+    const fechada = await chamar('conferirEntradaEmVigor', { propostaId: 'pOk' }, tAdm);
+    await fetch('http://' + HOST + '/.settings/rules.json?ns=' + PROJETO, { method: 'PUT', headers: { Authorization: 'Bearer owner' }, body: regrasTxt });
+    afirma(fechada.error && fechada.error.status === 'INTERNAL', 'a função grava pelas REGRAS (identidade restrita): auditoria fechada → a conferência não grava', JSON.stringify(fechada));
+    const conclF = await chamar('concluirAvaliacaoPosicionamento', { avaliacaoId: 'naoExiste', revisao: 1 }, tArq);
+    afirma(conclF.result && conclF.result.concluida === false && conclF.result.motivos.join() === 'AVALIACAO_INEXISTENTE', 'a função de conclusão v2 está publicada e responde', JSON.stringify(conclF));
+    afirma(conf.result && conf.result.ativacaoHabilitada === false, 'a conferência publicada informa que a ativação está desabilitada');
   }
   await app.delete();
   console.log('\n' + (total - falhas) + '/' + total + ' verificações.' + (falhas ? ' ' + falhas + ' falha(s).' : ' Tudo certo.'));

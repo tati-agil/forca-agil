@@ -11,7 +11,10 @@ const vm = require('vm');
 const DIR = path.join(__dirname, 'site');
 const N = require(path.join(DIR, 'motor-posicionamento-nucleo.js'));
 const G = require(path.join(DIR, 'governanca-posicionamento.js'));
-const SCRIPTS = ['motor-posicionamento-nucleo.js', 'questionarios-config.js', 'motor-arquitetura.js', 'avaliacao-produto.js']
+/* H3-b: também o motor v1, os NOMES dos posicionamentos (Taxonomia) e o núcleo da tela de Posicionamento — a conclusão
+   de uma avaliação de motor ≥ 2 é montada pelo MESMO payloadConclusao da tela */
+const SCRIPTS = ['motor-posicionamento-nucleo.js', 'governanca-posicionamento.js', 'questionarios-config.js', 'motor-arquitetura.js', 'avaliacao-produto.js',
+  'motor-posicionamento.js', 'posicionamentos.js', 'avaliacao-posicionamento.js']
   .map((f) => new vm.Script(fs.readFileSync(path.join(DIR, f), 'utf8'), { filename: f }));
 
 /* banco só de leitura, já lido: ref(caminho).on('value') responde na hora com o valor do snapshot */
@@ -37,12 +40,16 @@ function carregar(dados) {
   const ctx = { console: { log() {}, warn() {}, error() {}, info() {} }, JSON, Object, Array, String, Math, Number, Date, RegExp, Error, Promise, Set, Map,
     setTimeout, clearTimeout, setInterval() { return 0; }, clearInterval() {}, parseFloat, parseInt, isNaN };
   ctx.window = ctx;
+  ctx.addEventListener = () => {}; ctx.removeEventListener = () => {};
+  /* o servidor lê como o perfil que pediu a operação (já conferido por quem chama): posicionamentos.js só lê os nomes com acesso */
+  ctx.faAuth = { podeAvaliacao: () => true, isAvaliacaoReady: () => true };
   const el = () => ({ addEventListener() {}, querySelector() { return null; }, querySelectorAll() { return []; }, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } });
   ctx.document = { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], createElement: el, addEventListener() {}, body: el(), documentElement: el() };
   ctx.firebase = bancoLido(dados || {});
   ctx.navigator = {}; ctx.location = { hash: '' }; ctx.localStorage = { getItem() { return null; }, setItem() {} };
   vm.createContext(ctx);
   SCRIPTS.forEach((s) => s.runInContext(ctx));
-  return { Q: ctx.faQuestionarios, mesmoConteudo: ctx.faCriterioReavaliacao.mesmoConteudo };
+  if (ctx.faPosicionamentos && typeof ctx.faPosicionamentos.iniciar === 'function') ctx.faPosicionamentos.iniciar();
+  return { Q: ctx.faQuestionarios, mesmoConteudo: ctx.faCriterioReavaliacao.mesmoConteudo, T: ctx.faAvaliacaoPosicionamentoNucleo, P: ctx.faPosicionamentos, B: ctx.faBaseProdutoServico };
 }
 module.exports = { N, G, carregar };

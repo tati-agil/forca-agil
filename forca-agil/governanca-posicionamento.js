@@ -381,11 +381,24 @@
     return u;
   }
 
+  /* H3-b — a redação da v1 é a da TRILHA PRINCIPAL do questionário (não tem versões próprias do motor nem identificador
+     gravado): monta-se pelo contrato do motor v1 com o conteúdo daquela versão; o digest é recalculado (tela e servidor). */
+  function redacaoDaTrilhaPrincipal(N, conteudoPergunta, versao) {
+    var def = N.definicao(1);
+    return { versao: versao, motorCompativel: 1, perguntas: N.contratoDoQuestionario(def).itens.map(function (it) {
+      var c = conteudoPergunta(it.codigoEstavel, versao) || {};
+      var p = {};
+      Object.keys(c).forEach(function (k) { p[k] = c[k]; });
+      p.codigoEstavel = it.codigoEstavel; p.tipo = it.tipo;
+      return p;
+    }) };
+  }
+
   var api = {
     digest: digest, digestRedacao: digestRedacao, liberaSquadEsperado: liberaSquadEsperado, violaLinhaSquad: violaLinhaSquad,
     herdarEntreVersoes: herdarEntreVersoes, classificarImpacto: classificarImpacto,
     prontidao: prontidao, autorizacao: autorizacao, decisaoDeVigencia: decisaoDeVigencia,
-    NOS: NOS, versaoEmVigorRegistrada: versaoEmVigorRegistrada, alvoAtual: alvoAtual, podePropor: podePropor, situacaoProposta: situacaoProposta,
+    NOS: NOS, versaoEmVigorRegistrada: versaoEmVigorRegistrada, redacaoDaTrilhaPrincipal: redacaoDaTrilhaPrincipal, alvoAtual: alvoAtual, podePropor: podePropor, situacaoProposta: situacaoProposta,
     podeAprovar: podeAprovar, podeRetirar: podeRetirar, montarProposta: montarProposta, montarAprovacao: montarAprovacao, montarRetirada: montarRetirada,
     CAMPOS_CRITERIO_BINARIA: CAMPOS_CRITERIO_BINARIA.slice(), CAMPOS_CRITERIO_D1: CAMPOS_CRITERIO_D1.slice()
   };

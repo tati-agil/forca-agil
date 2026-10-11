@@ -25,6 +25,14 @@ const ADM = "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.e
 const TIPO = "root.child('fa-avaliacao-autorizados').child(" + K + ").child('tipo').val()";
 const LEIT = "auth != null && ((" + ADM + ") || (" + TIPO + " === 'avaliacao' || " + TIPO + " === 'avaliacao-arquitetura'))";
 const ESC = "auth != null && ((" + ADM + ") || " + TIPO + " === 'avaliacao-arquitetura')";
+/* H3-b — a FRONTEIRA CONFIÁVEL grava com a identidade restrita 'fronteira-confiavel' (Admin SDK com
+   databaseAuthVariableOverride: só existe com a credencial de servidor) e PASSA PELAS REGRAS. Aqui ela só pode concluir
+   avaliação de motor ≥ 2 (a v1 continua concluída pela tela, conferida pela tabela). Sempre avaliada primeiro: a
+   identidade restrita não tem auth.token. */
+const FRONTEIRA = "(auth != null && auth.uid === 'fronteira-confiavel')";
+const ESCF = '(' + FRONTEIRA + ' || (' + ESC + '))';
+const VIGM = "root.child('posicionamento-motor-vigencia').child('versaoEmVigor')";
+const EMVIGOR = '(' + VIGM + '.exists() ? ' + VIGM + '.val() : 1)';
 const AV = 'avaliacoes-posicionamento', RES = 'posicionamento-rascunho-por-item', VIG = 'posicionamento-vigente-por-item', AUD = 'posicionamento-auditoria';
 const DEC = 'posicionamento-decisoes';
 const CODS = ['LINHA','ESTRATEGIA_CLIENTES','NEGOCIOS','PLATAFORMA','PLATAFORMA_CANAIS','PLATAFORMA_HABILITADORA_NEGOCIOS','PLATAFORMA_HABILITADORA_TECNOLOGIA','PLATAFORMA_CORPORATIVA','AREA_ESPECIALIZADA','COE'];
@@ -55,6 +63,9 @@ const DESC = ['motivoDescarte', 'descartadoPor', 'descartadoEm', 'auditoriaDesca
 const naoEmBranco = (x) => x + ".replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0";
 const ANTID = v('avaliacaoAnteriorId');
 const ANT = "root.child('" + AV + "').child(" + ANTID + ")";
+/* versão do motor do registro (ausente = 1) e da anterior */
+const VERS = '(' + c('versaoMotor') + '.exists() ? ' + v('versaoMotor') + ' : 1)';
+const VERSANT = '(' + ANT + ".child('versaoMotor').exists() ? " + ANT + ".child('versaoMotor').val() : 1)";
 const VIGRAIZ = "root.child('" + VIG + "').child(" + v('itemId') + ')';
 
 /* a base P1–P16 (a avaliacaoArquiteturalId gravada) tem de estar concluída, fora da Lixeira e com Motor atual — na
@@ -72,34 +83,47 @@ const criar = and([
   '(' + c('avaliacaoAnteriorId') + '.exists() ? (' + and([
     ANT + ".child('status').val() === 'concluido'", ANT + ".child('itemId').val() === " + v('itemId'),
     VIGRAIZ + '.val() === ' + ANTID, v('versao') + ' === ' + ANT + ".child('versao').val() + 1",
-    c('motivoReavaliacao') + '.isString()', naoEmBranco(v('motivoReavaliacao'))
-  ]) + ') : (' + and(['!' + VIGRAIZ + '.exists()', v('versao') + ' === 1', '!' + c('motivoReavaliacao') + '.exists()']) + '))',
+    c('motivoReavaliacao') + '.isString()', naoEmBranco(v('motivoReavaliacao')),
+    /* H3-b: reavaliar mantém o motor da anterior; "Atualizar com motor atual" (origem 'motor') vai para o motor EM VIGOR, mais novo */
+    '((!' + c('origemReavaliacao') + '.exists() && ' + VERS + ' === ' + VERSANT + ') || (' + v('origemReavaliacao') + " === 'motor' && " + VERS + ' === ' + EMVIGOR + ' && ' + VERS + ' > ' + VERSANT + '))'
+  ]) + ') : (' + and(['!' + VIGRAIZ + '.exists()', v('versao') + ' === 1', '!' + c('motivoReavaliacao') + '.exists()', '!' + c('origemReavaliacao') + '.exists()',
+    /* H3-b: a primeira versão nasce no motor EM VIGOR (lido do banco; sem registro = 1) */
+    VERS + ' === ' + EMVIGOR]) + '))',
   AUDNOVA('auditoriaCriacaoId') + ".child('tipo').val() === 'criacao'", '!' + AUDANT('auditoriaCriacaoId') + '.exists()'
 ]));
-const fixos = ['itemId', 'itemNome', 'avaliacaoArquiteturalId', 'questionnaireContentVersion', 'versao', 'avaliacaoAnteriorId', 'motivoReavaliacao', 'criadoPor/email', 'criadoPor/name', 'criadoEm', 'auditoriaCriacaoId'];
+const fixos = ['itemId', 'itemNome', 'avaliacaoArquiteturalId', 'questionnaireContentVersion', 'versao', 'avaliacaoAnteriorId', 'motivoReavaliacao', 'versaoMotor', 'origemReavaliacao', 'criadoPor/email', 'criadoPor/name', 'criadoEm', 'auditoriaCriacaoId'];
 const alterar = and(fixos.map((f) => v(f) + ' === ' + d(f)).concat([v('revisao') + ' === ' + d('revisao') + ' + 1']));
 const rascunho = and([NOVO(RES) + '.child(' + v('itemId') + ').val() === $avaliacaoId', semCampos(CONCL), semCampos(DESC)]);
-const concluido = and([
-  "newData.hasChildren(['" + CONCL.filter((x) => x !== 'nomesNaConclusao').join("','") + "'])", v('concluidoPor/email') + ' === auth.token.email', semCampos(DESC),
+const concluidoComum = [
+  "newData.hasChildren(['" + CONCL.filter((x) => x !== 'nomesNaConclusao').join("','") + "'])", semCampos(DESC),
   '!' + NOVO(RES) + '.child(' + v('itemId') + ').exists()',
   /* vigente: nasce na primeira versão; numa reavaliação, troca por compare-and-set (só se ainda é a anterior) */
   NOVO(VIG) + '.child(' + v('itemId') + ').val() === $avaliacaoId',
   '(' + c('avaliacaoAnteriorId') + '.exists() ? ' + VIGRAIZ + '.val() === ' + ANTID + ' : !' + VIGRAIZ + '.exists())',
   AUDNOVA('auditoriaConclusaoId') + ".child('tipo').val() === 'conclusao'", '!' + AUDANT('auditoriaConclusaoId') + '.exists()'
-].concat(baseValida).concat([T.trechoResultado()]));
+].concat(baseValida);
+/* a TELA conclui só a v1, com o resultado conferido pela tabela; a v ≥ 2 é concluída só pela fronteira confiável */
+const concluido = and([v('concluidoPor/email') + ' === auth.token.email', '!' + c('versaoMotor') + '.exists()'].concat(concluidoComum).concat([T.trechoResultado()]));
+const concluidoPelaFronteira = and([c('versaoMotor') + '.exists()', v('resultadoAutomatico/versaoMotor') + ' === ' + v('versaoMotor')].concat(concluidoComum));
 const descartado = and([
   "newData.hasChildren(['" + DESC.join("','") + "'])", v('descartadoPor/email') + ' === auth.token.email', semCampos(CONCL),
   naoEmBranco(v('motivoDescarte')),
   '!' + NOVO(RES) + '.child(' + v('itemId') + ').exists()',
   AUDNOVA('auditoriaDescarteId') + ".child('tipo').val() === 'descarte'", '!' + AUDANT('auditoriaDescarteId') + '.exists()'
 ]);
-const validar = and([
-  '$avaliacaoId.matches(' + ID + ')',
-  "newData.hasChildren(['itemId','itemNome','avaliacaoArquiteturalId','questionarioCodigo','questionnaireContentVersion','versao','status','revisao','criadoPor','criadoEm','atualizadoPor','atualizadoEm','auditoriaCriacaoId'])",
+const pelaTela = and([
   v('atualizadoPor/email') + ' === auth.token.email',
   '(data.exists() ? (' + alterar + ') : (' + criar + '))',
   '(' + v('status') + " === 'rascunho' ? (" + rascunho + ') : ' + v('status') + " === 'concluido' ? (" + concluido + ') : (' + descartado + '))',
-  T.trechoCaminho()
+  /* o caminho é o do motor v1 (tabela); o de v ≥ 2 a fronteira recalcula na conclusão */
+  '(!' + c('versaoMotor') + '.exists() ? (' + T.trechoCaminho() + ') : true)'
+]);
+/* fronteira: só rascunho → concluído de um registro de motor ≥ 2, sem mexer no que é fixo */
+const pelaFronteira = and(['data.exists()', "data.child('status').val() === 'rascunho'", alterar, v('status') + " === 'concluido'", concluidoPelaFronteira]);
+const validar = and([
+  '$avaliacaoId.matches(' + ID + ')',
+  "newData.hasChildren(['itemId','itemNome','avaliacaoArquiteturalId','questionarioCodigo','questionnaireContentVersion','versao','status','revisao','criadoPor','criadoEm','atualizadoPor','atualizadoEm','auditoriaCriacaoId'])",
+  '(' + FRONTEIRA + ' ? (' + pelaFronteira + ') : (' + pelaTela + '))'
 ]);
 const pessoa = { '.validate': "newData.hasChildren(['email'])", name: { '.validate': 'newData.isString() && newData.val().length <= 200' }, email: { '.validate': 'newData.isString()' }, $outro: { '.validate': false } };
 const texto = (n) => ({ '.validate': 'newData.isString() && newData.val().length <= ' + n });
@@ -107,7 +131,7 @@ const codigosEq = (x) => '(' + CODS.map((k) => x + " === '" + k + "'").join(' ||
 const blocoAv = {
   '.read': LEIT,
   $avaliacaoId: {
-    '.write': ESC + " && newData.exists() && (!data.exists() || data.child('status').val() === 'rascunho')",
+    '.write': ESCF + " && newData.exists() && (!data.exists() || data.child('status').val() === 'rascunho')",
     '.validate': validar,
     itemId: { '.validate': 'newData.isString() && newData.val().matches(' + ID + ')' },
     itemNome: { '.validate': 'newData.isString() && newData.val().length > 0 && newData.val().length <= 200' },
@@ -117,6 +141,9 @@ const blocoAv = {
     versao: { '.validate': 'newData.isNumber() && newData.val() >= 1' },
     avaliacaoAnteriorId: { '.validate': 'newData.isString() && newData.val().matches(' + ID + ')' },
     motivoReavaliacao: { '.validate': 'newData.isString() && newData.val().length <= 500' },
+    /* H3-b: motor do registro (ausente = 1; só se grava de 2 a 99) e a origem "motor" da atualização para o motor atual */
+    versaoMotor: { '.validate': 'newData.isNumber() && newData.val() >= 2 && newData.val() <= 99 && newData.val() % 1 === 0' },
+    origemReavaliacao: { '.validate': "newData.val() === 'motor' && newData.parent().child('avaliacaoAnteriorId').exists()" },
     status: { '.validate': "newData.val() === 'rascunho' || newData.val() === 'concluido' || newData.val() === 'descartado'" },
     revisao: { '.validate': 'newData.isNumber() && newData.val() >= 1' },
     criadoPor: pessoa, atualizadoPor: pessoa, concluidoPor: pessoa, descartadoPor: pessoa,
@@ -149,6 +176,20 @@ const blocoAv = {
         $outro: { '.validate': false }
       }
     },
+    /* D2 de predominância: só em registro de motor ≥ 2 */
+    predominancias: {
+      '.validate': "newData.parent().child('versaoMotor').exists()",
+      $nivel: {
+        '.validate': "$nivel.matches(/^N[1-3]$/) && newData.hasChildren(['resposta','papeis','questionnaireContentVersion','dataResposta'])",
+        resposta: { '.validate': 'newData.isString() && newData.val().matches(/^[A-Z_]{1,40}$/)' },
+        papeis: { $i: { '.validate': 'newData.isString()' } },
+        tituloNaEpoca: texto(400), textoPerguntaNaEpoca: texto(4000), rotuloNaEpoca: texto(400), interpretacaoNaEpoca: texto(4000),
+        observacao: texto(2000),
+        questionnaireContentVersion: { '.validate': 'newData.isNumber()' },
+        dataResposta: texto(40),
+        $outro: { '.validate': false }
+      }
+    },
     resultadoAutomatico: {
       codigoResultado: { '.validate': 'newData.isString()' }, tipoAValidar: { '.validate': 'newData.isString()' }, motivo: { '.validate': 'newData.isString()' },
       nivelConfirmado: { '.validate': 'newData.isString()' }, regra: { '.validate': 'newData.isString()' },
@@ -172,7 +213,7 @@ const AVNOVA = "newData.parent().parent().parent().child('" + AV + "').child($av
 const blocoRes = {
   '.read': LEIT,
   $itemId: {
-    '.write': ESC + " && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && newData.parent().parent().child('" + AV + "').child(data.val()).exists() && newData.parent().parent().child('" + AV + "').child(data.val()).child('status').val() !== 'rascunho'))",
+    '.write': ESCF + " && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && newData.parent().parent().child('" + AV + "').child(data.val()).exists() && newData.parent().parent().child('" + AV + "').child(data.val()).child('status').val() !== 'rascunho'))",
     '.validate': "newData.isString() && newData.parent().parent().child('" + AV + "').child(newData.val()).child('status').val() === 'rascunho' && newData.parent().parent().child('" + AV + "').child(newData.val()).child('itemId').val() === $itemId"
   }
 };
@@ -180,7 +221,7 @@ const blocoVig = {
   '.read': LEIT,
   $itemId: {
     /* nasce, ou troca para a versão seguinte cuja anterior é a atual (compare-and-set); nunca é apagado */
-    '.write': ESC + " && newData.exists() && (!data.exists() || data.val() === newData.parent().parent().child('" + AV + "').child(newData.val()).child('avaliacaoAnteriorId').val())",
+    '.write': ESCF + " && newData.exists() && (!data.exists() || data.val() === newData.parent().parent().child('" + AV + "').child(newData.val()).child('avaliacaoAnteriorId').val())",
     '.validate': "newData.isString() && newData.parent().parent().child('" + AV + "').child(newData.val()).child('status').val() === 'concluido' && newData.parent().parent().child('" + AV + "').child(newData.val()).child('itemId').val() === $itemId && root.child('" + AV + "').child(newData.val()).child('status').val() === 'rascunho'"
   }
 };
@@ -190,9 +231,9 @@ const blocoAud = {
   '.read': LEIT,
   $avaliacaoId: {
     $auditoriaId: {
-      '.write': ESC + ' && !data.exists() && newData.exists()',
+      '.write': ESCF + ' && !data.exists() && newData.exists()',
       '.validate': and([
-        "newData.hasChildren(['tipo','itemId','usuario','dataHora'])", v('usuario/email') + ' === auth.token.email', v('itemId') + ' === ' + AVNOVA + ".child('itemId').val()",
+        "newData.hasChildren(['tipo','itemId','usuario','dataHora'])", '(' + FRONTEIRA + ' || ' + v('usuario/email') + ' === auth.token.email)', v('itemId') + ' === ' + AVNOVA + ".child('itemId').val()",
         '((' + v('tipo') + " === 'criacao' && " + AVNOVA + ".child('auditoriaCriacaoId').val() === $auditoriaId && " +
         v('avaliacaoAnteriorId') + ' === ' + AVNOVA + ".child('avaliacaoAnteriorId').val() && " + v('motivo') + ' === ' + AVNOVA + ".child('motivoReavaliacao').val()) || (" +
         v('tipo') + " === 'conclusao' && " + AVNOVA + ".child('auditoriaConclusaoId').val() === $auditoriaId && " +
@@ -205,6 +246,7 @@ const blocoAud = {
       usuario: pessoa, dataHora: texto(40), codigoResultado: { '.validate': 'newData.isString()' }, regra: { '.validate': 'newData.isString()' },
       versaoMotor: { '.validate': 'newData.isNumber()' }, liberaSquad: { '.validate': 'newData.isBoolean()' }, motivo: texto(500),
       avaliacaoAnteriorId: { '.validate': 'newData.isString()' }, vigenteAnterior: { '.validate': 'newData.isString()' },
+      origemReavaliacao: { '.validate': "newData.val() === 'motor'" }, versaoMotorAnterior: { '.validate': 'newData.isNumber()' },
       codigoAutomatico: { '.validate': 'newData.isString()' }, codigoFinal: { '.validate': 'newData.isString()' }, tipoDecisao: { '.validate': 'newData.isString()' },
       versaoAvaliacao: { '.validate': 'newData.isNumber()' }, justificativa: texto(2000),
       $outro: { '.validate': false }
@@ -275,13 +317,20 @@ if (require.main === module) {
     console.log(divergentes.length ? 'DIVERGEM de database.rules.json: ' + divergentes.join(', ') : 'os 5 nós publicados são os montados');
     process.exit(divergentes.length ? 1 : 0);
   }
-  /* os 5 nós ficam no fim do arquivo: tira os antigos (se houver) e acrescenta os montados */
-  const i = s.indexOf(',\n    "' + AV + '": ');
-  if (i !== -1) s = s.slice(0, i) + '\n  }\n}\n';
-  const fechamento = '    }\n  }\n}\n';
-  if (!s.endsWith(fechamento)) throw new Error('fim inesperado em database.rules.json');
+  /* H3-b: substitui CADA nó no lugar (antes, cortava o arquivo a partir do primeiro e apagava os nós que vinham depois) */
   const ind = (o) => JSON.stringify(o, null, 2).split('\n').map((l, k) => (k === 0 ? l : '    ' + l)).join('\n');
-  s = s.slice(0, s.length - fechamento.length) + '    },\n' + Object.keys(BLOCOS).map((n) => '    "' + n + '": ' + ind(BLOCOS[n])).join(',\n') + '\n  }\n}\n';
+  Object.keys(BLOCOS).forEach((n) => {
+    const ini = s.indexOf('\n    "' + n + '": {');
+    if (ini === -1) throw new Error('nó ausente em database.rules.json: ' + n);
+    const abre = s.indexOf('{', ini);
+    let prof = 0, i = abre, emTexto = false;
+    for (; i < s.length; i++) {
+      const ch = s[i];
+      if (emTexto) { if (ch === '\\') i++; else if (ch === '"') emTexto = false; continue; }
+      if (ch === '"') emTexto = true; else if (ch === '{') prof++; else if (ch === '}' && --prof === 0) break;
+    }
+    s = s.slice(0, abre) + ind(BLOCOS[n]) + s.slice(i + 1);
+  });
   JSON.parse(s);
   fs.writeFileSync(ARQUIVO, s);
   console.log('gravado: ' + s.length + ' bytes');
