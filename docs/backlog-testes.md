@@ -288,3 +288,14 @@ Não entram nem no checklist nem neste backlog.
 - #58 Falha silenciosa na leitura inicial (sem callback de erro nem timeout) → card/botão trava no estado estático padrão — app.js:944 checkInterestState usa .once('value',cb) sem callback de erro — o item registra um defeito conhecido (botão preso), não um critério de aceitação; nenhuma prova em .github/scripts
 - #118 Documentação viva confere com o que está implementado — texto 'AUTOMATIZADO NO CI, não aqui'; .github/scripts/teste-consistencia-docs.js existe e está na suite_hermetica
 - #138 Administradores — erro na leitura mostra mensagem em vez de travar — é roteiro de diagnóstico ('se um dia ficar presa…'), não verificação pendente; comportamento em admin.js:6322-6324; nenhum teste injeta falha de leitura em fa-admins
+
+## Pendência registrada (B2 do H2-b): proteger a trilha principal dos questionários
+
+As versões publicadas da trilha principal (`questionarios-config/<código>/versoes/<n>` e `versaoPublicada`, que incluem
+P1–P16, S1–S8 e a redação v1 de O1–O9) continuam graváveis pelos perfis com escrita no nó: hoje dá para alterar ou
+apagar uma versão já publicada e voltar o ponteiro. O B2 protegeu só a trilha do motor novo (`motores/<v>`), por
+decisão da responsável, para não arriscar regressão na Avaliação de Produto/Serviço e na Squad. **Resolver antes da
+publicação final do Mapa da Floresta**, no mesmo desenho do B2 (só criar, ponteiro +1 na mesma gravação, auditoria
+obrigatória), com teste de emulador e regressão dos fluxos de publicação, correção editorial e "voltar a uma versão
+anterior" (que já publica como versão nova).
+

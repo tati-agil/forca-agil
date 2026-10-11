@@ -112,7 +112,7 @@ Imagens e templates ficam em `forca-agil/assets/` e `forca-agil/cert-template-*.
 
 ## 3. Dicionário do banco
 
-Firebase Realtime Database, projeto `kyber-agil`. **61 nós** na raiz de `database.rules.json`.
+Firebase Realtime Database, projeto `kyber-agil`. **62 nós** na raiz de `database.rules.json`.
 "Módulos" lista os arquivos que leem ou gravam o nó (conferido por busca no código).
 Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
@@ -181,8 +181,9 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 | `motor-arquitetura-auditoria` | Auditoria do motor arquitetural. | avaliacao-produto, motor-arquitetura | Só acréscimo. |
 | `motor-squad-config` | Regras publicadas, versões, rascunho e textos do motor de Squad. | motor-squad | |
 | `motor-squad-auditoria` | Auditoria do motor de Squad. | motor-squad | Só acréscimo. |
-| `questionarios-config` | Conteúdo editorial publicado dos questionários (P1–P16, S1–S8, O1–O9 + diagnóstico conflito × recorte). Sub-trilha `<código>/motores/<versão do motor>/{rascunho, versoes, versaoPublicada}` (H1-Final): a redação de uma versão NOVA do motor de Posicionamento, separada da redação em uso; hoje só `motores/2/rascunho` (`perguntas`, `motorCompativel` gravado pelo sistema, `origem`, `atualizadoEm/Por`) — publicar o par motor + redação é do H2. | questionarios-config | O código estável da pergunta só existe no código. |
+| `questionarios-config` | Conteúdo editorial publicado dos questionários (P1–P16, S1–S8, O1–O9 + diagnóstico conflito × recorte). Sub-trilha `<código>/motores/<versão do motor ≥ 2>/{rascunho, versoes, versaoPublicada, publicacaoSuspensa}` (H1-Final + B2): a redação de uma versão NOVA do motor de Posicionamento, separada da redação em uso. **B2:** `versoes/<n>` (`perguntas`, `motorCompativel`, `publicadoEm` = horário do servidor, `publicadoPor` {uid, email, name}, `auditoriaId`, `digestRedacao`; lista fechada — a tela não grava "validada") só é CRIADA, nunca alterada nem apagada, nem por caminho superior; `versaoPublicada` só avança de 1 em 1 na mesma gravação que cria a versão e nunca é apagado; `publicacaoSuspensa` (só admin geral, com motivo e auditoria, nunca apagada) bloqueia novas publicações sem tocar no histórico. Publicada ≠ validada para ativação (isso é da fronteira confiável). | questionarios-config | O código estável da pergunta só existe no código. |
 | `questionarios-auditoria` | Auditoria das publicações de questionário. | questionarios-config | Só acréscimo. |
+| `questionarios-motor-auditoria` | Auditoria da redação de uma versão NOVA do motor de Posicionamento (B2): `<código>/<motor>/<chave>` com `tipo` `publicacao` (versão + digest da redação), `suspensao` ou `retomada` (motivo), `usuario` {uid, email} e `dataHora` = horário do servidor. | questionarios-config | Só acréscimo; cada registro só entra na MESMA gravação da versão/suspensão que ele cita e é citado por ela (sem auditoria órfã). `teste-rules-redacao-motor.js`. |
 | `naturezas-complementares-config` | Catálogo da Natureza complementar. | naturezas-config | Nada se apaga (desativar). |
 | `naturezas-complementares-auditoria` | Auditoria da natureza complementar (por avaliação e do catálogo). | avaliacao-produto, naturezas-config | Só acréscimo. |
 | `arquitetura-documentos` | Documentação e mapas de Arquitetura (link https). | avaliacao-produto | Arquivar em vez de apagar. |
@@ -258,7 +259,7 @@ manda `Cache-Control: no-cache` em JS, CSS, `/index.html` e `/` (com CSP nos doi
 
 | Workflow | Quando roda | O que faz |
 |---|---|---|
-| `firebase-deploy.yml` | push em `main` | Publica hosting e regras do banco em produção. |
+| `firebase-deploy.yml` | push em `main` | Publica hosting e regras do banco em produção. As regras publicadas são `database.rules.min.json` (B2: a compactação do fonte legível `database.rules.json`, gerada por `node .github/scripts/regras-compactas.js --gravar database.rules.min.json`; `teste-regras-compactas.js` confere byte a byte que o artefato é a compactação do fonte, com as mesmas regras e expressões). |
 | `firebase-preview.yml` | push em `v2` | Publica no canal de preview `v2-preview`. |
 | `firebase-preview-v3.yml` | push em `v3-quiz` | Publica no canal `v3quiz` e grava a URL em `PREVIEW_URL_V3.txt`. |
 | `testes-automaticos.yml` | PR para `main`, `v2`, `v3-quiz` | Suíte hermética em 4 grupos (bloqueia o merge) + Smoke com login real (não bloqueia). |
