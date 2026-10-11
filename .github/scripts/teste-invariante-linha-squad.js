@@ -131,5 +131,41 @@ anota('o resultado firme usa a MESMA função (calcularLiberaSquad → liberaSqu
 const versoesDecl = (fonte.match(/var VERSOES = \{([\s\S]*?)\};/) || [])[1] || '';
 anota('o registro de versões do motor não carrega liberaSquad nem a lista do ramo Linha', !!versoesDecl && !/libera|DE_LINHA|Squad/i.test(versoesDecl), versoesDecl.trim());
 
+console.log('\n== F. I2: a liberação mostrada e exigida na Adequação à Squad ==');
+/* liberacaoSquad (avaliacao-posicionamento.js) só lê o que está gravado, mas só libera o que a tabela literal libera:
+   mesmo com um liberaSquad = true forjado no registro, AE, CoE e A_VALIDAR não liberam; com false, ninguém libera. */
+{
+  const vm = require('vm');
+  const ctx = { console: { log() {}, warn() {}, error() {} }, JSON, Object, Array, String, Math, Number, Date, RegExp, Error, Promise, setTimeout, clearTimeout, setInterval() { return 0; }, clearInterval() {} };
+  ctx.window = ctx;
+  const el = () => ({ addEventListener() {}, querySelector() { return null; }, querySelectorAll() { return []; }, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } });
+  ctx.document = { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], createElement: el, addEventListener() {}, body: el(), documentElement: el() };
+  ctx.navigator = {}; ctx.location = { hash: '' }; ctx.localStorage = { getItem() { return null; }, setItem() {} }; ctx.addEventListener = () => {};
+  ctx.firebase = { database: () => ({ ref: () => ({ on() {}, off() {}, once() { return Promise.resolve({ val: () => null }); }, child() { return this; }, push() { return { key: 'k' }; } }) }), auth: () => ({ currentUser: null, onAuthStateChanged() {} }) };
+  vm.createContext(ctx);
+  ['motor-posicionamento-nucleo.js', 'governanca-posicionamento.js', 'questionarios-config.js', 'motor-arquitetura.js', 'avaliacao-produto.js', 'motor-posicionamento.js', 'avaliacao-posicionamento.js']
+    .forEach((f) => vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f }));
+  const N = ctx.faAvaliacaoPosicionamentoNucleo;
+  const reg = (codigo, libera) => ({ status: 'concluido', resultadoAutomatico: { codigoResultado: codigo, liberaSquad: libera } });
+  const lib = (o) => N.liberacaoSquad('i', { vigentes: { i: 'g' }, registros: { g: o.reg }, decisoes: o.dec ? { g: o.dec } : {} });
+  FIRMES.concat(['A_VALIDAR', 'LINHA', 'PLATAFORMA']).forEach((c) => {
+    const esperado = LINHA_SQUAD[c] === true;
+    [true, false].forEach((gravado) => {
+      const r = lib({ reg: reg(c, gravado) }), d = lib({ reg: reg('A_VALIDAR', false), dec: { codigoFinal: c, liberaSquad: gravado } });
+      anota('recomendação ' + c + ' com liberaSquad gravado ' + gravado + ' → ' + (esperado && gravado ? 'liberado' : 'não liberado'), r.liberaSquad === (esperado && gravado) && (r.situacao === 'liberado') === (esperado && gravado), JSON.stringify(r));
+      anota('decisão final ' + c + ' com liberaSquad gravado ' + gravado + ' → ' + (esperado && gravado ? 'liberado' : 'não liberado'), d.liberaSquad === (esperado && gravado) && d.origem === 'decisao', JSON.stringify(d));
+    });
+  });
+  anota('a decisão final prevalece sobre a recomendação (Negócios recomendado, CoE decidido → não liberado)', lib({ reg: reg('NEGOCIOS', true), dec: { codigoFinal: 'COE', liberaSquad: false } }).situacao === 'nao-liberado');
+  anota('leitura pendente ou recusada nunca libera', N.liberacaoSquad('i', { vigentes: undefined, registros: {}, decisoes: {} }).situacao === 'verificando' &&
+    N.liberacaoSquad('i', { vigentes: { i: 'g' }, registros: { g: reg('NEGOCIOS', true) }, decisoes: {}, erro: true }).liberaSquad === false);
+  /* regras do banco: com a exigência ligada, a criação de S só lê o liberaSquad GRAVADO (decisão ou recomendação), que
+     as próprias regras já prenderam à tabela literal na conclusão e na decisão — não lê nenhum nó de configuração dele */
+  const vS = (REGRAS_BANCO['avaliacoes-squad'] && REGRAS_BANCO['avaliacoes-squad']['$avaliacaoId'] || {})['.validate'] || '';
+  anota('regras: a criação de S com a exigência ligada lê o liberaSquad da decisão, senão o da recomendação, da avaliação vigente do item',
+    /posicionamento-config'\)\.child\('exigirParaSquad'\)\.val\(\) === true/.test(vS) && /posicionamento-decisoes'\)\.child\(.*\)\.child\('liberaSquad'\)\.val\(\) === true/.test(vS) &&
+    /child\('resultadoAutomatico'\)\.child\('liberaSquad'\)\.val\(\) === true/.test(vS) && /posicionamento-vigente-por-item/.test(vS));
+}
+
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);

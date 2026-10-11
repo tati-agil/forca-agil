@@ -437,6 +437,34 @@
     }
   }
 
+  /* I2 — a liberação da Adequação à Squad (S1–S8) para um item, lida do que está GRAVADO (nunca recalcula O1–O9):
+     a avaliação de Posicionamento que vale para o item (posicionamento-vigente-por-item); a decisão final dela, quando
+     existe; senão, a recomendação automática registrada. Só libera um código FIRME do ramo Linha, conferido também na
+     tabela fixa do motor (invariante Linha × Squad): Área Especializada, CoE e A_VALIDAR sem decisão nunca liberam.
+     d: { vigentes, registros, decisoes } — cada um undefined enquanto não foi lido; d.erro = alguma leitura recusada.
+     Devolve { situacao: 'verificando' | 'erro' | 'sem-posicionamento' | 'liberado' | 'nao-liberado', avaliacaoId,
+     codigo, origem ('decisao' | 'recomendacao'), liberaSquad, motivo ('nao-formado-por-squads' | 'a-validar') }. */
+  function liberacaoSquad(itemId, d) {
+    d = d || {};
+    if (d.erro) return { situacao: 'erro', liberaSquad: false };
+    if (d.vigentes === undefined || d.registros === undefined || d.decisoes === undefined) return { situacao: 'verificando', liberaSquad: false };
+    var id = itemId && (d.vigentes || {})[itemId], reg = id && (d.registros || {})[id];
+    if (!id || !reg || reg.status !== 'concluido' || !reg.resultadoAutomatico) return { situacao: 'sem-posicionamento', liberaSquad: false };
+    var dec = (d.decisoes || {})[id], M = nucleo();
+    var origem = dec ? 'decisao' : 'recomendacao', codigo = dec ? dec.codigoFinal : reg.resultadoAutomatico.codigoResultado;
+    var gravado = dec ? dec.liberaSquad === true : reg.resultadoAutomatico.liberaSquad === true;
+    var firme = M.CODIGOS_FIRMES.indexOf(codigo) !== -1, libera = gravado && firme && M.liberaSquadParaCodigoFirme(codigo) === true;
+    var r = { situacao: libera ? 'liberado' : 'nao-liberado', avaliacaoId: id, codigo: codigo, origem: origem, liberaSquad: libera };
+    if (!libera) r.motivo = firme ? 'nao-formado-por-squads' : 'a-validar';
+    return r;
+  }
+  /* o registro imutável gravado na CRIAÇÃO de uma avaliação S: de onde veio a liberação naquele momento */
+  function origemLiberacaoSquad(lib, agora) {
+    var o = { situacao: lib.situacao === 'erro' ? 'nao-verificado' : lib.situacao, liberaSquad: lib.liberaSquad === true, registradoEm: agora };
+    if (lib.avaliacaoId) { o.avaliacaoPosicionamentoId = lib.avaliacaoId; o.codigo = lib.codigo; o.origem = lib.origem; }
+    return o;
+  }
+
   window.faAvaliacaoPosicionamentoNucleo = {
     gateDoItem: gateDoItem, textoGate: textoGate, ROTULO_GATE: ROTULO_GATE,
     simples: simples, avaliar: avaliar, caminho: caminho, diagnosticoNecessario: diagnosticoNecessario, papeisDoPar: papeisDoPar,
@@ -446,6 +474,7 @@
     payloadCriacao: payloadCriacao, payloadSalvar: payloadSalvar, payloadConclusao: payloadConclusao, payloadDescarte: payloadDescarte,
     tipoDecisao: tipoDecisao, exigeJustificativa: exigeJustificativa, emBranco: emBranco, payloadDecisao: payloadDecisao,
     situacaoResposta: situacaoResposta, situacaoDiagnostico: situacaoDiagnostico, payloadReavaliacao: payloadReavaliacao,
+    liberacaoSquad: liberacaoSquad, origemLiberacaoSquad: origemLiberacaoSquad,
     MAX_OBS: MAX_OBS, MAX_MOTIVO: MAX_MOTIVO, MAX_JUSTIFICATIVA: MAX_JUSTIFICATIVA
   };
   if (typeof document === 'undefined') return;
@@ -536,6 +565,19 @@
     /* Outros ouvintes do mesmo evento (a Squad fecha a si mesma e devolve a lista) podem rodar depois deste:
        reafirma o painel no fim da fila, enquanto o endereço for do Posicionamento. */
     function reafirmar() { setTimeout(function () { if (poDoEndereco().po && !wrap.hidden) mostrarPainel(); }, 0); }
+    /* I2: o que a liberação da Squad lê — o que esta tela já ouve; leitura pendente fica undefined (verificando) */
+    function dadosLiberacao() {
+      return { vigentes: state.carregou.vig ? state.vigentes : undefined, registros: state.carregou.av ? state.registros : undefined,
+        decisoes: state.carregou.dec ? state.decisoes : undefined, erro: !!(state.erroLeitura || state.erroDec) };
+    }
+    function abrirAdequacaoSquad() {
+      var a = state.atual;
+      if (!a || liberacaoSquad(a.itemId, dadosLiberacao()).situacao !== 'liberado') return;
+      if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+      if (!window.faAvaliacaoSquad) { aviso('A Adequação à Squad não carregou. Recarregue a página e tente de novo.'); return; }
+      fecharPainel();
+      window.faAvaliacaoSquad.iniciarOuAbrirParaItem({ itemId: a.itemId, itemNome: a.itemNome, avaliacaoArquiteturalId: a.avaliacaoArquiteturalId });
+    }
     function fecharPainel() {
       if (wrap.hidden) return;
       wrap.hidden = true;
@@ -963,7 +1005,11 @@
       /* reavaliar passa pelo MESMO gate de iniciar: sem a base P1–P16 vigente e com Motor atual, o botão fica travado e diz por quê */
       var gReav = podeReav ? itemDoGate(a.itemId).gate : null, travaReav = !!(gReav && !gReav.libera);
       if (travaReav) h += avisoGate(gReav, 'reavaliar');
+      /* I2: atalho para a Adequação à Squad — só com o item liberado pelo que está gravado (decisão final, senão a
+         recomendação automática); abre o rascunho S do item se já houver um (nunca duplica) */
+      var libS = sit === 'vigente' && podeLer() ? liberacaoSquad(a.itemId, dadosLiberacao()) : null;
       h += '<div class="avp-actions-footer po-ficha-acoes">' +
+        (libS && libS.situacao === 'liberado' ? '<button type="button" class="btn btn--primary" id="poAvaliarSquadBtn">Avaliar Adequação à Squad</button>' : '') +
         (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando || travaReav ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
         (atu ? '<button type="button" class="btn" id="poAtualizarMotorBtn"' + (state.salvando || travaReav ? ' disabled' : '') + '>Atualizar com motor atual (v' + esc(atu.de) + ' → v' + esc(atu.para) + ')</button>' : '') +
         '<button type="button" class="btn btn--sm" id="poGerarPdfBtn"' + (!prontoPdf || state.exportando ? ' disabled' : '') + '>' +
@@ -1087,6 +1133,7 @@
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);
       var hist = byId('poMostrarHistorico'); if (hist) hist.addEventListener('change', function () { state.mostrarHistorico = hist.checked; render(); });
       var reav = byId('poReavaliarBtn'); if (reav) reav.addEventListener('click', pedirReavaliacao);
+      var sqb = byId('poAvaliarSquadBtn'); if (sqb) sqb.addEventListener('click', abrirAdequacaoSquad);
       var atuM = byId('poAtualizarMotorBtn'); if (atuM) atuM.addEventListener('click', pedirAtualizacaoMotor);
       var exp = byId('poExportarBtn'); if (exp) exp.addEventListener('click', function () { state.menuExportarAberto = !state.menuExportarAberto; render(); });
       var exL = byId('poExportarExcelLista'); if (exL) exL.addEventListener('click', function () { exportarExcel('lista'); });
