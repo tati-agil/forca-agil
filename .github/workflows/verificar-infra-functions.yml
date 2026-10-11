@@ -4,22 +4,42 @@ name: Infraestrutura — verificar requisitos de Cloud Functions (só leitura)
 # só LÊ, com a conta de serviço do CI, o que é preciso saber antes de decidir pela fronteira confiável em
 # Cloud Functions — plano/faturamento, APIs habilitadas, papéis da conta de serviço e região do banco.
 # Cada verificação que a conta não tem permissão para ler aparece como "NÃO FOI POSSÍVEL VERIFICAR",
-# nunca como "não tem". Ver .github/scripts/verificar-infra-functions.sh.
+# nunca como "não tem".
+#
+# Segurança: a credencial entra só pela ação oficial de autenticação (google-github-actions/auth), nunca
+# interpolada num comando; o gcloud vem da ação oficial (setup-gcloud); o e-mail da conta de serviço e o
+# número da conta de faturamento são mascarados no log. Ver .github/scripts/verificar-infra-functions.sh e
+# teste-infra-somente-leitura.js (garante que nada aqui grava).
 on:
   workflow_dispatch: {}
 
 permissions:
   contents: read
 
+concurrency:
+  group: verificar-infra-functions
+  cancel-in-progress: false
+
 jobs:
   verificar:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Autenticar (conta de serviço do CI)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - name: Instalar gcloud
+        uses: google-github-actions/setup-gcloud@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - name: Verificar (somente leitura)
         env:
           PROJETO: kyber-agil
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
-          bash .github/scripts/verificar-infra-functions.sh /tmp/sa.json
-          rm -f /tmp/sa.json
+        run: bash .github/scripts/verificar-infra-functions.sh

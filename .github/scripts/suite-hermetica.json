@@ -652,6 +652,12 @@
       "sobre": "B2 do H2-b: nenhum .write nos ancestrais de motores/<v>/versoes/<n>; versão e auditoria só criam; ponteiro nunca apagado, +1, bloqueado pela suspensão; suspensão só admin geral e nunca apagada; lista fechada de campos (a tela não grava \"validada\"), autoria por UID e horário do servidor. A prova de comportamento é teste-rules-redacao-motor.js (emulador)."
     },
     {
+      "arquivo": ".github/scripts/teste-infra-somente-leitura.js",
+      "nome": "Infraestrutura: diagnóstico de Cloud Functions é só leitura e não expõe credencial (sem rede)",
+      "duracao": 1,
+      "sobre": "B0 do H2-b: workflow só manual, credencial só pela ação oficial de autenticação (nunca num run:), gcloud pela ação oficial, permissões mínimas; script só com as 4 leituras e nenhum verbo que altere nada; execução simulada com gcloud/npx falsos: e-mail da conta e conta de faturamento mascarados, falta de permissão = \"NÃO FOI POSSÍVEL VERIFICAR\", Blaze/Spark e APIs lidos corretamente."
+    },
+    {
       "arquivo": ".github/scripts/teste-regras-compactas.js",
       "nome": "Regras do banco: o artefato publicado (database.rules.min.json) é exatamente a compactação do fonte legível (sem navegador)",
       "duracao": 1,
