@@ -1,7 +1,7 @@
 /* H1-Final — a tela com a versão 2 do motor de Posicionamento ainda INATIVA. Desktop e celular 375 px; Firebase
  * falso em persistência real; hermético. A lógica pura (trilha motores/<v>, núcleo da tela) é provada em
  * teste-conteudo-motor-posicionamento.js; aqui, o que a pessoa vê e o que a tela grava:
- *   1. ADMIN › Arquitetura › Questionários: o cartão "Redação para o motor de Posicionamento v2 (inativo)" — sem
+ *   1. ADMIN › Avaliação e Mapa › Questionários: o cartão "Redação para o motor de Posicionamento v2 (inativo)" — sem
  *      rascunho → importar a carga inicial (arquivo carregado só agora) grava SÓ motores/2/rascunho com
  *      motorCompativel = 2, mostra "compatível" e a redação só leitura; descartar (com confirmação) remove só ele;
  *      a redação em uso (versaoPublicada do questionário) não muda.

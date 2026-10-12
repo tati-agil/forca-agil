@@ -5,7 +5,7 @@
    database.rules.json de produção. Todas as gravações "boas" são montadas pelo NÚCLEO REAL da tela
    (faAvaliacaoPosicionamentoNucleo, de avaliacao-posicionamento.js) — quem pode decidir/reavaliar consegue gravar.
    A. Leitura de posicionamento-decisoes: os três perfis leem; quem não está na lista e sem login, não.
-   B. Decidir só "Avaliação + Arquitetura" e admin geral; "Avaliação" NÃO decide.
+   B. Decidir só "Avaliação + Configuração" e admin geral; "Avaliação" NÃO decide.
    C. Os três tipos: CONFIRMACAO (justificativa opcional), DIVERGENCIA e RESOLUCAO_A_VALIDAR (justificativa
       obrigatória, nem vazia nem só espaço).
    D. codigoFinal só entre os 8 firmes: LINHA, PLATAFORMA, A_VALIDAR e desconhecido recusados.
@@ -149,7 +149,7 @@ async function main() {
   await base();
   const a1 = await vigenteV1('p1', EST_AE);
   await assertSucceeds(up(ARQ, await decisao(a1, 'AREA_ESPECIALIZADA')));
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['admin geral', ADMIN]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ], ['admin geral', ADMIN]]) {
     await pode(quem + ' lê as decisões', db(email).ref(DEC).once('value'));
   }
   await nega('quem não está na lista NÃO lê as decisões', db(SEM).ref(DEC).once('value'));
@@ -160,7 +160,7 @@ async function main() {
   const b1 = await vigenteV1('p1', EST_AE), b2 = await vigenteV1('p2', EST_AE), b3 = await vigenteV1('p3', EST_AE);
   await nega('"Avaliação" NÃO decide (gravação completa e válida)', up(AVAL, await decisao(b1, 'AREA_ESPECIALIZADA', null, AVAL)));
   await nega('quem não está na lista NÃO decide', up(SEM, await decisao(b1, 'AREA_ESPECIALIZADA', null, SEM)));
-  await pode('"Avaliação + Arquitetura" decide', up(ARQ, await decisao(b1, 'AREA_ESPECIALIZADA')));
+  await pode('"Avaliação + Configuração" decide', up(ARQ, await decisao(b1, 'AREA_ESPECIALIZADA')));
   await pode('admin geral (fa-admins) decide', up(ADMIN, await decisao(b2, 'AREA_ESPECIALIZADA', null, ADMIN)));
   await pode('admin geral (e-mail fixo) decide', up(SUPER, await decisao(b3, 'AREA_ESPECIALIZADA', null, SUPER)));
   const gb = await ler(DEC + '/' + b1);

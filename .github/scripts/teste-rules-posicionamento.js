@@ -3,9 +3,9 @@
 
    Roda contra o EMULADOR real do Realtime Database (firebase emulators:exec, ver teste-rules.yml) com o
    database.rules.json de produção. O que se prova (pelo BANCO, não pela tela):
-   A. Leitura: admin geral, "Avaliação" e "Avaliação + Arquitetura" leem; quem não está na lista e quem não
+   A. Leitura: admin geral, "Avaliação" e "Avaliação + Configuração" leem; quem não está na lista e quem não
       tem login, não.
-   B. Escrita só de "Avaliação + Arquitetura" e admin geral: "Avaliação" NÃO cria, salva, conclui nem descarta.
+   B. Escrita só de "Avaliação + Configuração" e admin geral: "Avaliação" NÃO cria, salva, conclui nem descarta.
    C. Pré-condição: só item com Avaliação de Produto/Serviço concluída e não excluída (qualquer classificação).
       C2 (H0): e com Motor atual — motorVersion = MOTOR_VERSION de avaliacao-produto.js e motorVersionArquitetura =
       a versão publicada (ausente = 1); desatualizada ou equivalente é recusada, para qualquer perfil.
@@ -177,7 +177,7 @@ async function main() {
   console.log('\n== A. Leitura ==');
   await base();
   await semear((a) => a.ref().update(criar('a1', 'p1', 'p1', ARQ)));
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['admin geral', ADMIN]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ], ['admin geral', ADMIN]]) {
     await pode(quem + ' lê as avaliações de Posicionamento', db(email).ref(AV).once('value'));
     await pode(quem + ' lê as reservas de rascunho', db(email).ref(RES).once('value'));
     await pode(quem + ' lê o índice de vigentes', db(email).ref(VIG).once('value'));
@@ -187,12 +187,12 @@ async function main() {
   await nega('quem não está na lista NÃO lê a auditoria', db(SEM).ref(AUD).once('value'));
   await nega('sem login NÃO lê', db(null).ref(AV).once('value'));
 
-  console.log('\n== B. Escrita só de "Avaliação + Arquitetura" e admin geral ==');
+  console.log('\n== B. Escrita só de "Avaliação + Configuração" e admin geral ==');
   await base();
   await nega('"Avaliação" NÃO cria (gravação completa e válida)', up(AVAL, criar('b1', 'p1', 'p1', AVAL)));
   await nega('quem não está na lista NÃO cria', up(SEM, criar('b1', 'p1', 'p1', SEM)));
   await nega('sem login NÃO cria', db(null).ref().update(criar('b1', 'p1', 'p1', 'x@previ.com.br')));
-  await pode('"Avaliação + Arquitetura" cria', up(ARQ, criar('b1', 'p1', 'p1', ARQ)));
+  await pode('"Avaliação + Configuração" cria', up(ARQ, criar('b1', 'p1', 'p1', ARQ)));
   await pode('admin geral (fa-admins) cria', up(ADMIN, criar('b2', 'p2', 'p2', ADMIN)));
   await pode('admin geral (e-mail fixo) cria', up(SUPER, criar('b3', 'p3', 'p3', SUPER)));
   const b1 = await ler(AV + '/b1');

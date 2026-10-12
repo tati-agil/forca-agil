@@ -1,0 +1,213 @@
+{
+  "conjunto": "estruturas-concretas",
+  "versao": 1,
+  "descricao": "Cenários de negócio do 1º cadastro de Estruturas Organizacionais Concretas (8 tipos firmes: criar, alterar, encerrar). O MESMO conjunto é executado contra a referência em memória, o Firebase Realtime Database Emulator e o PostgreSQL de teste; cada executor compara com o 'esperado' daqui (escrito a partir das regras aprovadas, não gerado pelo núcleo). Horários em milissegundos UTC; num banco que grava o horário do servidor, só os campos de horário são normalizados, depois de conferido que vieram do servidor.",
+  "usuarios": {
+    "arq": { "id": "u-arquitetura", "email": "arquitetura@exemplo.com" },
+    "adm": { "id": "u-admin", "email": "admin@exemplo.com" }
+  },
+  "referencias": {
+    "padrao": {
+      "conceitos": {
+        "ESTRATEGIA_CLIENTES": { "ativo": true }, "NEGOCIOS": { "ativo": true }, "PLATAFORMA_CANAIS": { "ativo": true },
+        "PLATAFORMA_HABILITADORA_NEGOCIOS": { "ativo": true }, "PLATAFORMA_HABILITADORA_TECNOLOGIA": { "ativo": true },
+        "PLATAFORMA_CORPORATIVA": { "ativo": true }, "AREA_ESPECIALIZADA": { "ativo": true }, "COE": { "ativo": true },
+        "SQUAD": { "ativo": true }
+      },
+      "ligacoes": {
+        "ESTRATEGIA_CLIENTES": "ESTRATEGIA_CLIENTES", "NEGOCIOS": "NEGOCIOS", "PLATAFORMA_CANAIS": "PLATAFORMA_CANAIS",
+        "PLATAFORMA_HABILITADORA_NEGOCIOS": "PLATAFORMA_HABILITADORA_NEGOCIOS", "PLATAFORMA_HABILITADORA_TECNOLOGIA": "PLATAFORMA_HABILITADORA_TECNOLOGIA",
+        "PLATAFORMA_CORPORATIVA": "PLATAFORMA_CORPORATIVA", "AREA_ESPECIALIZADA": "AREA_ESPECIALIZADA", "COE": "COE"
+      }
+    },
+    "semLigacaoCoe": {
+      "conceitos": { "COE": { "ativo": true }, "NEGOCIOS": { "ativo": true } },
+      "ligacoes": { "NEGOCIOS": "NEGOCIOS" }
+    },
+    "areaInativa": {
+      "conceitos": { "AREA_ESPECIALIZADA": { "ativo": false } },
+      "ligacoes": { "AREA_ESPECIALIZADA": "AREA_ESPECIALIZADA" }
+    }
+  },
+  "cenarios": [
+    {
+      "id": "C01", "titulo": "Cadastrar uma Linha, uma Área Especializada e um CoE",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "Linha Um", "sigla": "L1", "descricao": "Primeira Linha" }, "ctx": { "operacaoId": "op-c01-1", "novoId": "E-L1", "usuario": "arq", "agora": 1791763200000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "AREA_ESPECIALIZADA", "nome": "Área Um" }, "ctx": { "operacaoId": "op-c01-2", "novoId": "E-A1", "usuario": "arq", "agora": 1791763201000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "CoE Um" }, "ctx": { "operacaoId": "op-c01-3", "novoId": "E-C1", "usuario": "adm", "agora": 1791763202000 }, "esperado": { "ok": true, "situacao": "gravada" } }
+      ],
+      "estadoFinal": {
+        "E-L1": { "id": "E-L1", "tipo": "NEGOCIOS", "nome": "Linha Um", "sigla": "L1", "descricao": "Primeira Linha", "situacao": "ativa", "criadaEm": 1791763200000, "criadaPor": "arq", "revisao": 1 },
+        "E-A1": { "id": "E-A1", "tipo": "AREA_ESPECIALIZADA", "nome": "Área Um", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791763201000, "criadaPor": "arq", "revisao": 1 },
+        "E-C1": { "id": "E-C1", "tipo": "COE", "nome": "CoE Um", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791763202000, "criadaPor": "adm", "revisao": 1 }
+      },
+      "eventos": [
+        { "id": "op-c01-1:1", "tipo": "estrutura.criada", "entidadeId": "E-L1", "usuario": "arq", "em": 1791763200000 },
+        { "id": "op-c01-2:1", "tipo": "estrutura.criada", "entidadeId": "E-A1", "usuario": "arq", "em": 1791763201000 },
+        { "id": "op-c01-3:1", "tipo": "estrutura.criada", "entidadeId": "E-C1", "usuario": "adm", "em": 1791763202000 }
+      ]
+    },
+    {
+      "id": "C02", "titulo": "Os 8 tipos firmes são admitidos",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "ESTRATEGIA_CLIENTES", "nome": "T1" }, "ctx": { "operacaoId": "op-c02-1", "novoId": "T-1", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "T2" }, "ctx": { "operacaoId": "op-c02-2", "novoId": "T-2", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "PLATAFORMA_CANAIS", "nome": "T3" }, "ctx": { "operacaoId": "op-c02-3", "novoId": "T-3", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "PLATAFORMA_HABILITADORA_NEGOCIOS", "nome": "T4" }, "ctx": { "operacaoId": "op-c02-4", "novoId": "T-4", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "PLATAFORMA_HABILITADORA_TECNOLOGIA", "nome": "T5" }, "ctx": { "operacaoId": "op-c02-5", "novoId": "T-5", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "PLATAFORMA_CORPORATIVA", "nome": "T6" }, "ctx": { "operacaoId": "op-c02-6", "novoId": "T-6", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "AREA_ESPECIALIZADA", "nome": "T7" }, "ctx": { "operacaoId": "op-c02-7", "novoId": "T-7", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "T8" }, "ctx": { "operacaoId": "op-c02-8", "novoId": "T-8", "usuario": "arq", "agora": 1791763300000 }, "esperado": { "ok": true, "situacao": "gravada" } }
+      ],
+      "contagemFinal": 8
+    },
+    {
+      "id": "C03", "titulo": "Fora do escopo do 1º cadastro: Squad e código desconhecido não são admitidos",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "SQUAD", "nome": "Squad X" }, "ctx": { "operacaoId": "op-c03-1", "novoId": "S-1", "usuario": "arq", "agora": 1791763400000 }, "esperado": { "ok": false, "erros": ["TIPO_NAO_ADMITIDO"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "XYZ", "nome": "Desconhecido" }, "ctx": { "operacaoId": "op-c03-2", "novoId": "S-2", "usuario": "arq", "agora": 1791763400000 }, "esperado": { "ok": false, "erros": ["TIPO_NAO_ADMITIDO"] } },
+        { "operacao": "criarEstrutura", "entrada": { "nome": "Sem tipo" }, "ctx": { "operacaoId": "op-c03-3", "novoId": "S-3", "usuario": "arq", "agora": 1791763400000 }, "esperado": { "ok": false, "erros": ["CAMPO_OBRIGATORIO"] } }
+      ],
+      "estadoFinal": {}, "eventos": []
+    },
+    {
+      "id": "C04", "titulo": "Sem a ligação oficial código ↔ conceito, o tipo não é admitido",
+      "referencias": "semLigacaoCoe",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "CoE sem ligação" }, "ctx": { "operacaoId": "op-c04-1", "novoId": "X-1", "usuario": "arq", "agora": 1791763500000 }, "esperado": { "ok": false, "erros": ["TIPO_NAO_ADMITIDO"] } }
+      ],
+      "estadoFinal": {}, "eventos": []
+    },
+    {
+      "id": "C05", "titulo": "Conceito inativo na Taxonomia não admite cadastro",
+      "referencias": "areaInativa",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "AREA_ESPECIALIZADA", "nome": "Área de conceito inativo" }, "ctx": { "operacaoId": "op-c05-1", "novoId": "X-2", "usuario": "arq", "agora": 1791763600000 }, "esperado": { "ok": false, "erros": ["CONCEITO_INATIVO_OU_INEXISTENTE"] } }
+      ],
+      "estadoFinal": {}, "eventos": []
+    },
+    {
+      "id": "C06", "titulo": "Validação dos campos; espaços nas pontas são removidos",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE" }, "ctx": { "operacaoId": "op-c06-1", "novoId": "V-1", "usuario": "arq", "agora": 1791763700000 }, "esperado": { "ok": false, "erros": ["CAMPO_OBRIGATORIO"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "   " }, "ctx": { "operacaoId": "op-c06-2", "novoId": "V-2", "usuario": "arq", "agora": 1791763700000 }, "esperado": { "ok": false, "erros": ["CAMPO_OBRIGATORIO"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nomeRepetido": { "caractere": "a", "vezes": 201 } }, "ctx": { "operacaoId": "op-c06-3", "novoId": "V-3", "usuario": "arq", "agora": 1791763700000 }, "esperado": { "ok": false, "erros": ["CAMPO_LONGO_DEMAIS"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "CoE", "sigla": "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS" }, "ctx": { "operacaoId": "op-c06-4", "novoId": "V-4", "usuario": "arq", "agora": 1791763700000 }, "esperado": { "ok": false, "erros": ["CAMPO_LONGO_DEMAIS"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "  CoE com espaços  ", "sigla": "  CE  " }, "ctx": { "operacaoId": "op-c06-5", "novoId": "V-5", "usuario": "arq", "agora": 1791763701000 }, "esperado": { "ok": true, "situacao": "gravada" } }
+      ],
+      "estadoFinal": {
+        "V-5": { "id": "V-5", "tipo": "COE", "nome": "CoE com espaços", "sigla": "CE", "descricao": null, "situacao": "ativa", "criadaEm": 1791763701000, "criadaPor": "arq", "revisao": 1 }
+      },
+      "eventos": [ { "id": "op-c06-5:1", "tipo": "estrutura.criada", "entidadeId": "V-5", "usuario": "arq", "em": 1791763701000 } ]
+    },
+    {
+      "id": "C07", "titulo": "Identificador nunca reaproveitado",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "Original" }, "ctx": { "operacaoId": "op-c07-1", "novoId": "D-1", "usuario": "arq", "agora": 1791763800000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "Outra com o mesmo id" }, "ctx": { "operacaoId": "op-c07-2", "novoId": "D-1", "usuario": "arq", "agora": 1791763801000 }, "esperado": { "ok": false, "erros": ["IDENTIFICADOR_JA_USADO"] } }
+      ],
+      "estadoFinal": {
+        "D-1": { "id": "D-1", "tipo": "NEGOCIOS", "nome": "Original", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791763800000, "criadaPor": "arq", "revisao": 1 }
+      },
+      "eventos": [ { "id": "op-c07-1:1", "tipo": "estrutura.criada", "entidadeId": "D-1", "usuario": "arq", "em": 1791763800000 } ]
+    },
+    {
+      "id": "C08", "titulo": "Alterar nome, sigla e descrição; regras de alteração",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "ESTRATEGIA_CLIENTES", "nome": "Clientes" }, "ctx": { "operacaoId": "op-c08-1", "novoId": "M-1", "usuario": "arq", "agora": 1791763900000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "alterarEstrutura", "entrada": { "id": "M-1", "alteracoes": { "nome": "Clientes Ativos", "sigla": "CA" }, "justificativa": "Nome oficial", "revisaoEsperada": 1 }, "ctx": { "operacaoId": "op-c08-2", "usuario": "adm", "agora": 1791763901000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "alterarEstrutura", "entrada": { "id": "M-1", "alteracoes": { "tipo": "COE" } }, "ctx": { "operacaoId": "op-c08-3", "usuario": "arq", "agora": 1791763902000 }, "esperado": { "ok": false, "erros": ["TIPO_IMUTAVEL"] } },
+        { "operacao": "alterarEstrutura", "entrada": { "id": "M-1", "alteracoes": { "situacao": "encerrada" } }, "ctx": { "operacaoId": "op-c08-4", "usuario": "arq", "agora": 1791763902000 }, "esperado": { "ok": false, "erros": ["CAMPO_NAO_ALTERAVEL"] } },
+        { "operacao": "alterarEstrutura", "entrada": { "id": "M-1", "alteracoes": { "nome": "Clientes Ativos" } }, "ctx": { "operacaoId": "op-c08-5", "usuario": "arq", "agora": 1791763902000 }, "esperado": { "ok": false, "erros": ["NADA_A_ALTERAR"] } },
+        { "operacao": "alterarEstrutura", "entrada": { "id": "M-1", "alteracoes": { "nome": "Outro" }, "revisaoEsperada": 1 }, "ctx": { "operacaoId": "op-c08-6", "usuario": "arq", "agora": 1791763902000 }, "esperado": { "ok": false, "erros": ["REVISAO_DESATUALIZADA"] } },
+        { "operacao": "alterarEstrutura", "entrada": { "id": "NAO-EXISTE", "alteracoes": { "nome": "x" } }, "ctx": { "operacaoId": "op-c08-7", "usuario": "arq", "agora": 1791763902000 }, "esperado": { "ok": false, "erros": ["ESTRUTURA_INEXISTENTE"] } }
+      ],
+      "estadoFinal": {
+        "M-1": { "id": "M-1", "tipo": "ESTRATEGIA_CLIENTES", "nome": "Clientes Ativos", "sigla": "CA", "descricao": null, "situacao": "ativa", "criadaEm": 1791763900000, "criadaPor": "arq", "revisao": 2, "alteradaEm": 1791763901000, "alteradaPor": "adm" }
+      },
+      "eventos": [
+        { "id": "op-c08-1:1", "tipo": "estrutura.criada", "entidadeId": "M-1", "usuario": "arq", "em": 1791763900000 },
+        { "id": "op-c08-2:1", "tipo": "estrutura.alterada", "entidadeId": "M-1", "usuario": "adm", "em": 1791763901000, "campos": ["nome", "sigla"], "justificativa": "Nome oficial" }
+      ]
+    },
+    {
+      "id": "C09", "titulo": "Encerrar com motivo; sem reativação nem alteração depois",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "AREA_ESPECIALIZADA", "nome": "Área a encerrar" }, "ctx": { "operacaoId": "op-c09-1", "novoId": "F-1", "usuario": "arq", "agora": 1791764000000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "encerrarEstrutura", "entrada": { "id": "F-1", "motivo": "  " }, "ctx": { "operacaoId": "op-c09-2", "usuario": "arq", "agora": 1791764001000 }, "esperado": { "ok": false, "erros": ["MOTIVO_OBRIGATORIO"] } },
+        { "operacao": "encerrarEstrutura", "entrada": { "id": "F-1", "motivo": "Reorganização" }, "ctx": { "operacaoId": "op-c09-3", "usuario": "arq", "agora": 1791764002000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "alterarEstrutura", "entrada": { "id": "F-1", "alteracoes": { "nome": "Reaberta" } }, "ctx": { "operacaoId": "op-c09-4", "usuario": "arq", "agora": 1791764003000 }, "esperado": { "ok": false, "erros": ["ESTRUTURA_ENCERRADA"] } },
+        { "operacao": "encerrarEstrutura", "entrada": { "id": "F-1", "motivo": "De novo" }, "ctx": { "operacaoId": "op-c09-5", "usuario": "arq", "agora": 1791764003000 }, "esperado": { "ok": false, "erros": ["ESTRUTURA_ENCERRADA"] } }
+      ],
+      "estadoFinal": {
+        "F-1": { "id": "F-1", "tipo": "AREA_ESPECIALIZADA", "nome": "Área a encerrar", "sigla": null, "descricao": null, "situacao": "encerrada", "criadaEm": 1791764000000, "criadaPor": "arq", "revisao": 2,
+          "encerramento": { "motivo": "Reorganização", "em": 1791764002000, "por": "arq" } }
+      },
+      "eventos": [
+        { "id": "op-c09-1:1", "tipo": "estrutura.criada", "entidadeId": "F-1", "usuario": "arq", "em": 1791764000000 },
+        { "id": "op-c09-3:1", "tipo": "estrutura.encerrada", "entidadeId": "F-1", "usuario": "arq", "em": 1791764002000, "motivo": "Reorganização" }
+      ]
+    },
+    {
+      "id": "C10", "titulo": "Contexto incompleto é recusado (o núcleo não inventa identificador, autor nem horário)",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "Sem horário" }, "ctx": { "operacaoId": "op-c10-1", "novoId": "K-1", "usuario": "arq", "agora": 0 }, "esperado": { "ok": false, "erros": ["CONTEXTO_SEM_HORARIO"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "Sem usuário" }, "ctx": { "operacaoId": "op-c10-2", "novoId": "K-2", "usuario": null, "agora": 1791764100000 }, "esperado": { "ok": false, "erros": ["CONTEXTO_SEM_USUARIO"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "Sem identificador" }, "ctx": { "operacaoId": "op-c10-3", "usuario": "arq", "agora": 1791764100000 }, "esperado": { "ok": false, "erros": ["CONTEXTO_SEM_IDENTIFICADOR"] } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "Sem operação" }, "ctx": { "operacaoId": "", "novoId": "K-4", "usuario": "arq", "agora": 1791764100000 }, "esperado": { "ok": false, "erros": ["CONTEXTO_SEM_OPERACAO"] } }
+      ],
+      "estadoFinal": {}, "eventos": []
+    },
+    {
+      "id": "C11", "titulo": "A mesma operação repetida não duplica nada",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "Linha Reenviada" }, "ctx": { "operacaoId": "op-c11-1", "novoId": "R-1", "usuario": "arq", "agora": 1791764200000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "Linha Reenviada" }, "ctx": { "operacaoId": "op-c11-1", "novoId": "R-1", "usuario": "arq", "agora": 1791764205000 }, "esperado": { "ok": true, "situacao": "repetida" } }
+      ],
+      "estadoFinal": {
+        "R-1": { "id": "R-1", "tipo": "NEGOCIOS", "nome": "Linha Reenviada", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791764200000, "criadaPor": "arq", "revisao": 1 }
+      },
+      "eventos": [ { "id": "op-c11-1:1", "tipo": "estrutura.criada", "entidadeId": "R-1", "usuario": "arq", "em": 1791764200000 } ]
+    },
+    {
+      "id": "C12", "titulo": "Duas alterações concorrentes a partir da mesma revisão: só a primeira entra",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "COE", "nome": "CoE Disputado" }, "ctx": { "operacaoId": "op-c12-1", "novoId": "Q-1", "usuario": "arq", "agora": 1791764300000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "concorrentes": [
+          { "operacao": "alterarEstrutura", "entrada": { "id": "Q-1", "alteracoes": { "nome": "Nome A" } }, "ctx": { "operacaoId": "op-c12-2", "usuario": "arq", "agora": 1791764301000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+          { "operacao": "alterarEstrutura", "entrada": { "id": "Q-1", "alteracoes": { "nome": "Nome B" } }, "ctx": { "operacaoId": "op-c12-3", "usuario": "adm", "agora": 1791764301000 }, "esperado": { "ok": false, "erros": ["CONFLITO_DE_REVISAO"] } }
+        ] }
+      ],
+      "estadoFinal": {
+        "Q-1": { "id": "Q-1", "tipo": "COE", "nome": "Nome A", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791764300000, "criadaPor": "arq", "revisao": 2, "alteradaEm": 1791764301000, "alteradaPor": "arq" }
+      },
+      "eventos": [
+        { "id": "op-c12-1:1", "tipo": "estrutura.criada", "entidadeId": "Q-1", "usuario": "arq", "em": 1791764300000 },
+        { "id": "op-c12-2:1", "tipo": "estrutura.alterada", "entidadeId": "Q-1", "usuario": "arq", "em": 1791764301000, "campos": ["nome"] }
+      ]
+    },
+    {
+      "id": "C13", "titulo": "Sem resposta da gravação: confere no banco antes de dizer qualquer coisa",
+      "referencias": "padrao",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "Gravou sem responder" }, "ctx": { "operacaoId": "op-c13-1", "novoId": "N-1", "usuario": "arq", "agora": 1791764400000 }, "falhaPersistencia": "sem-resposta-depois-de-gravar", "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "NEGOCIOS", "nome": "Não gravou" }, "ctx": { "operacaoId": "op-c13-2", "novoId": "N-2", "usuario": "arq", "agora": 1791764401000 }, "falhaPersistencia": "sem-resposta-sem-gravar", "esperado": { "ok": false, "erros": ["GRAVACAO_NAO_CONFIRMADA"] } }
+      ],
+      "estadoFinal": {
+        "N-1": { "id": "N-1", "tipo": "NEGOCIOS", "nome": "Gravou sem responder", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791764400000, "criadaPor": "arq", "revisao": 1 }
+      },
+      "eventos": [ { "id": "op-c13-1:1", "tipo": "estrutura.criada", "entidadeId": "N-1", "usuario": "arq", "em": 1791764400000 } ]
+    }
+  ]
+}

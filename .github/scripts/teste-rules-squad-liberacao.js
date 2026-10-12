@@ -83,7 +83,7 @@ function squad(itemId, comOrigem) {
   };
 
   console.log('A. o interruptor: só admin geral, com motivo e auditoria na mesma gravação');
-  await caso('Avaliação + Arquitetura não altera', db(ARQ).ref().update(interruptor(ARQ, true, { anterior: false })), false);
+  await caso('Avaliação + Configuração não altera', db(ARQ).ref().update(interruptor(ARQ, true, { anterior: false })), false);
   await caso('perfil Avaliação não altera', db(AVAL).ref().update(interruptor(AVAL, true, { anterior: false })), false);
   await caso('sem motivo é recusado', db(ADM).ref().update(interruptor(ADM, true, { anterior: false, motivo: '   ' })), false);
   await caso('sem auditoria é recusado', db(ADM).ref().update(interruptor(ADM, true, { anterior: false, mexer: (w, aud) => { delete w[CFA + '/' + aud]; } })), false);

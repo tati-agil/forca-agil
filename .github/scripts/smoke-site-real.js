@@ -272,7 +272,7 @@ async function smokeComoAdmin(page) {
     await esperar(() => { const t = document.getElementById('certTurmaSelect'); return !!t && (!t.disabled || /nenhuma turma neste evento/.test((t.options[0] || {}).textContent || '')); }, null, 'a escolha de turma destravar (ou avisar que o evento não tem turma)');
   });
 
-  await checar('ADMIN › Arquitetura abre a tela inicial', async () => {
+  await checar('ADMIN › Avaliação e Mapa abre a tela inicial', async () => {
     await abrirAba('adminPanelArquitetura');
     await esperar(() => !!document.getElementById('avpConfigQuestionariosBtn'), null, 'os cartões da Arquitetura');
   });

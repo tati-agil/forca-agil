@@ -167,6 +167,8 @@
   /* ===================== TELA ===================== */
   var C = window.faMapaFlorestaCatalogo;
   function S() { return window.faServicosPosicionamento; }
+  /* o cadastro de estruturas só existe no ambiente de testes nesta etapa (window.faAmbiente, forca-agil/firebase.js) */
+  function cadastroDisponivel() { return !!(window.faAmbiente && window.faAmbiente.testes && window.faEstruturasFirebase); }
   function P() { return window.faPosicionamentos; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function spanNome(c) { return P() ? P().spanNome(c, 'mf-nome') : esc(c); }
@@ -190,6 +192,10 @@
     var state = novoEstado();
     var modo = 'catalogo', selecionada = null; /* 'catalogo' | 'mapa'; selecionada = id da estrutura aberta no Mapa */
     var cenarioDemo = 'habitual'; /* cenário de demonstração do Mapa (mapa-floresta-demo.js): 'habitual' | 'populoso' */
+    /* fonte do Mapa: 'cadastro' = estruturas cadastradas (só no AMBIENTE DE TESTES nesta etapa) | 'demo' = exemplos
+       fictícios. As duas NUNCA se misturam: cada desenho usa uma só. Fora do ambiente de testes só existe 'demo'. */
+    var fonte = cadastroDisponivel() ? 'cadastro' : 'demo';
+    var cadastro = { estruturas: undefined, erro: null, desligar: null };
 
     /* ---- painel e identidade da página (como o Posicionamento e a Squad) ---- */
     var identidadeOriginal = null;
@@ -201,7 +207,7 @@
       if (meu && !identidadeOriginal) identidadeOriginal = { eyebrow: eyebrow ? eyebrow.textContent : '', h1: h1 ? h1.textContent : '', p: p ? p.textContent : '' };
       if (!meu && !identidadeOriginal) return;
       var t = !meu ? identidadeOriginal : modo === 'mapa'
-        ? { eyebrow: 'Mapa da Floresta', h1: 'Mapa da Floresta', p: 'Demonstração com exemplos fictícios: as estruturas organizacionais e os produtos e serviços sob a responsabilidade de cada uma.' }
+        ? { eyebrow: 'Mapa da Floresta', h1: 'Mapa da Floresta', p: fonte === 'cadastro' ? 'As estruturas organizacionais concretas cadastradas: Linhas, Centros de Excelência e Áreas Especializadas.' : 'Demonstração com exemplos fictícios: as estruturas organizacionais e os produtos e serviços sob a responsabilidade de cada uma.' }
         : { eyebrow: 'Mapa da Floresta', h1: 'Catálogo preparatório do Mapa da Floresta', p: 'Os objetos avaliados e o que falta para cada um chegar ao Mapa. Ainda não é o Mapa visual.' };
       if (eyebrow) eyebrow.textContent = t.eyebrow;
       if (h1) h1.textContent = t.h1;
@@ -226,12 +232,13 @@
     function mfDoEndereco() {
       var h = location.hash || '';
       if (h.split('?')[0] !== '#avaliacoes') return null;
-      var m = /[?&]mf=([^&]*)/.exec(h), e = /[?&]e=([^&]*)/.exec(h), cn = /[?&]cenario=([^&]*)/.exec(h);
-      return m ? { mf: decodeURIComponent(m[1]), e: e ? decodeURIComponent(e[1]) : null, cenario: cn ? decodeURIComponent(cn[1]) : null } : null;
+      var m = /[?&]mf=([^&]*)/.exec(h), e = /[?&]e=([^&]*)/.exec(h), cn = /[?&]cenario=([^&]*)/.exec(h), fo = /[?&]fonte=([^&]*)/.exec(h);
+      return m ? { mf: decodeURIComponent(m[1]), e: e ? decodeURIComponent(e[1]) : null, cenario: cn ? decodeURIComponent(cn[1]) : null, fonte: fo ? decodeURIComponent(fo[1]) : null } : null;
     }
     function enderecoDesejado() {
       if (modo !== 'mapa') return '#avaliacoes?mf=catalogo';
-      return '#avaliacoes?mf=mapa' + (cenarioDemo !== 'habitual' ? '&cenario=' + encodeURIComponent(cenarioDemo) : '') + (selecionada ? '&e=' + encodeURIComponent(selecionada) : '');
+      var deDemo = fonte === 'demo' && cadastroDisponivel();
+      return '#avaliacoes?mf=mapa' + (deDemo ? '&fonte=demo' : '') + (fonte === 'demo' && cenarioDemo !== 'habitual' ? '&cenario=' + encodeURIComponent(cenarioDemo) : '') + (selecionada ? '&e=' + encodeURIComponent(selecionada) : '');
     }
     function sincronizarEndereco() {
       var desejado = enderecoDesejado();
@@ -251,8 +258,10 @@
         modo = end.mf === 'mapa' ? 'mapa' : 'catalogo';
         var DM = window.faMapaFlorestaDemo;
         cenarioDemo = DM && DM.CENARIOS && DM.CENARIOS.indexOf(end.cenario) !== -1 ? end.cenario : 'habitual';
-        var D = demo();
-        selecionada = modo === 'mapa' && end.e && D && D.estado.estruturas[end.e] ? end.e : null;
+        fonte = cadastroDisponivel() && end.fonte !== 'demo' ? 'cadastro' : 'demo';
+        /* no cadastro a estrutura pode ainda estar chegando: a escolha fica, e o desenho confere quando os dados chegam */
+        var D = dados();
+        selecionada = modo === 'mapa' && end.e && (fonte === 'cadastro' || (D && D.estado.estruturas[end.e])) ? end.e : null;
       }
       mostrarPainel();
       if (modo === 'mapa') ligarNomes(); else ligar();
@@ -294,7 +303,7 @@
         'Este catálogo mostra, a partir das avaliações já gravadas, em que ponto cada objeto está. Nada aqui é gravado.</p>' +
         '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>';
       if (!autorizacaoResolvida()) h += '<p class="loading-msg" role="status">Carregando…</p>';
-      else if (!podeLer()) h += '<p class="avp-error-msg" id="mfSemAcesso">Este catálogo é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Arquitetura e administração geral). Seu acesso não inclui essa consulta.</p>';
+      else if (!podeLer()) h += '<p class="avp-error-msg" id="mfSemAcesso">Este catálogo é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Configuração e administração geral). Seu acesso não inclui essa consulta.</p>';
       else if (state.erro) h += '<div class="mf-erro" id="mfErro" role="alert"><p class="avp-error-msg">Não foi possível ler as avaliações agora. Nada foi alterado.</p>' +
         '<button type="button" class="btn btn--sm" id="mfTentarDeNovo">Tentar de novo</button></div>';
       else {
@@ -480,26 +489,44 @@
     function Est() { return window.faEstruturasNucleo; }
     function Mot() { return window.faMotorPosicionamentoNucleo; }
     function demo() { return window.faMapaFlorestaDemo && window.faMapaFlorestaDemo.cenario(cenarioDemo); }
+    /* os dados do desenho atual: a demonstração OU as estruturas cadastradas (sem subagrupadores nem associações de
+       produtos ainda — Linhas de Negócios ficam em "Sem subagrupador"; nada é inventado) */
+    function dados() {
+      if (fonte !== 'cadastro') return demo();
+      if (cadastro.estruturas === undefined || cadastro.erro) return null;
+      return { estado: { estruturas: cadastro.estruturas, relacoes: {}, vinculos: {} }, subagrupadores: {}, associacoesSubagrupador: [], objetos: {}, ficticio: false };
+    }
+    function ligarCadastro() {
+      if (fonte !== 'cadastro' || cadastro.desligar || !window.faEstruturasFirebase) return;
+      /* marca ANTES de ouvir: com dado em cache o Firebase responde na hora, e essa resposta redesenha (e chamaria
+         ligarCadastro de novo) antes de a ligação ser guardada */
+      var desligarEsta = null;
+      cadastro.desligar = function () { if (desligarEsta) desligarEsta(); };
+      desligarEsta = window.faEstruturasFirebase.ouvir(null, ['registros'], /* só leitura, pelo adaptador */ function (m) {
+        cadastro.estruturas = m.estruturas; cadastro.erro = null; if (!wrap.hidden && modo === 'mapa') render();
+      }, function (cod) { cadastro.erro = cod; if (!wrap.hidden && modo === 'mapa') render(); });
+    }
+    function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = undefined; cadastro.erro = null; }
     function blocoDoTipo(tipo) { return BLOCOS.filter(function (b) { return b.codigos.indexOf(tipo) !== -1; })[0] || null; }
     function estruturasDoBloco(b) {
-      var D = demo();
+      var D = dados();
       return b.codigos.reduce(function (acc, k) { return acc.concat(Est().estruturasDoTipo(D.estado, k)); }, []);
     }
     function subagrupadoresDe(b) {
-      var D = demo();
+      var D = dados();
       return Object.keys(D.subagrupadores).map(function (k) { return D.subagrupadores[k]; })
         .filter(function (s) { return s.bloco === b.id.toUpperCase() && s.situacao === 'ativo'; }).sort(function (x, y) { return x.ordem - y.ordem; });
     }
     function subagrupadorDaEstrutura(id) {
-      var D = demo(), a = D.associacoesSubagrupador.filter(function (x) { return x.estruturaId === id; })[0];
+      var D = dados(), a = D.associacoesSubagrupador.filter(function (x) { return x.estruturaId === id; })[0];
       return a ? D.subagrupadores[a.subagrupadorId] : null;
     }
     function objetosDe(id) {
-      var D = demo();
+      var D = dados();
       return Est().objetosDaEstrutura(D.estado, id).map(function (v) { return Object.assign({ id: v.objetoId, papel: v.papel }, D.objetos[v.objetoId] || { nome: v.objetoId }); });
     }
     function caixasHtml(ests) {
-      if (!ests.length) return '<p class="mfm-vazio">Sem estrutura de exemplo</p>';
+      if (!ests.length) return '<p class="mfm-vazio">' + (fonte === 'cadastro' ? 'Nenhuma estrutura cadastrada' : 'Sem estrutura de exemplo') + '</p>';
       return '<ul class="mfm-caixas" data-quantidade="' + ests.length + '">' + ests.map(function (e) {
         var ativo = e.id === selecionada;
         return '<li><button type="button" class="mfm-caixa' + (ativo ? ' mfm-caixa--ativa' : '') + '" data-estrutura="' + esc(e.id) + '" id="mfmNo-' + esc(e.id) + '" aria-pressed="' + ativo + '">' +
@@ -523,16 +550,25 @@
         var soltas = todas.filter(function (e) { return !usadas[e.id]; });
         if (soltas.length) h += subHtml('data-subagrupador=""', 'estrutura', 'Sem subagrupador', soltas, Math.min(4, soltas.length));
         h += '</div>';
+        if (!todas.length && !subagrupadoresDe(b).length) h += caixasHtml([]);
       } else if (b.porCodigo) {
-        var D = demo();
+        var D = dados();
         h += '<div class="mfm-subs">' + b.codigos.map(function (k) {
           return subHtml('data-codigo="' + esc(k) + '"', ICONE_CODIGO[k], spanNome(k), Est().estruturasDoTipo(D.estado, k), 0);
         }).join('') + '</div>';
       } else h += caixasHtml(estruturasDoBloco(b));
       return h + '</div></section>';
     }
+    /* Squads: a POSSIBILIDADE vem da regra fixa Linha × Squad do motor (Áreas Especializadas e CoEs não formam
+       Squads); a EXISTÊNCIA de Squads vinculados é outra informação, que ainda não existe — nunca inventada */
+    function squadsHtml(tipo, exemplo) {
+      if (Mot().liberaSquadParaCodigoFirme(tipo) !== true) return '<dt>Organização por Squads</dt><dd class="mfm-squads" data-forma-squads="nao">Não se aplica: Áreas Especializadas e Centros de Excelência não formam Squads.</dd>';
+      return '<dt>Organização por Squads</dt><dd class="mfm-squads" data-forma-squads="sim">Admitida para este tipo de estrutura (Linha).</dd>' +
+        '<dt>Squads vinculados</dt><dd class="mfm-squads-vinculados">' + (exemplo ? 'Nenhum nos exemplos fictícios.' : 'Informação ainda indisponível: a associação de Squads às estruturas não existe nesta versão.') + '</dd>';
+    }
     function detalheHtml(id) {
-      var e = demo().estado.estruturas[id], b = blocoDoTipo(e.tipo), sub = subagrupadorDaEstrutura(id), objs = objetosDe(id), M = Mot();
+      var e = dados().estado.estruturas[id], b = blocoDoTipo(e.tipo), sub = subagrupadorDaEstrutura(id), objs = objetosDe(id), M = Mot();
+      if (fonte === 'cadastro') return detalheCadastroHtml(e, b);
       var linha = b && b.natureza === 'Linha';
       var h = '<aside class="mfm-detalhe" id="mfmDetalhe" style="--cor:' + (b ? b.cor : '#555') + '" aria-labelledby="mfmDetalheTitulo">' +
         '<button type="button" class="mfm-fechar" id="mfmFechar">← Voltar ao Mapa</button>' +
@@ -542,7 +578,7 @@
         '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
         (sub ? '<dt>Subagrupador</dt><dd>' + esc(sub.nome) + ' <span class="mfm-nota">(exemplo)</span></dd>' : '') +
-        '<dt>Squads</dt><dd>' + (M.liberaSquadParaCodigoFirme(e.tipo) === true ? 'Pode organizar o trabalho por Squads' : 'Não forma Squads') + '</dd></dl>' +
+        squadsHtml(e.tipo, true) + '</dl>' +
         '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
         '<p class="mfm-ajuda">Eles não são caixas do Mapa: aparecem aqui, na estrutura responsável.</p>';
       h += objs.length ? '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
@@ -551,22 +587,56 @@
       }).join('') + '</ul>' : '<p class="mfm-sem-objetos" id="mfmSemObjetos">Nenhum produto ou serviço de exemplo sob esta estrutura.</p>';
       return h + '</aside>';
     }
+    function dataHora(v) { var t = Est().instante(v); return t === null ? '—' : new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+    function podeManterEstruturas() { var a = window.faAuth; return !!(a && ((a.isAdmin && a.isAdmin()) || (a.podeArquitetura && a.podeArquitetura()))); }
+    function detalheCadastroHtml(e, b) {
+      var M = Mot(), linha = b && b.natureza === 'Linha';
+      var h = '<aside class="mfm-detalhe" id="mfmDetalhe" style="--cor:' + (b ? b.cor : '#555') + '" aria-labelledby="mfmDetalheTitulo">' +
+        '<button type="button" class="mfm-fechar" id="mfmFechar">← Voltar ao Mapa</button>' +
+        '<p class="mfm-caminho">' + (b ? icone(b.icone, 'mfm-caminho-ic') : '') + esc(b ? b.titulo : '') + (b && b.subagrupado ? ' › Sem subagrupador' : linha && b.porCodigo ? ' › ' + spanNome(e.tipo) : '') + '</p>' +
+        '<h3 id="mfmDetalheTitulo" tabindex="-1">' + esc(e.nome) + '</h3>' +
+        '<span class="mfm-badge-cadastrada">Estrutura cadastrada</span>' +
+        '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
+        (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
+        (e.sigla ? '<dt>Sigla</dt><dd>' + esc(e.sigla) + '</dd>' : '') +
+        (e.descricao ? '<dt>Descrição</dt><dd class="mfm-descricao">' + esc(e.descricao) + '</dd>' : '') +
+        squadsHtml(e.tipo, false) +
+        '<dt>Cadastrada</dt><dd>' + dataHora(e.criadaEm) + (e.criadaPor ? ' · ' + esc(e.criadaPor.email || e.criadaPor.id) : '') + '</dd>' +
+        (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + (e.alteradaPor ? ' · ' + esc(e.alteradaPor.email || e.alteradaPor.id) : '') + '</dd>' : '') + '</dl>' +
+        '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
+        '<p class="mfm-sem-objetos" id="mfmSemObjetos">Informação ainda indisponível: a associação de produtos e serviços à estrutura responsável será registrada numa próxima etapa.</p>' +
+        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#admin?arq=estruturas&e=' + encodeURIComponent(e.id) + '">Abrir a ficha no cadastro (editar ou encerrar)</a>' : '');
+      return h + '</aside>';
+    }
     function renderMapaTela() {
-      var pronto = autorizacaoResolvida() && podeLer() && demo() && Est() && Mot();
+      if (fonte === 'cadastro' && podeLer()) ligarCadastro();
+      var D = dados();
+      if (selecionada && D && !D.estado.estruturas[selecionada]) selecionada = null; /* encerrada ou inexistente: volta ao Mapa */
+      if (selecionada && D && D.estado.estruturas[selecionada].situacao !== 'ativa') selecionada = null;
+      var pronto = autorizacaoResolvida() && podeLer() && D && Est() && Mot();
       /* um só painel claro: título, ações, aviso de demonstração e o quadro — o fundo do site fica só na margem */
       var h = '<div class="mfm-painel"><div class="mfm-cabecalho"><div class="mfm-cabecalho-texto"><h2 class="mfm-titulo">Mapa da Floresta</h2>' +
-        '<p class="mfm-subtitulo">Visão organizacional · demonstração com exemplos fictícios</p></div>' +
+        '<p class="mfm-subtitulo">' + (fonte === 'cadastro' ? 'Visão organizacional · estruturas cadastradas' : 'Visão organizacional · demonstração com exemplos fictícios') + '</p></div>' +
         '<div class="mfm-acoes"><button type="button" class="mfm-acao" id="mfVoltar">← Voltar para Avaliações</button>' +
         (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver o Catálogo e as pendências</button>' : '') + '</div></div>';
-      if (pronto) h += '<div class="mfm-cenarios" role="group" aria-label="Configuração de demonstração"><span class="mfm-cenarios-rotulo">Configuração de demonstração:</span>' +
+      if (cadastroDisponivel() && autorizacaoResolvida() && podeLer()) h += '<div class="mfm-cenarios mfm-fontes" role="group" aria-label="Dados do Mapa"><span class="mfm-cenarios-rotulo">Dados:</span>' +
+        [['cadastro', 'Estruturas cadastradas'], ['demo', 'Demonstração (fictícia)']].map(function (o) {
+          return '<button type="button" class="mfm-cenario mfm-fonte' + (fonte === o[0] ? ' mfm-cenario--ativo' : '') + '" data-fonte="' + o[0] + '" aria-pressed="' + (fonte === o[0]) + '">' + o[1] + '</button>';
+        }).join('') + '</div>';
+      if (pronto && fonte === 'demo') h += '<div class="mfm-cenarios" role="group" aria-label="Configuração de demonstração"><span class="mfm-cenarios-rotulo">Configuração de demonstração:</span>' +
         [['habitual', 'Habitual'], ['populoso', 'Populosa (teste de layout)']].map(function (o) {
           return '<button type="button" class="mfm-cenario' + (cenarioDemo === o[0] ? ' mfm-cenario--ativo' : '') + '" data-cenario="' + o[0] + '" aria-pressed="' + (cenarioDemo === o[0]) + '">' + o[1] + '</button>';
         }).join('') + '</div>';
-      h += '<div class="mfm-faixa" id="mfmFaixa" role="note"><strong>Demonstração.</strong> ' + esc(demo() ? demo().AVISO : '') +
+      if (fonte === 'cadastro') h += '<div class="mfm-faixa mfm-faixa--cadastro" id="mfmFaixa" role="note"><strong>Ambiente de testes.</strong> Estruturas cadastradas no Firebase Emulator — não são dados do banco oficial.' +
+        (pronto ? ' <span class="mfm-legenda">Cada caixa é uma estrutura cadastrada: clique para ver os detalhes.</span>' : '') +
+        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? ' <a class="mfm-link-cadastro" id="mfmIrCadastro" href="#admin?arq=estruturas">Cadastrar ou editar estruturas</a>' : '') + '</div>';
+      else h += '<div class="mfm-faixa" id="mfmFaixa" role="note"><strong>Demonstração.</strong> ' + esc(demo() ? demo().AVISO : '') +
         (pronto ? ' <span class="mfm-legenda">Cada caixa é uma estrutura concreta de exemplo: clique para ver os detalhes.</span>' : '') + '</div>';
       if (!autorizacaoResolvida()) h += '<p class="mfm-msg" role="status">Carregando…</p>';
-      else if (!podeLer()) h += '<p class="mfm-msg mfm-msg--erro" id="mfSemAcesso">O Mapa é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Arquitetura e administração geral). Seu acesso não inclui essa consulta.</p>';
-      else if (!demo() || !Est() || !Mot()) h += '<p class="mfm-msg mfm-msg--erro" id="mfmIndisponivel">O Mapa não carregou. Recarregue a página.</p>';
+      else if (!podeLer()) h += '<p class="mfm-msg mfm-msg--erro" id="mfSemAcesso">O Mapa é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Configuração e administração geral). Seu acesso não inclui essa consulta.</p>';
+      else if (fonte === 'cadastro' && cadastro.erro) h += '<p class="mfm-msg mfm-msg--erro" id="mfmErroCadastro" role="alert">' + (cadastro.erro === 'RECUSADA' ? 'Seu acesso não permite consultar as estruturas cadastradas.' : 'Não foi possível ler as estruturas cadastradas agora. Verifique se o ambiente de testes está aberto.') + '</p>';
+      else if (fonte === 'cadastro' && cadastro.estruturas === undefined) h += '<p class="mfm-msg" role="status" id="mfmCarregandoCadastro">Carregando as estruturas cadastradas…</p>';
+      else if (!D || !Est() || !Mot()) h += '<p class="mfm-msg mfm-msg--erro" id="mfmIndisponivel">O Mapa não carregou. Recarregue a página.</p>';
       else {
         var linhas = BLOCOS.filter(function (b) { return b.natureza === 'Linha'; });
         h += '<div class="mfm-quadro" id="mfmMapa" role="region" aria-label="Mapa da Floresta">' +
@@ -587,7 +657,16 @@
     function bindMapa() {
       var v = byId('mfVoltar'); if (v) v.addEventListener('click', sairParaAvaliacoes);
       var ic = byId('mfmIrCatalogo'); if (ic) ic.addEventListener('click', function () { irPara('catalogo'); });
-      Array.prototype.forEach.call(wrap.querySelectorAll('.mfm-cenario'), function (b) {
+      Array.prototype.forEach.call(wrap.querySelectorAll('.mfm-fonte'), function (b) {
+        b.addEventListener('click', function () {
+          var fo = b.getAttribute('data-fonte');
+          if (fo === fonte) return;
+          fonte = fo; if (fonte !== 'cadastro') desligarCadastro();
+          irPara('mapa', null);
+          var novo = wrap.querySelector('.mfm-fonte[data-fonte="' + fo + '"]'); if (novo) novo.focus({ preventScroll: true });
+        });
+      });
+      Array.prototype.forEach.call(wrap.querySelectorAll('.mfm-cenario:not(.mfm-fonte)'), function (b) {
         b.addEventListener('click', function () {
           var c = b.getAttribute('data-cenario');
           if (c === cenarioDemo) return;
@@ -644,7 +723,7 @@
     var pessoa = sessaoEmail();
     function aoMudarSessao() {
       var agora = sessaoEmail();
-      if (pessoa && pessoa !== agora) { desligar(); state = novoEstado(); }
+      if (pessoa && pessoa !== agora) { desligar(); desligarCadastro(); state = novoEstado(); }
       pessoa = agora;
       if (!wrap.hidden) { if (modo === 'mapa') ligarNomes(); else ligar(); render(); }
     }

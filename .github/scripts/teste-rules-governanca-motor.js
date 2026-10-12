@@ -1,8 +1,8 @@
 /* B3 (H2-b) — GOVERNANÇA PERSISTIDA do motor de Posicionamento, no emulador real do RTDB.
  * Roda em teste-rules.yml (emulators:exec). As gravações são montadas pelos MESMOS montadores que a tela usa
  * (faGovernancaPosicionamento.montarProposta / montarAprovacao / montarRetirada). Prova, nas regras (não na tela):
- *   A. leitura: admin geral, Avaliação e Avaliação + Arquitetura; ninguém mais;
- *   B. proposta: só Avaliação + Arquitetura ou admin geral; alvo = redação PUBLICADA (versão e digest); motor ≠ em
+ *   A. leitura: admin geral, Avaliação e Avaliação + Configuração; ninguém mais;
+ *   B. proposta: só Avaliação + Configuração ou admin geral; alvo = redação PUBLICADA (versão e digest); motor ≠ em
  *      vigor; impacto coerente e sem violação; autoria pelo UID e horário do servidor; índice de proposta aberta e
  *      auditoria na mesma gravação; lista fechada; uma proposta aberta por versão (inclusive simultâneas);
  *   C. imutabilidade: nada da proposta muda nem se apaga (inclusive por caminho superior); o índice não é apagado
@@ -80,7 +80,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 
   console.log('A. leitura');
   await caso('Avaliação lê as propostas', db(AVAL).ref(N.propostas).once('value'), true);
-  await caso('Avaliação + Arquitetura lê a auditoria', db(ARQ).ref(N.auditoria).once('value'), true);
+  await caso('Avaliação + Configuração lê a auditoria', db(ARQ).ref(N.auditoria).once('value'), true);
   await caso('admin geral lê a vigência', db(ADM).ref(N.vigencia).once('value'), true);
   await caso('pessoa sem perfil de Avaliação não lê', db(OUTRO).ref(N.propostas).once('value'), false);
   await caso('sem login não lê', env.unauthenticatedContext().database().ref(N.aberta).once('value'), false);
@@ -109,7 +109,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   await caso('campo fora da lista no alvo', raiz(ARQ).update(proposta(ARQ, { mexer: (u, p) => { u[PR(p)].alvo.validadaFronteira = true; } }).u), false);
   await caso('justificativa vazia', raiz(ARQ).update(proposta(ARQ, { mexer: (u, p) => { u[PR(p)].justificativa = ''; } }).u), false);
   const p1 = proposta(ARQ);
-  await caso('Avaliação + Arquitetura propõe a v2 (redação publicada v1, impacto sem violação)', raiz(ARQ).update(p1.u), true);
+  await caso('Avaliação + Configuração propõe a v2 (redação publicada v1, impacto sem violação)', raiz(ARQ).update(p1.u), true);
   await caso('segunda proposta aberta para a mesma versão', raiz(ARQ2).update(proposta(ARQ2).u), false);
   const c1 = proposta(ARQ, { versaoMotor: 3, alvo: { digestRedacao: DIG3 } }), c2 = proposta(ARQ2, { versaoMotor: 3, alvo: { digestRedacao: DIG3 } });
   const res = await Promise.allSettled([raiz(ARQ).update(c1.u), raiz(ARQ2).update(c2.u)]);
@@ -143,7 +143,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   await caso('auditoria de outra posição', raiz(ARQ2).update(aprovacao(ARQ2, p1.propostaId, P1, { mexer: (u, p, a) => { u[AUD(a)].posicao = 'a2'; } })), false);
   await caso('a2 antes de a1', raiz(ADM).update((() => { const u = aprovacao(ADM, p1.propostaId, Object.assign(clone(P1), { aprovacoes: { a1: { uid: 'x' } } })); return u; })()), false);
   await caso('a1 e a2 na mesma gravação', raiz(ADM).update(Object.assign(aprovacao(ARQ2, p1.propostaId, P1), aprovacao(ADM, p1.propostaId, Object.assign(clone(P1), { aprovacoes: { a1: { uid: 'x' } } })))), false);
-  await caso('1ª aprovação: Avaliação + Arquitetura (outra pessoa)', raiz(ARQ2).update(aprovacao(ARQ2, p1.propostaId, P1)), true);
+  await caso('1ª aprovação: Avaliação + Configuração (outra pessoa)', raiz(ARQ2).update(aprovacao(ARQ2, p1.propostaId, P1)), true);
   P1 = await ler(PR(p1.propostaId));
   await caso('a1 não é sobrescrita (gravação completa, com auditoria)', raiz(ARQ3).update(aprovacao(ARQ3, p1.propostaId, Object.assign(clone(P1), { aprovacoes: null }))), false);
   await caso('a1 não é apagada', db(ADM).ref(PR(p1.propostaId) + '/aprovacoes/a1').remove(), false);
@@ -167,11 +167,11 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   await caso('1ª aprovação por admin geral', raiz(ADM).update(aprovacao(ADM, p2.propostaId, P2)), true);
   P2 = await ler(PR(p2.propostaId));
   await caso('o mesmo admin geral na 2ª posição', raiz(ADM).update(aprovacao(ADM, p2.propostaId, P2)), false);
-  await caso('2ª aprovação por Avaliação + Arquitetura (a 1ª foi de admin geral)', raiz(ARQ3).update(aprovacao(ARQ3, p2.propostaId, P2)), true);
+  await caso('2ª aprovação por Avaliação + Configuração (a 1ª foi de admin geral)', raiz(ARQ3).update(aprovacao(ARQ3, p2.propostaId, P2)), true);
   const p5 = proposta(ARQ);
   await caso('nova proposta (para testar admin geral por fa-admins)', raiz(ARQ).update(p5.u), true);
   let P5 = await ler(PR(p5.propostaId));
-  await caso('1ª aprovação: Avaliação + Arquitetura', raiz(ARQ2).update(aprovacao(ARQ2, p5.propostaId, P5)), true);
+  await caso('1ª aprovação: Avaliação + Configuração', raiz(ARQ2).update(aprovacao(ARQ2, p5.propostaId, P5)), true);
   P5 = await ler(PR(p5.propostaId));
   await caso('2ª aprovação: admin geral pela lista fa-admins', raiz(ADM3).update(aprovacao(ADM3, p5.propostaId, P5)), true);
 
@@ -179,7 +179,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   const p3 = proposta(ADM);
   await caso('admin geral também propõe', raiz(ADM).update(p3.u), true);
   let P3 = await ler(PR(p3.propostaId));
-  await caso('Avaliação + Arquitetura que não propôs não retira', raiz(ARQ2).update(retirada(ARQ2, p3.propostaId, P3)), false);
+  await caso('Avaliação + Configuração que não propôs não retira', raiz(ARQ2).update(retirada(ARQ2, p3.propostaId, P3)), false);
   await caso('sem motivo', raiz(ADM).update(retirada(ADM, p3.propostaId, P3, { mexer: (u, p) => { u[PR(p) + '/retirada'].motivo = ''; } })), false);
   await caso('sem liberar o índice', raiz(ADM).update(retirada(ADM, p3.propostaId, P3, { mexer: (u) => { delete u[IDX(2)]; } })), false);
   await caso('sem auditoria', raiz(ADM).update(retirada(ADM, p3.propostaId, P3, { mexer: (u, p, a) => { delete u[AUD(a)]; } })), false);
@@ -195,8 +195,8 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   const P4 = await ler(PR(p4.propostaId));
   await caso('admin geral retira a proposta de outra pessoa', raiz(ADM).update(retirada(ADM, p4.propostaId, P4)), true);
   const p6 = proposta(ARQ);
-  await caso('proposta de Avaliação + Arquitetura', raiz(ARQ).update(p6.u), true);
-  await caso('o próprio proponente (Avaliação + Arquitetura) retira', raiz(ARQ).update(retirada(ARQ, p6.propostaId, await ler(PR(p6.propostaId)))), true);
+  await caso('proposta de Avaliação + Configuração', raiz(ARQ).update(p6.u), true);
+  await caso('o próprio proponente (Avaliação + Configuração) retira', raiz(ARQ).update(retirada(ARQ, p6.propostaId, await ler(PR(p6.propostaId)))), true);
 
   console.log('F. auditoria');
   const auds = await ler(N.auditoria), umaAud = Object.keys(auds)[0];
@@ -213,7 +213,7 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 
   console.log('G. vigência (reservada à fronteira confiável do B4)');
   await caso('admin geral não grava a versão em vigor', db(ADM).ref(N.vigencia + '/versaoEmVigor').set(2), false);
-  await caso('Avaliação + Arquitetura não grava a versão em vigor', db(ARQ).ref(N.vigencia).set({ versaoEmVigor: 2 }), false);
+  await caso('Avaliação + Configuração não grava a versão em vigor', db(ARQ).ref(N.vigencia).set({ versaoEmVigor: 2 }), false);
   await caso('nem junto com uma aprovação', raiz(ADM).update(Object.assign({ [N.vigencia + '/versaoEmVigor']: 2 }, aprovacao(ADM, p7.propostaId, await ler(PR(p7.propostaId))))), false);
   total++;
   if ((await ler(N.vigencia)) === null) console.log('  ok    a vigência continua sem registro (v1 em vigor)');
@@ -221,12 +221,12 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 
   console.log('H. B4 — registros que só a fronteira confiável (servidor) grava');
   const VAL = 'posicionamento-motor-redacao-validada', ATV = 'posicionamento-motor-ativacoes';
-  await caso('Avaliação + Arquitetura não grava a validação da redação', db(ARQ).ref(VAL + '/2/1').set({ digestRedacao: DIG }), false);
+  await caso('Avaliação + Configuração não grava a validação da redação', db(ARQ).ref(VAL + '/2/1').set({ digestRedacao: DIG }), false);
   await caso('admin geral não grava a validação da redação', db(ADM).ref(VAL + '/2/1').set({ digestRedacao: DIG }), false);
   await caso('admin geral não grava uma ativação', db(ADM).ref(ATV + '/p1').set({ seq: 1, versaoMotor: 2 }), false);
   await caso('nem junto com a vigência numa gravação só', raiz(ADM).update({ [ATV + '/p1']: { seq: 1 }, [N.vigencia + '/versaoEmVigor']: 2 }), false);
   await caso('Avaliação lê a validação da redação', db(AVAL).ref(VAL).once('value'), true);
-  await caso('Avaliação + Arquitetura lê as ativações', db(ARQ).ref(ATV).once('value'), true);
+  await caso('Avaliação + Configuração lê as ativações', db(ARQ).ref(ATV).once('value'), true);
   await caso('pessoa sem perfil não lê as ativações', db(OUTRO).ref(ATV).once('value'), false);
 
   await env.cleanup();

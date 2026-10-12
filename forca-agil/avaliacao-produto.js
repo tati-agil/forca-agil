@@ -1,5 +1,5 @@
 /* ============================================================
-   Força Ágil — Avaliação de Produto/Serviço (aba Arquitetura, admin)
+   Força Ágil — Avaliação de Produto/Serviço (aba Avaliação e Mapa, admin)
 
    Checklist arquitetural para decidir se um item da organização deve
    ser classificado como Produto/Serviço. Node do Firebase:
@@ -1557,7 +1557,7 @@
      forca-agil/ porque este projeto não tem build step/bundler/npm em
      produção (ver CLAUDE.md), e são carregadas SOB DEMANDA — nunca no
      carregamento inicial da página — para não pesar a experiência de quem
-     nunca usa a aba Arquitetura (a maioria: participantes na oficina, no
+     nunca usa a aba Avaliação e Mapa (a maioria: participantes na oficina, no
      celular, muitas vezes em rede lenta). */
   function carregarScript(src, jaDisponivel, cb) {
     if (jaDisponivel()) { cb(); return; }
@@ -2521,7 +2521,7 @@
        modo 'admin' — o bloco de parametrização dentro do ADMIN
          (#adminAvaliacaoProduto): configuração de questionários, de motores,
          das naturezas e dos usuários autorizados. Admin geral chega aqui
-         inteiro; "Avaliação + Arquitetura" só sem o cartão de usuários.
+         inteiro; "Avaliação + Configuração" só sem o cartão de usuários.
      Nenhuma configuração aparece na tela operacional e vice-versa. */
   window.faInitAvaliacaoProduto = function (opcoes) {
     var modo = opcoes && opcoes.modo === 'admin' ? 'admin' : 'operacional';
@@ -2535,7 +2535,7 @@
     function pode() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
     /* Curadoria (especialização, papel estrutural, natureza complementar) e
        decisão final são da Arquitetura: "Avaliação" avalia; "Avaliação +
-       Arquitetura" (e o admin geral) também cura e decide. O banco barra do
+       Configuração" (e o admin geral) também cura e decide. O banco barra do
        mesmo jeito: em avaliacoes-produto, quem não é da Arquitetura não muda
        nenhum campo de curadoria/decisão (numa versão nova, só herda os da
        anterior) e, em curadoria-auditoria, só grava a linha de reavaliação e
@@ -2547,7 +2547,7 @@
        <tela pai>" explícito (nunca um rótulo genérico que pula níveis). Quem
        sai de uma tela de EDIÇÃO com alteração ainda não salva é avisado antes
        — c.sujo é ligado pelo próprio campo editado e desligado ao salvar. */
-    var ROTULO_ADMIN = 'Arquitetura';
+    var ROTULO_ADMIN = 'Avaliação e Mapa';
     function linkVoltar(id, destino) {
       return '<button type="button" class="avp-voltar-link" id="' + id + '">← Voltar para ' + esc(destino) + '</button>';
     }
@@ -2637,7 +2637,7 @@
         }
         state.telaRenderizada = state.tela;
       }
-      /* ADMIN › Arquitetura: entrar numa subtela (ou trocar de subtela) começa no topo dela — no
+      /* ADMIN › Avaliação e Mapa: entrar numa subtela (ou trocar de subtela) começa no topo dela — no
          celular a tela anterior podia estar rolada até o meio, e o "← Voltar" do topo ficava fora
          da tela; voltar ao início devolve a posição de onde a pessoa saiu. */
       if (modo === 'admin') {
@@ -2671,7 +2671,7 @@
         window.requestAnimationFrame(function () { window.scrollTo({ top: y, left: 0, behavior: 'instant' }); });
       }
     }
-    /* ===================== ENDEREÇO DO ADMIN › ARQUITETURA =====================
+    /* ===================== ENDEREÇO DO ADMIN › AVALIAÇÃO E MAPA =====================
        Solução mínima, sem roteador novo: cada ÁREA da Arquitetura tem endereço próprio
        (#admin?arq=<área>). F5 reabre a mesma área; o Voltar/Avançar do navegador anda entre as
        áreas visitadas em vez de sair do ADMIN. As subtelas de dentro de uma área (histórico,
@@ -2685,6 +2685,8 @@
     function areaAtualAdmin() {
       var sq = document.getElementById('adminAvaliacaoSquad');
       if (sq && !sq.hidden) return 'motor-squad';
+      var et = document.getElementById('adminEstruturas');
+      if (et && !et.hidden) return 'estruturas';
       return AREAS_ADMIN[state.tela] || 'inicio';
     }
     function areaDoEndereco() {
@@ -2708,6 +2710,8 @@
       var area = areaAtualAdmin();
       var desejado = '#admin?arq=' + area;
       if (location.hash === desejado) return;
+      /* Estruturas Organizacionais guardam a estrutura aberta no próprio endereço (&e=<id>): não é outra área */
+      if (area === 'estruturas' && /^#admin\?arq=estruturas(&|$)/.test(location.hash || '')) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
       if (!areaDoEndereco()) { history.replaceState({ arq: area, seqArq: seqArqAtual() }, '', desejado); politicaRolagemAdmin(); return; }
       /* "← Voltar" da tela para a área de onde a pessoa veio = o Voltar do navegador (não empilha
@@ -2744,11 +2748,13 @@
     function edicaoSujaAdmin() {
       return !!((state.config && state.config.sujo) || (state.configMotores && state.configMotores.sujo) ||
         (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) ||
-        (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()));
+        (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()) ||
+        (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()));
     }
     function abrirAreaAdmin(area) {
       if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelArquitetura');
       if (window.faAvaliacaoSquadAdmin && area !== 'motor-squad') window.faAvaliacaoSquadAdmin.fechar();
+      if (window.faEstruturasAdmin && area !== 'estruturas') window.faEstruturasAdmin.fechar();
       state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
       if (area === 'questionarios') abrirConfigQuestionarios();
       else if (area === 'motores') abrirConfigMotores();
@@ -2756,6 +2762,7 @@
       else if (area === 'usuarios' && souAdminGeral()) abrirAdminUsuarios();
       else if (area === 'documentacao') abrirDocumentacao();
       else if (area === 'motor-squad' && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; render(); abrirMotorSquadDoInicio(); }
+      else if (area === 'estruturas' && estruturasDisponiveis()) { state.tela = 'admin-inicio'; render(); abrirEstruturasDoInicio(); }
       else { state.tela = 'admin-inicio'; render(); }
     }
     /* Voltar/Avançar do navegador, link colado ou F5 com #admin?arq=<área>. */
@@ -2777,7 +2784,17 @@
     }
     function abrirMotorSquadDoInicio() {
       state.rolagemInicio = window.pageYOffset || 0;
-      window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Arquitetura', voltar: function () {
+      window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Avaliação e Mapa', voltar: function () {
+        state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0);
+      } });
+      sincronizarEnderecoAdmin();
+    }
+    /* Estruturas Organizacionais Concretas (estruturas-tela.js): cadastro que alimenta o Mapa da Floresta.
+       Nesta etapa só existe no AMBIENTE DE TESTES (Firebase Emulator) — fora dele o cartão nem aparece. */
+    function estruturasDisponiveis() { return !!(window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel()); }
+    function abrirEstruturasDoInicio() {
+      state.rolagemInicio = window.pageYOffset || 0;
+      window.faEstruturasAdmin.abrir({ rotulo: ROTULO_ADMIN, voltar: function () {
         state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0);
       } });
       sincronizarEnderecoAdmin();
@@ -3288,7 +3305,7 @@
       if (!state.lixeira && pode()) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
       /* Adequação à Squad: outra avaliação, independente desta (S1–S8), feita aqui mesmo na área Avaliação. */
       if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpSquadBtn">Adequação à Squad</button>';
-      /* Posicionamento Organizacional (O1–O9): outra avaliação, consultada pelos três perfis; só Avaliação + Arquitetura grava. */
+      /* Posicionamento Organizacional (O1–O9): outra avaliação, consultada pelos três perfis; só Avaliação + Configuração grava. */
       if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpPosicionamentoBtn">Posicionamento Organizacional</button>';
       /* Catálogo preparatório do Mapa da Floresta: só consulta, os três perfis (mapa-floresta.js). */
       if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpMapaFlorestaBtn">Catálogo do Mapa da Floresta</button>';
@@ -4775,11 +4792,15 @@
       html += grupo('Governança arquitetural', 'Opções de descrição dos itens e as regras da adequação à gestão por squad.',
         cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
         (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Motor de Squad', 'Regras da adequação à gestão por squad (S1–S8), com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''));
+      if (estruturasDisponiveis()) {
+        html += grupo('Mapa da Floresta', 'As estruturas organizacionais concretas que aparecem no Mapa.',
+          cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'));
+      }
       html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
-        cartao('avpDocumentacaoBtn', 'Documentação e mapas de Arquitetura', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
+        cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
       if (souAdminGeral()) {
-        html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na Arquitetura.',
-          cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a Arquitetura), com histórico.'));
+        html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na área Avaliação e Mapa do ADMIN.',
+          cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a área Avaliação e Mapa do ADMIN), com histórico.'));
       }
       wrap.innerHTML = html;
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
@@ -4787,13 +4808,15 @@
       document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
       var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
       if (squadBtn) squadBtn.addEventListener('click', abrirMotorSquadDoInicio);
+      var estruturasBtn = document.getElementById('avpEstruturasBtn');
+      if (estruturasBtn) estruturasBtn.addEventListener('click', abrirEstruturasDoInicio);
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
       document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);
     }
 
     /* ===================== HISTÓRICO RECOLHIDO (padrão único) =====================
-       Toda trilha de alterações do ADMIN › Arquitetura usa este formato: fechada por padrão,
+       Toda trilha de alterações do ADMIN › Avaliação e Mapa usa este formato: fechada por padrão,
        com o tamanho no cabeçalho ("Histórico — N alterações"); aberta, uma linha por alteração
        com data, autor e tipo, e o conteúdo longo (valor anterior/novo) atrás de "Ver detalhes".
        Nada é apagado — é só a apresentação. linhas: [{ data, autor, tipo, resumo, anterior,
@@ -4840,7 +4863,7 @@
        link externo (https), autor e data. Editar e arquivar nunca apagam: o registro fica, e
        cada mudança grava uma linha em arquitetura-documentos-auditoria (só acréscimo).
        Mesmo público da Arquitetura na tela e nas regras do banco (admin geral e
-       "Avaliação + Arquitetura"). */
+       "Avaliação + Configuração"). */
     var NODE_DOCS = 'arquitetura-documentos';
     var NODE_DOCS_AUD = 'arquitetura-documentos-auditoria';
     /* Definições de artefatos da Arquitetura (não são conceitos da Taxonomia): cada uma tem uma chave
@@ -4907,7 +4930,7 @@
     function renderDocumentacao() {
       var d = state.documentacao;
       var html = linkVoltar('avpDocsVoltar', ROTULO_ADMIN);
-      html += '<div class="avp-form-card avp-docs"><h3>Documentação e mapas de Arquitetura</h3>';
+      html += '<div class="avp-form-card avp-docs"><h3>Documentação e mapas</h3>';
       html += '<p class="avp-docs-intro">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro).</p>';
       /* Definição do Mapa da Floresta: lida do banco (arquitetura-definicoes/MAPA_FLORESTA), em destaque */
       if (!d.carregando && !d.erro) html += renderDefinicaoMapa(d);
@@ -5160,19 +5183,19 @@
 
     /* ===================== ADMIN: USUÁRIOS AUTORIZADOS =====================
        Lista própria (fa-avaliacao-autorizados) de quem usa a aba AVALIAÇÃO e,
-       opcionalmente, o ADMIN > ARQUITETURA. Só os autorizados aparecem aqui —
+       opcionalmente, o ADMIN > AVALIAÇÃO E MAPA. Só os autorizados aparecem aqui —
        nunca todos os usuários do site. Quem entra na lista vem de fa-users
        (as pessoas que já existem; nenhuma base paralela de pessoas).
        Dois tipos, sem relação com o perfil antigo (Consulta/Avaliador/Gestor):
          avaliacao             — aba AVALIAÇÃO;
-         avaliacao-arquitetura — aba AVALIAÇÃO + somente ADMIN > ARQUITETURA.
+         avaliacao-arquitetura — aba AVALIAÇÃO + somente ADMIN > AVALIAÇÃO E MAPA.
        Remover só retira a autorização; não apaga a pessoa nem outros acessos.
        Toda mudança grava o registro e uma linha de histórico NA MESMA
        gravação (update multi-caminho, atômico) e só é dada como feita depois
        da resposta do banco. Só admin geral grava (regras do banco). */
     var TIPOS_AUTORIZADO = [
-      { id: 'avaliacao', rotulo: 'Avaliação', desc: 'Usa a aba AVALIAÇÃO. Não entra em ADMIN > ARQUITETURA.' },
-      { id: 'avaliacao-arquitetura', rotulo: 'Avaliação + Arquitetura', desc: 'Usa a aba AVALIAÇÃO e acessa somente ADMIN > ARQUITETURA — não é administrador geral.' }
+      { id: 'avaliacao', rotulo: 'Avaliação', desc: 'Usa a aba AVALIAÇÃO. Não entra em ADMIN > AVALIAÇÃO E MAPA.' },
+      { id: 'avaliacao-arquitetura', rotulo: 'Avaliação + Configuração', desc: 'Usa a aba AVALIAÇÃO e acessa somente ADMIN > AVALIAÇÃO E MAPA — não é administrador geral.' }
     ];
     function rotuloTipo(id) { var t = TIPOS_AUTORIZADO.filter(function (x) { return x.id === id; })[0]; return t ? t.rotulo : '—'; }
     function semAcento(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
@@ -5311,13 +5334,13 @@
         renderAdminInicio();
         return;
       }
-      html += '<p class="avp-decisao-aviso">Quem não está nesta lista não tem acesso à Avaliação nem à Arquitetura. Administradores gerais continuam com acesso total por serem administradores. ' +
+      html += '<p class="avp-decisao-aviso">Quem não está nesta lista não tem acesso à Avaliação nem à área Avaliação e Mapa do ADMIN. Administradores gerais continuam com acesso total por serem administradores. ' +
         'Os perfis antigos (Consulta, Avaliador e Gestor) não valem mais para nada.</p>';
       html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-aut-matriz"><thead><tr><th>O que a pessoa acessa</th>' +
         TIPOS_AUTORIZADO.map(function (t) { return '<th>' + esc(t.rotulo) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar, Adequação à Squad)</td><td>Sim</td><td>Sim</td></tr>' +
         '<tr><td data-label="Acesso">Curadoria e decisão arquitetural (especialização, papel estrutural, natureza complementar, decisão final)</td><td>Não</td><td>Sim</td></tr>' +
-        '<tr><td data-label="Acesso">ADMIN › Arquitetura (questionários, motores, naturezas, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">ADMIN › Avaliação e Mapa (questionários, motores, naturezas, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
         '<tr><td data-label="Acesso">Demais áreas do ADMIN</td><td>Não</td><td>Não</td></tr>' +
         '<tr><td data-label="Acesso">Gerenciar esta lista</td><td>Não</td><td>Não</td></tr></tbody></table></div>';
       if (u.carregando) {
@@ -5338,8 +5361,8 @@
         var chaveEu = chaveEmailAut(euSess.email);
         var avisoEu = u.avisos[chaveEu];
         html += '<div class="avp-aut-eu" id="avpAutEu"><p class="avp-decisao-aviso">Você entra em tudo por ser administradora geral, mas o seu acesso ainda não está <strong>registrado nesta lista</strong>. ' +
-          'A lista mostra quem foi autorizado explicitamente para a Avaliação e a Arquitetura.</p>' +
-          '<button type="button" class="btn" id="avpAutAdicionarEuBtn"' + (u.salvando[chaveEu] ? ' disabled' : '') + '>Adicionar a mim como Avaliação + Arquitetura</button>' +
+          'A lista mostra quem foi autorizado explicitamente para a Avaliação e para a área Avaliação e Mapa do ADMIN.</p>' +
+          '<button type="button" class="btn" id="avpAutAdicionarEuBtn"' + (u.salvando[chaveEu] ? ' disabled' : '') + '>Adicionar a mim como Avaliação + Configuração</button>' +
           '<span class="avp-usuario-aviso' + (avisoEu && avisoEu.erro ? ' avp-usuario-aviso--erro' : '') + '" id="avpAutEuAviso">' + (avisoEu ? esc(avisoEu.texto) : '') + '</span></div>';
       }
       html += '<div class="avp-aut-barra"><button type="button" class="btn btn--primary" id="avpAutAdicionarBtn" aria-expanded="' + (u.adicionando ? 'true' : 'false') + '">+ ADICIONAR USUÁRIO</button></div>';
@@ -5457,7 +5480,7 @@
     }
     /* Admin geral entra em tudo por ser admin, mas esta lista mostra quem foi AUTORIZADO
        explicitamente. Registrar a si mesma é uma ação explícita (um clique), nunca uma
-       gravação automática: o tipo é "Avaliação + Arquitetura". */
+       gravação automática: o tipo é "Avaliação + Configuração". */
     function autorizarEu() {
       var eu = sessaoAtual();
       if (!eu || !eu.email) return;
@@ -5963,10 +5986,10 @@
       SIMULACAO_EXECUTADA: 'simulação executada', SIMULACAO_SEM_VIOLACAO_LINHA_SQUAD: 'simulação sem violação de Linha × Squad', IMPACTO_CALCULADO: 'impacto calculado',
       IMPACTO_SEM_VIOLACAO_LINHA_SQUAD: 'impacto sem violação de Linha × Squad', ALVO_NAO_CALCULADO: 'impacto calculado sobre a redação PUBLICADA',
       IMPACTO_COM_VIOLACAO: 'impacto sem violação de Linha × Squad', JA_HA_PROPOSTA_ABERTA: 'nenhuma outra proposta em aberto para esta versão',
-      SEM_PERMISSAO: 'perfil Avaliação + Arquitetura ou admin geral', PRONTIDAO_NAO_AVALIADA: 'prontidão avaliada'
+      SEM_PERMISSAO: 'perfil Avaliação + Configuração ou admin geral', PRONTIDAO_NAO_AVALIADA: 'prontidão avaliada'
     };
     var ROTULO_NAO_APROVA = {
-      NAO_ABERTA: 'A proposta não está em aberto.', SEM_PERMISSAO: 'Só Avaliação + Arquitetura ou admin geral aprovam.', PROPONENTE_NAO_APROVA: 'Quem propôs não aprova a própria proposta.',
+      NAO_ABERTA: 'A proposta não está em aberto.', SEM_PERMISSAO: 'Só Avaliação + Configuração ou admin geral aprovam.', PROPONENTE_NAO_APROVA: 'Quem propôs não aprova a própria proposta.',
       JA_APROVOU: 'Você já aprovou esta proposta: a segunda aprovação precisa ser de outra pessoa.', CONFERIR_IMPACTO: 'Calcule o impacto acima para conferir se a proposta continua atual antes de aprovar.',
       DESATUALIZADA: 'A proposta está desatualizada: não pode ser aprovada. Retire-a e faça uma nova.', PRECISA_ADMIN_GERAL: 'A segunda aprovação precisa ser de um admin geral (a primeira não foi).'
     };
@@ -5982,7 +6005,7 @@
         '<p class="avp-ficha-meta">Proposta por ' + esc((p.propostoPor || {}).email || '—') + ' em ' + esc(fmtData(p.propostoEm)) + '. Justificativa: ' + esc(p.justificativa || '') + '</p>' +
         '<p class="avp-ficha-meta">Impacto reconhecido: ' + esc(im.total) + ' concluídas — ' + esc(im.iguais) + ' iguais, ' + esc(im.alterados) + ' mudariam, ' + esc(im.incomparaveis) + ' não comparáveis, ' + esc(im.violacoes) + ' violações (identificador <code>' + esc(a.digestImpacto) + '</code>).</p>';
       html += '<ul class="avp-pos-aprovacoes">' + (st.aprovacoes.length ? st.aprovacoes.map(function (ap) {
-        return '<li data-posicao="' + ap.posicao + '">Aprovada por ' + esc(ap.email) + (ap.adminGeral ? ' (admin geral)' : ' (Avaliação + Arquitetura)') + ' em ' + esc(fmtData(ap.em)) + '</li>';
+        return '<li data-posicao="' + ap.posicao + '">Aprovada por ' + esc(ap.email) + (ap.adminGeral ? ' (admin geral)' : ' (Avaliação + Configuração)') + ' em ' + esc(fmtData(ap.em)) + '</li>';
       }).join('') : '<li>Nenhuma aprovação ainda.</li>') + '</ul>';
       if (p.retirada) html += '<p class="avp-ficha-meta">Retirada por ' + esc((p.retirada.por || {}).email || '—') + ' em ' + esc(fmtData(p.retirada.em)) + '. Motivo: ' + esc(p.retirada.motivo || '') + '</p>';
       if (st.desatualizada) html += '<p class="avp-decisao-aviso avp-pos-desatualizada">A redação publicada, a definição do motor ou o impacto calculado agora não são os desta proposta: ela não vale para a situação atual.</p>';
@@ -7500,7 +7523,7 @@
       html += '</section>';
 
       /* Rodapé: só a navegação. Reavaliar e GERAR PDF são ações do item e ficam no cabeçalho. O Posicionamento
-         Organizacional deste item é outra avaliação (só quem grava O1–O9: Avaliação + Arquitetura, admin geral). */
+         Organizacional deste item é outra avaliação (só quem grava O1–O9: Avaliação + Configuração, admin geral). */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
       html += '<button class="btn" id="avpVoltarListaRodape">' + esc(rotuloVoltar()) + '</button>';
       if (modo === 'operacional' && podeDecidir() && vigente && a.status === 'concluido' && a.excluido !== true) {
@@ -9315,7 +9338,7 @@
     sincronizarComHash(); /* tenta resolver um link direto já na carga inicial */
     if (modo === 'admin') {
       /* Endereço próprio por área da Arquitetura (ver sincronizarEnderecoAdmin): Voltar/Avançar do
-         navegador e link colado; a troca para a aba Arquitetura grava o endereço da área atual. */
+         navegador e link colado; a troca para a aba Avaliação e Mapa grava o endereço da área atual. */
       window.addEventListener('popstate', aplicarEnderecoAdmin);
       window.addEventListener('hashchange', aplicarEnderecoAdmin);
       politicaRolagemAdmin(); /* F5 / link direto numa área: a entrada atual já nasce 'manual' */

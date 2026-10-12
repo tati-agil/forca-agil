@@ -14,7 +14,7 @@
  *   4. Atalho na ficha do Posicionamento: "Avaliar Adequação à Squad" só no item liberado; abre a Squad do item e,
  *      havendo rascunho S, abre esse rascunho (não duplica).
  *   5. ADMIN › Motor de Squad: o interruptor — admin geral liga com motivo (gravação + auditoria); Avaliação +
- *      Arquitetura só consulta. Sem rolagem horizontal; sem erro de JS. */
+ *      Configuração só consulta. Sem rolagem horizontal; sem erro de JS. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -300,7 +300,7 @@ async function interruptor(browser, viewport, rotulo) {
   ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motor-squad', semente({ exigir: true }), ARQ));
   await page.waitForSelector('#sqExigirEstado[data-exigir]');
   afirma(/Ligada/.test(await texto(page, '#sqExigirEstado')) && await page.locator('#sqExigirSoAdmin').count() === 1 && await page.locator('#sqExigirBtn, #sqExigirMotivo').count() === 0,
-    'Avaliação + Arquitetura vê o estado, sem campo nem botão ("Só admin geral altera")');
+    'Avaliação + Configuração vê o estado, sem campo nem botão ("Só admin geral altera")');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }

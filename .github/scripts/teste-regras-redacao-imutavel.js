@@ -5,7 +5,7 @@
  *     porque um .write num nó de cima vale para tudo abaixo e anularia a proteção;
  *   - versoes/<n> e a auditoria só aceitam criar (!data.exists() && newData.exists());
  *   - o ponteiro nunca é apagado, só avança de 1 em 1 e respeita a suspensão;
- *   - a suspensão é só do admin geral (sem o perfil Avaliação + Arquitetura) e nunca se apaga;
+ *   - a suspensão é só do admin geral (sem o perfil Avaliação + Configuração) e nunca se apaga;
  *   - a versão tem lista fechada de campos (a tela não grava "validada"), autoria por UID e horário do servidor. */
 'use strict';
 const fs = require('fs');

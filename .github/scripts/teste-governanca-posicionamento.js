@@ -274,7 +274,7 @@ afirma(stOk.situacao === 'aprovada' && stOk.autorizacao.autorizada === true && !
 afirma(G.podeAprovar(P_ok, usr(UB), alvoG).motivo === 'NAO_ABERTA' && G.podeRetirar(P_ok, usr(UADM, true)).motivo === 'NAO_ABERTA' && G.montarAprovacao({ propostaId: 'p1', proposta: P_ok, auditoriaId: 'x', usuario: UB, agora: 'TS' }) === null,
   'aprovada é final: nem aprovação nem retirada');
 const P_adm1 = Object.assign(clone(P), { aprovacoes: { a1: Object.assign(clone(A1), { uid: 'u-adm', email: 'adm@previ.com.br', adminGeral: true }) } });
-afirma(G.podeAprovar(P_adm1, usr(UB), alvoG).pode, 'a 1ª foi de admin geral: a 2ª pode ser de Avaliação + Arquitetura');
+afirma(G.podeAprovar(P_adm1, usr(UB), alvoG).pode, 'a 1ª foi de admin geral: a 2ª pode ser de Avaliação + Configuração');
 afirma(G.podeRetirar(P, usr(UP)).pode && G.podeRetirar(P, usr(UADM, true)).pode && G.podeRetirar(P, usr(UA)).motivo === 'SO_PROPONENTE_OU_ADMIN_GERAL', 'retira: só o proponente ou admin geral');
 afirma(G.montarRetirada({ propostaId: 'p1', proposta: P, auditoriaId: 'a9', motivo: '   ', usuario: UP, agora: 'TS' }) === null, 'retirada sem motivo não é montada');
 const ur = G.montarRetirada({ propostaId: 'p1', proposta: P, auditoriaId: 'a9', motivo: ' mudou ', usuario: UP, agora: 'TS' });

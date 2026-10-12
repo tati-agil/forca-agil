@@ -17,20 +17,22 @@
     ".github/scripts/teste-rules-taxonomia-governanca.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-posicionamento.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-posicionamento-decisao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rotulos-doc.js": "ferramenta de auditoria, ainda não portão de CI: sempre sai com 0 até a triagem dos candidatos (ver cabeçalho do arquivo)"
+    ".github/scripts/teste-rotulos-doc.js": "ferramenta de auditoria, ainda não portão de CI: sempre sai com 0 até a triagem dos candidatos (ver cabeçalho do arquivo)",
+    ".github/scripts/teste-rules-estruturas-concretas.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-estruturas-jornada.js": "jornada contra um Firebase Emulator real (banco + login) num contêiner Docker próprio, com Playwright: roda localmente; ainda não está no CI"
   },
   "testes": [
     {
       "arquivo": ".github/scripts/teste-avaliacoes-acessos.js",
       "nome": "Avaliação: acessos, Arquitetura restrita, Usuários autorizados (desktop e celular)",
       "duracao": 50,
-      "sobre": "Avaliação de Produto/Serviço: acessos \"Avaliação\" e \"Avaliação + Arquitetura\" (lista própria, sem relação com os perfis antigos), admin geral por ser admin, #admin restrito à Arquitetura e a tela Usuários autorizados. Hermético (Firebase falso); a proteção de verdade, no banco, é provada à parte por teste-rules-avaliacoes.js no emulador."
+      "sobre": "Avaliação de Produto/Serviço: acessos \"Avaliação\" e \"Avaliação + Configuração\" (lista própria, sem relação com os perfis antigos), admin geral por ser admin, #admin restrito à Arquitetura e a tela Usuários autorizados. Hermético (Firebase falso); a proteção de verdade, no banco, é provada à parte por teste-rules-avaliacoes.js no emulador."
     },
     {
       "arquivo": ".github/scripts/teste-avaliacoes-troca-usuario.js",
       "nome": "Avaliação: trocar de usuário sem recarregar — Arquitetura e Usuários autorizados (desktop e celular)",
       "duracao": 19,
-      "sobre": "Troca de usuário SEM recarregar a página: a tela do ADMIN > Arquitetura (e a lista de AVALIAÇÃO) não herda nada de quem estava antes, e o admin geral que entra depois vê Usuários autorizados e o cabeçalho completo do ADMIN sem F5. Hermético."
+      "sobre": "Troca de usuário SEM recarregar a página: a tela do ADMIN > Avaliação e Mapa (e a lista de AVALIAÇÃO) não herda nada de quem estava antes, e o admin geral que entra depois vê Usuários autorizados e o cabeçalho completo do ADMIN sem F5. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-curadoria.js",
@@ -489,7 +491,7 @@
     },
     {
       "arquivo": ".github/scripts/teste-arquitetura-documentacao.js",
-      "nome": "ADMIN › Arquitetura › Documentação e mapas de Arquitetura (desktop e 375 px)",
+      "nome": "ADMIN › Avaliação e Mapa › Documentação e mapas (desktop e 375 px)",
       "duracao": 8,
       "sobre": "Cartão no grupo \"Referências\"; adicionar grava título, descrição, link https, autor e data com uma linha de histórico na mesma gravação; link sem https recusado na tela; editar/arquivar/restaurar nunca apagam; histórico recolhido com \"Ver detalhes\"; gravação recusada pelo banco mostra o erro e mantém o formulário. Hermético."
     },
@@ -551,7 +553,7 @@
       "arquivo": ".github/scripts/teste-squad-liberacao.js",
       "nome": "I2 — Adequação à Squad liberada pelo Posicionamento Organizacional: aviso, exigência, origem gravada, atalho e interruptor (desktop e 375 px)",
       "duracao": 90,
-      "sobre": "Exigência desligada: aviso do Posicionamento vigente (decisão final ou recomendação automática), sem bloqueio, e a origem da liberação gravada na criação da avaliação S. Exigência ligada: item não liberado (Área/CoE, decisão CoE sobre recomendação Linha, item novo) não inicia e nada é gravado; A_VALIDAR com decisão liberadora inicia; rascunho anterior continua. Leitura lenta = Verificando; recusada = não foi possível verificar (nunca liberação fictícia). Atalho na ficha do Posicionamento abre a Squad do item sem duplicar. Interruptor no ADMIN: admin geral liga com motivo e auditoria; Avaliação + Arquitetura só consulta. Hermético."
+      "sobre": "Exigência desligada: aviso do Posicionamento vigente (decisão final ou recomendação automática), sem bloqueio, e a origem da liberação gravada na criação da avaliação S. Exigência ligada: item não liberado (Área/CoE, decisão CoE sobre recomendação Linha, item novo) não inicia e nada é gravado; A_VALIDAR com decisão liberadora inicia; rascunho anterior continua. Leitura lenta = Verificando; recusada = não foi possível verificar (nunca liberação fictícia). Atalho na ficha do Posicionamento abre a Squad do item sem duplicar. Interruptor no ADMIN: admin geral liga com motivo e auditoria; Avaliação + Configuração só consulta. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-squad-endereco.js",
@@ -636,6 +638,12 @@
       "nome": "Estruturas Organizacionais Concretas: núcleo puro, em memória (sem navegador, sem Firebase)",
       "duracao": 2,
       "sobre": "Independência de infraestrutura (o arquivo não cita Firebase, banco, DOM, relógio ou sorteio; roda num contexto vazio; determinístico; não altera o estado). Estruturas: tipos admitidos pela ligação oficial + Squad e Capítulo, tipo imutável, encerrar com motivo sem exclusão/reativação/cascata. Relações: 5 tipos, compatibilidade com a Taxonomia (herança só se oficial), duplicidade, autorrelação, ciclos em compõe, alterar = encerrar + criar, a revisar. Vínculo de responsável principal: único, decisão final × recomendação, A_VALIDAR, ligação oficial, tipo, base, substituir; situações calculadas e mudança de Posicionamento; separação da liberação para Squad (I2); histórico e aplicar() tudo ou nada."
+    },
+    {
+      "arquivo": ".github/scripts/teste-estruturas-cenarios-referencia.js",
+      "nome": "Estruturas Concretas: cenários de negócio v1 contra a referência em memória (sem navegador)",
+      "duracao": 1,
+      "sobre": "Conjunto versionado estruturas-concretas v1 (criar, alterar, encerrar; 8 tipos firmes; Squad e código desconhecido recusados; ligação oficial e conceito ativo; validação; identificador nunca reaproveitado; tipo imutável; sem reativação; contexto incompleto; operação repetida sem duplicar; concorrência por revisão; sem resposta conferida no banco) executado pelo caso de uso compartilhado contra a referência em memória do contrato de persistência; estado, revisões, autoria, horários e eventos comparados com o esperado; relatório com conjunto, versão e sha256; o caso de uso não tem regra própria."
     },
     {
       "arquivo": ".github/scripts/teste-motor-posicionamento-api.js",
@@ -755,7 +763,7 @@
       "arquivo": ".github/scripts/teste-manual.js",
       "nome": "ADMIN › Manual: carga sob demanda, quatro dimensões, áreas, estados de turma (desktop e celular)",
       "duracao": 12,
-      "sobre": "O Manual refeito na Etapa 6.2: só baixado quando a aba abre (rede lenta e falha com \"Tentar novamente\"), quatro dimensões de acesso e nove áreas, índice que leva até cada uma, sem nada do modelo antigo (filtro de Persona, contagem, exportação), \"Avaliar oficina\" × \"Avaliação de Produto/Serviço\", estados de turma coerentes com os botões do site, fontes oficiais e provas existentes, sem rolagem lateral; ADMIN sem Mapa/Testes e \"Avaliação + Arquitetura\" só com a Arquitetura."
+      "sobre": "O Manual refeito na Etapa 6.2: só baixado quando a aba abre (rede lenta e falha com \"Tentar novamente\"), quatro dimensões de acesso e nove áreas, índice que leva até cada uma, sem nada do modelo antigo (filtro de Persona, contagem, exportação), \"Avaliar oficina\" × \"Avaliação de Produto/Serviço\", estados de turma coerentes com os botões do site, fontes oficiais e provas existentes, sem rolagem lateral; ADMIN sem Mapa/Testes e \"Avaliação + Configuração\" só com a Arquitetura."
     },
     {
       "arquivo": ".github/scripts/teste-repositorio-login.js",

@@ -324,7 +324,7 @@
      Lista própria de quem usa a aba AVALIAÇÃO e, opcionalmente, o ADMIN >
      ARQUITETURA. Dois tipos, independentes de qualquer outro acesso do site:
        'avaliacao'             — aba AVALIAÇÃO, nada de ADMIN;
-       'avaliacao-arquitetura' — aba AVALIAÇÃO + SOMENTE ADMIN > ARQUITETURA.
+       'avaliacao-arquitetura' — aba AVALIAÇÃO + SOMENTE ADMIN > AVALIAÇÃO E MAPA.
      Quem não está na lista não ganha nada daqui. Admin geral entra em tudo por
      ser admin — não precisa estar na lista. O perfil antigo
      (fa-avaliacao-acessos: consulta/avaliador/gestor) não vale mais para nada
@@ -397,7 +397,7 @@
     if (!_avaliacaoEmail) return false;
     return isAdmin(_avaliacaoEmail) || getAvaliacaoTipo() !== null;
   }
-  /* ADMIN > ARQUITETURA: admin geral ou 'avaliacao-arquitetura'. */
+  /* ADMIN > AVALIAÇÃO E MAPA: admin geral ou 'avaliacao-arquitetura'. */
   function podeArquitetura() {
     if (!_avaliacaoEmail) return false;
     return isAdmin(_avaliacaoEmail) || getAvaliacaoTipo() === 'avaliacao-arquitetura';

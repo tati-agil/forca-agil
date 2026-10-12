@@ -35,7 +35,7 @@ estado = { estruturas: { <id>: Estrutura }, relacoes: { <id>: Relacao }, vinculo
 ### Contexto de execução — fornecido por quem executa
 
 ```
-ctx = { operacaoId, novoId?, usuario: { id, email? }, agora: '<ISO 8601>' }
+ctx = { operacaoId, novoId?, usuario: { id, email? }, agora: <milissegundos UTC> | '<ISO 8601>' }
 ```
 
 `novoId` é exigido nas operações que criam algo (`criar…`, `vincular…`, `substituir…`, `alterarRelacao`). O
@@ -69,6 +69,12 @@ Os tipos de evento são:
 - `vinculo.criado`, `vinculo.encerrado`.
 
 Uma substituição gera dois eventos com o mesmo `operacaoId`.
+
+**Horário.** O formato canônico de `agora` é o instante em **milissegundos UTC desde a época Unix** (inteiro positivo),
+sempre fornecido pelo **servidor**. Por compatibilidade com os registros e o backend já existentes, texto ISO 8601 continua
+aceito. O núcleo só registra o horário recebido (nunca decide nada com ele); `historico()` ordena pelo instante real,
+com os dois formatos misturados; `instante(v)` converte os dois para milissegundos. Horário inválido (0, negativo,
+fracionário, texto sem data) é recusado com `CONTEXTO_SEM_HORARIO`. Prova: seção G de `teste-estruturas-nucleo.js`.
 
 ## 3. O contrato de persistência
 
@@ -105,6 +111,18 @@ essa garantia.
 cumpre este contrato no PostgreSQL: transação serializável que lê o estado, chama o núcleo e grava operação, mudanças
 e eventos juntos; índices únicos parciais para relação ativa duplicada e responsável principal ativo; gatilhos que
 recusam exclusão, reativação, troca do que é imutável e alteração de eventos. Prova: `backend/test/integracao/`.
+
+**Casos de uso compartilhados e portas** (`forca-agil/estruturas-casos-de-uso.js`): a orquestração única do cadastro
+(criar, alterar e encerrar estrutura — os 8 tipos firmes no 1º cadastro), usada pelo site e pelo backend, e o contrato
+de persistência comum em forma de portas: `lerReferencias`, `lerEstado`, `gravar` (tudo ou nada; revisão; mesma
+operação repetida não duplica), `conferirOperacao` (antes de decidir e depois de "sem resposta") e `lerEventos`.
+`CAMPOS_DE_HORARIO` lista onde o horário aparece (estrutura e cópias antes/depois no evento), para o adaptador Firebase
+gravar o horário do servidor. `persistenciaEmMemoria` é a referência do contrato.
+
+**Cenários de negócio versionados** (`.github/scripts/cenarios/estruturas-concretas.v1.json`, executor compartilhado
+`.github/scripts/estruturas-cenarios.js`): o mesmo conjunto roda contra a referência em memória
+(`teste-estruturas-cenarios-referencia.js`), o Firebase Emulator e o PostgreSQL; o relatório identifica conjunto, versão
+e sha256.
 
 Leitura: a persistência precisa poder devolver o estado acima (ou o recorte necessário) e os eventos de uma
 entidade, que `historico(eventos, entidade, id)` ordena.

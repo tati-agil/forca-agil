@@ -1,4 +1,4 @@
-/* ADMIN › Arquitetura › Documentação e mapas de Arquitetura (onde fica o Mapa da Floresta).
+/* ADMIN › Avaliação e Mapa › Documentação e mapas (onde fica o Mapa da Floresta).
  *
  * Formato inicial aprovado: título, descrição, link externo (https), autor e data — sem upload,
  * miniatura nem versionamento. Prova, em desktop e no celular (375 px):

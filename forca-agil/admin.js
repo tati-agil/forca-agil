@@ -108,8 +108,8 @@
       return;
     }
     if (!window.faAuth.isAdmin(sess.email)) {
-      /* Não é admin geral. Quem tem o tipo "Avaliação + Arquitetura" entra
-         aqui SÓ para a aba Arquitetura — nenhum outro carregador roda (nem as
+      /* Não é admin geral. Quem tem o tipo "Avaliação + Configuração" entra
+         aqui SÓ para a aba Avaliação e Mapa — nenhum outro carregador roda (nem as
          migrações, que gravam dados), e as regras do banco barram o resto
          mesmo que alguém chame direto. O tipo vem de OUTRA leitura: "ainda não
          sei" espera, só "sei que não" desiste. */
@@ -150,7 +150,7 @@
     initCertificados();
   }
 
-  /* Admin restrito ("Avaliação + Arquitetura"): só o painel Arquitetura.
+  /* Admin restrito ("Avaliação + Configuração"): só o painel Avaliação e Mapa.
      Esconde as demais abas e painéis (não só o menu) e inicia apenas os dois
      módulos dele. O cartão "Usuários autorizados" não aparece (avaliacao-produto.js
      só o mostra para admin geral) e as regras do banco negam o resto. */

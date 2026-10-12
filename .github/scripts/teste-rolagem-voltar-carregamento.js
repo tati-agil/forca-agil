@@ -1,4 +1,4 @@
-/* ADMIN › Arquitetura: depois de um F5 em rede lenta, o fim do carregamento não rola a tela por
+/* ADMIN › Avaliação e Mapa: depois de um F5 em rede lenta, o fim do carregamento não rola a tela por
  * cima da posição escolhida pelo site nem da posição para onde a pessoa já rolou.
  * Desktop e celular (375 px). Hermético: Firebase falso, sem rede, sem segredo.
  *

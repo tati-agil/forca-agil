@@ -112,7 +112,7 @@ const resp = (q, v) => ({ resposta: v, codigoPergunta: q, questionnaireContentVe
   afirmaRegistro(b2f.status === 'concluido' && b2f.resultadoAutomatico.versaoMotor === 2 && b2f.resultadoAutomatico.codigoResultado === esperado.codigoResultado && (await ler(VIG + '/i2')) === 'b2' && !(await ler(RES + '/i2')),
     'concluída v2: ' + b2f.resultadoAutomatico.codigoResultado + ' (o do núcleo), vigente e reserva liberada');
   await caso('a fronteira não registra decisão', fronteira().ref('posicionamento-decisoes/b2').set({ itemId: 'i2' }), false);
-  await caso('Avaliação + Arquitetura registra a decisão humana sobre a v2', raiz(ARQ).update(T.payloadDecisao({ id: 'b2', reg: b2f, codigoFinal: 'AREA_ESPECIALIZADA', justificativa: 'Decidido.', usuario: usuario(ARQ), agora: QUANDO, audId: 'kd2' })), true);
+  await caso('Avaliação + Configuração registra a decisão humana sobre a v2', raiz(ARQ).update(T.payloadDecisao({ id: 'b2', reg: b2f, codigoFinal: 'AREA_ESPECIALIZADA', justificativa: 'Decidido.', usuario: usuario(ARQ), agora: QUANDO, audId: 'kd2' })), true);
   await caso('a tela continua concluindo a v1 (tabela do motor v1)', raiz(ARQ).update(T.payloadConclusao('a1', a1Comp, usuario(ARQ), QUANDO, a1b.revisao, 'kc1').payload), true);
 
   console.log('D. reavaliação e "Atualizar com motor atual"');

@@ -79,8 +79,17 @@ const MONTADAS = require('./montar-regras-posicionamento.js');
 MONTADAS.NOS.forEach((n) => afirma(igual(regras[n], MONTADAS.BLOCOS[n]), 'o nó ' + n + ' publicado é EXATAMENTE o montado por montar-regras-posicionamento.js (que usa esta tabela)'));
 const versoesNasRegras = (val || '').match(/resultadoAutomatico\/versaoMotor'\)\.val\(\) === (\d+)/g) || [];
 afirma(versoesNasRegras.length > 0 && versoesNasRegras.every((m) => /=== 1$/.test(m)), 'o banco aceita só versaoMotor 1 (' + versoesNasRegras.length + ' conferências, nenhuma de outra versão)');
-const tamanho = fs.statSync(path.join(__dirname, '..', '..', 'database.rules.json')).size;
-afirma(tamanho < 256 * 1024, 'database.rules.json com ' + tamanho + ' bytes (limite do Firebase: 262.144)');
+/* Tamanho: só MEDIÇÃO informativa (não há limite oficial documentado para as regras do Realtime Database). O que se
+   prova é que o artefato publicado é a versão compacta, estruturalmente idêntica ao fonte legível. */
+const COMPACTAS = require('./regras-compactas.js');
+const RAIZ_REPO = path.join(__dirname, '..', '..');
+const fonteRegras = fs.readFileSync(path.join(RAIZ_REPO, 'database.rules.json'), 'utf8');
+const publicadas = fs.readFileSync(path.join(RAIZ_REPO, 'database.rules.min.json'), 'utf8');
+console.log('  info  tamanho das regras: legível ' + Buffer.byteLength(fonteRegras) + ' bytes · compacto (publicado) ' + Buffer.byteLength(publicadas) + ' bytes');
+afirma(COMPACTAS.mesmaEstrutura(JSON.parse(fonteRegras), JSON.parse(publicadas)), 'database.rules.min.json é estruturalmente idêntico a database.rules.json (mesmas chaves, ordem e expressões)');
+afirma(publicadas === COMPACTAS.compactar(fonteRegras), 'database.rules.min.json é exatamente a compactação do fonte (regenerado depois da última edição)');
+const configFirebase = JSON.parse(fs.readFileSync(path.join(RAIZ_REPO, 'firebase.json'), 'utf8'));
+afirma(configFirebase.database && configFirebase.database.rules === 'database.rules.min.json', 'o deploy publica o artefato compacto (firebase.json › database.rules = database.rules.min.json)');
 
 console.log('\n============================\n' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));
 process.exit(falhas ? 1 : 0);

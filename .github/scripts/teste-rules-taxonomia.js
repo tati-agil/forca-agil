@@ -26,7 +26,7 @@
       legítimos, arquivar/restaurar e criar fonte nova continuam valendo. "Nova versão da definição" = fonte nova
       + "Usar como vigente" (as operações reais da aplicação, seção 9).
    7. AUTORIZAÇÃO: nesta 1ª versão leitura, escrita e auditoria só para admin (o mesmo conceito de admin
-      do sistema: e-mails fixos + fa-admins). Perfis da Avaliação (inclusive "Avaliação + Arquitetura")
+      do sistema: e-mails fixos + fa-admins). Perfis da Avaliação (inclusive "Avaliação + Configuração")
       NÃO entram.
    ═════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
@@ -221,12 +221,12 @@ async function main() {
   await nega('alterar só um campo de um evento antigo', R(admin(), ORG + '/auditoria/C1/e2/dataHora').set('2020-01-01T00:00:00.000Z'));
   await nega('EXCLUIR um evento', R(admin(), ORG + '/auditoria/C1/e2').remove());
   await nega('excluir TODA a auditoria de um conceito', R(admin(), ORG + '/auditoria/C1').remove());
-  await nega('"Avaliação + Arquitetura" não escreve auditoria', R(db(ARQ), ORG + '/auditoria/C1/g1').set(auditoria(ARQ)));
+  await nega('"Avaliação + Configuração" não escreve auditoria', R(db(ARQ), ORG + '/auditoria/C1/g1').set(auditoria(ARQ)));
   await nega('"Avaliação" não escreve auditoria', R(db(AVAL), ORG + '/auditoria/C1/g2').set(auditoria(AVAL)));
   await nega('usuário comum não escreve auditoria', R(db(SEM_ACESSO), ORG + '/auditoria/C1/g3').set(auditoria(SEM_ACESSO)));
   await nega('sem login não escreve auditoria', R(db(null), ORG + '/auditoria/C1/g4').set(auditoria(SEM_ACESSO)));
   await pode('admin LÊ a auditoria', R(admin(), ORG + '/auditoria/C1').once('value'));
-  for (const [rotulo, email] of [['"Avaliação + Arquitetura"', ARQ], ['"Avaliação"', AVAL], ['usuário comum', SEM_ACESSO], ['sem login', null]]) {
+  for (const [rotulo, email] of [['"Avaliação + Configuração"', ARQ], ['"Avaliação"', AVAL], ['usuário comum', SEM_ACESSO], ['sem login', null]]) {
     await nega(rotulo + ' NÃO lê a auditoria', R(db(email), ORG + '/auditoria/C1').once('value'));
   }
 
@@ -397,7 +397,7 @@ async function main() {
     await pode(rotulo + ' escreve conceito', R(db(email), ORG + '/conceitos/C1/nome').set('Escrito por ' + rotulo));
   }
   await nega('a raiz "taxonomia" inteira não é lida em bloco (leitura é por ramo)', R(admin(), 'taxonomia').once('value'));
-  for (const [rotulo, email] of [['"Avaliação + Arquitetura" (escreve naturezas, mas NÃO a Taxonomia)', ARQ], ['"Avaliação"', AVAL], ['usuário comum', SEM_ACESSO], ['sem login', null]]) {
+  for (const [rotulo, email] of [['"Avaliação + Configuração" (escreve naturezas, mas NÃO a Taxonomia)', ARQ], ['"Avaliação"', AVAL], ['usuário comum', SEM_ACESSO], ['sem login', null]]) {
     for (const cam of LEITURAS.filter((c) => c !== 'taxonomia')) await nega(rotulo + ' NÃO lê ' + cam, R(db(email), cam).once('value'));
     await nega(rotulo + ' NÃO escreve conceito', R(db(email), ORG + '/conceitos/C1/nome').set('invasão'));
     await nega(rotulo + ' NÃO escreve fonte', R(db(email), ORG + '/fontes/C1/F_INV').set(fonte('placeholder')));
@@ -525,7 +525,7 @@ async function main() {
   /* não admin: as mesmas operações são recusadas pelo banco, mesmo chamando o código direto */
   const intruso = carregarApp(ARQ)._interno;
   intruso.carregarDominio('organizacional'); await ate(() => intruso.st.d.organizacional.estado !== 'carregando');
-  anota('"Avaliação + Arquitetura" (não admin) NÃO consegue LER a Taxonomia pela aplicação (sem acesso)', intruso.st.d.organizacional.estado === 'sem-acesso');
+  anota('"Avaliação + Configuração" (não admin) NÃO consegue LER a Taxonomia pela aplicação (sem acesso)', intruso.st.d.organizacional.estado === 'sem-acesso');
   intruso.st.d.organizacional.conceitos = { BETA: { nome: 'x' } }; intruso.st.d.organizacional.selecionado = 'BETA';
   intruso.st.d.organizacional.detalhe = { codigo: 'BETA', carregando: false, fontes: { b1: { situacao: 'histórica/contextual', texto: 't', contexto: 'BB', tipoRedacao: 'Conceito' } }, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
   intruso.st.flash = null; intruso.tornarVigente('organizacional', 'BETA', 'b1');
@@ -540,7 +540,7 @@ async function main() {
   anota('EXPORTAÇÃO: o que a aplicação leu é exatamente o que está no banco (por ramo)', exp.ok && JSON.stringify(exp.bruto.organizacional.fontes) === JSON.stringify(await ler(ORG + '/fontes')) && JSON.stringify(exp.bruto.meta) === JSON.stringify(await ler('taxonomia/meta')));
   anota('EXPORTAÇÃO: nada foi gravado', JSON.stringify(await ler('taxonomia')) === antesExp);
   const expIntruso = await new Promise((r) => intruso.lerTudoParaExportar(r));
-  anota('EXPORTAÇÃO: "Avaliação + Arquitetura" (não admin) é recusada pelo banco (sem acesso, nada lido)', expIntruso.ok === false && expIntruso.falhas.length === 10 && expIntruso.falhas.every((f) => /sem acesso/.test(f)), JSON.stringify(expIntruso.falhas));
+  anota('EXPORTAÇÃO: "Avaliação + Configuração" (não admin) é recusada pelo banco (sem acesso, nada lido)', expIntruso.ok === false && expIntruso.falhas.length === 10 && expIntruso.falhas.every((f) => /sem acesso/.test(f)), JSON.stringify(expIntruso.falhas));
 
   console.log('\n== 10. Gravação SEM confirmação do servidor (SDK real, cliente sem conexão) ==');
   await testEnv.clearDatabase();
@@ -602,7 +602,7 @@ async function main() {
   anota('ordenado do mais recente para o mais antigo', dts.every((d, i) => i === 0 || d <= dts[i - 1]));
   const admDb = db(ADMIN), arqDb = db(ARQ), anonDb = ctx(null).database();
   await pode('o admin consegue a consulta paginada direto no banco (sem índice, sem mudar regra)', admDb.ref(ORG + '/auditoria/_catalogo').orderByKey().endAt(keyH(40)).limitToLast(26).once('value'));
-  await nega('"Avaliação + Arquitetura" (consulta) NÃO lê o histórico global', arqDb.ref(ORG + '/auditoria/_catalogo').orderByKey().limitToLast(26).once('value'));
+  await nega('"Avaliação + Configuração" (consulta) NÃO lê o histórico global', arqDb.ref(ORG + '/auditoria/_catalogo').orderByKey().limitToLast(26).once('value'));
   await nega('sem login NÃO lê o histórico global', anonDb.ref(ARQT + '/auditoria/_catalogo').orderByKey().limitToLast(26).once('value'));
 
   /* ───────────────────────── 12. ARQUIVAMENTO LÓGICO DE FONTES ───────────────────────── */
