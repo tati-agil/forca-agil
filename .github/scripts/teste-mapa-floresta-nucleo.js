@@ -131,12 +131,15 @@ anota('nunca usa situacaoResponsavel, responsavelAtivo, vincular*, aplicar nem r
    CADASTRADAS, sem relações, vínculos nem objetos — nunca as duas juntas, nunca montado com as coleções do Catálogo */
 const consultas = fonte.match(/(estruturasDoTipo|objetosDaEstrutura)\(([^,)]*)/g) || [];
 const corpoDados = (/function dados\(\) \{([\s\S]*?)\n    \}/.exec(fonte) || [])[1] || '';
-anota('estruturasDoTipo e objetosDaEstrutura só sobre D.estado, D = dados() = demonstração OU estruturas cadastradas (sem relações, vínculos nem objetos; nada do Catálogo)', consultas.length > 0 && consultas.every((x) => /\(D\.estado$/.test(x)) &&
+anota('estruturasDoTipo e objetosDaEstrutura só sobre D.estado, D = dados() = demonstração OU estruturas e subagrupadores cadastrados (sem relações, vínculos nem objetos; nada do Catálogo)', consultas.length > 0 && consultas.every((x) => /\(D\.estado$/.test(x)) &&
   /* demo() só devolve um cenário do próprio módulo de demonstração (habitual ou populoso), nunca dado real */
   /function demo\(\) \{ return window\.faMapaFlorestaDemo && window\.faMapaFlorestaDemo\.cenario\(cenarioDemo\); \}/.test(fonte) &&
   /* dados(): fora do cadastro, a demonstração; no cadastro, SÓ as estruturas persistidas — nunca as duas, nunca o Catálogo */
   /if \(fonte !== 'cadastro'\) return demo\(\);/.test(corpoDados) &&
-  /estado: \{ estruturas: cadastro\.estruturas, relacoes: \{\}, vinculos: \{\} \}, subagrupadores: \{\}, associacoesSubagrupador: \[\], objetos: \{\}/.test(corpoDados) &&
+  /estado: \{ estruturas: cadastro\.estruturas, relacoes: \{\}, vinculos: \{\} \}, subagrupadores: subagrupadoresCadastrados\(\), associacoesSubagrupador: associacoesCadastradas\(\), objetos: \{\}/.test(corpoDados) &&
+  /* Etapa 5: subagrupadores e associações vêm SÓ do cadastro (cadastro.*), calculados pelo núcleo — nunca do Catálogo */
+  !/state\./.test(((/function subagrupadoresCadastrados\(\) \{([\s\S]*?)\n    \}/.exec(fonte) || [])[1] || 'state.') + ((/function associacoesCadastradas\(\) \{([\s\S]*?)\n    \}/.exec(fonte) || [])[1] || 'state.')) &&
+  /function estadoSubagrupadores\(\) \{ return \{ estruturas: cadastro\.estruturas, subagrupadores: cadastro\.subagrupadores, associacoesSubagrupador: cadastro\.associacoes \}; \}/.test(fonte) &&
   !/state\./.test(corpoDados) && !/var D = demo\(\)/.test(fonte) && (fonte.match(/var D = dados\(\)/g) || []).length >= 2, consultas.join(' | '));
 const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
 const iPos = html.indexOf('forca-agil/avaliacao-posicionamento.js'), iEst = html.indexOf('forca-agil/estruturas-nucleo.js'), iMapa = html.indexOf('forca-agil/mapa-floresta.js');

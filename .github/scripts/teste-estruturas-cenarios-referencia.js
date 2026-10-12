@@ -1,5 +1,6 @@
 /* Estruturas Organizacionais Concretas — cenários de negócio v1 contra a REFERÊNCIA EM MEMÓRIA do contrato de
  * persistência (forca-agil/estruturas-casos-de-uso.js › persistenciaEmMemoria). Só Node: sem navegador, sem banco.
+ * Roda os DOIS conjuntos: estruturas-concretas v1 e mapa-subagrupadores v1 (Etapa 5).
  * É o primeiro dos três executores do MESMO conjunto (memória, Firebase Emulator na Etapa 2, PostgreSQL na Etapa 3):
  * o relatório identifica o conjunto, a versão e o sha256 do arquivo executado.
  * Também confere, de forma estática, que o caso de uso não tem regra de negócio própria (só orquestra o núcleo). */
@@ -12,7 +13,9 @@ const U = require('../../forca-agil/estruturas-casos-de-uso.js');
 
 (async () => {
   const r = await R.executar({ rotulo: 'referência em memória', criarPortas: (referencias) => U.persistenciaEmMemoria(N, { referencias }) });
-  let falhas = r.falhas;
+  /* Etapa 5: o conjunto dos subagrupadores, com as Linhas do estado inicial de cada cenário */
+  const r2 = await R.executar({ arquivo: R.ARQUIVO_SUBAGRUPADORES, rotulo: 'referência em memória', criarPortas: (referencias, estado) => U.persistenciaEmMemoria(N, { referencias, estado }) });
+  let falhas = r.falhas + r2.falhas;
   /* guarda estática: o caso de uso não decide nada que seja do núcleo */
   const fonte = fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'estruturas-casos-de-uso.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   const proibidos = ['MAX', 'TIPO_IMUTAVEL', 'MOTIVO_OBRIGATORIO', 'CAMPO_OBRIGATORIO', 'TIPO_NAO_ADMITIDO', 'firebase', 'require(', 'Date.now', 'new Date', 'Math.random'];

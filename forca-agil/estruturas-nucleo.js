@@ -404,15 +404,177 @@
     return out;
   }
 
+  /* ---------------- SUBAGRUPADORES DAS LINHAS DE NEGÓCIOS (Etapa 5) ----------------
+     Agrupamento de APRESENTAÇÃO do Mapa da Floresta — não é estrutura organizacional concreta nem conceito da
+     Taxonomia. Só para estruturas do tipo Linha de Negócios. Criar, renomear, ordenar (ordem numérica própria;
+     empate pelo nome), encerrar com motivo (nunca apagar, nunca reativar, identificador nunca reaproveitado).
+     A ASSOCIAÇÃO Linha × subagrupador é registro próprio, com histórico: no máximo uma ativa por Linha; trocar =
+     encerrar a atual e criar outra, numa só operação. Encerrar um subagrupador NÃO encerra associações em cascata
+     (como nas estruturas): a Linha passa a aparecer em "Sem subagrupador" pela situação CALCULADA. */
+  var TIPO_COM_SUBAGRUPADOR = 'NEGOCIOS';
+  var SUBAGRUPADOR = { ATIVO: 'ativo', ENCERRADO: 'encerrado' };
+  function subagrupadorAtivo(estado, id) { var s = colecao(estado, 'subagrupadores')[id]; return s && s.situacao === SUBAGRUPADOR.ATIVO ? s : null; }
+  function subagrupadoresAtivos(estado) {
+    return valores(colecao(estado, 'subagrupadores')).filter(function (s) { return s.situacao === SUBAGRUPADOR.ATIVO; })
+      .sort(function (a, b) { return a.ordem !== b.ordem ? a.ordem - b.ordem : String(a.nome).localeCompare(String(b.nome), 'pt-BR') || (a.id < b.id ? -1 : 1); });
+  }
+  function associacaoAtivaDaLinha(estado, estruturaId) {
+    return valores(colecao(estado, 'associacoesSubagrupador')).filter(function (a) { return a.situacao === SITUACAO.ATIVA && a.estruturaId === estruturaId; })[0] || null;
+  }
+  function checarOrdem(e, v) { if (v !== undefined && (typeof v !== 'number' || !isFinite(v))) e.push(erro('CAMPO_INVALIDO', { campo: 'ordem' })); }
+  function checarJustificativa(e, j) { if (j !== undefined && j !== null) checarTexto(e, 'justificativa', j, false); }
+  function criarSubagrupador(estado, dados, ctx) {
+    var e = validarCtx(ctx, true), d = dados || {};
+    if (e.length) return falha(e);
+    if (colecao(estado, 'subagrupadores')[ctx.novoId]) e.push(erro('IDENTIFICADOR_JA_USADO', { id: ctx.novoId }));
+    checarTexto(e, 'nome', d.nome, true);
+    checarOrdem(e, d.ordem);
+    if (e.length) return falha(e);
+    var ativos = subagrupadoresAtivos(estado);
+    var ordem = d.ordem !== undefined ? d.ordem : (ativos.length ? ativos[ativos.length - 1].ordem + 10 : 10); /* sem ordem: vai para o fim */
+    var s = { id: ctx.novoId, bloco: TIPO_COM_SUBAGRUPADOR, nome: texto(d.nome), ordem: ordem, situacao: SUBAGRUPADOR.ATIVO, criadoEm: ctx.agora, criadoPor: autor(ctx), revisao: 1 };
+    return sucesso([mudanca('subagrupador', s.id, null, s)], [evento(ctx, 1, 'subagrupador.criado', 'subagrupador', s.id, null, s)]);
+  }
+  /* renomear e/ou ordenar (nome, ordem); nada mais muda */
+  function alterarSubagrupador(estado, id, alteracoes, ctx, opcoes) {
+    var e = validarCtx(ctx, false), a = alteracoes || {}, o = opcoes || {};
+    if (e.length) return falha(e);
+    var atual = colecao(estado, 'subagrupadores')[id];
+    if (!atual) return falha([erro('SUBAGRUPADOR_INEXISTENTE', { id: id })]);
+    if (atual.situacao !== SUBAGRUPADOR.ATIVO) return falha([erro('SUBAGRUPADOR_ENCERRADO', { id: id })]);
+    if (o.revisaoEsperada !== undefined && o.revisaoEsperada !== atual.revisao) return falha([erro('REVISAO_DESATUALIZADA', { esperada: o.revisaoEsperada, atual: atual.revisao })]);
+    Object.keys(a).forEach(function (k) { if (k !== 'nome' && k !== 'ordem') e.push(erro('CAMPO_NAO_ALTERAVEL', { campo: k })); });
+    if ('nome' in a) checarTexto(e, 'nome', a.nome, true);
+    if ('ordem' in a) { if (a.ordem === undefined || a.ordem === null) e.push(erro('CAMPO_INVALIDO', { campo: 'ordem' })); else checarOrdem(e, a.ordem); }
+    checarJustificativa(e, o.justificativa);
+    if (e.length) return falha(e);
+    var depois = clone(atual), mudou = [];
+    if ('nome' in a && texto(a.nome) !== atual.nome) { depois.nome = texto(a.nome); mudou.push('nome'); }
+    if ('ordem' in a && a.ordem !== atual.ordem) { depois.ordem = a.ordem; mudou.push('ordem'); }
+    if (!mudou.length) return falha([erro('NADA_A_ALTERAR')]);
+    depois.revisao = atual.revisao + 1; depois.alteradoEm = ctx.agora; depois.alteradoPor = autor(ctx);
+    return sucesso([mudanca('subagrupador', id, atual, depois)],
+      [evento(ctx, 1, 'subagrupador.alterado', 'subagrupador', id, atual, depois, { campos: mudou, justificativa: textoOuNulo(o.justificativa) })]);
+  }
+  function encerrarSubagrupador(estado, id, motivo, ctx, opcoes) {
+    var e = validarCtx(ctx, false), o = opcoes || {};
+    if (e.length) return falha(e);
+    var atual = colecao(estado, 'subagrupadores')[id];
+    if (!atual) return falha([erro('SUBAGRUPADOR_INEXISTENTE', { id: id })]);
+    if (atual.situacao !== SUBAGRUPADOR.ATIVO) return falha([erro('SUBAGRUPADOR_ENCERRADO', { id: id })]);
+    if (o.revisaoEsperada !== undefined && o.revisaoEsperada !== atual.revisao) return falha([erro('REVISAO_DESATUALIZADA', { esperada: o.revisaoEsperada, atual: atual.revisao })]);
+    motivoValido(e, motivo);
+    if (e.length) return falha(e);
+    var depois = clone(atual);
+    depois.situacao = SUBAGRUPADOR.ENCERRADO; depois.revisao = atual.revisao + 1;
+    depois.encerramento = { motivo: texto(motivo), em: ctx.agora, por: autor(ctx) };
+    return sucesso([mudanca('subagrupador', id, atual, depois)], [evento(ctx, 1, 'subagrupador.encerrado', 'subagrupador', id, atual, depois, { motivo: texto(motivo) })]);
+  }
+  function validarAssociacaoNova(estado, estruturaId, subagrupadorId, ignorarId) {
+    var e = [], est = colecao(estado, 'estruturas')[estruturaId];
+    if (!est) e.push(erro('ESTRUTURA_INEXISTENTE', { id: estruturaId }));
+    else if (est.situacao !== SITUACAO.ATIVA) e.push(erro('ESTRUTURA_ENCERRADA', { id: estruturaId }));
+    else if (est.tipo !== TIPO_COM_SUBAGRUPADOR) e.push(erro('ESTRUTURA_NAO_ADMITE_SUBAGRUPADOR', { tipo: est.tipo }));
+    if (!colecao(estado, 'subagrupadores')[subagrupadorId]) e.push(erro('SUBAGRUPADOR_INEXISTENTE', { id: subagrupadorId }));
+    else if (!subagrupadorAtivo(estado, subagrupadorId)) e.push(erro('SUBAGRUPADOR_ENCERRADO', { id: subagrupadorId }));
+    var outra = associacaoAtivaDaLinha(estado, estruturaId);
+    if (outra && outra.id !== ignorarId) e.push(erro('LINHA_JA_ASSOCIADA', { associacaoId: outra.id }));
+    return e;
+  }
+  function novaAssociacao(estruturaId, subagrupadorId, ctx) {
+    return { id: ctx.novoId, estruturaId: estruturaId, subagrupadorId: subagrupadorId, situacao: SITUACAO.ATIVA, criadaEm: ctx.agora, criadaPor: autor(ctx), revisao: 1 };
+  }
+  function associarLinha(estado, dados, ctx, opcoes) {
+    var e = validarCtx(ctx, true), d = dados || {}, o = opcoes || {};
+    if (e.length) return falha(e);
+    if (colecao(estado, 'associacoesSubagrupador')[ctx.novoId]) e.push(erro('IDENTIFICADOR_JA_USADO', { id: ctx.novoId }));
+    e = e.concat(validarAssociacaoNova(estado, d.estruturaId, d.subagrupadorId, null));
+    checarJustificativa(e, o.justificativa);
+    if (e.length) return falha(e);
+    var a = novaAssociacao(d.estruturaId, d.subagrupadorId, ctx);
+    return sucesso([mudanca('associacao-subagrupador', a.id, null, a)],
+      [evento(ctx, 1, 'associacao.criada', 'associacao-subagrupador', a.id, null, a, { justificativa: textoOuNulo(o.justificativa) })]);
+  }
+  function associacaoEncerrada(atual, ctx, extra) {
+    var depois = clone(atual);
+    depois.situacao = SITUACAO.ENCERRADA; depois.revisao = atual.revisao + 1;
+    depois.encerramento = { em: ctx.agora, por: autor(ctx) };
+    if (extra && extra.substituidaPor) depois.encerramento.substituidaPor = extra.substituidaPor;
+    return depois;
+  }
+  /* trocar o subagrupador de uma Linha: encerra a associação atual e cria a nova, numa só operação */
+  function substituirAssociacao(estado, associacaoId, subagrupadorId, ctx, opcoes) {
+    var e = validarCtx(ctx, true), o = opcoes || {};
+    if (e.length) return falha(e);
+    var atual = colecao(estado, 'associacoesSubagrupador')[associacaoId];
+    if (!atual) return falha([erro('ASSOCIACAO_INEXISTENTE', { id: associacaoId })]);
+    if (atual.situacao !== SITUACAO.ATIVA) return falha([erro('ASSOCIACAO_ENCERRADA', { id: associacaoId })]);
+    if (colecao(estado, 'associacoesSubagrupador')[ctx.novoId]) e.push(erro('IDENTIFICADOR_JA_USADO', { id: ctx.novoId }));
+    if (subagrupadorId === atual.subagrupadorId) e.push(erro('NADA_A_ALTERAR'));
+    e = e.concat(validarAssociacaoNova(estado, atual.estruturaId, subagrupadorId, associacaoId));
+    checarJustificativa(e, o.justificativa);
+    if (e.length) return falha(e);
+    var fim = associacaoEncerrada(atual, ctx, { substituidaPor: ctx.novoId }), a = novaAssociacao(atual.estruturaId, subagrupadorId, ctx);
+    a.substitui = associacaoId;
+    var j = textoOuNulo(o.justificativa);
+    return sucesso([mudanca('associacao-subagrupador', associacaoId, atual, fim), mudanca('associacao-subagrupador', a.id, null, a)],
+      [evento(ctx, 1, 'associacao.encerrada', 'associacao-subagrupador', associacaoId, atual, fim, { justificativa: j }),
+       evento(ctx, 2, 'associacao.criada', 'associacao-subagrupador', a.id, null, a, { justificativa: j })]);
+  }
+  /* tirar a Linha do subagrupador (ela passa a "Sem subagrupador") */
+  function desassociarLinha(estado, associacaoId, ctx, opcoes) {
+    var e = validarCtx(ctx, false), o = opcoes || {};
+    if (e.length) return falha(e);
+    var atual = colecao(estado, 'associacoesSubagrupador')[associacaoId];
+    if (!atual) return falha([erro('ASSOCIACAO_INEXISTENTE', { id: associacaoId })]);
+    if (atual.situacao !== SITUACAO.ATIVA) return falha([erro('ASSOCIACAO_ENCERRADA', { id: associacaoId })]);
+    checarJustificativa(e, o.justificativa);
+    if (e.length) return falha(e);
+    var fim = associacaoEncerrada(atual, ctx);
+    return sucesso([mudanca('associacao-subagrupador', associacaoId, atual, fim)],
+      [evento(ctx, 1, 'associacao.encerrada', 'associacao-subagrupador', associacaoId, atual, fim, { justificativa: textoOuNulo(o.justificativa) })]);
+  }
+  /* situação CALCULADA de uma Linha no Mapa: 'associada' | 'subagrupador-encerrado' (fica em "Sem subagrupador") |
+     'sem-subagrupador' | 'nao-se-aplica' (não é Linha de Negócios) */
+  function subagrupadorDaLinha(estado, estruturaId) {
+    var est = colecao(estado, 'estruturas')[estruturaId];
+    if (!est || est.tipo !== TIPO_COM_SUBAGRUPADOR) return { situacao: 'nao-se-aplica', associacao: null, subagrupador: null };
+    var a = associacaoAtivaDaLinha(estado, estruturaId);
+    if (!a) return { situacao: 'sem-subagrupador', associacao: null, subagrupador: null };
+    var s = colecao(estado, 'subagrupadores')[a.subagrupadorId] || null;
+    return { situacao: s && s.situacao === SUBAGRUPADOR.ATIVO ? 'associada' : 'subagrupador-encerrado', associacao: clone(a), subagrupador: clone(s) };
+  }
+  /* as Linhas (ativas) que aparecem DENTRO de um subagrupador ativo no Mapa */
+  function linhasDoSubagrupador(estado, subagrupadorId) {
+    if (!subagrupadorAtivo(estado, subagrupadorId)) return [];
+    return estruturasDoTipo(estado, TIPO_COM_SUBAGRUPADOR).filter(function (s) { var a = associacaoAtivaDaLinha(estado, s.id); return a && a.subagrupadorId === subagrupadorId; });
+  }
+
+  /* unicidades que dependem de OUTROS registros e que a persistência garante sob concorrência (no Firebase, um
+     índice conferido pelas regras; no PostgreSQL, índice único parcial): no máximo uma associação ATIVA por Linha.
+     Devolve as violações (vazio = ok). Usada pela referência em memória do contrato. */
+  function violacoesDeUnicidade(estado) {
+    var vistas = {}, v = [];
+    valores(colecao(estado, 'associacoesSubagrupador')).forEach(function (a) {
+      if (a.situacao !== SITUACAO.ATIVA) return;
+      if (vistas[a.estruturaId]) v.push({ codigo: 'LINHA_JA_ASSOCIADA', estruturaId: a.estruturaId });
+      vistas[a.estruturaId] = true;
+    });
+    return v;
+  }
+
   /* ---------------- aplicar (contrato de persistência, em memória) ----------------
      Aplica TODAS as mudanças de uma operação ou nenhuma: cada mudança exige que a entidade esteja na revisão
      anterior informada (ou não exista, numa criação). É o mesmo contrato que um adaptador de banco cumpre. */
-  var COLECAO_DA = { estrutura: 'estruturas', relacao: 'relacoes', vinculo: 'vinculos' };
+  var COLECAO_DA = { estrutura: 'estruturas', relacao: 'relacoes', vinculo: 'vinculos', subagrupador: 'subagrupadores', 'associacao-subagrupador': 'associacoesSubagrupador' };
   function aplicar(estado, mudancas) {
     var novo = { estruturas: clone(colecao(estado, 'estruturas')), relacoes: clone(colecao(estado, 'relacoes')), vinculos: clone(colecao(estado, 'vinculos')) };
+    /* coleções da Etapa 5: só aparecem no estado devolvido quando já existiam ou quando a operação as toca */
+    ['subagrupadores', 'associacoesSubagrupador'].forEach(function (c) { if (estado && estado[c]) novo[c] = clone(estado[c]); });
     for (var i = 0; i < (mudancas || []).length; i++) {
       var m = mudancas[i], col = COLECAO_DA[m.entidade];
       if (!col) return { ok: false, erro: 'ENTIDADE_DESCONHECIDA' };
+      if (!novo[col]) novo[col] = {};
       var atual = novo[col][m.id];
       if (m.antes === null ? !!atual : (!atual || atual.revisao !== m.revisaoAnterior)) return { ok: false, erro: 'CONFLITO_DE_REVISAO', id: m.id };
       novo[col][m.id] = clone(m.depois);
@@ -428,7 +590,12 @@
     posicionamentoEfetivo: posicionamentoEfetivo, vincularResponsavel: vincularResponsavel, encerrarVinculo: encerrarVinculo,
     substituirResponsavel: substituirResponsavel, situacaoResponsavel: situacaoResponsavel, responsavelAtivo: responsavelAtivo,
     estruturasDoTipo: estruturasDoTipo, relacoesDaEstrutura: relacoesDaEstrutura, objetosDaEstrutura: objetosDaEstrutura,
-    relacoesPossiveis: relacoesPossiveis, historico: historico, aplicar: aplicar, instante: instante
+    relacoesPossiveis: relacoesPossiveis, historico: historico, aplicar: aplicar, instante: instante,
+    TIPO_COM_SUBAGRUPADOR: TIPO_COM_SUBAGRUPADOR, SITUACAO_SUBAGRUPADOR: clone(SUBAGRUPADOR),
+    criarSubagrupador: criarSubagrupador, alterarSubagrupador: alterarSubagrupador, encerrarSubagrupador: encerrarSubagrupador,
+    associarLinha: associarLinha, substituirAssociacao: substituirAssociacao, desassociarLinha: desassociarLinha,
+    subagrupadoresAtivos: subagrupadoresAtivos, subagrupadorDaLinha: subagrupadorDaLinha, linhasDoSubagrupador: linhasDoSubagrupador,
+    violacoesDeUnicidade: violacoesDeUnicidade
   };
   congelar(api);
   if (typeof window !== 'undefined') window.faEstruturasNucleo = api;
