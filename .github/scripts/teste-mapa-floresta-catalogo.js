@@ -335,7 +335,7 @@ async function perfis(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 7. perfis');
   let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', AVA);
   await page.waitForSelector('#mfItens');
-  afirma((await itensVisiveis(page)).length === 10 && await page.locator('#avaliacoesMapa button:not(.avp-voltar-link):not(.mf-filtrar-categoria):not(#mfLimparFiltros)').count() === 0,
+  afirma((await itensVisiveis(page)).length === 10 && await page.locator('#avaliacoesMapa button:not(.avp-voltar-link):not(.mf-filtrar-categoria):not(#mfLimparFiltros):not(#mfIrMapa)').count() === 0,
     'perfil "Avaliação": consulta o catálogo, sem nenhuma ação de gravação');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
