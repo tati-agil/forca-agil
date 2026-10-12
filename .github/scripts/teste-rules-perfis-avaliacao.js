@@ -6,14 +6,14 @@
    emulators:exec, ver teste-rules.yml) com o database.rules.json de
    produção — a tela só esconde botões; quem barra de verdade é isto.
 
-   Decisão da dona (pacote ADMIN > Arquitetura):
+   Decisão da dona (pacote ADMIN > Avaliação e Mapa):
      - "Avaliação" avalia (cria, conclui, reavalia, reprocessa) mas NÃO cura
        nem decide: em avaliacoes-produto não muda nenhum campo de curadoria
        (especialização, papel estrutural, natureza complementar) nem de
        decisão final (decisaoManual, decisaoConfirmada, justificativa,
        alteradoPor/Em). Numa versão nova (reavaliação) só HERDA os da
        versão anterior; numa avaliação nova, nascem vazios.
-     - "Avaliação + Arquitetura" e o admin geral curam e decidem.
+     - "Avaliação + Configuração" e o admin geral curam e decidem.
      - em curadoria-auditoria, "Avaliação" só grava a linha da reavaliação e
        a do reprocessamento automático — nunca uma de curadoria/decisão.
      - Taxonomia Arquitetural: a audiência da Avaliação lê só nome, ativo,
@@ -122,8 +122,8 @@ async function main() {
   await naoPode('não grava linha de auditoria de papel estrutural', db(AVAL).ref('curadoria-auditoria/v1/p8').set(linhaAud('alteracao_papel_estrutural', { origem: 'usuario' })));
   await naoPode('não grava linha de decisão final feita por pessoa', db(AVAL).ref('curadoria-auditoria/v1/p7').set(linhaAud('alteracao_decisao_final', { origem: 'usuario' })));
 
-  console.log('\n== "Avaliação + Arquitetura" e admin geral curam e decidem ==');
-  for (const [quem, email] of [['Avaliação + Arquitetura', ARQ], ['admin geral', ADMIN]]) {
+  console.log('\n== "Avaliação + Configuração" e admin geral curam e decidem ==');
+  for (const [quem, email] of [['Avaliação + Configuração', ARQ], ['admin geral', ADMIN]]) {
     await base();
     await pode(quem + ': registra decisão manual', db(email).ref(NODE + '/semCur').update({ decisaoManual: true, decisaoFinal: 'produto', decisaoConfirmada: true, justificativaDecisao: 'motivo', alteradoPor: { name: 'a', email }, alteradoEm: '2026-10-06T10:00:00.000Z' }));
     await pode(quem + ': muda a especialização', db(email).ref(NODE + '/v1').update({ especializacaoCadastrada: 'Outra' }));
@@ -137,24 +137,24 @@ async function main() {
   await pode('"Avaliação" grava uma avaliação de squad', db(AVAL).ref('avaliacoes-squad/s2').set({ itemNome: 'Squad 2', status: 'rascunho' }));
   await pode('"Avaliação" lê o motor de squad (para concluir)', db(AVAL).ref('motor-squad-config').once('value'));
   await naoPode('"Avaliação" NÃO altera o motor de squad', db(AVAL).ref('motor-squad-config/versaoPublicada').set(2));
-  await pode('"Avaliação + Arquitetura" altera o motor de squad', db(ARQ).ref('motor-squad-config/rascunho').set({ regras: { eixoA: [] } }));
+  await pode('"Avaliação + Configuração" altera o motor de squad', db(ARQ).ref('motor-squad-config/rascunho').set({ regras: { eixoA: [] } }));
   await naoPode('quem não está na lista não lê avaliações de squad', db(SEM).ref('avaliacoes-squad').once('value'));
   await naoPode('quem não está na lista não grava avaliação de squad', db(SEM).ref('avaliacoes-squad/s3').set({ itemNome: 'x' }));
   await naoPode('quem não está na lista não lê o motor de squad', db(SEM).ref('motor-squad-config').once('value'));
 
-  console.log('\n== Documentação e mapas de Arquitetura (Mapa da Floresta) ==');
+  console.log('\n== Documentação e mapas (Mapa da Floresta) ==');
   await base();
   const doc = (extra) => Object.assign({ titulo: 'Mapa da Floresta', descricao: 'Mapa', link: 'https://exemplo.sharepoint.com/mapa.pdf',
     autor: { name: 'Arq', email: ARQ }, criadoEm: '2026-10-06T10:00:00.000Z', atualizadoEm: '2026-10-06T10:00:00.000Z',
     atualizadoPor: { name: 'Arq', email: ARQ }, arquivado: false }, extra || {});
   const audDoc = (id, tipo) => ({ tipo: tipo || 'criado', documentoId: id, titulo: 'Mapa da Floresta', valorAnterior: null, valorNovo: '{}', usuario: { name: 'Arq', email: ARQ }, dataHora: '2026-10-06T10:00:00.000Z' });
   const criarDoc = (email, id, extra) => { const u = {}; u['arquitetura-documentos/' + id] = doc(extra); u['arquitetura-documentos-auditoria/' + id + 'a'] = audDoc(id); return db(email).ref().update(u); };
-  await pode('"Avaliação + Arquitetura" registra um documento (com a linha do histórico, juntos)', criarDoc(ARQ, 'd1'));
+  await pode('"Avaliação + Configuração" registra um documento (com a linha do histórico, juntos)', criarDoc(ARQ, 'd1'));
   await pode('admin geral registra um documento', criarDoc(ADMIN, 'd2'));
   await naoPode('"Avaliação" não registra documento', criarDoc(AVAL, 'd3'));
   await naoPode('"Avaliação" não lê a documentação da Arquitetura', db(AVAL).ref('arquitetura-documentos').once('value'));
   await naoPode('quem não está na lista não lê', db(SEM).ref('arquitetura-documentos').once('value'));
-  await pode('"Avaliação + Arquitetura" lê a documentação', db(ARQ).ref('arquitetura-documentos').once('value'));
+  await pode('"Avaliação + Configuração" lê a documentação', db(ARQ).ref('arquitetura-documentos').once('value'));
   await pode('edita título, descrição e link', db(ARQ).ref('arquitetura-documentos/d1').update({ titulo: 'Mapa da Floresta v2', link: 'https://exemplo.sharepoint.com/v2.pdf', atualizadoEm: '2026-10-06T11:00:00.000Z' }));
   await pode('arquiva (sem apagar)', db(ARQ).ref('arquitetura-documentos/d1').update({ arquivado: true }));
   await naoPode('não apaga um documento', db(ARQ).ref('arquitetura-documentos/d1').remove());
@@ -178,9 +178,9 @@ async function main() {
   const audDef = (id, tipo, extra) => Object.assign({ tipo: tipo || 'criada', definicaoId: id, titulo: 'Mapa da Floresta', valorAnterior: null, valorNovo: '{}', usuario: { name: 'Arq', email: ARQ }, dataHora: '2026-10-06T10:00:00.000Z' }, extra || {});
   const gravarDef = (email, id, extraDef, chaveAud, tipo) => { const u = {}; u['arquitetura-definicoes/' + id] = def(extraDef); u['arquitetura-definicoes-auditoria/' + (chaveAud || id + 'a')] = audDef(id, tipo); return db(email).ref().update(u); };
   await naoPode('"Avaliação" não registra a definição', gravarDef(AVAL, 'MAPA_FLORESTA'));
-  await pode('"Avaliação + Arquitetura" registra a definição (estado vigente + linha do histórico, juntos)', gravarDef(ARQ, 'MAPA_FLORESTA'));
+  await pode('"Avaliação + Configuração" registra a definição (estado vigente + linha do histórico, juntos)', gravarDef(ARQ, 'MAPA_FLORESTA'));
   await pode('admin geral altera a definição (com uma linha "alterada")', gravarDef(ADMIN, 'MAPA_FLORESTA', { definicao: 'Outra redação.', atualizadoPor: { name: 'Adm', email: ADMIN } }, 'b2', 'alterada'));
-  await pode('"Avaliação + Arquitetura" lê a definição', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA').once('value'));
+  await pode('"Avaliação + Configuração" lê a definição', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA').once('value'));
   await pode('…e o histórico dela', db(ARQ).ref('arquitetura-definicoes-auditoria').once('value'));
   await naoPode('"Avaliação" não lê a definição', db(AVAL).ref('arquitetura-definicoes').once('value'));
   await naoPode('quem não está na lista não lê', db(SEM).ref('arquitetura-definicoes').once('value'));
@@ -202,7 +202,7 @@ async function main() {
   await naoPode('histórico: "Avaliação" não acrescenta linha', db(AVAL).ref('arquitetura-definicoes-auditoria/x3').set(audDef('MAPA_FLORESTA', 'alterada')));
 
   /* Fonte única dos nomes das classificações: a audiência da Avaliação (admin geral, "Avaliação",
-     "Avaliação + Arquitetura") lê da Taxonomia ARQUITETURAL, de QUALQUER conceito (não há lista de
+     "Avaliação + Configuração") lê da Taxonomia ARQUITETURAL, de QUALQUER conceito (não há lista de
      códigos nas regras), SÓ nome, ativo e o ponteiro da definição vigente — e, das fontes, só o TEXTO
      da fonte apontada por definicaoVigenteFonteId. Nada mais (nem outra fonte, nem outro campo da
      vigente, nem critérios/observações, nem o conceito ou o nó inteiro, nem a auditoria, nem o domínio
@@ -226,7 +226,7 @@ async function main() {
     u['taxonomia/organizacional/fontes/SQUAD/f1'] = { texto: 'Squad é…', contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' };
     await a.ref().update(u);
   });
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['admin geral', ADMIN]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ], ['admin geral', ADMIN]]) {
     await pode(quem + ': lê o nome de um conceito', db(email).ref(TX + '/conceitos/produto-principal/nome').once('value'));
     await pode(quem + ': lê o nome de QUALQUER conceito arquitetural (sem lista de códigos nas regras)', db(email).ref(TX + '/conceitos/conceito-qualquer/nome').once('value'));
     await pode(quem + ': lê "ativo"', db(email).ref(TX + '/conceitos/canal/ativo').once('value'));
@@ -236,7 +236,7 @@ async function main() {
     anota(quem + ': o texto lido é o da fonte apontada ("' + lido + '")', lido === 'Definição A de canal');
     await pode(quem + ': lê o nome de um conceito sem definição vigente', db(email).ref(TX + '/conceitos/sem-vigente/nome').once('value'));
   }
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ]]) {
     await naoPode(quem + ': NÃO lê outra fonte do mesmo conceito, mesmo marcada vigente (fB)', db(email).ref(TX + '/fontes/canal/fB/texto').once('value'));
     await naoPode(quem + ': NÃO lê fonte histórica (f0)', db(email).ref(TX + '/fontes/canal/f0/texto').once('value'));
     await naoPode(quem + ': NÃO lê fonte de conceito sem ponteiro', db(email).ref(TX + '/fontes/sem-vigente/fX/texto').once('value'));
@@ -311,7 +311,7 @@ async function main() {
     u[ORG + '/relacoes/LINHA__contem__NEGOCIOS'] = { de: 'LINHA', tipo: 'contem', para: 'NEGOCIOS' };
     await a.ref().update(u);
   });
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['admin geral', ADMIN]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ], ['admin geral', ADMIN]]) {
     let todos = true;
     for (const c of POS) {
       for (const campo of ['nome', 'ativo', 'definicaoVigenteFonteId']) {
@@ -323,7 +323,7 @@ async function main() {
     const lido = (await db(email).ref(ORG + '/fontes/COE/fA/texto').once('value')).val();
     anota(quem + ': o texto lido é o da fonte apontada ("' + lido + '")', lido === 'Definição A de COE');
   }
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ]]) {
     await naoPode(quem + ': NÃO lê outra fonte do mesmo código, mesmo marcada vigente (fB)', db(email).ref(ORG + '/fontes/LINHA/fB/texto').once('value'));
     await naoPode(quem + ': NÃO lê fonte histórica (f0)', db(email).ref(ORG + '/fontes/LINHA/f0/texto').once('value'));
     await naoPode(quem + ': NÃO lê a fonte apontada inteira', db(email).ref(ORG + '/fontes/LINHA/fA').once('value'));

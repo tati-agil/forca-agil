@@ -17,9 +17,9 @@
  *   6. Os estados de uma pessoa numa turma estão lá, e as ações que o Manual cita existem nos
  *      botões do site (coerência com app.js/admin.js).
  *   7. Avaliação de Produto/Serviço e Taxonomia apontam ADMIN › Taxonomia; Arquitetura aponta
- *      ADMIN › Arquitetura; os botões levam até lá; todo teste citado como prova existe.
+ *      ADMIN › Avaliação e Mapa; os botões levam até lá; todo teste citado como prova existe.
  *   8. Nenhuma rolagem horizontal, mesmo com tudo aberto (375 px é a referência de celular).
- *   9. O ADMIN não tem mais as abas Mapa e Testes; "Avaliação + Arquitetura" continua vendo só a
+ *   9. O ADMIN não tem mais as abas Mapa e Testes; "Avaliação + Configuração" continua vendo só a
  *      aba Arquitetura (e não baixa o Manual). */
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
@@ -117,9 +117,9 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
         const txt = (id) => ((document.getElementById('manual-' + id) || document).querySelector('.man-fonte') || {}).textContent || '';
         const provas = Array.from(document.querySelectorAll('.man-prova li')).map((li) => li.textContent.trim());
         const fontesVazias = Array.from(document.querySelectorAll('#manualAreas > .man-area')).filter((a) => !a.querySelector('.man-fonte li')).map((a) => a.id);
-        return { taxNoProduto: /ADMIN › Taxonomia/.test(txt('avaliacao-produto')), taxNaTax: /ADMIN › Taxonomia/.test(txt('taxonomia')), arqNaArq: /ADMIN › Arquitetura/.test(txt('arquitetura')), provas, fontesVazias };
+        return { taxNoProduto: /ADMIN › Taxonomia/.test(txt('avaliacao-produto')), taxNaTax: /ADMIN › Taxonomia/.test(txt('taxonomia')), arqNaArq: /ADMIN › Avaliação e Mapa/.test(txt('arquitetura')), provas, fontesVazias };
       });
-      afirma(refs.taxNoProduto && refs.taxNaTax && refs.arqNaArq, 'Avaliação de Produto/Serviço e Taxonomia apontam ADMIN › Taxonomia; Arquitetura aponta ADMIN › Arquitetura', JSON.stringify(refs).slice(0, 160));
+      afirma(refs.taxNoProduto && refs.taxNaTax && refs.arqNaArq, 'Avaliação de Produto/Serviço e Taxonomia apontam ADMIN › Taxonomia; Arquitetura aponta ADMIN › Avaliação e Mapa', JSON.stringify(refs).slice(0, 160));
       afirma(refs.fontesVazias.length === 0, 'toda área diz qual é a fonte oficial', refs.fontesVazias.join(', '));
       const arquivos = refs.provas.map((p) => (p.match(/[a-z0-9-]+\.js/) || [])[0]).filter(Boolean);
       const naoExistem = arquivos.filter((f) => !fs.existsSync(path.join(__dirname, f)));
@@ -135,7 +135,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await abrirAbaManual(page);
       await page.evaluate(() => { document.querySelector('#manual-arquitetura .man-ir-aba').click(); });
       await esperarCondicao(page, () => document.getElementById('adminPanelArquitetura').classList.contains('active') && !!document.getElementById('avpConfigQuestionariosBtn'), null, { descricao: 'o botão levar à Arquitetura' });
-      afirma(true, '"Abrir ADMIN › Arquitetura" leva até a tela inicial da Arquitetura');
+      afirma(true, '"Abrir ADMIN › Avaliação e Mapa" leva até a tela inicial da Arquitetura');
 
       console.log('\n== 9. Abas do ADMIN ==');
       const abas = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).map((b) => b.textContent.trim()));
@@ -173,12 +173,12 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
-    console.log('\n== 9. "Avaliação + Arquitetura" continua vendo só a Arquitetura ==');
+    console.log('\n== 9. "Avaliação + Configuração" continua vendo só a Arquitetura ==');
     {
       const { ctx, page, erros, pedidosManual } = await abrir(browser, opts, ARQ);
-      await esperarCondicao(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]'); return !!b && b.classList.contains('active') && !!document.getElementById('avpConfigQuestionariosBtn'); }, null, { descricao: 'a Arquitetura abrir para Avaliação + Arquitetura' });
+      await esperarCondicao(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]'); return !!b && b.classList.contains('active') && !!document.getElementById('avpConfigQuestionariosBtn'); }, null, { descricao: 'a Arquitetura abrir para Avaliação + Configuração' });
       const visiveis = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).filter((b) => !b.hidden && b.offsetParent !== null).map((b) => b.textContent.trim()));
-      afirma(visiveis.length <= 1 && !visiveis.includes('Manual'), 'nenhuma outra aba (nem Manual) para Avaliação + Arquitetura', visiveis.join(', ') || 'barra oculta');
+      afirma(visiveis.length <= 1 && !visiveis.includes('Manual'), 'nenhuma outra aba (nem Manual) para Avaliação + Configuração', visiveis.join(', ') || 'barra oculta');
       afirma(pedidosManual.length === 0, 'e o Manual não é baixado');
       afirma(erros.length === 0, 'nenhum erro de JavaScript', erros.join(' | '));
       await ctx.close();

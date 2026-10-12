@@ -1,7 +1,7 @@
 /* B2 (H2-b) — REDAÇÃO PUBLICADA IMUTÁVEL da trilha questionarios-config/<código>/motores/<v>, no emulador real do RTDB.
  * Roda em teste-rules.yml (emulators:exec). Prova, nas regras (não na tela):
  *   A. compatibilidade: rascunho da redação v2 e a trilha principal (v1) continuam como hoje;
- *   B. publicar: perfis atuais (admin geral, Avaliação + Arquitetura); Avaliação e sem login, não;
+ *   B. publicar: perfis atuais (admin geral, Avaliação + Configuração); Avaliação e sem login, não;
  *   C. imutabilidade: alterar, sobrescrever e apagar versão publicada — também por caminho superior (versoes,
  *      motores/2, motores, questionário inteiro, raiz do nó);
  *   D. ponteiro: só avança de 1 em 1 e na mesma gravação que cria a versão; nunca volta, nunca é apagado;
@@ -65,7 +65,7 @@ const TS = { '.sv': 'timestamp' };
   await caso('trilha principal: perfil Avaliação continua sem gravar', db(AVAL).ref(Q + '/rascunho').set({ perguntas: perg }), false);
 
   console.log('B. quem publica');
-  await caso('Avaliação + Arquitetura publica a v1 da redação', raiz(ARQ).update(pub(ARQ, 1)), true);
+  await caso('Avaliação + Configuração publica a v1 da redação', raiz(ARQ).update(pub(ARQ, 1)), true);
   await caso('admin geral publica a v2', raiz(ADM).update(pub(ADM, 2)), true);
   await caso('perfil Avaliação não publica', raiz(AVAL).update(pub(AVAL, 3)), false);
   await caso('sem login não publica', env.unauthenticatedContext().database().ref().update(pub(ARQ, 3)), false);
@@ -132,7 +132,7 @@ const TS = { '.sv': 'timestamp' };
   await caso('a v4 segue normalmente', raiz(ADM).update(pub(ADM, 4)), true);
 
   console.log('I. suspensão (reversão sem perder a proteção)');
-  await caso('Avaliação + Arquitetura não suspende', raiz(ARQ).update(susp(ARQ, true)), false);
+  await caso('Avaliação + Configuração não suspende', raiz(ARQ).update(susp(ARQ, true)), false);
   await caso('suspender sem auditoria', raiz(ADM).update(susp(ADM, true, { semAud: true })), false);
   await caso('suspender sem motivo', raiz(ADM).update(susp(ADM, true, { s: { motivo: '' } })), false);
   await caso('suspender com horário da tela', raiz(ADM).update(susp(ADM, true, { s: { em: 1700000000000 } })), false);

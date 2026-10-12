@@ -9,8 +9,8 @@
 
    Modelo (fa-avaliacao-autorizados/<emailKey>.tipo), independente de
    qualquer outro acesso do site:
-     avaliacao             — usa a aba AVALIAÇÃO; NÃO entra em ADMIN > ARQUITETURA
-     avaliacao-arquitetura — aba AVALIAÇÃO + SOMENTE ADMIN > ARQUITETURA
+     avaliacao             — usa a aba AVALIAÇÃO; NÃO entra em ADMIN > AVALIAÇÃO E MAPA
+     avaliacao-arquitetura — aba AVALIAÇÃO + SOMENTE ADMIN > AVALIAÇÃO E MAPA
      (fora da lista)       — nenhum acesso novo
    Admin geral continua com acesso total por ser admin. O perfil antigo
    (fa-avaliacao-acessos: consulta/avaliador/gestor) não concede NADA daqui
@@ -107,12 +107,12 @@ async function main() {
     });
   }
 
-  /* quem pode o quê: [rótulo, e-mail, aba AVALIAÇÃO?, ADMIN > ARQUITETURA?] */
+  /* quem pode o quê: [rótulo, e-mail, aba AVALIAÇÃO?, ADMIN > AVALIAÇÃO E MAPA?] */
   const MATRIZ = [
     ['super-admin', SUPER, true, true],
     ['admin geral (fa-admins)', ADMIN, true, true],
     ['tipo "Avaliação"', AVAL, true, false],
-    ['tipo "Avaliação + Arquitetura"', ARQ, true, true],
+    ['tipo "Avaliação + Configuração"', ARQ, true, true],
     ['perfil antigo GESTOR (fora da lista nova)', GESTOR_ANTIGO, false, false],
     ['perfil antigo AVALIADOR (fora da lista nova)', AVALIADOR_ANTIGO, false, false],
     ['perfil antigo CONSULTA (fora da lista nova)', CONSULTA_ANTIGO, false, false],
@@ -153,9 +153,9 @@ async function main() {
     anota('invariante mantida para todos: decisão final diferente do resultado automático exige decisão manual', true);
     /* decidir é da Arquitetura (avaliar ≠ decidir — o perfil "Avaliação" recusado em teste-rules-perfis-avaliacao.js) */
     await assertSucceeds(db(ARQ).ref(NODE + '/conc1').update({ decisaoFinal: 'produto', decisaoManual: true }));
-    anota('…e com decisão manual (de quem decide: Avaliação + Arquitetura) a gravação passa', true);
+    anota('…e com decisão manual (de quem decide: Avaliação + Configuração) a gravação passa', true);
 
-    console.log('\n== ADMIN > ARQUITETURA: configurações e adequação à Squad ==');
+    console.log('\n== ADMIN > AVALIAÇÃO E MAPA: configurações e adequação à Squad ==');
     await semearBase();
     /* [nó lido, caminho gravado, valor gravado]: configurações aceitam qualquer filho; as auditorias só aceitam
        uma linha NOVA no formato que a aplicação grava, e o catálogo de naturezas só uma opção válida (ver seções abaixo) */
@@ -214,7 +214,7 @@ async function main() {
       await testEnv.withSecurityRulesDisabled(async (c) => { valor = (await c.database().ref(caminho).once('value')).val(); });
       return valor;
     };
-    const QUEM_GRAVA_CONFIG = [['super-admin', SUPER], ['admin geral', ADMIN], ['tipo "Avaliação + Arquitetura"', ARQ]];
+    const QUEM_GRAVA_CONFIG = [['super-admin', SUPER], ['admin geral', ADMIN], ['tipo "Avaliação + Configuração"', ARQ]];
     const QUEM_NAO_GRAVA_CONFIG = [['tipo "Avaliação"', AVAL], ['perfil antigo GESTOR', GESTOR_ANTIGO], ['usuário comum', SEM_ACESSO], ['sem login', null]];
 
     console.log('\n== Auditorias de configuração: só ACRESCENTAR linha (questionários, motores, naturezas) ==');
@@ -374,7 +374,7 @@ async function main() {
     const pt = await lerSemRegras(NAT + '/PROGRAMA_TRANSVERSAL');
     anota('PROGRAMA_TRANSVERSAL continua existindo, com o mesmo código, depois de todas as tentativas', !!pt && pt.codigoEstavel === 'PROGRAMA_TRANSVERSAL' && pt.nome === 'Programa transversal (novo)', JSON.stringify(pt));
 
-    console.log('\n== "Avaliação + Arquitetura" NÃO é admin geral: nada do resto do ADMIN ==');
+    console.log('\n== "Avaliação + Configuração" NÃO é admin geral: nada do resto do ADMIN ==');
     await semearBase();
     await semear(async (a) => {
       await a.ref('fa-admins/' + emailKey(OUTRO)).remove();
@@ -451,7 +451,7 @@ async function main() {
     console.log('\n== Auditoria da Curadoria e da Decisão final (curadoria-auditoria) ==');
     await semearBase();
     const linhaCur = (tipo) => ({ tipo, avaliacaoId: 'conc1', valorAnterior: null, valorNovo: 'x', usuario: { name: 'P', email: AVAL }, dataHora: '2026-10-01T12:00:00.000Z' });
-    for (const [rotulo, email] of [['admin geral', ADMIN], ['super-admin', SUPER], ['tipo "Avaliação + Arquitetura"', ARQ]]) {
+    for (const [rotulo, email] of [['admin geral', ADMIN], ['super-admin', SUPER], ['tipo "Avaliação + Configuração"', ARQ]]) {
       await assertSucceeds(db(email).ref('curadoria-auditoria/conc1/' + emailKey(email)).set(linhaCur('alteracao_especializacao')));
       const s1 = await assertSucceeds(db(email).ref('curadoria-auditoria/conc1').once('value'));
       anota(rotulo + ': acrescenta e lê a auditoria da curadoria', !!(s1.val() && s1.val()[emailKey(email)]));

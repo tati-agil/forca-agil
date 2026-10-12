@@ -162,7 +162,7 @@ async function redacao(browser, viewport, rotulo) {
   await page.waitForSelector('#avpConteudoMotorEditarBtn');
   afirma(/— 0/.test(await page.locator('#avpConteudoMotorPublicadas summary').innerText()), 'histórico de versões publicadas: 0');
   afirma(/Publicar como versão 1/i.test(await page.locator('#avpConteudoMotorPublicarBtn').innerText()), 'B2: rascunho compatível → "Publicar como versão 1"');
-  afirma(await page.locator('#avpConteudoMotorSuspensaoBtn').count() === 0, 'Avaliação + Arquitetura não vê "Suspender" (só admin geral grava)');
+  afirma(await page.locator('#avpConteudoMotorSuspensaoBtn').count() === 0, 'Avaliação + Configuração não vê "Suspender" (só admin geral grava)');
   await page.click('#avpConteudoMotorEditarBtn');
   await page.waitForSelector('#avpConteudoMotorEdicao');
   afirma(await page.locator('#avpConteudoMotorEdicao [data-codigo-pergunta="DIAG_PREDOMINANCIA_N1"] .avp-cm-opcao').count() === 4, 'D2: só os rótulos das opções são editáveis (4 em N1)');
@@ -283,7 +283,7 @@ async function abrirMotores(browser, viewport, email, db, extra) {
 const textoDe = (page, sel) => page.locator(sel).innerText();
 async function governanca(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 4. B3 — proposta, aprovação dupla e retirada');
-  /* 4a. propor (Avaliação + Arquitetura) */
+  /* 4a. propor (Avaliação + Configuração) */
   let { ctx, page, erros } = await abrirMotores(browser, viewport, ARQ, sementeB3());
   const antes = await banco(page);
   afirma(/v1/.test(await textoDe(page, '#avpPosVigenciaRegistrada')) && /nenhum registro/.test(await textoDe(page, '#avpPosVigenciaRegistrada')), 'versão em vigor registrada no banco: nenhum registro = v1');
@@ -312,7 +312,7 @@ async function governanca(browser, viewport, rotulo) {
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
-  /* 4b. 1ª aprovação (outra pessoa, Avaliação + Arquitetura) */
+  /* 4b. 1ª aprovação (outra pessoa, Avaliação + Configuração) */
   ({ ctx, page, erros } = await abrirMotores(browser, viewport, ARQ2, db));
   await page.waitForSelector('#avpPosPropostaAberta');
   afirma(/Calcule o impacto/.test(await textoDe(page, '#avpPosNaoAprova')) && await page.locator('#avpPosAprovarBtn').count() === 0, 'sem conferir o impacto agora não há como aprovar');
@@ -475,11 +475,11 @@ async function fronteiraTela(browser, viewport, rotulo) {
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
-  /* Avaliação + Arquitetura: valida, mas não confere (só admin geral) */
+  /* Avaliação + Configuração: valida, mas não confere (só admin geral) */
   ({ ctx, page, erros } = await abrirMotores(browser, viewport, ARQ, clone(dbAprovado)));
   await page.waitForSelector('#avpPosValidarRedacaoBtn');
   await page.click('#avpPosPropostasHistorico summary');
-  afirma(await page.locator('.avp-pos-conferir-btn').count() === 0, 'Avaliação + Arquitetura vê "Validar", mas não "Conferir" (só admin geral)');
+  afirma(await page.locator('.avp-pos-conferir-btn').count() === 0, 'Avaliação + Configuração vê "Validar", mas não "Conferir" (só admin geral)');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* Questionários: o histórico diz que a versão publicada foi validada */

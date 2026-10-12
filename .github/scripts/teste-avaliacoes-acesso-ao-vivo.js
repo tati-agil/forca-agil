@@ -3,7 +3,7 @@
  * 1. A administradora concede, troca ou remove o acesso de alguém que já está com o site aberto:
  *    a tela dessa pessoa muda NA HORA, sem recarregar (antes o próprio registro em
  *    fa-avaliacao-autorizados era lido uma vez só, no login — as regras do banco já valiam na
- *    hora, a tela não). Remover tira a pessoa da área AVALIAÇÃO; dar "Avaliação + Arquitetura"
+ *    hora, a tela não). Remover tira a pessoa da área AVALIAÇÃO; dar "Avaliação + Configuração"
  *    mostra o ADMIN (só a Arquitetura) no menu.
  * 2. Quem tem o tipo "Avaliação" faz a Adequação à Squad dentro da área AVALIAÇÃO (sem ADMIN):
  *    vê "Adequação à Squad" na lista, abre a lista de squad, começa uma avaliação nova e volta
@@ -71,7 +71,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     afirma(!(await linkMenu(page, 'admin')), '"Avaliação" não vê o ADMIN');
     await gravarAcesso(page, 'avaliacao-arquitetura');
     await esperarCondicao(page, () => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }, null, { descricao: 'o menu mostrar "Admin" depois da troca de tipo' });
-    afirma(true, 'trocado para "Avaliação + Arquitetura": o menu passa a mostrar "Admin" sem recarregar');
+    afirma(true, 'trocado para "Avaliação + Configuração": o menu passa a mostrar "Admin" sem recarregar');
     await gravarAcesso(page, null);
     await esperarCondicao(page, () => location.hash !== '#avaliacoes', null, { descricao: 'sair da área AVALIAÇÃO depois da remoção' });
     afirma(await hash(page) !== '#avaliacoes', 'removido: sai da área AVALIAÇÃO sem recarregar (' + await hash(page) + ')');
@@ -88,7 +88,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await page.click('#avpSquadBtn');
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
     afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de squad toma o lugar da lista de avaliações');
-    afirma(await page.locator('#sqMotorConfigBtn, #sqMotorEditarRegrasBtn').count() === 0, 'a configuração do motor de squad NÃO aparece aqui (é do ADMIN › Arquitetura)');
+    afirma(await page.locator('#sqMotorConfigBtn, #sqMotorEditarRegrasBtn').count() === 0, 'a configuração do motor de squad NÃO aparece aqui (é do ADMIN › Avaliação e Mapa)');
     afirma(/Voltar para Avaliações/i.test(await page.locator('#sqVoltarArquitetura').innerText()), 'o Voltar diz "← Voltar para Avaliações"');
     await page.click('#sqNovaBtn');
     await page.waitForSelector('#sqfEscolhaNovo');

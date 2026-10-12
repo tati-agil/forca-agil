@@ -119,7 +119,7 @@ async function main() {
   await nega('ligação para conceito INATIVO', admin().ref().update(ligar('documento-informacao', 'k1')));
   await nega('ligação com registradoPor de outra pessoa', admin().ref().update(ligar('produto-principal', 'k1', SUPER)));
   await nega('auditoria "solta", sem a ligação que a aponta', R(admin(), LIGA + '/canal/k9').set({ tipo: 'ligacao_registrada', codigo: 'canal', usuario: { email: ADMIN }, dataHora: QUANDO }));
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['sem acesso', SEM_ACESSO]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ], ['sem acesso', SEM_ACESSO]]) {
     await nega('(9) ' + quem + ' NÃO cria ligação (só admin geral mantém)', db(email).ref().update(ligar('canal', 'k2', email)));
     await nega('(9) ' + quem + ' NÃO lê as ligações', R(db(email), LIG).once('value'));
     await nega('(9) ' + quem + ' NÃO lê o histórico das ligações', R(db(email), LIGA).once('value'));
@@ -167,7 +167,7 @@ async function main() {
   await pode('(3) conceito ORGANIZACIONAL inativado com motivo + auditoria (filhos/relações não bloqueiam)', admin().ref().update(inativar('organizacional', 'LINHA', 'i4')));
   await nega('conceito NÃO é apagado (arquitetural)', R(admin(), ARQT + '/conceitos/regra-condicao').remove());
   await nega('conceito NÃO é apagado (organizacional)', R(admin(), ORG + '/conceitos/C2').remove());
-  await nega('não admin ("Avaliação + Arquitetura") NÃO inativa', db(ARQ).ref().update(inativar('arquitetural', 'componente', 'i5')));
+  await nega('não admin ("Avaliação + Configuração") NÃO inativa', db(ARQ).ref().update(inativar('arquitetural', 'componente', 'i5')));
   await nega('(10) histórico do conceito NÃO é alterado', R(admin(), ARQT + '/auditoria/regra-condicao/i3/motivo').set('editado'));
   await nega('(10) histórico do conceito NÃO é apagado', R(admin(), ARQT + '/auditoria/regra-condicao/i3').remove());
 
@@ -185,7 +185,7 @@ async function main() {
   await nega('criar com conceito inexistente', admin().ref().update(criarRel({ de: 'C1', tipo: 'atende', para: 'FANTASMA' }, 'a1')));
   await nega('criar de um conceito para ele mesmo', admin().ref().update(criarRel({ de: 'C1', tipo: 'atende', para: 'C1' }, 'a1')));
   await nega('criar já "encerrada"', admin().ref().update(mexe(criarRel(r1, 'a1'), ORG + '/relacoes/C1__compoe__C2', 'encerrada', { motivo: 'x', em: QUANDO, por: ADMIN, auditoriaId: 'a1' })));
-  await nega('não admin ("Avaliação + Arquitetura") NÃO cria relação', db(ARQ).ref().update(criarRel(r1, 'a1')));
+  await nega('não admin ("Avaliação + Configuração") NÃO cria relação', db(ARQ).ref().update(criarRel(r1, 'a1')));
   await pode('(4) criar relação válida, com histórico nas duas pontas (mesma chave e operacaoId)', admin().ref().update(criarRel(r1, 'a1')));
   anota('(4) o histórico da criação ficou nas DUAS pontas, com o mesmo operacaoId', (await ler(ORG + '/auditoria/C1/a1/tipo')) === 'relacao_criada' && (await ler(ORG + '/auditoria/C2/a1/operacaoId')) === (await ler(ORG + '/auditoria/C1/a1/operacaoId')));
   await nega('(7) relação duplicada ATIVA (mesma de/tipo/para) é recusada', admin().ref().update(criarRel(r1, 'a2')));
@@ -311,7 +311,7 @@ async function main() {
   await nega('trocar o pai de um conceito sem a entrada nova no índice', R(admin(), ORG + '/conceitos/NOVO_FILHO/pai').set('LINHA'));
   await pode('trocar o pai com a entrada nova no índice (a antiga pode sair quando ele deixa de apontar)', admin().ref().update({ [ORG + '/conceitos/NOVO_FILHO/pai']: 'LINHA', [ORG + '/filhos/LINHA/NOVO_FILHO']: true, [ORG + '/filhos/AREA/NOVO_FILHO']: null }));
   await pode('conceito com pai indexado continua editável (nome)', R(admin(), ORG + '/conceitos/FILHO_A/nome').set('Com pai (renomeado)'));
-  await nega('"Avaliação + Arquitetura" (não admin) NÃO grava no índice', R(db(ARQ), ORG + '/filhos/LINHA/X').set(true));
+  await nega('"Avaliação + Configuração" (não admin) NÃO grava no índice', R(db(ARQ), ORG + '/filhos/LINHA/X').set(true));
   await pode('SEM filhos: SQUAD troca normalmente', admin().ref().update(trocaCamada('SQUAD', 'c0', 'A', 'trabalho')));
   await semearCamadas();
 
@@ -327,7 +327,7 @@ async function main() {
   await nega('Tipo organizacional (A) NÃO vai para Especialização (B) por esta via', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'B')));
   await nega('conceito COM pai NÃO troca de camada', admin().ref().update(trocaCamada('FILHO_A', 'c1', 'A', 'trabalho')));
   await nega('camada inexistente é recusada', R(admin(), ORG + '/conceitos/SQUAD/camada').set('Z'));
-  await nega('"Avaliação + Arquitetura" (não admin) NÃO troca camada', db(ARQ).ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
+  await nega('"Avaliação + Configuração" (não admin) NÃO troca camada', db(ARQ).ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
   await pode('admin: SQUAD de Tipo organizacional para Organização do trabalho, com motivo + auditoria', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
   anota('SQUAD: camada trabalho, nome e relação "SQUAD compõe LINHA" intactos',
     (await ler(ORG + '/conceitos/SQUAD/camada')) === 'trabalho' && (await ler(ORG + '/conceitos/SQUAD/nome')) === 'Squad' && (await ler(ORG + '/relacoes/SQUAD__compoe__LINHA/de')) === 'SQUAD');
@@ -372,7 +372,7 @@ async function main() {
   await nega('ligação com registradoPor de outra pessoa', admin().ref().update(ligarP('COE', 'p1', SUPER)));
   await nega('ligação com campo extra (nome do conceito)', admin().ref().update(mexe(ligarP('COE', 'p1'), LIGP + '/COE', 'nome', 'Centro de Excelência')));
   await nega('auditoria "solta", sem a ligação que a aponta', R(admin(), LIGPA + '/COE/p9').set({ tipo: 'ligacao_registrada', codigo: 'COE', usuario: { email: ADMIN }, dataHora: QUANDO }));
-  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['sem acesso', SEM_ACESSO]]) {
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ], ['sem acesso', SEM_ACESSO]]) {
     await nega(quem + ' NÃO cria ligação do Posicionamento (só admin geral)', db(email).ref().update(ligarP('COE', 'p2', email)));
     await nega(quem + ' NÃO lê as ligações do Posicionamento', R(db(email), LIGP).once('value'));
     await nega(quem + ' NÃO lê o histórico das ligações do Posicionamento', R(db(email), LIGPA).once('value'));

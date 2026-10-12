@@ -266,7 +266,7 @@ async function principal(browser, viewport, rotulo) {
   afirma((await itensVisiveis(page)).length === 10, 'F5 em #avaliacoes?mf=catalogo reabre o catálogo');
   await page.click('#mfVoltar');
   await page.waitForSelector('#avpMapaFlorestaBtn');
-  afirma(await page.locator('#avaliacoesMapa').isHidden() && /Avaliações de Produto\/Serviço/.test(await texto(page, '#page-avaliacoes .page-hero h1')), '"← Voltar para Avaliações": lista e título originais');
+  afirma(await page.locator('#avaliacoesMapa').isHidden() && (await texto(page, '#page-avaliacoes .page-hero h1')).trim() === 'Avaliações', '"← Voltar para Avaliações": lista e título originais');
 
   /* 6. nada gravado (e, antes, nada cortado dentro dos cartões — rolagem horizontal da página não pega isso) */
   await page.click('#avpMapaFlorestaBtn');

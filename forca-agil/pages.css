@@ -653,7 +653,7 @@
   display: flex; flex-wrap: wrap; gap: 0;
   border-bottom: 1px solid var(--line-strong); margin-bottom: 36px;
 }
-/* "Avaliação + Arquitetura" (ADMIN só com a Arquitetura) esconde a barra com [hidden];
+/* "Avaliação + Configuração" (ADMIN só com a área Avaliação e Mapa) esconde a barra com [hidden];
    sem esta linha o display:flex acima vencia e a aba única aparecia mesmo assim. */
 .admin-tabs-bar[hidden] { display: none; }
 .admin-tab-btn {

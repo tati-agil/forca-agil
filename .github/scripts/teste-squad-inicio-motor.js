@@ -36,7 +36,7 @@ async function abrir(browser, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  /* A avaliação de Squad fica na área AVALIAÇÃO (o motor, no ADMIN › Arquitetura — ver abrirMotor). */
+  /* A avaliação de Squad fica na área AVALIAÇÃO (o motor, no ADMIN › Avaliação e Mapa — ver abrirMotor). */
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });

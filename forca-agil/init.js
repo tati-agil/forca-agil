@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function updateAdminPage() {
     var sess    = window.faAuth && window.faAuth.getSession();
-    /* admin geral OU "Avaliação + Arquitetura" (este só vê a aba Arquitetura — ver admin.js) */
+    /* admin geral OU "Avaliação + Configuração" (este só vê a aba Avaliação e Mapa — ver admin.js) */
     var isAdmin = sess && ((window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) || (window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()));
     var guard   = document.getElementById('adminGuard');
     var content = document.getElementById('adminContent');

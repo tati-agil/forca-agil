@@ -1,4 +1,4 @@
-/* Mapa da Floresta configurável — ADMIN › Arquitetura › Documentação e mapas (desktop e 375 px).
+/* Mapa da Floresta configurável — ADMIN › Avaliação e Mapa › Documentação e mapas (desktop e 375 px).
  *
  * A definição do Mapa da Floresta é DADO, não código: chave estável MAPA_FLORESTA, estado vigente
  * em arquitetura-definicoes/MAPA_FLORESTA, histórico em arquitetura-definicoes-auditoria (só

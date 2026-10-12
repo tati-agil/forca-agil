@@ -3,7 +3,7 @@
 
    SÓ DADOS (texto aprovado pela responsável), nunca lógica: o significado de cada código (O1 → Linha, opções de
    D2 → papéis, transições) está no núcleo do motor (motor-posicionamento-nucleo.js) e não muda aqui. Este arquivo
-   não está no index.html e o motor nunca o lê: ADMIN › Arquitetura › Questionários e versões o carrega sob demanda
+   não está no index.html e o motor nunca o lê: ADMIN › Avaliação e Mapa › Questionários e versões o carrega sob demanda
    para criar o RASCUNHO da redação v2 (faQuestionarios.importarConteudoInicial), que normaliza e prova a estrutura
    contra o contrato do motor (conteudoCompativel) e grava o vínculo motorCompativel pelo sistema. Depois de
    importada, a redação é conteúdo governado do questionário (versionado, editável, publicado só em par com o

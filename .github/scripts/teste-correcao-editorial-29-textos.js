@@ -2,7 +2,7 @@
  *
  * O código entrega os 29 textos como duas correções editoriais (CORRECOES_EDITORIAIS em
  * questionarios-config.js). Nada é publicado sozinho: uma administradora vê a proposta em
- * ADMIN › Arquitetura › Questionários e versões e decide quando clicar em Aplicar, que cria uma
+ * ADMIN › Avaliação e Mapa › Questionários e versões e decide quando clicar em Aplicar, que cria uma
  * versão NOVA do questionário pelo mesmo publicarConteudo de qualquer edição.
  *
  * O que este teste prova:

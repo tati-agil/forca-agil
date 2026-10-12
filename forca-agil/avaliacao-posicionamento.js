@@ -27,7 +27,7 @@
    Cada transição é UMA gravação multipath (ou entra tudo, ou nada). revisao: cada gravação = anterior + 1 — uma
    gravação feita sobre versão antiga é recusada, e a tela avisa e recarrega (nunca sobrescreve).
 
-   Escrita (iniciar, salvar, concluir, descartar): só "Avaliação + Arquitetura" e admin geral
+   Escrita (iniciar, salvar, concluir, descartar): só "Avaliação + Configuração" e admin geral
    (faAuth.podeArquitetura) — o perfil "Avaliação" só consulta. Leitura: os três.
 
    Caminho: só as perguntas que faMotorPosicionamento.perguntasDoCaminho() devolve aparecem; o diagnóstico
@@ -689,7 +689,7 @@
       var h = '';
       if (state.tela === 'lista') h = renderLista();
       else if (state.tela === 'escolher') h = renderEscolher();
-      else if (state.tela === 'sem-permissao') h = '<div id="poSemPermissao" class="avp-form-card"><p>Iniciar uma avaliação de Posicionamento Organizacional é do perfil <strong>Avaliação + Arquitetura</strong> (e da administração geral). Com o seu acesso, você consulta as avaliações já feitas.</p></div>' + rodapeVoltar();
+      else if (state.tela === 'sem-permissao') h = '<div id="poSemPermissao" class="avp-form-card"><p>Iniciar uma avaliação de Posicionamento Organizacional é do perfil <strong>Avaliação + Configuração</strong> (e da administração geral). Com o seu acesso, você consulta as avaliações já feitas.</p></div>' + rodapeVoltar();
       else if (state.tela === 'checklist') h = renderChecklist();
       else if (state.tela === 'resultado') h = renderResultado();
       else if (state.tela === 'descartado') h = renderDescartado();
@@ -860,7 +860,7 @@
         return h + '<p class="avp-error-msg" id="poRedacaoIndisponivel" role="alert">Redação desta versão do motor (v' + esc(vm) + ') indisponível: ' +
           'as perguntas não podem ser mostradas nem respondidas até a redação compatível ser publicada. Nada foi alterado nesta avaliação.</p></div>' + rodapeVoltar();
       }
-      if (!edita) h += '<p class="avp-decisao-aviso" id="poSomenteLeitura">Somente consulta: responder, salvar e concluir são do perfil Avaliação + Arquitetura.</p>';
+      if (!edita) h += '<p class="avp-decisao-aviso" id="poSomenteLeitura">Somente consulta: responder, salvar e concluir são do perfil Avaliação + Configuração.</p>';
       if (state.conflito) h += '<div class="avp-error-msg" id="poConflito" role="alert">Outra pessoa alterou este rascunho depois que você o abriu. Para não sobrescrever o trabalho dela, recarregue antes de continuar. ' +
         '<button type="button" class="btn btn--sm" id="poRecarregarBtn">Recarregar</button></div>';
       if (state.flash) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';

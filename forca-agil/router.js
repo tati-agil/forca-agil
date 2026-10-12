@@ -37,7 +37,7 @@
   }
 
   /* #admin: admin geral entra em tudo; quem tem o tipo "Avaliação +
-     Arquitetura" entra também, mas só vê a aba Arquitetura (admin.js). Os dois
+     Configuração" entra também, mas só vê a aba Avaliação e Mapa (admin.js). Os dois
      dados chegam em leituras separadas, então "não sei" = qualquer uma das duas
      ainda não voltou — e isso nunca expulsa. */
   function podeVerAdmin(s) {

@@ -1,17 +1,17 @@
-/* TROCA DE USUÁRIO SEM RECARREGAR a página — ADMIN > ARQUITETURA.
+/* TROCA DE USUÁRIO SEM RECARREGAR a página — ADMIN > AVALIAÇÃO E MAPA.
  *
  * Defeito que isto prende: os módulos do ADMIN (avaliacao-produto.js, avaliacao-squad.js) e o
  * cabeçalho do ADMIN (admin.js) moram na página inteira. Quando alguém saía e OUTRA pessoa
  * entrava, sem recarregar, ficava a tela de quem estava antes:
  *   - o admin geral deixava a tela "Usuários autorizados" aberta; o perfil "Avaliação +
- *     Arquitetura" entrava e via só a mensagem "Só administradores gerais…", sem os cartões;
+ *     Configuração" entrava e via só a mensagem "Só administradores gerais…", sem os cartões;
  *   - o perfil restrito escondia as abas do ADMIN; o admin geral que entrasse depois não as via;
  *   - o admin geral que entrava depois do restrito não via "Usuários autorizados" nem
  *     "+ ADICIONAR USUÁRIO" até um Ctrl+Shift+R: o cartão decide pela SESSÃO, que chega depois
  *     do registro de acesso, e nada redesenhava quando ela chegava.
  *
  * Prova, na tela (desktop e celular 375 px), com banco falso, SEM location.reload():
- *   admin geral abre "Usuários autorizados" → sai → "Avaliação + Arquitetura" volta ao início da
+ *   admin geral abre "Usuários autorizados" → sai → "Avaliação + Configuração" volta ao início da
  *   Arquitetura com os 4 cartões e sem "Usuários autorizados" nem aviso → sai → admin geral vê
  *   "Usuários autorizados" e "+ ADICIONAR USUÁRIO" e o cabeçalho completo do ADMIN, com a sessão
  *   chegando DEPOIS do registro de acesso (rede lenta) — mais a lista de AVALIAÇÃO, que também não
@@ -118,7 +118,7 @@ async function quatroCartoes(page) {
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
 
-    console.log('\n== ADMIN > ARQUITETURA: admin geral → restrito → admin geral, SEM recarregar ==');
+    console.log('\n== ADMIN > AVALIAÇÃO E MAPA: admin geral → restrito → admin geral, SEM recarregar ==');
     {
       const { ctx, page, erros } = await abrir(browser, { email: ADMIN, hash: '#admin', viewport });
       await abrirAbaArquitetura(page);
@@ -132,7 +132,7 @@ async function quatroCartoes(page) {
       await entrar(page, ARQ);
       await irPara(page, '#admin');
       await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {});
-      afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), '3-4) "Avaliação + Arquitetura" entra no ADMIN (' + await hash(page) + ')');
+      afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), '3-4) "Avaliação + Configuração" entra no ADMIN (' + await hash(page) + ')');
       afirma(await quatroCartoes(page), '5) volta ao INÍCIO da Arquitetura com os 4 cartões (Questionários, Motores, Naturezas, Motor de Squad)');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, '6) NÃO vê o cartão "Usuários autorizados"');
       afirma(await contar(page, '#avpAutAdicionarBtn') === 0 && !/Só administradores gerais/.test(await textoDoAdmin(page)), '6) nem a tela de "Usuários autorizados" nem a mensagem de "só administradores gerais"');

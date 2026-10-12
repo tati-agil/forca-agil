@@ -1,9 +1,9 @@
-/* ACESSOS da aba AVALIAÇÃO (#avaliacoes) e do ADMIN > ARQUITETURA.
+/* ACESSOS da aba AVALIAÇÃO (#avaliacoes) e do ADMIN > AVALIAÇÃO E MAPA.
  *
  * Modelo (fa-avaliacao-autorizados/<emailKey>.tipo), independente de qualquer
  * outro acesso do site:
  *   avaliacao             — usa a aba AVALIAÇÃO; não entra no ADMIN;
- *   avaliacao-arquitetura — aba AVALIAÇÃO + SOMENTE ADMIN > ARQUITETURA;
+ *   avaliacao-arquitetura — aba AVALIAÇÃO + SOMENTE ADMIN > AVALIAÇÃO E MAPA;
  *   fora da lista         — nada. O perfil antigo (consulta/avaliador/gestor em
  *                           fa-avaliacao-acessos) não vale para nada.
  * Admin geral entra em tudo por ser admin, sem precisar estar na lista.
@@ -11,7 +11,7 @@
  * Prova, na tela (desktop e celular 375 px), com banco falso em persistenciaReal:
  *   - menu: "Avaliar oficina" (#avaliacao) × "Avaliação" (#avaliacoes);
  *   - tipo "Avaliação": opera a aba inteira; #admin é barrado;
- *   - tipo "Avaliação + Arquitetura": #admin abre SÓ com a aba Arquitetura (as
+ *   - tipo "Avaliação + Configuração": #admin abre SÓ com a aba Arquitetura (as
  *     outras abas/painéis não existem na tela), sem "Usuários autorizados" e sem
  *     NENHUMA gravação fora do que ele mesmo faz;
  *   - perfil antigo não concede nada; usuário comum não entra;
@@ -149,7 +149,7 @@ async function abrirMais(page, key) {
       await ctx.close();
     }
 
-    console.log('\n== Tipo "Avaliação + Arquitetura": aba AVALIAÇÃO + SOMENTE a Arquitetura do ADMIN ==');
+    console.log('\n== Tipo "Avaliação + Configuração": aba AVALIAÇÃO + SOMENTE a Arquitetura do ADMIN ==');
     {
       const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao-arquitetura', viewport });
       await aguardaLista(page);
@@ -276,7 +276,7 @@ async function abrirMais(page, key) {
     await page.waitForSelector('#avpUsuariosBusca', { timeout: 8000 });
     afirma(await contar(page, '#avpAutLista .avp-aut-item') === 1, 'a lista mostra SÓ os autorizados (1) — não os 3 cadastrados');
     afirma(/Bruno Lima/.test(await page.locator('#avpAutLista').innerText()) && !/Ana Souza|Carla Dias/.test(await page.locator('#avpAutLista').innerText()), 'só Bruno aparece (Carla, que tem perfil antigo "gestor", NÃO aparece)');
-    afirma(await page.locator('.avp-aut-tipo-sel[data-key="' + chave('bruno@previ.com.br') + '"]').inputValue() === 'avaliacao-arquitetura', 'tipo de Bruno: Avaliação + Arquitetura');
+    afirma(await page.locator('.avp-aut-tipo-sel[data-key="' + chave('bruno@previ.com.br') + '"]').inputValue() === 'avaliacao-arquitetura', 'tipo de Bruno: Avaliação + Configuração');
     afirma(/Tatiane/.test(await page.locator('#avpAutLista').innerText()), 'mostra quem concedeu e quando');
     afirma(await contar(page, '.avp-aut-matriz tbody tr') === 5, 'matriz de acessos por tipo exibida (inclui "Curadoria e decisão arquitetural")');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
@@ -349,12 +349,12 @@ async function abrirMais(page, key) {
     await page.waitForFunction((k) => { const r = window.__CFG.__dbReal['fa-avaliacao-autorizados']; return r && r[k]; }, chave(SUPER), { timeout: 5000 }).catch(() => {});
     const b = await banco(page);
     const reg = (b['fa-avaliacao-autorizados'] || {})[chave(SUPER)];
-    afirma(reg && reg.tipo === 'avaliacao-arquitetura' && reg.email === SUPER && reg.concedidoPor === SUPER && !!reg.concedidoEm, 'o clique registra o PRÓPRIO usuário como "Avaliação + Arquitetura" (tipo, e-mail, quem e quando)');
+    afirma(reg && reg.tipo === 'avaliacao-arquitetura' && reg.email === SUPER && reg.concedidoPor === SUPER && !!reg.concedidoEm, 'o clique registra o PRÓPRIO usuário como "Avaliação + Configuração" (tipo, e-mail, quem e quando)');
     const hist = Object.keys(b['fa-avaliacao-autorizados-auditoria'] || {}).map((k) => b['fa-avaliacao-autorizados-auditoria'][k]);
     afirma(hist.length === 1 && hist[0].acao === 'concedido' && hist[0].email === SUPER && hist[0].tipoNovo === 'avaliacao-arquitetura', 'e grava o histórico "concedido" na mesma gravação');
     await page.waitForSelector('#avpAutLista .avp-aut-item', { timeout: 5000 }).catch(() => {});
     afirma(await contar(page, '#avpAutLista .avp-aut-item') === 1 && await contar(page, '#avpAutEu') === 0, 'ela aparece na lista e o aviso some (não pede de novo)');
-    afirma(await page.locator('.avp-aut-tipo-sel[data-key="' + chave(SUPER) + '"]').inputValue() === 'avaliacao-arquitetura', 'tipo exibido: Avaliação + Arquitetura');
+    afirma(await page.locator('.avp-aut-tipo-sel[data-key="' + chave(SUPER) + '"]').inputValue() === 'avaliacao-arquitetura', 'tipo exibido: Avaliação + Configuração');
     afirma(Object.keys(b['fa-admins'] || {}).length === 1, 'o acesso de admin geral não foi tocado (continua só o que já era)');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();

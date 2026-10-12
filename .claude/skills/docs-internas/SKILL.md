@@ -55,7 +55,7 @@ não muda a regra descrita). Não mencione nada nesses casos.
 
 - **Manual**: frases curtas, do ponto de vista de quem usa. Nada de inventário de botões, contagem
   de abas, nome de nó do banco como conteúdo, definição da Taxonomia ou conteúdo do Mapa da
-  Floresta — aponte ADMIN › Taxonomia / ADMIN › Arquitetura. Use sempre "Avaliar oficina"
+  Floresta — aponte ADMIN › Taxonomia / ADMIN › Avaliação e Mapa. Use sempre "Avaliar oficina"
   (`#avaliacao`) e "Avaliação de Produto/Serviço" (`#avaliacoes`); nunca "Avaliação" sozinho.
 - **Referência técnica**: objetiva, conferida no código antes de escrever. Não registre o que não
   dá para comprovar no repositório.

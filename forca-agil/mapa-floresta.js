@@ -294,7 +294,7 @@
         'Este catálogo mostra, a partir das avaliações já gravadas, em que ponto cada objeto está. Nada aqui é gravado.</p>' +
         '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>';
       if (!autorizacaoResolvida()) h += '<p class="loading-msg" role="status">Carregando…</p>';
-      else if (!podeLer()) h += '<p class="avp-error-msg" id="mfSemAcesso">Este catálogo é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Arquitetura e administração geral). Seu acesso não inclui essa consulta.</p>';
+      else if (!podeLer()) h += '<p class="avp-error-msg" id="mfSemAcesso">Este catálogo é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Configuração e administração geral). Seu acesso não inclui essa consulta.</p>';
       else if (state.erro) h += '<div class="mf-erro" id="mfErro" role="alert"><p class="avp-error-msg">Não foi possível ler as avaliações agora. Nada foi alterado.</p>' +
         '<button type="button" class="btn btn--sm" id="mfTentarDeNovo">Tentar de novo</button></div>';
       else {
@@ -565,7 +565,7 @@
       h += '<div class="mfm-faixa" id="mfmFaixa" role="note"><strong>Demonstração.</strong> ' + esc(demo() ? demo().AVISO : '') +
         (pronto ? ' <span class="mfm-legenda">Cada caixa é uma estrutura concreta de exemplo: clique para ver os detalhes.</span>' : '') + '</div>';
       if (!autorizacaoResolvida()) h += '<p class="mfm-msg" role="status">Carregando…</p>';
-      else if (!podeLer()) h += '<p class="mfm-msg mfm-msg--erro" id="mfSemAcesso">O Mapa é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Arquitetura e administração geral). Seu acesso não inclui essa consulta.</p>';
+      else if (!podeLer()) h += '<p class="mfm-msg mfm-msg--erro" id="mfSemAcesso">O Mapa é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Configuração e administração geral). Seu acesso não inclui essa consulta.</p>';
       else if (!demo() || !Est() || !Mot()) h += '<p class="mfm-msg mfm-msg--erro" id="mfmIndisponivel">O Mapa não carregou. Recarregue a página.</p>';
       else {
         var linhas = BLOCOS.filter(function (b) { return b.natureza === 'Linha'; });

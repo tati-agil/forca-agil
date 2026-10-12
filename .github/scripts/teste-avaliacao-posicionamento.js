@@ -336,7 +336,7 @@ async function perfilAvaliacao(browser, nomeTela, viewport) {
     'rascunho só para leitura: sem salvar, concluir, descartar nem responder');
   await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher'; });
   await tela(page, 'poSemPermissao');
-  afirma(/Avaliação \+ Arquitetura/.test(await texto(page, '#poSemPermissao')), '"Escolher item": explica que é do perfil Avaliação + Arquitetura');
+  afirma(/Avaliação \+ Configuração/.test(await texto(page, '#poSemPermissao')), '"Escolher item": explica que é do perfil Avaliação + Configuração');
   await page.evaluate(() => { location.hash = '#avaliacoes?po=g1'; });
   await tela(page, 'poResultado');
   afirma(true, 'consulta o resultado');
@@ -391,7 +391,7 @@ async function fichaEVoltar(browser, nomeTela, viewport) {
   let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?avp=p1' });
   await page.waitForSelector('#avpAcoesFicha');
   const h1Original = await texto(page, '#page-avaliacoes .page-hero h1');
-  afirma((await page.locator('#avpPosicionarBtn').count()) === 1, 'Avaliação + Arquitetura: a ficha concluída tem "Posicionamento Organizacional"');
+  afirma((await page.locator('#avpPosicionarBtn').count()) === 1, 'Avaliação + Configuração: a ficha concluída tem "Posicionamento Organizacional"');
   await page.click('#avpPosicionarBtn');
   await tela(page, 'poItemSelecionado');
   afirma(await hash(page) === '#avaliacoes?po=escolher&item=p1' && /Item Alfa/.test(await texto(page, '#poItemSelecionado')), 'o botão leva a ?po=escolher&item=p1, com o item já escolhido');
