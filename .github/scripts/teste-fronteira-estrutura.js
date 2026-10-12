@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const RAIZ = path.join(__dirname, '..', '..');
-const ler = (f) => fs.readFileSync(path.join(RAIZ, f), 'utf8');
+const ler = (f) => fs.readFileSync(path.join(RAIZ, f), 'utf8').replace(/\r\n/g, '\n'); /* checkout no Windows (core.autocrlf) traz CRLF; o conteúdo do repositório é LF */
 let total = 0, falhas = 0;
 function afirma(c, msg, det) { total++; console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det ? ' → ' + det : '')); if (!c) falhas++; }
 const semComentarios = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');

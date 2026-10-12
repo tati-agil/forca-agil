@@ -28,7 +28,7 @@ const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
   fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const RAIZ = path.join(__dirname, '..', '..', 'forca-agil');
-const SRC_AVP = fs.readFileSync(path.join(RAIZ, 'avaliacao-produto.js'), 'utf8');
+const SRC_AVP = fs.readFileSync(path.join(RAIZ, 'avaliacao-produto.js'), 'utf8').replace(/\r\n/g, '\n');
 const MOTOR_VERSION = /var MOTOR_VERSION = '([^']+)'/.exec(SRC_AVP)[1];
 const XLSX = require(path.join(RAIZ, 'xlsx.mini.min.js'));
 const EVIDENCIA = require('./dados/textos-pre-parametrizacao.json');
@@ -50,7 +50,7 @@ function carregarQuestionarios(config) {
   const ref = function r(p) { return { on(ev, cb) { if (config) { let v = { 'questionarios-config': config }; p.split('/').forEach((k) => { v = v == null ? v : v[k]; }); cb({ val: () => copia(v == null ? null : v) }); } }, once() {}, off() {}, child: (c) => r(p + '/' + c) }; };
   ctx.firebase = { database: () => ({ ref }) };
   vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(path.join(RAIZ, 'questionarios-config.js'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(RAIZ, 'questionarios-config.js'), 'utf8').replace(/\r\n/g, '\n'), ctx);
   return ctx.window.faQuestionarios;
 }
 const V1 = copia(carregarQuestionarios(null).PADRAO.CLASSIFICACAO_ARQUITETURAL.perguntas);

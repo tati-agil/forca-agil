@@ -68,9 +68,9 @@ const comMotivoDaEpoca = (s) => s.split(MOTIVO_COMPONENTE_NOVO).join(MOTIVO_COMP
   .split(ROTULO_CAPACIDADE[0]).join(ROTULO_CAPACIDADE[1]).split(RELACAO_CAPACIDADE[0]).join(RELACAO_CAPACIDADE[1])
   .replace(JUSTIFICATIVA_CAPACIDADE, (m, nome) => 'O item foi classificado como ' + nome + ', e não como Produto/Serviço principal, porque funciona predominantemente como uma capacidade organizacional interna, sem necessidade de cliente identificável associada.');
 const SRC = {
-  qc: fs.readFileSync(path.join(RAIZ, 'questionarios-config.js'), 'utf8'),
-  motor: fs.readFileSync(path.join(RAIZ, 'motor-arquitetura.js'), 'utf8'),
-  avp: fs.readFileSync(path.join(RAIZ, 'avaliacao-produto.js'), 'utf8')
+  qc: fs.readFileSync(path.join(RAIZ, 'questionarios-config.js'), 'utf8').replace(/\r\n/g, '\n'),
+  motor: fs.readFileSync(path.join(RAIZ, 'motor-arquitetura.js'), 'utf8').replace(/\r\n/g, '\n'),
+  avp: fs.readFileSync(path.join(RAIZ, 'avaliacao-produto.js'), 'utf8').replace(/\r\n/g, '\n')
 };
 const EMAIL = 'adm@previ.com.br';
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);

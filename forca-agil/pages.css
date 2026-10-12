@@ -2871,3 +2871,82 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 /* Posicionamento — exportação (PR G1): o botão fica à ESQUERDA da barra, então o menu abre alinhado à esquerda */
 .po-exportar-barra .avp-exportar-menu { left: 0; right: auto; max-width: calc(100vw - 32px); }
 .po-ficha-acoes { flex-wrap: wrap; }
+
+/* Catálogo preparatório do Mapa da Floresta (mapa-floresta.js) — só consulta; cartões em qualquer largura */
+.mf-aviso-estruturas { border-left: 3px solid var(--gold); background: var(--space-1); padding: 10px 14px; margin: 0 0 16px; border-radius: 4px; font-size: .86rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.mf-aviso-estruturas strong { color: var(--ink); }
+.mf-secao { margin-top: 18px; }
+.mf-ajuda { font-size: .82rem; color: var(--ink-3); margin: 0 0 10px; }
+.mf-categorias { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+.mf-categoria { min-width: 0; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; overflow-wrap: anywhere; }
+.mf-categoria-topo { display: grid; gap: 4px; }
+.mf-categoria-nome { font-weight: 600; color: var(--ink); }
+.mf-squad { font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); }
+.mf-squad[data-forma-squads="sim"] { color: var(--cyan-soft); }
+.mf-especializacoes { list-style: none; padding: 0 0 0 10px; margin: 0; border-left: 2px solid var(--line-strong); display: grid; gap: 4px; font-size: .85rem; color: var(--ink-2); }
+.mf-contagem { font-size: .76rem; color: var(--ink-3); font-family: var(--font-mono); }
+.mf-categoria-rodape { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mf-filtros { display: grid; gap: 0 14px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 600px) { .mf-filtros { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.mf-filtros input[type="search"] { width: 100%; box-sizing: border-box; background: var(--space-1); border: 1px solid var(--line-strong); color: var(--ink); border-radius: 8px; padding: 9px 12px; font-size: .88rem; font-family: inherit; }
+.mf-filtros select { max-width: 100%; }
+.mf-contador-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 12px; }
+.mf-itens { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.mf-item { min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; overflow-wrap: anywhere; }
+.mf-item-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: space-between; }
+.mf-item-nome { font-weight: 600; color: var(--ink); }
+.mf-detalhes { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 4px 12px; margin: 0; font-size: .85rem; }
+.mf-detalhes dt { color: var(--ink-3); font-family: var(--font-mono); font-size: .76rem; padding-top: 2px; }
+.mf-detalhes dd { margin: 0; color: var(--ink-2); }
+.mf-origem { color: var(--ink-3); }
+.mf-indisponivel { font-style: italic; color: var(--ink-3); }
+.mf-alerta { color: var(--gold-soft); }
+.mf-item-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.mf-item-acoes .btn { text-decoration: none; }
+.mf-badge { white-space: normal; text-align: left; border-radius: 10px; }
+.mf-badge--firme { border-color: rgba(24,194,186,.5); color: var(--cyan-soft); background: rgba(24,194,186,.1); }
+.mf-badge--a-validar { border-color: rgba(90,160,238,.5); color: var(--blue-glow); background: rgba(90,160,238,.1); }
+.mf-badge--sem-posicionamento { border-color: rgba(245,197,24,.45); color: var(--gold-soft); background: rgba(245,197,24,.08); }
+.mf-badge--sem-base { border-color: rgba(255,59,48,.5); color: #ffb3ad; background: rgba(255,59,48,.08); }
+.mf-erro { margin: 8px 0; }
+/* categorias recolhíveis (recolhidas no celular): o resumo mostra só os tipos, nunca contagem de estruturas */
+.mf-categorias-bloco { border: 1px solid var(--line-strong); border-radius: 10px; padding: 0 14px; }
+.mf-categorias-bloco[open] { padding-bottom: 14px; }
+.mf-categorias-resumo { cursor: pointer; display: grid; gap: 4px; padding: 12px 0; list-style: none; }
+.mf-categorias-resumo::-webkit-details-marker { display: none; }
+.mf-categorias-titulo { font-weight: 600; color: var(--ink); }
+.mf-categorias-titulo::before { content: '▸ '; color: var(--cyan); }
+.mf-categorias-bloco[open] .mf-categorias-titulo::before { content: '▾ '; }
+.mf-categorias-lista { font-size: .82rem; color: var(--ink-3); overflow-wrap: anywhere; }
+.mf-categorias-resumo:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+/* áreas de toque de pelo menos 44 px — só no Catálogo, sem mexer nos componentes do site */
+#avaliacoesMapa .avp-voltar-link, #avaliacoesMapa .btn, #avaliacoesMapa select, #avaliacoesMapa input[type="search"], #avaliacoesMapa .mf-categorias-resumo { min-height: 44px; box-sizing: border-box; }
+#avaliacoesMapa .btn, #avaliacoesMapa .avp-voltar-link { display: inline-flex; align-items: center; justify-content: center; }
+/* celular: o filtro de situação (lista suspensa) precisa caber em 375 px com qualquer fonte de sistema — mesmo
+   ajuste que já valia antes da troca do filtro de posicionamento (o Linux usa uma fonte mais larga que o Windows) */
+@media (max-width: 480px) {
+  #avaliacoesMapa .mf-card { padding-left: 12px; padding-right: 12px; }
+  #avaliacoesMapa .mf-filtros select { font-size: .8rem; padding-left: 8px; padding-right: 8px; }
+}
+/* filtro "Posicionamento efetivo": opções que quebram linha (o nome oficial inteiro, com qualquer fonte) */
+.mf-filtro-posic { grid-column: 1 / -1; border: 1px solid var(--line-strong); border-radius: 10px; padding: 0 12px; margin-bottom: 14px; min-width: 0; }
+.mf-filtro-posic[open] { padding-bottom: 12px; }
+.mf-filtro-posic-resumo { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 10px 0; list-style: none; }
+.mf-filtro-posic-resumo::-webkit-details-marker { display: none; }
+.mf-filtro-posic-titulo { font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); }
+.mf-filtro-posic-titulo::before { content: '▸ '; color: var(--cyan); }
+.mf-filtro-posic[open] .mf-filtro-posic-titulo::before { content: '▾ '; }
+.mf-filtro-posic-atual { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.mf-filtro-posic-resumo:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+.mf-opcoes { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+.mf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mf-opcao { display: flex; align-items: center; gap: 10px; min-height: 44px; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; min-width: 0; color: var(--ink-2); background: var(--space-1); }
+.mf-opcao input { flex: 0 0 auto; margin: 0; width: 18px; height: 18px; accent-color: var(--cyan); }
+.mf-opcao-nome { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+@media (max-width: 599px) { .mf-opcao--sub { margin-left: 14px; } } /* recuo só na coluna única do celular */
+.mf-opcao--ativa, .mf-opcao:has(input:checked) { border-color: var(--cyan); background: rgba(24,194,186,.12); color: var(--ink); font-weight: 600; }
+.mf-opcao:has(input:focus-visible) { outline: 2px solid var(--cyan); outline-offset: 2px; }
+@media (max-width: 480px) {
+  .mf-detalhes { grid-template-columns: 1fr; }
+  .mf-detalhes dd { margin-bottom: 6px; }
+}

@@ -13,7 +13,8 @@ projeto está em `CLAUDE.md`**, que continua sendo a referência; este arquivo n
   motores). Cada arquivo é a fonte única das suas regras. Não copie nem reescreva essas regras. Uso atual:
   - os motores e `motor-posicionamento-nucleo.js` são usados pelo site (e este último também pela fronteira em
     `functions/`); do motor, o backend só lê os códigos firmes oficiais;
-  - `estruturas-nucleo.js` é usado só pelo backend (módulo de Estruturas Concretas); o site ainda não o carrega.
+  - `estruturas-nucleo.js` é usado pelo backend (módulo de Estruturas Concretas); o site o carrega, mas por enquanto só
+    usa `posicionamentoEfetivo` (Catálogo preparatório do Mapa da Floresta, `mapa-floresta.js`).
 
   Quando um módulo do backend precisar de outro núcleo, ele carrega o mesmo arquivo, do mesmo jeito.
 
@@ -32,4 +33,7 @@ projeto está em `CLAUDE.md`**, que continua sendo a referência; este arquivo n
 - **Celular e computador são a mesma entrega**, e rede lenta é o caso normal (ver `CLAUDE.md`).
 - **"Se pode editar, pode gravar"**: tela de edição sem gravação real é defeito (ver `CLAUDE.md`).
 - **Nada de segredos no Git.** Use `.env` (ignorado) e `.env.example`.
+- **Paridade Firebase × PostgreSQL** (`docs/paridade-firebase-postgresql.md`): uma fonte oficial de gravação por vez
+  (hoje o Firebase), horário do servidor, nenhuma gravação dupla; operação que grava nos dois bancos só é validada com o
+  mesmo conjunto de cenários no núcleo, no emulador do Firebase e no PostgreSQL, comparados automaticamente.
 - **Branch de trabalho + PR.** O merge e o deploy são da dona do repositório.

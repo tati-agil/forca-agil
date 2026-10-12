@@ -20,7 +20,7 @@ const fs = require('fs');
 const path = require('path');
 
 const RAIZ = path.resolve(__dirname, '..', '..');
-const ler = (p) => fs.readFileSync(path.join(RAIZ, p), 'utf8');
+const ler = (p) => fs.readFileSync(path.join(RAIZ, p), 'utf8').replace(/\r\n/g, '\n'); /* checkout no Windows (core.autocrlf) traz CRLF; o conteúdo do repositório é LF */
 const REF = 'docs/referencia-tecnica.md';
 
 const falhas = [];
