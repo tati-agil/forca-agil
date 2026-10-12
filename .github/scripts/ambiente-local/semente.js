@@ -72,6 +72,10 @@ async function semear(log) {
     const r = await banco('PATCH', caminho, valor);
     if (r.status !== 200) throw new Error('não consegui gravar ' + caminho + ' no emulador: ' + r.status);
   }
+  /* trava de produção (estruturas-firebase.js › TRAVA_PRODUCAO): no emulador local, a gravação do cadastro fica ligada */
+  const trava = require(path.join(__dirname, '..', '..', '..', 'forca-agil', 'estruturas-firebase.js')).TRAVA_PRODUCAO;
+  const rt = await banco('PUT', trava, true);
+  if (rt.status !== 200) throw new Error('não consegui ligar a gravação do cadastro no emulador: ' + rt.status);
   log('Ambiente de testes pronto (projeto ' + PROJETO + '): ' + Object.values(CONTAS).map((c) => c.email).join(', ') + ' - senha ' + SENHA);
 }
 

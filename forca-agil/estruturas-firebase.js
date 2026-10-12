@@ -24,6 +24,10 @@
   'use strict';
 
   var RAIZ = 'estruturas-concretas';
+  /* TRAVA DE PRODUÇÃO: as regras só aceitam gravar em estruturas-concretas com este marcador = true. Nenhum cliente o
+     grava (nem admin geral): só o console ou uma conta de serviço. No banco oficial ele não existe — cadastro desligado
+     até a autorização de publicação (depois da Etapa 3 e da paridade); no emulador, a semente do ambiente de testes liga. */
+  var TRAVA_PRODUCAO = 'estruturas-concretas-config/gravacaoHabilitada';
   var AGORA_DO_SERVIDOR = { '.sv': 'timestamp' };
   var HORARIOS = ['criadaEm', 'alteradaEm', 'encerramento.em'];
 
@@ -142,7 +146,7 @@
     return { lerReferencias: lerReferencias, lerEstado: lerEstado, gravar: gravar, conferirOperacao: conferirOperacao, lerEventos: lerEventos };
   }
 
-  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, estruturasDoValor: estruturasDoValor, eventosDoValor: eventosDoValor, RAIZ: RAIZ });
+  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, estruturasDoValor: estruturasDoValor, eventosDoValor: eventosDoValor, RAIZ: RAIZ, TRAVA_PRODUCAO: TRAVA_PRODUCAO });
   if (typeof window !== 'undefined') window.faEstruturasFirebase = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

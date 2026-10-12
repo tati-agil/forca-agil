@@ -50,7 +50,8 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
     await semRegras(async (db) => {
       const raiz = { 'fa-admins': { [k(ADM.email)]: true },
         'fa-avaliacao-autorizados': { [k(ARQ.email)]: { tipo: 'avaliacao-arquitetura' }, [k(AVAL.email)]: { tipo: 'avaliacao' } },
-        taxonomia: { organizacional: { conceitos: {} } }, 'posicionamento-classificacoes': {}, 'posicionamento-classificacoes-auditoria': { NEGOCIOS: { a1: { tipo: 'ligacao_registrada' } } } };
+        taxonomia: { organizacional: { conceitos: {} } }, 'posicionamento-classificacoes': {}, 'posicionamento-classificacoes-auditoria': { NEGOCIOS: { a1: { tipo: 'ligacao_registrada' } } },
+        'estruturas-concretas-config': { gravacaoHabilitada: true } /* trava de produção ligada (como o emulador do ambiente de testes) */ };
       Object.keys(ref.conceitos || {}).forEach((c) => { raiz.taxonomia.organizacional.conceitos[c] = { nome: 'Conceito ' + c, ordem: 1, ativo: ref.conceitos[c].ativo, situacaoDefinicao: 'registrada', camada: 'A' }; });
       Object.keys(ref.ligacoes || {}).forEach((c) => {
         if (ref.ligacoes[c] !== c) throw new Error('no banco oficial a ligação canônica é sempre de MESMO código: ' + c);
@@ -145,6 +146,16 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
   await caso('admin geral continua lendo o nó inteiro', sessao(ADM).ref('posicionamento-classificacoes').once('value'), true);
 
   /* ===== C. gravações diretas inválidas ===== */
+  console.log('\nC0. trava de produção (estruturas-concretas-config/gravacaoHabilitada)');
+  const tr = await preparar(ARQ, 'criarEstrutura', criar('TR'), { novoId: 'T-R' });
+  await semRegras((db) => db.ref(FB.TRAVA_PRODUCAO).remove());
+  await caso('sem o marcador (como no banco oficial), uma gravação válida é recusada', gravarComo(ARQ, tr.multi), false);
+  await caso('admin geral não liga o marcador pelo cliente', sessao(ADM).ref(FB.TRAVA_PRODUCAO).set(true), false);
+  await caso('avaliacao-arquitetura não liga o marcador pelo cliente', sessao(ARQ).ref(FB.TRAVA_PRODUCAO).set(true), false);
+  await caso('ninguém lê o marcador pelo cliente', sessao(ADM).ref(FB.TRAVA_PRODUCAO).once('value'), false);
+  await semRegras((db) => db.ref(FB.TRAVA_PRODUCAO).set(true));
+  await caso('com o marcador ligado (só console/conta de serviço), a mesma gravação entra', gravarComo(ARQ, tr.multi), true);
+
   console.log('\nC1. nunca sem auditoria: partes da operação sozinhas');
   const c3 = await preparar(ARQ, 'criarEstrutura', criar('C3'), { novoId: 'C-3' });
   const so = (multi, partes) => { const c = chaves(multi), m = {}; partes.forEach((p) => { m[c[p]] = multi[c[p]]; }); return m; };
