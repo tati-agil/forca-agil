@@ -139,7 +139,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.click('[data-estrutura="' + idNeg + '"]');
     await p.waitForFunction((id) => location.hash.indexOf('e=' + id) !== -1, idNeg);
     const det = await texto(p, '#mfmDetalhe');
-    afirma(/Linha de Investimentos/.test(det) && /Sem subagrupador/.test(det) && /LINV/.test(det) && /Pode organizar o trabalho por Squads/.test(det), 'clicar na estrutura mostra natureza, caminho, sigla e Squads', det.slice(0, 200));
+    afirma(/Linha de Investimentos/.test(det) && /Sem subagrupador/.test(det) && /LINV/.test(det) && /Organização por Squads\s*Admitida para este tipo de estrutura/.test(det) && /Squads vinculados\s*Informação ainda indisponível/.test(det), 'clicar na estrutura mostra natureza, caminho, sigla e Squads (possível × vinculados, sem inventar)', det.slice(0, 200));
 
     /* ===== 4. Persistência ===== */
     console.log('\n4. Persistência');
@@ -147,6 +147,31 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.waitForFunction(() => window.faAuth && window.faAuth.getSession && window.faAuth.getSession(), null, { timeout: 20000 });
     await p.waitForSelector('#mfmDetalhe', { timeout: 20000 });
     afirma(/Linha de Investimentos/.test(await texto(p, '#mfmDetalhe')) && await p.locator('#mfmMapa .mfm-caixa').count() === 4, 'depois de recarregar, as 4 estruturas e o detalhe aberto continuam lá');
+
+    /* ===== 4b. Navegação Mapa ↔ ficha ↔ edição (reproduzida, não presumida) ===== */
+    console.log('\n4b. Navegação Mapa ↔ ficha ↔ edição');
+    await ir(p, '#avaliacoes?mf=mapa&e=' + idCoe);
+    await p.waitForSelector('#mfmAbrirCadastro', { timeout: 15000 });
+    afirma(/Abrir a ficha no cadastro/.test(await texto(p, '#mfmAbrirCadastro')), 'o link do Mapa diz que leva à ficha no cadastro');
+    await p.click('#mfmAbrirCadastro');
+    await p.waitForSelector('#estFicha', { timeout: 15000 });
+    afirma((await p.evaluate(() => location.hash)).indexOf('e=' + idCoe) !== -1 && (await texto(p, '#estTitulo')) === 'CoE de Dados', 'chega à ficha da MESMA estrutura (identificador preservado no endereço)');
+    afirma(/Voltar para a lista de estruturas/i.test(await texto(p, '#estVoltarLista')), 'o voltar da ficha diz o destino (a lista de estruturas)');
+    await p.click('#estEditar');
+    await p.fill('#estNome', 'Nome digitado e não salvo');
+    afirma(/Voltar para a ficha/i.test(await texto(p, '#estVoltarFicha')), 'o voltar da edição diz o destino (a ficha)');
+    await p.click('#estCancelar'); /* confirma o descarte (diálogo aceito) */
+    await p.waitForSelector('#estFicha');
+    afirma((await texto(p, '#estTitulo')) === 'CoE de Dados' && (await S.banco('GET', 'estruturas-concretas/registros/' + idCoe)).corpo.nome === 'CoE de Dados', 'cancelar a edição volta à ficha com os dados salvos intactos');
+    await p.reload();
+    await p.waitForFunction(() => window.faAuth && window.faAuth.getSession && window.faAuth.getSession(), null, { timeout: 20000 });
+    await p.waitForSelector('#estFicha', { timeout: 20000 });
+    afirma((await texto(p, '#estTitulo')) === 'CoE de Dados', 'recarregar na ficha reabre a mesma estrutura');
+    await p.goBack();
+    await p.waitForSelector('#mfmDetalhe', { timeout: 15000 });
+    afirma(/CoE de Dados/.test(await texto(p, '#mfmDetalhe')), 'o Voltar do navegador devolve ao Mapa com a mesma estrutura aberta');
+    await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+    await p.waitForFunction(() => /Linha de Investimentos/.test((document.querySelector('#mfmDetalhe') || {}).innerText || ''), null, { timeout: 15000 });
 
     /* ===== 5. Editar e encerrar ===== */
     console.log('\n5. Editar e encerrar');
@@ -160,7 +185,11 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(/Alterações salvas/.test(await texto(p, '#estFlash')), 'alteração confirmada');
     await p.click('#estHistorico summary');
     const hist = await texto(p, '#estHistorico');
-    afirma(/Histórico — 2 alterações/.test(hist) && /Linha de Investimentos → Linha de Investimentos e Previdência/.test(hist.replace(/\s+/g, ' ')) && /Nome oficial atualizado/.test(hist), 'histórico: antes → depois e justificativa', hist.slice(0, 300));
+    const mudNome = p.locator('#estHistorico .est-evento--alterada .est-mudanca[data-campo="nome"]');
+    const antesNome = await mudNome.locator('.est-valor--antes .est-valor-texto').innerText().catch(() => '');
+    const depoisNome = await mudNome.locator('.est-valor--depois .est-valor-texto').innerText().catch(() => '');
+    afirma(/Histórico — 2 alterações/i.test(hist) && antesNome === 'Linha de Investimentos' && depoisNome === 'Linha de Investimentos e Previdência' &&
+      /Justificativa\s*Nome oficial atualizado/i.test(hist), 'histórico: campo Nome com "Antes" e "Depois" separados e a justificativa em destaque', hist.slice(0, 300));
     await p.click('#estVerNoMapa');
     await p.waitForSelector('#mfmDetalhe', { timeout: 15000 });
     afirma(/Linha de Investimentos e Previdência/.test(await texto(p, '[data-estrutura="' + idNeg + '"]')), 'o Mapa mostra o nome novo');
@@ -178,7 +207,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(/Estrutura encerrada/.test(await texto(p, '#estFlash')) && /Encerrada/.test(await texto(p, '#estFicha')) && /Área incorporada ao CoE de Dados/.test(await texto(p, '#estFicha')), 'encerrada, com o motivo na ficha');
     afirma(await p.locator('#estEditar, #estEncerrar').count() === 0, 'estrutura encerrada não oferece editar nem encerrar');
     await p.click('#estHistorico summary');
-    afirma(/Encerrada/.test(await texto(p, '#estHistorico')) && /Motivo: Área incorporada/.test(await texto(p, '#estHistorico')), 'o histórico guarda o encerramento e o motivo');
+    afirma(/Encerrada/.test(await texto(p, '#estHistorico')) && /Motivo do encerramento\s*Área incorporada/i.test(await texto(p, '#estHistorico')), 'o histórico guarda o encerramento e o motivo');
     await ir(p, '#avaliacoes?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     afirma(await p.locator('[data-estrutura="' + idAe + '"]').count() === 0 && /Nenhuma estrutura cadastrada/.test(await texto(p, '[data-bloco="ae"]')), 'a estrutura encerrada sai do Mapa');
@@ -187,6 +216,28 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(await p.locator('.est-item[data-estrutura="' + idAe + '"]').count() === 0, 'a lista mostra só as ativas por padrão');
     await p.check('#estMostrarEncerradas');
     afirma(/Encerrada/.test(await texto(p, '.est-item[data-estrutura="' + idAe + '"]')), '"Mostrar encerradas" traz a encerrada, marcada como Encerrada');
+    /* legibilidade: contraste medido (WCAG, ≥ 4,5:1) do nome e do tipo contra o fundo do cartão, ativa e encerrada;
+       ativa × encerrada diferentes também fora da etiqueta (faixa lateral e fundo) */
+    const contraste = await p.evaluate((ids) => {
+      const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+      const lum = (c) => { const v = rgb(c).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      const razao = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+      return ids.map((id) => {
+        const card = document.querySelector('.est-item[data-estrutura="' + id + '"]'), fundo = getComputedStyle(card).backgroundColor;
+        return { nome: razao(getComputedStyle(card.querySelector('.est-item-nome')).color, fundo), tipo: razao(getComputedStyle(card.querySelector('.est-item-tipo')).color, fundo),
+          faixa: getComputedStyle(card).borderLeftColor, fundo: fundo, peso: getComputedStyle(card.querySelector('.est-item-nome')).fontWeight };
+      });
+    }, [idCoe, idAe]);
+    afirma(contraste.every((c) => c.nome >= 4.5 && c.tipo >= 4.5), 'cartões legíveis: nome e tipo com contraste ≥ 4,5:1 (ativa e encerrada)', JSON.stringify(contraste.map((c) => [c.nome.toFixed(1), c.tipo.toFixed(1)])));
+    afirma(contraste[0].faixa !== contraste[1].faixa && contraste[0].fundo !== contraste[1].fundo, 'ativa × encerrada diferentes também na faixa lateral e no fundo do cartão');
+    afirma(+contraste[0].peso >= 600, 'o nome da estrutura é o destaque do cartão');
+    await p.click('.est-item[data-estrutura="' + idAe + '"]');
+    await p.waitForSelector('#estFicha');
+    const secoes = await p.locator('#adminEstruturas .est-secao-titulo').allInnerTexts();
+    afirma(['IDENTIFICAÇÃO', 'SITUAÇÃO E CONTROLE'].every((t) => secoes.some((s) => s.toUpperCase().indexOf(t) === 0)) && secoes.some((s) => /^Histórico/i.test(s)), 'ficha em três grupos: Identificação, Situação e controle, Histórico', secoes.join(' | '));
+    afirma(await p.locator('#estEditar, #estEncerrar').count() === 0 && /reativada/.test(await texto(p, '#estEncerradaAviso')), 'ficha da encerrada: só consulta, sem editar nem reativar');
+    await ir(p, '#admin?arq=estruturas');
+    await p.waitForSelector('#estLista');
 
     /* ===== 6. Conflito ===== */
     console.log('\n6. Conflito');

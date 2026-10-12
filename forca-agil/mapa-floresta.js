@@ -559,6 +559,13 @@
       } else h += caixasHtml(estruturasDoBloco(b));
       return h + '</div></section>';
     }
+    /* Squads: a POSSIBILIDADE vem da regra fixa Linha × Squad do motor (Áreas Especializadas e CoEs não formam
+       Squads); a EXISTÊNCIA de Squads vinculados é outra informação, que ainda não existe — nunca inventada */
+    function squadsHtml(tipo, exemplo) {
+      if (Mot().liberaSquadParaCodigoFirme(tipo) !== true) return '<dt>Organização por Squads</dt><dd class="mfm-squads" data-forma-squads="nao">Não se aplica: Áreas Especializadas e Centros de Excelência não formam Squads.</dd>';
+      return '<dt>Organização por Squads</dt><dd class="mfm-squads" data-forma-squads="sim">Admitida para este tipo de estrutura (Linha).</dd>' +
+        '<dt>Squads vinculados</dt><dd class="mfm-squads-vinculados">' + (exemplo ? 'Nenhum nos exemplos fictícios.' : 'Informação ainda indisponível: a associação de Squads às estruturas não existe nesta versão.') + '</dd>';
+    }
     function detalheHtml(id) {
       var e = dados().estado.estruturas[id], b = blocoDoTipo(e.tipo), sub = subagrupadorDaEstrutura(id), objs = objetosDe(id), M = Mot();
       if (fonte === 'cadastro') return detalheCadastroHtml(e, b);
@@ -571,7 +578,7 @@
         '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
         (sub ? '<dt>Subagrupador</dt><dd>' + esc(sub.nome) + ' <span class="mfm-nota">(exemplo)</span></dd>' : '') +
-        '<dt>Squads</dt><dd>' + (M.liberaSquadParaCodigoFirme(e.tipo) === true ? 'Pode organizar o trabalho por Squads' : 'Não forma Squads') + '</dd></dl>' +
+        squadsHtml(e.tipo, true) + '</dl>' +
         '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
         '<p class="mfm-ajuda">Eles não são caixas do Mapa: aparecem aqui, na estrutura responsável.</p>';
       h += objs.length ? '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
@@ -593,12 +600,12 @@
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
         (e.sigla ? '<dt>Sigla</dt><dd>' + esc(e.sigla) + '</dd>' : '') +
         (e.descricao ? '<dt>Descrição</dt><dd class="mfm-descricao">' + esc(e.descricao) + '</dd>' : '') +
-        '<dt>Squads</dt><dd>' + (M.liberaSquadParaCodigoFirme(e.tipo) === true ? 'Pode organizar o trabalho por Squads' : 'Não forma Squads') + '</dd>' +
+        squadsHtml(e.tipo, false) +
         '<dt>Cadastrada</dt><dd>' + dataHora(e.criadaEm) + (e.criadaPor ? ' · ' + esc(e.criadaPor.email || e.criadaPor.id) : '') + '</dd>' +
         (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + (e.alteradaPor ? ' · ' + esc(e.alteradaPor.email || e.alteradaPor.id) : '') + '</dd>' : '') + '</dl>' +
         '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
         '<p class="mfm-sem-objetos" id="mfmSemObjetos">Informação ainda indisponível: a associação de produtos e serviços à estrutura responsável será registrada numa próxima etapa.</p>' +
-        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#admin?arq=estruturas&e=' + encodeURIComponent(e.id) + '">Abrir no cadastro (editar ou encerrar)</a>' : '');
+        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#admin?arq=estruturas&e=' + encodeURIComponent(e.id) + '">Abrir a ficha no cadastro (editar ou encerrar)</a>' : '');
       return h + '</aside>';
     }
     function renderMapaTela() {

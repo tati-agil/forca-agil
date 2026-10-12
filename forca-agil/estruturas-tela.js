@@ -195,10 +195,12 @@
       if (!todas.length) return h + '<p class="admin-empty" id="estVazio">Nenhuma estrutura cadastrada ainda.' + (podeManter() ? ' Use "Cadastrar estrutura" para criar a primeira.' : '') + '</p>';
       if (!vis.length) return h + '<p class="admin-empty" id="estVazio">Nenhuma estrutura ativa. Marque "Mostrar encerradas" para ver o histórico.</p>';
       return h + '<ul class="est-lista" id="estLista">' + vis.map(function (e) {
-        return '<li><button type="button" class="est-item" data-estrutura="' + esc(e.id) + '">' +
-          '<span class="est-item-nome">' + esc(e.nome) + (e.sigla ? ' <span class="est-sigla">(' + esc(e.sigla) + ')</span>' : '') + '</span>' +
+        /* o cartão inteiro é o botão; a situação aparece na etiqueta E na faixa lateral/tom do cartão (data-situacao) */
+        return '<li><button type="button" class="est-item est-item--' + esc(e.situacao) + '" data-estrutura="' + esc(e.id) + '" data-situacao="' + esc(e.situacao) + '">' +
+          '<span class="est-item-nome">' + esc(e.nome) + (e.sigla ? ' <span class="est-sigla">' + esc(e.sigla) + '</span>' : '') + '</span>' +
           '<span class="est-item-tipo">' + esc(natureza(e.tipo)) + (natureza(e.tipo) === 'Linha' ? ' · ' + esc(nomeTipo(e.tipo)) : '') + '</span>' +
-          '<span class="est-situacao est-situacao--' + esc(e.situacao) + '">' + (e.situacao === 'ativa' ? 'Ativa' : 'Encerrada') + '</span></button></li>';
+          '<span class="est-situacao est-situacao--' + esc(e.situacao) + '">' + (e.situacao === 'ativa' ? 'Ativa' : 'Encerrada') + '</span>' +
+          '<span class="est-item-seta" aria-hidden="true">›</span></button></li>';
       }).join('') + '</ul>';
     }
     function opcoesTipo() {
@@ -234,51 +236,69 @@
         '<button type="button" class="btn" id="estCancelar">Cancelar</button></div></form>';
       return h;
     }
+    function dado(rotulo, valor, largo) {
+      return '<div class="est-dado' + (largo ? ' est-dado--largo' : '') + '"><dt>' + esc(rotulo) + '</dt><dd>' + valor + '</dd></div>';
+    }
+    function quando(em, por) { return '<span class="est-quando">' + dataHora(em) + '</span><span class="est-autor">' + quem(por) + '</span>'; }
+    function situacaoHtml(e) { return '<span class="est-situacao est-situacao--' + esc(e.situacao) + '">' + (e.situacao === 'ativa' ? 'Ativa' : 'Encerrada') + '</span>'; }
+    /* ficha em dois grupos (o terceiro, o histórico, vem logo abaixo): Identificação e Situação e controle */
     function fichaHtml(e) {
       var linha = natureza(e.tipo) === 'Linha';
-      return '<dl class="avp-ficha-meta est-ficha" id="estFicha">' +
-        '<dt>Natureza</dt><dd>' + esc(natureza(e.tipo)) + '</dd>' +
-        '<dt>' + (linha ? 'Especialização' : 'Tipo oficial') + '</dt><dd>' + esc(nomeTipo(e.tipo)) + '</dd>' +
-        '<dt>Sigla</dt><dd>' + (e.sigla ? esc(e.sigla) : '—') + '</dd>' +
-        '<dt>Descrição</dt><dd class="est-descricao">' + (e.descricao ? esc(e.descricao) : '—') + '</dd>' +
-        '<dt>Situação</dt><dd><span class="est-situacao est-situacao--' + esc(e.situacao) + '">' + (e.situacao === 'ativa' ? 'Ativa' : 'Encerrada') + '</span></dd>' +
-        '<dt>Cadastrada</dt><dd>' + dataHora(e.criadaEm) + ' · ' + quem(e.criadaPor) + '</dd>' +
-        (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + ' · ' + quem(e.alteradaPor) + '</dd>' : '') +
-        (e.encerramento ? '<dt>Encerramento</dt><dd>' + dataHora(e.encerramento.em) + ' · ' + quem(e.encerramento.por) + '<br><span class="est-motivo">Motivo: ' + esc(e.encerramento.motivo) + '</span></dd>' : '') +
-        '<dt>Revisão</dt><dd>' + esc(e.revisao) + '</dd></dl>';
+      return '<div class="est-ficha" id="estFicha">' +
+        '<section class="est-secao" aria-labelledby="estSecIdentificacao"><h5 class="est-secao-titulo" id="estSecIdentificacao">Identificação</h5><dl class="est-dados">' +
+          dado('Natureza', esc(natureza(e.tipo))) +
+          dado(linha ? 'Especialização' : 'Tipo oficial', esc(nomeTipo(e.tipo))) +
+          dado('Sigla', e.sigla ? esc(e.sigla) : '<span class="est-vazio">não informada</span>') +
+          dado('Descrição', e.descricao ? '<span class="est-descricao">' + esc(e.descricao) + '</span>' : '<span class="est-vazio">não informada</span>', true) +
+        '</dl></section>' +
+        '<section class="est-secao" aria-labelledby="estSecControle"><h5 class="est-secao-titulo" id="estSecControle">Situação e controle</h5><dl class="est-dados">' +
+          dado('Situação', situacaoHtml(e)) +
+          dado('Revisão', esc(e.revisao)) +
+          dado('Cadastrada', quando(e.criadaEm, e.criadaPor)) +
+          (e.alteradaEm ? dado('Última alteração', quando(e.alteradaEm, e.alteradaPor)) : '') +
+          (e.encerramento ? dado('Encerrada', quando(e.encerramento.em, e.encerramento.por)) +
+            dado('Motivo do encerramento', '<span class="est-destaque est-destaque--motivo">' + esc(e.encerramento.motivo) + '</span>', true) : '') +
+        '</dl></section></div>';
     }
     var ROTULO_EVENTO = { 'estrutura.criada': 'Cadastrada', 'estrutura.alterada': 'Alterada', 'estrutura.encerrada': 'Encerrada' };
+    var CLASSE_EVENTO = { 'estrutura.criada': 'criada', 'estrutura.alterada': 'alterada', 'estrutura.encerrada': 'encerrada' };
+    function valorHist(v) { return v ? esc(v) : '<span class="est-vazio">(vazio)</span>'; }
     function historicoHtml(id) {
       if (st.eventos === undefined) return '<p class="loading-msg">Carregando histórico…</p>';
       var evs = N().historico(st.eventos, 'estrutura', id);
-      var h = '<details class="avp-historico-recolhido est-historico" id="estHistorico"' + (st.historicoAberto ? ' open' : '') + '><summary>Histórico — ' + evs.length + ' alteraç' + (evs.length === 1 ? 'ão' : 'ões') + '</summary><ol class="est-eventos">';
+      var h = '<details class="est-secao est-historico" id="estHistorico"' + (st.historicoAberto ? ' open' : '') + '><summary class="est-secao-titulo">Histórico — ' + evs.length + ' alteraç' + (evs.length === 1 ? 'ão' : 'ões') + '</summary>' +
+        '<p class="est-historico-ordem">Do registro mais recente para o mais antigo.</p><ol class="est-eventos">';
       h += evs.slice().reverse().map(function (ev) {
-        var linhas = '';
-        if (ev.tipo === 'estrutura.alterada' && ev.antes) linhas = (ev.campos || []).map(function (c) {
-          return '<li>' + esc(CAMPO[c] || c) + ': <span class="est-antes">' + (ev.antes[c] ? esc(ev.antes[c]) : '(vazio)') + '</span> → <span class="est-depois">' + (ev.depois[c] ? esc(ev.depois[c]) : '(vazio)') + '</span></li>';
+        var corpo = '';
+        if (ev.tipo === 'estrutura.criada' && ev.depois) corpo = '<p class="est-evento-resumo">Cadastrada como ' + esc(natureza(ev.depois.tipo)) + ' · ' + esc(nomeTipo(ev.depois.tipo)) + ', com o nome <strong>' + esc(ev.depois.nome) + '</strong>' + (ev.depois.sigla ? ' (sigla ' + esc(ev.depois.sigla) + ')' : '') + '.</p>';
+        if (ev.tipo === 'estrutura.alterada' && ev.antes) corpo = (ev.campos || []).map(function (c) {
+          return '<div class="est-mudanca" data-campo="' + esc(c) + '"><p class="est-mudanca-campo">' + esc(CAMPO[c] || c) + '</p><div class="est-antes-depois">' +
+            '<div class="est-valor est-valor--antes"><span class="est-valor-rotulo">Antes</span><span class="est-valor-texto">' + valorHist(ev.antes[c]) + '</span></div>' +
+            '<div class="est-valor est-valor--depois"><span class="est-valor-rotulo">Depois</span><span class="est-valor-texto">' + valorHist(ev.depois[c]) + '</span></div></div></div>';
         }).join('');
-        return '<li class="est-evento" data-tipo="' + esc(ev.tipo) + '"><strong>' + esc(ROTULO_EVENTO[ev.tipo] || ev.tipo) + '</strong> · ' + dataHora(ev.em) + ' · ' + quem(ev.usuario) +
-          (linhas ? '<ul class="est-mudancas">' + linhas + '</ul>' : '') +
-          (ev.justificativa ? '<p class="est-just">Justificativa: ' + esc(ev.justificativa) + '</p>' : '') +
-          (ev.motivo ? '<p class="est-motivo">Motivo: ' + esc(ev.motivo) + '</p>' : '') + '</li>';
+        return '<li class="est-evento est-evento--' + (CLASSE_EVENTO[ev.tipo] || 'outro') + '" data-tipo="' + esc(ev.tipo) + '">' +
+          '<div class="est-evento-topo"><span class="est-evento-tipo">' + esc(ROTULO_EVENTO[ev.tipo] || ev.tipo) + '</span>' +
+          '<span class="est-evento-meta">' + dataHora(ev.em) + ' · ' + quem(ev.usuario) + '</span></div>' + corpo +
+          (ev.justificativa ? '<div class="est-destaque"><span class="est-destaque-rotulo">Justificativa</span>' + esc(ev.justificativa) + '</div>' : '') +
+          (ev.motivo ? '<div class="est-destaque est-destaque--motivo"><span class="est-destaque-rotulo">Motivo do encerramento</span>' + esc(ev.motivo) + '</div>' : '') + '</li>';
       }).join('');
       return h + '</ol></details>';
     }
     function detalheHtml() {
       var e = st.estruturas && st.estruturas[st.id];
-      var h = cabecalho(e ? e.nome : 'Estrutura', 'Voltar para a lista', 'estVoltarLista');
+      var h = cabecalho(e ? e.nome : 'Estrutura', 'Voltar para a lista de estruturas', 'estVoltarLista');
       if (st.estruturas === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p>';
       if (!e) return h + '<p class="avp-error-msg" id="estNaoEncontrada">Esta estrutura não foi encontrada.</p>';
       if (st.flash) h += '<div class="avp-flash-success est-flash" id="estFlash" role="status" tabindex="-1"><p>' + esc(st.flash.texto) + '</p>' +
         '<div class="est-flash-acoes">' + (!st.flash.encerrada ? '<a class="btn btn--sm btn--primary" id="estFlashMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Ver no Mapa da Floresta</a>' : '') +
         (st.flash.nova && podeManter() ? '<button type="button" class="btn btn--sm" id="estFlashOutra">Cadastrar outra</button>' : '') + '</div></div>';
-      h += aviso() + fichaHtml(e);
+      h += fichaHtml(e);
       h += '<div class="est-acoes">';
       if (e.situacao === 'ativa') h += '<a class="btn" id="estVerNoMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Ver no Mapa da Floresta</a>';
       if (e.situacao === 'ativa' && podeManter()) h += '<button type="button" class="btn" id="estEditar">Editar</button><button type="button" class="btn btn--danger" id="estEncerrar">Encerrar</button>';
       h += '</div>';
-      if (e.situacao !== 'ativa') h += '<p class="avp-decisao-aviso" id="estEncerradaAviso">Estrutura encerrada: não aparece no Mapa da Floresta e não pode ser alterada nem reativada. Para voltar a representá-la, cadastre uma nova.</p>';
-      return h + historicoHtml(e.id);
+      if (e.situacao !== 'ativa') h += '<p class="est-aviso-encerrada" id="estEncerradaAviso">Estrutura encerrada: não aparece no Mapa da Floresta e não pode ser alterada nem reativada. A ficha e o histórico continuam disponíveis para consulta. Para voltar a representá-la, cadastre uma nova.</p>';
+      return h + historicoHtml(e.id) + aviso();
     }
     function formEditarHtml() {
       var e = st.estruturas && st.estruturas[st.id], M = N().MAX;
@@ -316,7 +336,8 @@
       else if (st.vista === 'editar') h = podeManter() ? formEditarHtml() : detalheHtml();
       else if (st.vista === 'encerrar') h = podeManter() ? formEncerrarHtml() : detalheHtml();
       else h = listaHtml();
-      wrap.innerHTML = '<div class="est-tela" data-vista="' + st.vista + '">' + h + '</div>';
+      /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
+      wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';
       bind();
       if (P()) P().atualizarDom && P().atualizarDom(wrap);
       if (foco) { var el = byId(foco.id); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(foco.ini, foco.fim); } catch (x) { /* rádio */ } } }
@@ -371,6 +392,8 @@
       if (pessoa && pessoa !== agora) { desligarTudo(); st = novo(); if (!wrap.hidden) { ligar(); render(); } }
       pessoa = agora;
     });
+    /* recarregar ou fechar a página no meio de uma edição: o navegador pergunta antes (o endereço já guarda a estrutura) */
+    window.addEventListener('beforeunload', function (ev) { if (!wrap.hidden && st.sujo) { ev.preventDefault(); ev.returnValue = ''; } });
     ['fa-admin-ready', 'fa-avaliacao-ready'].forEach(function (ev) { window.addEventListener(ev, function () { if (!wrap.hidden) render(); }); });
 
     return { abrir: abrir, fechar: fechar, disponivel: disponivel, temAlteracaoNaoSalva: function () { return !wrap.hidden && !!st.sujo; } };

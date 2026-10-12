@@ -89,7 +89,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector('#mfmDetalhe');
   afirma(/[?&]mf=mapa&e=demo-neg-1/.test(await page.evaluate(() => location.hash)), 'clicar na caixa abre o detalhe com endereço próprio');
   const det = await page.locator('#mfmDetalhe').innerText();
-  afirma(/Negócios — Exemplo 1/.test(det) && /Exemplo fictício/.test(det) && /Natureza\s*Linha/.test(det) && /Tx NEGOCIOS/.test(det) && /Previdência/.test(det) && /Pode organizar o trabalho por Squads/.test(det),
+  afirma(/Negócios — Exemplo 1/.test(det) && /Exemplo fictício/.test(det) && /Natureza\s*Linha/.test(det) && /Tx NEGOCIOS/.test(det) && /Previdência/.test(det) && /Organização por Squads\s*Admitida para este tipo de estrutura/.test(det) && /Squads vinculados\s*Nenhum nos exemplos fictícios/.test(det),
     'detalhe: nome, "Exemplo fictício", natureza, especialização (Taxonomia), subagrupador e Squads', det.slice(0, 300));
   afirma(JSON.stringify(await page.$$eval('#mfmObjetos .mfm-objeto', (els) => els.map((e) => e.getAttribute('data-objeto')))) === '["demo-obj-4","demo-obj-5"]', 'detalhe lista os produtos/serviços sob a estrutura');
   afirma(await page.evaluate(() => (document.activeElement || {}).id) === 'mfmDetalheTitulo', 'o foco vai para o título do detalhe (teclado e leitor de tela)');
@@ -100,7 +100,7 @@ async function rodada(browser, viewport, rotulo) {
     await page.click('.mfm-caixa[data-estrutura="demo-ae-2"]');
     await page.waitForSelector('#mfmSemObjetos');
     const d2 = await page.locator('#mfmDetalhe').innerText();
-    afirma(/Nenhum produto ou serviço de exemplo/.test(d2) && /Área Especializada/.test(d2) && /Não forma Squads/.test(d2), 'Área Especializada sem produtos: diz que não há; não forma Squads');
+    afirma(/Nenhum produto ou serviço de exemplo/.test(d2) && /Área Especializada/.test(d2) && /Áreas Especializadas e Centros de Excelência não formam Squads/.test(d2), 'Área Especializada sem produtos: diz que não há; não forma Squads');
   }
   await page.keyboard.press('Escape');
   await esperarCondicao(page, () => !document.getElementById('mfmDetalhe'), null, { limite: 5000, descricao: 'Esc fecha o detalhe' });
