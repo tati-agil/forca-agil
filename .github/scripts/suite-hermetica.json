@@ -17,7 +17,8 @@
     ".github/scripts/teste-rules-taxonomia-governanca.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-posicionamento.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-posicionamento-decisao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rotulos-doc.js": "ferramenta de auditoria, ainda não portão de CI: sempre sai com 0 até a triagem dos candidatos (ver cabeçalho do arquivo)"
+    ".github/scripts/teste-rotulos-doc.js": "ferramenta de auditoria, ainda não portão de CI: sempre sai com 0 até a triagem dos candidatos (ver cabeçalho do arquivo)",
+    ".github/scripts/teste-rules-estruturas-concretas.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
