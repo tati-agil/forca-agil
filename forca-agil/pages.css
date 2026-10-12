@@ -2922,6 +2922,12 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 /* áreas de toque de pelo menos 44 px — só no Catálogo, sem mexer nos componentes do site */
 #avaliacoesMapa .avp-voltar-link, #avaliacoesMapa .btn, #avaliacoesMapa select, #avaliacoesMapa input[type="search"], #avaliacoesMapa .mf-categorias-resumo { min-height: 44px; box-sizing: border-box; }
 #avaliacoesMapa .btn, #avaliacoesMapa .avp-voltar-link { display: inline-flex; align-items: center; justify-content: center; }
+/* celular: o filtro de situação (lista suspensa) precisa caber em 375 px com qualquer fonte de sistema — mesmo
+   ajuste que já valia antes da troca do filtro de posicionamento (o Linux usa uma fonte mais larga que o Windows) */
+@media (max-width: 480px) {
+  #avaliacoesMapa .mf-card { padding-left: 12px; padding-right: 12px; }
+  #avaliacoesMapa .mf-filtros select { font-size: .8rem; padding-left: 8px; padding-right: 8px; }
+}
 /* filtro "Posicionamento efetivo": opções que quebram linha (o nome oficial inteiro, com qualquer fonte) */
 .mf-filtro-posic { grid-column: 1 / -1; border: 1px solid var(--line-strong); border-radius: 10px; padding: 0 12px; margin-bottom: 14px; min-width: 0; }
 .mf-filtro-posic[open] { padding-bottom: 12px; }
