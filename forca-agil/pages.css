@@ -3201,6 +3201,22 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .est-flash p { margin: 0 0 8px; font-weight: 600; }
 .est-flash-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* Etapa 5: abas Estruturas × Subagrupadores, ordenação e subagrupador na ficha da Linha de Negócios */
+.est-abas { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--est-linha); padding-bottom: 10px; }
+.est-aba { min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1px solid #b9c4d8; background: #fff; color: var(--est-forte); font: inherit; font-weight: 600; cursor: pointer; }
+.est-aba:hover { border-color: #164EAA; background: #eef3fb; }
+.est-aba--ativa { background: #164EAA; border-color: #164EAA; color: #fff; }
+.est-aba:focus-visible { outline: 3px solid #307CED; outline-offset: 2px; }
+.sg-linha { display: flex; gap: 8px; align-items: stretch; }
+.sg-linha .sg-item { flex: 1 1 auto; min-width: 0; }
+.sg-mover { display: flex; flex-direction: column; gap: 6px; }
+.est-painel .sg-mover .btn { min-width: 44px; min-height: 44px; justify-content: center; padding: 6px 10px; font-size: 1rem; letter-spacing: 0; }
+.sg-linhas { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.sg-linhas a { color: #164EAA; font-weight: 600; }
+.est-ficha + .est-sg, .est-sg { border: 1px solid var(--est-linha); border-radius: 14px; background: #fff; }
+.est-sg-atual { margin: 0 0 10px; font-size: 1.05rem; color: var(--est-forte); }
+.est-sg-form { display: flex; flex-direction: column; gap: 10px; }
+.est-painel .est-sg-form select { width: 100%; max-width: 420px; min-height: 44px; background: #fff; color: var(--est-forte); border: 1px solid #b9c4d8; border-radius: 8px; padding: 8px 10px; font: inherit; }
 @media (max-width: 600px) {
   .est-painel { padding: 16px 14px 20px; border-radius: 14px; }
   .est-antes-depois { grid-template-columns: 1fr; }

@@ -149,6 +149,45 @@ entidade, que `historico(eventos, entidade, id)` ordena.
 - `situacaoRelacao(estado, id, ref)` → `valida` | `a-revisar` | `encerrada`.
 - `responsavelAtivo`, `estruturasDoTipo`, `relacoesDaEstrutura`, `objetosDaEstrutura`, `relacoesPossiveis`, `historico`, `tiposAdmitidos`, `relacaoConceitualAdmite`.
 
+### Subagrupadores das Linhas de Negócios (Etapa 5)
+
+Agrupamento de APRESENTAÇÃO do Mapa da Floresta (decisão A aprovada): não é estrutura organizacional concreta nem
+conceito da Taxonomia; só para estruturas do tipo Linha de Negócios (`NEGOCIOS`).
+- `criarSubagrupador(estado, { nome, ordem? }, ctx)` — sem ordem, vai para o fim; `alterarSubagrupador(estado, id,
+  { nome?, ordem? }, ctx, { justificativa?, revisaoEsperada? })` — só nome e ordem; `encerrarSubagrupador(estado, id,
+  motivo, ctx, { revisaoEsperada? })` — motivo obrigatório; encerrado não muda nem reativa; identificador nunca
+  reaproveitado.
+- `associarLinha(estado, { estruturaId, subagrupadorId }, ctx, { justificativa? })` — Linha de Negócios ativa,
+  subagrupador ativo, no máximo uma associação ativa por Linha (`LINHA_JA_ASSOCIADA`); `substituirAssociacao(estado,
+  associacaoId, subagrupadorId, ctx, …)` — encerra a atual e cria a nova na mesma operação (`substituidaPor` ×
+  `substitui`); `desassociarLinha(estado, associacaoId, ctx, …)`.
+- Encerrar um subagrupador NÃO encerra associações em cascata: `subagrupadorDaLinha()` calcula `associada` /
+  `subagrupador-encerrado` / `sem-subagrupador` / `nao-se-aplica`; no Mapa, só `associada` fica dentro do grupo.
+- `subagrupadoresAtivos()` (ordem, depois nome), `linhasDoSubagrupador()`.
+- Unicidade sob concorrência (no máximo uma associação ativa por Linha) é da PERSISTÊNCIA: `violacoesDeUnicidade()`
+  na referência em memória, índice `ativa-por-estrutura` conferido pelas regras no Firebase, índice único parcial no
+  PostgreSQL (Etapa 3).
+- Cenários versionados: `.github/scripts/cenarios/mapa-subagrupadores.v1.json` (formato 2: estado inicial e estado
+  final por coleção).
+
+### Pendências de governança — relações entre estruturas (Item 2)
+
+O núcleo já sabe validar relações entre estruturas (os 5 tipos da Taxonomia, só se a Taxonomia admitir entre os
+conceitos dos tipos; `compõe` sem ciclo; sem duplicata), mas NADA disso é gravado no site ainda. Faltam decisões que
+não podem ser presumidas:
+1. **`compõe` (estrutura pertencente a outra)**: bloqueada no site pelo requisito de paridade (integridade
+   equivalente Firebase × PostgreSQL, inclusive sob concorrência — `docs/paridade-firebase-postgresql.md`). Depende da
+   Etapa 3 e de uma solução de ciclo demonstrada nos dois bancos.
+2. **Semântica entre os tipos firmes**: a documentação aprovada não define quando uma Linha, uma Área Especializada ou
+   um CoE "aloca em", "atende", "desenvolve a disciplina" ou "pertence à disciplina" de outra estrutura. As relações
+   conceituais da Taxonomia Organizacional decidem a admissibilidade, mas o conteúdo oficial delas entre os 8 conceitos
+   firmes precisa ser confirmado pela governança.
+3. **Leitura das relações conceituais**: hoje só o admin geral lê `taxonomia/organizacional/relacoes`; quem cadastra
+   (Avaliação + Configuração) precisaria de leitura granular — decisão de permissão.
+4. **"Níveis organizacionais"**: não existe esse conceito no modelo aprovado (nem na Taxonomia nem no núcleo).
+5. **Squads e Capítulos** como estruturas: o núcleo os admite, mas a implementação foi adiada (regra confirmada: só
+   Linhas são constituídas por Squads; precisa ser garantida no núcleo e na persistência quando entrar).
+
 ## 5. O que fica fora do núcleo
 
 - **Ler a Taxonomia, o motor e o Posicionamento:** quem chama lê e passa como `ref` ou `posicionamento`.

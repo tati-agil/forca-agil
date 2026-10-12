@@ -12,7 +12,9 @@ da Floresta que grave dados. É requisito obrigatório, não meta.
     executor compartilhado e o **primeiro** dos três executores, a referência em memória
     (`teste-estruturas-cenarios-referencia.js`) e o **segundo**, o Firebase Emulator pelo adaptador `estruturas-firebase.js`
     (`teste-rules-estruturas-concretas.js`, com as gravações diretas inválidas); a tela de cadastro (Etapa 4) grava pelo mesmo caso de
-    uso e adaptador, só no Firebase Emulator (`teste-estruturas-jornada.js`); o executor do PostgreSQL ainda não existe;
+    uso e adaptador, só no Firebase Emulator (`teste-estruturas-jornada.js`); o conjunto `mapa-subagrupadores` v1 (Etapa 5) roda nos mesmos dois executores (memória: `teste-estruturas-cenarios-referencia.js`;
+    emulador: `teste-rules-mapa-subagrupadores.js`); o executor do PostgreSQL ainda não existe (o índice único parcial de
+    "uma associação ativa por Linha" é requisito dele);
   - `forca-agil/estruturas-nucleo.js` é o mesmo arquivo no site e no backend (`backend/test/nucleo-estruturas.spec.ts`);
   - `teste-estruturas-nucleo.js` prova o núcleo em memória; `backend/test/integracao/` prova o PostgreSQL com cenários
     próprios. São cenários diferentes, então não são prova de paridade.

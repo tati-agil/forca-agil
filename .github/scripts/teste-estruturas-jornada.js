@@ -261,6 +261,96 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(coe.nome === 'CoE de Dados' && coe.sigla === 'CDD' && coe.revisao === 2, 'no banco ficou só a alteração que chegou primeiro', JSON.stringify({ nome: coe.nome, sigla: coe.sigla, revisao: coe.revisao }));
     await adm.context().close();
 
+    /* ===== 6b. Subagrupadores das Linhas de Negócios (Etapa 5) ===== */
+    console.log('\n6b. Subagrupadores das Linhas de Negócios (Etapa 5)');
+    /* a edição do conflito ficou aberta com alteração não salva: a tela não sai sozinha por endereço — cancela antes */
+    await p.click('#estCancelar'); await p.waitForSelector('#estFicha');
+    await ir(p, '#admin?arq=estruturas');
+    await p.waitForSelector('#estAbaSubagrupadores', { timeout: 15000 });
+    await p.click('#estAbaSubagrupadores');
+    await p.waitForSelector('#sgVazio', { timeout: 15000 });
+    afirma(/Sem subagrupador/.test(await texto(p, '#sgVazio')) && /sg=lista/.test(await p.evaluate(() => location.hash)), 'aba própria, com endereço (&sg=lista); sem subagrupadores, as Linhas ficam em "Sem subagrupador"');
+    async function novoSg(nome) {
+      await p.click('#sgNovo'); await p.waitForSelector('#sgNome');
+      await p.fill('#sgNome', nome); await p.click('#sgSalvar');
+      await p.waitForSelector('#estFlash', { timeout: 15000 });
+      return p.evaluate(() => decodeURIComponent((/[?&]sg=([^&]+)/.exec(location.hash) || [])[1] || ''));
+    }
+    await p.click('#sgNovo'); await p.waitForSelector('#sgNome'); await p.click('#sgSalvar');
+    await p.waitForSelector('#estErros');
+    afirma(/Preencha o campo Nome/.test(await texto(p, '#estErros')), 'subagrupador sem nome: explica o que falta');
+    await p.click('#sgCancelar'); await p.waitForSelector('#sgVazio');
+    const sgPrev = await novoSg('Previdência');
+    afirma(!!sgPrev && /Subagrupador criado/.test(await texto(p, '#estFlash')), 'subagrupador criado, com confirmação e ficha própria');
+    await p.click('#sgVoltarLista'); await p.waitForSelector('#sgLista');
+    const sgCred = await novoSg('Crédito');
+    await ir(p, '#avaliacoes?mf=mapa');
+    await p.waitForSelector('#mfmMapa', { timeout: 15000 });
+    const ordemMapa = async () => p.$$eval('[data-bloco="negocios"] [data-subagrupador]', (els) => els.map((e) => e.getAttribute('data-subagrupador')));
+    afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgPrev, sgCred, '']), 'o Mapa mostra Previdência, Crédito e "Sem subagrupador", nessa ordem', JSON.stringify(await ordemMapa()));
+    afirma(/Nenhuma Linha associada/.test(await texto(p, '[data-subagrupador="' + sgPrev + '"]')) && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 1, 'subagrupador vazio diz "Nenhuma Linha associada"; a Linha continua em "Sem subagrupador"');
+    /* marco: associar uma Linha e vê-la no lugar certo */
+    await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+    await p.waitForSelector('#estSubagrupador #estSgEscolha', { timeout: 15000 });
+    afirma(/Sem subagrupador/.test(await texto(p, '#estSgAtual')), 'a ficha da Linha de Negócios mostra onde ela está no Mapa');
+    await p.selectOption('#estSgEscolha', sgPrev);
+    await p.fill('#estSgJustificativa', 'Portfólio de previdência.');
+    await p.click('#estSgAssociar');
+    await p.waitForFunction(() => /agora aparece no subagrupador/.test((document.querySelector('#estFlash') || {}).innerText || ''), null, { timeout: 15000 });
+    const sgAtualTxt = await texto(p, '#estSgAtual'), sgFlashTxt = await texto(p, '#estFlash');
+    afirma(/Previdência/.test(sgAtualTxt) && /agora aparece no subagrupador "Previdência"/.test(sgFlashTxt), 'associada: a ficha confirma e mostra o subagrupador', JSON.stringify({ atual: sgAtualTxt, flash: sgFlashTxt }));
+    await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+    await p.waitForSelector('#mfmDetalhe', { timeout: 15000 });
+    afirma(await p.locator('[data-bloco="negocios"] [data-subagrupador="' + sgPrev + '"] [data-estrutura="' + idNeg + '"]').count() === 1 && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 0, 'MARCO: a Linha aparece dentro de Previdência no Mapa (e não mais em "Sem subagrupador")');
+    afirma(/Linhas de Negócios › Previdência/.test(await texto(p, '#mfmDetalhe .mfm-caminho')) && (await texto(p, '#mfmSubagrupador')) === 'Previdência', 'o detalhe no Mapa mostra o caminho e o subagrupador');
+    /* trocar */
+    await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+    await p.waitForSelector('#estSgEscolha');
+    await p.selectOption('#estSgEscolha', sgCred);
+    await p.click('#estSgAssociar');
+    await p.waitForFunction(() => /Crédito/.test((document.querySelector('#estSgAtual') || {}).innerText || ''), null, { timeout: 15000 });
+    await p.click('#estHistorico summary');
+    const histSg = await texto(p, '#estHistorico');
+    afirma(/Passou para o subagrupador Crédito/.test(histSg) && /Saiu do subagrupador Previdência \(troca\)/.test(histSg) && /Associada ao subagrupador Previdência/.test(histSg) && /Portfólio de previdência/.test(histSg), 'a troca fica no histórico da Linha (associada, saiu, passou para), com a justificativa', histSg.slice(0, 300));
+    /* ordenar: Crédito sobe */
+    await ir(p, '#admin?arq=estruturas&sg=lista');
+    await p.waitForSelector('#sgLista');
+    await p.click('.sg-subir[data-subagrupador="' + sgCred + '"]');
+    await p.waitForFunction(() => /Ordem atualizada/.test((document.querySelector('#estFlash') || {}).innerText || ''), null, { timeout: 15000 });
+    await ir(p, '#avaliacoes?mf=mapa');
+    await p.waitForSelector('#mfmMapa');
+    afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgCred, sgPrev]), 'subir na lista muda a ordem no Mapa (Crédito antes de Previdência; sem Linha solta, não há "Sem subagrupador")', JSON.stringify(await ordemMapa()));
+    /* renomear */
+    await ir(p, '#admin?arq=estruturas&sg=' + sgCred);
+    await p.waitForSelector('#sgRenomear', { timeout: 15000 });
+    await p.click('#sgRenomear'); await p.fill('#sgNome', 'Crédito Consignado'); await p.click('#sgSalvar');
+    await p.waitForSelector('#estFlash');
+    await ir(p, '#avaliacoes?mf=mapa');
+    await p.waitForSelector('#mfmMapa');
+    afirma(/Crédito Consignado/.test(await texto(p, '[data-subagrupador="' + sgCred + '"]')) && await p.locator('[data-subagrupador="' + sgCred + '"] [data-estrutura="' + idNeg + '"]').count() === 1, 'renomear aparece no Mapa, com a Linha dentro');
+    /* encerrar com a Linha associada: nada em cascata, a Linha vai para "Sem subagrupador" */
+    await ir(p, '#admin?arq=estruturas&sg=' + sgCred);
+    await p.waitForSelector('#sgEncerrar');
+    await p.click('#sgEncerrar');
+    await p.waitForSelector('.est-confirmacao');
+    afirma(/1 Linha associada passa a aparecer em "Sem subagrupador"/.test(await texto(p, '.est-confirmacao')), 'encerrar avisa que a Linha associada vai para "Sem subagrupador"');
+    await p.click('#sgSalvar'); await p.waitForSelector('#estErros');
+    afirma(/motivo/i.test(await texto(p, '#estErros')), 'encerrar sem motivo é recusado com explicação');
+    await p.fill('#sgMotivo', 'Crédito consignado passa a ser tratado no subagrupador Previdência.'); await p.click('#sgSalvar');
+    await p.waitForSelector('#sgEncerradoAviso', { timeout: 15000 });
+    afirma(await p.locator('#sgRenomear, #sgEncerrar').count() === 0, 'subagrupador encerrado: só consulta, sem renomear nem reativar');
+    await ir(p, '#avaliacoes?mf=mapa');
+    await p.waitForSelector('#mfmMapa');
+    afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgPrev, '']) && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 1, 'no Mapa, o subagrupador encerrado some e a Linha volta para "Sem subagrupador"', JSON.stringify(await ordemMapa()));
+    await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+    await p.waitForSelector('#estSgAtual');
+    afirma(/Sem subagrupador/.test(await texto(p, '#estSgAtual')) && /foi encerrado/.test(await texto(p, '#estSgAtual')), 'a ficha da Linha explica: sem subagrupador porque o anterior foi encerrado');
+    const assocs = (await S.banco('GET', 'mapa-subagrupadores/associacoes')).corpo || {};
+    afirma(Object.values(assocs).filter((a) => a.estruturaId === idNeg).length === 2 && Object.values(assocs).some((a) => a.estruturaId === idNeg && a.situacao === 'ativa' && a.subagrupadorId === sgCred), 'no banco: a associação anterior ficou no histórico e a atual continua registrada (nada em cascata)');
+    await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+    await p.waitForSelector('#estFicha');
+    afirma(await p.locator('#estSubagrupador').count() === 0, 'CoE (não é Linha de Negócios): a ficha não oferece subagrupador');
+
     /* ===== 7. Perfil só de consulta ===== */
     console.log('\n7. Perfil só de consulta');
     const c = await sessao('consulta');
@@ -281,6 +371,16 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
         faEstruturasFirebase.criarPortas({ db: firebase.database(), codigosFirmes: faMotorPosicionamentoNucleo.CODIGOS_FIRMES }));
     });
     afirma(!r3.ok, 'mesmo pelo código, o banco recusa a gravação da consulta', JSON.stringify(r3.erros || r3.situacao));
+    const r4 = await c.evaluate(async () => {
+      const casos = faEstruturasCasosDeUso.criar({ nucleo: faEstruturasNucleo, codigosFirmes: faMotorPosicionamentoNucleo.CODIGOS_FIRMES });
+      const u = firebase.auth().currentUser;
+      return casos.executar('criarSubagrupador', { nome: 'Indevido' }, { operacaoId: firebase.database().ref().push().key, novoId: firebase.database().ref().push().key, usuario: { id: u.uid, email: u.email }, agora: Date.now() },
+        faEstruturasFirebase.criarPortas({ db: firebase.database(), codigosFirmes: faMotorPosicionamentoNucleo.CODIGOS_FIRMES }));
+    });
+    afirma(!r4.ok, 'a consulta também não cria subagrupador (o banco recusa)', JSON.stringify(r4.erros || r4.situacao));
+    await ir(c, '#avaliacoes?mf=mapa');
+    await c.waitForSelector('#mfmMapa', { timeout: 15000 });
+    afirma(await c.locator('[data-bloco="negocios"] [data-subagrupador]').count() === 2, 'a consulta vê o subagrupador ativo e "Sem subagrupador" no Mapa');
     await c.context().close();
 
     /* ===== 8. Demonstração × cadastradas ===== */
@@ -301,7 +401,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     console.log('\n10. Celular (375 px) e computador');
     afirma(await semRolagemLateral(p), 'computador: Mapa sem rolagem lateral');
     const m = await sessao('configuracao', 375);
-    for (const [rot, hash, sel] of [['lista', '#admin?arq=estruturas', '#estLista'], ['ficha', '#admin?arq=estruturas&e=' + idNeg, '#estFicha'], ['Mapa', '#avaliacoes?mf=mapa', '#mfmMapa'], ['detalhe no Mapa', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmDetalhe']]) {
+    for (const [rot, hash, sel] of [['lista', '#admin?arq=estruturas', '#estLista'], ['ficha', '#admin?arq=estruturas&e=' + idNeg, '#estFicha'], ['subagrupadores', '#admin?arq=estruturas&sg=lista', '#sgLista'], ['ficha com subagrupador', '#admin?arq=estruturas&e=' + idNeg, '#estSubagrupador'], ['Mapa', '#avaliacoes?mf=mapa', '#mfmMapa'], ['detalhe no Mapa', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmDetalhe']]) {
       await ir(m, hash); await m.waitForSelector(sel, { timeout: 15000 });
       afirma(await semRolagemLateral(m), '375 px: ' + rot + ' sem rolagem lateral');
     }

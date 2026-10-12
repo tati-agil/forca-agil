@@ -16,7 +16,8 @@
      lerReferencias()          → { conceitos, relacoesConceituais, herancaPeloPai, ligacoes, conceitosTrabalho }
                                  lidas na MESMA fronteira de consistência da gravação; se o adaptador não conseguir
                                  garantir isso, recusa (codigo REFERENCIAS_FORA_DA_TRANSACAO) — nunca presume.
-     lerEstado()               → { estruturas, relacoes, vinculos } (o recorte que a operação precisa)
+     lerEstado()               → { estruturas, relacoes, vinculos, subagrupadores, associacoesSubagrupador } (o recorte
+                                 que a operação precisa)
      gravar(operacao)          → { situacao: 'gravada' }; operacao = { id: ctx.operacaoId, tipo, usuario, mudancas,
                                  eventos }. TUDO OU NADA; revisão de cada mudança conferida (CONFLITO_DE_REVISAO);
                                  eventos só por acréscimo; nada se apaga. Repetir a MESMA operação (mesmo id) não
@@ -30,14 +31,16 @@
    RESULTADO de executar(): { ok: true, situacao: 'gravada'|'repetida', mudancas, eventos } ou { ok: false, erros }.
    Os códigos de erro são os do núcleo, mais os da persistência acima e GRAVACAO_NAO_CONFIRMADA.
 
-   ESCOPO DO 1º CADASTRO: os 8 tipos firmes do Posicionamento (seis do ramo Linha, Área Especializada e CoE).
-   Squad, Capítulo, relações e vínculos ficam fora desta entrega (o núcleo já os conhece; os casos de uso não os
-   expõem ainda).
+   ESCOPO: os 8 tipos firmes do Posicionamento (seis do ramo Linha, Área Especializada e CoE) e, desde a Etapa 5, os
+   subagrupadores das Linhas de Negócios e a associação Linha × subagrupador. Squad, Capítulo, relações e vínculos
+   ficam fora (o núcleo já os conhece; os casos de uso não os expõem ainda).
    ============================================================ */
 (function () {
   'use strict';
 
-  var OPERACOES = ['criarEstrutura', 'alterarEstrutura', 'encerrarEstrutura'];
+  var OPERACOES = ['criarEstrutura', 'alterarEstrutura', 'encerrarEstrutura',
+    /* Etapa 5: subagrupadores das Linhas de Negócios (apresentação do Mapa) e a associação Linha × subagrupador */
+    'criarSubagrupador', 'alterarSubagrupador', 'encerrarSubagrupador', 'associarLinha', 'substituirAssociacao', 'desassociarLinha'];
   /* onde o horário do contrato aparece (em milissegundos UTC): o adaptador Firebase grava o horário do SERVIDOR
      exatamente nesses campos — da estrutura e das cópias antes/depois guardadas no evento */
   var CAMPOS_DE_HORARIO = Object.freeze({
@@ -64,7 +67,13 @@
       var d = entrada || {};
       if (operacao === 'criarEstrutura') return N.criarEstrutura(estado, { tipo: d.tipo, nome: d.nome, sigla: d.sigla, descricao: d.descricao }, ctx, ref);
       if (operacao === 'alterarEstrutura') return N.alterarEstrutura(estado, d.id, d.alteracoes, ctx, { justificativa: d.justificativa, revisaoEsperada: d.revisaoEsperada });
-      return N.encerrarEstrutura(estado, d.id, d.motivo, ctx, { revisaoEsperada: d.revisaoEsperada });
+      if (operacao === 'encerrarEstrutura') return N.encerrarEstrutura(estado, d.id, d.motivo, ctx, { revisaoEsperada: d.revisaoEsperada });
+      if (operacao === 'criarSubagrupador') return N.criarSubagrupador(estado, { nome: d.nome, ordem: d.ordem }, ctx);
+      if (operacao === 'alterarSubagrupador') return N.alterarSubagrupador(estado, d.id, d.alteracoes, ctx, { justificativa: d.justificativa, revisaoEsperada: d.revisaoEsperada });
+      if (operacao === 'encerrarSubagrupador') return N.encerrarSubagrupador(estado, d.id, d.motivo, ctx, { revisaoEsperada: d.revisaoEsperada });
+      if (operacao === 'associarLinha') return N.associarLinha(estado, { estruturaId: d.estruturaId, subagrupadorId: d.subagrupadorId }, ctx, { justificativa: d.justificativa });
+      if (operacao === 'substituirAssociacao') return N.substituirAssociacao(estado, d.associacaoId, d.subagrupadorId, ctx, { justificativa: d.justificativa });
+      return N.desassociarLinha(estado, d.associacaoId, ctx, { justificativa: d.justificativa });
     }
 
     /* executa uma operação de ponta a ponta; portas = o adaptador de persistência (Firebase, PostgreSQL ou memória) */
@@ -117,6 +126,8 @@
         if (operacoes[op.id]) return Promise.resolve({ situacao: 'repetida' });
         var r = N.aplicar(estado, op.mudancas);
         if (!r.ok) return Promise.reject({ codigo: r.erro === 'CONFLITO_DE_REVISAO' ? 'CONFLITO_DE_REVISAO' : 'RECUSADA' });
+        /* unicidade garantida pela persistência sob concorrência (como o índice do banco): quem chegou depois perde */
+        if (N.violacoesDeUnicidade && N.violacoesDeUnicidade(r.estado).length) return Promise.reject({ codigo: 'CONFLITO_DE_REVISAO' });
         estado = r.estado; operacoes[op.id] = { tipo: op.tipo, usuario: clone(op.usuario) };
         eventos = eventos.concat(clone(op.eventos));
         return Promise.resolve({ situacao: 'gravada' });

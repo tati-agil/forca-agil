@@ -256,5 +256,32 @@ console.log('G. horário: milissegundos UTC e ISO');
   afirma(N.instante(MS) === MS && N.instante(ISO) === MS && N.instante('x') === null, 'instante() converte os dois formatos para o mesmo instante');
 }
 
+console.log('\n== H. Subagrupadores das Linhas de Negócios (Etapa 5): situações CALCULADAS ==');
+{
+  const u = { id: 'u1', email: 'a@b.c' };
+  const est = (id, tipo, situacao) => ({ id, tipo, nome: id, situacao: situacao || 'ativa', criadaEm: 1, criadaPor: u, revisao: 1 });
+  const sg = (id, nome, ordem, situacao) => ({ id, bloco: 'NEGOCIOS', nome, ordem, situacao: situacao || 'ativo', criadoEm: 1, criadoPor: u, revisao: 1 });
+  const as = (id, estruturaId, subagrupadorId, situacao) => ({ id, estruturaId, subagrupadorId, situacao: situacao || 'ativa', criadaEm: 1, criadaPor: u, revisao: 1 });
+  const E = congelaFundo({
+    estruturas: { L1: est('L1', 'NEGOCIOS'), L2: est('L2', 'NEGOCIOS'), L3: est('L3', 'NEGOCIOS'), L4: est('L4', 'NEGOCIOS'), LX: est('LX', 'NEGOCIOS', 'encerrada'), AE: est('AE', 'AREA_ESPECIALIZADA') },
+    subagrupadores: { P: sg('P', 'Previdência', 20), C: sg('C', 'Crédito', 10), B: sg('B', 'Benefícios', 20), Z: sg('Z', 'Extinto', 5, 'encerrado') },
+    associacoesSubagrupador: { a1: as('a1', 'L1', 'P'), a0: as('a0', 'L2', 'C', 'encerrada'), a2: as('a2', 'L3', 'Z'), a3: as('a3', 'LX', 'P') }
+  });
+  afirma(N.subagrupadoresAtivos(E).map((s) => s.id).join() === 'C,B,P', 'ativos na ordem; empate de ordem desfeito pelo nome; encerrado fora', N.subagrupadoresAtivos(E).map((s) => s.id));
+  const sit = (id) => N.subagrupadorDaLinha(E, id).situacao;
+  afirma(sit('L1') === 'associada' && N.subagrupadorDaLinha(E, 'L1').subagrupador.id === 'P', 'Linha com associação ativa a subagrupador ativo: "associada"');
+  afirma(sit('L2') === 'sem-subagrupador', 'Linha cuja associação foi encerrada: "sem-subagrupador" (o histórico continua lá)');
+  afirma(sit('L3') === 'subagrupador-encerrado', 'Linha associada a subagrupador encerrado: aparece como sem subagrupador, sem nada em cascata');
+  afirma(sit('L4') === 'sem-subagrupador' && sit('AE') === 'nao-se-aplica', 'Linha nunca associada: "sem-subagrupador"; Área Especializada: "nao-se-aplica"');
+  afirma(N.linhasDoSubagrupador(E, 'P').map((s) => s.id).join() === 'L1', 'Linhas dentro de um subagrupador: só as ATIVAS associadas a ele (a encerrada some do Mapa)');
+  afirma(N.linhasDoSubagrupador(E, 'Z').length === 0, 'subagrupador encerrado não tem Linhas no Mapa');
+  afirma(N.violacoesDeUnicidade(E).length === 0, 'estado consistente: nenhuma Linha com duas associações ativas');
+  const duplo = JSON.parse(JSON.stringify(E)); duplo.associacoesSubagrupador.a9 = as('a9', 'L1', 'C');
+  afirma(N.violacoesDeUnicidade(duplo).length === 1 && N.violacoesDeUnicidade(duplo)[0].codigo === 'LINHA_JA_ASSOCIADA', 'duas associações ativas da mesma Linha: violação que a persistência recusa');
+  const r = N.associarLinha(E, { estruturaId: 'L4', subagrupadorId: 'C' }, { operacaoId: 'op', novoId: 'n1', usuario: u, agora: 5 });
+  const ap = r.ok && N.aplicar(E, r.mudancas);
+  afirma(ap && ap.ok && N.subagrupadorDaLinha(ap.estado, 'L4').situacao === 'associada' && E.associacoesSubagrupador.n1 === undefined, 'aplicar() grava a associação sem tocar no estado recebido');
+}
+
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);

@@ -1,0 +1,2393 @@
+{
+  "conjunto": "mapa-subagrupadores",
+  "versao": 1,
+  "formato": 2,
+  "descricao": "Subagrupadores das Linhas de Negócios (agrupamento de apresentação do Mapa da Floresta) e associação Linha × subagrupador — decisão A aprovada pela dona do repositório (Etapa 5). Esperado escrito a partir das regras aprovadas, nunca calculado pelo núcleo.",
+  "usuarios": {
+    "arq": {
+      "id": "u-arquitetura",
+      "email": "arquitetura@exemplo.com"
+    },
+    "adm": {
+      "id": "u-admin",
+      "email": "admin@exemplo.com"
+    }
+  },
+  "referencias": {
+    "padrao": {
+      "conceitos": {
+        "NEGOCIOS": {
+          "ativo": true
+        },
+        "AREA_ESPECIALIZADA": {
+          "ativo": true
+        },
+        "PLATAFORMA_CANAIS": {
+          "ativo": true
+        }
+      },
+      "ligacoes": {
+        "NEGOCIOS": "NEGOCIOS",
+        "AREA_ESPECIALIZADA": "AREA_ESPECIALIZADA",
+        "PLATAFORMA_CANAIS": "PLATAFORMA_CANAIS"
+      }
+    }
+  },
+  "cenarios": [
+    {
+      "id": "S01",
+      "titulo": "Criar subagrupadores: sem ordem vai para o fim; com ordem, fica onde foi pedido",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s01-1",
+            "novoId": "SG-P",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Proteção"
+          },
+          "ctx": {
+            "operacaoId": "op-s01-2",
+            "novoId": "SG-R",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Crédito",
+            "ordem": 15
+          },
+          "ctx": {
+            "operacaoId": "op-s01-3",
+            "novoId": "SG-C",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-P": {
+            "id": "SG-P",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          },
+          "SG-R": {
+            "id": "SG-R",
+            "bloco": "NEGOCIOS",
+            "nome": "Proteção",
+            "ordem": 20,
+            "situacao": "ativo",
+            "criadoEm": 1791800002000,
+            "criadoPor": "arq",
+            "revisao": 1
+          },
+          "SG-C": {
+            "id": "SG-C",
+            "bloco": "NEGOCIOS",
+            "nome": "Crédito",
+            "ordem": 15,
+            "situacao": "ativo",
+            "criadoEm": 1791800003000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s01-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-P",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s01-2:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-R",
+          "usuario": "arq",
+          "em": 1791800002000
+        },
+        {
+          "id": "op-s01-3:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-C",
+          "usuario": "arq",
+          "em": 1791800003000
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "titulo": "Validação: nome obrigatório e com tamanho máximo, ordem numérica, espaços nas pontas removidos, contexto completo",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "   "
+          },
+          "ctx": {
+            "operacaoId": "op-s02-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "CAMPO_OBRIGATORIO"
+            ]
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nomeRepetido": {
+              "caractere": "a",
+              "vezes": 201
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-s02-2",
+            "novoId": "V-2",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "CAMPO_LONGO_DEMAIS"
+            ]
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Crédito",
+            "ordem": "primeiro"
+          },
+          "ctx": {
+            "operacaoId": "op-s02-3",
+            "novoId": "V-3",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "CAMPO_INVALIDO"
+            ]
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s02-4",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "CONTEXTO_SEM_IDENTIFICADOR"
+            ]
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "  Previdência  "
+          },
+          "ctx": {
+            "operacaoId": "op-s02-5",
+            "novoId": "V-5",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "V-5": {
+            "id": "V-5",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800005000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s02-5:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "V-5",
+          "usuario": "arq",
+          "em": 1791800005000
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "titulo": "Renomear e ordenar com histórico; só nome e ordem mudam; nada a alterar; revisão desatualizada",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdencia"
+          },
+          "ctx": {
+            "operacaoId": "op-s03-1",
+            "novoId": "SG-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "alterarSubagrupador",
+          "entrada": {
+            "id": "SG-1",
+            "alteracoes": {
+              "nome": "Previdência"
+            },
+            "justificativa": "Acentuação.",
+            "revisaoEsperada": 1
+          },
+          "ctx": {
+            "operacaoId": "op-s03-2",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "alterarSubagrupador",
+          "entrada": {
+            "id": "SG-1",
+            "alteracoes": {
+              "ordem": 5
+            },
+            "revisaoEsperada": 2
+          },
+          "ctx": {
+            "operacaoId": "op-s03-3",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "alterarSubagrupador",
+          "entrada": {
+            "id": "SG-1",
+            "alteracoes": {
+              "nome": "Previdência"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-s03-4",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "NADA_A_ALTERAR"
+            ]
+          }
+        },
+        {
+          "operacao": "alterarSubagrupador",
+          "entrada": {
+            "id": "SG-1",
+            "alteracoes": {
+              "bloco": "COE"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-s03-5",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "CAMPO_NAO_ALTERAVEL"
+            ]
+          }
+        },
+        {
+          "operacao": "alterarSubagrupador",
+          "entrada": {
+            "id": "SG-1",
+            "alteracoes": {
+              "nome": "Outro"
+            },
+            "revisaoEsperada": 1
+          },
+          "ctx": {
+            "operacaoId": "op-s03-6",
+            "usuario": "arq",
+            "agora": 1791800006000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "REVISAO_DESATUALIZADA"
+            ]
+          }
+        },
+        {
+          "operacao": "alterarSubagrupador",
+          "entrada": {
+            "id": "SG-X",
+            "alteracoes": {
+              "nome": "Outro"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-s03-7",
+            "usuario": "arq",
+            "agora": 1791800007000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SUBAGRUPADOR_INEXISTENTE"
+            ]
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-1": {
+            "id": "SG-1",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 5,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 3,
+            "alteradoEm": 1791800003000,
+            "alteradoPor": "arq"
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s03-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-1",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s03-2:1",
+          "tipo": "subagrupador.alterado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-1",
+          "usuario": "arq",
+          "em": 1791800002000,
+          "campos": [
+            "nome"
+          ],
+          "justificativa": "Acentuação."
+        },
+        {
+          "id": "op-s03-3:1",
+          "tipo": "subagrupador.alterado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-1",
+          "usuario": "arq",
+          "em": 1791800003000,
+          "campos": [
+            "ordem"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "titulo": "Encerrar com motivo obrigatório; encerrado não muda nem é reativado; identificador nunca reaproveitado",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Proteção"
+          },
+          "ctx": {
+            "operacaoId": "op-s04-1",
+            "novoId": "SG-E",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "encerrarSubagrupador",
+          "entrada": {
+            "id": "SG-E",
+            "motivo": "  "
+          },
+          "ctx": {
+            "operacaoId": "op-s04-2",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "MOTIVO_OBRIGATORIO"
+            ]
+          }
+        },
+        {
+          "operacao": "encerrarSubagrupador",
+          "entrada": {
+            "id": "SG-E",
+            "motivo": "Agrupamento substituído por Previdência.",
+            "revisaoEsperada": 1
+          },
+          "ctx": {
+            "operacaoId": "op-s04-3",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "alterarSubagrupador",
+          "entrada": {
+            "id": "SG-E",
+            "alteracoes": {
+              "nome": "Proteção e Seguros"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-s04-4",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SUBAGRUPADOR_ENCERRADO"
+            ]
+          }
+        },
+        {
+          "operacao": "encerrarSubagrupador",
+          "entrada": {
+            "id": "SG-E",
+            "motivo": "De novo."
+          },
+          "ctx": {
+            "operacaoId": "op-s04-5",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SUBAGRUPADOR_ENCERRADO"
+            ]
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Proteção"
+          },
+          "ctx": {
+            "operacaoId": "op-s04-6",
+            "novoId": "SG-E",
+            "usuario": "arq",
+            "agora": 1791800006000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "IDENTIFICADOR_JA_USADO"
+            ]
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-E": {
+            "id": "SG-E",
+            "bloco": "NEGOCIOS",
+            "nome": "Proteção",
+            "ordem": 10,
+            "situacao": "encerrado",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Agrupamento substituído por Previdência.",
+              "em": 1791800003000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s04-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-E",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s04-3:1",
+          "tipo": "subagrupador.encerrado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-E",
+          "usuario": "arq",
+          "em": 1791800003000,
+          "motivo": "Agrupamento substituído por Previdência."
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "titulo": "Associar: só Linha de Negócios ativa, só subagrupador ativo, no máximo uma associação ativa por Linha",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-1",
+            "novoId": "SG-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-2",
+            "novoId": "A-1",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-3",
+            "novoId": "A-2",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "LINHA_JA_ASSOCIADA"
+            ]
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "AE-1",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-4",
+            "novoId": "A-3",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ESTRUTURA_NAO_ADMITE_SUBAGRUPADOR"
+            ]
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "LC-1",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-5",
+            "novoId": "A-4",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ESTRUTURA_NAO_ADMITE_SUBAGRUPADOR"
+            ]
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-ENC",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-6",
+            "novoId": "A-5",
+            "usuario": "arq",
+            "agora": 1791800006000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ESTRUTURA_ENCERRADA"
+            ]
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-X",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-7",
+            "novoId": "A-6",
+            "usuario": "arq",
+            "agora": 1791800007000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ESTRUTURA_INEXISTENTE"
+            ]
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-2",
+            "subagrupadorId": "SG-X"
+          },
+          "ctx": {
+            "operacaoId": "op-s05-8",
+            "novoId": "A-7",
+            "usuario": "arq",
+            "agora": 1791800008000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SUBAGRUPADOR_INEXISTENTE"
+            ]
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-1": {
+            "id": "SG-1",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        },
+        "associacoesSubagrupador": {
+          "A-1": {
+            "id": "A-1",
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-1",
+            "situacao": "ativa",
+            "criadaEm": 1791800002000,
+            "criadaPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s05-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-1",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s05-2:1",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800002000
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "titulo": "Trocar de subagrupador: a associação atual é encerrada e a nova criada na mesma operação, rastreáveis entre si",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s06-1",
+            "novoId": "SG-A",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Crédito"
+          },
+          "ctx": {
+            "operacaoId": "op-s06-2",
+            "novoId": "SG-B",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-A"
+          },
+          "ctx": {
+            "operacaoId": "op-s06-3",
+            "novoId": "A-1",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "substituirAssociacao",
+          "entrada": {
+            "associacaoId": "A-1",
+            "subagrupadorId": "SG-B",
+            "justificativa": "A Linha passou a integrar o portfólio de crédito."
+          },
+          "ctx": {
+            "operacaoId": "op-s06-4",
+            "novoId": "A-2",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "substituirAssociacao",
+          "entrada": {
+            "associacaoId": "A-2",
+            "subagrupadorId": "SG-B"
+          },
+          "ctx": {
+            "operacaoId": "op-s06-5",
+            "novoId": "A-3",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "NADA_A_ALTERAR"
+            ]
+          }
+        },
+        {
+          "operacao": "substituirAssociacao",
+          "entrada": {
+            "associacaoId": "A-1",
+            "subagrupadorId": "SG-A"
+          },
+          "ctx": {
+            "operacaoId": "op-s06-6",
+            "novoId": "A-4",
+            "usuario": "arq",
+            "agora": 1791800006000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ASSOCIACAO_ENCERRADA"
+            ]
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-A": {
+            "id": "SG-A",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          },
+          "SG-B": {
+            "id": "SG-B",
+            "bloco": "NEGOCIOS",
+            "nome": "Crédito",
+            "ordem": 20,
+            "situacao": "ativo",
+            "criadoEm": 1791800002000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        },
+        "associacoesSubagrupador": {
+          "A-1": {
+            "id": "A-1",
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-A",
+            "situacao": "encerrada",
+            "criadaEm": 1791800003000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "em": 1791800004000,
+              "por": "arq",
+              "substituidaPor": "A-2"
+            }
+          },
+          "A-2": {
+            "id": "A-2",
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-B",
+            "situacao": "ativa",
+            "criadaEm": 1791800004000,
+            "criadaPor": "arq",
+            "revisao": 1,
+            "substitui": "A-1"
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s06-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-A",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s06-2:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-B",
+          "usuario": "arq",
+          "em": 1791800002000
+        },
+        {
+          "id": "op-s06-3:1",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800003000
+        },
+        {
+          "id": "op-s06-4:1",
+          "tipo": "associacao.encerrada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800004000,
+          "justificativa": "A Linha passou a integrar o portfólio de crédito."
+        },
+        {
+          "id": "op-s06-4:2",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-2",
+          "usuario": "arq",
+          "em": 1791800004000,
+          "justificativa": "A Linha passou a integrar o portfólio de crédito."
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "titulo": "Tirar a Linha do subagrupador (volta a \"Sem subagrupador\") e associá-la de novo, sem apagar o histórico",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Crédito"
+          },
+          "ctx": {
+            "operacaoId": "op-s07-1",
+            "novoId": "SG-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-2",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s07-2",
+            "novoId": "A-1",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "desassociarLinha",
+          "entrada": {
+            "associacaoId": "A-1",
+            "justificativa": "Associação feita por engano."
+          },
+          "ctx": {
+            "operacaoId": "op-s07-3",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "desassociarLinha",
+          "entrada": {
+            "associacaoId": "A-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s07-4",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ASSOCIACAO_ENCERRADA"
+            ]
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-2",
+            "subagrupadorId": "SG-1"
+          },
+          "ctx": {
+            "operacaoId": "op-s07-5",
+            "novoId": "A-2",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-1": {
+            "id": "SG-1",
+            "bloco": "NEGOCIOS",
+            "nome": "Crédito",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        },
+        "associacoesSubagrupador": {
+          "A-1": {
+            "id": "A-1",
+            "estruturaId": "L-2",
+            "subagrupadorId": "SG-1",
+            "situacao": "encerrada",
+            "criadaEm": 1791800002000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "em": 1791800003000,
+              "por": "arq"
+            }
+          },
+          "A-2": {
+            "id": "A-2",
+            "estruturaId": "L-2",
+            "subagrupadorId": "SG-1",
+            "situacao": "ativa",
+            "criadaEm": 1791800005000,
+            "criadaPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s07-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-1",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s07-2:1",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800002000
+        },
+        {
+          "id": "op-s07-3:1",
+          "tipo": "associacao.encerrada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800003000,
+          "justificativa": "Associação feita por engano."
+        },
+        {
+          "id": "op-s07-5:1",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-2",
+          "usuario": "arq",
+          "em": 1791800005000
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "titulo": "Encerrar subagrupador com Linha associada: nada em cascata; a Linha só sai dele por troca explícita",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s08-1",
+            "novoId": "SG-A",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Proteção"
+          },
+          "ctx": {
+            "operacaoId": "op-s08-2",
+            "novoId": "SG-B",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-A"
+          },
+          "ctx": {
+            "operacaoId": "op-s08-3",
+            "novoId": "A-1",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "encerrarSubagrupador",
+          "entrada": {
+            "id": "SG-A",
+            "motivo": "Agrupamento extinto."
+          },
+          "ctx": {
+            "operacaoId": "op-s08-4",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-2",
+            "subagrupadorId": "SG-A"
+          },
+          "ctx": {
+            "operacaoId": "op-s08-5",
+            "novoId": "A-2",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SUBAGRUPADOR_ENCERRADO"
+            ]
+          }
+        },
+        {
+          "operacao": "associarLinha",
+          "entrada": {
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-B"
+          },
+          "ctx": {
+            "operacaoId": "op-s08-6",
+            "novoId": "A-3",
+            "usuario": "arq",
+            "agora": 1791800006000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "LINHA_JA_ASSOCIADA"
+            ]
+          }
+        },
+        {
+          "operacao": "substituirAssociacao",
+          "entrada": {
+            "associacaoId": "A-1",
+            "subagrupadorId": "SG-B"
+          },
+          "ctx": {
+            "operacaoId": "op-s08-7",
+            "novoId": "A-4",
+            "usuario": "arq",
+            "agora": 1791800007000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-A": {
+            "id": "SG-A",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 10,
+            "situacao": "encerrado",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Agrupamento extinto.",
+              "em": 1791800004000,
+              "por": "arq"
+            }
+          },
+          "SG-B": {
+            "id": "SG-B",
+            "bloco": "NEGOCIOS",
+            "nome": "Proteção",
+            "ordem": 20,
+            "situacao": "ativo",
+            "criadoEm": 1791800002000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        },
+        "associacoesSubagrupador": {
+          "A-1": {
+            "id": "A-1",
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-A",
+            "situacao": "encerrada",
+            "criadaEm": 1791800003000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "em": 1791800007000,
+              "por": "arq",
+              "substituidaPor": "A-4"
+            }
+          },
+          "A-4": {
+            "id": "A-4",
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-B",
+            "situacao": "ativa",
+            "criadaEm": 1791800007000,
+            "criadaPor": "arq",
+            "revisao": 1,
+            "substitui": "A-1"
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s08-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-A",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s08-2:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-B",
+          "usuario": "arq",
+          "em": 1791800002000
+        },
+        {
+          "id": "op-s08-3:1",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800003000
+        },
+        {
+          "id": "op-s08-4:1",
+          "tipo": "subagrupador.encerrado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-A",
+          "usuario": "arq",
+          "em": 1791800004000,
+          "motivo": "Agrupamento extinto."
+        },
+        {
+          "id": "op-s08-7:1",
+          "tipo": "associacao.encerrada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800007000
+        },
+        {
+          "id": "op-s08-7:2",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-4",
+          "usuario": "arq",
+          "em": 1791800007000
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "titulo": "A mesma operação repetida não duplica nada",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s09-1",
+            "novoId": "SG-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s09-1",
+            "novoId": "SG-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "repetida"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-1": {
+            "id": "SG-1",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s09-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-1",
+          "usuario": "arq",
+          "em": 1791800001000
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "titulo": "Concorrência: duas pessoas associam a mesma Linha ao mesmo tempo — só a primeira entra",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Previdência"
+          },
+          "ctx": {
+            "operacaoId": "op-s10-1",
+            "novoId": "SG-A",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Crédito"
+          },
+          "ctx": {
+            "operacaoId": "op-s10-2",
+            "novoId": "SG-B",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "concorrentes": [
+            {
+              "operacao": "associarLinha",
+              "entrada": {
+                "estruturaId": "L-1",
+                "subagrupadorId": "SG-A"
+              },
+              "ctx": {
+                "operacaoId": "op-s10-3",
+                "novoId": "A-1",
+                "usuario": "arq",
+                "agora": 1791800003000
+              },
+              "esperado": {
+                "ok": true,
+                "situacao": "gravada"
+              }
+            },
+            {
+              "operacao": "associarLinha",
+              "entrada": {
+                "estruturaId": "L-1",
+                "subagrupadorId": "SG-B"
+              },
+              "ctx": {
+                "operacaoId": "op-s10-4",
+                "novoId": "A-2",
+                "usuario": "adm",
+                "agora": 1791800004000
+              },
+              "esperado": {
+                "ok": false,
+                "erros": [
+                  "CONFLITO_DE_REVISAO"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-A": {
+            "id": "SG-A",
+            "bloco": "NEGOCIOS",
+            "nome": "Previdência",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          },
+          "SG-B": {
+            "id": "SG-B",
+            "bloco": "NEGOCIOS",
+            "nome": "Crédito",
+            "ordem": 20,
+            "situacao": "ativo",
+            "criadoEm": 1791800002000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        },
+        "associacoesSubagrupador": {
+          "A-1": {
+            "id": "A-1",
+            "estruturaId": "L-1",
+            "subagrupadorId": "SG-A",
+            "situacao": "ativa",
+            "criadaEm": 1791800003000,
+            "criadaPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s10-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-A",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-s10-2:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-B",
+          "usuario": "arq",
+          "em": 1791800002000
+        },
+        {
+          "id": "op-s10-3:1",
+          "tipo": "associacao.criada",
+          "entidade": "associacao-subagrupador",
+          "entidadeId": "A-1",
+          "usuario": "arq",
+          "em": 1791800003000
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "titulo": "Sem resposta da gravação: confere no banco antes de dizer qualquer coisa",
+      "referencias": "padrao",
+      "estadoInicial": {
+        "estruturas": {
+          "L-1": {
+            "id": "L-1",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Investimentos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-2": {
+            "id": "L-2",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha de Crédito Consignado",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "AE-1": {
+            "id": "AE-1",
+            "tipo": "AREA_ESPECIALIZADA",
+            "nome": "Área de Riscos",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "LC-1": {
+            "id": "LC-1",
+            "tipo": "PLATAFORMA_CANAIS",
+            "nome": "Plataforma de Canais Digitais",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "ativa",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 1
+          },
+          "L-ENC": {
+            "id": "L-ENC",
+            "tipo": "NEGOCIOS",
+            "nome": "Linha Antiga",
+            "sigla": null,
+            "descricao": null,
+            "situacao": "encerrada",
+            "criadaEm": 1791713600000,
+            "criadaPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização",
+              "em": 1791796400000,
+              "por": "arq"
+            }
+          }
+        }
+      },
+      "passos": [
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Gravou sem responder"
+          },
+          "ctx": {
+            "operacaoId": "op-s11-1",
+            "novoId": "SG-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          },
+          "falhaPersistencia": "sem-resposta-depois-de-gravar"
+        },
+        {
+          "operacao": "criarSubagrupador",
+          "entrada": {
+            "nome": "Não gravou"
+          },
+          "ctx": {
+            "operacaoId": "op-s11-2",
+            "novoId": "SG-2",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "GRAVACAO_NAO_CONFIRMADA"
+            ]
+          },
+          "falhaPersistencia": "sem-resposta-sem-gravar"
+        }
+      ],
+      "estadoFinal": {
+        "subagrupadores": {
+          "SG-1": {
+            "id": "SG-1",
+            "bloco": "NEGOCIOS",
+            "nome": "Gravou sem responder",
+            "ordem": 10,
+            "situacao": "ativo",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-s11-1:1",
+          "tipo": "subagrupador.criado",
+          "entidade": "subagrupador",
+          "entidadeId": "SG-1",
+          "usuario": "arq",
+          "em": 1791800001000
+        }
+      ]
+    }
+  ]
+}

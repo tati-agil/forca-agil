@@ -9,8 +9,9 @@
  * Se os três batem com o mesmo 'esperado', os três dão o mesmo resultado de negócio.
  *
  * Uso: const R = require('./estruturas-cenarios'); await R.executar({ criarPortas, normalizarHorario, rotulo }).
- *   criarPortas(referencias) → portas novas e vazias para UM cenário (lerReferencias, lerEstado, gravar,
- *                              conferirOperacao, lerEventos);
+ *   criarPortas(referencias, estadoInicial) → portas novas para UM cenário (lerReferencias, lerEstado, gravar,
+ *                              conferirOperacao, lerEventos), já com o estadoInicial do cenário (formato 2: ex.
+ *                              Linhas cadastradas antes dos subagrupadores), ou vazias;
  *   normalizarHorario        → opcional: num banco que grava o horário do SERVIDOR, recebe (valorGravado,
  *                              valorDoCenario) e devolve o valor a comparar — só depois de conferir que veio do
  *                              servidor. Sem ele, o horário gravado tem de ser exatamente o do cenário.
@@ -25,6 +26,11 @@ const N = require(path.join(RAIZ, 'forca-agil', 'estruturas-nucleo.js'));
 const U = require(path.join(RAIZ, 'forca-agil', 'estruturas-casos-de-uso.js'));
 const MOTOR = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento-nucleo.js'));
 const ARQUIVO = path.join(__dirname, 'cenarios', 'estruturas-concretas.v1.json');
+const ARQUIVO_SUBAGRUPADORES = path.join(__dirname, 'cenarios', 'mapa-subagrupadores.v1.json');
+/* campos de horário por coleção (formato 2 do conjunto: estadoFinal por coleção) */
+const HORARIOS = { estruturas: ['criadaEm', 'alteradaEm', 'encerramento.em'], subagrupadores: ['criadoEm', 'alteradoEm', 'encerramento.em'], associacoesSubagrupador: ['criadaEm', 'encerramento.em'] };
+const ler = (o, c) => c.split('.').reduce((a, k) => (a && typeof a === 'object' ? a[k] : undefined), o);
+const por = (o, c, v) => { const p = c.split('.'); let a = o; for (let i = 0; i < p.length - 1; i++) a = a[p[i]]; a[p[p.length - 1]] = v; };
 
 function carregar(arquivo) {
   const bruto = fs.readFileSync(arquivo || ARQUIVO, 'utf8').replace(/\r\n/g, '\n');
@@ -34,7 +40,7 @@ function carregar(arquivo) {
 /* "arq" → { id, email } (usuários do conjunto); null continua null */
 function resolverUsuarios(v, usuarios) {
   if (Array.isArray(v)) return v.map((x) => resolverUsuarios(x, usuarios));
-  if (v && typeof v === 'object') { const o = {}; Object.keys(v).forEach((k) => { o[k] = ['usuario', 'criadaPor', 'alteradaPor', 'por'].indexOf(k) !== -1 && typeof v[k] === 'string' ? usuarios[v[k]] : resolverUsuarios(v[k], usuarios); }); return o; }
+  if (v && typeof v === 'object') { const o = {}; Object.keys(v).forEach((k) => { o[k] = ['usuario', 'criadaPor', 'alteradaPor', 'criadoPor', 'alteradoPor', 'por'].indexOf(k) !== -1 && typeof v[k] === 'string' ? usuarios[v[k]] : resolverUsuarios(v[k], usuarios); }); return o; }
   return v;
 }
 function entradaDe(passo) {
@@ -64,7 +70,8 @@ async function executar(opcoes) {
 
   for (const cen of conj.cenarios) {
     log(cen.id + ' ' + cen.titulo);
-    const portas = await opcoes.criarPortas(JSON.parse(JSON.stringify(conj.referencias[cen.referencias])));
+    const inicial = cen.estadoInicial ? resolverUsuarios(JSON.parse(JSON.stringify(cen.estadoInicial)), usuarios) : undefined;
+    const portas = await opcoes.criarPortas(JSON.parse(JSON.stringify(conj.referencias[cen.referencias])), inicial);
     const conferirResultado = (passo, r, rot) => {
       const esp = passo.esperado;
       const obtido = r.ok ? { ok: true, situacao: r.situacao } : { ok: false, erros: (r.erros || []).map((e) => e.codigo).sort() };
@@ -90,7 +97,18 @@ async function executar(opcoes) {
     /* estado e histórico gravados */
     const estado = await portas.lerEstado(), eventos = await portas.lerEventos();
     const estruturas = estado.estruturas || {};
-    if (cen.estadoFinal) {
+    if (cen.estadoFinal && conj.formato === 2) {
+      /* formato 2: uma comparação por coleção listada (as demais, como as Linhas do estado inicial, não entram) */
+      Object.keys(cen.estadoFinal).forEach((col) => {
+        const esperado = resolverUsuarios(cen.estadoFinal[col], usuarios), lidos = estado[col] || {}, obtido = {};
+        Object.keys(lidos).forEach((id) => {
+          const e = JSON.parse(JSON.stringify(lidos[id])), x = esperado[id] || {};
+          (HORARIOS[col] || []).forEach((c) => { const v = ler(e, c); if (v !== undefined) por(e, c, norm(v, ler(x, c))); });
+          obtido[id] = e;
+        });
+        afirma(ordenado(obtido) === ordenado(esperado), '  estado final gravado: ' + col, 'esperado ' + ordenado(esperado) + '\n        obtido ' + ordenado(obtido));
+      });
+    } else if (cen.estadoFinal) {
       const esperado = resolverUsuarios(cen.estadoFinal, usuarios);
       const obtido = {};
       Object.keys(estruturas).forEach((id) => {
@@ -107,7 +125,7 @@ async function executar(opcoes) {
       const esperado = resolverUsuarios(cen.eventos, usuarios);
       const obtido = eventos.map((ev, k) => {
         const x = esperado[k] || {}, o = { id: ev.id, tipo: ev.tipo, entidadeId: ev.entidadeId, usuario: ev.usuario, em: norm(ev.em, x.em) };
-        ['campos', 'justificativa', 'motivo'].forEach((c) => { if (c in x) o[c] = ev[c]; });
+        ['campos', 'justificativa', 'motivo', 'entidade'].forEach((c) => { if (c in x) o[c] = ev[c]; });
         return o;
       });
       afirma(ordenado(obtido) === ordenado(esperado), '  eventos de auditoria gravados (só os das operações aceitas, uma vez cada)', 'esperado ' + ordenado(esperado) + '\n        obtido ' + ordenado(obtido));
@@ -120,4 +138,4 @@ async function executar(opcoes) {
   return { total, falhas, conjunto: conj.conjunto, versao: conj.versao, sha256 };
 }
 
-module.exports = { executar, carregar, ARQUIVO };
+module.exports = { executar, carregar, ARQUIVO, ARQUIVO_SUBAGRUPADORES };

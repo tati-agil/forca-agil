@@ -195,7 +195,7 @@
     /* fonte do Mapa: 'cadastro' = estruturas cadastradas (só no AMBIENTE DE TESTES nesta etapa) | 'demo' = exemplos
        fictícios. As duas NUNCA se misturam: cada desenho usa uma só. Fora do ambiente de testes só existe 'demo'. */
     var fonte = cadastroDisponivel() ? 'cadastro' : 'demo';
-    var cadastro = { estruturas: undefined, erro: null, desligar: null };
+    var cadastro = { estruturas: undefined, subagrupadores: undefined, associacoes: undefined, erro: null, desligar: null };
 
     /* ---- painel e identidade da página (como o Posicionamento e a Squad) ---- */
     var identidadeOriginal = null;
@@ -493,8 +493,21 @@
        produtos ainda — Linhas de Negócios ficam em "Sem subagrupador"; nada é inventado) */
     function dados() {
       if (fonte !== 'cadastro') return demo();
-      if (cadastro.estruturas === undefined || cadastro.erro) return null;
-      return { estado: { estruturas: cadastro.estruturas, relacoes: {}, vinculos: {} }, subagrupadores: {}, associacoesSubagrupador: [], objetos: {}, ficticio: false };
+      if (cadastro.estruturas === undefined || cadastro.subagrupadores === undefined || cadastro.associacoes === undefined || cadastro.erro) return null;
+      return { estado: { estruturas: cadastro.estruturas, relacoes: {}, vinculos: {} }, subagrupadores: subagrupadoresCadastrados(), associacoesSubagrupador: associacoesCadastradas(), objetos: {}, ficticio: false };
+    }
+    /* Etapa 5: subagrupadores CADASTRADOS (agrupamento de apresentação das Linhas de Negócios), só os ativos, no formato
+       que o desenho aprovado já usa; associações só as ativas e de subagrupador ativo — quem tem associação com um
+       subagrupador encerrado fica em "Sem subagrupador" (situação calculada pelo núcleo, nada é alterado) */
+    function estadoSubagrupadores() { return { estruturas: cadastro.estruturas, subagrupadores: cadastro.subagrupadores, associacoesSubagrupador: cadastro.associacoes }; }
+    function subagrupadoresCadastrados() {
+      var out = {};
+      Est().subagrupadoresAtivos(estadoSubagrupadores()).forEach(function (g) { out[g.id] = { id: g.id, bloco: 'NEGOCIOS', nome: g.nome, ordem: g.ordem, situacao: 'ativo', icone: 'estrutura' }; });
+      return out;
+    }
+    function associacoesCadastradas() {
+      var E = estadoSubagrupadores();
+      return Object.keys(cadastro.estruturas).map(function (id) { var s = Est().subagrupadorDaLinha(E, id); return s.situacao === 'associada' ? { estruturaId: id, subagrupadorId: s.subagrupador.id } : null; }).filter(Boolean);
     }
     function ligarCadastro() {
       if (fonte !== 'cadastro' || cadastro.desligar || !window.faEstruturasFirebase) return;
@@ -502,11 +515,14 @@
          ligarCadastro de novo) antes de a ligação ser guardada */
       var desligarEsta = null;
       cadastro.desligar = function () { if (desligarEsta) desligarEsta(); };
-      desligarEsta = window.faEstruturasFirebase.ouvir(null, ['registros'], /* só leitura, pelo adaptador */ function (m) {
-        cadastro.estruturas = m.estruturas; cadastro.erro = null; if (!wrap.hidden && modo === 'mapa') render();
+      desligarEsta = window.faEstruturasFirebase.ouvir(null, ['registros', 'subagrupadores', 'associacoes'], /* só leitura, pelo adaptador */ function (m) {
+        if (m.estruturas) cadastro.estruturas = m.estruturas;
+        if (m.subagrupadores) cadastro.subagrupadores = m.subagrupadores;
+        if (m.associacoesSubagrupador) cadastro.associacoes = m.associacoesSubagrupador;
+        cadastro.erro = null; if (!wrap.hidden && modo === 'mapa') render();
       }, function (cod) { cadastro.erro = cod; if (!wrap.hidden && modo === 'mapa') render(); });
     }
-    function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = undefined; cadastro.erro = null; }
+    function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = cadastro.subagrupadores = cadastro.associacoes = undefined; cadastro.erro = null; }
     function blocoDoTipo(tipo) { return BLOCOS.filter(function (b) { return b.codigos.indexOf(tipo) !== -1; })[0] || null; }
     function estruturasDoBloco(b) {
       var D = dados();
@@ -525,17 +541,17 @@
       var D = dados();
       return Est().objetosDaEstrutura(D.estado, id).map(function (v) { return Object.assign({ id: v.objetoId, papel: v.papel }, D.objetos[v.objetoId] || { nome: v.objetoId }); });
     }
-    function caixasHtml(ests) {
-      if (!ests.length) return '<p class="mfm-vazio">' + (fonte === 'cadastro' ? 'Nenhuma estrutura cadastrada' : 'Sem estrutura de exemplo') + '</p>';
+    function caixasHtml(ests, vazio) {
+      if (!ests.length) return '<p class="mfm-vazio">' + (vazio || (fonte === 'cadastro' ? 'Nenhuma estrutura cadastrada' : 'Sem estrutura de exemplo')) + '</p>';
       return '<ul class="mfm-caixas" data-quantidade="' + ests.length + '">' + ests.map(function (e) {
         var ativo = e.id === selecionada;
         return '<li><button type="button" class="mfm-caixa' + (ativo ? ' mfm-caixa--ativa' : '') + '" data-estrutura="' + esc(e.id) + '" id="mfmNo-' + esc(e.id) + '" aria-pressed="' + ativo + '">' +
           icone('estrutura', 'mfm-caixa-ic') + '<span class="mfm-caixa-nome">' + esc(e.nome).replace(/ — /g, '\u00a0— ') + '</span></button></li>'; /* o travessão não começa linha */
       }).join('') + '</ul>';
     }
-    function subHtml(attrs, ic, tituloHtml, ests, n) {
+    function subHtml(attrs, ic, tituloHtml, ests, n, vazio) {
       /* grupo com muitas estruturas ocupa a largura inteira do bloco (sem virar torre estreita); quantidade nunca é fixa */
-      return '<div class="mfm-sub" ' + attrs + (n ? ' style="--n:' + n + '"' : '') + (ests.length >= 6 ? ' data-muitas=""' : '') + '><h4 class="mfm-sub-titulo">' + icone(ic, 'mfm-sub-ic') + '<span>' + tituloHtml + '</span></h4>' + caixasHtml(ests) + '</div>';
+      return '<div class="mfm-sub" ' + attrs + (n ? ' style="--n:' + n + '"' : '') + (ests.length >= 6 ? ' data-muitas=""' : '') + '><h4 class="mfm-sub-titulo">' + icone(ic, 'mfm-sub-ic') + '<span>' + tituloHtml + '</span></h4>' + caixasHtml(ests, vazio) + '</div>';
     }
     function blocoHtml(b) {
       var h = '<section class="mfm-bloco mfm-bloco--' + b.id + '" data-bloco="' + b.id + '" style="--cor:' + b.cor + '" aria-labelledby="mfmB-' + b.id + '">' +
@@ -545,7 +561,7 @@
         h += '<div class="mfm-subs">' + subagrupadoresDe(b).map(function (s) {
           var ests = todas.filter(function (e) { var sa = subagrupadorDaEstrutura(e.id); return sa && sa.id === s.id; });
           ests.forEach(function (e) { usadas[e.id] = true; });
-          return subHtml('data-subagrupador="' + esc(s.id) + '"', s.icone, esc(s.nome), ests, Math.min(4, Math.max(1, ests.length)));
+          return subHtml('data-subagrupador="' + esc(s.id) + '"', s.icone, esc(s.nome), ests, Math.min(4, Math.max(1, ests.length)), fonte === 'cadastro' ? 'Nenhuma Linha associada' : null);
         }).join('');
         var soltas = todas.filter(function (e) { return !usadas[e.id]; });
         if (soltas.length) h += subHtml('data-subagrupador=""', 'estrutura', 'Sem subagrupador', soltas, Math.min(4, soltas.length));
@@ -590,14 +606,15 @@
     function dataHora(v) { var t = Est().instante(v); return t === null ? '—' : new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
     function podeManterEstruturas() { var a = window.faAuth; return !!(a && ((a.isAdmin && a.isAdmin()) || (a.podeArquitetura && a.podeArquitetura()))); }
     function detalheCadastroHtml(e, b) {
-      var M = Mot(), linha = b && b.natureza === 'Linha';
+      var M = Mot(), linha = b && b.natureza === 'Linha', subCad = b && b.subagrupado ? subagrupadorDaEstrutura(e.id) : null;
       var h = '<aside class="mfm-detalhe" id="mfmDetalhe" style="--cor:' + (b ? b.cor : '#555') + '" aria-labelledby="mfmDetalheTitulo">' +
         '<button type="button" class="mfm-fechar" id="mfmFechar">← Voltar ao Mapa</button>' +
-        '<p class="mfm-caminho">' + (b ? icone(b.icone, 'mfm-caminho-ic') : '') + esc(b ? b.titulo : '') + (b && b.subagrupado ? ' › Sem subagrupador' : linha && b.porCodigo ? ' › ' + spanNome(e.tipo) : '') + '</p>' +
+        '<p class="mfm-caminho">' + (b ? icone(b.icone, 'mfm-caminho-ic') : '') + esc(b ? b.titulo : '') + (b && b.subagrupado ? ' › ' + esc(subCad ? subCad.nome : 'Sem subagrupador') : linha && b.porCodigo ? ' › ' + spanNome(e.tipo) : '') + '</p>' +
         '<h3 id="mfmDetalheTitulo" tabindex="-1">' + esc(e.nome) + '</h3>' +
         '<span class="mfm-badge-cadastrada">Estrutura cadastrada</span>' +
         '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
+        (b && b.subagrupado ? '<dt>Subagrupador</dt><dd id="mfmSubagrupador">' + (subCad ? esc(subCad.nome) : 'Sem subagrupador') + '</dd>' : '') +
         (e.sigla ? '<dt>Sigla</dt><dd>' + esc(e.sigla) + '</dd>' : '') +
         (e.descricao ? '<dt>Descrição</dt><dd class="mfm-descricao">' + esc(e.descricao) + '</dd>' : '') +
         squadsHtml(e.tipo, false) +
