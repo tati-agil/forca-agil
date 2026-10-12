@@ -41,6 +41,14 @@
     firme: 'Posicionamento efetivo firme',
     verificando: 'Verificando…'
   };
+  /* rótulo curto, para o filtro caber legível em 375 px; o completo fica na etiqueta de cada objeto */
+  var ROTULO_CURTO = {
+    'sem-base': 'Sem avaliação P1–P16 válida',
+    'sem-posicionamento': 'Sem Posicionamento',
+    'a-validar': 'A VALIDAR sem decisão',
+    firme: 'Posicionamento firme',
+    verificando: 'Verificando…'
+  };
 
   /* As três categorias do Mapa, derivadas do motor (nada listado à mão): Linha = os códigos firmes que formam
      Squads (o ramo Linha, pela tabela fixa do invariante); Área Especializada e CoE = os que não formam. */
@@ -143,7 +151,7 @@
   }
 
   window.faMapaFlorestaCatalogo = Object.freeze({
-    SITUACOES: SITUACOES.slice(), ROTULO_SITUACAO: Object.freeze(Object.assign({}, ROTULO_SITUACAO)),
+    SITUACOES: SITUACOES.slice(), ROTULO_SITUACAO: Object.freeze(Object.assign({}, ROTULO_SITUACAO)), ROTULO_CURTO: Object.freeze(Object.assign({}, ROTULO_CURTO)),
     categorias: categorias, categoriaDoCodigo: categoriaDoCodigo, situacaoDoItem: situacaoDoItem, montarCatalogo: montarCatalogo,
     filtrar: filtrar, contarPorSituacao: contarPorSituacao
   });
@@ -159,9 +167,8 @@
   function podeLer() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
   function autorizacaoResolvida() { return !!(window.faAuth && (!window.faAuth.isAvaliacaoReady || window.faAuth.isAvaliacaoReady())); }
   function sessaoEmail() { var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession(); return s && s.email ? String(s.email).toLowerCase() : null; }
-  var TEXTO_ESTRUTURAS = 'O cadastro e a consulta das Estruturas Organizacionais Concretas serão disponibilizados em um incremento posterior. ' +
-    'Por isso, este catálogo ainda não mostra estruturas reais nem associações de objetos a estruturas responsáveis. ' +
-    'Essa informação está indisponível nesta versão — o que não significa que ela não exista.';
+  var TEXTO_ESTRUTURAS = 'O cadastro e a consulta delas serão disponibilizados em um incremento posterior. ' +
+    'Até lá, este catálogo não mostra estruturas reais nem associações de objetos a estruturas responsáveis — o que não significa que elas não existam.';
 
   function montar() {
     var wrap = document.getElementById('avaliacoesMapa');
@@ -171,7 +178,7 @@
 
     function novoEstado() { return {
       produtos: undefined, registros: undefined, vigentes: undefined, decisoes: undefined,
-      erro: false, demorando: false, filtros: { situacao: '', posicionamento: '', busca: '' }
+      erro: false, demorando: false, filtros: { situacao: '', posicionamento: '', busca: '' }, categoriasAbertas: null
     }; }
     var state = novoEstado();
 
@@ -248,7 +255,7 @@
       var ativo = document.activeElement, foco = null;
       if (ativo && ativo.id && wrap.contains(ativo) && /^(INPUT|SELECT)$/.test(ativo.tagName)) foco = { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd };
       var h = '<button type="button" class="avp-voltar-link" id="mfVoltar">← Voltar para Avaliações</button>';
-      h += '<div class="avp-form-card mf-card" id="mfCatalogo"><h3>Catálogo preparatório do Mapa da Floresta</h3>' +
+      h += '<div class="avp-form-card mf-card" id="mfCatalogo">' +
         '<p class="avp-intro">O Mapa da Floresta vai representar as estruturas organizacionais concretas de três categorias. Os produtos, serviços e demais objetos avaliados ' +
         'não viram nós do Mapa: aparecerão indiretamente, nos detalhes da estrutura responsável, quando essa associação for registrada. ' +
         'Este catálogo mostra, a partir das avaliações já gravadas, em que ponto cada objeto está. Nada aqui é gravado.</p>' +
@@ -273,7 +280,12 @@
     }
 
     function renderCategorias(itens) {
-      var cs = cats(), h = '<section class="mf-secao" aria-labelledby="mfCategoriasTitulo"><h4 id="mfCategoriasTitulo">Categorias organizacionais do Mapa</h4>' +
+      var cs = cats(), linha = cs.filter(function (c) { return c.id === 'LINHA'; })[0];
+      if (state.categoriasAbertas === null) state.categoriasAbertas = !(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
+      var resumo = cs.map(function (c) { return spanNome(c.codigoNome) + (c.id === 'LINHA' ? ' (' + linha.codigos.length + ' tipos firmes)' : ''); }).join(' · ');
+      var h = '<details class="mf-secao mf-categorias-bloco" id="mfCategoriasBloco"' + (state.categoriasAbertas ? ' open' : '') + '>' +
+        '<summary class="mf-categorias-resumo"><span class="mf-categorias-titulo" id="mfCategoriasTitulo">Categorias organizacionais do Mapa</span>' +
+        '<span class="mf-categorias-lista" id="mfCategoriasResumo">' + resumo + '</span></summary>' +
         '<p class="mf-ajuda">Os tipos de estrutura vêm do Posicionamento Organizacional (O1–O9); os nomes, da Taxonomia Organizacional. A contagem é dos objetos cujo posicionamento efetivo está na categoria — não de estruturas.</p>' +
         '<ul class="mf-categorias" id="mfCategorias">';
       cs.forEach(function (c) {
@@ -290,7 +302,7 @@
       h += '</ul>';
       var cods = []; cs.forEach(function (c) { cods.push(c.codigoNome); c.codigos.forEach(function (k) { if (cods.indexOf(k) === -1) cods.push(k); }); });
       if (P() && P().precisaAviso(cods)) h += P().avisoHtml(cods, 'mfAvisoContingencia');
-      return h + '</section>';
+      return h + '</details>';
     }
 
     function renderCatalogo(itens) {
@@ -299,12 +311,13 @@
       if (!itens.length) return h + '<p class="admin-empty" id="mfVazio">Nenhum objeto avaliado no catálogo: não há Avaliação de Produto/Serviço registrada fora da Lixeira.</p></section>';
       h += '<div class="mf-filtros" id="mfFiltros">' +
         '<div class="avp-field"><label for="mfFiltroSituacao">Situação</label><select id="mfFiltroSituacao"><option value="">Todas (' + itens.length + ')</option>' +
-        C.SITUACOES.concat(cont.verificando ? ['verificando'] : []).map(function (s) { return '<option value="' + s + '"' + (f.situacao === s ? ' selected' : '') + '>' + esc(C.ROTULO_SITUACAO[s]) + ' (' + (cont[s] || 0) + ')</option>'; }).join('') + '</select></div>' +
+        C.SITUACOES.concat(cont.verificando ? ['verificando'] : []).map(function (s) { return '<option value="' + s + '"' + (f.situacao === s ? ' selected' : '') + '>' + esc(C.ROTULO_CURTO[s]) + ' (' + (cont[s] || 0) + ')</option>'; }).join('') + '</select></div>' +
         '<div class="avp-field"><label for="mfFiltroPosicionamento">Posicionamento efetivo</label><select id="mfFiltroPosicionamento"><option value="">Todos</option>';
       cs.forEach(function (c) {
         if (c.id === 'LINHA') {
-          h += '<option value="LINHA"' + (f.posicionamento === 'LINHA' ? ' selected' : '') + '>' + esc(nomeTexto('LINHA')) + ' (todas as especializações)</option>';
-          c.codigos.forEach(function (k) { h += '<option value="' + esc(k) + '"' + (f.posicionamento === k ? ' selected' : '') + '>— ' + esc(nomeTexto(k)) + '</option>'; });
+          h += '<optgroup label="' + esc(nomeTexto('LINHA')) + '"><option value="LINHA"' + (f.posicionamento === 'LINHA' ? ' selected' : '') + '>' + esc(nomeTexto('LINHA')) + ' (todas)</option>';
+          c.codigos.forEach(function (k) { h += '<option value="' + esc(k) + '"' + (f.posicionamento === k ? ' selected' : '') + '>' + esc(nomeTexto(k)) + '</option>'; });
+          h += '</optgroup>';
         } else h += '<option value="' + esc(c.id) + '"' + (f.posicionamento === c.id ? ' selected' : '') + '>' + esc(nomeTexto(c.codigoNome)) + '</option>';
       });
       h += '</select></div>' +
@@ -344,7 +357,7 @@
         if (x.rascunhoId) h += '<dt>Posicionamento</dt><dd>Há um rascunho de Posicionamento Organizacional em andamento.</dd>';
       } else h += '<dt>Situação</dt><dd>Verificando a versão do motor da Avaliação de Produto/Serviço…</dd>';
       if (x.alertaBase) h += '<dt>Atenção</dt><dd class="mf-alerta" data-alerta="' + esc(x.alertaBase) + '">' + esc(ROTULO_ALERTA[x.alertaBase] || ((N.ROTULO_GATE && N.ROTULO_GATE[x.alertaBase]) || x.alertaBase)) + '</dd>';
-      h += '<dt>Estrutura responsável</dt><dd class="mf-indisponivel">Informação indisponível nesta versão</dd></dl><div class="mf-item-acoes">';
+      h += '</dl><div class="mf-item-acoes">';
       if (x.posicionamento) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.posicionamento.avaliacaoId) + '">Abrir Posicionamento</a>';
       else if (x.rascunhoId) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.rascunhoId) + '">Abrir rascunho do Posicionamento</a>';
       if (x.chaveBase) h += '<a class="btn btn--sm mf-abrir-avp" href="#avaliacoes?' + (x.statusBase === 'rascunho' ? 'editar=' : 'avp=') + encodeURIComponent(x.chaveBase) + '">Abrir Avaliação de Produto/Serviço</a>';
@@ -366,6 +379,7 @@
       var fp = byId('mfFiltroPosicionamento'); if (fp) fp.addEventListener('change', function () { state.filtros.posicionamento = fp.value; render(); });
       var b = byId('mfBusca'); if (b) b.addEventListener('input', function () { state.filtros.busca = b.value; render(); });
       var l = byId('mfLimparFiltros'); if (l) l.addEventListener('click', function () { state.filtros = { situacao: '', posicionamento: '', busca: '' }; render(); var s = byId('mfFiltroSituacao'); if (s) s.focus(); });
+      var bloco = byId('mfCategoriasBloco'); if (bloco) bloco.addEventListener('toggle', function () { state.categoriasAbertas = bloco.open; });
       Array.prototype.forEach.call(wrap.querySelectorAll('.mf-filtrar-categoria'), function (btn) {
         btn.addEventListener('click', function () {
           state.filtros = { situacao: 'firme', posicionamento: btn.getAttribute('data-categoria'), busca: '' };

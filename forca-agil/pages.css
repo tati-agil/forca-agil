@@ -2908,6 +2908,24 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-badge--sem-posicionamento { border-color: rgba(245,197,24,.45); color: var(--gold-soft); background: rgba(245,197,24,.08); }
 .mf-badge--sem-base { border-color: rgba(255,59,48,.5); color: #ffb3ad; background: rgba(255,59,48,.08); }
 .mf-erro { margin: 8px 0; }
+/* categorias recolhíveis (recolhidas no celular): o resumo mostra só os tipos, nunca contagem de estruturas */
+.mf-categorias-bloco { border: 1px solid var(--line-strong); border-radius: 10px; padding: 0 14px; }
+.mf-categorias-bloco[open] { padding-bottom: 14px; }
+.mf-categorias-resumo { cursor: pointer; display: grid; gap: 4px; padding: 12px 0; list-style: none; }
+.mf-categorias-resumo::-webkit-details-marker { display: none; }
+.mf-categorias-titulo { font-weight: 600; color: var(--ink); }
+.mf-categorias-titulo::before { content: '▸ '; color: var(--cyan); }
+.mf-categorias-bloco[open] .mf-categorias-titulo::before { content: '▾ '; }
+.mf-categorias-lista { font-size: .82rem; color: var(--ink-3); overflow-wrap: anywhere; }
+.mf-categorias-resumo:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+/* áreas de toque de pelo menos 44 px — só no Catálogo, sem mexer nos componentes do site */
+#avaliacoesMapa .avp-voltar-link, #avaliacoesMapa .btn, #avaliacoesMapa select, #avaliacoesMapa input[type="search"], #avaliacoesMapa .mf-categorias-resumo { min-height: 44px; box-sizing: border-box; }
+#avaliacoesMapa .btn, #avaliacoesMapa .avp-voltar-link { display: inline-flex; align-items: center; justify-content: center; }
+/* celular: os nomes oficiais das especializações (vindos da Taxonomia) precisam caber no filtro */
+@media (max-width: 480px) {
+  #avaliacoesMapa .mf-card { padding-left: 12px; padding-right: 12px; }
+  #avaliacoesMapa .mf-filtros select { font-size: .8rem; padding-left: 8px; padding-right: 8px; }
+}
 @media (max-width: 480px) {
   .mf-detalhes { grid-template-columns: 1fr; }
   .mf-detalhes dd { margin-bottom: 6px; }

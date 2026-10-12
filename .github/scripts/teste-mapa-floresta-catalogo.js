@@ -156,6 +156,17 @@ async function principal(browser, viewport, rotulo) {
   afirma(await page.evaluate(() => location.hash) === '#avaliacoes?mf=catalogo', 'endereço próprio #avaliacoes?mf=catalogo');
   afirma(/Catálogo preparatório do Mapa da Floresta/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'título "Catálogo preparatório do Mapa da Floresta" (não o Mapa visual)');
   afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de Avaliações fica por baixo, escondida');
+  afirma((await page.evaluate(() => (document.body.innerText.match(/Catálogo preparatório do Mapa da Floresta/g) || []).length)) === 1, 'o título aparece uma vez só (sem repetir no cartão)');
+
+  /* 0. categorias recolhíveis: recolhidas no celular, abertas na tela larga; o resumo mostra tipos, nunca contagem de estruturas */
+  const celular = viewport === CELULAR;
+  afirma(await page.locator('#mfCategoriasBloco').evaluate((d) => d.open) === !celular, celular ? 'celular: categorias começam recolhidas' : 'desktop: categorias começam abertas');
+  const resumo = await texto(page, '#mfCategoriasResumo');
+  afirma(/6 tipos firmes/.test(resumo) && !/estrutura/i.test(resumo) && !/d+s+(Linhas|estruturas|CoEs|Áreas)/i.test(resumo), 'resumo: Linha (6 tipos firmes) · Área Especializada · CoE — sem contagem de estruturas', resumo);
+  if (celular) {
+    await page.click('#mfCategoriasBloco > summary');
+    afirma(await page.locator('#mfCategoriasBloco').evaluate((d) => d.open) && await page.locator('#mfCategorias').isVisible(), 'tocar no resumo expande as categorias');
+  }
 
   /* 1. categorias (os nomes chegam da Taxonomia depois do catálogo: a tela troca no lugar) */
   await esperarCondicao(page, () => /Tx LINHA/.test((document.querySelector('.mf-categoria[data-categoria="LINHA"] .mf-categoria-nome') || {}).textContent || ''), null, { limite: 10000, descricao: 'nome da Taxonomia na categoria Linha' });
@@ -171,8 +182,8 @@ async function principal(browser, viewport, rotulo) {
   const corpo = await texto(page, '#avaliacoesMapa');
   afirma(/informação indisponível nesta versão/i.test(await texto(page, '#mfAvisoEstruturas')) && /incremento posterior/.test(await texto(page, '#mfAvisoEstruturas')), 'aviso: Estruturas Concretas indisponíveis nesta versão, em incremento posterior');
   afirma(!/nenhuma estrutura/i.test(corpo) && !/sem responsável|responsável ausente|vínculo válido|a revisar/i.test(corpo), 'nunca "nenhuma estrutura", "sem responsável", vínculo válido ou a revisar');
-  const nItens = await page.locator('#mfItens .mf-item').count();
-  afirma(await page.locator('#mfItens .mf-indisponivel').count() === nItens && /Informação indisponível nesta versão/.test(await texto(page, '#mfItens .mf-item >> nth=0')), 'cada objeto: "Estrutura responsável — Informação indisponível nesta versão"');
+  afirma((corpo.match(/indisponível nesta versão/gi) || []).length === 1 && !/Estrutura responsável/.test(await texto(page, '#mfItens')),
+    'um aviso geral, uma vez só; os cartões não repetem "Estrutura responsável — indisponível"');
 
   /* 3. catálogo */
   const vistos = await itensVisiveis(page);
@@ -207,6 +218,7 @@ async function principal(browser, viewport, rotulo) {
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pDiv']), 'busca pelo nome');
   await page.click('#mfLimparFiltros');
   afirma((await itensVisiveis(page)).length === 10 && await page.locator('#mfLimparFiltros').count() === 0, 'limpar filtros');
+  if (!(await page.locator('#mfCategoriasBloco').evaluate((d) => d.open))) await page.click('#mfCategoriasBloco > summary');
   await page.click('.mf-filtrar-categoria[data-categoria="AREA_ESPECIALIZADA"]');
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pAE']), '"Ver no catálogo" da categoria filtra por ela');
   await page.click('#mfLimparFiltros');
@@ -228,12 +240,41 @@ async function principal(browser, viewport, rotulo) {
   /* 6. nada gravado (e, antes, nada cortado dentro dos cartões — rolagem horizontal da página não pega isso) */
   await page.click('#avpMapaFlorestaBtn');
   await page.waitForSelector('#mfItens');
+  const pequenos = await page.$$eval('#avaliacoesMapa button, #avaliacoesMapa a, #avaliacoesMapa select, #avaliacoesMapa input, #avaliacoesMapa summary',
+    (els) => els.filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height < 44; }).map((e) => (e.id || e.className) + ':' + Math.round(e.getBoundingClientRect().height)));
+  afirma(!pequenos.length, 'áreas de toque do Catálogo com pelo menos 44 px de altura', pequenos.join(', '));
   const cortados = await page.$$eval('#avaliacoesMapa .mf-categoria, #avaliacoesMapa .mf-item, #avaliacoesMapa .mf-filtros', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className + ':' + (e.getAttribute('data-categoria') || e.getAttribute('data-item') || '')));
   afirma(!cortados.length, 'nenhum cartão ou filtro transborda a largura da tela', cortados.join(', '));
   await page.click('#mfVoltar');
   await page.waitForSelector('#avpMapaFlorestaBtn');
   afirma(await banco(page) === antes, 'nenhuma gravação: o banco inteiro é o mesmo antes e depois');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+}
+
+async function legibilidade(browser) {
+  console.log('[celular 375] 4b. rótulos dos filtros cabem legíveis (nomes realistas)');
+  const db = semente(), FABRICA = { LINHA: 'Linha', ESTRATEGIA_CLIENTES: 'Linha de Estratégia de Clientes', NEGOCIOS: 'Linha de Negócios', PLATAFORMA: 'Linha de Plataforma',
+    PLATAFORMA_CANAIS: 'Plataforma de Canais', PLATAFORMA_HABILITADORA_NEGOCIOS: 'Plataforma Habilitadora de Negócios', PLATAFORMA_HABILITADORA_TECNOLOGIA: 'Plataforma Habilitadora de Tecnologia',
+    PLATAFORMA_CORPORATIVA: 'Plataforma de Gestão Corporativa', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência (CoE)' };
+  Object.keys(FABRICA).forEach((k) => { db.taxonomia.organizacional.conceitos[k].nome = FABRICA[k]; });
+  const { ctx, page, erros } = await abrir(browser, CELULAR, '#avaliacoes?mf=catalogo', ARQ, { db });
+  await page.waitForSelector('#mfItens');
+  /* espera os nomes OFICIAIS chegarem (o rótulo de contingência também diz "Centro de Excelência"): o estado do módulo tem de ser 'ok' */
+  await esperarCondicao(page, () => !!(window.faPosicionamentos && window.faPosicionamentos.estado() === 'ok') && /Plataforma Habilitadora de Tecnologia/.test((document.getElementById('mfFiltroPosicionamento') || {}).textContent || ''), null, { limite: 10000, descricao: 'nomes da Taxonomia nos filtros' });
+  const nSelects = await page.locator('#mfFiltros select').count();
+  afirma(nSelects === 2, 'os dois filtros estão na tela para a medição', String(nSelects));
+  const cortados = await page.$$eval('#mfFiltros select', (sels) => {
+    const ctx2 = document.createElement('canvas').getContext('2d'), fora = [];
+    sels.forEach((s) => {
+      const cs = getComputedStyle(s); ctx2.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const util = s.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 20; /* 20 px da seta */
+      Array.from(s.options).forEach((o) => { const w = ctx2.measureText(o.textContent).width; if (w > util) fora.push(s.id + ': "' + o.textContent + '" ' + Math.round(w) + '>' + Math.round(util)); });
+    });
+    return fora;
+  });
+  afirma(!cortados.length, 'nenhuma opção dos filtros é cortada em 375 px', cortados.join(' | '));
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
@@ -289,6 +330,7 @@ async function demora(browser) {
     for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) {
       await principal(browser, vp, r); await perfis(browser, vp, r); await rede(browser, vp, r);
     }
+    await legibilidade(browser);
     await demora(browser);
   } catch (e) { console.log('ERRO', e && e.stack || e); falhas++; }
   await browser.close();
