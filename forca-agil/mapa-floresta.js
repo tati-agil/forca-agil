@@ -178,7 +178,7 @@
 
     function novoEstado() { return {
       produtos: undefined, registros: undefined, vigentes: undefined, decisoes: undefined,
-      erro: false, demorando: false, filtros: { situacao: '', posicionamento: '', busca: '' }, categoriasAbertas: null
+      erro: false, demorando: false, filtros: { situacao: '', posicionamento: '', busca: '' }, categoriasAbertas: null, posicionamentoAberto: null
     }; }
     var state = novoEstado();
 
@@ -312,23 +312,41 @@
       h += '<div class="mf-filtros" id="mfFiltros">' +
         '<div class="avp-field"><label for="mfFiltroSituacao">Situação</label><select id="mfFiltroSituacao"><option value="">Todas (' + itens.length + ')</option>' +
         C.SITUACOES.concat(cont.verificando ? ['verificando'] : []).map(function (s) { return '<option value="' + s + '"' + (f.situacao === s ? ' selected' : '') + '>' + esc(C.ROTULO_CURTO[s]) + ' (' + (cont[s] || 0) + ')</option>'; }).join('') + '</select></div>' +
-        '<div class="avp-field"><label for="mfFiltroPosicionamento">Posicionamento efetivo</label><select id="mfFiltroPosicionamento"><option value="">Todos</option>';
-      cs.forEach(function (c) {
-        if (c.id === 'LINHA') {
-          h += '<optgroup label="' + esc(nomeTexto('LINHA')) + '"><option value="LINHA"' + (f.posicionamento === 'LINHA' ? ' selected' : '') + '>' + esc(nomeTexto('LINHA')) + ' (todas)</option>';
-          c.codigos.forEach(function (k) { h += '<option value="' + esc(k) + '"' + (f.posicionamento === k ? ' selected' : '') + '>' + esc(nomeTexto(k)) + '</option>'; });
-          h += '</optgroup>';
-        } else h += '<option value="' + esc(c.id) + '"' + (f.posicionamento === c.id ? ' selected' : '') + '>' + esc(nomeTexto(c.codigoNome)) + '</option>';
-      });
-      h += '</select></div>' +
         '<div class="avp-field"><label for="mfBusca">Buscar pelo nome</label><input type="search" id="mfBusca" value="' + esc(f.busca) + '" autocomplete="off"></div>' +
-        '</div>';
+        renderFiltroPosicionamento(cs, f) + '</div>';
       var recortado = !!(f.situacao || f.posicionamento || String(f.busca || '').trim());
       h += '<div class="mf-contador-linha"><span class="avp-total" id="mfContador" aria-live="polite">' + (recortado ? vis.length + ' de ' + itens.length : itens.length) + ' objeto' + (itens.length === 1 ? '' : 's') + '</span>' +
         (recortado ? ' <button type="button" class="btn btn--sm" id="mfLimparFiltros">Limpar filtros</button>' : '') + '</div>';
       if (!vis.length) return h + '<p class="admin-empty" id="mfNenhumFiltro">Nenhum objeto com esses filtros.</p></section>';
       h += '<ul class="mf-itens" id="mfItens">' + vis.map(renderItem).join('') + '</ul>';
       return h + '</section>';
+    }
+
+    /* "Posicionamento efetivo": opções de rádio com o nome oficial INTEIRO (o texto quebra linha, com qualquer fonte e
+       qualquer tamanho de nome — uma lista suspensa cortava os nomes longos). O valor de cada opção é o CÓDIGO estável
+       do motor (ou o id da categoria); o nome exibido vem da Taxonomia e pode mudar sem afetar o filtro. Recolhível:
+       fechado no celular, aberto na tela larga; o resumo diz o que está escolhido. */
+    function renderFiltroPosicionamento(cs, f) {
+      if (state.posicionamentoAberto === null) state.posicionamentoAberto = !(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
+      var opcoes = [{ valor: '', nome: 'Todos' }];
+      cs.forEach(function (c) {
+        if (c.id === 'LINHA') {
+          opcoes.push({ valor: 'LINHA', nome: nomeTexto('LINHA') + ' (todas)' });
+          c.codigos.forEach(function (k) { opcoes.push({ valor: k, nome: nomeTexto(k), sub: true }); });
+        } else opcoes.push({ valor: c.id, nome: nomeTexto(c.codigoNome) });
+      });
+      var atual = opcoes.filter(function (o) { return o.valor === (f.posicionamento || ''); })[0] || opcoes[0];
+      var h = '<details class="mf-filtro-posic" id="mfFiltroPosicionamentoBloco"' + (state.posicionamentoAberto ? ' open' : '') + '>' +
+        '<summary class="mf-filtro-posic-resumo"><span class="mf-filtro-posic-titulo">Posicionamento efetivo</span> ' +
+        '<span class="mf-filtro-posic-atual" id="mfFiltroPosicionamentoAtual">' + esc(atual.nome) + '</span></summary>' +
+        '<fieldset class="mf-opcoes" id="mfFiltroPosicionamento"><legend class="mf-sr">Filtrar pelo posicionamento efetivo</legend>';
+      opcoes.forEach(function (o) {
+        var id = 'mfPosic-' + (o.valor || 'TODOS'), marcado = o.valor === (f.posicionamento || '');
+        h += '<label class="mf-opcao' + (o.sub ? ' mf-opcao--sub' : '') + (marcado ? ' mf-opcao--ativa' : '') + '" for="' + id + '">' +
+          '<input type="radio" name="mfPosic" id="' + id + '" value="' + esc(o.valor) + '"' + (marcado ? ' checked' : '') + '>' +
+          '<span class="mf-opcao-nome">' + esc(o.nome) + '</span></label>';
+      });
+      return h + '</fieldset></details>';
     }
 
     var ROTULO_ALERTA = {
@@ -376,7 +394,10 @@
       var v = byId('mfVoltar'); if (v) v.addEventListener('click', sairParaAvaliacoes);
       var t = byId('mfTentarDeNovo'); if (t) t.addEventListener('click', function () { desligar(); ligar(); render(); });
       var fs = byId('mfFiltroSituacao'); if (fs) fs.addEventListener('change', function () { state.filtros.situacao = fs.value; render(); });
-      var fp = byId('mfFiltroPosicionamento'); if (fp) fp.addEventListener('change', function () { state.filtros.posicionamento = fp.value; render(); });
+      Array.prototype.forEach.call(wrap.querySelectorAll('input[name="mfPosic"]'), function (r) {
+        r.addEventListener('change', function () { if (r.checked) { state.filtros.posicionamento = r.value; render(); } });
+      });
+      var blocoPosic = byId('mfFiltroPosicionamentoBloco'); if (blocoPosic) blocoPosic.addEventListener('toggle', function () { state.posicionamentoAberto = blocoPosic.open; });
       var b = byId('mfBusca'); if (b) b.addEventListener('input', function () { state.filtros.busca = b.value; render(); });
       var l = byId('mfLimparFiltros'); if (l) l.addEventListener('click', function () { state.filtros = { situacao: '', posicionamento: '', busca: '' }; render(); var s = byId('mfFiltroSituacao'); if (s) s.focus(); });
       var bloco = byId('mfCategoriasBloco'); if (bloco) bloco.addEventListener('toggle', function () { state.categoriasAbertas = bloco.open; });

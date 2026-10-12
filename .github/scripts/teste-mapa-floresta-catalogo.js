@@ -136,6 +136,13 @@ const banco = (page) => page.evaluate(() => JSON.stringify(window.__CFG.__dbReal
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const texto = (page, sel) => page.locator(sel).innerText();
 const itensVisiveis = (page) => page.$$eval('#mfItens .mf-item', (els) => els.map((e) => e.getAttribute('data-item')).sort());
+async function abrirFiltroPosic(page) {
+  if (!(await page.locator('#mfFiltroPosicionamentoBloco').evaluate((d) => d.open))) await page.click('#mfFiltroPosicionamentoBloco > summary');
+}
+async function posic(page, valor) {
+  await abrirFiltroPosic(page);
+  await page.click('label[for="mfPosic-' + (valor || 'TODOS') + '"]');
+}
 async function capturar(page, nome) {
   if (!CAPTURAS) return;
   fs.mkdirSync(CAPTURAS, { recursive: true });
@@ -209,11 +216,35 @@ async function principal(browser, viewport, rotulo) {
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pDes', 'pRasc']), 'filtro situação: sem Avaliação de Produto/Serviço válida ou atual');
   afirma(/2 de 10/.test(await texto(page, '#mfContador')), 'contador "2 de 10"', await texto(page, '#mfContador'));
   await page.selectOption('#mfFiltroSituacao', '');
-  await page.selectOption('#mfFiltroPosicionamento', 'LINHA');
+  /* filtro "Posicionamento efetivo": opções que quebram linha, recolhidas no celular, abertas no desktop */
+  afirma(await page.locator('#mfFiltroPosicionamentoBloco').evaluate((d) => d.open) === !celular, celular ? 'celular: filtro de posicionamento começa recolhido' : 'desktop: filtro de posicionamento começa aberto');
+  afirma(await page.locator('#mfFiltroPosicionamentoAtual').innerText() === 'Todos', 'o resumo do filtro diz o que está escolhido ("Todos")');
+  if (celular) {
+    await page.click('#mfFiltroPosicionamentoBloco > summary');
+    afirma(await page.locator('#mfFiltroPosicionamento').isVisible(), 'tocar no resumo expande as opções');
+    await page.click('#mfFiltroPosicionamentoBloco > summary');
+    afirma(!(await page.locator('#mfFiltroPosicionamento').isVisible()), 'tocar de novo recolhe as opções');
+  }
+  const valores = await page.$$eval('input[name="mfPosic"]', (rs) => rs.map((r) => r.value));
+  afirma(JSON.stringify(valores) === JSON.stringify(['', 'LINHA'].concat(LINHA6).concat(['AREA_ESPECIALIZADA', 'COE'])), 'opções valem pelos CÓDIGOS estáveis (Todos, Linha, os 6 do ramo Linha, Área Especializada, CoE)', JSON.stringify(valores));
+  await posic(page, 'LINHA');
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pAVd', 'pL', 'pReav']), 'filtro posicionamento: Linha (todas as especializações)', JSON.stringify(await itensVisiveis(page)));
-  await page.selectOption('#mfFiltroPosicionamento', 'COE');
+  const marcadas = await page.$$eval('input[name="mfPosic"]:checked', (rs) => rs.map((r) => r.value));
+  afirma(JSON.stringify(marcadas) === '["LINHA"]' && await page.locator('label.mf-opcao--ativa').count() === 1 && await page.locator('label[for="mfPosic-LINHA"].mf-opcao--ativa').count() === 1 &&
+    /todas/.test(await page.locator('#mfFiltroPosicionamentoAtual').innerText()), 'a opção escolhida fica marcada (uma só), destacada e citada no resumo');
+  await posic(page, 'COE');
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pDiv']), 'filtro posicionamento: CoE (pela decisão final)');
-  await page.selectOption('#mfFiltroPosicionamento', '');
+  /* teclado: setas trocam a opção, o filtro acompanha e o foco continua no grupo */
+  await page.focus('#mfPosic-TODOS');
+  await page.keyboard.press('ArrowDown');
+  await esperarCondicao(page, () => (document.activeElement || {}).id === 'mfPosic-LINHA' && document.getElementById('mfPosic-LINHA').checked, null, { limite: 5000, descricao: 'seta para baixo leva à Linha' });
+  afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pAVd', 'pL', 'pReav']), 'teclado: seta para baixo escolhe a opção seguinte e filtra; o foco continua nela');
+  await page.keyboard.press('ArrowDown');
+  await esperarCondicao(page, () => (document.activeElement || {}).id === 'mfPosic-ESTRATEGIA_CLIENTES', null, { limite: 5000, descricao: 'seta leva à primeira especialização' });
+  afirma(await page.locator('#mfNenhumFiltro').count() === 1 && await page.locator('#mfPosic-ESTRATEGIA_CLIENTES').isChecked(), 'teclado: especialização sem objetos mostra "Nenhum objeto com esses filtros" e o foco não se perde');
+  await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp');
+  await esperarCondicao(page, () => (document.activeElement || {}).id === 'mfPosic-TODOS' && document.getElementById('mfPosic-TODOS').checked, null, { limite: 5000, descricao: 'setas para cima voltam a Todos' });
+  afirma((await itensVisiveis(page)).length === 10, 'teclado: voltar a "Todos" mostra todos os objetos');
   await page.fill('#mfBusca', 'divergente');
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pDiv']), 'busca pelo nome');
   await page.click('#mfLimparFiltros');
@@ -240,10 +271,11 @@ async function principal(browser, viewport, rotulo) {
   /* 6. nada gravado (e, antes, nada cortado dentro dos cartões — rolagem horizontal da página não pega isso) */
   await page.click('#avpMapaFlorestaBtn');
   await page.waitForSelector('#mfItens');
-  const pequenos = await page.$$eval('#avaliacoesMapa button, #avaliacoesMapa a, #avaliacoesMapa select, #avaliacoesMapa input, #avaliacoesMapa summary',
+  await abrirFiltroPosic(page);
+  const pequenos = await page.$$eval('#avaliacoesMapa button, #avaliacoesMapa a, #avaliacoesMapa select, #avaliacoesMapa input:not([type="radio"]), #avaliacoesMapa summary, #avaliacoesMapa label.mf-opcao',
     (els) => els.filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height < 44; }).map((e) => (e.id || e.className) + ':' + Math.round(e.getBoundingClientRect().height)));
   afirma(!pequenos.length, 'áreas de toque do Catálogo com pelo menos 44 px de altura', pequenos.join(', '));
-  const cortados = await page.$$eval('#avaliacoesMapa .mf-categoria, #avaliacoesMapa .mf-item, #avaliacoesMapa .mf-filtros', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className + ':' + (e.getAttribute('data-categoria') || e.getAttribute('data-item') || '')));
+  const cortados = await page.$$eval('#avaliacoesMapa .mf-categoria, #avaliacoesMapa .mf-item, #avaliacoesMapa .mf-filtros, #avaliacoesMapa .mf-opcao, #avaliacoesMapa .mf-filtro-posic-resumo', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className + ':' + (e.getAttribute('data-categoria') || e.getAttribute('data-item') || '')));
   afirma(!cortados.length, 'nenhum cartão ou filtro transborda a largura da tela', cortados.join(', '));
   await page.click('#mfVoltar');
   await page.waitForSelector('#avpMapaFlorestaBtn');
@@ -253,28 +285,48 @@ async function principal(browser, viewport, rotulo) {
   await ctx.close();
 }
 
-async function legibilidade(browser) {
-  console.log('[celular 375] 4b. rótulos dos filtros cabem legíveis (nomes realistas)');
-  const db = semente(), FABRICA = { LINHA: 'Linha', ESTRATEGIA_CLIENTES: 'Linha de Estratégia de Clientes', NEGOCIOS: 'Linha de Negócios', PLATAFORMA: 'Linha de Plataforma',
-    PLATAFORMA_CANAIS: 'Plataforma de Canais', PLATAFORMA_HABILITADORA_NEGOCIOS: 'Plataforma Habilitadora de Negócios', PLATAFORMA_HABILITADORA_TECNOLOGIA: 'Plataforma Habilitadora de Tecnologia',
-    PLATAFORMA_CORPORATIVA: 'Plataforma de Gestão Corporativa', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência (CoE)' };
-  Object.keys(FABRICA).forEach((k) => { db.taxonomia.organizacional.conceitos[k].nome = FABRICA[k]; });
-  const { ctx, page, erros } = await abrir(browser, CELULAR, '#avaliacoes?mf=catalogo', ARQ, { db });
+const FABRICA = { LINHA: 'Linha', ESTRATEGIA_CLIENTES: 'Linha de Estratégia de Clientes', NEGOCIOS: 'Linha de Negócios', PLATAFORMA: 'Linha de Plataforma',
+  PLATAFORMA_CANAIS: 'Plataforma de Canais', PLATAFORMA_HABILITADORA_NEGOCIOS: 'Plataforma Habilitadora de Negócios', PLATAFORMA_HABILITADORA_TECNOLOGIA: 'Plataforma Habilitadora de Tecnologia',
+  PLATAFORMA_CORPORATIVA: 'Plataforma de Gestão Corporativa', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência (CoE)' };
+/* sintéticos mais longos que qualquer nome real: um com espaços e um SEM nenhum ponto de quebra */
+const LONGOS = Object.assign({}, FABRICA, {
+  PLATAFORMA_HABILITADORA_TECNOLOGIA: 'Plataforma Habilitadora de Tecnologia, Dados, Integrações e Serviços Compartilhados de Infraestrutura Corporativa',
+  PLATAFORMA_HABILITADORA_NEGOCIOS: 'PLATAFORMA_HABILITADORA_NEGOCIOS_NOME_SINTETICO_SEM_NENHUM_ESPACO_PARA_QUEBRAR',
+  COE: 'Centro de Excelência em Arquitetura, Dados e Experiência do Associado (CoE)' });
+async function legibilidade(browser, viewport, rotulo, nomes, tituloNomes) {
+  console.log('[' + rotulo + '] 4b. filtros legíveis, sem corte (' + tituloNomes + ')');
+  const db = semente();
+  Object.keys(nomes).forEach((k) => { db.taxonomia.organizacional.conceitos[k].nome = nomes[k]; });
+  const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', ARQ, { db });
   await page.waitForSelector('#mfItens');
-  /* espera os nomes OFICIAIS chegarem (o rótulo de contingência também diz "Centro de Excelência"): o estado do módulo tem de ser 'ok' */
-  await esperarCondicao(page, () => !!(window.faPosicionamentos && window.faPosicionamentos.estado() === 'ok') && /Plataforma Habilitadora de Tecnologia/.test((document.getElementById('mfFiltroPosicionamento') || {}).textContent || ''), null, { limite: 10000, descricao: 'nomes da Taxonomia nos filtros' });
-  const nSelects = await page.locator('#mfFiltros select').count();
-  afirma(nSelects === 2, 'os dois filtros estão na tela para a medição', String(nSelects));
-  const cortados = await page.$$eval('#mfFiltros select', (sels) => {
-    const ctx2 = document.createElement('canvas').getContext('2d'), fora = [];
-    sels.forEach((s) => {
-      const cs = getComputedStyle(s); ctx2.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
-      const util = s.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 20; /* 20 px da seta */
-      Array.from(s.options).forEach((o) => { const w = ctx2.measureText(o.textContent).width; if (w > util) fora.push(s.id + ': "' + o.textContent + '" ' + Math.round(w) + '>' + Math.round(util)); });
+  /* espera os nomes OFICIAIS chegarem (o rótulo de contingência também é um nome longo): o estado do módulo tem de ser 'ok' */
+  await esperarCondicao(page, () => !!(window.faPosicionamentos && window.faPosicionamentos.estado() === 'ok'), null, { limite: 10000, descricao: 'nomes da Taxonomia carregados' });
+  await abrirFiltroPosic(page);
+  const r = await page.evaluate((esperados) => {
+    const out = { opcoes: 0, cortadas: [], nomesErrados: [], situacao: [] };
+    document.querySelectorAll('#mfFiltroPosicionamento label.mf-opcao').forEach((l) => {
+      out.opcoes++;
+      const nome = l.querySelector('.mf-opcao-nome'), b = l.getBoundingClientRect();
+      if (l.scrollWidth > l.clientWidth + 1 || nome.scrollWidth > nome.clientWidth + 1 || b.right > innerWidth + 1 || b.left < -1) out.cortadas.push(nome.textContent + ' (' + Math.round(b.width) + 'px)');
+      const valor = l.querySelector('input').value;
+      if (esperados[valor] && nome.textContent !== esperados[valor]) out.nomesErrados.push(valor + ': "' + nome.textContent + '"');
     });
-    return fora;
-  });
-  afirma(!cortados.length, 'nenhuma opção dos filtros é cortada em 375 px', cortados.join(' | '));
+    /* a lista de situação continua sendo uma lista suspensa: o texto de cada opção tem de caber nela */
+    const s = document.getElementById('mfFiltroSituacao'), cs = getComputedStyle(s), cx = document.createElement('canvas').getContext('2d');
+    cx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    const util = s.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 20;
+    Array.from(s.options).forEach((o) => { const w = cx.measureText(o.textContent).width; if (w > util) out.situacao.push('"' + o.textContent + '" ' + Math.round(w) + '>' + Math.round(util)); });
+    out.semRolagem = document.documentElement.scrollWidth <= innerWidth + 1;
+    return out;
+  }, Object.fromEntries(LINHA6.concat(['AREA_ESPECIALIZADA', 'COE']).map((k) => [k, nomes[k]])));
+  afirma(r.opcoes === 10, 'as 10 opções estão na tela para a medição', String(r.opcoes));
+  afirma(!r.nomesErrados.length, 'cada opção mostra o nome oficial inteiro da Taxonomia, sem abreviação', r.nomesErrados.join(' | '));
+  afirma(!r.cortadas.length, 'nenhuma opção de posicionamento é cortada nem sai da tela (o texto quebra linha)', r.cortadas.join(' | '));
+  afirma(!r.situacao.length, 'as opções do filtro de situação cabem na lista', r.situacao.join(' | '));
+  afirma(r.semRolagem, 'sem rolagem horizontal');
+  await page.click('label[for="mfPosic-PLATAFORMA_HABILITADORA_TECNOLOGIA"]');
+  const resumo = await page.evaluate(() => { const e = document.getElementById('mfFiltroPosicionamentoAtual'), b = e.getBoundingClientRect(); return { texto: e.textContent, cabe: e.scrollWidth <= e.clientWidth + 1 && b.right <= innerWidth + 1 }; });
+  afirma(resumo.texto === nomes.PLATAFORMA_HABILITADORA_TECNOLOGIA && resumo.cabe, 'o resumo mostra o nome inteiro da opção escolhida, sem corte', JSON.stringify(resumo));
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
@@ -330,7 +382,10 @@ async function demora(browser) {
     for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) {
       await principal(browser, vp, r); await perfis(browser, vp, r); await rede(browser, vp, r);
     }
-    await legibilidade(browser);
+    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) {
+      await legibilidade(browser, vp, r, FABRICA, 'nomes oficiais atuais');
+      await legibilidade(browser, vp, r, LONGOS, 'nomes sintéticos mais longos');
+    }
     await demora(browser);
   } catch (e) { console.log('ERRO', e && e.stack || e); falhas++; }
   await browser.close();
