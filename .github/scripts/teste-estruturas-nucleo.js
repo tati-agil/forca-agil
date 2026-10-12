@@ -14,7 +14,10 @@
  *   D. situação calculada e mudança de Posicionamento: válido / ausente / precisa de revisão / não aplicável;
  *      mesmo código em outra avaliação continua válido; nada muda sozinho.
  *   E. Squad e Capítulo (S1–S3) e separação da liberação para Squad (I2, calculada pelo núcleo do Posicionamento).
- *   F. histórico/auditoria e o contrato aplicar() (tudo ou nada, conflito de revisão). */
+ *   F. histórico/auditoria e o contrato aplicar() (tudo ou nada, conflito de revisão).
+ *   G. horário: milissegundos UTC (formato canônico) e ISO (compatibilidade com o que já existe) aceitos; inválidos
+ *      recusados; o horário recebido é registrado tal como veio; historico() ordena pelo instante real com os dois
+ *      formatos misturados; as operações dão o mesmo resultado de negócio nos dois formatos. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -229,6 +232,28 @@ afirma(new Set(eventos.map((e) => e.id)).size === eventos.length, 'cada evento t
   const quebrado = s.mudancas.map((m, i) => (i === 1 ? Object.assign({}, m, { revisaoAnterior: 7, antes: { revisao: 7 } }) : m));
   const pr = N.aplicar(estado, quebrado);
   afirma(!pr.ok && JSON.stringify(estado.vinculos.V1b) === JSON.stringify(N.aplicar(estado, []).estado.vinculos.V1b), 'aplicar é tudo ou nada: se uma mudança conflita, nenhuma entra');
+}
+
+console.log('G. horário: milissegundos UTC e ISO');
+{
+  const refG = { conceitos: { NEGOCIOS: { ativo: true } }, relacoesConceituais: [], ligacoes: { NEGOCIOS: 'NEGOCIOS' }, codigosFirmes: FIRMES, conceitosTrabalho: [] };
+  const usu = { id: 'u1', email: 'u1@exemplo' };
+  const MS = 1791763200000, ISO = new Date(MS).toISOString();
+  const rMs = N.criarEstrutura({}, { tipo: 'NEGOCIOS', nome: 'Linha G' }, { operacaoId: 'g1', novoId: 'G1', usuario: usu, agora: MS }, refG);
+  const rIso = N.criarEstrutura({}, { tipo: 'NEGOCIOS', nome: 'Linha G' }, { operacaoId: 'g1', novoId: 'G1', usuario: usu, agora: ISO }, refG);
+  afirma(rMs.ok && rMs.mudancas[0].depois.criadaEm === MS && rMs.eventos[0].em === MS, 'milissegundos aceitos e registrados tal como vieram (estrutura e evento)');
+  afirma(rIso.ok && rIso.mudancas[0].depois.criadaEm === ISO, 'ISO continua aceito (registros e backend existentes)');
+  const semHora = (v) => temErro(N.criarEstrutura({}, { tipo: 'NEGOCIOS', nome: 'X' }, { operacaoId: 'g', novoId: 'GX', usuario: usu, agora: v }, refG), 'CONTEXTO_SEM_HORARIO');
+  afirma([0, -1, 1.5, NaN, Infinity, '', 'ontem', null, undefined, {}].every(semHora), 'horário inválido recusado: 0, negativo, fracionário, NaN, Infinity, vazio, texto sem data, nulo, objeto');
+  const neutro = (r) => JSON.stringify(r, (k, v) => (['criadaEm', 'em', 'alteradaEm'].indexOf(k) !== -1 ? '#' : v));
+  afirma(neutro(rMs) === neutro(rIso), 'mesmo resultado de negócio nos dois formatos (só o horário difere)');
+  const estG = N.aplicar({}, rMs.mudancas).estado;
+  const alt = N.alterarEstrutura(estG, 'G1', { nome: 'Linha G2' }, { operacaoId: 'g2', usuario: usu, agora: ISO.replace('T', 'T').replace(/\d\d\.\d{3}Z$/, '59.000Z') }, {});
+  const enc = N.encerrarEstrutura(N.aplicar(estG, alt.mudancas).estado, 'G1', 'motivo', { operacaoId: 'g3', usuario: usu, agora: MS + 120000 });
+  const evs = [enc.eventos[0], rMs.eventos[0], alt.eventos[0]];
+  afirma(alt.ok && enc.ok && JSON.stringify(N.historico(evs, 'estrutura', 'G1').map((e) => e.tipo)) === '["estrutura.criada","estrutura.alterada","estrutura.encerrada"]',
+    'historico() ordena pelo instante real com milissegundos e ISO misturados');
+  afirma(N.instante(MS) === MS && N.instante(ISO) === MS && N.instante('x') === null, 'instante() converte os dois formatos para o mesmo instante');
 }
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

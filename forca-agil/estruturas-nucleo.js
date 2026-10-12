@@ -19,8 +19,11 @@
          ligacoes:           { <codigoMotor>: <codigoConceito> }    — correspondência OFICIAL código do motor ↔ conceito
          codigosFirmes:      [ <codigoMotor> … ]                    — os posicionamentos firmes do motor
          conceitosTrabalho:  [ <codigoConceito> … ]                 — os conceitos oficiais de Squad e Capítulo
-     - ctx (quem executa): { operacaoId, novoId?, usuario: { id, email? }, agora (ISO) } — identificadores, autoria
-       e horário são fornecidos por quem chama; o núcleo não gera nenhum.
+     - ctx (quem executa): { operacaoId, novoId?, usuario: { id, email? }, agora } — identificadores, autoria
+       e horário são fornecidos por quem chama; o núcleo não gera nenhum. agora: instante em MILISSEGUNDOS UTC desde
+       a época Unix (inteiro positivo; formato canônico do contrato, sempre do servidor) ou, por compatibilidade com
+       os registros e o backend já existentes, texto ISO 8601. O núcleo só REGISTRA o horário (nunca decide nada com
+       ele); historico() ordena pelo instante real, com os dois formatos misturados.
    Cada operação devolve { ok: true, mudancas, eventos } ou { ok: false, erros: [{ codigo, ... }] }, sem alterar o
    estado recebido. mudancas = [{ entidade, id, antes, depois, revisaoAnterior }] (semânticas, sem caminho de banco);
    eventos = o histórico/auditoria da operação (só acréscimo). aplicar(estado, mudancas) devolve o estado novo —
@@ -58,9 +61,15 @@
     if (!ctx || typeof ctx !== 'object') return [erro('CONTEXTO_INVALIDO')];
     if (vazio(ctx.operacaoId)) e.push(erro('CONTEXTO_SEM_OPERACAO'));
     if (!ctx.usuario || vazio(ctx.usuario.id)) e.push(erro('CONTEXTO_SEM_USUARIO'));
-    if (vazio(ctx.agora) || isNaN(Date.parse(ctx.agora))) e.push(erro('CONTEXTO_SEM_HORARIO'));
+    if (instante(ctx.agora) === null) e.push(erro('CONTEXTO_SEM_HORARIO'));
     if (precisaNovoId && vazio(ctx.novoId)) e.push(erro('CONTEXTO_SEM_IDENTIFICADOR'));
     return e;
+  }
+  /* instante de um horário do contrato: milissegundos UTC (inteiro positivo) ou ISO 8601; null se inválido */
+  function instante(v) {
+    if (typeof v === 'number') return Number.isInteger(v) && v > 0 ? v : null;
+    if (typeof v === 'string' && !vazio(v)) { var t = Date.parse(v); return isNaN(t) ? null : t; }
+    return null;
   }
   function autor(ctx) { var u = { id: ctx.usuario.id }; if (ctx.usuario.email) u.email = ctx.usuario.email; return u; }
   function evento(ctx, n, tipo, entidade, id, antes, depois, extra) {
@@ -382,7 +391,7 @@
   /* histórico de uma entidade a partir dos eventos já registrados (a persistência guarda os eventos; o núcleo ordena) */
   function historico(eventos, entidade, id) {
     return (eventos || []).filter(function (ev) { return ev && ev.entidade === entidade && ev.entidadeId === id; })
-      .slice().sort(function (a, b) { return a.em < b.em ? -1 : a.em > b.em ? 1 : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); });
+      .slice().sort(function (a, b) { var ta = instante(a.em), tb = instante(b.em); return ta < tb ? -1 : ta > tb ? 1 : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); });
   }
   /* relações ativas possíveis a partir de uma estrutura, segundo a Taxonomia (para oferecer só o que é válido) */
   function relacoesPossiveis(estado, origemId, ref) {
@@ -419,7 +428,7 @@
     posicionamentoEfetivo: posicionamentoEfetivo, vincularResponsavel: vincularResponsavel, encerrarVinculo: encerrarVinculo,
     substituirResponsavel: substituirResponsavel, situacaoResponsavel: situacaoResponsavel, responsavelAtivo: responsavelAtivo,
     estruturasDoTipo: estruturasDoTipo, relacoesDaEstrutura: relacoesDaEstrutura, objetosDaEstrutura: objetosDaEstrutura,
-    relacoesPossiveis: relacoesPossiveis, historico: historico, aplicar: aplicar
+    relacoesPossiveis: relacoesPossiveis, historico: historico, aplicar: aplicar, instante: instante
   };
   congelar(api);
   if (typeof window !== 'undefined') window.faEstruturasNucleo = api;
