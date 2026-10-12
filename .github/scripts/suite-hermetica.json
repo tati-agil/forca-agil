@@ -578,6 +578,12 @@
       "sobre": "Com os arquivos reais: categorias derivadas do motor; sem as quatro leituras não há catálogo (15 combinações); precedência decisão final > recomendação firme > A VALIDAR em 81 combinações; situações sem Posicionamento (sem base por motivo, sem Posicionamento, verificando); um objeto por item, sem Lixeira, alerta de base anterior; o módulo não grava e não chama o núcleo de Estruturas com coleções vazias; ordem de carga no index.html."
     },
     {
+      "arquivo": ".github/scripts/teste-mapa-floresta-visual.js",
+      "nome": "Mapa da Floresta — versão visual demonstrativa, desenho aprovado (desktop e 375 px)",
+      "duracao": 20,
+      "sobre": "#avaliacoes?mf=mapa: faixa de dados demonstrativos; blocos de cima para baixo (Estratégia de Clientes, Canais, Negócios com subagrupadores, Plataformas Habilitadoras com os 3 sub-blocos oficiais, Áreas Especializadas por último) e CoEs numa coluna à direita (no celular, uma coluna com CoEs antes das AE); cores aprovadas; cada caixa uma estrutura concreta (8 códigos firmes cobertos); detalhe (&e=<id>) com natureza, especialização, subagrupador, Squads e produtos/serviços só ali, sem esconder o Mapa no desktop; foco, Esc, Voltar ao Mapa, Voltar do navegador, F5; atalhos Mapa ↔ Catálogo; configuração populosa (quantidade variável: 0, 1, 3 e 10+ por grupo, nomes longos, subagrupador vazio e um a mais) com todas as estruturas na ordem cadastrada, nenhum nome cortado, nenhuma caixa sobreposta e grupos vazios identificados; nada gravado, sem rolagem horizontal. Hermético."
+    },
+    {
       "arquivo": ".github/scripts/teste-classificacoes-fonte-unica.js",
       "nome": "Classificações da Avaliação: nome e definição vindos da Taxonomia Arquitetural, contingência e nome da época (desktop e 375 px)",
       "duracao": 150,

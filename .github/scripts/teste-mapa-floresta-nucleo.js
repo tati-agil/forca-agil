@@ -125,7 +125,13 @@ console.log('\n== F. guarda estática ==');
 const fonte = fs.readFileSync(path.join(RAIZ, 'mapa-floresta.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 anota('nenhuma gravação no módulo: não usa gravar/novaChave/executar da interface de serviços nem o Firebase direto', !/\.(gravar|novaChave|executar|agoraServidor)\s*\(/.test(fonte) && !/firebase\s*\.|\.ref\s*\(|\.(update|set|transaction|remove)\s*\(/.test(fonte));
 anota('só lê pela interface de serviços (ouvir)', /S\(\)\.ouvir\(/.test(fonte));
-anota('nunca usa situacaoResponsavel, responsavelAtivo, objetosDaEstrutura, vincular*, aplicar nem estruturasDoTipo (sem coleções fictícias)', !/situacaoResponsavel|responsavelAtivo|objetosDaEstrutura|vincular|\.aplicar\(|estruturasDoTipo|relacoesDaEstrutura/.test(fonte));
+anota('nunca usa situacaoResponsavel, responsavelAtivo, vincular*, aplicar nem relacoesDaEstrutura (sem coleções fictícias para objetos reais)', !/situacaoResponsavel|responsavelAtivo|vincular|\.aplicar\(|relacoesDaEstrutura/.test(fonte));
+/* o Mapa visual (demonstração) lê estruturas e objetos com as consultas do núcleo — mas SÓ sobre o estado demonstrativo
+   explícito (mapa-floresta-demo.js), nunca sobre um estado montado com dados reais */
+const consultas = fonte.match(/(estruturasDoTipo|objetosDaEstrutura)\(([^,)]*)/g) || [];
+anota('estruturasDoTipo e objetosDaEstrutura só sobre o estado demonstrativo (D.estado, D = faMapaFlorestaDemo)', consultas.length > 0 && consultas.every((x) => /\(D\.estado$/.test(x)) &&
+  /* demo() só devolve um cenário do próprio módulo de demonstração (habitual ou populoso), nunca dado real */
+  /function demo\(\) \{ return window\.faMapaFlorestaDemo && window\.faMapaFlorestaDemo\.cenario\(cenarioDemo\); \}/.test(fonte) && (fonte.match(/var D = demo\(\)/g) || []).length >= 2, consultas.join(' | '));
 const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
 const iPos = html.indexOf('forca-agil/avaliacao-posicionamento.js'), iEst = html.indexOf('forca-agil/estruturas-nucleo.js'), iMapa = html.indexOf('forca-agil/mapa-floresta.js');
 anota('index.html: avaliacao-posicionamento.js → estruturas-nucleo.js → mapa-floresta.js', iPos !== -1 && iPos < iEst && iEst < iMapa);
