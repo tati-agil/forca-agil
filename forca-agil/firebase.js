@@ -11,12 +11,51 @@
     projectId:   "kyber-agil"
   };
 
+  /* ---- AMBIENTE DE TESTES (Firebase Emulator) ----
+     Só existe quando o servidor LOCAL de testes declara window.FA_AMBIENTE_TESTES antes deste arquivo (o site
+     publicado nunca declara) e a página está em 127.0.0.1/localhost. Nesse modo, banco, login e funções apontam
+     SÓ para o emulador, num projeto "demo-" que não existe na nuvem: se o emulador não responder, o site espera
+     ou mostra erro — nunca volta para o banco oficial. Declaração inválida = Firebase não inicia (nada é lido nem
+     gravado em lugar nenhum). */
+  const declarado = window.FA_AMBIENTE_TESTES;
+  const ambienteTestes = (function () {
+    if (!declarado) return null;
+    const local = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+    const projeto = String(declarado.projeto || '');
+    if (!local || !/^demo-[a-z0-9-]+$/.test(projeto) || !declarado.banco || !declarado.login) return { invalido: true };
+    return { projeto: projeto, banco: declarado.banco, login: declarado.login };
+  })();
+  window.faAmbiente = Object.freeze({ testes: !!(ambienteTestes && !ambienteTestes.invalido), projeto: (ambienteTestes && ambienteTestes.projeto) || null });
+
   let fbReady = false;
   try {
-    firebase.initializeApp(firebaseConfig);
+    if (ambienteTestes && ambienteTestes.invalido) throw new Error('ambiente de testes declarado de forma inválida — o Firebase não foi iniciado');
+    if (ambienteTestes) {
+      firebase.initializeApp({ apiKey: 'chave-do-emulador', authDomain: '127.0.0.1', projectId: ambienteTestes.projeto,
+        databaseURL: 'https://' + ambienteTestes.projeto + '-default-rtdb.firebaseio.com' });
+      firebase.database().useEmulator(ambienteTestes.banco.host, ambienteTestes.banco.porta);
+      firebase.auth().useEmulator('http://' + ambienteTestes.login.host + ':' + ambienteTestes.login.porta, { disableWarnings: true });
+      /* funções: a instância padrão e a regional da fronteira (posicionamento-servicos.js) — sem emulador de funções
+         a chamada falha, nunca vai à nuvem */
+      if (firebase.functions) { firebase.functions().useEmulator(ambienteTestes.banco.host, 5001); firebase.app().functions('us-central1').useEmulator(ambienteTestes.banco.host, 5001); }
+    } else {
+      firebase.initializeApp(firebaseConfig);
+    }
     fbReady = true;
   } catch (err) {
     console.warn('⚠️ Firebase:', err.message);
+  }
+  if (window.faAmbiente.testes) {
+    /* faixa fixa: ninguém confunde este ambiente com o site oficial */
+    const faixa = function () {
+      if (document.getElementById('faFaixaAmbienteTestes')) return;
+      const d = document.createElement('div');
+      d.id = 'faFaixaAmbienteTestes'; d.setAttribute('role', 'note');
+      d.textContent = 'AMBIENTE DE TESTES — Firebase Emulator. Nada do que é gravado aqui vai para o banco oficial.';
+      d.style.cssText = 'position:sticky;top:0;z-index:10000;background:#7a1f00;color:#fff;font:600 13px/1.35 system-ui,sans-serif;padding:6px 12px;text-align:center';
+      document.body.insertBefore(d, document.body.firstChild);
+    };
+    if (document.body) faixa(); else document.addEventListener('DOMContentLoaded', faixa);
   }
 
   // ---- Ranks ----
