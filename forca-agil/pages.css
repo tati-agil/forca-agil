@@ -3067,6 +3067,11 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mfm-detalhe h3 { margin: 6px 0 10px; font-family: var(--mfm-fonte); font-size: 1.4rem; font-weight: 700; color: #0f1f3d; }
 .mfm-detalhe h3:focus { outline: none; }
 .mfm-badge-exemplo { display: inline-block; padding: 3px 12px; border-radius: 999px; border: 1px solid #f0d48a; background: #fff7dc; color: #6b4e00; font-size: .8rem; font-weight: 600; }
+.mfm-badge-cadastrada { display: inline-block; padding: 3px 12px; border-radius: 999px; border: 1px solid #9fd3b4; background: #e9f7ef; color: #1f6b3d; font-size: .8rem; font-weight: 600; }
+.mfm-faixa--cadastro { border-color: #9fd3b4; background: #e9f7ef; color: #1f4d33; }
+.mfm-link-cadastro { font-weight: 600; color: inherit; text-decoration: underline; white-space: nowrap; }
+.mfm-abrir-cadastro { display: inline-block; margin-top: 14px; text-decoration: none; }
+.mfm-descricao { white-space: pre-wrap; }
 .mfm-ficha { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 16px 0 18px; padding: 14px 16px; border-radius: 12px; background: #f4f7fc; font-size: .95rem; }
 .mfm-ficha dt { color: var(--mfm-suave); font-weight: 600; }
 .mfm-ficha dd { margin: 0; color: var(--mfm-texto); }
@@ -3080,3 +3085,49 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mfm-objeto-desc { font-size: .9rem; color: var(--mfm-suave); }
 .mfm-objeto-papel { font-size: .78rem; color: var(--mfm-suave); }
 .mfm-sem-objetos { font-style: italic; color: var(--mfm-suave); }
+
+/* ===== Estruturas Organizacionais (ADMIN › Avaliação e Mapa) — estruturas-tela.js ===== */
+.est-tela { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.est-titulo { margin: 0; font-size: 1.25rem; }
+.est-intro { margin: 0; line-height: 1.5; }
+.est-ambiente { margin: 0; }
+.est-acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+.est-acoes .btn { text-decoration: none; }
+.est-filtro { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.est-filtro label { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.est-contagem { font-size: .9rem; opacity: .8; }
+.est-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.est-item { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(127,127,127,.35); background: var(--card-bg, #fff); color: inherit; font: inherit; cursor: pointer; min-height: 44px; }
+.est-item:hover, .est-item:focus-visible { border-color: #307CED; }
+.est-item-nome { font-weight: 600; overflow-wrap: anywhere; }
+.est-item-tipo { grid-column: 1; font-size: .88rem; opacity: .8; overflow-wrap: anywhere; }
+.est-situacao { grid-column: 2; grid-row: 1 / span 2; align-self: center; display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.est-situacao--ativa { background: #e9f7ef; color: #1f6b3d; border: 1px solid #9fd3b4; }
+.est-situacao--encerrada { background: #f1f1f1; color: #555; border: 1px solid #ccc; }
+.est-sigla { font-weight: 400; opacity: .8; }
+.est-form { display: flex; flex-direction: column; gap: 14px; }
+.est-campo input, .est-campo textarea { width: 100%; box-sizing: border-box; }
+.est-campo [aria-invalid="true"], .est-tipos[aria-invalid="true"] { border-color: #c0392b; outline: 1px solid #c0392b; }
+.est-obrig, .est-opc { font-weight: 400; font-size: .85rem; opacity: .8; }
+.est-tipos { border: 1px solid rgba(127,127,127,.35); border-radius: 10px; padding: 10px 14px; margin: 0; min-width: 0; }
+.est-tipos legend { font-weight: 600; padding: 0 4px; }
+.est-grupo-tipo { margin: 10px 0 4px; font-size: .85rem; font-weight: 600; opacity: .8; }
+.est-tipo { display: flex; align-items: flex-start; gap: 8px; min-height: 40px; padding: 6px 0; cursor: pointer; overflow-wrap: anywhere; }
+.est-tipo input { margin-top: 3px; flex: none; }
+.est-tipo--indisponivel { opacity: .6; cursor: not-allowed; }
+.est-tipo-motivo { font-size: .85rem; }
+.est-erros ul { margin: 6px 0 0; padding-left: 20px; }
+.est-ficha dd { overflow-wrap: anywhere; }
+.est-descricao { white-space: pre-wrap; }
+.est-flash p { margin: 0 0 8px; font-weight: 600; }
+.est-flash-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.est-flash-acoes .btn { text-decoration: none; }
+.est-historico summary { cursor: pointer; font-weight: 600; min-height: 40px; display: flex; align-items: center; }
+.est-eventos { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 10px; }
+.est-mudancas { margin: 4px 0 0; padding-left: 18px; font-size: .92rem; }
+.est-antes { text-decoration: line-through; opacity: .75; }
+.est-just, .est-motivo { margin: 4px 0 0; font-size: .92rem; overflow-wrap: anywhere; }
+.est-tipo-fixo { margin: 0; }
+@media (max-width: 480px) {
+  .est-acoes .btn, .est-acoes a.btn, .avp-actions-footer .btn { flex: 1 1 100%; text-align: center; }
+}

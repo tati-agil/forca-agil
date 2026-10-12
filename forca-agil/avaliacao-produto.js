@@ -2685,6 +2685,8 @@
     function areaAtualAdmin() {
       var sq = document.getElementById('adminAvaliacaoSquad');
       if (sq && !sq.hidden) return 'motor-squad';
+      var et = document.getElementById('adminEstruturas');
+      if (et && !et.hidden) return 'estruturas';
       return AREAS_ADMIN[state.tela] || 'inicio';
     }
     function areaDoEndereco() {
@@ -2708,6 +2710,8 @@
       var area = areaAtualAdmin();
       var desejado = '#admin?arq=' + area;
       if (location.hash === desejado) return;
+      /* Estruturas Organizacionais guardam a estrutura aberta no próprio endereço (&e=<id>): não é outra área */
+      if (area === 'estruturas' && /^#admin\?arq=estruturas(&|$)/.test(location.hash || '')) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
       if (!areaDoEndereco()) { history.replaceState({ arq: area, seqArq: seqArqAtual() }, '', desejado); politicaRolagemAdmin(); return; }
       /* "← Voltar" da tela para a área de onde a pessoa veio = o Voltar do navegador (não empilha
@@ -2744,11 +2748,13 @@
     function edicaoSujaAdmin() {
       return !!((state.config && state.config.sujo) || (state.configMotores && state.configMotores.sujo) ||
         (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) ||
-        (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()));
+        (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()) ||
+        (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()));
     }
     function abrirAreaAdmin(area) {
       if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelArquitetura');
       if (window.faAvaliacaoSquadAdmin && area !== 'motor-squad') window.faAvaliacaoSquadAdmin.fechar();
+      if (window.faEstruturasAdmin && area !== 'estruturas') window.faEstruturasAdmin.fechar();
       state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
       if (area === 'questionarios') abrirConfigQuestionarios();
       else if (area === 'motores') abrirConfigMotores();
@@ -2756,6 +2762,7 @@
       else if (area === 'usuarios' && souAdminGeral()) abrirAdminUsuarios();
       else if (area === 'documentacao') abrirDocumentacao();
       else if (area === 'motor-squad' && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; render(); abrirMotorSquadDoInicio(); }
+      else if (area === 'estruturas' && estruturasDisponiveis()) { state.tela = 'admin-inicio'; render(); abrirEstruturasDoInicio(); }
       else { state.tela = 'admin-inicio'; render(); }
     }
     /* Voltar/Avançar do navegador, link colado ou F5 com #admin?arq=<área>. */
@@ -2777,7 +2784,17 @@
     }
     function abrirMotorSquadDoInicio() {
       state.rolagemInicio = window.pageYOffset || 0;
-      window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Arquitetura', voltar: function () {
+      window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Avaliação e Mapa', voltar: function () {
+        state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0);
+      } });
+      sincronizarEnderecoAdmin();
+    }
+    /* Estruturas Organizacionais Concretas (estruturas-tela.js): cadastro que alimenta o Mapa da Floresta.
+       Nesta etapa só existe no AMBIENTE DE TESTES (Firebase Emulator) — fora dele o cartão nem aparece. */
+    function estruturasDisponiveis() { return !!(window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel()); }
+    function abrirEstruturasDoInicio() {
+      state.rolagemInicio = window.pageYOffset || 0;
+      window.faEstruturasAdmin.abrir({ rotulo: ROTULO_ADMIN, voltar: function () {
         state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0);
       } });
       sincronizarEnderecoAdmin();
@@ -4775,6 +4792,10 @@
       html += grupo('Governança arquitetural', 'Opções de descrição dos itens e as regras da adequação à gestão por squad.',
         cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
         (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Motor de Squad', 'Regras da adequação à gestão por squad (S1–S8), com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''));
+      if (estruturasDisponiveis()) {
+        html += grupo('Mapa da Floresta', 'As estruturas organizacionais concretas que aparecem no Mapa.',
+          cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'));
+      }
       html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
         cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
       if (souAdminGeral()) {
@@ -4787,6 +4808,8 @@
       document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
       var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
       if (squadBtn) squadBtn.addEventListener('click', abrirMotorSquadDoInicio);
+      var estruturasBtn = document.getElementById('avpEstruturasBtn');
+      if (estruturasBtn) estruturasBtn.addEventListener('click', abrirEstruturasDoInicio);
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
       document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);

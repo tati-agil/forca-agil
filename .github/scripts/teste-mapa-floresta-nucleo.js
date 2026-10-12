@@ -126,12 +126,18 @@ const fonte = fs.readFileSync(path.join(RAIZ, 'mapa-floresta.js'), 'utf8').repla
 anota('nenhuma gravação no módulo: não usa gravar/novaChave/executar da interface de serviços nem o Firebase direto', !/\.(gravar|novaChave|executar|agoraServidor)\s*\(/.test(fonte) && !/firebase\s*\.|\.ref\s*\(|\.(update|set|transaction|remove)\s*\(/.test(fonte));
 anota('só lê pela interface de serviços (ouvir)', /S\(\)\.ouvir\(/.test(fonte));
 anota('nunca usa situacaoResponsavel, responsavelAtivo, vincular*, aplicar nem relacoesDaEstrutura (sem coleções fictícias para objetos reais)', !/situacaoResponsavel|responsavelAtivo|vincular|\.aplicar\(|relacoesDaEstrutura/.test(fonte));
-/* o Mapa visual (demonstração) lê estruturas e objetos com as consultas do núcleo — mas SÓ sobre o estado demonstrativo
-   explícito (mapa-floresta-demo.js), nunca sobre um estado montado com dados reais */
+/* o Mapa visual lê estruturas e objetos com as consultas do núcleo — SÓ sobre D.estado, D = dados(): OU o estado
+   demonstrativo explícito (mapa-floresta-demo.js) OU (Etapa 4, ambiente de testes) um estado só com as estruturas
+   CADASTRADAS, sem relações, vínculos nem objetos — nunca as duas juntas, nunca montado com as coleções do Catálogo */
 const consultas = fonte.match(/(estruturasDoTipo|objetosDaEstrutura)\(([^,)]*)/g) || [];
-anota('estruturasDoTipo e objetosDaEstrutura só sobre o estado demonstrativo (D.estado, D = faMapaFlorestaDemo)', consultas.length > 0 && consultas.every((x) => /\(D\.estado$/.test(x)) &&
+const corpoDados = (/function dados\(\) \{([\s\S]*?)\n    \}/.exec(fonte) || [])[1] || '';
+anota('estruturasDoTipo e objetosDaEstrutura só sobre D.estado, D = dados() = demonstração OU estruturas cadastradas (sem relações, vínculos nem objetos; nada do Catálogo)', consultas.length > 0 && consultas.every((x) => /\(D\.estado$/.test(x)) &&
   /* demo() só devolve um cenário do próprio módulo de demonstração (habitual ou populoso), nunca dado real */
-  /function demo\(\) \{ return window\.faMapaFlorestaDemo && window\.faMapaFlorestaDemo\.cenario\(cenarioDemo\); \}/.test(fonte) && (fonte.match(/var D = demo\(\)/g) || []).length >= 2, consultas.join(' | '));
+  /function demo\(\) \{ return window\.faMapaFlorestaDemo && window\.faMapaFlorestaDemo\.cenario\(cenarioDemo\); \}/.test(fonte) &&
+  /* dados(): fora do cadastro, a demonstração; no cadastro, SÓ as estruturas persistidas — nunca as duas, nunca o Catálogo */
+  /if \(fonte !== 'cadastro'\) return demo\(\);/.test(corpoDados) &&
+  /estado: \{ estruturas: cadastro\.estruturas, relacoes: \{\}, vinculos: \{\} \}, subagrupadores: \{\}, associacoesSubagrupador: \[\], objetos: \{\}/.test(corpoDados) &&
+  !/state\./.test(corpoDados) && !/var D = demo\(\)/.test(fonte) && (fonte.match(/var D = dados\(\)/g) || []).length >= 2, consultas.join(' | '));
 const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
 const iPos = html.indexOf('forca-agil/avaliacao-posicionamento.js'), iEst = html.indexOf('forca-agil/estruturas-nucleo.js'), iMapa = html.indexOf('forca-agil/mapa-floresta.js');
 anota('index.html: avaliacao-posicionamento.js → estruturas-nucleo.js → mapa-floresta.js', iPos !== -1 && iPos < iEst && iEst < iMapa);

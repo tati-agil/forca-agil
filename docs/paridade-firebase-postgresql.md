@@ -11,7 +11,8 @@ da Floresta que grave dados. É requisito obrigatório, não meta.
   - o conjunto versionado de cenários das Estruturas (`.github/scripts/cenarios/estruturas-concretas.v1.json`) com o
     executor compartilhado e o **primeiro** dos três executores, a referência em memória
     (`teste-estruturas-cenarios-referencia.js`) e o **segundo**, o Firebase Emulator pelo adaptador `estruturas-firebase.js`
-    (`teste-rules-estruturas-concretas.js`, com as gravações diretas inválidas); o executor do PostgreSQL ainda não existe;
+    (`teste-rules-estruturas-concretas.js`, com as gravações diretas inválidas); a tela de cadastro (Etapa 4) grava pelo mesmo caso de
+    uso e adaptador, só no Firebase Emulator (`teste-estruturas-jornada.js`); o executor do PostgreSQL ainda não existe;
   - `forca-agil/estruturas-nucleo.js` é o mesmo arquivo no site e no backend (`backend/test/nucleo-estruturas.spec.ts`);
   - `teste-estruturas-nucleo.js` prova o núcleo em memória; `backend/test/integracao/` prova o PostgreSQL com cenários
     próprios. São cenários diferentes, então não são prova de paridade.

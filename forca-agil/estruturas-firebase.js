@@ -66,6 +66,35 @@
     return multi;
   }
 
+  /* o nó gravado → formato do contrato (puras; usadas pelas portas e pela leitura ao vivo das telas) */
+  function estruturasDoValor(v) { var out = {}; Object.keys(v || {}).forEach(function (id) { out[id] = doBanco(v[id]); }); return out; }
+  /* eventos na ordem gravada (horário do servidor, depois id), com "antes" = "depois" do evento anterior da mesma estrutura */
+  function eventosDoValor(v) {
+    var lista = Object.keys(v || {}).map(function (k) { return v[k]; })
+      .sort(function (a, b) { return a.em !== b.em ? a.em - b.em : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); });
+    var ultimo = {};
+    return lista.map(function (ev) {
+      var x = clone(ev);
+      x.antes = ultimo[x.entidadeId] ? clone(ultimo[x.entidadeId]) : null;
+      x.depois = doBanco(x.depois);
+      ultimo[x.entidadeId] = x.depois;
+      return x;
+    });
+  }
+  /* leitura AO VIVO (só leitura) para as telas: aoMudar({ estruturas }) e/ou aoMudar({ eventos }); aoFalhar(codigo).
+     Devolve a função que desliga. Leitura recusada é erro, nunca "nenhuma estrutura". */
+  function ouvir(db, partes, aoMudar, aoFalhar) {
+    db = db || window.firebase.database(); /* sem banco informado: o do site (a tela do Mapa não toca o Firebase) */
+    var desligar = [];
+    (partes || ['registros']).forEach(function (parte) {
+      var r = db.ref(RAIZ + '/' + parte);
+      var fn = function (s) { var v = s.val(); aoMudar(parte === 'eventos' ? { eventos: eventosDoValor(v) } : { estruturas: estruturasDoValor(v) }); };
+      r.on('value', fn, function (e) { if (aoFalhar) aoFalhar(ehNegado(e) ? 'RECUSADA' : 'SEM_RESPOSTA'); });
+      desligar.push(function () { r.off('value', fn); });
+    });
+    return function () { desligar.forEach(function (d) { d(); }); };
+  }
+
   function criarPortas(opcoes) {
     var db = opcoes && opcoes.db, firmes = (opcoes && opcoes.codigosFirmes) || [], prazoMs = (opcoes && opcoes.prazoMs) || 20000;
     if (!db || !firmes.length) throw new Error('adaptador Firebase: falta o banco ou os códigos firmes');
@@ -84,28 +113,12 @@
       });
     }
     function lerEstado() {
-      return umaVez(RAIZ + '/registros').then(function (v) {
-        var estruturas = {}; Object.keys(v || {}).forEach(function (id) { estruturas[id] = doBanco(v[id]); });
-        return { estruturas: estruturas, relacoes: {}, vinculos: {} };
-      });
+      return umaVez(RAIZ + '/registros').then(function (v) { return { estruturas: estruturasDoValor(v), relacoes: {}, vinculos: {} }; });
     }
     function conferirOperacao(id) {
       return umaVez(RAIZ + '/operacoes/' + id).then(function (v) { return { aplicada: v !== null }; });
     }
-    function lerEventos() {
-      return umaVez(RAIZ + '/eventos').then(function (v) {
-        var lista = Object.keys(v || {}).map(function (k) { return v[k]; })
-          .sort(function (a, b) { return a.em !== b.em ? a.em - b.em : (a.id < b.id ? -1 : a.id > b.id ? 1 : 0); });
-        var ultimo = {};
-        return lista.map(function (ev) {
-          var x = clone(ev);
-          x.antes = ultimo[x.entidadeId] ? clone(ultimo[x.entidadeId]) : null;
-          x.depois = doBanco(x.depois);
-          ultimo[x.entidadeId] = x.depois;
-          return x;
-        });
-      });
-    }
+    function lerEventos() { return umaVez(RAIZ + '/eventos').then(eventosDoValor); }
 
     function gravar(op) {
       if (!op || !op.id || !(op.mudancas || []).length || (op.eventos || []).length !== op.mudancas.length) return Promise.reject(recusa('RECUSADA'));
@@ -129,7 +142,7 @@
     return { lerReferencias: lerReferencias, lerEstado: lerEstado, gravar: gravar, conferirOperacao: conferirOperacao, lerEventos: lerEventos };
   }
 
-  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, RAIZ: RAIZ });
+  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, estruturasDoValor: estruturasDoValor, eventosDoValor: eventosDoValor, RAIZ: RAIZ });
   if (typeof window !== 'undefined') window.faEstruturasFirebase = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
