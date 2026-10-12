@@ -1,0 +1,3 @@
+# Scripts de shell do ambiente local de testes rodam dentro do contêiner Linux: sempre com fim de linha LF,
+# mesmo num checkout do Windows com core.autocrlf.
+.github/scripts/ambiente-local/*.sh text eol=lf
