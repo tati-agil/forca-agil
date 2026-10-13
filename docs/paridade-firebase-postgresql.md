@@ -1,7 +1,16 @@
 # Paridade Firebase × PostgreSQL — requisitos e critérios de aceite
 
 Decisão da responsável pelo repositório, 2026-10-11. Vale para todo incremento do Núcleo de Avaliação, Taxonomia e Mapa
-da Floresta que grave dados. É requisito obrigatório, não meta.
+da Floresta que grave dados. É requisito obrigatório, não meta. *(Redação original — ver a atualização D1 logo abaixo.)*
+
+> **Atualização — decisão D1 (2026-10-13):** o FORÇA ÁGIL deve funcionar plenamente no Firebase atual antes da migração.
+> A paridade Firebase × PostgreSQL é requisito da **migração** (troca da fonte oficial) e para declarar uma operação
+> "validada nos dois bancos" — **não** é condição para operar no Firebase, que continua a fonte oficial única. As
+> gravações do Mapa da Floresta no site seguem o marcador de habilitação operacional
+> (`estruturas-concretas-config/gravacaoHabilitada`: ausente / `false` só consulta / `true` manutenção), ligado só com
+> autorização da responsável. Os dados reais gravados até a migração entram na reconciliação descrita em "Migração
+> futura". O restante deste documento fica como histórico; onde ele exige a paridade antes de gravar no site, vale esta
+> atualização.
 
 ## Situação hoje (não apresentar como mais do que isto)
 
@@ -13,13 +22,16 @@ da Floresta que grave dados. É requisito obrigatório, não meta.
     (`teste-estruturas-cenarios-referencia.js`) e o **segundo**, o Firebase Emulator pelo adaptador `estruturas-firebase.js`
     (`teste-rules-estruturas-concretas.js`, com as gravações diretas inválidas); a tela de cadastro (Etapa 4) grava pelo mesmo caso de
     uso e adaptador, só no Firebase Emulator (`teste-estruturas-jornada.js`); o conjunto `mapa-subagrupadores` v1 (Etapa 5) roda nos mesmos dois executores (memória: `teste-estruturas-cenarios-referencia.js`;
-    emulador: `teste-rules-mapa-subagrupadores.js`); o executor do PostgreSQL ainda não existe (o índice único parcial de
-    "uma associação ativa por Linha" é requisito dele);
+    emulador: `teste-rules-mapa-subagrupadores.js`); os conjuntos `vinculos-responsavel` v1 (M3) e `relacoes-estruturas` v1
+    (M6/M7) rodam nos mesmos dois executores (memória e `teste-rules-estruturas-concretas.js`); o executor do PostgreSQL
+    ainda não existe (o índice único parcial de "uma associação ativa por Linha" é requisito dele) e o backend ainda não
+    tem subagrupadores nem o recorte de `compõe` da decisão C2;
   - `forca-agil/estruturas-nucleo.js` é o mesmo arquivo no site e no backend (`backend/test/nucleo-estruturas.spec.ts`);
   - `teste-estruturas-nucleo.js` prova o núcleo em memória; `backend/test/integracao/` prova o PostgreSQL com cenários
     próprios. São cenários diferentes, então não são prova de paridade.
-- P1–P16, O1–O9, S1–S8, I2 e a Taxonomia existem só no Firebase. Estruturas, relações e vínculos existem só no
-  PostgreSQL (o site ainda não os grava).
+- P1–P16, O1–O9, S1–S8, I2 e a Taxonomia existem só no Firebase. Estruturas, subagrupadores, vínculos e relações gravam
+  no Firebase pelo site, atrás do marcador de habilitação operacional (ausente no banco oficial até a autorização), e no
+  PostgreSQL só com dados sintéticos.
 
 ## Duas garantias diferentes
 
@@ -43,7 +55,9 @@ da Floresta que grave dados. É requisito obrigatório, não meta.
 - **Hierarquia sem ciclos:** relações `compõe` (e outras sujeitas a ciclo) **não são gravadas no site** enquanto não
   houver solução demonstrada que garanta a mesma integridade nos dois ambientes, inclusive sob concorrência. Não se
   presume que a Taxonomia atual resolva isso. Isso não bloqueia o cadastro de estruturas nem os vínculos de
-  responsável principal, desde que as garantias deles estejam comprovadas.
+  responsável principal, desde que as garantias deles estejam comprovadas. **Decisão C2 (2026-10-13):** no site, `compõe`
+  só de Squad para uma especialização de Linha, e só se a Taxonomia admitir — sem ciclo por construção, provado no
+  emulador; todo `compõe` geral continua bloqueado.
 
 ## Critério de aceite de uma operação que grava
 

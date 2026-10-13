@@ -45,10 +45,11 @@
   var RAIZ_SUBAGRUPADORES = 'mapa-subagrupadores';
   var RAIZ_VINCULOS = 'estruturas-vinculos';
   var RAIZ_RELACOES = 'estruturas-relacoes';
-  /* TRAVA DE PRODUÇÃO: as regras só aceitam gravar em estruturas-concretas, mapa-subagrupadores e estruturas-vinculos com este marcador
-     = true. Nenhum cliente o grava nem lê (nem admin geral): só o console ou uma conta de serviço. No banco oficial ele
-     não existe — cadastro desligado até a autorização de publicação (depois da Etapa 3 e da paridade); no emulador, a
-     semente do ambiente de testes liga. */
+  /* HABILITAÇÃO OPERACIONAL (antes "trava de produção"): as regras só aceitam gravar em estruturas-concretas, mapa-subagrupadores,
+     estruturas-vinculos e estruturas-relacoes com este marcador
+     = true. Nenhum cliente o grava (nem admin geral): só o console ou uma conta de serviço. Os três perfis da Avaliação o
+     LEEM (decisão D2, 2026-10-13): ausente = telas desligadas; false = só consulta; true = manutenção. A paridade com o
+     PostgreSQL é requisito da migração futura, não da operação no Firebase. No emulador, a semente do ambiente de testes liga. */
   var TRAVA_PRODUCAO = 'estruturas-concretas-config/gravacaoHabilitada';
   var AGORA_DO_SERVIDOR = { '.sv': 'timestamp' };
   /* onde cada entidade mora e quais são os seus campos de horário */
@@ -154,7 +155,9 @@
     vinculos: { no: RAIZ_VINCULOS + '/registros', chave: 'vinculos', conv: function (v) { return registrosDoValor(v, 'vinculo'); } },
     eventosVinculos: { no: RAIZ_VINCULOS + '/eventos', chave: 'eventosVinculos', conv: function (v) { return eventosDoValor(v); } },
     relacoes: { no: RAIZ_RELACOES + '/registros', chave: 'relacoes', conv: function (v) { return registrosDoValor(v, 'relacao'); } },
-    eventosRelacoes: { no: RAIZ_RELACOES + '/eventos', chave: 'eventosRelacoes', conv: function (v) { return eventosDoValor(v); } }
+    eventosRelacoes: { no: RAIZ_RELACOES + '/eventos', chave: 'eventosRelacoes', conv: function (v) { return eventosDoValor(v); } },
+    /* D2: o marcador de habilitação operacional, só leitura (true | false | null = ausente) */
+    habilitacao: { no: TRAVA_PRODUCAO, chave: 'habilitacao', conv: function (v) { return v === true || v === false ? v : null; } }
   };
   function ouvir(db, partes, aoMudar, aoFalhar) {
     db = db || window.firebase.database(); /* sem banco informado: o do site (a tela do Mapa não toca o Firebase) */
