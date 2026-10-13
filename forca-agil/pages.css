@@ -3256,6 +3256,16 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .est-produto-nome { font-weight: 600; color: var(--est-forte); overflow-wrap: anywhere; }
 .est-produto .est-abrir-po { margin-left: auto; min-height: 40px; }
 .po-resp-motivos { font-size: .85rem; overflow-wrap: anywhere; }
+/* Porta 2 e hipótese inicial */
+.po-hipotese { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 12px 0; min-width: 0; }
+.po-hipotese legend { font-weight: 600; padding: 0 4px; }
+.po-hipotese-opcao { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 2px 0; cursor: pointer; overflow-wrap: anywhere; }
+.po-hipotese-opcao input { width: 20px; height: 20px; flex: 0 0 auto; margin: 0; }
+.po-objeto-dados { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 4px 12px; margin: 8px 0; }
+.po-objeto-dados dt { font-weight: 600; }
+.po-objeto-dados dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .po-objeto-dados { grid-template-columns: minmax(0, 1fr); } .po-objeto-dados dd { margin-bottom: 6px; } }
+.po-badge-porta2, .po-badge-encerrada { font-size: .75rem; }
 .mf-vinculo-estrutura { font-weight: 600; margin-right: 4px; overflow-wrap: anywhere; }
 .mf-vinculo-aviso, .mfm-objeto-aviso { display: block; font-size: .85rem; margin-top: 4px; }
 .mfm-objeto .mfm-abrir-po { display: inline-block; margin-top: 6px; }

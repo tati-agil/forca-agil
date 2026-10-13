@@ -70,7 +70,7 @@ function rascunho(itemId, aaId, email, extra) {
     itemId, itemNome: 'Item ' + itemId, avaliacaoArquiteturalId: aaId, questionarioCodigo: 'POSICIONAMENTO_ORGANIZACIONAL',
     questionnaireContentVersion: 1, versao: 1, status: 'rascunho', revisao: 1,
     criadoPor: { name: 'Pessoa', email }, criadoEm: QUANDO, atualizadoPor: { name: 'Pessoa', email }, atualizadoEm: QUANDO,
-    auditoriaCriacaoId: 'kc-' + itemId
+    auditoriaCriacaoId: 'kc-' + itemId, hipoteseInicial: 'NAO_SEI'
   }, extra || {});
 }
 function criar(id, itemId, aaId, email, extra) {
@@ -78,7 +78,8 @@ function criar(id, itemId, aaId, email, extra) {
   return {
     [AV + '/' + id]: r,
     [RES + '/' + itemId]: id,
-    [AUD + '/' + id + '/' + r.auditoriaCriacaoId]: { tipo: 'criacao', itemId, avaliacaoArquiteturalId: aaId, usuario: { name: 'Pessoa', email }, dataHora: QUANDO }
+    [AUD + '/' + id + '/' + r.auditoriaCriacaoId]: Object.assign({ tipo: 'criacao', itemId, avaliacaoArquiteturalId: aaId, usuario: { name: 'Pessoa', email }, dataHora: QUANDO },
+      r.hipoteseInicial ? { hipoteseInicial: r.hipoteseInicial } : {})
   };
 }
 function respostaDe(q, v, extra) {
@@ -482,7 +483,7 @@ async function main() {
   let okCriar = 0, okSalvar = 0, okConcluir = 0, iguais = 0;
   for (let i = 0; i < est36.length; i++) {
     const x = est36[i], id = 'nu' + i, item = 'p' + (i + 1);
-    const pc = js(N.payloadCriacao({ id, audId: 'kc' + i, itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quem, agora: QUANDO }));
+    const pc = js(N.payloadCriacao({ hipoteseInicial: 'NAO_SEI', id, audId: 'kc' + i, itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quem, agora: QUANDO }));
     try { await assertSucceeds(up(ARQ, pc)); okCriar++; } catch (e) { anota('criação montada pela tela (' + x.regra.id + ')', false, String(e.message).slice(0, 160)); continue; }
     const reg = js(pc[AV + '/' + id]);
     reg.respostas = {};
@@ -501,7 +502,7 @@ async function main() {
   anota('o resultado que a tela grava é o do motor, como o banco guarda (' + iguais + ')', iguais === est36.length);
   /* mudança de ramo: com a limpeza da tela grava; sem a limpeza, o banco recusa */
   const iR = est36.length + 1, idR = 'nr', itemR = 'p' + iR;
-  const pR = js(N.payloadCriacao({ id: idR, audId: 'kcr', itemId: itemR, itemNome: 'Item ' + itemR, avaliacaoArquiteturalId: itemR, versao: 1, usuario: quem, agora: QUANDO }));
+  const pR = js(N.payloadCriacao({ hipoteseInicial: 'NAO_SEI', id: idR, audId: 'kcr', itemId: itemR, itemNome: 'Item ' + itemR, avaliacaoArquiteturalId: itemR, versao: 1, usuario: quem, agora: QUANDO }));
   await pode('ramo: criação', up(ARQ, pR));
   const regR = js(pR[AV + '/' + idR]);
   regR.respostas = {};

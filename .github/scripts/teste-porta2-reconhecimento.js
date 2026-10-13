@@ -5,8 +5,8 @@
  * teste-estruturas-jornada.js (seção 8f).
  *   1. Lista do Posicionamento: a atuação aparece marcada como "Atuação organizacional"; a Porta 1, sem marca.
  *   2. Ficha da Porta 2: bloco "Atuação organizacional" (nome atual, descrição, finalidade, referência informativa que
- *      não calcula nada, situação); sem aviso de base P1–P16; sem "Reavaliar" (a reavaliação pede a hipótese nova, PR 3);
- *      decisão final como na Porta 1. A ficha da Porta 1 continua igual.
+ *      não calcula nada, situação); sem aviso de base P1–P16; 
+ *      decisão final como na Porta 1 ("Reavaliar" com hipótese nova desde a PR 3). A ficha da Porta 1 continua igual.
  *   3. Rascunho da Porta 2: o bloco aparece; concluir funciona com o objeto ativo (o gate P1–P16 não se aplica) e grava
  *      o resultado do motor, mantendo origem e hipótese. Objeto encerrado: a conclusão trava com o motivo e nada é gravado.
  *   4. Adequação à Squad pelo atalho da ficha: atuação com posicionamento firme do ramo Linha abre S1–S8 do item, sem
@@ -121,7 +121,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/Assessoramento jurídico/.test(fj) && /Finalidade de Assessoramento jurídico/.test(fj) && /Preventivo, consultivo/.test(fj), 'bloco da atuação: nome atual, finalidade e contexto');
   afirma(/Jurídico \(P1–P16\)/.test(await texto(page, '#poObjetoReferencia')) && /não participa do cálculo/.test(await texto(page, '#poObjetoReferencia')), 'referência informativa ao item P1–P16, sem entrar no cálculo');
   afirma((await texto(page, '#poObjetoSituacao')) === 'Ativa', 'situação da atuação: Ativa');
-  afirma(!(await page.$('#poBaseRevisao')) && !(await page.$('#poReavaliarBtn')) && !(await page.$('#poAvaliarSquadBtn')), 'sem aviso de base P1–P16, sem "Reavaliar" (vem com a hipótese, PR 3), sem atalho de Squad (Área Especializada)');
+  afirma(!(await page.$('#poBaseRevisao')) && !!(await page.$('#poReavaliarBtn')) && !(await page.$('#poAvaliarSquadBtn')), 'sem aviso de base P1–P16, com "Reavaliar" (PR 3: com hipótese nova), sem atalho de Squad (Área Especializada)');
   afirma(/Tx AREA_ESPECIALIZADA/.test(await texto(page, '#poDecisaoFinal')), 'decisão final como na Porta 1');
   afirma(await larguraOk(page), 'ficha da Porta 2 sem rolagem lateral');
   await ir(page, '#avaliacoes?po=gC');

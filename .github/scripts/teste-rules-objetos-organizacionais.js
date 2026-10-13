@@ -17,7 +17,8 @@
    H. Posicionamento pela Porta 2: nasce só para objeto ATIVO, sem base P1–P16, com o nome do objeto e com hipótese
       inicial válida; origem e hipótese fixas; conclui com o resultado exato do motor (a hipótese não muda nada: resultado
       igual à hipótese mas diferente do motor é recusado); decisão final como na Porta 1; reavaliação mantém a origem.
-   I. Porta 1 intacta, salvo uma coisa: não inicia Posicionamento de item referenciado por objeto ativo.
+   I. Porta 1: hipótese inicial obrigatória em todo registro novo (PR 3) e não inicia Posicionamento de item referenciado
+      por objeto ativo; o resto como antes.
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -231,12 +232,13 @@ async function main() {
 
   console.log('\n== I. Porta 1 intacta, salvo o índice de referência ==');
   const p1 = (item, o) => N.payloadCriacao(Object.assign({ id: 'p1' + (++seq), audId: 'k1' + seq, itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quemPos(ARQ), agora: QUANDO }, o || {}));
-  await pode('Porta 1 sem hipótese (tela atual): aceita como antes', up(ARQ, p1('pP1')));
+  await nega('Porta 1 sem hipótese inicial (PR 3: obrigatória em todo registro novo): recusada', up(ARQ, p1('pP1')));
   await pode('Porta 1 com hipótese (Não sei): aceita', up(ARQ, p1('pDup', { hipoteseInicial: 'NAO_SEI' })));
-  await nega('Porta 1 sem a base P1–P16: recusada', up(ARQ, p1('pRef2', { avaliacaoArquiteturalId: undefined })));
+  await pode('Porta 1 com hipótese firme: aceita', up(ARQ, p1('pP1', { hipoteseInicial: 'NEGOCIOS' })));
+  await nega('Porta 1 sem a base P1–P16: recusada', up(ARQ, p1('pRef2', { avaliacaoArquiteturalId: undefined, hipoteseInicial: 'NAO_SEI' })));
   const comRef = criar(ARQ, { ref: 'pRef2' });
   await pode('objeto ativo referenciando pRef2', up(ARQ, comRef.w));
-  await nega('Porta 1 não inicia Posicionamento de item referenciado por objeto ativo', up(ARQ, p1('pRef2')));
+  await nega('Porta 1 não inicia Posicionamento de item referenciado por objeto ativo', up(ARQ, p1('pRef2', { hipoteseInicial: 'NAO_SEI' })));
   await nega('Porta 1 com origem de Porta 2 e base P1–P16: recusada', up(ARQ, p1('pLivre', { origem: O.ORIGEM, hipoteseInicial: 'COE' })));
 
   await env.cleanup();

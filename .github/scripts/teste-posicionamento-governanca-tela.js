@@ -527,7 +527,7 @@ async function ativacaoTela(browser, viewport, rotulo) {
   await page.waitForSelector('#poMotorEmVigor');
   afirma(/Motor em vigor: v2/.test(await textoDe(page, '#poMotorEmVigor')), '"Motor em vigor: v2"');
   let antes = await banco(page);
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await esperarCondicao(page, () => !!(window.__CFG.__dbReal['posicionamento-rascunho-por-item'] || {}).pE, undefined, { limite: 8000 });
   let db = await banco(page), idE = db['posicionamento-rascunho-por-item'].pE, rE = db['avaliacoes-posicionamento'][idE];
   afirma(rE.versaoMotor === 2 && rE.questionnaireContentVersion === 1 && rE.status === 'rascunho' && !rE.origemReavaliacao, 'Iniciar grava versaoMotor 2 e a redação v1 da trilha do motor 2', JSON.stringify(rE));
@@ -541,7 +541,7 @@ async function ativacaoTela(browser, viewport, rotulo) {
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(2, false)));
   await page.waitForSelector('#poIniciarBtn');
   antes = await banco(page);
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   afirma(/Redação desta versão do motor indisponível/.test(await textoModal(page)), 'sem redação publicada do motor em vigor: "Redação desta versão do motor indisponível"');
   afirma(JSON.stringify(await banco(page)) === JSON.stringify(antes), 'nada gravado');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
