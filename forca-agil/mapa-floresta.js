@@ -172,6 +172,9 @@
   function P() { return window.faPosicionamentos; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function spanNome(c) { return P() ? P().spanNome(c, 'mf-nome') : esc(c); }
+  /* definição oficial vigente do tipo (Taxonomia Organizacional, via faPosicionamentos): nunca texto próprio;
+     sem definição, o próprio componente diz "Carregando…" ou "indisponível" */
+  function definicaoTipoHtml(c) { return P() ? P().definicaoHtml(c, null, { comEstado: true, tag: 'span' }) : '<span class="fa-classif-def fa-classif-def--sem">Definição indisponível.</span>'; }
   function nomeTexto(c) { return P() ? P().nome(c) : c; }
   function podeLer() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
   function autorizacaoResolvida() { return !!(window.faAuth && (!window.faAuth.isAvaliacaoReady || window.faAuth.isAvaliacaoReady())); }
@@ -593,6 +596,7 @@
         '<span class="mfm-badge-exemplo">Exemplo fictício</span>' +
         '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
+        '<dt>Definição oficial</dt><dd class="mfm-definicao">' + definicaoTipoHtml(e.tipo) + '</dd>' +
         (sub ? '<dt>Subagrupador</dt><dd>' + esc(sub.nome) + ' <span class="mfm-nota">(exemplo)</span></dd>' : '') +
         squadsHtml(e.tipo, true) + '</dl>' +
         '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
@@ -614,6 +618,7 @@
         '<span class="mfm-badge-cadastrada">Estrutura cadastrada</span>' +
         '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
+        '<dt>Definição oficial</dt><dd class="mfm-definicao">' + definicaoTipoHtml(e.tipo) + '</dd>' +
         (b && b.subagrupado ? '<dt>Subagrupador</dt><dd id="mfmSubagrupador">' + (subCad ? esc(subCad.nome) : 'Sem subagrupador') + '</dd>' : '') +
         (e.sigla ? '<dt>Sigla</dt><dd>' + esc(e.sigla) + '</dd>' : '') +
         (e.descricao ? '<dt>Descrição</dt><dd class="mfm-descricao">' + esc(e.descricao) + '</dd>' : '') +
