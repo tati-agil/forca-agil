@@ -309,6 +309,11 @@ async function main() {
     u[ORG + '/atributos/at1'] = { nome: 'Atributo', ordem: 1 };
     u[ORG + '/perfis/LINHA/at1'] = { estado: 'ainda não definido' };
     u[ORG + '/relacoes/LINHA__contem__NEGOCIOS'] = { de: 'LINHA', tipo: 'contem', para: 'NEGOCIOS' };
+    /* M6/M7 (C4): o Squad (camada de trabalho que a Taxonomia admite compor uma Linha) e um Capítulo (trabalho, sem compor Linha) */
+    u[ORG + '/conceitos/SQUAD'] = { nome: 'Squad', ordem: 20, ativo: true, situacaoDefinicao: 'registrada', camada: 'trabalho', definicaoVigenteFonteId: 'fA', observacoes: 'obs' };
+    u[ORG + '/fontes/SQUAD/fA'] = { texto: 'Definição A de SQUAD', contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' };
+    u[ORG + '/conceitos/CAPITULO'] = { nome: 'Capítulo', ordem: 21, ativo: true, situacaoDefinicao: 'registrada', camada: 'trabalho' };
+    u[ORG + '/relacoes/SQUAD__compoe__NEGOCIOS'] = { de: 'SQUAD', tipo: 'compoe', para: 'NEGOCIOS' };
     await a.ref().update(u);
   });
   for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Configuração"', ARQ], ['admin geral', ADMIN]]) {
@@ -339,12 +344,17 @@ async function main() {
     await naoPode(quem + ': NÃO lê "pai"', db(email).ref(ORG + '/conceitos/NEGOCIOS/pai').once('value'));
     await naoPode(quem + ': NÃO lê atributos', db(email).ref(ORG + '/atributos').once('value'));
     await naoPode(quem + ': NÃO lê perfis', db(email).ref(ORG + '/perfis/LINHA').once('value'));
-    await naoPode(quem + ': NÃO lê relações', db(email).ref(ORG + '/relacoes').once('value'));
+    /* C4 (M6/M7): os perfis da Avaliação leem as relações conceituais e só camada/ativo/nome do Squad */
+    await pode(quem + ': lê as relações conceituais (C4)', db(email).ref(ORG + '/relacoes').once('value'));
+    for (const campo of ['camada', 'ativo', 'nome']) await pode(quem + ': lê "' + campo + '" do Squad (C4)', db(email).ref(ORG + '/conceitos/SQUAD/' + campo).once('value'));
+    for (const campo of ['camada', 'ativo', 'nome']) await naoPode(quem + ': NÃO lê "' + campo + '" do Capítulo (trabalho, sem compor Linha)', db(email).ref(ORG + '/conceitos/CAPITULO/' + campo).once('value'));
+    await naoPode(quem + ': NÃO lê o Squad inteiro', db(email).ref(ORG + '/conceitos/SQUAD').once('value'));
+    await naoPode(quem + ': NÃO lê outro campo do Squad (observacoes)', db(email).ref(ORG + '/conceitos/SQUAD/observacoes').once('value'));
     await naoPode(quem + ': NÃO lê o índice de filhos', db(email).ref(ORG + '/filhos/LINHA').once('value'));
     await naoPode(quem + ': NÃO lê a auditoria organizacional', db(email).ref(ORG + '/auditoria/LINHA').once('value'));
     await naoPode(quem + ': NÃO lê o domínio organizacional inteiro', db(email).ref(ORG).once('value'));
     for (const fora of ['SQUAD', 'CAPITULO', 'DISCIPLINA', 'A_VALIDAR']) {
-      await naoPode(quem + ': NÃO lê o nome de ' + fora, db(email).ref(ORG + '/conceitos/' + fora + '/nome').once('value'));
+      if (fora !== 'SQUAD') await naoPode(quem + ': NÃO lê o nome de ' + fora, db(email).ref(ORG + '/conceitos/' + fora + '/nome').once('value'));
       await naoPode(quem + ': NÃO lê o ponteiro de ' + fora, db(email).ref(ORG + '/conceitos/' + fora + '/definicaoVigenteFonteId').once('value'));
       await naoPode(quem + ': NÃO lê a definição vigente de ' + fora, db(email).ref(ORG + '/fontes/' + fora + '/fA/texto').once('value'));
     }

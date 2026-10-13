@@ -10,7 +10,9 @@
  *      reativação, apagar ou editar estrutura, evento ou operação, repetir operação;
  *   D. concorrência: duas gravações a partir da mesma revisão → só uma entra; mesma operação em paralelo → uma vez;
  *   E. M3 do Mapa — vínculo item × estrutura responsável (nó estruturas-vinculos): o conjunto vinculos-responsavel v1
- *      pelo adaptador, autorização e trava, gravações diretas inválidas (V1–V5 conferidos no banco) e concorrência. */
+ *      pelo adaptador, autorização e trava, gravações diretas inválidas (V1–V5 conferidos no banco) e concorrência;
+ *   F. M6/M7 — relações entre estruturas e Squad (nó estruturas-relacoes): o conjunto relacoes-estruturas v1 pelo
+ *      adaptador, leituras mínimas da Taxonomia (C4), trava, adulterações (C1–C3, R1–R7) e concorrência. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -431,6 +433,174 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
   const confV = await FB.criarPortas({ db: sessao(perdeuV.quem), codigosFirmes: FIRMES }).gravar(perdeuV.prep.op).then((x) => x.situacao, (e) => e.codigo);
   afirma(confV === 'CONFLITO_DE_REVISAO', 'o adaptador devolve CONFLITO_DE_REVISAO a quem perdeu a corrida do vínculo', confV);
   await integridadeVinculos('depois das gravações diretas e da concorrência');
+
+  /* ===== F. M6/M7 do Mapa: relações entre estruturas e Squad (nó estruturas-relacoes) ===== */
+  console.log('\nF. relações entre estruturas e Squad (M6/M7) — conjunto relacoes-estruturas v1, leituras (C4), adulterações (C1–C3) e concorrência');
+  const ER = 'estruturas-relacoes', LINHA = R.LINHA;
+  const casosR = U.criar({ nucleo: N, codigosFirmes: FIRMES, codigosLinha: LINHA });
+  const portasR = (u) => FB.criarPortas({ db: sessao(u), codigosFirmes: FIRMES, codigosLinha: LINHA });
+  /* Taxonomia como a governança a grava: camada dos conceitos de trabalho e relações conceituais <de>__<tipo>__<para> */
+  async function semearRelacoes(ref, ini) {
+    await semear(ref);
+    const m = {}, base = 'taxonomia/organizacional/';
+    Object.keys(ref.camadas || {}).forEach((c) => {
+      m[base + 'conceitos/' + c] = { nome: (ref.conceitos[c] && ref.conceitos[c].nome) || 'Conceito ' + c, ordem: 1, ativo: !ref.conceitos[c] || ref.conceitos[c].ativo !== false, situacaoDefinicao: 'registrada', camada: ref.camadas[c] };
+    });
+    (ref.relacoesConceituais || []).forEach((r) => {
+      const v = { de: r.de, tipo: r.tipo, para: r.para, criadaEm: '2026-10-01T12:00:00.000Z', criadaPor: ADM.email, auditoriaId: 'a1' };
+      if (!r.ativa) v.encerrada = { motivo: 'Não se aplica mais', em: '2026-10-02T12:00:00.000Z', por: ADM.email, auditoriaId: 'a2' };
+      m[base + 'relacoes/' + r.de + '__' + r.tipo + '__' + r.para] = v;
+    });
+    Object.keys((ini && ini.estruturas) || {}).forEach((id) => { m[EC + '/registros/' + id] = semNulosF(ini.estruturas[id]); });
+    await semRegras((db) => db.ref().update(m));
+  }
+  const semNulosF = (v) => (Array.isArray(v) ? v.map(semNulosF) : v && typeof v === 'object' ? Object.keys(v).reduce((o, kk) => { if (v[kk] !== null && v[kk] !== undefined) o[kk] = semNulosF(v[kk]); return o; }, {}) : v);
+  const ordF = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = ordF(x[kk]); return o; }, {}) : x);
+  async function integridadeRelacoes(rotulo) {
+    const v = (await bruto(ER)) || {}, regs = v.registros || {}, evs = v.eventos || {}, ops = v.operacoes || {};
+    let ok = true, det = '';
+    Object.values(evs).forEach((ev) => { const op = ops[ev.operacaoId]; if (!op || op.em !== ev.em) { ok = false; det = 'operação ≠ evento ' + ev.id; } if ('antes' in ev) { ok = false; det = '"antes" gravado ' + ev.id; } });
+    Object.keys(regs).forEach((id) => { const r = clone(regs[id]), ev = evs[r.ultimoEvento]; delete r.ultimaOperacao; delete r.ultimoEvento; if (!ev || JSON.stringify(ordF(r)) !== JSON.stringify(ordF(ev.depois))) { ok = false; det = 'relação ≠ último evento ' + id; } });
+    const ativas = Object.values(regs).filter((x) => x.situacao === 'ativa'), ic = v['ativa-por-chave'] || {}, io = v['compoe-ativa-por-origem'] || {};
+    if (Object.keys(ic).length !== ativas.length || ativas.some((x) => ic[x.origem + '__' + x.tipo + '__' + x.destino] !== x.id)) { ok = false; det = 'índice por chave ≠ relações ativas'; }
+    const comp = ativas.filter((x) => x.tipo === 'compoe');
+    if (Object.keys(io).length !== comp.length || comp.some((x) => io[x.origem] !== x.id)) { ok = false; det = 'índice de "compõe" ≠ composições ativas'; }
+    afirma(ok, rotulo + ': no banco, relação = depois do seu último evento, mesmo horário em evento e operação, índices = relações ativas', det);
+  }
+  /* F1. o conjunto versionado pelo adaptador */
+  const conjR = R.carregar(R.ARQUIVO_RELACOES).conj;
+  const inicioR = Date.now() - 2000;
+  let anteriorR = null;
+  const rr = await R.executar({
+    arquivo: R.ARQUIVO_RELACOES, rotulo: 'Firebase Emulator (adaptador estruturas-firebase.js)',
+    normalizarHorario: (gravado, doCenario) => { if (doCenario === undefined) return gravado; if (gravado === doCenario && gravado < inicioR) return doCenario; /* registro do estado inicial, semeado antes da execução */ return typeof gravado === 'number' && gravado >= inicioR && gravado <= Date.now() + 2000 ? doCenario : 'NÃO É HORÁRIO DO SERVIDOR: ' + JSON.stringify(gravado); },
+    criarPortas: async (referencias, estadoInicial) => {
+      if (anteriorR) await integridadeRelacoes(anteriorR);
+      await semearRelacoes(referencias, estadoInicial);
+      anteriorR = 'cenário';
+      const porPessoa = {};
+      const portasDe = (u) => (porPessoa[u.id] = porPessoa[u.id] || portasR(u));
+      return Object.assign({}, portasDe(ARQ), { gravar: (op) => portasDe(op.usuario).gravar(op) });
+    }
+  });
+  await integridadeRelacoes('último cenário');
+  total += rr.total; falhas += rr.falhas;
+
+  /* base das gravações diretas */
+  const pessoasR = { arq: ARQ, adm: ADM };
+  const resolverR = (v) => (Array.isArray(v) ? v.map(resolverR) : v && typeof v === 'object' ? Object.keys(v).reduce((o, kk) => { o[kk] = ['criadaPor', 'por'].indexOf(kk) !== -1 && typeof v[kk] === 'string' ? pessoasR[v[kk]] : resolverR(v[kk]); return o; }, {}) : v);
+  const refR = conjR.referencias.padrao;
+  await semearRelacoes(refR, resolverR(clone(conjR.estados.comum)));
+  let seqR = 0;
+  async function prepararR(u, operacao, entrada, extraCtx) {
+    let capturada = null;
+    const ctx = Object.assign({ operacaoId: 'opr-' + (++seqR), usuario: { id: u.id, email: u.email }, agora: Date.now() }, extraCtx || {});
+    const r = await casosR.executar(operacao, entrada, ctx, Object.assign({}, portasR(u), { gravar: (op) => { capturada = op; return Promise.resolve({ situacao: 'gravada' }); } }));
+    if (!r.ok) throw new Error('preparar ' + operacao + ': ' + JSON.stringify(r.erros));
+    return { op: capturada, multi: FB.montarGravacao(capturada) };
+  }
+  const chR = (multi, parte) => Object.keys(multi).find((c) => c.indexOf(ER + '/' + parte + '/') === 0);
+  const regR = (m) => m[chR(m, 'registros')], evR = (m) => m[chR(m, 'eventos')];
+  const ambosR = (m, f) => { f(regR(m)); f(evR(m).depois); };
+  /* troca o identificador de uma gravação montada (para forjar uma segunda gravação a partir de uma válida) */
+  const renomear = (multi, de, para, opDe, opPara) => { const m = {}; Object.keys(multi).forEach((c) => { m[c.split(de).join(para).split(opDe).join(opPara)] = JSON.parse(JSON.stringify(multi[c]).split(de).join(para).split(opDe).join(opPara)); }); return m; };
+
+  /* F2. leituras (C4) e autorização */
+  console.log('\nF2. leituras mínimas da Taxonomia (C4), autorização e trava');
+  await caso('avaliacao (consulta) lê as relações conceituais da Taxonomia', sessao(AVAL).ref('taxonomia/organizacional/relacoes').once('value'), true);
+  await caso('avaliacao-arquitetura lê as relações conceituais da Taxonomia', sessao(ARQ).ref('taxonomia/organizacional/relacoes').once('value'), true);
+  await caso('pessoa sem perfil NÃO lê as relações conceituais', sessao(OUTRA).ref('taxonomia/organizacional/relacoes').once('value'), false);
+  for (const c of ['camada', 'ativo', 'nome']) await caso('avaliacao lê ' + c + ' de um conceito de trabalho (Squad)', sessao(AVAL).ref('taxonomia/organizacional/conceitos/SQUAD/' + c).once('value'), true);
+  await caso('avaliacao NÃO lê a camada de um conceito que não é de trabalho', sessao(AVAL).ref('taxonomia/organizacional/conceitos/NEGOCIOS/camada').once('value'), false);
+  await caso('avaliacao NÃO lê o conceito de trabalho inteiro (só os campos liberados)', sessao(AVAL).ref('taxonomia/organizacional/conceitos/SQUAD').once('value'), false);
+  await caso('pessoa sem perfil NÃO lê a camada do Squad', sessao(OUTRA).ref('taxonomia/organizacional/conceitos/SQUAD/camada').once('value'), false);
+  await caso('avaliacao-arquitetura continua sem gravar a Taxonomia (relação conceitual)', sessao(ARQ).ref('taxonomia/organizacional/relacoes/SQUAD__atende__COE').set({ de: 'SQUAD', tipo: 'atende', para: 'COE' }), false);
+  const f1 = await prepararR(ARQ, 'criarRelacao', { origem: 'S-1', tipo: 'compoe', destino: 'L-1' }, { novoId: 'FR1' });
+  const comoR = (u) => { const m = clone(f1.multi), p = { id: u.id, email: u.email }; regR(m).criadaPor = p; evR(m).usuario = p; evR(m).depois.criadaPor = p; m[chR(m, 'operacoes')].usuario = p; return m; };
+  await caso('perfil avaliacao (só consulta) NÃO grava relação', gravarComo(AVAL, comoR(AVAL)), false);
+  await caso('pessoa sem perfil NÃO grava relação', gravarComo(OUTRA, comoR(OUTRA)), false);
+  await semRegras((db) => db.ref('estruturas-concretas-config/gravacaoHabilitada').remove());
+  await caso('trava desligada (como no banco oficial): nem admin geral grava relação', gravarComo(ADM, comoR(ADM)), false);
+  await semRegras((db) => db.ref('estruturas-concretas-config/gravacaoHabilitada').set(true));
+  await caso('avaliacao-arquitetura grava Squad compõe Linha (relação + índices + evento + operação)', gravarComo(ARQ, f1.multi), true);
+  for (const sub of ['registros', 'ativa-por-chave', 'compoe-ativa-por-origem', 'eventos', 'operacoes']) {
+    await caso('avaliacao (consulta) lê ' + sub, sessao(AVAL).ref(ER + '/' + sub).once('value'), true);
+    await caso('pessoa sem perfil NÃO lê ' + sub, sessao(OUTRA).ref(ER + '/' + sub).once('value'), false);
+  }
+
+  /* F3. gravações diretas inválidas */
+  console.log('\nF3. gravações diretas inválidas (C1–C3, R1–R7)');
+  const f2 = await prepararR(ADM, 'criarRelacao', { origem: 'C-1', tipo: 'atende', destino: 'L-1' }, { novoId: 'FR2' });
+  const partesR = (multi, manter) => Object.keys(multi).filter((c) => manter.some((p) => c.indexOf(ER + '/' + p + '/') === 0)).reduce((o, c) => { o[c] = multi[c]; return o; }, {});
+  for (const [nome, manter] of [['só a relação', ['registros']], ['relação sem o índice', ['registros', 'eventos', 'operacoes']], ['relação sem evento', ['registros', 'ativa-por-chave', 'operacoes']], ['relação sem operação', ['registros', 'ativa-por-chave', 'eventos']]]) {
+    await caso(nome + ' é recusada', gravarComo(ADM, partesR(f2.multi, manter)), false);
+  }
+  /* forja trocando as pontas: o índice da combinação acompanha (a gravação é coerente; quem recusa é a regra) */
+  const forjar = (multi, mudar) => {
+    const m = clone(multi), velha = chR(m, 'ativa-por-chave');
+    ambosR(m, mudar);
+    const r = regR(m); delete m[velha]; m[ER + '/ativa-por-chave/' + r.origem + '__' + r.tipo + '__' + r.destino] = r.id;
+    if (r.tipo === 'compoe') m[ER + '/compoe-ativa-por-origem/' + r.origem] = r.id;
+    m[chR(m, 'operacoes')].origem = r.origem;
+    return m;
+  };
+  for (const [nome, f] of [
+    ['"compõe" geral (Linha compõe CoE), mesmo com a Taxonomia admitindo — C2', (x) => { x.origem = 'L-1'; x.tipo = 'compoe'; x.destino = 'C-1'; }],
+    ['Squad compõe Área Especializada (Taxonomia admite, mas não é Linha) — C2', (x) => { x.origem = 'S-2'; x.tipo = 'compoe'; x.destino = 'A-1'; }],
+    ['relação que a Taxonomia não admite (encerrada lá)', (x) => { x.origem = 'A-1'; x.destino = 'L-1'; }],
+    ['autorrelação', (x) => { x.origem = 'C-1'; x.destino = 'C-1'; }],
+    ['ponta encerrada', (x) => { x.destino = 'L-9'; }],
+    ['tipo fora dos cinco', (x) => { x.tipo = 'gerencia'; }]
+  ]) await caso(nome + ' é recusada', gravarComo(ADM, forjar(f2.multi, f)), false);
+  for (const [nome, f] of [
+    ['horário do cliente', (m) => ambosR(m, (x) => { x.criadaEm = 1; })],
+    ['autoria de outra pessoa', (m) => ambosR(m, (x) => { x.criadaPor = { id: ARQ.id, email: ARQ.email }; })],
+    ['campo a mais', (m) => ambosR(m, (x) => { x.extra = 'x'; })],
+    ['evento com "antes"', (m) => { evR(m).antes = { id: 'FR2' }; }],
+    ['evento de criação com motivo (sem substituição)', (m) => { evR(m).motivo = 'x'; }]
+  ]) await caso(nome + ' é recusado', gravarComo(ADM, (() => { const m = clone(f2.multi); f(m); return m; })()), false);
+  /* C3: a mesma Squad numa segunda Linha, mesmo montando tudo: o índice de "compõe" já aponta para FR1 */
+  const segunda = forjar(renomear(f1.multi, 'FR1', 'FR9', f1.op.id, 'opr-seg'), (x) => { x.destino = 'L-2'; });
+  await caso('a mesma Squad compondo uma segunda Linha é recusada (índice de "compõe", C3)', gravarComo(ARQ, segunda), false);
+  /* duplicata: a mesma combinação de novo, com outro identificador */
+  await caso('relação válida (CoE atende Linha) entra', gravarComo(ADM, f2.multi), true);
+  await caso('a mesma relação ativa de novo, com outro identificador, é recusada (duplicata)', gravarComo(ADM, renomear(f2.multi, 'FR2', 'FR8', f2.op.id, 'opr-dup')), false);
+  /* encerrar: só com motivo, sem mudar o imutável, sem reativar, sem apagar */
+  const e1R = await prepararR(ADM, 'encerrarRelacao', { relacaoId: 'FR2', motivo: 'Não atende mais' });
+  for (const [nome, f] of [
+    ['encerrar sem motivo', (m) => ambosR(m, (x) => { delete x.encerramento.motivo; })],
+    ['encerrar trocando o destino', (m) => ambosR(m, (x) => { x.destino = 'L-2'; })],
+    ['encerrar mantendo o índice na relação', (m) => { delete m[chR(m, 'ativa-por-chave')]; }],
+    ['encerrar pulando revisão', (m) => ambosR(m, (x) => { x.revisao = 3; })]
+  ]) await caso(nome + ' é recusado', gravarComo(ADM, (() => { const m = clone(e1R.multi); f(m); return m; })()), false);
+  await caso('encerrar com motivo entra', gravarComo(ADM, e1R.multi), true);
+  const reatR = (() => { const m = renomear(e1R.multi, 'xx-nada', 'xx-nada', e1R.op.id, 'opr-reatR'); ambosR(m, (x) => { x.situacao = 'ativa'; x.revisao = 3; delete x.encerramento; }); m[ER + '/ativa-por-chave/C-1__atende__L-1'] = 'FR2'; return m; })();
+  await caso('reativar relação encerrada é recusado', gravarComo(ADM, reatR), false);
+  for (const [nome, c, v] of [['apagar relação', ER + '/registros/FR1', null], ['apagar o índice de uma relação ativa', ER + '/compoe-ativa-por-origem/S-1', null], ['editar evento', ER + '/eventos/' + f1.op.id + ':1/motivo', 'x'], ['editar um campo da relação direto', ER + '/registros/FR1/destino', 'L-2']]) {
+    await caso(nome + ' é recusado (até para admin geral)', sessao(ADM).ref(c).set(v), false);
+  }
+  /* C1: Squad como estrutura; Capítulo não */
+  const sqR = await preparar(ARQ, 'criarEstrutura', criar('Squad Ômega', 'SQUAD'), { novoId: 'SQ-OMEGA' }).catch(() => null);
+  afirma(sqR === null, 'sem as relações conceituais (casos de uso sem códigos de Linha), o Squad não é admitido no cadastro (nada presumido)');
+  const sqOk = await prepararR(ARQ, 'criarEstrutura', { tipo: 'SQUAD', nome: 'Squad Ômega' }, { novoId: 'SQ-OMEGA' });
+  const comoTipo = (tipo, id) => { const m = renomear(sqOk.multi, 'SQ-OMEGA', id, sqOk.op.id, 'opr-' + id); Object.keys(m).forEach((c) => { if (c.indexOf(EC + '/registros/') === 0) m[c].tipo = tipo; if (c.indexOf(EC + '/eventos/') === 0) m[c].depois.tipo = tipo; }); return m; };
+  await caso('Capítulo (camada de trabalho, sem "compõe" Linha admitido) NÃO é cadastrado', gravarComo(ARQ, comoTipo('CAPITULO', 'CAP-1')), false);
+  await caso('Squad (camada de trabalho, Taxonomia admite compor Linha) é cadastrado', gravarComo(ARQ, sqOk.multi), true);
+  await semRegras((db) => db.ref('taxonomia/organizacional/relacoes').once('value').then((s) => { const u = {}; Object.keys(s.val() || {}).forEach((k) => { if (/^SQUAD__compoe__/.test(k)) u['taxonomia/organizacional/relacoes/' + k + '/encerrada'] = { motivo: 'x', em: '2026-10-03T12:00:00.000Z', por: ADM.email, auditoriaId: 'a3' }; }); return db.ref().update(u); }));
+  await caso('com as composições Squad → Linha encerradas na Taxonomia, um novo Squad NÃO é cadastrado', gravarComo(ARQ, comoTipo('SQUAD', 'SQ-2')), false);
+  await semearRelacoes(refR, resolverR(clone(conjR.estados.comum)));
+
+  /* F4. concorrência: a mesma Squad em duas Linhas ao mesmo tempo */
+  console.log('\nF4. concorrência');
+  await semRegras((db) => db.ref(ER).remove());
+  const x1R = await prepararR(ARQ, 'criarRelacao', { origem: 'S-2', tipo: 'compoe', destino: 'L-1' }, { novoId: 'FX1' });
+  const x2R = await prepararR(ADM, 'criarRelacao', { origem: 'S-2', tipo: 'compoe', destino: 'L-2' }, { novoId: 'FX2' });
+  const rxR = await Promise.allSettled([gravarComo(ARQ, x1R.multi), gravarComo(ADM, x2R.multi)]);
+  afirma(rxR.filter((x) => x.status === 'fulfilled').length === 1, 'a mesma Squad em duas Linhas ao mesmo tempo: só uma entra', JSON.stringify(rxR.map((x) => x.status)));
+  const perdeuR = rxR[0].status === 'fulfilled' ? { prep: x2R, quem: ADM } : { prep: x1R, quem: ARQ };
+  const confR = await portasR(perdeuR.quem).gravar(perdeuR.prep.op).then((x) => x.situacao, (e) => e.codigo);
+  afirma(confR === 'CONFLITO_DE_REVISAO', 'o adaptador devolve CONFLITO_DE_REVISAO a quem perdeu a corrida', confR);
+  await integridadeRelacoes('depois das gravações diretas e da concorrência');
 
   await env.cleanup();
   console.log('\n============================\n' + total + ' verificações — ' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));

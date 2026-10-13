@@ -28,8 +28,11 @@ const MOTOR = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento-nucleo
 const ARQUIVO = path.join(__dirname, 'cenarios', 'estruturas-concretas.v1.json');
 const ARQUIVO_SUBAGRUPADORES = path.join(__dirname, 'cenarios', 'mapa-subagrupadores.v1.json');
 const ARQUIVO_VINCULOS = path.join(__dirname, 'cenarios', 'vinculos-responsavel.v1.json');
+const ARQUIVO_RELACOES = path.join(__dirname, 'cenarios', 'relacoes-estruturas.v1.json');
+/* os códigos firmes do ramo Linha (C2: no site, "compõe" só de Squad para Linha) */
+const LINHA = MOTOR.CODIGOS_FIRMES.filter((c) => MOTOR.liberaSquadParaCodigoFirme(c) === true);
 /* campos de horário por coleção (formato 2 do conjunto: estadoFinal por coleção) */
-const HORARIOS = { estruturas: ['criadaEm', 'alteradaEm', 'encerramento.em'], subagrupadores: ['criadoEm', 'alteradoEm', 'encerramento.em'], associacoesSubagrupador: ['criadaEm', 'encerramento.em'], vinculos: ['criadoEm', 'encerramento.em'] };
+const HORARIOS = { estruturas: ['criadaEm', 'alteradaEm', 'encerramento.em'], subagrupadores: ['criadoEm', 'alteradoEm', 'encerramento.em'], associacoesSubagrupador: ['criadaEm', 'encerramento.em'], vinculos: ['criadoEm', 'encerramento.em'], relacoes: ['criadaEm', 'encerramento.em'] };
 const ler = (o, c) => c.split('.').reduce((a, k) => (a && typeof a === 'object' ? a[k] : undefined), o);
 const por = (o, c, v) => { const p = c.split('.'); let a = o; for (let i = 0; i < p.length - 1; i++) a = a[p[i]]; a[p[p.length - 1]] = v; };
 
@@ -62,7 +65,7 @@ function comFalha(portas, falha) {
 
 async function executar(opcoes) {
   const { conj, sha256 } = carregar(opcoes.arquivo);
-  const casos = U.criar({ nucleo: N, codigosFirmes: MOTOR.CODIGOS_FIRMES });
+  const casos = U.criar({ nucleo: N, codigosFirmes: MOTOR.CODIGOS_FIRMES, codigosLinha: LINHA });
   const usuarios = conj.usuarios, norm = opcoes.normalizarHorario || ((gravado) => gravado);
   const log = opcoes.log || console.log;
   let total = 0, falhas = 0;
@@ -141,4 +144,4 @@ async function executar(opcoes) {
   return { total, falhas, conjunto: conj.conjunto, versao: conj.versao, sha256 };
 }
 
-module.exports = { executar, carregar, ARQUIVO, ARQUIVO_SUBAGRUPADORES, ARQUIVO_VINCULOS };
+module.exports = { executar, carregar, ARQUIVO, ARQUIVO_SUBAGRUPADORES, ARQUIVO_VINCULOS, ARQUIVO_RELACOES, LINHA };

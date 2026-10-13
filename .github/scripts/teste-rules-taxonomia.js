@@ -398,7 +398,13 @@ async function main() {
   }
   await nega('a raiz "taxonomia" inteira não é lida em bloco (leitura é por ramo)', R(admin(), 'taxonomia').once('value'));
   for (const [rotulo, email] of [['"Avaliação + Configuração" (escreve naturezas, mas NÃO a Taxonomia)', ARQ], ['"Avaliação"', AVAL], ['usuário comum', SEM_ACESSO], ['sem login', null]]) {
-    for (const cam of LEITURAS.filter((c) => c !== 'taxonomia')) await nega(rotulo + ' NÃO lê ' + cam, R(db(email), cam).once('value'));
+    /* C4 (M6/M7 do Mapa): os perfis da Avaliação leem as relações conceituais (só leitura); quem não tem perfil, não */
+    const perfilAvaliacao = email === ARQ || email === AVAL;
+    for (const cam of LEITURAS.filter((c) => c !== 'taxonomia')) {
+      if (perfilAvaliacao && cam === ORG + '/relacoes') await pode(rotulo + ' lê ' + cam + ' (C4, só leitura)', R(db(email), cam).once('value'));
+      else await nega(rotulo + ' NÃO lê ' + cam, R(db(email), cam).once('value'));
+    }
+    await nega(rotulo + ' NÃO escreve relação conceitual', R(db(email), ORG + '/relacoes/C1__atende__LINHA').set({ de: 'C1', tipo: 'atende', para: 'LINHA' }));
     await nega(rotulo + ' NÃO escreve conceito', R(db(email), ORG + '/conceitos/C1/nome').set('invasão'));
     await nega(rotulo + ' NÃO escreve fonte', R(db(email), ORG + '/fontes/C1/F_INV').set(fonte('placeholder')));
     await nega(rotulo + ' NÃO escreve perfil', R(db(email), ORG + '/perfis/C1/ALCANCE').set({ estado: 'ainda não definido' }));

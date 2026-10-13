@@ -29,8 +29,9 @@
    eventos = o histórico/auditoria da operação (só acréscimo). aplicar(estado, mudancas) devolve o estado novo —
    o mesmo contrato que um adaptador de persistência cumpre gravando as mudanças de uma vez (tudo ou nada).
 
-   Regras (delimitação funcional aprovada): E1–E6, R1–R7, V1–V8, S1–S3. Nada aqui decide cardinalidades ainda em
-   aberto (quantas Linhas uma Squad compõe), unicidade de nome/sigla, carga inicial ou infraestrutura.
+   Regras (delimitação funcional aprovada): E1–E6, R1–R7, V1–V8, S1–S3 e, desde a M6/M7 do Mapa, C3: uma estrutura da
+   organização do trabalho (Squad) compõe no máximo UMA estrutura de tipo de posicionamento (a Linha) ativa — trocar é
+   substituir (alterarRelacao), com motivo. Nada aqui decide unicidade de nome/sigla, carga inicial ou infraestrutura.
    ============================================================ */
 (function () {
   'use strict';
@@ -199,6 +200,15 @@
     }
     return false;
   }
+  /* C3: a outra composição ATIVA de uma estrutura de trabalho com uma estrutura de tipo de posicionamento (ou null) */
+  function composicaoDeTrabalhoAtiva(estado, d, ref, ignorarId) {
+    var ests = colecao(estado, 'estruturas'), o = ests[d.origem], de = ests[d.destino], adm = tiposAdmitidos(ref);
+    if (d.tipo !== RELACAO_HIERARQUICA || !o || !de || adm[o.tipo] !== 'trabalho' || adm[de.tipo] !== 'posicionamento') return null;
+    return relacoesAtivas(estado).filter(function (r) {
+      var x = ests[r.destino];
+      return r.id !== ignorarId && r.origem === d.origem && r.tipo === RELACAO_HIERARQUICA && x && adm[x.tipo] === 'posicionamento';
+    })[0] || null;
+  }
   function validarRelacao(estado, d, ref, ignorarId) {
     var e = [], ests = colecao(estado, 'estruturas');
     if (TIPOS_RELACAO.indexOf(d.tipo) === -1) e.push(erro('TIPO_RELACAO_INVALIDO', { tipo: d.tipo }));
@@ -211,6 +221,9 @@
     if (!relacaoConceitualAdmite(ref, o.tipo, d.tipo, de.tipo)) e.push(erro('RELACAO_NAO_ADMITIDA_PELA_TAXONOMIA', { de: o.tipo, tipo: d.tipo, para: de.tipo }));
     if (relacoesAtivas(estado).some(function (r) { return r.id !== ignorarId && r.origem === d.origem && r.tipo === d.tipo && r.destino === d.destino; })) e.push(erro('RELACAO_DUPLICADA'));
     if (d.tipo === RELACAO_HIERARQUICA && criaCiclo(estado, d.origem, d.destino, ignorarId)) e.push(erro('CICLO_NA_COMPOSICAO'));
+    /* C3: Squad (camada da organização do trabalho) compõe no máximo uma Linha (tipo de posicionamento) ativa */
+    var outraComposicao = composicaoDeTrabalhoAtiva(estado, d, ref, ignorarId);
+    if (outraComposicao) e.push(erro('COMPOSICAO_ATIVA_JA_EXISTE', { relacaoId: outraComposicao.id }));
     if (d.justificativa !== undefined && d.justificativa !== null) checarTexto(e, 'justificativa', d.justificativa, false);
     return e;
   }
@@ -551,9 +564,10 @@
   }
 
   /* unicidades que dependem de OUTROS registros e que a persistência garante sob concorrência (no Firebase, um
-     índice conferido pelas regras; no PostgreSQL, índice único parcial): no máximo uma associação ATIVA por Linha.
-     Devolve as violações (vazio = ok). Usada pela referência em memória do contrato. */
-  function violacoesDeUnicidade(estado) {
+     índice conferido pelas regras; no PostgreSQL, índice único parcial): no máximo uma associação ATIVA por Linha;
+     um responsável principal ativo por item; nenhuma relação ativa duplicada; com ref, C3 (um Squad compõe no máximo
+     uma Linha ativa). Devolve as violações (vazio = ok). Usada pela referência em memória do contrato. */
+  function violacoesDeUnicidade(estado, ref) {
     var vistas = {}, v = [];
     valores(colecao(estado, 'associacoesSubagrupador')).forEach(function (a) {
       if (a.situacao !== SITUACAO.ATIVA) return;
@@ -566,6 +580,14 @@
       if (x.situacao !== SITUACAO.ATIVA || x.papel !== 'responsavel-principal') return;
       if (itens[x.objetoId]) v.push({ codigo: 'RESPONSAVEL_PRINCIPAL_JA_EXISTE', objetoId: x.objetoId });
       itens[x.objetoId] = true;
+    });
+    /* M6/M7: relação ativa duplicada e, com as referências, C3 */
+    var chaves = {};
+    relacoesAtivas(estado).forEach(function (r) {
+      var ch = r.origem + '|' + r.tipo + '|' + r.destino;
+      if (chaves[ch]) v.push({ codigo: 'RELACAO_DUPLICADA', relacaoId: r.id });
+      chaves[ch] = true;
+      if (ref && composicaoDeTrabalhoAtiva(estado, r, ref, r.id)) v.push({ codigo: 'COMPOSICAO_ATIVA_JA_EXISTE', origem: r.origem });
     });
     return v;
   }

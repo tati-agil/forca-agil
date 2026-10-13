@@ -20,7 +20,9 @@ const U = require('../../forca-agil/estruturas-casos-de-uso.js');
     const e = Object.assign({}, estado), posicionamentos = e.posicionamentos; delete e.posicionamentos;
     return U.persistenciaEmMemoria(N, { referencias, estado: e, posicionamentos });
   } });
-  let falhas = r.falhas + r2.falhas + r3.falhas;
+  /* M6/M7 do Mapa: relações entre estruturas e Squad (C1–C3) */
+  const r4 = await R.executar({ arquivo: R.ARQUIVO_RELACOES, rotulo: 'referência em memória', criarPortas: (referencias, estado) => U.persistenciaEmMemoria(N, { referencias, estado }) });
+  let falhas = r.falhas + r2.falhas + r3.falhas + r4.falhas;
   /* guarda estática: o caso de uso não decide nada que seja do núcleo */
   const fonte = fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'estruturas-casos-de-uso.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   const proibidos = ['MAX', 'TIPO_IMUTAVEL', 'MOTIVO_OBRIGATORIO', 'CAMPO_OBRIGATORIO', 'TIPO_NAO_ADMITIDO', 'firebase', 'require(', 'Date.now', 'new Date', 'Math.random'];
