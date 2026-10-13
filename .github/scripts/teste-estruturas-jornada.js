@@ -715,22 +715,53 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const decisoesDepois = (await ler('posicionamento-decisoes')) || {};
       const novas = Object.keys(decisoesDepois).filter((k) => !(k in decisoesAntes));
       afirma(iguais && novas.length === 1 && Object.keys(decisoesAntes).every((k) => JSON.stringify(decisoesAntes[k]) === JSON.stringify(decisoesDepois[k])), 'separação: avaliações P1–P16, O1–O9 e S1–S8 intactas; só a decisão final feita pela pessoa foi gravada', mudou);
-      /* 4. trava de produção pela tela (só emulador): sem o marcador, nada grava e a tela diz por quê */
+      /* 4. habilitação operacional (D2), pela tela e só no emulador: o marcador em três estados */
       const TRAVA = 'estruturas-concretas-config/gravacaoHabilitada';
-      await S.banco('DELETE', TRAVA);
-      const relAntes = JSON.stringify(await ler('estruturas-relacoes/registros')), estAntes = JSON.stringify(await ler('estruturas-concretas/registros')), vinAntes = JSON.stringify(await ler('estruturas-vinculos/registros'));
+      const fotosDb = async () => JSON.stringify([await ler('estruturas-relacoes/registros'), await ler('estruturas-concretas/registros'), await ler('estruturas-vinculos/registros'), await ler('mapa-subagrupadores/registros')]);
+      const dbAntes = await fotosDb();
+      /* false: só consulta — os dados aparecem, nenhum controle de edição, aviso de gravação suspensa */
+      await S.banco('PUT', TRAVA, false);
       await ir(p, '#avaliacoes?po=pos-m3');
-      await p.waitForSelector('#poRespEncerrar', { timeout: 15000 }); await p.click('#poRespEncerrar'); await p.waitForSelector('#poRespMotivo');
-      await p.fill('#poRespMotivo', 'Tentativa com a trava desligada'); await p.click('#poRespSalvar');
-      await p.waitForSelector('#poRespErros', { timeout: 30000 });
-      afirma(/O banco recusou a gravação/.test(await texto(p, '#poRespErros')), 'trava desligada: encerrar o vínculo é recusado e a tela explica', await texto(p, '#poRespErros'));
+      await esperarCondicaoAte(p, () => !!document.getElementById('poRespSituacao') && /Gravação suspensa/.test((document.getElementById('poResponsavel') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma((await texto(p, '#poRespSituacao')) === 'Válido' && await p.locator('#poRespVincular, #poRespSubstituir, #poRespEncerrar, #poRespForm').count() === 0,
+        'marcador false: a ficha do Posicionamento mostra a estrutura responsável, sem nenhuma ação, com "Gravação suspensa"');
       await ir(p, '#admin?arq=estruturas&e=' + idCoe);
-      await p.waitForSelector('#estRelNova', { timeout: 15000 }); await p.click('#estRelNova'); await p.waitForSelector('#estRelEscolha', { timeout: 15000 });
-      const primeira = await p.$$eval('#estRelEscolha option', (os) => (os.map((o) => o.value).filter(Boolean))[0] || '');
-      if (primeira) { await p.selectOption('#estRelEscolha', primeira); await p.click('#estRelSalvar'); await p.waitForSelector('#estErros', { timeout: 30000 }); }
-      afirma(!!primeira && /O banco recusou a gravação/.test(await texto(p, '#estErros')), 'trava desligada: criar relação é recusado e a tela explica', await texto(p, '#estErros'));
-      afirma(JSON.stringify(await ler('estruturas-relacoes/registros')) === relAntes && JSON.stringify(await ler('estruturas-concretas/registros')) === estAntes && JSON.stringify(await ler('estruturas-vinculos/registros')) === vinAntes, 'trava desligada: nada foi gravado em estruturas, vínculos ou relações');
+      await esperarCondicaoAte(p, () => !!document.getElementById('estFicha') && /Gravação suspensa/.test((document.getElementById('estAmbiente') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(await p.locator('#estEditar, #estEncerrar, #estRelNova, .est-rel-encerrar, .est-rel-trocar').count() === 0 && /Produto Delta/.test(await texto(p, '#estProdutos')), 'marcador false: a ficha da estrutura mostra os dados (produtos, relações) e nenhum botão de edição');
+      await ir(p, '#admin?arq=estruturas');
+      await esperarCondicaoAte(p, () => !!document.getElementById('estLista'), undefined, { limite: 15000 });
+      afirma(await p.locator('#estNova').count() === 0, 'marcador false: a lista não oferece "Cadastrar estrutura"');
+      await ir(p, '#avaliacoes?mf=mapa');
+      await esperarCondicaoAte(p, () => /Gravação suspensa/.test((document.getElementById('mfmFaixa') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(await p.locator('#mfmMapa .mfm-caixa[data-estrutura="' + idCoe + '"]').count() === 1 && /só consulta/.test(await texto(p, '#mfmIrCadastro')), 'marcador false: o Mapa mostra as estruturas reais, com "Gravação suspensa" e o cadastro só para consulta');
+      const cq4 = await sessao('consulta');
+      await ir(cq4, '#avaliacoes?mf=mapa&e=neg-3');
+      await esperarCondicaoAte(cq4, () => /Squad Alfa/.test((document.getElementById('mfmSquads') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(/Squad Alfa/.test(await texto(cq4, '#mfmSquads')), 'marcador false: o perfil de consulta continua vendo o Mapa real');
+      await cq4.context().close();
+      const cel4 = await sessao('configuracao', 375);
+      for (const [rot, hash, sel] of [['Posicionamento só consulta', '#avaliacoes?po=pos-m3', '#poRespSituacao'], ['ficha da estrutura só consulta', '#admin?arq=estruturas&e=' + idCoe, '#estFicha']]) {
+        await ir(cel4, hash); await cel4.waitForSelector(sel, { timeout: 15000 });
+        afirma(await semRolagemLateral(cel4), '375 px: ' + rot + ' sem rolagem lateral');
+      }
+      await cel4.context().close();
+      /* ausente: volta ao estado de antes da operação — demonstração, cartão e bloco desligados */
+      await S.banco('DELETE', TRAVA);
+      await esperarCondicaoAte(p, () => /Demonstração/.test((document.getElementById('mfmFaixa') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(/Demonstração/.test(await texto(p, '#mfmFaixa')), 'marcador ausente: o Mapa volta à demonstração (sem recarregar)');
+      await ir(p, '#avaliacoes?po=pos-m3');
+      await esperarCondicaoAte(p, () => !!document.getElementById('poResultado'), undefined, { limite: 15000 });
+      await espera(800);
+      afirma(await p.locator('#poBlocoResponsavel').count() === 0, 'marcador ausente: a ficha do Posicionamento não mostra o bloco de estrutura responsável');
+      await ir(p, '#avaliacoes?mf=catalogo');
+      await esperarCondicaoAte(p, () => !!document.getElementById('mfAvisoEstruturas'), undefined, { limite: 15000 });
+      afirma(/informação indisponível/.test(await texto(p, '#mfAvisoEstruturas')) && await p.locator('.mf-vinculo').count() === 0, 'marcador ausente: o Catálogo volta a dizer que as estruturas estão indisponíveis');
+      afirma(await fotosDb() === dbAntes, 'nos estados false e ausente nada foi gravado em estruturas, subagrupadores, vínculos ou relações');
+      /* true de novo: a operação volta sem recarregar */
       await S.banco('PUT', TRAVA, true);
+      await ir(p, '#avaliacoes?mf=mapa');
+      await esperarCondicaoAte(p, (id) => !!document.querySelector('#mfmMapa .mfm-caixa[data-estrutura="' + id + '"]'), idCoe, { limite: 15000 });
+      afirma(await p.locator('#mfmMapa .mfm-caixa[data-estrutura="' + idCoe + '"]').count() === 1 && !/Gravação suspensa/.test(await texto(p, '#mfmFaixa')), 'marcador true de novo: o Mapa volta às estruturas, com manutenção');
       /* 5. celular: ficha do Posicionamento com decisão + bloco, e Mapa do CoE */
       const cel8 = await sessao('configuracao', 375);
       for (const [rot, hash, sel] of [['Posicionamento com decisão e estrutura responsável', '#avaliacoes?po=pos-m3', '#poRespSituacao'], ['Mapa do CoE com o produto', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'], ['Catálogo', '#avaliacoes?mf=catalogo', itemCat + ' .mf-vinculo [data-situacao]']]) {

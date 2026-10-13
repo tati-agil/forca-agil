@@ -582,6 +582,8 @@
       h.classList.toggle('page-hero--posicionamento', !!meu);
     }
     function aberto() { return !wrap.hidden; }
+    /* D2: o bloco Estrutura responsável aparece ou some conforme a habilitação operacional (lida depois do login) */
+    window.addEventListener('fa-estruturas-habilitacao', function () { if (aberto() && state.atual) render(); });
     function mostrarPainel() {
       var v = vizinho(); if (v) v.hidden = true;
       var sq = document.getElementById('avaliacoesSquad'); if (sq) sq.hidden = true;
@@ -1029,7 +1031,7 @@
       h += renderRespostasLidas(a) + '</section>';
       h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final</h4>' + renderDecisao(a, key, sit) + '</section>';
       /* M3 do Mapa: a estrutura responsável do item — só na versão vigente; quem lê e grava é o módulo de Estruturas
-         (faEstruturasAdmin.montarResponsavel, ligado em bind), que só existe no ambiente de testes */
+         (faEstruturasAdmin.montarResponsavel, ligado em bind), que só existe com a operação habilitada (marcador presente) */
       if (sit === 'vigente' && state.carregou.dec && blocoResponsavelDisponivel()) h += '<section class="po-bloco" id="poBlocoResponsavel"><h4 class="po-bloco-titulo">Estrutura responsável</h4><div id="poResponsavel"></div></section>';
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
       var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();

@@ -10,8 +10,12 @@
        (database.rules.json › estruturas-concretas).
    Os textos de erro só traduzem os códigos do núcleo e da persistência; nenhuma regra é repetida aqui.
 
-   NESTA ETAPA: só existe no AMBIENTE DE TESTES (Firebase Emulator — window.faAmbiente.testes). Fora dele,
-   disponivel() é false e o cartão nem aparece na área.
+   HABILITAÇÃO OPERACIONAL (decisão D2, 2026-10-13): o marcador estruturas-concretas-config/gravacaoHabilitada, lido ao
+   vivo pelos três perfis da Avaliação (o navegador nunca o grava — só console ou conta de serviço), decide:
+     ausente → telas desligadas (disponivel() = false; o Mapa fica na demonstração);
+     false   → só consulta: estruturas, vínculos e relações visíveis, nenhum controle de edição ("Gravação suspensa");
+     true    → manutenção pelos perfis autorizados (admin geral e avaliacao-arquitetura), com todas as regras do banco.
+   Vale igual no site oficial e no ambiente de testes (a semente do emulador liga o marcador); lá só os avisos mudam.
 
    Endereço: #admin?arq=estruturas (lista) e #admin?arq=estruturas&e=<id> (ficha) — F5 reabre a mesma tela.
    Etapa 5 — subagrupadores das Linhas de Negócios (agrupamento de APRESENTAÇÃO do Mapa): aba própria
@@ -55,8 +59,32 @@
     });
   }
   var ROTULO_RELACAO = { compoe: 'compõe', 'aloca-em': 'aloca em', atende: 'atende', 'desenvolve-disciplina': 'desenvolve a disciplina', 'pertence-a-disciplina': 'pertence à disciplina' };
-  function disponivel() { return !!(window.faAmbiente && window.faAmbiente.testes && N() && U() && FB() && MOT() && window.firebase); }
-  function podeManter() { var a = A(); return !!(a && ((a.isAdmin && a.isAdmin()) || (a.podeArquitetura && a.podeArquitetura()))); }
+  /* o marcador: undefined = ainda lendo; null = ausente (ou leitura recusada: sem perfil); true / false */
+  var marcador, desligarMarcador = null, pessoaMarcador = null;
+  function emTestes() { return !!(window.faAmbiente && window.faAmbiente.testes); }
+  function anunciar() { try { window.dispatchEvent(new Event('fa-estruturas-habilitacao')); } catch (e) { /* navegador antigo */ } }
+  function definirMarcador(v) { if (v !== marcador) { marcador = v; anunciar(); } }
+  function sincronizarMarcador() {
+    var s = A() && A().getSession && A().getSession(), quem = (s && s.email) || null;
+    if (quem !== pessoaMarcador) { if (desligarMarcador) desligarMarcador(); desligarMarcador = null; pessoaMarcador = quem; definirMarcador(undefined); }
+    if (!quem || desligarMarcador || !FB() || !window.firebase) return;
+    desligarMarcador = FB().ouvir(window.firebase.database(), ['habilitacao'], function (m) {
+      definirMarcador(m.habilitacao === true ? true : m.habilitacao === false ? false : null);
+    }, function () { desligarMarcador = null; definirMarcador(null); /* sem perfil (ou sem resposta): telas desligadas, nada presumido */ });
+  }
+  ['fa-auth-ready', 'fa-auth-change', 'fa-avaliacao-ready', 'fa-admin-ready'].forEach(function (ev) { window.addEventListener(ev, sincronizarMarcador); });
+  function disponivel() { return !!(N() && U() && FB() && MOT() && window.firebase && (marcador === true || marcador === false)); }
+  function gravacaoAtiva() { return marcador === true; }
+  function perfilManter() { var a = A(); return !!(a && ((a.isAdmin && a.isAdmin()) || (a.podeArquitetura && a.podeArquitetura()))); }
+  /* "se pode mexer, pode gravar": controle de edição só para quem mantém E com a gravação habilitada */
+  function podeManter() { return perfilManter() && gravacaoAtiva(); }
+  /* avisos de cada situação (o ambiente de testes continua se identificando) */
+  function avisoSituacaoHtml(id, testesTexto) {
+    if (emTestes()) return '<p class="avp-decisao-aviso est-ambiente"' + (id ? ' id="' + id + '"' : '') + ' role="note"><strong>Ambiente de testes.</strong> ' + testesTexto + (marcador === false ? ' <strong>Gravação suspensa:</strong> só consulta.' : '') + '</p>';
+    if (marcador === false) return '<p class="avp-decisao-aviso est-ambiente est-suspensa"' + (id ? ' id="' + id + '"' : '') + ' role="note"><strong>Gravação suspensa.</strong> As estruturas organizacionais estão disponíveis só para consulta.</p>';
+    return '';
+  }
+  function dicaLeitura() { return emTestes() ? 'Verifique se o ambiente de testes está aberto.' : 'Verifique a conexão e tente de novo.'; }
   function natureza(tipo) {
     if (tipo === 'AREA_ESPECIALIZADA') return 'Área Especializada';
     if (tipo === 'COE') return 'Centro de Excelência';
@@ -264,14 +292,14 @@
         '<h4 class="est-titulo" id="estTitulo" tabindex="-1">' + esc(titulo) + '</h4>';
     }
     function aviso() {
-      return '<p class="avp-decisao-aviso est-ambiente" id="estAmbiente" role="note"><strong>Ambiente de testes.</strong> O que for cadastrado aqui fica só no Firebase Emulator — não vai para o banco oficial.</p>';
+      return avisoSituacaoHtml('estAmbiente', 'O que for cadastrado aqui fica só no Firebase Emulator — não vai para o banco oficial.');
     }
     function listaHtml() {
       var h = cabecalho('Estruturas Organizacionais', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliação e Mapa'), 'estVoltarOrigem') + abas('estruturas') + aviso();
       h += '<p class="est-intro">As estruturas organizacionais concretas — Linhas, Áreas Especializadas e Centros de Excelência — que aparecem no Mapa da Floresta. O tipo de cada uma é um dos oito posicionamentos firmes.</p>';
       h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="estNova">Cadastrar estrutura</button>' : '') +
         '<a class="btn" id="estVerMapa" href="#avaliacoes?mf=mapa">Ver o Mapa da Floresta</a></div>';
-      if (st.erroLeitura) return h + '<div class="avp-error-msg" id="estErroLeitura" role="alert">' + (st.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar as estruturas.' : 'Não foi possível ler as estruturas agora. Verifique se o ambiente de testes está aberto.') + '</div>';
+      if (st.erroLeitura) return h + '<div class="avp-error-msg" id="estErroLeitura" role="alert">' + (st.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar as estruturas.' : 'Não foi possível ler as estruturas agora. ' + dicaLeitura()) + '</div>';
       if (st.estruturas === undefined) return h + '<p class="loading-msg" role="status">Carregando estruturas…</p>';
       var todas = Object.keys(st.estruturas).map(function (k) { return st.estruturas[k]; });
       var encerradas = todas.filter(function (e) { return e.situacao !== 'ativa'; }).length;
@@ -671,7 +699,7 @@
       if (wrap.hidden) return;
       var ativo = document.activeElement, foco = ativo && ativo.id && wrap.contains(ativo) && /^(INPUT|TEXTAREA)$/.test(ativo.tagName) ? { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd } : null;
       var h;
-      if (!disponivel()) h = '<p class="avp-error-msg" id="estIndisponivel">O cadastro de estruturas só está disponível no ambiente de testes nesta etapa.</p>';
+      if (!disponivel()) h = '<p class="avp-error-msg" id="estIndisponivel">' + (marcador === undefined ? 'Verificando se as estruturas organizacionais estão habilitadas…' : 'As estruturas organizacionais ainda não estão habilitadas.') + '</p>';
       else if (st.vista === 'nova') h = podeManter() ? formNovaHtml() : listaHtml();
       else if (st.vista === 'detalhe') h = detalheHtml();
       else if (st.vista === 'editar') h = podeManter() ? formEditarHtml() : detalheHtml();
@@ -797,6 +825,7 @@
     });
     /* recarregar ou fechar a página no meio de uma edição: o navegador pergunta antes (o endereço já guarda a estrutura) */
     window.addEventListener('beforeunload', function (ev) { if (!wrap.hidden && st.sujo) { ev.preventDefault(); ev.returnValue = ''; } });
+    window.addEventListener('fa-estruturas-habilitacao', function () { if (wrap.hidden) return; if (!gravacaoAtiva()) { st.sujo = false; st.rel = null; } ligar(); render(); });
     ['fa-admin-ready', 'fa-avaliacao-ready'].forEach(function (ev) { window.addEventListener(ev, function () { if (!wrap.hidden) render(); }); });
 
     return { abrir: abrir, fechar: fechar, disponivel: disponivel, temAlteracaoNaoSalva: function () { return !wrap.hidden && !!st.sujo; } };
@@ -871,11 +900,12 @@
   function refsBloco() { return refsDaTela(); }
   function rotuloEstrutura(e) { return e ? esc(e.nome) + ' <span class="est-sigla">' + esc(natureza(e.tipo)) + ' · ' + esc(nomeTipo(e.tipo)) + '</span>' : '<span class="est-vazio">estrutura não encontrada</span>'; }
   function htmlBloco() {
-    if (bloco.erroLeitura) return '<div class="avp-error-msg" role="alert">' + (bloco.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar a estrutura responsável.' : 'Não foi possível ler a estrutura responsável agora. Verifique se o ambiente de testes está aberto.') + '</div>';
+    if (bloco.erroLeitura) return '<div class="avp-error-msg" role="alert">' + (bloco.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar a estrutura responsável.' : 'Não foi possível ler a estrutura responsável agora. ' + dicaLeitura()) + '</div>';
     if (bloco.estruturas === undefined || bloco.vinculos === undefined || bloco.refs === undefined) return '<p class="loading-msg" role="status">Carregando a estrutura responsável…</p>';
     var estado = { estruturas: bloco.estruturas, vinculos: bloco.vinculos }, ref = refsBloco();
     var s = N().situacaoResponsavel(estado, bloco.itemId, bloco.posicionamento, ref), v = s.vinculo, ef = s.efetivo, manter = podeManter();
-    var h = '<p class="avp-decisao-aviso est-ambiente" role="note"><strong>Ambiente de testes.</strong> O vínculo fica só no Firebase Emulator.</p>';
+    if (!manter) { bloco.modo = null; bloco.form = null; } /* gravação suspensa no meio de uma edição: o formulário some */
+    var h = avisoSituacaoHtml(null, 'O vínculo fica só no Firebase Emulator.');
     if (bloco.flash) h += '<p class="avp-flash-success" id="poRespFlash" tabindex="-1">' + esc(bloco.flash) + '</p>';
     h += '<dl class="est-dados" id="poRespDados">' +
       '<div class="est-dado"><dt>Situação</dt><dd><span class="est-situacao po-resp-situacao po-resp-situacao--' + esc(s.situacao) + '" id="poRespSituacao" data-situacao="' + esc(s.situacao) + '">' + esc(SITUACAO_VINCULO[s.situacao] || s.situacao) + '</span></dd></div>';
@@ -968,17 +998,36 @@
     if (P()) P().iniciar();
     desenharBloco();
   }
-  /* troca de pessoa: nada do estado anterior sobrevive; a leitura recomeça com a sessão nova no próximo desenho */
+  window.addEventListener('fa-estruturas-habilitacao', function () {
+    /* leituras pedidas antes de o marcador chegar (ou antes de uma troca de pessoa) recomeçam agora — quem pediu recebe */
+    if (disponivel()) {
+      if (ligacoesLidas === undefined && aoLerLigacoes.length && !lendoLigacoes) lerLigacoes(function () {});
+      if (taxRel === undefined && aoLerTaxRel.length && !lendoTaxRel) lerTaxRel(function () {});
+      ligarBloco();
+    }
+    desenharBloco();
+  });
+  /* troca de PESSOA (o aviso de login chega mais de uma vez na mesma sessão): nada do estado anterior sobrevive; as
+     leituras pendentes continuam esperando e recomeçam com a sessão nova */
+  var pessoaBloco = null;
   window.addEventListener('fa-auth-change', function () {
+    var s = A() && A().getSession && A().getSession(), quem = (s && s.email) || null;
+    if (quem === pessoaBloco) return;
+    var trocou = pessoaBloco !== null; /* a primeira identificação não descarta nada: não havia estado anterior */
+    pessoaBloco = quem;
+    if (!trocou) return;
     if (bloco.desligar) bloco.desligar();
-    ligacoesLidas = undefined; lendoLigacoes = false; aoLerLigacoes = []; geracaoLigacoes++;
-    taxRel = undefined; lendoTaxRel = false; aoLerTaxRel = []; geracaoTaxRel++; /* outro perfil pode ler outras coisas */
+    ligacoesLidas = undefined; lendoLigacoes = false; geracaoLigacoes++;
+    taxRel = undefined; lendoTaxRel = false; geracaoTaxRel++; /* outro perfil pode ler outras coisas */
+    /* quem esperava as leituras continua esperando: recomeçam com a sessão nova (ou quando o marcador chegar) */
+    if (disponivel() && aoLerLigacoes.length) lerLigacoes(function () {});
+    if (disponivel() && aoLerTaxRel.length) lerTaxRel(function () {});
     bloco.desligar = null; bloco.ligado = false; bloco.estruturas = undefined; bloco.vinculos = undefined; bloco.refs = undefined; bloco.erroLeitura = null;
     bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; bloco.flash = null;
   });
 
 
-  /* o contêiner está no index.html antes deste arquivo; disponivel() é false fora do ambiente de testes */
+  /* o contêiner está no index.html antes deste arquivo; disponivel() é false com o marcador ausente */
   var api = null;
   function garantir() { if (!api) api = montar(); return api; }
   window.faEstruturasAdmin = {
@@ -992,6 +1041,11 @@
     situacaoVinculoHtml: situacaoVinculoHtml,
     lerLigacoes: function (cb) { lerLigacoes(function () { cb(refsDaTela()); }); },
     /* M6/M7: o rótulo de cada tipo de relação (o Mapa mostra as relações só para consulta) */
-    rotuloRelacao: function (tipo) { return ROTULO_RELACAO[tipo] || tipo; }
+    rotuloRelacao: function (tipo) { return ROTULO_RELACAO[tipo] || tipo; },
+    /* habilitação operacional (D2): undefined lendo | null ausente | true manutenção | false só consulta */
+    habilitacao: function () { return marcador; },
+    gravacaoAtiva: gravacaoAtiva,
+    emTestes: emTestes
   };
+  sincronizarMarcador();
 })();

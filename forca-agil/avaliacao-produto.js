@@ -2763,6 +2763,7 @@
       else if (area === 'documentacao') abrirDocumentacao();
       else if (area === 'motor-squad' && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; render(); abrirMotorSquadDoInicio(); }
       else if (area === 'estruturas' && estruturasDisponiveis()) { state.tela = 'admin-inicio'; render(); abrirEstruturasDoInicio(); }
+      else if (area === 'estruturas' && habilitacaoEstruturasPendente()) { estruturasPendente = location.hash; state.tela = 'admin-inicio'; render(); } /* reaplicado quando o marcador chegar */
       else { state.tela = 'admin-inicio'; render(); }
     }
     /* Voltar/Avançar do navegador, link colado ou F5 com #admin?arq=<área>. */
@@ -2790,8 +2791,19 @@
       sincronizarEnderecoAdmin();
     }
     /* Estruturas Organizacionais Concretas (estruturas-tela.js): cadastro que alimenta o Mapa da Floresta.
-       Nesta etapa só existe no AMBIENTE DE TESTES (Firebase Emulator) — fora dele o cartão nem aparece. */
+       O cartão aparece quando a operação está habilitada (marcador estruturas-concretas-config/gravacaoHabilitada
+       presente: true = manutenção, false = só consulta) ou no ambiente de testes. */
     function estruturasDisponiveis() { return !!(window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel()); }
+    /* o marcador chega depois do login (rede lenta): redesenha o início da área e abre o endereço que esperava por ele */
+    var estruturasPendente = null; /* o endereço de Estruturas pedido antes de o marcador chegar (F5, link direto) */
+    function habilitacaoEstruturasPendente() { var E = window.faEstruturasAdmin; return !!(E && E.habilitacao && E.habilitacao() === undefined); }
+    if (modo === 'admin') window.addEventListener('fa-estruturas-habilitacao', function () {
+      var pedido = estruturasPendente; estruturasPendente = null;
+      if (wrap.hidden) return;
+      if (pedido && estruturasDisponiveis() && areaAtualAdmin() !== 'estruturas') { history.replaceState(history.state, '', pedido); aplicarEnderecoAdmin(); return; }
+      if (areaDoEndereco() === 'estruturas' && areaAtualAdmin() !== 'estruturas') aplicarEnderecoAdmin();
+      else if (state.tela === 'admin-inicio' && areaAtualAdmin() !== 'estruturas') render();
+    });
     function abrirEstruturasDoInicio() {
       state.rolagemInicio = window.pageYOffset || 0;
       window.faEstruturasAdmin.abrir({ rotulo: ROTULO_ADMIN, voltar: function () {

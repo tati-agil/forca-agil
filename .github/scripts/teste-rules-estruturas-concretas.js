@@ -156,7 +156,14 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
   await caso('sem o marcador (como no banco oficial), uma gravação válida é recusada', gravarComo(ARQ, tr.multi), false);
   await caso('admin geral não liga o marcador pelo cliente', sessao(ADM).ref(FB.TRAVA_PRODUCAO).set(true), false);
   await caso('avaliacao-arquitetura não liga o marcador pelo cliente', sessao(ARQ).ref(FB.TRAVA_PRODUCAO).set(true), false);
-  await caso('ninguém lê o marcador pelo cliente', sessao(ADM).ref(FB.TRAVA_PRODUCAO).once('value'), false);
+  /* D2 (habilitação operacional): os três perfis da Avaliação LEEM o marcador; ninguém o grava pelo navegador */
+  for (const [quem, u] of [['admin geral', ADM], ['avaliacao-arquitetura', ARQ], ['avaliacao (consulta)', AVAL]]) await caso(quem + ' lê o marcador (decide as telas)', sessao(u).ref(FB.TRAVA_PRODUCAO).once('value'), true);
+  await caso('pessoa sem perfil NÃO lê o marcador', sessao(OUTRA).ref(FB.TRAVA_PRODUCAO).once('value'), false);
+  await caso('avaliacao (consulta) não liga o marcador pelo cliente', sessao(AVAL).ref(FB.TRAVA_PRODUCAO).set(true), false);
+  await caso('ninguém apaga nem troca o nó de configuração pelo cliente', sessao(ADM).ref('estruturas-concretas-config').set({ gravacaoHabilitada: true }), false);
+  await caso('o nó de configuração inteiro continua fechado à leitura', sessao(ADM).ref('estruturas-concretas-config').once('value'), false);
+  await semRegras((db) => db.ref(FB.TRAVA_PRODUCAO).set(false));
+  await caso('com o marcador em false (gravação suspensa, só consulta), a gravação é recusada', gravarComo(ARQ, tr.multi), false);
   await semRegras((db) => db.ref(FB.TRAVA_PRODUCAO).set(true));
   await caso('com o marcador ligado (só console/conta de serviço), a mesma gravação entra', gravarComo(ARQ, tr.multi), true);
 
