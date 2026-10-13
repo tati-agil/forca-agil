@@ -3240,3 +3240,5 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-previa-tabela th, .avp-previa-tabela td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line-strong); vertical-align: top; overflow-wrap: anywhere; }
 .avp-previa-muda td { font-weight: 600; }
 .avp-previa-confirmar { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; font-weight: 600; }
+/* M2: definição oficial do tipo na ficha e no detalhe do Mapa (fundo claro: herda a cor do texto) */
+.mfm-ficha .fa-classif-def, .est-dado .fa-classif-def { font-size: inherit; color: inherit; margin: 0; }

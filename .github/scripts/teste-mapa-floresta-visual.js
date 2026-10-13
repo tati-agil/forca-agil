@@ -11,7 +11,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
+const { esperarCondicao, esperarCondicaoAte, esperarSessaoAssentada } = require('./esperas');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -29,7 +29,8 @@ function semente() {
   const users = {}; users[chave(ARQ)] = { name: 'Pessoa', email: ARQ, area: 'INFOR' };
   const conceitos = {}, fontes = {};
   ['LINHA', 'PLATAFORMA', 'AREA_ESPECIALIZADA', 'COE'].concat(LINHA6).forEach((c, i) => {
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: 'f1' };
+    /* M2: Área Especializada sem definição vigente → o detalhe diz "indisponível" */
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: c === 'AREA_ESPECIALIZADA' ? null : 'f1' };
     fontes[c] = { f1: { texto: 'Definição de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' } };
   });
   return { 'fa-users': users, 'fa-admins': {}, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
@@ -91,6 +92,10 @@ async function rodada(browser, viewport, rotulo) {
   const det = await page.locator('#mfmDetalhe').innerText();
   afirma(/Negócios — Exemplo 1/.test(det) && /Exemplo fictício/.test(det) && /Natureza\s*Linha/.test(det) && /Tx NEGOCIOS/.test(det) && /Previdência/.test(det) && /Organização por Squads\s*Admitida para este tipo de estrutura/.test(det) && /Squads vinculados\s*Nenhum nos exemplos fictícios/.test(det),
     'detalhe: nome, "Exemplo fictício", natureza, especialização (Taxonomia), subagrupador e Squads', det.slice(0, 300));
+  const defPronta = () => esperarCondicaoAte(page, () => { const d = document.querySelector('#mfmDetalhe [data-fa-def-estado]'); return !!d && d.getAttribute('data-fa-def-estado') !== 'carregando'; }, undefined, { limite: 8000 });
+  await defPronta();
+  const detDef = await page.locator('#mfmDetalhe').innerText();
+  afirma(/Definição oficial\s*Definição de NEGOCIOS/.test(detDef), 'detalhe: definição oficial vigente do tipo, da Taxonomia (M2)', detDef.slice(0, 300));
   afirma(JSON.stringify(await page.$$eval('#mfmObjetos .mfm-objeto', (els) => els.map((e) => e.getAttribute('data-objeto')))) === '["demo-obj-4","demo-obj-5"]', 'detalhe lista os produtos/serviços sob a estrutura');
   afirma(await page.evaluate(() => (document.activeElement || {}).id) === 'mfmDetalheTitulo', 'o foco vai para o título do detalhe (teclado e leitor de tela)');
   const larg = await page.evaluate(() => document.getElementById('mfmDetalhe').getBoundingClientRect().width);
@@ -101,6 +106,9 @@ async function rodada(browser, viewport, rotulo) {
     await page.waitForSelector('#mfmSemObjetos');
     const d2 = await page.locator('#mfmDetalhe').innerText();
     afirma(/Nenhum produto ou serviço de exemplo/.test(d2) && /Área Especializada/.test(d2) && /Áreas Especializadas e Centros de Excelência não formam Squads/.test(d2), 'Área Especializada sem produtos: diz que não há; não forma Squads');
+    await defPronta();
+    const d2Def = await page.locator('#mfmDetalhe').innerText();
+    afirma(/Definição oficial\s*Definição vigente indisponível/.test(d2Def) && !/Definição de AREA_ESPECIALIZADA/.test(d2Def), 'tipo sem definição vigente: "indisponível", sem texto substituto (M2)');
   }
   await page.keyboard.press('Escape');
   await esperarCondicao(page, () => !document.getElementById('mfmDetalhe'), null, { limite: 5000, descricao: 'Esc fecha o detalhe' });

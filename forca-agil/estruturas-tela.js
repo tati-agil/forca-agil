@@ -284,6 +284,8 @@
         '<section class="est-secao" aria-labelledby="estSecIdentificacao"><h5 class="est-secao-titulo" id="estSecIdentificacao">Identificação</h5><dl class="est-dados">' +
           dado('Natureza', esc(natureza(e.tipo))) +
           dado(linha ? 'Especialização' : 'Tipo oficial', esc(nomeTipo(e.tipo))) +
+          /* definição oficial vigente do tipo, da Taxonomia (faPosicionamentos); nunca texto próprio */
+          dado('Definição oficial', P() ? P().definicaoHtml(e.tipo, 'estDefinicaoTipo', { comEstado: true, tag: 'span' }) : '<span class="fa-classif-def fa-classif-def--sem">Definição indisponível.</span>', true) +
           dado('Sigla', e.sigla ? esc(e.sigla) : '<span class="est-vazio">não informada</span>') +
           dado('Descrição', e.descricao ? '<span class="est-descricao">' + esc(e.descricao) + '</span>' : '<span class="est-vazio">não informada</span>', true) +
         '</dl></section>' +

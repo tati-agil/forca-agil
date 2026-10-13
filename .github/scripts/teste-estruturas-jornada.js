@@ -24,6 +24,7 @@ const path = require('path');
 const http = require('http');
 const { execFileSync, spawn } = require('child_process');
 const { chromium } = require('playwright');
+const { esperarCondicaoAte } = require('./esperas');
 
 const RAIZ = path.resolve(__dirname, '..', '..');
 const PORTA_BANCO = 9100, PORTA_LOGIN = 9199, PORTA_SITE = 8817;
@@ -56,6 +57,8 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
   try {
     await subirEmulador();
     await S.semear(() => {});
+    /* M2: definição vigente de TESTE só para NEGOCIOS (emulador próprio desta jornada); os outros tipos ficam sem → "indisponível" */
+    await S.banco('PATCH', 'taxonomia/organizacional', { 'conceitos/NEGOCIOS/definicaoVigenteFonteId': 'f-teste', 'fontes/NEGOCIOS/f-teste': { texto: 'Definição de teste — NEGOCIOS', contexto: 'teste', situacao: 'vigente', tipoRedacao: 'Conceito' } });
     servidor = spawn(process.execPath, [path.join(__dirname, 'ambiente-local', 'servidor.js'), RAIZ, String(PORTA_SITE)], { env: Object.assign({}, process.env, { SEM_NAVEGADOR: '1' }), stdio: 'ignore' });
     for (let i = 0; i < 20 && !(await aberto(PORTA_SITE)); i++) await espera(300);
     navegador = await chromium.launch();
@@ -116,6 +119,8 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(/Estrutura cadastrada/.test(await texto(p, '#estFlash')), 'confirmação visível depois de salvar');
     afirma(!!idNeg, 'a ficha abre no endereço da estrutura (&e=…)');
     afirma(/Linha/.test(await texto(p, '#estFicha')) && /Linha de Negócios/.test(await texto(p, '#estFicha')) && /LINV/.test(await texto(p, '#estFicha')), 'ficha com natureza, especialização e sigla');
+    await esperarCondicaoAte(p, () => /Definição de teste — NEGOCIOS/.test((document.querySelector('#estDefinicaoTipo') || {}).textContent || ''), undefined, { limite: 15000 });
+    afirma(/Definição oficial\s*Definição de teste — NEGOCIOS/.test(await texto(p, '#estFicha')), 'ficha: definição oficial vigente do tipo, lida da Taxonomia (M2)');
     const nRegs = await S.banco('GET', 'estruturas-concretas/registros').then((r) => Object.keys(r.corpo || {}).length);
     afirma(nRegs === 1, 'duplo clique em salvar gravou UMA estrutura', nRegs);
     await p.click('#estFlashOutra');
@@ -136,10 +141,12 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(await noBloco('ae', idAe) === 1, 'Área de Riscos em Áreas Especializadas');
     afirma(/Plataforma de Nuvem/.test(await texto(p, '#mfmDetalhe')) && /Estrutura cadastrada/.test(await texto(p, '#mfmDetalhe')), 'a estrutura salva abre com os detalhes no Mapa');
     afirma(/Informação ainda indisponível/.test(await texto(p, '#mfmSemObjetos')), 'produtos e serviços: informação indisponível (nenhuma associação inventada)');
+    afirma(/Definição oficial\s*Definição vigente indisponível/.test(await texto(p, '#mfmDetalhe')), 'detalhe no Mapa: tipo sem definição vigente na Taxonomia → "indisponível", sem texto substituto (M2)');
     await p.click('[data-estrutura="' + idNeg + '"]');
     await p.waitForFunction((id) => location.hash.indexOf('e=' + id) !== -1, idNeg);
     const det = await texto(p, '#mfmDetalhe');
     afirma(/Linha de Investimentos/.test(det) && /Sem subagrupador/.test(det) && /LINV/.test(det) && /Organização por Squads\s*Admitida para este tipo de estrutura/.test(det) && /Squads vinculados\s*Informação ainda indisponível/.test(det), 'clicar na estrutura mostra natureza, caminho, sigla e Squads (possível × vinculados, sem inventar)', det.slice(0, 200));
+    afirma(/Definição oficial\s*Definição de teste — NEGOCIOS/.test(det), 'detalhe no Mapa: definição oficial vigente do tipo (M2)', det.slice(0, 300));
 
     /* ===== 4. Persistência ===== */
     console.log('\n4. Persistência');
