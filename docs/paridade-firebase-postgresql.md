@@ -32,6 +32,9 @@ da Floresta que grave dados. É requisito obrigatório, não meta. *(Redação o
 - P1–P16, O1–O9, S1–S8, I2 e a Taxonomia existem só no Firebase. Estruturas, subagrupadores, vínculos e relações gravam
   no Firebase pelo site, atrás do marcador de habilitação operacional (ausente no banco oficial até a autorização), e no
   PostgreSQL só com dados sintéticos.
+- Objetos organizacionais da Porta 2 do Posicionamento (`objetos-organizacionais`, com auditoria e índice de referência)
+  existem só no Firebase (horário do servidor, autoria do token, revisão por gravação, nada apagado); entram na
+  reconciliação da migração futura, como os demais dados reais.
 
 ## Duas garantias diferentes
 

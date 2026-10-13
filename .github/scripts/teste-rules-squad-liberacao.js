@@ -7,7 +7,8 @@
  *   C. exigência ligada: só cria S para item liberado pelo Posicionamento GRAVADO — a decisão final da avaliação
  *      vigente quando existe, senão a recomendação automática —, com a origem apontando para essa avaliação; rascunhos
  *      e avaliações S já existentes continuam sendo salvos, concluídos e excluídos;
- *   D. a origem da liberação é imutável (não muda, não some, não aparece depois em S antiga). */
+ *   D. a origem da liberação é imutável (não muda, não some, não aparece depois em S antiga).
+ *   E. Porta 2: objeto organizacional ENCERRADO não recebe nova avaliação S; a S que já existia continua sendo salva. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -102,6 +103,13 @@ function squad(itemId, comOrigem) {
   await caso('cria S de item sem Posicionamento (sem origem)', db(AVAL).ref(SQ + '/s1').set(squad('iSem', false)), true);
   await caso('cria S de item Área Especializada (origem registrada)', db(AVAL).ref(SQ + '/s2').set(squad('iAE')), true);
   await caso('cria S de item novo (chave própria)', db(AVAL).ref(SQ + '/s3').set(Object.assign(squad('s3'), {})), true);
+
+  console.log('E. Porta 2: objeto organizacional encerrado não recebe nova S');
+  await admin(async (d) => { await d.ref('objetos-organizacionais/oEnc/situacao').set('encerrado'); await d.ref('objetos-organizacionais/oAtv/situacao').set('ativo'); });
+  await caso('objeto ENCERRADO: nova S recusada', db(AVAL).ref(SQ + '/o1').set(squad('oEnc', false)), false);
+  await caso('objeto ativo: nova S aceita (exigência desligada)', db(AVAL).ref(SQ + '/o2').set(squad('oAtv', false)), true);
+  await admin(async (d) => { await d.ref('objetos-organizacionais/oAtv/situacao').set('encerrado'); });
+  await caso('S que já existia continua sendo salva depois do encerramento do objeto', db(AVAL).ref(SQ + '/o2').set(Object.assign(squad('oAtv', false), { atualizadoEm: '2026-10-12T12:00:00.000Z' })), true);
 
   console.log('C. exigência LIGADA: a criação exige o item liberado pelo Posicionamento GRAVADO');
   await admin(async (d) => { await d.ref(CF).set({ exigirParaSquad: true, alteradoEm: 1, alteradoPor: { uid: 'x', email: ADM }, motivo: 'm', auditoriaId: 'z' }); });

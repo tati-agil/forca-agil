@@ -362,7 +362,12 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
   await semRegras((db) => db.ref('estruturas-concretas-config/gravacaoHabilitada').remove());
   await caso('trava desligada (marcador ausente, como no banco oficial): nem admin geral grava vínculo', gravarComo(ADM, comoV(ADM)), false);
   await semRegras((db) => db.ref('estruturas-concretas-config/gravacaoHabilitada').set(true));
-  await caso('avaliacao-arquitetura grava (vínculo + índice + evento + operação)', gravarComo(ARQ, w1.multi), true);
+  /* Porta 2: vínculo novo só para objeto organizacional que não esteja encerrado */
+  await semRegras((db) => db.ref('objetos-organizacionais/item-a/situacao').set('encerrado'));
+  await caso('objeto organizacional ENCERRADO não recebe vínculo novo (Porta 2)', gravarComo(ARQ, w1.multi), false);
+  await semRegras((db) => db.ref('objetos-organizacionais/item-a/situacao').set('ativo'));
+  await caso('avaliacao-arquitetura grava (vínculo + índice + evento + operação) — também para objeto organizacional ativo', gravarComo(ARQ, w1.multi), true);
+  await semRegras((db) => db.ref('objetos-organizacionais/item-a').remove());
   for (const sub of ['registros', 'ativo-por-objeto', 'eventos', 'operacoes']) {
     await caso('avaliacao (consulta) lê ' + sub, sessao(AVAL).ref(EV + '/' + sub).once('value'), true);
     await caso('pessoa sem perfil NÃO lê ' + sub, sessao(OUTRA).ref(EV + '/' + sub).once('value'), false);
