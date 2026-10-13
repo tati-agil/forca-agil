@@ -293,7 +293,7 @@ async function parteB(browser, R) {
     console.log('== PARTE B (' + rotulo + ') — versão 7 publicada: avaliações novas ==');
     {
       const antiga = item('Concluída na versão 6', ['P9', 'P16'], 'funcionalidade-operacao');
-      const { ctx, page, erros } = await abrir(browser, viewport, clone(publicada7), { antiga: clone(antiga) }, 'avaliacoes');
+      const { ctx, page, erros } = await abrir(browser, viewport, clone(publicada7), { antiga: clone(antiga) }, 'avaliacoes?av=lista');
       await page.waitForSelector('#avpNovoBtn');
       const inicio = await banco(page);
       const casos = [

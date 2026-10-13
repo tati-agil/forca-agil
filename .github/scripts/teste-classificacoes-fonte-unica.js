@@ -173,7 +173,7 @@ async function abrir(browser, viewport, opts) {
     await servirMutado(page, 'avaliacao-produto.js', SRC_AVP, '      id: ident.camada,\n      label: nomeClassificacao(ident.camada),',
       "      id: (window.faClassificacoes && window.faClassificacoes.usandoContingencia(ident.camada)) ? 'a-validar' : ident.camada,\n      label: nomeClassificacao(ident.camada),");
   }
-  await page.goto(BASE + '/index.html#' + (opts.rota || 'avaliacoes'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#' + (opts.rota || 'avaliacoes?av=lista'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
