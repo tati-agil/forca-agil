@@ -697,6 +697,12 @@
       "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (cb uma vez; a resposta do servidor depois do prazo vai para \"depois\", confirmação ou recusa)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita, leitura parada rejeita no prazo); ouvir e cancelar."
     },
     {
+      "arquivo": ".github/scripts/teste-jornada-guiada.js",
+      "nome": "Jornada por objeto (Mapa da Floresta): trilha de etapas, próximo passo e retorno ao objeto (desktop e celular)",
+      "duracao": 25,
+      "sobre": "PR 4: os 8 casos de referência (Capec e Assessoria completas, Jurídico P1–P16 representado pela atuação com o A validar explicado, Agilidade Porta 2, sem Posicionamento, A validar em análise sem obrigação de decidir, firme sem estrutura com cadastro de tipo pré-escolhido, estrutura disponível sem vínculo); resumo e filtro; ida e volta por endereço estável (F5); Mapa nas estruturas cadastradas, demonstração só por escolha; perfil de consulta; rede lenta; 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-porta2-jornada.js",
       "nome": "Porta 2: a jornada das duas portas, com a hipótese inicial (desktop e celular)",
       "duracao": 20,

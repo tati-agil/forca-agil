@@ -3280,3 +3280,26 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .est-rel-form { margin-top: 12px; }
 .est-rel-form select { width: 100%; max-width: 100%; min-height: 44px; }
 .mfm-squads-lista, .mfm-relacoes-lista { margin: 0; padding-left: 18px; }
+/* PR 4 — Jornada por objeto (trilha de etapas, próximo passo, retorno) */
+.mf-jornada, .mf-representado { margin: 8px 0 4px; }
+.mf-trilha { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.mf-etapa { display: flex; align-items: flex-start; gap: 6px; min-width: 0; flex: 1 1 150px; }
+.mf-etapa-simbolo { flex: 0 0 auto; width: 1.3em; text-align: center; font-weight: 700; }
+.mf-etapa-texto { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.mf-etapa-rotulo { font-weight: 600; }
+.mf-etapa-detalhe { font-size: .85rem; opacity: .85; }
+.mf-etapa--ok .mf-etapa-simbolo { color: #1d7a3a; }
+.mf-etapa--atual .mf-etapa-simbolo, .mf-etapa--atual .mf-etapa-rotulo { color: #0b5cad; }
+.mf-etapa--revisao .mf-etapa-simbolo { color: #a15c00; }
+.mf-etapa--analise .mf-etapa-simbolo { color: #7a3fb0; }
+.mf-etapa--futuro, .mf-etapa--na { opacity: .7; }
+.mf-trilha--compacta .mf-etapa { flex: 1 1 130px; }
+.mf-proxima { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+.mf-proxima .btn, .mf-representado .btn, .po-jornada-voltar, .est-voltar-jornada, .mfm-objeto-nome, .mf-so-acao { min-height: 44px; display: inline-flex; align-items: center; }
+.mf-proxima-rotulo { font-weight: 600; }
+.mf-completa { font-weight: 700; color: #1d7a3a; }
+.mf-resultado-p1 { font-size: .9rem; }
+.mf-item--foco { outline: 3px solid #0b5cad; outline-offset: 2px; border-radius: 6px; }
+.mf-so-acao--ativo { outline: 2px solid currentColor; font-weight: 700; }
+.po-jornada { margin: 4px 0 10px; }
+.po-jornada-voltar, .est-voltar-jornada { font-weight: 600; }
