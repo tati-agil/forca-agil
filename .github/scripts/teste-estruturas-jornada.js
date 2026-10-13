@@ -654,6 +654,93 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await cel3.context().close();
     }
 
+    /* ===== 8e. M8: validação integrada (decisão final × vínculo × Catálogo/Mapa/ficha; separação; trava pela tela) =====
+       capturas opcionais: FA_M8_FOTOS=<pasta> */
+    console.log('\nM8. Validação integrada: decisão final × vínculo × Catálogo/Mapa/ficha; separação dos dados; trava pela tela');
+    {
+      const SPM8 = process.env.FA_M8_FOTOS;
+      const foto = async (pg, sel, nome) => { if (!SPM8) return; await pg.waitForTimeout(600); try { await pg.locator(sel).first().screenshot({ path: SPM8 + '/' + nome }); } catch (e) { /* captura é só evidência */ } };
+      const ler = async (c) => ((await S.banco('GET', c)).corpo) || null;
+      const NOS_AVALIACAO = ['avaliacoes-produto', 'avaliacoes-posicionamento', 'avaliacoes-squad', 'posicionamento-vigente-por-item'];
+      const antes = {}; for (const n of NOS_AVALIACAO) antes[n] = JSON.stringify(await ler(n));
+      const decisoesAntes = (await ler('posicionamento-decisoes')) || {};
+      const vincAtivo = async () => Object.values((await ler('estruturas-vinculos/registros')) || {}).find((v) => v.objetoId === 'item-m3' && v.situacao === 'ativa');
+      const v0 = await vincAtivo();
+      afirma(v0 && v0.estruturaId === idNeg && v0.base.codigo === 'NEGOCIOS' && v0.base.origem === 'recomendacao', 'estado de partida: Produto Delta com estrutura responsável Linha (Negócios, pela recomendação)', JSON.stringify(v0));
+      /* 1. decisão final pela tela, divergindo da recomendação (CoE) — G/D: o vínculo vira "Precisa de revisão", nada muda sozinho */
+      await ir(p, '#avaliacoes?po=pos-m3');
+      await p.waitForSelector('#poCodigoFinal', { timeout: 15000 });
+      await p.selectOption('#poCodigoFinal', 'COE');
+      await p.fill('#poJustificativaInput', 'Responsabilidade é de um CoE (validação M8)');
+      await p.click('#poDecidirBtn'); await p.waitForSelector('.po-modal-sim', { timeout: 10000 }); await p.click('.po-modal-sim');
+      await esperarCondicaoAte(p, () => !!document.getElementById('poDecisaoFinal') && !document.getElementById('poDecisaoForm'), undefined, { limite: 15000 });
+      const dec = Object.values((await ler('posicionamento-decisoes')) || {}).find((d) => d.itemId === 'item-m3');
+      afirma(dec && dec.codigoFinal === 'COE' && dec.tipoDecisao === 'DIVERGENCIA' && dec.liberaSquad === false, 'decisão final gravada pela tela (DIVERGENCIA → CoE; não libera Squad pela tabela fixa)', JSON.stringify(dec));
+      await esperarCondicaoAte(p, () => (document.getElementById('poRespSituacao') || {}).textContent === 'Precisa de revisão', undefined, { limite: 15000 });
+      const motivosBloco = await texto(p, '#poRespRevisao');
+      afirma(/posicionamento efetivo do item mudou/.test(motivosBloco) && /tipo da estrutura não corresponde/.test(motivosBloco), 'bloco: "Precisa de revisão" com os motivos do núcleo (código efetivo mudou; tipo não corresponde)', motivosBloco);
+      const v1 = await vincAtivo();
+      afirma(JSON.stringify(v1) === JSON.stringify(v0), 'nada muda sozinho: o vínculo continua ativo, igual, até alguém substituí-lo ou encerrá-lo (D)');
+      await foto(p, '#poResultado', 'm8-posicionamento-revisao-desktop.png');
+      /* Catálogo, Mapa e ficha mostram a mesma situação */
+      await ir(p, '#avaliacoes?mf=catalogo');
+      const itemCat = '#mfCatalogo .mf-item[data-item="item-m3"]';
+      await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
+      const tCat = await texto(p, itemCat);
+      afirma(/Precisa de revisão/.test(tCat) && /decisão final/.test(tCat), 'Catálogo: posicionamento efetivo pela decisão final e o vínculo "Precisa de revisão"', tCat.slice(0, 500));
+      await foto(p, itemCat, 'm8-catalogo-revisao-desktop.png');
+      await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+      await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
+      afirma(/Precisa de revisão/.test(await texto(p, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]')), 'Mapa: o produto continua sob a Linha, com "Precisa de revisão" (nada é movido sozinho)');
+      await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+      await esperarCondicaoAte(p, () => !!document.querySelector('#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
+      afirma(/Precisa de revisão/.test(await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]')), 'ficha da Linha: a mesma situação');
+      /* 2. substituir pela estrutura do tipo novo (CoE), com motivo — volta a "Válido", base = decisão final */
+      await ir(p, '#avaliacoes?po=pos-m3');
+      await p.waitForSelector('#poRespSubstituir', { timeout: 15000 }); await p.click('#poRespSubstituir'); await p.waitForSelector('#poRespEstruturaSel');
+      const opcCoe = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean));
+      afirma(JSON.stringify(opcCoe) === JSON.stringify([idCoe]), 'substituir: só estruturas ativas do tipo do posicionamento efetivo (o CoE)', JSON.stringify(opcCoe));
+      await p.selectOption('#poRespEstruturaSel', idCoe); await p.fill('#poRespMotivo', 'Decisão final passou a CoE'); await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespFlash', { timeout: 15000 });
+      const v2 = await vincAtivo();
+      afirma(v2 && v2.estruturaId === idCoe && v2.base.codigo === 'COE' && v2.base.origem === 'decisao' && v2.substitui === v0.id && (await texto(p, '#poRespSituacao')) === 'Válido', 'substituído com motivo: CoE, base pela decisão final, "Válido"; o anterior fica encerrado', JSON.stringify(v2));
+      await ir(p, '#avaliacoes?mf=mapa&e=' + idCoe);
+      await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
+      const tCoe = await texto(p, '#mfmDetalhe');
+      afirma(/Produto Delta/.test(tCoe) && /Válido/.test(tCoe) && /Não se aplica: Áreas Especializadas e Centros de Excelência não formam Squads/.test(tCoe), 'Mapa: o produto agora sob o CoE ("Válido"); o CoE não forma Squads (regra fixa Linha × Squad)');
+      await foto(p, '#mfmDetalhe', 'm8-mapa-coe-desktop.png');
+      /* 3. separação: nenhuma avaliação (P1–P16, O1–O9, S1–S8) foi tocada pelas operações de estruturas, vínculos e relações */
+      let iguais = true, mudou = '';
+      for (const n of NOS_AVALIACAO) { if (JSON.stringify(await ler(n)) !== antes[n]) { iguais = false; mudou += n + ' '; } }
+      const decisoesDepois = (await ler('posicionamento-decisoes')) || {};
+      const novas = Object.keys(decisoesDepois).filter((k) => !(k in decisoesAntes));
+      afirma(iguais && novas.length === 1 && Object.keys(decisoesAntes).every((k) => JSON.stringify(decisoesAntes[k]) === JSON.stringify(decisoesDepois[k])), 'separação: avaliações P1–P16, O1–O9 e S1–S8 intactas; só a decisão final feita pela pessoa foi gravada', mudou);
+      /* 4. trava de produção pela tela (só emulador): sem o marcador, nada grava e a tela diz por quê */
+      const TRAVA = 'estruturas-concretas-config/gravacaoHabilitada';
+      await S.banco('DELETE', TRAVA);
+      const relAntes = JSON.stringify(await ler('estruturas-relacoes/registros')), estAntes = JSON.stringify(await ler('estruturas-concretas/registros')), vinAntes = JSON.stringify(await ler('estruturas-vinculos/registros'));
+      await ir(p, '#avaliacoes?po=pos-m3');
+      await p.waitForSelector('#poRespEncerrar', { timeout: 15000 }); await p.click('#poRespEncerrar'); await p.waitForSelector('#poRespMotivo');
+      await p.fill('#poRespMotivo', 'Tentativa com a trava desligada'); await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespErros', { timeout: 30000 });
+      afirma(/O banco recusou a gravação/.test(await texto(p, '#poRespErros')), 'trava desligada: encerrar o vínculo é recusado e a tela explica', await texto(p, '#poRespErros'));
+      await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+      await p.waitForSelector('#estRelNova', { timeout: 15000 }); await p.click('#estRelNova'); await p.waitForSelector('#estRelEscolha', { timeout: 15000 });
+      const primeira = await p.$$eval('#estRelEscolha option', (os) => (os.map((o) => o.value).filter(Boolean))[0] || '');
+      if (primeira) { await p.selectOption('#estRelEscolha', primeira); await p.click('#estRelSalvar'); await p.waitForSelector('#estErros', { timeout: 30000 }); }
+      afirma(!!primeira && /O banco recusou a gravação/.test(await texto(p, '#estErros')), 'trava desligada: criar relação é recusado e a tela explica', await texto(p, '#estErros'));
+      afirma(JSON.stringify(await ler('estruturas-relacoes/registros')) === relAntes && JSON.stringify(await ler('estruturas-concretas/registros')) === estAntes && JSON.stringify(await ler('estruturas-vinculos/registros')) === vinAntes, 'trava desligada: nada foi gravado em estruturas, vínculos ou relações');
+      await S.banco('PUT', TRAVA, true);
+      /* 5. celular: ficha do Posicionamento com decisão + bloco, e Mapa do CoE */
+      const cel8 = await sessao('configuracao', 375);
+      for (const [rot, hash, sel] of [['Posicionamento com decisão e estrutura responsável', '#avaliacoes?po=pos-m3', '#poRespSituacao'], ['Mapa do CoE com o produto', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'], ['Catálogo', '#avaliacoes?mf=catalogo', itemCat + ' .mf-vinculo [data-situacao]']]) {
+        await ir(cel8, hash); await cel8.waitForSelector(sel, { timeout: 15000 });
+        afirma(await semRolagemLateral(cel8), '375 px: ' + rot + ' sem rolagem lateral');
+      }
+      await foto(cel8, '#avaliacoesPosicionamento', 'm8-posicionamento-375.png');
+      await cel8.context().close();
+    }
+
     console.log('\n10. Celular (375 px) e computador');
     afirma(await semRolagemLateral(p), 'computador: Mapa sem rolagem lateral');
     const m = await sessao('configuracao', 375);

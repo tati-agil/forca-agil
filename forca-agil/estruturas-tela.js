@@ -186,6 +186,7 @@
       st.flash = null; /* a confirmação é de UMA ação: nunca reaparece em outra tela (quem salva define a sua logo depois) */
       st.assoc = vista === 'detalhe' ? { subagrupadorId: '', justificativa: '' } : null;
       st.rel = null;
+      if (vista === 'detalhe') st.itensVinculados = {}; /* M8: Posicionamento dos itens relido a cada ficha aberta */
       /* M6/M7: a Taxonomia pode ter mudado — relações conceituais e Squad relidos a cada ficha ou cadastro aberto */
       if (vista === 'detalhe' || vista === 'nova') { taxRel = undefined; lendoTaxRel = false; aoLerTaxRel = []; geracaoTaxRel++; lerTaxRel(function () { if (!wrap.hidden && st.vista === 'detalhe') render(); }); }
       var sgAtual = id && st.subagrupadores ? st.subagrupadores[id] : null;
@@ -777,6 +778,7 @@
     }
     function abrir(o) {
       origem = o || null;
+      st.itensVinculados = {}; /* M8: o Posicionamento dos itens pode ter mudado em outra tela (decisão, reavaliação) — relido ao abrir */
       vizinhos(true); wrap.hidden = false;
       ligar();
       var id = idDoEndereco(), sg = sgDoEndereco();
