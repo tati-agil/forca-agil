@@ -593,7 +593,7 @@ async function parteB(browser) {
 
     console.log('\n== B3: resultado e PDF com a versão 4 (reprocessamento individual) ==');
     {
-      const { ctx, page, erros } = await abrir(browser, viewport, clone(cfg.publicadaV4), AVALIACOES_REPROC(), 'avaliacoes');
+      const { ctx, page, erros } = await abrir(browser, viewport, clone(cfg.publicadaV4), AVALIACOES_REPROC(), 'avaliacoes?av=lista');
       await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
       await page.waitForTimeout(600);
       const casos = [

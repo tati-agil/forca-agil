@@ -2541,7 +2541,7 @@
        anterior) e, em curadoria-auditoria, só grava a linha de reavaliação e
        a do reprocessamento automático. */
     function podeDecidir() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
-    function telaInicial() { return modo === 'admin' ? 'admin-inicio' : 'lista'; }
+    function telaInicial() { return modo === 'admin' ? 'admin-inicio' : destinoDaUrl().t === 'inicio' ? 'inicio' : 'lista'; }
 
     /* Navegação hierárquica do Admin: toda subtela abre com um "← Voltar para
        <tela pai>" explícito (nunca um rótulo genérico que pula níveis). Quem
@@ -2854,6 +2854,7 @@
       if (state.tela === 'admin-inicio') renderAdminInicio();
       else if (state.tela === 'admin-usuarios') renderAdminUsuarios();
       else if (state.tela === 'admin-documentacao') renderDocumentacao();
+      else if (state.tela === 'inicio') renderInicio();
       else if (state.tela === 'lista') renderLista();
       else if (state.tela === 'form-inicial') renderFormInicial();
       else if (state.tela === 'checklist') renderChecklist();
@@ -2945,7 +2946,10 @@
     function marcarEntradaAtual() {
       if (!estadoDaEntrada()) history.replaceState({ avp: 1, seq: proximoSeq(), origem: null }, '', location.href);
     }
-    function hashLista() { return '#avaliacoes'; }
+    /* #avaliacoes = o Início da Avaliação (organizado pelo trabalho da pessoa); a lista das avaliações P1–P16 tem
+       endereço próprio. Os demais endereços (?avp=, ?editar=, ?nova=1, ?po=, ?sq=, ?mf=) não mudaram. */
+    function hashInicio() { return '#avaliacoes'; }
+    function hashLista() { return '#avaliacoes?av=lista'; }
     function hashAvaliacao(key) { return '#avaliacoes?avp=' + encodeURIComponent(key); }
     function hashNova() { return '#avaliacoes?nova=1'; }
     function hashEditar(key) { return '#avaliacoes?editar=' + encodeURIComponent(key); }
@@ -2961,11 +2965,13 @@
       if (p.reavaliar) return { t: 'reavaliar', key: p.reavaliar };
       if (p.editar) return { t: 'editar', key: p.editar };
       if (p.nova) return { t: 'nova' };
-      return { t: 'lista' };
+      if (p.av === 'lista') return { t: 'lista' };
+      return { t: 'inicio' };
     }
     /* O que a tela de AGORA é, para virar a origem da próxima entrada. */
     function origemAtual() {
       if (state.tela === 'lista') return { t: 'lista' };
+      if (state.tela === 'inicio') return { t: 'inicio' };
       if (state.tela === 'resultado' && state.atual && state.atual._key) return { t: 'avaliacao', key: state.atual._key, v: state.atual.versao || 1 };
       return null;
     }
@@ -2989,6 +2995,7 @@
       var e = estadoDaEntrada();
       var o = e && e.origem;
       if (o && o.t === 'lista') return { historico: true, hash: hashLista(), rotulo: 'avaliações' };
+      if (o && o.t === 'inicio') return { historico: true, hash: hashInicio(), rotulo: 'o Início da Avaliação' };
       if (o && o.t === 'avaliacao') return { historico: true, hash: hashAvaliacao(o.key), rotulo: 'a avaliação (v' + (o.v || 1) + ')' };
       var d = destinoDaUrl();
       if (d.t === 'reavaliar') {
@@ -3108,9 +3115,9 @@
       /* idem o Catálogo do Mapa da Floresta — fecha antes de outro painel assumir a página */
       if (d.t !== 'mapa' && window.faMapaFloresta) window.faMapaFloresta.fechar();
       if (d.t === 'mapa') {
-        if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+        if (state.tela !== 'inicio' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
           state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
-          state.tela = 'lista'; render();
+          state.tela = 'inicio'; render();
         }
         if (window.faAvaliacaoSquad && window.faAvaliacaoSquad.fechar) window.faAvaliacaoSquad.fechar();
         if (!window.faMapaFloresta && window.faInitCatalogoMapa) window.faInitCatalogoMapa();
@@ -3119,13 +3126,21 @@
         return;
       }
       if (d.t === 'posicionamento') {
-        if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+        if (state.tela !== 'inicio' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
           state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
-          state.tela = 'lista'; render();
+          state.tela = 'inicio'; render();
         }
         if (window.faAvaliacaoSquad && window.faAvaliacaoSquad.fechar) window.faAvaliacaoSquad.fechar();
         if (!window.faAvaliacaoPosicionamento && window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
         if (window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.aplicarEndereco(d.po, d.item);
+        fim();
+        return;
+      }
+      if (d.t === 'inicio') {
+        if (state.tela !== 'inicio' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+          state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
+          state.tela = 'inicio'; render();
+        }
         fim();
         return;
       }
@@ -3144,10 +3159,10 @@
         return;
       }
       if (d.t === 'squad') {
-        /* por baixo fica a lista (é para onde o "← Voltar para Avaliações" leva) */
-        if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+        /* por baixo fica o Início (é para onde o "← Voltar para Avaliações" leva) */
+        if (state.tela !== 'inicio' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
           state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
-          state.tela = 'lista'; render();
+          state.tela = 'inicio'; render();
         }
         if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
         if (window.faAvaliacaoSquad) window.faAvaliacaoSquad.aplicarEndereco(d.sq);
@@ -3288,9 +3303,71 @@
     var navParaObservar = document.querySelector('.nav');
     if (navParaObservar && typeof ResizeObserver === 'function') new ResizeObserver(ajustarTopoCabecalho).observe(navParaObservar);
 
+    /* ===================== INÍCIO DA AVALIAÇÃO (#avaliacoes) =====================
+       Organizado pelo TRABALHO da pessoa, não pelas funcionalidades: continuar/consultar (a Jornada), começar um trabalho
+       novo (as duas portas — natureza P1–P16 ou atuação organizacional) e os registros completos de cada avaliação, cada
+       um com a sua finalidade. Não lê o banco: abre na hora, também no 4G. Cada destino é uma tela que já existe; ao
+       abri-lo daqui, a entrada do histórico registra o Início como origem, e o "← Voltar" de lá volta para cá. */
+    var DESTINOS_INICIO = {
+      avpInicioJornada: '#avaliacoes?mf=catalogo', avpInicioNatureza: '#avaliacoes?nova=1', avpInicioAtuacao: '#avaliacoes?po=atuacoes',
+      avpInicioRegNatureza: '#avaliacoes?av=lista', avpInicioRegPosicionamento: '#avaliacoes?po=lista', avpInicioRegSquad: '#avaliacoes?sq=lista',
+      avpInicioRegMapa: '#avaliacoes?mf=mapa'
+    };
+    function podeIniciarPosicionamento() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
+    function renderInicio() {
+      function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
+      function registro(id, titulo, texto) {
+        return '<li class="avp-inicio-registro">' + link(id, 'avp-inicio-registro-link', '<span class="avp-inicio-registro-nome">' + titulo + '</span>' +
+          '<span class="avp-inicio-registro-texto">' + texto + '</span><span class="avp-inicio-abrir" aria-hidden="true">›</span>') + '</li>';
+      }
+      var h = '<div class="avp-inicio" id="avpInicio"><h2 class="avp-inicio-titulo">O que você precisa fazer?</h2>' +
+        '<section class="avp-inicio-principal" id="avpInicioContinuar" aria-labelledby="avpInicioContinuarTitulo">' +
+        '<h3 id="avpInicioContinuarTitulo">Continuar ou consultar um trabalho</h3>' +
+        '<p>Produtos, serviços e atuações organizacionais já registrados: o que já foi feito, o que ainda pode ser feito e a estrutura responsável.</p>' +
+        link('avpInicioJornada', 'btn btn--primary avp-inicio-acao', 'Abrir a Jornada de Avaliação e Posicionamento →') + '</section>' +
+        '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
+        '<div class="avp-inicio-cartoes">' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><h4>Avaliar a natureza de um item</h4>' +
+        '<p>Descobre se algo é um Produto/Serviço ou se tem outra natureza — componente, funcionalidade, capacidade, processo…</p>' +
+        '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Começar a avaliação de natureza') + '</div>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><h4>Posicionar uma atuação organizacional</h4>' +
+        '<p>Para uma responsabilidade, atuação ou capacidade organizacional que não passa pela avaliação de natureza.</p>' +
+        '<p class="avp-inicio-sigla">Questionário O1–O9 · a hipótese inicial é obrigatória e não entra no cálculo</p>' +
+        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Começar o posicionamento de uma atuação')
+          : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As atuações já posicionadas aparecem na Jornada.</p>') +
+        '</div></div>' +
+        '<p class="avp-inicio-nota" id="avpInicioNota">Já avaliou um produto ou serviço? O Posicionamento dele começa pela Jornada, no próprio item.</p></section>' +
+        '<section class="avp-inicio-consultar" id="avpInicioConsultar" aria-labelledby="avpInicioConsultarTitulo"><h3 id="avpInicioConsultarTitulo">Consultar registros completos</h3>' +
+        '<ul class="avp-inicio-registros">' +
+        registro('avpInicioRegNatureza', 'Avaliações de natureza (P1–P16)', 'Todas as avaliações e versões, filtros, exportação em Excel e PDF, atualização de motor e Lixeira.') +
+        registro('avpInicioRegPosicionamento', 'Posicionamentos (O1–O9)', 'Recomendações e decisões vigentes, em andamento, históricas e descartadas; exportação em Excel (o PDF fica na ficha).') +
+        registro('avpInicioRegSquad', 'Adequação à Squad (S1–S8)', 'Avalia se o trabalho pode se organizar por Squads — não a natureza do item nem o tipo de estrutura. ' +
+          'Só se aplica a itens posicionados no ramo Linha: Áreas Especializadas e CoEs não formam Squads. Histórico e exportação em Excel e PDF.') +
+        registro('avpInicioRegMapa', 'Mapa da Floresta', 'As estruturas responsáveis cadastradas e as relações entre elas.') +
+        '</ul></section></div>';
+      wrap.innerHTML = h;
+      Object.keys(DESTINOS_INICIO).forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('click', function (ev) {
+          if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey) return; /* abrir em outra aba continua sendo o link */
+          ev.preventDefault();
+          abrirDoInicio(DESTINOS_INICIO[id]);
+        });
+      });
+    }
+    /* Empilha o destino com o Início como origem — para esta tela (origem) e para o Posicionamento, a Squad e a Jornada
+       (poAnterior/sqAnterior/mfAnterior): o "← Voltar" de cada uma é então o Voltar do navegador, de volta ao Início. */
+    function abrirDoInicio(hash) {
+      var aqui = location.hash || hashInicio();
+      history.pushState({ avp: 1, seq: proximoSeq(), origem: { t: 'inicio' }, poAnterior: aqui, sqAnterior: aqui, mfAnterior: aqui }, '', hash);
+      sincronizarComHash();
+    }
+
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
       var html = '';
+      if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="btn btn--sm" id="avpVoltarInicio">← Início da Avaliação</button>' +
+        '<h2 class="avp-lista-titulo" id="avpListaTitulo">Avaliações de natureza (P1–P16)</h2></div>';
       if (state.flashLista) {
         html += '<div class="avp-flash-success" id="avpFlashLista">' + esc(state.flashLista) +
           ' <button type="button" class="avp-flash-close" id="avpFlashListaClose" aria-label="Fechar">×</button></div>';
@@ -3315,12 +3392,8 @@
       html += '<span class="avp-total" id="avpContador">' + (recortado ? filtrados.length + ' de ' + baseContagem.length : baseContagem.length) +
         ' avaliaç' + (baseContagem.length === 1 ? 'ão' : 'ões') + (state.lixeira ? ' na lixeira' : '') + '</span>';
       if (!state.lixeira && pode()) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
-      /* Adequação à Squad: outra avaliação, independente desta (S1–S8), feita aqui mesmo na área Avaliação. */
-      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpSquadBtn">Adequação à Squad</button>';
-      /* Posicionamento Organizacional (O1–O9): outra avaliação, consultada pelos três perfis; só Avaliação + Configuração grava. */
-      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpPosicionamentoBtn">Posicionamento Organizacional</button>';
-      /* Catálogo preparatório do Mapa da Floresta: só consulta, os três perfis (mapa-floresta.js). */
-      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpMapaFlorestaBtn">Jornada de Avaliação e Posicionamento</button>';
+      /* Adequação à Squad, Posicionamento Organizacional e a Jornada não têm atalho aqui: moram no Início da Avaliação
+         (#avaliacoes) e, no contexto de um item, na Jornada e na ficha. */
       if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
@@ -3511,25 +3584,11 @@
 
       var novoBtn = document.getElementById('avpNovoBtn');
       if (novoBtn) novoBtn.addEventListener('click', function () { irPara(hashNova()); }); /* a URL faz a tela (construirNova) */
-      var squadAbrirBtn = document.getElementById('avpSquadBtn');
-      /* O módulo do Squad é montado aqui se ainda não estiver: quando a página já abre em
-         #avaliacoes, esta lista nasce antes de avaliacao-squad.js terminar de carregar. */
-      if (squadAbrirBtn) squadAbrirBtn.addEventListener('click', function () {
-        if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
-        if (window.faAvaliacaoSquad) window.faAvaliacaoSquad.abrirLista();
-        else avpAlert('A Adequação à Squad não carregou. Recarregue a página e tente de novo.');
-      });
-      var posBtn = document.getElementById('avpPosicionamentoBtn');
-      if (posBtn) posBtn.addEventListener('click', function () {
-        if (!window.faAvaliacaoPosicionamento && window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
-        if (window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.abrirLista();
-        else avpAlert('O Posicionamento Organizacional não carregou. Recarregue a página e tente de novo.');
-      });
-      var mapaBtn = document.getElementById('avpMapaFlorestaBtn');
-      if (mapaBtn) mapaBtn.addEventListener('click', function () {
-        if (!window.faMapaFloresta && window.faInitCatalogoMapa) window.faInitCatalogoMapa();
-        if (window.faMapaFloresta) window.faMapaFloresta.abrir();
-        else avpAlert('O Catálogo do Mapa da Floresta não carregou. Recarregue a página e tente de novo.');
+      var voltarInicioBtn = document.getElementById('avpVoltarInicio');
+      if (voltarInicioBtn) voltarInicioBtn.addEventListener('click', function () {
+        var e = estadoDaEntrada();
+        if (e && e.origem && e.origem.t === 'inicio') history.back();
+        else irPara(hashInicio(), { replace: true });
       });
       var buscaEl = document.getElementById('avpBusca');
       if (buscaEl) {

@@ -178,14 +178,14 @@ async function quatroCartoes(page) {
 
     console.log('\n== A lista de AVALIAÇÃO não herda a avaliação aberta pela pessoa anterior ==');
     {
-      const { ctx, page, erros } = await abrir(browser, { email: AVAL, hash: '#avaliacoes', viewport });
+      const { ctx, page, erros } = await abrir(browser, { email: AVAL, hash: '#avaliacoes?av=lista', viewport });
       await page.waitForSelector('#avaliacoesPainel .avp-table tbody tr', { timeout: 10000 }).catch(() => {});
       await page.click('.avp-act-ver[data-key="k1"]');
       await page.waitForSelector('#avpVoltarListaResultado', { timeout: 6000 }).catch(() => {});
       afirma(await contar(page, '#avpVoltarListaResultado') === 1, 'o tipo "Avaliação" abre o resultado de uma avaliação');
       await sair(page);
       await entrar(page, ADMIN);
-      await irPara(page, '#avaliacoes');
+      await irPara(page, '#avaliacoes?av=lista');
       await page.waitForSelector('#avpNovoBtn', { timeout: 10000 }).catch(() => {});
       afirma(await contar(page, '#avpVoltarListaResultado') === 0 && await contar(page, '#avpNovoBtn') === 1, 'quem entra depois vê a LISTA, não o resultado aberto pela pessoa anterior');
       afirma(await contar(page, '#avaliacoesPainel .avp-table tbody tr') === 2, 'e a lista carrega para ela (2 avaliações)');

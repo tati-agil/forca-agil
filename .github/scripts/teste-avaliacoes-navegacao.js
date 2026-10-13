@@ -133,7 +133,7 @@ async function abrir(browser, o) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes?av=lista', { waitUntil: 'domcontentloaded' });
   /* Pronta = login decidido, admin e acesso à Avaliação resolvidos e a lista desenhada. Antes: espera do
      login com as opções no lugar do argumento (limite real 30 s), engolida, + 800 ms fixos; medido, a
      condição já valia nas 40 aberturas quando os 800 ms começavam. */
@@ -224,9 +224,9 @@ async function novaPagina(browser, viewport, hash, telaEsperada) {
   await r.page.goto(BASE + '/index.html#home', { waitUntil: 'domcontentloaded' });
   /* a entrada #home precisa existir no histórico antes de ir à Avaliação (antes: 500 ms fixos) */
   await esperarCondicao(r.page, () => !!(window.faRouter && faRouter.current() === 'home') && location.hash === '#home', null, { descricao: 'a página #home aberta' });
-  await r.page.goto(BASE + '/index.html' + (hash || '#avaliacoes'), { waitUntil: 'domcontentloaded' });
+  await r.page.goto(BASE + '/index.html' + (hash || '#avaliacoes?av=lista'), { waitUntil: 'domcontentloaded' });
   const alvo = telaEsperada || (hash && /avp=/.test(hash) ? 'avaliação|avaliação-anterior|não-encontrada' : 'lista|checklist|form-inicial');
-  if (!(await esperarCondicaoAte(r.page, telaNaPagina, alvo, { limite: 8000 }))) throw new Error('a URL ' + (hash || '#avaliacoes') + ' não caiu na tela esperada (' + alvo + ') em 8 s — está em "' + (await tela(r.page)) + '"');
+  if (!(await esperarCondicaoAte(r.page, telaNaPagina, alvo, { limite: 8000 }))) throw new Error('a URL ' + (hash || '#avaliacoes?av=lista') + ' não caiu na tela esperada (' + alvo + ') em 8 s — está em "' + (await tela(r.page)) + '"');
   /* antes: mais 600 ms fixos; medido, tela e URL não mudavam neles em nenhuma das 40 aberturas */
   return r;
 }
@@ -246,7 +246,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       const len = await comprimento(page);
       afirma(/^← Voltar para avaliações$/i.test((await textoDe(page, '#avpVoltarListaResultado')).trim()) && /^← Voltar para avaliações$/i.test((await textoDe(page, '#avpVoltarListaRodape')).trim()), 'o texto do Voltar (topo e rodapé) diz o destino: avaliações');
       await page.click('#avpVoltarListaResultado'); await esperaTela(page, 'lista');
-      c = await coerente(page, 'depois do "← Voltar"'); afirma(c.t === 'lista' && c.h === '#avaliacoes', 'voltou à lista');
+      c = await coerente(page, 'depois do "← Voltar"'); afirma(c.t === 'lista' && c.h === '#avaliacoes?av=lista', 'voltou à lista');
       afirma(await comprimento(page) <= len, 'o "← Voltar" não empilhou uma entrada nova no histórico (' + await comprimento(page) + ' ≤ ' + len + ')');
       await page.goBack();
       afirma(!/avp=/.test(await hashDe(page)) && (await tela(page)) !== 'avaliação', 'Voltar do navegador na lista NÃO reabre a avaliação (sem laço) — URL ' + await hashDe(page));
@@ -376,7 +376,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       const r = await novaPagina(browser, viewport, '#avaliacoes?avp=v1'); const page = r.page;
       afirma(/^← Voltar para avaliações$/i.test((await textoDe(page, '#avpVoltarListaResultado')).trim()), 'sem origem conhecida o texto diz "← Voltar para avaliações"');
       await page.click('#avpVoltarListaResultado'); await esperaTela(page, 'lista');
-      const c = await coerente(page, 'Voltar sem contexto'); afirma(c.h === '#avaliacoes' && c.t === 'lista', 'vai à lista');
+      const c = await coerente(page, 'Voltar sem contexto'); afirma(c.h === '#avaliacoes?av=lista' && c.t === 'lista', 'vai à lista');
       await page.goBack();
       afirma((await tela(page)) !== 'avaliação-anterior', 'e o Voltar do navegador não reabre a versão anterior');
       await nadaReabreEm700ms(page, /avp=v1/, 'e nada reabre a versão anterior depois');
@@ -390,7 +390,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       await page.click('.avp-historico-ver[data-key="v1"]'); await esperaTela(page, 'avaliação-anterior');
       let c = await coerente(page, 'versão aberta pelo histórico');
       afirma(/^← Voltar para avaliações$/i.test((await textoDe(page, '#avpVoltarListaResultado')).trim()), 'a origem é a lista: "← Voltar para avaliações"');
-      await page.click('#avpVoltarListaResultado'); await esperaTela(page, 'lista'); c = await coerente(page, 'Voltar'); afirma(c.t === 'lista' && c.h === '#avaliacoes', 'volta à lista');
+      await page.click('#avpVoltarListaResultado'); await esperaTela(page, 'lista'); c = await coerente(page, 'Voltar'); afirma(c.t === 'lista' && c.h === '#avaliacoes?av=lista', 'volta à lista');
       await r.ctx.close();
     });
 
@@ -401,7 +401,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       let c = await coerente(page, 'Nova avaliação'); afirma(c.h === '#avaliacoes?nova=1', 'a URL é ?nova=1');
       await page.click('#avpVoltarFormInicial'); await esperaTela(page, 'lista');
       afirma(await page.locator(MODAL).count() === 0, 'sem digitar nada, voltar sai direto');
-      c = await coerente(page, 'depois de voltar'); afirma(c.h === '#avaliacoes', 'URL da lista');
+      c = await coerente(page, 'depois de voltar'); afirma(c.h === '#avaliacoes?av=lista', 'URL da lista');
       await page.click('#avpNovoBtn'); await esperaTela(page, 'form-inicial');
       await page.fill('#avpfNome', 'Item novo');
       await page.click('#avpCancelarInicialBtn'); await modalAbre(page);
@@ -410,7 +410,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       await page.goBack(); await modalAbre(page);
       afirma(await page.locator(MODAL).count() === 1 && (await hashDe(page)) === '#avaliacoes?nova=1', 'Voltar do navegador com algo digitado também pergunta (URL mantida)');
       await page.locator(MODAL + ' button', { hasText: 'Descartar alterações' }).click();
-      await esperaTela(page, 'lista'); c = await coerente(page, 'depois de descartar'); afirma(c.t === 'lista' && c.h === '#avaliacoes', 'descartar volta à lista');
+      await esperaTela(page, 'lista'); c = await coerente(page, 'depois de descartar'); afirma(c.t === 'lista' && c.h === '#avaliacoes?av=lista', 'descartar volta à lista');
       await r.ctx.close();
     });
 
@@ -424,7 +424,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       await page.click('.avp-act-editar[data-key="rasc"]'); await esperaTela(page, 'checklist');
       await page.fill('#avpcNome', 'Rascunho renomeado');
       await page.click('#avpSalvarRascunhoBtn'); await esperaTela(page, 'lista');
-      c = await coerente(page, 'depois de salvar o rascunho'); afirma(c.t === 'lista' && c.h === '#avaliacoes', 'salvar volta à lista');
+      c = await coerente(page, 'depois de salvar o rascunho'); afirma(c.t === 'lista' && c.h === '#avaliacoes?av=lista', 'salvar volta à lista');
       await page.goBack();
       afirma((await tela(page)) !== 'checklist' && !/editar=|nova=/.test(await hashDe(page)), 'o Voltar do navegador não reabre o checklist salvo');
       await nadaReabreEm700ms(page, /editar=|nova=/, 'e nada reabre o checklist salvo depois');
@@ -491,7 +491,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       r = await novaPagina(browser, viewport, '#avaliacoes?reavaliar=naoexiste', 'não-encontrada'); page = r.page;
       c = await coerente(page, '?reavaliar= inexistente'); afirma(c.t === 'não-encontrada', 'chave inexistente: "não encontrada"');
       afirma(/^← Voltar para avaliações$/i.test((await textoDe(page, '#avpVoltarNaoEncontrada')).trim()), 'com saída clara "← Voltar para avaliações"');
-      await page.click('#avpVoltarNaoEncontrada'); await esperaTela(page, 'lista'); c = await coerente(page, 'saída'); afirma(c.t === 'lista' && c.h === '#avaliacoes', 'vai à lista');
+      await page.click('#avpVoltarNaoEncontrada'); await esperaTela(page, 'lista'); c = await coerente(page, 'saída'); afirma(c.t === 'lista' && c.h === '#avaliacoes?av=lista', 'vai à lista');
       await r.ctx.close();
     });
 

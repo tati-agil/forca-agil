@@ -137,10 +137,10 @@ const modalTexto = (page) => page.evaluate(() => { const m = document.querySelec
 async function fluxoPrincipal(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — fluxo principal ########');
   const { ctx, page, erros } = await abrir(browser, viewport);
-  await page.waitForSelector('#avpPosicionamentoBtn', { timeout: 10000 });
+  await page.waitForSelector('#avpInicioRegPosicionamento', { timeout: 10000 });
 
   console.log('\n== 1. Lista e endereços ==');
-  await page.click('#avpPosicionamentoBtn');
+  await page.click('#avpInicioRegPosicionamento');
   await tela(page, 'poLista');
   afirma(await hash(page) === '#avaliacoes?po=lista', 'lista em #avaliacoes?po=lista');
   afirma((await texto(page, '#page-avaliacoes .page-hero h1')) === 'Posicionamento Organizacional', 'cabeçalho: "Posicionamento Organizacional"');

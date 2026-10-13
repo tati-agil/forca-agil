@@ -211,7 +211,7 @@ async function parteB(browser, R) {
     console.log('== PARTE B (' + rotulo + ') — versão 6 publicada: avaliação nova com P1 e P11 = SIM ==');
     {
       const antiga = item('Concluída na versão 5', ['P1', 'P11'], 'a-validar');
-      const { ctx, page, erros } = await abrir(browser, viewport, clone(publicada6), { antiga: clone(antiga) }, 'avaliacoes');
+      const { ctx, page, erros } = await abrir(browser, viewport, clone(publicada6), { antiga: clone(antiga) }, 'avaliacoes?av=lista');
       await page.waitForSelector('#avpNovoBtn');
       const inicio = await banco(page);
       await page.click('#avpNovoBtn');

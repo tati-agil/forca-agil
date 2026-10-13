@@ -90,7 +90,7 @@ async function abrirApp(browser, opts) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#' + (opts.rota || 'avaliacoes'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#' + (opts.rota || 'avaliacoes?av=lista'), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.faAuth && window.faNaturezas && window.__cat, null, { timeout: 16000 });
   return { ctx, page, erros };
 }
@@ -124,7 +124,7 @@ async function rodada(browser, viewport, rotulo) {
     await entrar(page, ADMIN_A);
     await acessoResolvido(page);
     await page.waitForFunction(() => window.faAuth.podeAvaliacao(), null, { timeout: 10000 });
-    await page.evaluate(() => { location.hash = '#avaliacoes'; });
+    await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
     await abrirResultado(page);
     await page.waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, null, { timeout: 10000 });
     c = await cat(page);

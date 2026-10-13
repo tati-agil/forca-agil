@@ -109,8 +109,8 @@ async function abrir(browser, viewport, motorConfig, extraCfg, onde) {
   }
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
-  await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });
-  await page.click('#avpSquadBtn');
+  await page.waitForSelector('#avpInicioRegSquad', { timeout: 8000 });
+  await page.click('#avpInicioRegSquad');
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
   return { ctx, page, erros };
 }

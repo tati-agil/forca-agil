@@ -151,7 +151,7 @@ async function abrir(browser, o) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes?av=lista', { waitUntil: 'domcontentloaded' });
   /* Pronta = login decidido, admin e acesso à Avaliação resolvidos e a lista desenhada (antes: espera do
      login com as opções no lugar do argumento, engolida, + 800 + 300 ms fixos — medido, já pronta). */
   await esperarCondicao(page, () => !document.body.classList.contains('aguardando-auth') && !!document.getElementById('avpNovoBtn') &&
@@ -171,7 +171,7 @@ async function abrirResultado(page, key) {
 }
 async function voltar(page) {
   await page.click('#avpVoltarListaResultado');
-  await esperarCondicao(page, () => location.hash === '#avaliacoes' && !!document.getElementById('avpNovoBtn') && !document.querySelector('#avpCabecalhoFicha'), null, { descricao: 'a lista de volta (URL e tela)' });
+  await esperarCondicao(page, () => location.hash === '#avaliacoes?av=lista' && !!document.getElementById('avpNovoBtn') && !document.querySelector('#avpCabecalhoFicha'), null, { descricao: 'a lista de volta (URL e tela)' });
 }
 async function gerarPdf(page) {
   await page.evaluate(() => { window.__pdfs = []; });

@@ -169,9 +169,9 @@ async function capturar(page, nome) {
 async function principal(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + '] 1–6. categorias, catálogo, filtros, navegação e nada gravado');
   const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes');
-  await page.waitForSelector('#avpMapaFlorestaBtn');
+  await page.waitForSelector('#avpInicioJornada');
   const antes = await banco(page);
-  await page.click('#avpMapaFlorestaBtn');
+  await page.click('#avpInicioJornada');
   await page.waitForSelector('#mfItens');
   afirma(await page.evaluate(() => location.hash) === '#avaliacoes?mf=catalogo', 'endereço próprio #avaliacoes?mf=catalogo');
   afirma(/Jornada de Avaliação e Posicionamento/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'título "Jornada de Avaliação e Posicionamento" (não o Mapa visual)');
@@ -299,11 +299,11 @@ async function principal(browser, viewport, rotulo) {
   await page.waitForSelector('#mfItens');
   afirma((await itensVisiveis(page)).length === 10, 'F5 em #avaliacoes?mf=catalogo reabre o catálogo');
   await page.click('#mfVoltar');
-  await page.waitForSelector('#avpMapaFlorestaBtn');
+  await page.waitForSelector('#avpInicioJornada');
   afirma(await page.locator('#avaliacoesMapa').isHidden() && (await texto(page, '#page-avaliacoes .page-hero h1')).trim() === 'Avaliações', '"← Voltar para Avaliações": lista e título originais');
 
   /* 6. nada gravado (e, antes, nada cortado dentro dos cartões — rolagem horizontal da página não pega isso) */
-  await page.click('#avpMapaFlorestaBtn');
+  await page.click('#avpInicioJornada');
   await page.waitForSelector('#mfItens');
   await abrirFiltroPosic(page);
   const pequenos = await page.$$eval('#avaliacoesMapa button, #avaliacoesMapa a, #avaliacoesMapa select, #avaliacoesMapa input:not([type="radio"]), #avaliacoesMapa summary, #avaliacoesMapa label.mf-opcao',
@@ -312,7 +312,7 @@ async function principal(browser, viewport, rotulo) {
   const cortados = await page.$$eval('#avaliacoesMapa .mf-categoria, #avaliacoesMapa .mf-item, #avaliacoesMapa .mf-filtros, #avaliacoesMapa .mf-opcao, #avaliacoesMapa .mf-filtro-posic-resumo', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className + ':' + (e.getAttribute('data-categoria') || e.getAttribute('data-item') || '')));
   afirma(!cortados.length, 'nenhum cartão ou filtro transborda a largura da tela', cortados.join(', '));
   await page.click('#mfVoltar');
-  await page.waitForSelector('#avpMapaFlorestaBtn');
+  await page.waitForSelector('#avpInicioJornada');
   afirma(await banco(page) === antes, 'nenhuma gravação: o banco inteiro é o mesmo antes e depois');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));

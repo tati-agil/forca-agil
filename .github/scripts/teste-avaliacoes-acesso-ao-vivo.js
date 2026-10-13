@@ -66,8 +66,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await esperarCondicao(page, () => { const a = document.querySelector('a[data-nav-page="avaliacoes"]'); return !!a && !a.hidden; }, null, { descricao: 'o menu mostrar "Avaliação" depois da concessão' });
     afirma(true, 'concedido "Avaliação": o menu mostra "Avaliação" sem recarregar');
     await page.evaluate(() => { location.hash = '#avaliacoes'; });
-    await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
-    afirma(await hash(page) === '#avaliacoes', 'e a área AVALIAÇÃO abre');
+    await page.waitForSelector('#avpInicio', { timeout: 8000 });
+    afirma(await hash(page) === '#avaliacoes', 'e a área AVALIAÇÃO abre (no Início)');
     afirma(!(await linkMenu(page, 'admin')), '"Avaliação" não vê o ADMIN');
     await gravarAcesso(page, 'avaliacao-arquitetura');
     await esperarCondicao(page, () => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }, null, { descricao: 'o menu mostrar "Admin" depois da troca de tipo' });
@@ -83,11 +83,11 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
   console.log('\n######## 2. "Avaliação" faz a Adequação à Squad na área AVALIAÇÃO — celular 375 px ########');
   {
     const { ctx, page, erros } = await abrir(browser, CELULAR, 'avaliacao', '#avaliacoes');
-    await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });
-    afirma(await larguraOk(page), 'lista com o botão "Adequação à Squad" sem rolagem horizontal');
-    await page.click('#avpSquadBtn');
+    await page.waitForSelector('#avpInicioRegSquad', { timeout: 8000 });
+    afirma(await larguraOk(page), 'Início com a entrada "Adequação à Squad" sem rolagem horizontal');
+    await page.click('#avpInicioRegSquad');
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
-    afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de squad toma o lugar da lista de avaliações');
+    afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de squad toma o lugar do Início');
     afirma(await page.locator('#sqMotorConfigBtn, #sqMotorEditarRegrasBtn').count() === 0, 'a configuração do motor de squad NÃO aparece aqui (é do ADMIN › Avaliação e Mapa)');
     afirma(/Voltar para Avaliações/i.test(await page.locator('#sqVoltarArquitetura').innerText()), 'o Voltar diz "← Voltar para Avaliações"');
     await page.click('#sqNovaBtn');
@@ -102,9 +102,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     if (await page.locator('.sq-modal-confirm-btn').count()) await page.click('.sq-modal-confirm-btn');
     await page.waitForSelector('#avaliacoesSquad #sqVoltarArquitetura');
     await page.click('#sqVoltarArquitetura');
-    await page.waitForSelector('#avpSquadBtn', { state: 'visible', timeout: 8000 });
-    afirma(await page.locator('#avaliacoesSquad').isHidden() && await page.locator('#avaliacoesPainel').isVisible(), 'Voltar devolve a lista de avaliações');
-    await page.click('#avpSquadBtn');
+    await page.waitForSelector('#avpInicioRegSquad', { state: 'visible', timeout: 8000 });
+    afirma(await page.locator('#avaliacoesSquad').isHidden() && await page.locator('#avaliacoesPainel').isVisible(), 'Voltar devolve o Início da Avaliação');
+    await page.click('#avpInicioRegSquad');
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { state: 'visible', timeout: 8000 });
     await page.evaluate(() => { location.hash = '#home'; });
     await page.waitForSelector('#avaliacoesSquad', { state: 'hidden', timeout: 8000 });
