@@ -153,6 +153,13 @@
     return function () { desligar.forEach(function (d) { d(); }); };
   }
 
+  /* M4: as ligações oficiais dos códigos firmes, para as telas só de consulta calcularem a situação do vínculo; sem
+     banco informado, o do site (a tela do Mapa não toca o Firebase). Leitura recusada (o perfil avaliacao não lê as
+     ligações) ou falha → null = "não sei", nunca "sem ligação". */
+  function lerLigacoes(db, codigosFirmes) {
+    return criarPortas({ db: db || window.firebase.database(), codigosFirmes: codigosFirmes }).lerReferencias().then(function (r) { return r.ligacoes; }, function () { return null; });
+  }
+
   function criarPortas(opcoes) {
     var db = opcoes && opcoes.db, firmes = (opcoes && opcoes.codigosFirmes) || [], prazoMs = (opcoes && opcoes.prazoMs) || 20000;
     if (!db || !firmes.length) throw new Error('adaptador Firebase: falta o banco ou os códigos firmes');
@@ -227,7 +234,7 @@
     return { lerReferencias: lerReferencias, lerEstado: lerEstado, gravar: gravar, conferirOperacao: conferirOperacao, lerEventos: lerEventos, lerPosicionamento: lerPosicionamento };
   }
 
-  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, estruturasDoValor: estruturasDoValor, registrosDoValor: registrosDoValor,
+  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, lerLigacoes: lerLigacoes, estruturasDoValor: estruturasDoValor, registrosDoValor: registrosDoValor,
     eventosDoValor: eventosDoValor, RAIZ: RAIZ, RAIZ_SUBAGRUPADORES: RAIZ_SUBAGRUPADORES, RAIZ_VINCULOS: RAIZ_VINCULOS, TRAVA_PRODUCAO: TRAVA_PRODUCAO });
   if (typeof window !== 'undefined') window.faEstruturasFirebase = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -125,13 +125,20 @@ console.log('\n== F. guarda estática ==');
 const fonte = fs.readFileSync(path.join(RAIZ, 'mapa-floresta.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 anota('nenhuma gravação no módulo: não usa gravar/novaChave/executar da interface de serviços nem o Firebase direto', !/\.(gravar|novaChave|executar|agoraServidor)\s*\(/.test(fonte) && !/firebase\s*\.|\.ref\s*\(|\.(update|set|transaction|remove)\s*\(/.test(fonte));
 anota('só lê pela interface de serviços (ouvir)', /S\(\)\.ouvir\(/.test(fonte));
-anota('nunca usa situacaoResponsavel, responsavelAtivo, vincular*, aplicar nem relacoesDaEstrutura (sem coleções fictícias para objetos reais)', !/situacaoResponsavel|responsavelAtivo|vincular|\.aplicar\(|relacoesDaEstrutura/.test(fonte));
+/* M4: a situação do vínculo só sobre o que foi CADASTRADO e lido (cadastro.estruturas + cadastro.vinculos, depois de
+   vinculosProntos()) — nunca sobre coleções vazias ou fictícias; nada de responsavelAtivo, vincular*, aplicar ou relações */
+const usosSituacao = fonte.match(/situacaoResponsavel\([^)]*\)/g) || [];
+anota('situacaoResponsavel só sobre os vínculos cadastrados e lidos (cadastro.*), depois de vinculosProntos(); nunca responsavelAtivo, vincular*, aplicar nem relacoesDaEstrutura',
+  usosSituacao.length === 1 && /situacaoResponsavel\(\{ estruturas: cadastro\.estruturas, vinculos: cadastro\.vinculos \}/.test(usosSituacao[0]) &&
+  /function vinculosProntos\(\) \{ return cadastroDisponivel\(\) && !cadastro\.erro && cadastro\.estruturas !== undefined && cadastro\.vinculos !== undefined && cadastro\.refs !== undefined/.test(fonte) &&
+  /if \(!vinculosProntos\(\)\) return '<dt>Estrutura responsável/.test(fonte) && /if \(!vinculosProntos\(\) \|\| !cat\.pronto\) return/.test(fonte) &&
+  !/responsavelAtivo|vincular|\.aplicar\(|relacoesDaEstrutura/.test(fonte), usosSituacao.join(' | '));
 /* o Mapa visual lê estruturas e objetos com as consultas do núcleo — SÓ sobre D.estado, D = dados(): OU o estado
    demonstrativo explícito (mapa-floresta-demo.js) OU (Etapa 4, ambiente de testes) um estado só com as estruturas
    CADASTRADAS, sem relações, vínculos nem objetos — nunca as duas juntas, nunca montado com as coleções do Catálogo */
 const consultas = fonte.match(/(estruturasDoTipo|objetosDaEstrutura)\(([^,)]*)/g) || [];
 const corpoDados = (/function dados\(\) \{([\s\S]*?)\n    \}/.exec(fonte) || [])[1] || '';
-anota('estruturasDoTipo e objetosDaEstrutura só sobre D.estado, D = dados() = demonstração OU estruturas e subagrupadores cadastrados (sem relações, vínculos nem objetos; nada do Catálogo)', consultas.length > 0 && consultas.every((x) => /\(D\.estado$/.test(x)) &&
+anota('estruturasDoTipo e objetosDaEstrutura só sobre D.estado, D = dados() = demonstração OU estruturas e subagrupadores cadastrados (sem relações, vínculos nem objetos; nada do Catálogo); M4: objetosDaEstrutura também sobre os vínculos CADASTRADOS (cadastro.*)', consultas.length > 0 && consultas.every((x) => /\(D\.estado$/.test(x) || /objetosDaEstrutura\(\{ estruturas: cadastro\.estruturas$/.test(x)) &&
   /* demo() só devolve um cenário do próprio módulo de demonstração (habitual ou populoso), nunca dado real */
   /function demo\(\) \{ return window\.faMapaFlorestaDemo && window\.faMapaFlorestaDemo\.cenario\(cenarioDemo\); \}/.test(fonte) &&
   /* dados(): fora do cadastro, a demonstração; no cadastro, SÓ as estruturas persistidas — nunca as duas, nunca o Catálogo */
@@ -141,6 +148,36 @@ anota('estruturasDoTipo e objetosDaEstrutura só sobre D.estado, D = dados() = d
   !/state\./.test(((/function subagrupadoresCadastrados\(\) \{([\s\S]*?)\n    \}/.exec(fonte) || [])[1] || 'state.') + ((/function associacoesCadastradas\(\) \{([\s\S]*?)\n    \}/.exec(fonte) || [])[1] || 'state.')) &&
   /function estadoSubagrupadores\(\) \{ return \{ estruturas: cadastro\.estruturas, subagrupadores: cadastro\.subagrupadores, associacoesSubagrupador: cadastro\.associacoes \}; \}/.test(fonte) &&
   !/state\./.test(corpoDados) && !/var D = demo\(\)/.test(fonte) && (fonte.match(/var D = dados\(\)/g) || []).length >= 2, consultas.join(' | '));
+/* ===== M5 (decisão E): a base de P1–P16 reprocessada depois da conclusão do Posicionamento ===== */
+console.log('\n== M5. sinal da base reprocessada (decisão E) ==');
+{
+  const E = ctx.faAvaliacaoPosicionamentoNucleo.baseReprocessadaComImpacto;
+  const reg = { status: 'concluido', avaliacaoArquiteturalId: 'b1', concluidoEm: '2026-10-05T10:00:00.000Z' };
+  const camada = (id) => ({ id, label: id });
+  const base = (extra) => ({ b1: Object.assign({ status: 'concluido', resultadoAutomatico: 'nao-produto', camadaSugerida: camada('componente') }, extra) });
+  const antes = { resultadoAutomatico: 'produto', camadaSugerida: camada('produto-principal'), processadoEm: '2026-10-01T10:00:00.000Z' };
+  anota('sem reprocessamento: sem sinal', E(reg, base({})) === null);
+  anota('reprocessada ANTES da conclusão: sem sinal', E(reg, base({ reprocessedAt: '2026-10-04T10:00:00.000Z', historicoMotor: [antes] })) === null);
+  const imp = E(reg, base({ reprocessedAt: '2026-10-06T10:00:00.000Z', historicoMotor: [antes] }));
+  anota('reprocessada DEPOIS da conclusão e a classificação mudou: sinal com antes → depois', igual(imp, { camadaAntes: 'produto-principal', camadaDepois: 'componente', resultadoAntes: 'produto', resultadoDepois: 'nao-produto' }), JSON.stringify(imp));
+  anota('reprocessada depois, sem mudar classificação nem resultado: sem sinal', E(reg, base({ reprocessedAt: '2026-10-06T10:00:00.000Z', resultadoAutomatico: 'produto', camadaSugerida: camada('produto-principal'), historicoMotor: [antes] })) === null);
+  const soResultado = E(reg, base({ reprocessedAt: '2026-10-06T10:00:00.000Z', resultadoAutomatico: 'a-validar', camadaSugerida: camada('produto-principal'), historicoMotor: [antes] }));
+  anota('só o resultado mudou (a decisão automática acompanha): sinal', !!soResultado && soResultado.camadaAntes === soResultado.camadaDepois && soResultado.resultadoDepois === 'a-validar');
+  /* dois reprocessamentos: o estado na conclusão é a última entrada produzida até ela */
+  const meio = { resultadoAutomatico: 'nao-produto', camadaSugerida: camada('componente'), processadoEm: '2026-10-03T10:00:00.000Z' };
+  anota('dois reprocessamentos (o 1º antes da conclusão, o 2º depois, sem mudança desde a conclusão): sem sinal', E(reg, base({ reprocessedAt: '2026-10-06T10:00:00.000Z', historicoMotor: [antes, meio] })) === null);
+  anota('histórico gravado como objeto (chaves numéricas) é lido na ordem', !!E(reg, base({ reprocessedAt: '2026-10-06T10:00:00.000Z', historicoMotor: { 0: antes } })));
+  anota('sem entrada do histórico até a conclusão (não dá para saber): sem sinal', E(reg, base({ reprocessedAt: '2026-10-06T10:00:00.000Z', historicoMotor: [Object.assign({}, antes, { processadoEm: '2026-10-05T11:00:00.000Z' })] })) === null);
+  anota('Posicionamento não concluído ou sem base: sem sinal', E(Object.assign({}, reg, { status: 'rascunho' }), base({ reprocessedAt: '2026-10-06T10:00:00.000Z', historicoMotor: [antes] })) === null && E(reg, {}) === null);
+  const fonteE = (/function baseReprocessadaComImpacto\(reg, produtos\) \{([\s\S]*?)\n  \}/.exec(fs.readFileSync(path.join(RAIZ, 'avaliacao-posicionamento.js'), 'utf8')) || [])[1] || 'motorVersion';
+  anota('versões do motor nunca são evidência (a função não lê motorVersion)', !/motorVersion/.test(fonteE));
+  /* o Catálogo leva o sinal no item, sem esconder nada */
+  const dE = { produtos: base({ itemId: 'b1', nome: 'Item E', motorVersion: MOTOR, motorVersionArquitetura: 2, excluido: false, versao: 1, reprocessedAt: '2026-10-06T10:00:00.000Z', historicoMotor: [antes] }),
+    registros: { pe: Object.assign({ itemId: 'b1', versao: 1, resultadoAutomatico: { codigoResultado: 'NEGOCIOS' } }, reg) }, vigentes: { b1: 'pe' }, decisoes: {} };
+  const xE = C.situacaoDoItem('b1', dE, Object.assign(deps(), { baseReprocessadaComImpacto: E }));
+  anota('Catálogo: o item firme leva baseRevisao; a situação continua "firme" (nada é alterado)', xE.situacao === 'firme' && !!xE.baseRevisao && xE.baseRevisao.camadaDepois === 'componente', JSON.stringify(xE));
+}
+
 const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
 const iPos = html.indexOf('forca-agil/avaliacao-posicionamento.js'), iEst = html.indexOf('forca-agil/estruturas-nucleo.js'), iMapa = html.indexOf('forca-agil/mapa-floresta.js');
 anota('index.html: avaliacao-posicionamento.js → estruturas-nucleo.js → mapa-floresta.js', iPos !== -1 && iPos < iEst && iEst < iMapa);

@@ -3250,3 +3250,12 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .po-resp-situacao--valido { background: #e3f4ea; color: #17643a; border: 1px solid #9fd3b4; }
 .po-resp-situacao--precisa-revisao { background: #fff4d6; color: #7a5300; border: 1px solid #e6c36a; }
 .po-resp-situacao--ausente, .po-resp-situacao--nao-aplicavel { background: #e7e9ee; color: #3f4859; border: 1px solid #b7beca; }
+/* M4/M5: produtos e serviços sob a estrutura (ficha), vínculo no Catálogo e no Mapa, sinais de revisão */
+.est-produtos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.est-produto { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px; border: 1px solid var(--est-linha); border-radius: 10px; }
+.est-produto-nome { font-weight: 600; color: var(--est-forte); overflow-wrap: anywhere; }
+.est-produto .est-abrir-po { margin-left: auto; min-height: 40px; }
+.po-resp-motivos { font-size: .85rem; overflow-wrap: anywhere; }
+.mf-vinculo-estrutura { font-weight: 600; margin-right: 4px; overflow-wrap: anywhere; }
+.mf-vinculo-aviso, .mfm-objeto-aviso { display: block; font-size: .85rem; margin-top: 4px; }
+.mfm-objeto .mfm-abrir-po { display: inline-block; margin-top: 6px; }

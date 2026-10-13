@@ -465,8 +465,33 @@
     return o;
   }
 
+  /* M5 do Mapa (decisão E) — a Avaliação de Produto/Serviço que fundamentou um Posicionamento CONCLUÍDO foi
+     reprocessada DEPOIS da conclusão e o reprocessamento mudou a classificação ou o resultado (a decisão automática
+     acompanha o resultado; a manual nunca muda no reprocessamento)? Só lê o que está gravado: o estado da base na
+     conclusão é a última entrada de historicoMotor produzida até concluidoEm; versões do motor nunca são evidência.
+     Devolve null (sem sinal) ou { camadaAntes, camadaDepois, resultadoAntes, resultadoDepois }. Nada é alterado. */
+  function baseReprocessadaComImpacto(reg, produtos) {
+    if (!reg || reg.status !== 'concluido' || !reg.avaliacaoArquiteturalId) return null;
+    var b = (produtos || {})[reg.avaliacaoArquiteturalId];
+    var T = Date.parse(reg.concluidoEm), tr = Date.parse(b && b.reprocessedAt);
+    if (!b || isNaN(T) || isNaN(tr) || tr <= T) return null;
+    var hm = b.historicoMotor || [], h = Array.isArray(hm) ? hm : Object.keys(hm).sort(function (x, y) { return x - y; }).map(function (k) { return hm[k]; }), antes = null;
+    for (var i = h.length - 1; i >= 0 && !antes; i--) { var p = Date.parse(h[i] && h[i].processadoEm); if (!isNaN(p) && p <= T) antes = h[i]; }
+    if (!antes) return null;
+    var ca = (antes.camadaSugerida && antes.camadaSugerida.id) || null, cd = (b.camadaSugerida && b.camadaSugerida.id) || null;
+    var ra = antes.resultadoAutomatico || null, rd = b.resultadoAutomatico || null;
+    return ca === cd && ra === rd ? null : { camadaAntes: ca, camadaDepois: cd, resultadoAntes: ra, resultadoDepois: rd };
+  }
+  /* o texto único do sinal (ficha do Posicionamento, Catálogo, Mapa e bloco da estrutura responsável); os nomes das
+     classificações vêm da Taxonomia (faClassificacoes) */
+  function textoBaseRevisao(imp) {
+    var C = typeof window !== 'undefined' && window.faClassificacoes, nome = function (id) { return id ? (C ? C.nome(id) : id) : '—'; };
+    return 'A Avaliação de Produto/Serviço que fundamentou este Posicionamento foi reprocessada depois da conclusão e ' +
+      (imp.camadaAntes !== imp.camadaDepois ? 'a classificação mudou: ' + nome(imp.camadaAntes) + ' → ' + nome(imp.camadaDepois) : 'o resultado da avaliação mudou') + '.';
+  }
+
   window.faAvaliacaoPosicionamentoNucleo = {
-    gateDoItem: gateDoItem, textoGate: textoGate, ROTULO_GATE: ROTULO_GATE,
+    gateDoItem: gateDoItem, textoGate: textoGate, ROTULO_GATE: ROTULO_GATE, baseReprocessadaComImpacto: baseReprocessadaComImpacto, textoBaseRevisao: textoBaseRevisao,
     simples: simples, avaliar: avaliar, caminho: caminho, diagnosticoNecessario: diagnosticoNecessario, papeisDoPar: papeisDoPar,
     predominanciaNecessaria: predominanciaNecessaria, versaoMotorDo: versaoMotorDo, textoVersoes: textoVersoes, payloadAtualizacaoMotor: payloadAtualizacaoMotor, atualizacaoDisponivel: atualizacaoDisponivel, redacaoDisponivel: redacaoDisponivel, snapshotPredominancia: snapshotPredominancia,
     limparForaDoCaminho: limparForaDoCaminho, falta: falta, snapshotResposta: snapshotResposta, snapshotDiagnostico: snapshotDiagnostico,
@@ -982,6 +1007,10 @@
       if (resv) h += '<div class="po-reavaliacao-info" id="poReavaliacaoAndamento"><p>Há uma reavaliação em andamento' + (resr ? ' (versão ' + esc(resr.versao || '') + ')' : '') +
         '. Esta versão continua vigente até ela ser concluída.</p><button type="button" class="btn btn--sm po-abrir" data-key="' + esc(resv) + '">' + (podeEscrever() ? 'Continuar a reavaliação' : 'Abrir a reavaliação') + '</button></div>';
       if (a.avaliacaoAnteriorId) h += '<p class="avp-ficha-meta" id="poMotivoReavaliacao">Reavaliação da versão ' + esc((a.versao || 2) - 1) + ' — motivo: ' + esc(a.motivoReavaliacao) + '</p>';
+      /* M5 (decisão E): sinal informativo — nada muda sozinho */
+      var impB = sit === 'vigente' ? baseReprocessadaComImpacto(a, state.produtos) : null;
+      if (impB) h += '<p class="avp-decisao-aviso po-base-revisao" id="poBaseRevisao" role="status"><strong>Precisa de revisão.</strong> ' + esc(textoBaseRevisao(impB)) +
+        ' O Posicionamento continua vigente e nada foi alterado automaticamente; reavalie, se for o caso.</p>';
       h += '<section class="po-bloco" id="poBlocoRecomendacao"><h4 class="po-bloco-titulo">Recomendação automática</h4>';
       if (ra.codigoResultado === 'A_VALIDAR') {
         h += '<p class="po-recomendado" id="poRecomendado">Posicionamento organizacional recomendado: A validar — ' + esc(TIPO_TEXTO[ra.tipoAValidar] || ra.tipoAValidar || '') + '</p>';
@@ -1159,7 +1188,8 @@
       if (resp && state.atual) {
         var pr = { avaliacaoId: state.chave, recomendacao: { codigoResultado: resultadoLido(state.atual.resultadoAutomatico).codigoResultado } }, dr = state.decisoes[state.chave];
         if (dr) pr.decisao = { codigoFinal: dr.codigoFinal };
-        window.faEstruturasAdmin.montarResponsavel(resp, { itemId: state.atual.itemId, posicionamento: pr });
+        var impR = baseReprocessadaComImpacto(state.atual, state.produtos);
+        window.faEstruturasAdmin.montarResponsavel(resp, { itemId: state.atual.itemId, posicionamento: pr, avisoBase: impR ? textoBaseRevisao(impR) : null });
       }
     }
 
