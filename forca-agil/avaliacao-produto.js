@@ -7582,13 +7582,26 @@
       if (reprocessarBtn) {
         reprocessarBtn.addEventListener('click', function () {
           if (state.reprocessando) return;
-          avpConfirm(
-            'Isso recalcula a recomendação automática (resultado, classificação, especialização e justificativa) ' +
-            'usando a versão atual do motor de classificação, a partir das MESMAS respostas e justificativas já ' +
-            'registradas — nenhuma resposta será alterada. A recomendação anterior fica preservada no histórico ' +
-            'desta avaliação. Deseja continuar?',
-            reprocessarMotor
-          );
+          quandoCompatibilidadePronta(function () {
+            /* prévia individual (só leitura): bloqueia se faltar resposta; mostra o que muda na MESMA confirmação de sempre */
+            var previa;
+            try { previa = previaReprocessamento(state.atual); } catch (e) { avpAlert('Não foi possível calcular a prévia do reprocessamento. Tente novamente.'); return; }
+            if (previa.situacao === 'reavaliar') {
+              avpAlert('Esta avaliação não pode ser reprocessada: falta resposta válida na versão vigente do questionário (' + previa.faltantes.join(', ') + '). Ela precisa ser reavaliada.');
+              return;
+            }
+            var mudancas = previa.impactos.filter(function (i) { return i.muda; }).map(function (i) { return '• ' + i.rotulo + ': ' + i.antes + ' → ' + i.depois; });
+            if (previa.decisao === 'automatica-alterada') mudancas.push('• Decisão final: acompanha a nova recomendação');
+            if (previa.decisao === 'manual-preservada') mudancas.push('• Decisão manual: preservada (não muda)');
+            avpConfirm(
+              'Isso recalcula a recomendação automática (resultado, classificação, especialização e justificativa) ' +
+              'usando a versão atual do motor de classificação, a partir das MESMAS respostas e justificativas já ' +
+              'registradas — nenhuma resposta será alterada. A recomendação anterior fica preservada no histórico ' +
+              'desta avaliação.\n\n' + (previa.temImpacto ? 'O que muda:\n' + mudancas.join('\n') : 'Sem impacto na classificação, na especialização, no papel estrutural, na curadoria ou na decisão.' +
+              (previa.decisao === 'manual-preservada' ? '\n• Decisão manual: preservada (não muda)' : '')) + '\n\nDeseja continuar?',
+              function () { reprocessarMotor(previa); }
+            );
+          });
         });
       }
 
@@ -8654,16 +8667,88 @@
       Object.assign(updates, vinculos);
       return semUndefined(updates);
     }
-    function reprocessarMotor() {
+    /* PRÉVIA DO REPROCESSAMENTO (só leitura) — usa o MESMO cálculo da gravação (construirAtualizacaoReprocessamento) e
+       compara com o que está gravado. Nada é gravado aqui.
+       Completude: as perguntas obrigatórias precisam ter resposta VÁLIDA na versão VIGENTE do questionário — o mesmo
+       critério da conclusão e da reavaliação (respostaValida): resposta ausente nunca vira NÃO, e resposta dada a uma
+       pergunta cujo texto mudou não responde a pergunta vigente. Faltando alguma, a avaliação NÃO é reprocessada: precisa
+       ser reavaliada (nenhuma resposta é preenchida automaticamente). */
+    function faltantesParaReprocessar(a) {
+      var comVigente = Object.assign({}, a, { questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO) });
+      return TODAS_PERGUNTAS.filter(function (p) { return !respostaValida(p, comVigente); }).map(function (p) { return p.codigoEstavel || p.id; });
+    }
+    /* marca do estado da avaliação no momento da prévia: qualquer mudança (respostas, versão, curadoria, decisão…) entre
+       a prévia e a gravação exige nova conferência */
+    function marcaDaAvaliacao(a) {
+      var estavel = function (v) {
+        if (Array.isArray(v)) return v.map(estavel);
+        if (v && typeof v === 'object') { var o = {}; Object.keys(v).sort().forEach(function (k) { if (k !== '_key') o[k] = estavel(v[k]); }); return o; }
+        return v;
+      };
+      return JSON.stringify(estavel(a));
+    }
+    function previaReprocessamento(a) {
+      var p = { chave: a._key, nome: a.nome, versao: a.versao || 1, motorUsado: a.motorVersion || null, regrasUsadas: a.motorVersionArquitetura || null,
+        motorVigente: MOTOR_VERSION, regrasVigentes: window.faMotorArquitetura.versaoAtual(), marca: marcaDaAvaliacao(a), faltantes: faltantesParaReprocessar(a), impactos: [] };
+      if (p.faltantes.length) { p.situacao = 'reavaliar'; return p; }
+      var u = construirAtualizacaoReprocessamento(a), depois = Object.assign({}, a, u);
+      var antesC = a.camadaSugerida || {}, depoisC = u.camadaSugerida || {};
+      function linha(campo, rotulo, antes, agora) { p.impactos.push({ campo: campo, rotulo: rotulo, antes: antes || '—', depois: agora || '—', muda: (antes || '') !== (agora || '') }); }
+      linha('classificacao', 'Classificação', antesC.id ? nomeClassificacao(antesC.id) : '', depoisC.id ? nomeClassificacao(depoisC.id) : '');
+      linha('especializacao', 'Especialização (do motor)', valorEspecializacao(antesC), valorEspecializacao(depoisC));
+      linha('papel', 'Papel estrutural (do motor)', rotuloPapel(valorPapelEstrutural(antesC)) || valorPapelEstrutural(antesC), rotuloPapel(valorPapelEstrutural(depoisC)) || valorPapelEstrutural(depoisC));
+      var curAntes = curadoriaRegistrada(a), curDepois = curadoriaRegistrada(depois);
+      linha('curadoria-especializacao', 'Curadoria — especialização vigente', curAntes.especializacao, curDepois.especializacao);
+      linha('curadoria-papel', 'Curadoria — papel estrutural vigente', curAntes.papelEstrutural, curDepois.papelEstrutural);
+      p.decisao = a.decisaoManual ? 'manual-preservada' : (u.decisaoFinal !== a.decisaoFinal ? 'automatica-alterada' : 'inalterada');
+      p.perdeVinculo = (curAntes.especializacao && !curDepois.especializacao) || (curAntes.papelEstrutural && !curDepois.papelEstrutural);
+      p.temImpacto = p.impactos.some(function (i) { return i.muda; }) || p.decisao === 'automatica-alterada';
+      p.situacao = p.temImpacto ? 'confirmar' : 'sem-impacto';
+      p.updates = u;
+      return p;
+    }
+    var TEXTO_DECISAO_PREVIA = { 'manual-preservada': 'Decisão manual: preservada (não muda)', 'automatica-alterada': 'Decisão final acompanha a nova recomendação',
+      inalterada: 'Decisão final: inalterada' };
+    /* no momento da GRAVAÇÃO: relê a avaliação no banco e refaz a prévia; só grava se nada mudou desde a prévia que a
+       pessoa viu, se não faltar resposta e se o impacto (se houver) foi confirmado — nunca depende só da tela */
+    function revalidarNoBanco(previa, confirmouImpacto, aoDecidirUmaVez) {
+      var decidido = false, prazo = setTimeout(function () { aoDecidir('Sem confirmação do servidor a tempo (rede lenta) ao conferir a avaliação — nada foi gravado; confira esta avaliação e, se ainda aparecer desatualizada, reprocesse de novo.'); }, 20000);
+      function aoDecidir() { if (decidido) return; decidido = true; clearTimeout(prazo); aoDecidirUmaVez.apply(null, arguments); }
+      db().ref(NODE + '/' + previa.chave).once('value', function (snap) {
+        var v = snap.val();
+        if (!v) { aoDecidir('A avaliação não foi encontrada.'); return; }
+        var a = Object.assign({ _key: previa.chave }, v);
+        if (marcaDaAvaliacao(a) !== previa.marca) { aoDecidir('Esta avaliação mudou desde a prévia: abra o reprocessamento de novo para conferir.'); return; }
+        var agora = previaReprocessamento(a);
+        if (agora.faltantes.length) { aoDecidir('Faltam respostas válidas (' + agora.faltantes.join(', ') + '): a avaliação precisa ser reavaliada.'); return; }
+        if (agora.temImpacto && !confirmouImpacto) { aoDecidir('A alteração tem impacto e não foi confirmada.'); return; }
+        aoDecidir(null, a, agora.updates);
+      }, function (e) { aoDecidir('Não foi possível conferir a avaliação no banco (' + (e && e.message || 'erro') + ').'); });
+    }
+    function previaHtml(p) {
+      var h = '<li class="avp-previa-item avp-previa-item--' + p.situacao + '" data-avaliacao="' + esc(p.chave) + '">' +
+        '<p class="avp-previa-nome"><strong>' + esc(p.nome || p.chave) + '</strong> · versão ' + esc(p.versao) + '</p>' +
+        '<p class="avp-previa-motor">Motor usado: ' + esc(p.motorUsado || '—') + ' (regras ' + esc(p.regrasUsadas || '—') + ') · vigente: ' + esc(p.motorVigente) + ' (regras ' + esc(p.regrasVigentes) + ')</p>';
+      if (p.situacao === 'reavaliar') return h + '<p class="avp-previa-bloqueio"><strong>Não pode ser reprocessada — precisa ser reavaliada.</strong> Sem resposta válida na versão vigente do questionário: ' + esc(p.faltantes.join(', ')) + '. Nenhuma resposta é preenchida automaticamente.</p></li>';
+      h += '<table class="avp-previa-tabela"><thead><tr><th>Campo</th><th>Hoje</th><th>Depois</th></tr></thead><tbody>' + p.impactos.map(function (i) {
+        return '<tr' + (i.muda ? ' class="avp-previa-muda"' : '') + '><td>' + esc(i.rotulo) + '</td><td>' + esc(i.antes) + '</td><td>' + esc(i.depois) + (i.muda ? ' <strong>(muda)</strong>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+      h += '<p class="avp-previa-decisao">' + esc(TEXTO_DECISAO_PREVIA[p.decisao]) + '</p>';
+      if (p.perdeVinculo) h += '<p class="avp-previa-vinculo">Curadoria: o cadastro deixaria de valer para a nova classificação (nada é apagado; fica registrado como vínculo perdido).</p>';
+      if (p.situacao === 'confirmar') h += '<label class="avp-previa-confirmar"><input type="checkbox" class="avp-previa-check" data-avaliacao="' + esc(p.chave) + '"> Confirmo a alteração desta avaliação</label>';
+      else h += '<p class="avp-previa-sem-impacto">Sem impacto na classificação, na especialização, no papel estrutural, na curadoria ou na decisão: só o texto gerado e a versão do motor são atualizados.</p>';
+      return h + '</li>';
+    }
+    function reprocessarMotor(previaConfirmada) {
       if (state.reprocessando) return;
       var a = state.atual;
       if (!precisaReprocessar(a)) return; /* já está na versão atual: nada a fazer */
       state.reprocessando = true;
       render();
       quandoCompatibilidadePronta(function () {
-        var updates;
+        var previa = previaConfirmada;
         try {
-          updates = construirAtualizacaoReprocessamento(a);
+          if (!previa) previa = previaReprocessamento(a);
         } catch (e) {
           console.error('[avaliacao-produto] erro ao calcular o reprocessamento:', e);
           state.reprocessando = false;
@@ -8671,7 +8756,17 @@
           avpAlert('Não foi possível reprocessar esta avaliação. Tente novamente.');
           return;
         }
-        gravarReprocessamentoIndividual(a, updates);
+        if (previa.situacao === 'reavaliar') {
+          state.reprocessando = false; render();
+          avpAlert('Esta avaliação não pode ser reprocessada: falta resposta válida na versão vigente do questionário (' + previa.faltantes.join(', ') + '). Ela precisa ser reavaliada.');
+          return;
+        }
+        /* a pessoa já viu a prévia (impactos) na confirmação do botão; a gravação é revalidada no banco */
+        revalidarNoBanco(previa, true, function (motivo, atualNoBanco, updates) {
+          if (motivo) { state.reprocessando = false; render(); avpAlert(motivo); return; }
+          /* a marca conferida garante que o objeto da tela é idêntico ao do banco: grava sobre ele para a tela refletir */
+          gravarReprocessamentoIndividual(a, updates);
+        });
       });
     }
     function gravarReprocessamentoIndividual(a, updates) {
@@ -9004,7 +9099,9 @@
        As contagens são recalculadas na hora (nunca de um render antigo). Para
        cada avaliação que precisa ser reprocessada, o modal diz POR QUÊ (ver
        textoMotivoMotor), para a pessoa conferir antes de confirmar. */
-    function abrirModalAtualizarMotor() {
+    /* a prévia do lote calcula o resultado: só depois da verificação de compatibilidade das regras */
+    function abrirModalAtualizarMotor() { quandoCompatibilidadePronta(function () { montarModalAtualizarMotor(); }); }
+    function montarModalAtualizarMotor() {
       var M = window.faMotorArquitetura;
       if (!M.configCarregada()) { avpAlert('A configuração do motor ainda está carregando. Tente de novo em alguns segundos.'); return; }
       var ativos = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
@@ -9070,14 +9167,20 @@
         });
         html += '<div class="avp-atualizar-secao" id="avpSecaoReprocessar">';
         html += '<p class="avp-atualizar-titulo">Reprocessar — recalcula com o motor atual</p>';
+        var previas = paraReprocessar.map(function (it) { try { return previaReprocessamento(it); } catch (e) { return { chave: it._key, nome: it.nome, versao: it.versao || 1, situacao: 'reavaliar', faltantes: ['erro ao calcular a prévia'] }; } });
+        var conta = function (sit) { return previas.filter(function (p) { return p.situacao === sit; }).length; };
+        html += '<ul class="avp-lote-resumo-contagens" id="avpPreviaContagens"><li>' + conta('sem-impacto') + ' sem impacto (seguem direto)</li><li>' + conta('confirmar') + ' com impacto (exigem confirmação individual)</li><li>' +
+          conta('reavaliar') + ' bloqueada' + (conta('reavaliar') === 1 ? '' : 's') + ' (faltam respostas: precisam ser reavaliadas)</li></ul>';
+        html += '<ol class="avp-previa-lista" id="avpPreviaLista">' + previas.map(previaHtml).join('') + '</ol>';
         html += '<p>Por que ' + (paraReprocessar.length === 1 ? 'precisa' : 'precisam') + ' ser reprocessada' + (paraReprocessar.length === 1 ? '' : 's') + ':</p>';
         html += '<ul class="avp-lote-resumo-contagens" id="avpReprocessarMotivos">';
         ordemMotivos.forEach(function (t) { html += '<li>' + motivos[t] + ' — ' + esc(t) + '</li>'; });
         html += '</ul>';
         html += '<p class="avp-decisao-aviso">O reprocessamento não altera respostas nem justificativas fornecidas pelos usuários. ' +
           'O sistema recalculará apenas conteúdos gerados pelo motor e preservará todas as versões anteriores no histórico.</p>';
-        html += '<button class="btn btn--primary" id="avpLoteConfirmar">REPROCESSAR ' + paraReprocessar.length +
-          (paraReprocessar.length === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES') + '</button>';
+        var podemSeguir = previas.filter(function (p) { return p.situacao === 'sem-impacto'; }).length;
+        html += '<button class="btn btn--primary" id="avpLoteConfirmar"' + (podemSeguir ? '' : ' disabled') + '>REPROCESSAR ' + podemSeguir +
+          (podemSeguir === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES') + '</button>';
         html += '</div>';
       }
       html += '<div class="avp-lote-modal-botoes"><button class="btn" id="avpLoteCancelar">FECHAR</button></div>';
@@ -9093,9 +9196,23 @@
         reconciliarAvaliacoes(paraReconciliar, function () { render(); }, function () { render(); });
       });
       var btnReprocessar = box.querySelector('#avpLoteConfirmar');
+      /* só seguem: sem impacto + com impacto CONFIRMADAS uma a uma; bloqueadas nunca */
+      var selecionadas = function () {
+        var conf = {};
+        Array.prototype.forEach.call(box.querySelectorAll('.avp-previa-check:checked'), function (c) { conf[c.getAttribute('data-avaliacao')] = true; });
+        return { conf: conf, itens: (previas || []).filter(function (p) { return p.situacao === 'sem-impacto' || (p.situacao === 'confirmar' && conf[p.chave]); }) };
+      };
+      Array.prototype.forEach.call(box.querySelectorAll('.avp-previa-check'), function (c) {
+        c.addEventListener('change', function () {
+          var n = selecionadas().itens.length;
+          btnReprocessar.disabled = !n; btnReprocessar.textContent = 'REPROCESSAR ' + n + (n === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES');
+        });
+      });
       if (btnReprocessar) btnReprocessar.addEventListener('click', function () {
+        var sel = selecionadas();
+        if (!sel.itens.length) return;
         fechar();
-        executarReprocessamentoEmLote(paraReprocessar);
+        executarReprocessamentoEmLote(sel.itens, sel.conf);
       });
     }
     /* Processamento com concorrência limitada (nunca todas de uma vez): um
@@ -9106,7 +9223,10 @@
        elegivelParaReprocessamentoEmLote, então rodar de novo sobre uma
        avaliação já no MOTOR_VERSION atual simplesmente não a inclui na fila
        — nenhuma versão nova é criada à toa. */
-    function executarReprocessamentoEmLote(itens) {
+    /* itens = prévias do modal (previaReprocessamento) que podem seguir; confirmados = { chave: true } das que tinham
+       impacto e foram confirmadas uma a uma */
+    function executarReprocessamentoEmLote(itens, confirmados) {
+      confirmados = confirmados || {};
       if (state.reprocessamentoLote && state.reprocessamentoLote.emAndamento) return;
       var ativosAgora = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
       var concluidasAgora = ativosAgora.filter(function (it) { return it.status === 'concluido'; });
@@ -9138,16 +9258,13 @@
           }
           return;
         }
-        var it = fila.shift();
-        var updates;
-        try {
-          updates = construirAtualizacaoReprocessamento(it);
-        } catch (e) {
-          console.error('[avaliacao-produto] erro ao calcular reprocessamento em lote:', it._key, e);
-          state.reprocessamentoLote.erros.push({ key: it._key, nome: it.nome, mensagem: 'Não foi possível calcular a nova recomendação.' });
-          terminouItem();
-          return;
-        }
+        var previaItem = fila.shift();
+        revalidarNoBanco(previaItem, !!confirmados[previaItem.chave], function (motivo, it, updates) {
+          if (motivo) { state.reprocessamentoLote.erros.push({ key: previaItem.chave, nome: previaItem.nome, mensagem: motivo }); terminouItem(); return; }
+          gravarItemDoLote(it, updates);
+        });
+      }
+      function gravarItemDoLote(it, updates) {
         /* Cada item termina UMA vez, aconteça o que acontecer: gravou, deu
            erro, a chamada lançou exceção síncrona (o SDK faz isso com
            undefined no payload — era o que congelava o lote em "0 de N"), ou

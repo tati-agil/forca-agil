@@ -321,6 +321,8 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     /* lote */
     await page.click('#avpReprocessarTudoBtn');
     await page.waitForSelector('#avpLoteConfirmar', { timeout: 5000 });
+    /* fluxo atual: avaliações com impacto só seguem confirmadas uma a uma na prévia */
+    for (const c of await page.$$('.avp-previa-check')) { if (!(await c.isChecked())) await c.check(); }
     await page.click('#avpLoteConfirmar');
     await page.waitForSelector('#avpLoteFechar', { timeout: 15000 });
     let b = await banco(page);
@@ -337,6 +339,8 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     const { ctx, page, erros } = await abrir(browser, { avaliacoes: REPROC(), fail: ['curadoria-auditoria'] });
     await page.click('#avpReprocessarTudoBtn');
     await page.waitForSelector('#avpLoteConfirmar', { timeout: 5000 });
+    /* fluxo atual: avaliações com impacto só seguem confirmadas uma a uma na prévia */
+    for (const c of await page.$$('.avp-previa-check')) { if (!(await c.isChecked())) await c.check(); }
     await page.click('#avpLoteConfirmar');
     await page.waitForSelector('#avpLoteFechar', { timeout: 15000 });
     const b = await banco(page);

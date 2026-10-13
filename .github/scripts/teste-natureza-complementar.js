@@ -524,6 +524,8 @@ async function voltarParaAvaliacoes(page) {
     afirma(await page.locator('.avp-tag-motor--desatualizado').count() === 1, 'pré-condição: a avaliação legada está "Motor desatualizado"');
     await page.click('#avpReprocessarTudoBtn');
     await page.waitForSelector('#avpLoteConfirmar', { timeout: 3000 });
+    /* fluxo atual: avaliações com impacto só seguem confirmadas uma a uma na prévia */
+    for (const c of await page.$$('.avp-previa-check')) { if (!(await c.isChecked())) await c.check(); }
     await page.click('#avpLoteConfirmar');
     await page.waitForSelector('#avpLoteResumoFinal', { timeout: 15000 });
     const leg = (await avaliacoes(page)).legada;
