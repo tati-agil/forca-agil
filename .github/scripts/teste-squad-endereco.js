@@ -76,9 +76,9 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
     console.log('\n######## ' + nomeTela + ' ########');
     {
       const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes');
-      await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });
+      await page.waitForSelector('#avpInicioRegSquad', { timeout: 8000 });
       afirma(await titulo(page) === 'Avaliações', 'na lista de avaliações o título é o da página ("Avaliações")');
-      await page.click('#avpSquadBtn');
+      await page.click('#avpInicioRegSquad');
       await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 8000 });
       afirma(await hash(page) === '#avaliacoes?sq=lista', 'entrar na Squad dá endereço próprio: #avaliacoes?sq=lista (' + await hash(page) + ')');
       afirma(await titulo(page) === 'Adequação à Squad', 'o título da página passa a ser "Adequação à Squad" (' + await titulo(page) + ')');
@@ -122,7 +122,7 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
       await page.click('#sqVoltarArquiteturaRodape');
       await esperarHash(page, '#avaliacoes', 'o "← Voltar para Avaliações" do rodapé sair da Squad');
       await esperarCondicao(page, () => document.getElementById('avaliacoesSquad').hidden, null, { descricao: 'a Squad fechar' });
-      afirma(await page.locator('#avpNovoBtn').isVisible() && await titulo(page) === 'Avaliações', '"← Voltar para Avaliações" do rodapé devolve a lista de avaliações e o título original');
+      afirma(await page.locator('#avpInicio').isVisible() && await titulo(page) === 'Avaliações', '"← Voltar para Avaliações" do rodapé devolve o Início da Avaliação e o título original');
       afirma(await page.evaluate(() => history.length) === tamanhoAntes, 'sem empilhar entrada nova no histórico (o Voltar da tela é o Voltar do navegador)');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();

@@ -347,10 +347,13 @@
       var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = true;
       wrap.hidden = false;
+      /* outra tela pode ter escondido a Squad sem passar por voltarParaArquitetura: ao mostrar, a marca recomeça do endereço de agora */
+      noProprioEndereco = sqDoEndereco() !== null;
       trocarIdentidade(true);
     }
     function voltarParaArquitetura() {
       wrap.hidden = true;
+      noProprioEndereco = false;
       var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = false;
       trocarIdentidade(false);
@@ -392,15 +395,21 @@
       return '#avaliacoes?sq=lista';
     }
     var aplicandoEndereco = false;
+    /* true depois que a Squad já está no próprio endereço: um redesenho assíncrono (dados ou motor chegando) que cai
+       entre o Voltar do navegador e o hashchange não pode empilhar a Squad de novo por cima de para onde a pessoa voltou */
+    var noProprioEndereco = false;
     function sincronizarEndereco() {
       if (modo !== 'operacional' || aplicandoEndereco) return;
+      if (noProprioEndereco && sqDoEndereco() === null) return;
       var desejado = enderecoDesejado();
+      if (desejado && location.hash === desejado) noProprioEndereco = true;
       if (!desejado || location.hash === desejado) return;
       if ((location.hash || '').split('?')[0] !== '#avaliacoes') return;
       var st = history.state;
       if (st && st.sqAnterior === desejado) { history.back(); return; }
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
       history.pushState({ avp: 1, seq: Date.now(), origem: null, sqAnterior: location.hash || '#avaliacoes' }, '', desejado);
+      noProprioEndereco = true;
     }
     /* "← Voltar para Avaliações": com a lista de avaliações logo atrás no histórico, é o Voltar do
        navegador; sem ela (F5, link direto), substitui a entrada por #avaliacoes e fecha a Squad. */
@@ -434,7 +443,8 @@
     }
     function resolverPendenteItem() {
       var o = state.pendenteItem; state.pendenteItem = null;
-      if (o && !wrap.hidden) abrirOuIniciarParaItem(o);
+      /* a pessoa pode ter saído (Voltar) enquanto as avaliações chegavam: só retoma se o endereço ainda é da Squad */
+      if (o && !wrap.hidden && sqDoEndereco() !== null) abrirOuIniciarParaItem(o);
     }
     function resolverPendente() {
       if (!state.pendente || state.tela !== 'carregando') return;

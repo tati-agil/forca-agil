@@ -490,8 +490,10 @@
       focoRolado = true;
       try { el.scrollIntoView({ block: 'start' }); } catch (e) { el.scrollIntoView(); }
     }
+    var ultimosItens = null; /* os itens do último desenho do Catálogo (o atalho da Squad lê o item daqui) */
     function renderCatalogo(itens) {
       var cs = cats(), f = state.filtros, cont = C.contarPorSituacao(itens);
+      ultimosItens = itens;
       jornadasDe(itens);
       /* detalhe de UM objeto (&item=): a jornada completa dele, com o caminho de volta para a lista */
       if (focoItem) {
@@ -684,6 +686,11 @@
       if (x.posicionamento) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.posicionamento.avaliacaoId) + '">Abrir Posicionamento</a>';
       else if (x.rascunhoId) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.rascunhoId) + '">Abrir rascunho do Posicionamento</a>';
       if (x.chaveBase) h += '<a class="btn btn--sm mf-abrir-avp" href="#avaliacoes?' + (x.statusBase === 'rascunho' ? 'editar=' : 'avp=') + encodeURIComponent(x.chaveBase) + '">Abrir Avaliação de Produto/Serviço</a>';
+      /* Adequação à Squad: só quando o posicionamento efetivo é do ramo Linha (a mesma etapa opcional da trilha); "Acessar"
+         porque a Jornada não lê as avaliações S1–S8 — a Squad abre a que estiver em andamento ou começa uma, com o mesmo
+         controle de liberação (exigirParaSquad) e as mesmas permissões do atalho da ficha do Posicionamento */
+      if (jx && jx.etapas && jx.etapas.some(function (e) { return e.id === 'squad'; }) && x.posicionamento)
+        h += '<button type="button" class="btn btn--sm mf-abrir-squad" data-item="' + esc(x.itemId) + '">Acessar Adequação à Squad</button>';
       return h + '</div></li>';
     }
     /* M4/M5: o vínculo do item com a estrutura responsável (só ambiente de testes, onde o cadastro existe) */
@@ -715,6 +722,15 @@
       return spanNome(p.codigoAutomatico);
     }
 
+    /* a Squad abre por cima: a entrada dela guarda este endereço (sqAnterior), e o "← Voltar" de lá volta a este item */
+    function acessarSquad(itemId) {
+      var x = (ultimosItens || []).filter(function (i) { return i.itemId === itemId; })[0];
+      if (!x || !x.posicionamento) return;
+      if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+      if (!window.faAvaliacaoSquad || !window.faAvaliacaoSquad.iniciarOuAbrirParaItem) { window.alert('A Adequação à Squad não carregou. Recarregue a página e tente de novo.'); return; }
+      fecharPainel();
+      window.faAvaliacaoSquad.iniciarOuAbrirParaItem({ itemId: x.itemId, itemNome: x.nome, avaliacaoArquiteturalId: x.posicionamento.avaliacaoArquiteturalId || undefined });
+    }
     function bind() {
       var v = byId('mfVoltar'); if (v) v.addEventListener('click', sairParaAvaliacoes);
       var im = byId('mfIrMapa'); if (im) im.addEventListener('click', function () { irPara('mapa'); });
@@ -725,6 +741,7 @@
       });
       var blocoPosic = byId('mfFiltroPosicionamentoBloco'); if (blocoPosic) blocoPosic.addEventListener('toggle', function () { state.posicionamentoAberto = blocoPosic.open; });
       var b = byId('mfBusca'); if (b) b.addEventListener('input', function () { state.filtros.busca = b.value; render(); });
+      Array.prototype.forEach.call(wrap.querySelectorAll('.mf-abrir-squad'), function (b) { b.addEventListener('click', function () { acessarSquad(b.getAttribute('data-item')); }); });
       var vlt = byId('mfVoltarLista'); if (vlt) vlt.addEventListener('click', function () { focoItem = null; render(); sincronizarEndereco(); restaurarPosicaoLista(); });
       Array.prototype.forEach.call(wrap.querySelectorAll('.mf-linha-abrir'), function (a) { a.addEventListener('click', function () { state.posicaoLista = window.scrollY || 0; }); });
       var fav = byId('mfFiltrosAvancados'); if (fav) fav.addEventListener('toggle', function () { state.filtrosAbertos = fav.open; });

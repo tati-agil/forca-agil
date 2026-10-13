@@ -171,7 +171,7 @@ async function abrir(browser, viewport, srcAvp) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   if (srcAvp) await page.route('**/forca-agil/avaliacao-produto.js*', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: srcAvp }));
-  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes?av=lista', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }

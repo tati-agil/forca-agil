@@ -703,6 +703,12 @@
       "sobre": "PR 4: os 8 casos de referência (Capec e Assessoria completas, Jurídico P1–P16 representado pela atuação com o A validar explicado, Agilidade Porta 2, sem Posicionamento, A validar em análise sem obrigação de decidir, firme sem estrutura com cadastro de tipo pré-escolhido, estrutura disponível sem vínculo); resumo e filtro; ida e volta por endereço estável (F5); Mapa nas estruturas cadastradas, demonstração só por escolha; perfil de consulta; rede lenta; 375 px."
     },
     {
+      "arquivo": ".github/scripts/teste-avaliacao-inicio.js",
+      "nome": "Início da Avaliação: continuar/consultar, começar e registros completos — os 8 casos, três perfis, retornos contextuais (desktop e celular)",
+      "duracao": 30,
+      "sobre": "#avaliacoes = Início, sem ler o banco; a Jornada como ação principal; as duas portas (natureza P1–P16, atuação O1–O9 só para quem grava); a lista P1–P16 em ?av=lista com busca, Exportar e Lixeira; Posicionamentos, Squad e Mapa; Agilidade, Jurídico, sem Posicionamento (disponível), Squad só no ramo Linha com volta ao mesmo objeto (também com Voltar durante o carregamento); F5, Voltar/Avançar, menu e links diretos antigos; 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-porta2-jornada.js",
       "nome": "Porta 2: a jornada das duas portas, com a hipótese inicial (desktop e celular)",
       "duracao": 20,

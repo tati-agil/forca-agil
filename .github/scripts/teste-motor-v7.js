@@ -302,7 +302,7 @@ async function parteB(browser, R) {
         ['Atendimento', ['P9', 'P12', 'P13'], 'conflito', 'A validar — conflito de naturezas', /Naturezas que não podem ser escolhidas juntas: Canal × Modalidade\/Subproduto; Processo\/Etapa de processo × Modalidade\/Subproduto\..*Naturezas que costumam ser objetos diferentes: Canal × Processo\/Etapa de processo\./s]
       ];
       for (const [nome, sims, tipo, rotuloEsperado, detalhe] of casos) {
-        await page.evaluate(() => { location.hash = '#avaliacoes'; });
+        await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
         await page.waitForSelector('#avpNovoBtn');
         await page.click('#avpNovoBtn');
         await page.fill('#avpfNome', nome);

@@ -98,8 +98,8 @@ async function abrir(browser, viewport, squad) {
   /* A avaliação de Squad fica na área AVALIAÇÃO; a configuração do motor, no ADMIN › Avaliação e Mapa. */
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
-  await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });
-  await page.click('#avpSquadBtn');
+  await page.waitForSelector('#avpInicioRegSquad', { timeout: 8000 });
+  await page.click('#avpInicioRegSquad');
   await page.waitForSelector('#avaliacoesSquad #sqExportarBtn');
   return { ctx, page, erros };
 }

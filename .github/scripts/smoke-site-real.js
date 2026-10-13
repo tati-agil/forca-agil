@@ -244,8 +244,10 @@ async function smokeComoAdmin(page) {
     return n + ' perguntas';
   });
 
-  await checar('Avaliação de Produto/Serviço (#avaliacoes) carrega a lista real', async () => {
+  await checar('Avaliação (#avaliacoes) abre o Início e a lista real de avaliações de natureza (?av=lista)', async () => {
     await irPara('avaliacoes');
+    await esperar(() => !!document.getElementById('avpInicio'), null, 'o Início da Avaliação');
+    await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
     await esperar(() => !!document.querySelector('#avaliacoesPainel .avp-table tbody tr, #avpVazioLista'), null, 'a lista de avaliações (ou o aviso de lista vazia)');
     return await page.evaluate(() => document.querySelectorAll('#avaliacoesPainel .avp-table tbody tr').length + ' avaliações na lista');
   });

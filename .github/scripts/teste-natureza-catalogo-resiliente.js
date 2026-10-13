@@ -124,7 +124,7 @@ async function rodada(browser, viewport, rotulo) {
     await entrar(page, ADMIN_A);
     await acessoResolvido(page);
     await page.waitForFunction(() => window.faAuth.podeAvaliacao(), null, { timeout: 10000 });
-    await page.evaluate(() => { location.hash = '#avaliacoes'; });
+    await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
     await abrirResultado(page);
     await page.waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, null, { timeout: 10000 });
     c = await cat(page);

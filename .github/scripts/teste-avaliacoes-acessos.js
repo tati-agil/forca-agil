@@ -81,7 +81,7 @@ async function abrir(browser, o) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html' + (o.hash || '#avaliacoes'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (o.hash || '#avaliacoes?av=lista'), { waitUntil: 'domcontentloaded' });
   /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms fixos); quando o
      cenário derruba a leitura de fa-avaliacao-autorizados, o acesso à Avaliação fica "não sei" por desenho */
   await esperarSessaoAssentada(page, { semAvaliacao: (o.fail || []).some((c) => /^fa-avaliacao-autorizados/.test(c)) });
@@ -218,10 +218,10 @@ async function abrirMais(page, key) {
   {
     const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao', delays: { 'fa-avaliacao-autorizados': 3500 } });
     await page.waitForTimeout(800);
-    afirma(await hash(page) === '#avaliacoes', 'enquanto o registro não chega, continua em #avaliacoes (não é expulso)');
+    afirma(await hash(page) === '#avaliacoes?av=lista', 'enquanto o registro não chega, continua em #avaliacoes (não é expulso)');
     await page.waitForSelector('#avpNovoBtn', { timeout: 9000 });
     await page.waitForTimeout(400);
-    afirma(await hash(page) === '#avaliacoes' && await contar(page, '#avaliacoesPainel .avp-table tbody tr') === 3, 'quando chega: entra e carrega as 3');
+    afirma(await hash(page) === '#avaliacoes?av=lista' && await contar(page, '#avaliacoesPainel .avp-table tbody tr') === 3, 'quando chega: entra e carrega as 3');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }

@@ -101,7 +101,7 @@ async function abrirApp(browser, cenario, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes?av=lista', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms fixos) */
   await page.waitForFunction(() => document.querySelectorAll('.avp-tag-motor').length > 0, { timeout: 8000 }).catch(() => {});
   /* a lista agora sobe já na abertura da página, então os selos podem aparecer
@@ -132,7 +132,7 @@ async function irAoAdmin(page) {
   await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
 }
 async function voltarParaAvaliacoes(page) {
-  await page.evaluate(() => { location.hash = '#avaliacoes'; });
+  await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
   await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
   await page.waitForTimeout(200);
 }
@@ -182,7 +182,7 @@ async function voltarParaAvaliacoes(page) {
       JSON.stringify(semCampos(antes['avaliacoes-produto'].k3, ['motorVersionArquitetura', 'reconciliacoesVersao'])),
       'individual: NENHUM outro campo de k3 mudou (respostas, justificativas, classificação, atualizadoEm, historicoMotor…)');
     afirma(await contar(page, '#avpAvisoEquivalente') === 0, 'individual: aviso de versão equivalente some depois de reconciliar');
-    await page.goto(BASE + '/index.html#avaliacoes');
+    await page.goto(BASE + '/index.html#avaliacoes?av=lista');
     await page.waitForTimeout(600);
     await page.waitForTimeout(400);
 

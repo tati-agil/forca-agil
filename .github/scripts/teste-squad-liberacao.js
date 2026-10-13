@@ -116,8 +116,8 @@ const squadsDe = (db, itemId) => Object.entries(db['avaliacoes-squad'] || {}).fi
 
 /* abre a Squad, "+ Nova", item já cadastrado, escolhe pelo nome */
 async function escolherItem(page, nome) {
-  await page.waitForSelector('#avpSquadBtn');
-  await page.click('#avpSquadBtn');
+  await page.waitForSelector('#avpInicioRegSquad');
+  await page.click('#avpInicioRegSquad');
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
   await page.click('#sqNovaBtn');
   await page.click('#sqfEscolhaExistente');
@@ -181,8 +181,8 @@ async function ligada(browser, viewport, rotulo) {
     criadoEm: QUANDO, atualizadoEm: QUANDO, criadoPor: outra, atualizadoPor: outra, respostas: { S2: { codigoPergunta: 'S2', resposta: 'nao', questionnaireContentVersion: 1, dataResposta: QUANDO } }, excluido: false } };
   let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente({ exigir: true, squad: rasc }));
   const antes = await banco(page);
-  await page.waitForSelector('#avpSquadBtn');
-  await page.click('#avpSquadBtn');
+  await page.waitForSelector('#avpInicioRegSquad');
+  await page.click('#avpInicioRegSquad');
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
   await page.click('#sqNovaBtn');
   await page.click('#sqfEscolhaExistente');
