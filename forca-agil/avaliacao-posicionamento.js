@@ -211,8 +211,18 @@
     return out;
   }
   /* ---- gravações (multipath) ---- */
+  /* Porta 2 (objetos organizacionais): origem 'objeto-organizacional', sem base P1–P16 (o campo não é gravado — o SDK
+     recusa undefined); hipótese inicial (8 firmes ou NAO_SEI) fixa no registro e na auditoria de criação, nunca no
+     resultado. Sem origem = Porta 1, como sempre. */
+  function marcarPorta(reg, aud, o, origem) {
+    if (o.avaliacaoArquiteturalId) { reg.avaliacaoArquiteturalId = o.avaliacaoArquiteturalId; aud.avaliacaoArquiteturalId = o.avaliacaoArquiteturalId; }
+    if (origem) { reg.origem = origem; aud.origem = origem; }
+    if (o.hipoteseInicial) { reg.hipoteseInicial = o.hipoteseInicial; aud.hipoteseInicial = o.hipoteseInicial; }
+  }
+  /* o: { id, audId, itemId, itemNome, avaliacaoArquiteturalId? (Porta 1), origem? ('objeto-organizacional'), hipoteseInicial?,
+          versao, versaoMotor?, usuario, agora } */
   function payloadCriacao(o) {
-    var reg = { itemId: o.itemId, itemNome: String(o.itemNome || o.itemId).slice(0, 200), avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, questionarioCodigo: QCOD,
+    var reg = { itemId: o.itemId, itemNome: String(o.itemNome || o.itemId).slice(0, 200), questionarioCodigo: QCOD,
       questionnaireContentVersion: o.versao, versao: 1, status: 'rascunho', revisao: 1, criadoPor: o.usuario, criadoEm: o.agora, atualizadoPor: o.usuario, atualizadoEm: o.agora,
       auditoriaCriacaoId: o.audId };
     /* H3-b: a avaliação nasce no motor EM VIGOR (lido do banco); a v1 não grava o campo */
@@ -220,7 +230,9 @@
     var p = {};
     p[NODE + '/' + o.id] = reg;
     p[RES + '/' + o.itemId] = o.id;
-    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'criacao', itemId: o.itemId, avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, usuario: o.usuario, dataHora: o.agora };
+    var aud = { tipo: 'criacao', itemId: o.itemId, usuario: o.usuario, dataHora: o.agora };
+    marcarPorta(reg, aud, o, o.origem);
+    p[AUD + '/' + o.id + '/' + o.audId] = aud;
     return p;
   }
   function registroParaGravar(reg, usuario, agora, revisaoBase) {
@@ -333,7 +345,7 @@
       if (!r || (r.resposta !== 'SIM' && r.resposta !== 'NAO') || situacaoResposta(r, q, vn, vm) === 'pergunta') return;
       respostas[q] = snapshotResposta(q, r.resposta, vn, r.observacao, r.dataResposta || o.agora, vm);
     });
-    var reg = { itemId: ant.itemId, itemNome: String(o.itemNome || ant.itemNome || ant.itemId).slice(0, 200), avaliacaoArquiteturalId: o.avaliacaoArquiteturalId,
+    var reg = { itemId: ant.itemId, itemNome: String(o.itemNome || ant.itemNome || ant.itemId).slice(0, 200),
       questionarioCodigo: QCOD, questionnaireContentVersion: vn, versao: (ant.versao || 1) + 1, avaliacaoAnteriorId: o.anteriorId,
       motivoReavaliacao: String(o.motivo || '').slice(0, MAX_MOTIVO), status: 'rascunho', revisao: 1, criadoPor: o.usuario, criadoEm: o.agora,
       atualizadoPor: o.usuario, atualizadoEm: o.agora, auditoriaCriacaoId: o.audId };
@@ -351,8 +363,9 @@
     var p = {};
     p[NODE + '/' + o.id] = reg;
     p[RES + '/' + reg.itemId] = o.id;
-    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'criacao', itemId: reg.itemId, avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, avaliacaoAnteriorId: o.anteriorId,
-      motivo: reg.motivoReavaliacao, usuario: o.usuario, dataHora: o.agora };
+    var aud = { tipo: 'criacao', itemId: reg.itemId, avaliacaoAnteriorId: o.anteriorId, motivo: reg.motivoReavaliacao, usuario: o.usuario, dataHora: o.agora };
+    marcarPorta(reg, aud, o, ant.origem);
+    p[AUD + '/' + o.id + '/' + o.audId] = aud;
     return p;
   }
   /* H3-a — "Atualizar com motor atual" (DORMENTE: só é oferecido quando a versão em vigor do motor é maior que a do
@@ -370,7 +383,7 @@
     var h = G.herdarEntreVersoes(nucleo(), { origem: { def: nucleo().definicao(vo), reg: ant }, destino: { def: defD },
       conteudoOrigem: function (c, v) { return conteudoMotor(c, v, vo); }, conteudoDestino: function (c) { return conteudoMotor(c, vr, vd); },
       mesmoConteudo: C.mesmoConteudo });
-    var reg = { itemId: ant.itemId, itemNome: String(o.itemNome || ant.itemNome || ant.itemId).slice(0, 200), avaliacaoArquiteturalId: o.avaliacaoArquiteturalId,
+    var reg = { itemId: ant.itemId, itemNome: String(o.itemNome || ant.itemNome || ant.itemId).slice(0, 200),
       questionarioCodigo: QCOD, questionnaireContentVersion: vr, versao: (ant.versao || 1) + 1, avaliacaoAnteriorId: o.anteriorId, origemReavaliacao: 'motor',
       motivoReavaliacao: String(o.motivo || '').slice(0, MAX_MOTIVO), status: 'rascunho', revisao: 1, criadoPor: o.usuario, criadoEm: o.agora,
       atualizadoPor: o.usuario, atualizadoEm: o.agora, auditoriaCriacaoId: o.audId };
@@ -384,8 +397,10 @@
     var p = {};
     p[NODE + '/' + o.id] = reg;
     p[RES + '/' + reg.itemId] = o.id;
-    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'criacao', itemId: reg.itemId, avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, avaliacaoAnteriorId: o.anteriorId,
+    var aud = { tipo: 'criacao', itemId: reg.itemId, avaliacaoAnteriorId: o.anteriorId,
       motivo: reg.motivoReavaliacao, origemReavaliacao: 'motor', versaoMotorAnterior: vo, versaoMotor: vd, usuario: o.usuario, dataHora: o.agora };
+    marcarPorta(reg, aud, o, ant.origem);
+    p[AUD + '/' + o.id + '/' + o.audId] = aud;
     return { payload: p, novas: h.novas };
   }
   /* a atualização só existe quando há motor em vigor MAIS NOVO que o do registro e a redação publicada dele */

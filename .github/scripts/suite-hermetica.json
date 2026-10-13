@@ -21,7 +21,8 @@
     ".github/scripts/teste-rules-estruturas-concretas.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-estruturas-jornada.js": "jornada contra um Firebase Emulator real (banco + login) num contêiner Docker próprio, com Playwright: roda localmente; ainda não está no CI",
     ".github/scripts/teste-confirmacao-gravacao.js": "confirmação de gravação (homologação 2026-10-13) contra um Firebase Emulator real e o SDK real (goOffline/goOnline) num contêiner Docker próprio, com Playwright: roda localmente, como a jornada; a parte sem navegador está em teste-estruturas-firebase-prazo.js e teste-servicos-posicionamento.js, na suíte",
-    ".github/scripts/teste-rules-mapa-subagrupadores.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-mapa-subagrupadores.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-objetos-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -694,6 +695,12 @@
       "nome": "Posicionamento: interface de serviços — a tela só fala com ela; contrato do adaptador Firebase (sem navegador)",
       "duracao": 1,
       "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (cb uma vez; a resposta do servidor depois do prazo vai para \"depois\", confirmação ou recusa)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita, leitura parada rejeita no prazo); ouvir e cancelar."
+    },
+    {
+      "arquivo": ".github/scripts/teste-objetos-organizacionais-nucleo.js",
+      "nome": "Porta 2: objetos organizacionais — núcleo puro e contrato de independência da hipótese (sem navegador)",
+      "duracao": 2,
+      "sobre": "Hipóteses = 8 firmes + NAO_SEI; validação; gravações de criação, alteração e encerramento (auditoria e índice de referência); comparação hipótese × recomendação; a conclusão montada pela tela é a mesma com qualquer hipótese, sem hipótese e pelas duas portas, num estado de cada regra concluível do motor; Porta 1 sem os campos novos como antes; regras publicadas = montadas."
     },
     {
       "arquivo": ".github/scripts/teste-estruturas-firebase-prazo.js",

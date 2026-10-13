@@ -13,7 +13,15 @@
  * item, com motivo; a conclusão troca o vigente por compare-and-set (só se ainda aponta para a anterior) — nunca
  * apaga, nunca pula versão. DECISÃO: posicionamento-decisoes/<avaliacaoId>, uma por versão, só da vigente, imutável,
  * recusada enquanto houver reavaliação em andamento (o contrário — reavaliar depois de decidir — é permitido). O
- * liberaSquad da decisão é o de faMotorPosicionamento.liberaSquadParaCodigoFirme (lido do motor, não copiado). */
+ * liberaSquad da decisão é o de faMotorPosicionamento.liberaSquadParaCodigoFirme (lido do motor, não copiado).
+ *
+ * PORTA 2 (objetos organizacionais): origem 'objeto-organizacional' = o itemId é um objeto de objetos-organizacionais
+ * (sem Avaliação de Produto/Serviço); o gate P1–P16 é trocado por "objeto ativo", na criação, na reavaliação e na
+ * conclusão. Sem origem = Porta 1, exatamente como antes — e a Porta 1 não inicia um Posicionamento de item que um
+ * objeto ativo referencia (objetos-organizacionais-por-referencia). hipoteseInicial (um dos 8 firmes ou NAO_SEI):
+ * obrigatória na Porta 2, opcional na Porta 1 até a tela pedi-la; fixa no registro; nunca entra no resultado (o
+ * resultado continua conferido pela tabela do motor, só a partir das respostas). Origem passa da anterior para a
+ * reavaliação. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -33,6 +41,7 @@ const FRONTEIRA = "(auth != null && auth.uid === 'fronteira-confiavel')";
 const ESCF = '(' + FRONTEIRA + ' || (' + ESC + '))';
 const VIGM = "root.child('posicionamento-motor-vigencia').child('versaoEmVigor')";
 const EMVIGOR = '(' + VIGM + '.exists() ? ' + VIGM + '.val() : 1)';
+const OBJ = 'objetos-organizacionais', IDXREF = 'objetos-organizacionais-por-referencia', ORIGEM2 = 'objeto-organizacional';
 const AV = 'avaliacoes-posicionamento', RES = 'posicionamento-rascunho-por-item', VIG = 'posicionamento-vigente-por-item', AUD = 'posicionamento-auditoria';
 const DEC = 'posicionamento-decisoes';
 const CODS = ['LINHA','ESTRATEGIA_CLIENTES','NEGOCIOS','PLATAFORMA','PLATAFORMA_CANAIS','PLATAFORMA_HABILITADORA_NEGOCIOS','PLATAFORMA_HABILITADORA_TECNOLOGIA','PLATAFORMA_CORPORATIVA','AREA_ESPECIALIZADA','COE'];
@@ -54,6 +63,8 @@ const MOTOR_PRODUTO = (fs.readFileSync(path.join(__dirname, '..', '..', 'forca-a
 if (!MOTOR_PRODUTO) throw new Error('MOTOR_VERSION não encontrado em avaliacao-produto.js');
 const PUB = "root.child('motor-arquitetura-config/versaoPublicada')";
 const ID = '/^[A-Za-z0-9_-]{1,60}$/';
+const HIPOTESES = M.CODIGOS_FIRMES.concat(['NAO_SEI']);
+const eqUmH = (x) => '(' + HIPOTESES.map((k) => x + " === '" + k + "'").join(' || ') + ')';
 const semCampos = (xs) => and(xs.map((x) => '!' + c(x) + '.exists()'));
 const CONCL = ['resultadoAutomatico', 'nomesNaConclusao', 'concluidoPor', 'concluidoEm', 'auditoriaConclusaoId'];
 const DESC = ['motivoDescarte', 'descartadoPor', 'descartadoEm', 'auditoriaDescarteId'];
@@ -67,6 +78,10 @@ const ANT = "root.child('" + AV + "').child(" + ANTID + ")";
 const VERS = '(' + c('versaoMotor') + '.exists() ? ' + v('versaoMotor') + ' : 1)';
 const VERSANT = '(' + ANT + ".child('versaoMotor').exists() ? " + ANT + ".child('versaoMotor').val() : 1)";
 const VIGRAIZ = "root.child('" + VIG + "').child(" + v('itemId') + ')';
+/* PORTA 2: o objeto organizacional (estado depois da gravação) */
+const PORTA2 = v('origem') + " === '" + ORIGEM2 + "'";
+const OBJN = NOVO(OBJ) + '.child(' + v('itemId') + ')';
+const objetoAtivo = OBJN + ".child('situacao').val() === 'ativo'";
 
 /* a base P1–P16 (a avaliacaoArquiteturalId gravada) tem de estar concluída, fora da Lixeira e com Motor atual — na
    criação, na reavaliação e de novo na CONCLUSÃO (a base pode ter mudado depois que o rascunho foi aberto) */
@@ -76,12 +91,16 @@ const baseValida = [
   P + ".child('motorVersionArquitetura').val() === (" + PUB + '.exists() ? ' + PUB + '.val() : 1)'
 ];
 const criar = and([
-  v('status') + " === 'rascunho'", v('revisao') + ' === 1', v('criadoPor/email') + ' === auth.token.email'
-].concat(baseValida).concat([
-  '(' + P + ".child('itemId').val() === " + v('itemId') + ' || (!' + P + ".child('itemId').exists() && " + v('avaliacaoArquiteturalId') + ' === ' + v('itemId') + '))',
+  v('status') + " === 'rascunho'", v('revisao') + ' === 1', v('criadoPor/email') + ' === auth.token.email',
+  /* Porta 2: objeto ativo, sem base P1–P16, com o nome do objeto e com hipótese. Porta 1: o gate H0 de sempre, e o
+     item não pode estar referenciado por um objeto ativo */
+  '(' + PORTA2 + ' ? (' + and([objetoAtivo, '!' + c('avaliacaoArquiteturalId') + '.exists()', v('itemNome') + ' === ' + OBJN + ".child('nome').val()",
+    c('hipoteseInicial') + '.exists()']) + ') : (' + and([c('avaliacaoArquiteturalId') + '.exists()'].concat(baseValida).concat([
+    '(' + P + ".child('itemId').val() === " + v('itemId') + ' || (!' + P + ".child('itemId').exists() && " + v('avaliacaoArquiteturalId') + ' === ' + v('itemId') + '))',
+    '!' + NOVO(IDXREF) + '.child(' + v('itemId') + ').exists()'])) + '))',
   /* primeira versão: o item não tem vigente. Reavaliação: versão seguinte da VIGENTE, com motivo. */
   '(' + c('avaliacaoAnteriorId') + '.exists() ? (' + and([
-    ANT + ".child('status').val() === 'concluido'", ANT + ".child('itemId').val() === " + v('itemId'),
+    ANT + ".child('status').val() === 'concluido'", ANT + ".child('itemId').val() === " + v('itemId'), ANT + ".child('origem').val() === " + v('origem'),
     VIGRAIZ + '.val() === ' + ANTID, v('versao') + ' === ' + ANT + ".child('versao').val() + 1",
     c('motivoReavaliacao') + '.isString()', naoEmBranco(v('motivoReavaliacao')),
     /* H3-b: reavaliar mantém o motor da anterior; "Atualizar com motor atual" (origem 'motor') vai para o motor EM VIGOR, mais novo */
@@ -90,8 +109,8 @@ const criar = and([
     /* H3-b: a primeira versão nasce no motor EM VIGOR (lido do banco; sem registro = 1) */
     VERS + ' === ' + EMVIGOR]) + '))',
   AUDNOVA('auditoriaCriacaoId') + ".child('tipo').val() === 'criacao'", '!' + AUDANT('auditoriaCriacaoId') + '.exists()'
-]));
-const fixos = ['itemId', 'itemNome', 'avaliacaoArquiteturalId', 'questionnaireContentVersion', 'versao', 'avaliacaoAnteriorId', 'motivoReavaliacao', 'versaoMotor', 'origemReavaliacao', 'criadoPor/email', 'criadoPor/name', 'criadoEm', 'auditoriaCriacaoId'];
+]);
+const fixos = ['itemId', 'itemNome', 'avaliacaoArquiteturalId', 'origem', 'hipoteseInicial', 'questionnaireContentVersion', 'versao', 'avaliacaoAnteriorId', 'motivoReavaliacao', 'versaoMotor', 'origemReavaliacao', 'criadoPor/email', 'criadoPor/name', 'criadoEm', 'auditoriaCriacaoId'];
 const alterar = and(fixos.map((f) => v(f) + ' === ' + d(f)).concat([v('revisao') + ' === ' + d('revisao') + ' + 1']));
 const rascunho = and([NOVO(RES) + '.child(' + v('itemId') + ').val() === $avaliacaoId', semCampos(CONCL), semCampos(DESC)]);
 const concluidoComum = [
@@ -100,8 +119,9 @@ const concluidoComum = [
   /* vigente: nasce na primeira versão; numa reavaliação, troca por compare-and-set (só se ainda é a anterior) */
   NOVO(VIG) + '.child(' + v('itemId') + ').val() === $avaliacaoId',
   '(' + c('avaliacaoAnteriorId') + '.exists() ? ' + VIGRAIZ + '.val() === ' + ANTID + ' : !' + VIGRAIZ + '.exists())',
-  AUDNOVA('auditoriaConclusaoId') + ".child('tipo').val() === 'conclusao'", '!' + AUDANT('auditoriaConclusaoId') + '.exists()'
-].concat(baseValida);
+  AUDNOVA('auditoriaConclusaoId') + ".child('tipo').val() === 'conclusao'", '!' + AUDANT('auditoriaConclusaoId') + '.exists()',
+  '(' + PORTA2 + ' ? (' + objetoAtivo + ') : (' + and(baseValida) + '))'
+];
 /* a TELA conclui só a v1, com o resultado conferido pela tabela; a v ≥ 2 é concluída só pela fronteira confiável */
 const concluido = and([v('concluidoPor/email') + ' === auth.token.email', '!' + c('versaoMotor') + '.exists()'].concat(concluidoComum).concat([T.trechoResultado()]));
 const concluidoPelaFronteira = and([c('versaoMotor') + '.exists()', v('resultadoAutomatico/versaoMotor') + ' === ' + v('versaoMotor')].concat(concluidoComum));
@@ -122,7 +142,7 @@ const pelaTela = and([
 const pelaFronteira = and(['data.exists()', "data.child('status').val() === 'rascunho'", alterar, v('status') + " === 'concluido'", concluidoPelaFronteira]);
 const validar = and([
   '$avaliacaoId.matches(' + ID + ')',
-  "newData.hasChildren(['itemId','itemNome','avaliacaoArquiteturalId','questionarioCodigo','questionnaireContentVersion','versao','status','revisao','criadoPor','criadoEm','atualizadoPor','atualizadoEm','auditoriaCriacaoId'])",
+  "newData.hasChildren(['itemId','itemNome','questionarioCodigo','questionnaireContentVersion','versao','status','revisao','criadoPor','criadoEm','atualizadoPor','atualizadoEm','auditoriaCriacaoId'])",
   '(' + FRONTEIRA + ' ? (' + pelaFronteira + ') : (' + pelaTela + '))'
 ]);
 const pessoa = { '.validate': "newData.hasChildren(['email'])", name: { '.validate': 'newData.isString() && newData.val().length <= 200' }, email: { '.validate': 'newData.isString()' }, $outro: { '.validate': false } };
@@ -136,6 +156,8 @@ const blocoAv = {
     itemId: { '.validate': 'newData.isString() && newData.val().matches(' + ID + ')' },
     itemNome: { '.validate': 'newData.isString() && newData.val().length > 0 && newData.val().length <= 200' },
     avaliacaoArquiteturalId: { '.validate': 'newData.isString() && newData.val().matches(' + ID + ')' },
+    origem: { '.validate': "newData.val() === '" + ORIGEM2 + "'" },
+    hipoteseInicial: { '.validate': eqUmH('newData.val()') },
     questionarioCodigo: { '.validate': "newData.val() === 'POSICIONAMENTO_ORGANIZACIONAL'" },
     questionnaireContentVersion: { '.validate': 'newData.isNumber() && newData.val() >= 1' },
     versao: { '.validate': 'newData.isNumber() && newData.val() >= 1' },
@@ -235,7 +257,8 @@ const blocoAud = {
       '.validate': and([
         "newData.hasChildren(['tipo','itemId','usuario','dataHora'])", '(' + FRONTEIRA + ' || ' + v('usuario/email') + ' === auth.token.email)', v('itemId') + ' === ' + AVNOVA + ".child('itemId').val()",
         '((' + v('tipo') + " === 'criacao' && " + AVNOVA + ".child('auditoriaCriacaoId').val() === $auditoriaId && " +
-        v('avaliacaoAnteriorId') + ' === ' + AVNOVA + ".child('avaliacaoAnteriorId').val() && " + v('motivo') + ' === ' + AVNOVA + ".child('motivoReavaliacao').val()) || (" +
+        v('avaliacaoAnteriorId') + ' === ' + AVNOVA + ".child('avaliacaoAnteriorId').val() && " + v('motivo') + ' === ' + AVNOVA + ".child('motivoReavaliacao').val() && " +
+        v('origem') + ' === ' + AVNOVA + ".child('origem').val() && " + v('hipoteseInicial') + ' === ' + AVNOVA + ".child('hipoteseInicial').val()) || (" +
         v('tipo') + " === 'conclusao' && " + AVNOVA + ".child('auditoriaConclusaoId').val() === $auditoriaId && " +
         and(['codigoResultado', 'regra', 'versaoMotor', 'liberaSquad'].map((f) => v(f) + ' === ' + AVNOVA + ".child('resultadoAutomatico/" + f + "').val()")) + ' && ' +
         v('vigenteAnterior') + ' === ' + AVNOVA + ".child('avaliacaoAnteriorId').val()) || (" +
@@ -249,6 +272,7 @@ const blocoAud = {
       origemReavaliacao: { '.validate': "newData.val() === 'motor'" }, versaoMotorAnterior: { '.validate': 'newData.isNumber()' },
       codigoAutomatico: { '.validate': 'newData.isString()' }, codigoFinal: { '.validate': 'newData.isString()' }, tipoDecisao: { '.validate': 'newData.isString()' },
       versaoAvaliacao: { '.validate': 'newData.isNumber()' }, justificativa: texto(2000),
+      origem: { '.validate': "newData.val() === '" + ORIGEM2 + "'" }, hipoteseInicial: { '.validate': eqUmH('newData.val()') },
       $outro: { '.validate': false }
     }
   }
