@@ -6,12 +6,16 @@
    troca-se a implementação (API, banco corporativo) e a tela, o núcleo e as regras de negócio ficam.
 
    Contrato (os caminhos são os do modelo de dados atual; um adaptador futuro os traduz):
-     gravar(payload, prazoMs, cb)  gravação ATÔMICA de várias chaves (entra tudo ou nada). cb(null) = gravou;
+     gravar(payload, prazoMs, cb, depois)  gravação ATÔMICA de várias chaves (entra tudo ou nada). cb(null) = gravou;
                                    cb('sem-resposta') = o prazo acabou sem resposta — NÃO quer dizer "falhou" nem
                                    "gravou": quem chama confere o banco antes de dizer qualquer coisa; cb(erro) =
-                                   recusada. Resposta que chega depois do prazo é ignorada (cb é chamado uma vez).
+                                   recusada. cb é chamado uma vez; a resposta do servidor que chega DEPOIS do prazo vai
+                                   para depois(null | erro), se informado. Enquanto ela não chega, o que o SDK mostra no
+                                   cache local (ouvintes, lerUmaVez) inclui a própria gravação: não é confirmação.
      novaChave(caminho)            chave nova, única e ordenável no tempo, sob o caminho.
-     lerUmaVez(caminho)            Promise do valor (null se não existe); rejeita se a leitura for recusada.
+     lerUmaVez(caminho, prazoMs)   Promise do valor (null se não existe); rejeita se a leitura for recusada ou com
+                                   'sem-resposta' quando o prazo acaba (padrão 20 s: com a conexão parada, uma leitura
+                                   fora do cache local esperaria para sempre).
      ouvir(caminho, aoValor, aoErro) → cancelar()   leitura ao vivo; aoValor(valor ou null) a cada mudança.
      identidade()                  {uid, email} da sessão autenticada, ou null (B3: quem propõe/aprova é o UID).
      agoraServidor()               marca "horário do servidor" para uma gravação (as regras exigem now).
@@ -26,19 +30,23 @@
 (function () {
   'use strict';
   function db() { return firebase.database(); }
-  function gravar(payload, prazoMs, cb) {
+  function gravar(payload, prazoMs, cb, depois) {
     var respondido = false;
     var relogio = setTimeout(function () { if (respondido) return; respondido = true; cb('sem-resposta'); }, prazoMs);
     try {
       db().ref().update(payload, function (err) {
-        if (respondido) return;
+        if (respondido) { if (depois) depois(err || null); return; }
         respondido = true; clearTimeout(relogio);
         cb(err || null);
       });
     } catch (e) { if (respondido) return; respondido = true; clearTimeout(relogio); cb(e); }
   }
   function novaChave(caminho) { return db().ref(caminho).push().key; }
-  function lerUmaVez(caminho) { return db().ref(caminho).once('value').then(function (s) { var v = s.val(); return v === undefined ? null : v; }); }
+  function lerUmaVez(caminho, prazoMs) {
+    var t, venceu = new Promise(function (_, rej) { t = setTimeout(function () { rej('sem-resposta'); }, prazoMs || 20000); });
+    var leitura = db().ref(caminho).once('value').then(function (s) { var v = s.val(); return v === undefined ? null : v; });
+    return Promise.race([leitura, venceu]).then(function (v) { clearTimeout(t); return v; }, function (e) { clearTimeout(t); return Promise.reject(e); });
+  }
   function ouvir(caminho, aoValor, aoErro) {
     var ref = db().ref(caminho);
     var cb = function (snap) { aoValor(snap.val()); };

@@ -20,6 +20,7 @@
     ".github/scripts/teste-rotulos-doc.js": "ferramenta de auditoria, ainda não portão de CI: sempre sai com 0 até a triagem dos candidatos (ver cabeçalho do arquivo)",
     ".github/scripts/teste-rules-estruturas-concretas.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-estruturas-jornada.js": "jornada contra um Firebase Emulator real (banco + login) num contêiner Docker próprio, com Playwright: roda localmente; ainda não está no CI",
+    ".github/scripts/teste-confirmacao-gravacao.js": "confirmação de gravação (homologação 2026-10-13) contra um Firebase Emulator real e o SDK real (goOffline/goOnline) num contêiner Docker próprio, com Playwright: roda localmente, como a jornada; a parte sem navegador está em teste-estruturas-firebase-prazo.js e teste-servicos-posicionamento.js, na suíte",
     ".github/scripts/teste-rules-mapa-subagrupadores.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
@@ -692,7 +693,13 @@
       "arquivo": ".github/scripts/teste-servicos-posicionamento.js",
       "nome": "Posicionamento: interface de serviços — a tela só fala com ela; contrato do adaptador Firebase (sem navegador)",
       "duracao": 1,
-      "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (resposta atrasada ignorada, cb uma vez)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita); ouvir e cancelar."
+      "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (cb uma vez; a resposta do servidor depois do prazo vai para \"depois\", confirmação ou recusa)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita, leitura parada rejeita no prazo); ouvir e cancelar."
+    },
+    {
+      "arquivo": ".github/scripts/teste-estruturas-firebase-prazo.js",
+      "nome": "Estruturas: adaptador Firebase com a conexão parada — prazo nas leituras e gravação pendente não é confirmação (sem navegador)",
+      "duracao": 1,
+      "sobre": "Defeito da homologação de 2026-10-13: banco falso que imita o SDK sem conexão (leitura fora do cache espera para sempre; gravação aparece no cache local antes da confirmação). Leitura parada termina no prazo com SEM_RESPOSTA; gravação pendente → GRAVACAO_NAO_CONFIRMADA mesmo com a operação no cache local; repetir não reenvia; confirmada → \"repetida\"; recusada depois do prazo deixa de contar como pendente. Pelo caso de uso e pelo adaptador de verdade."
     },
     {
       "arquivo": ".github/scripts/teste-fronteira-estrutura.js",

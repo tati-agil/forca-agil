@@ -138,7 +138,7 @@
       case 'MOTIVO_OBRIGATORIO': return 'Informe o motivo do encerramento.';
       case 'TIPO_IMUTAVEL': return 'O tipo não muda. Para corrigir o tipo, encerre esta estrutura e cadastre outra.';
       case 'RECUSADA': return 'O banco recusou a gravação. Seu perfil pode não ter permissão para manter estruturas, ou os dados mudaram. Nada foi gravado.';
-      case 'SEM_RESPOSTA': case 'GRAVACAO_NAO_CONFIRMADA': return 'O banco não confirmou a gravação a tempo. Clique em salvar de novo: se ela já tiver entrado, nada será duplicado.';
+      case 'SEM_RESPOSTA': case 'GRAVACAO_NAO_CONFIRMADA': return 'Gravação não confirmada: o servidor não respondeu a tempo (conexão lenta ou interrompida). O que você preencheu continua aqui. Clique em salvar de novo quando a conexão voltar: se ela já tiver entrado, nada será duplicado.';
       case 'LEITURA_INDISPONIVEL': return 'Não foi possível ler os dados necessários agora. Verifique a conexão e tente de novo.';
       case 'IDENTIFICADOR_JA_USADO': return 'Este identificador já foi usado. Tente salvar de novo.';
       case 'CONTEXTO_SEM_USUARIO': case 'CONTEXTO_INVALIDO': return 'Sua sessão não foi identificada. Entre novamente.';
