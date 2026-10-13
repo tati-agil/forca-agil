@@ -90,22 +90,26 @@
     function novo() { return { vista: 'lista', id: null, estruturas: undefined, eventos: undefined, erroLeitura: null, refs: undefined, refsErro: false,
       form: null, sujo: false, salvando: false, erros: [], flash: null, op: null, mostrarEncerradas: false, historicoAberto: false,
       /* Etapa 5 */
-      subagrupadores: undefined, associacoes: undefined, eventosSg: undefined, mostrarSgEncerrados: false, assoc: null, contextoErro: null }; }
+      subagrupadores: undefined, associacoes: undefined, eventosSg: undefined, mostrarSgEncerrados: false, assoc: null, contextoErro: null,
+      /* M4 */
+      vinculos: undefined, itensVinculados: {} }; }
 
     /* ---------- banco: leitura ao vivo e portas ---------- */
     var desligar = null, offset = 0, offsetLigado = false;
     function db() { return window.firebase.database(); }
     function ligar() {
       if (desligar || !disponivel()) return;
-      desligar = FB().ouvir(db(), ['registros', 'eventos', 'subagrupadores', 'associacoes', 'eventosSubagrupadores'], function (m) {
+      desligar = FB().ouvir(db(), ['registros', 'eventos', 'subagrupadores', 'associacoes', 'eventosSubagrupadores', 'vinculos'], function (m) {
         if (m.estruturas) st.estruturas = m.estruturas;
         if (m.eventos) st.eventos = m.eventos;
         if (m.subagrupadores) st.subagrupadores = m.subagrupadores;
         if (m.associacoesSubagrupador) st.associacoes = m.associacoesSubagrupador;
         if (m.eventosSubagrupadores) st.eventosSg = m.eventosSubagrupadores;
+        if (m.vinculos) { st.vinculos = m.vinculos; st.itensVinculados = {}; if (st.vista !== 'detalhe') return; } /* M4: só a ficha mostra os vínculos (nenhum redesenho num formulário aberto) */
         st.erroLeitura = null; render();
       }, function (c) { st.erroLeitura = c; render(); });
       if (!offsetLigado) { offsetLigado = true; db().ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; }); }
+      lerLigacoes(function () { if (!wrap.hidden && st.vista === 'detalhe') render(); });
       if (P()) { P().iniciar(); if (!ligar._nomes) { ligar._nomes = true; P().onMudanca(function () { if (!wrap.hidden) render(); }); } }
     }
     function desligarTudo() { if (desligar) { desligar(); desligar = null; } }
@@ -280,6 +284,30 @@
     function quando(em, por) { return '<span class="est-quando">' + dataHora(em) + '</span><span class="est-autor">' + quem(por) + '</span>'; }
     function situacaoHtml(e) { return '<span class="est-situacao est-situacao--' + esc(e.situacao) + '">' + (e.situacao === 'ativa' ? 'Ativa' : 'Encerrada') + '</span>'; }
     /* ficha em dois grupos (o terceiro, o histórico, vem logo abaixo): Identificação e Situação e controle */
+    /* M4 (decisão G): os produtos e serviços sob esta estrutura — só consulta, com atalho para o Posicionamento (onde
+       o vínculo é administrado); situação calculada pelo núcleo com o Posicionamento VIGENTE de cada item */
+    function itemVinculado(objetoId, v) {
+      var x = st.itensVinculados[objetoId];
+      if (x) return x;
+      x = st.itensVinculados[objetoId] = { carregado: false };
+      Promise.all([portas().lerPosicionamento(objetoId), db().ref('avaliacoes-posicionamento/' + v.base.avaliacaoId + '/itemNome').once('value').then(function (sn) { return sn.val(); })]).then(function (r) {
+        x.p = r[0]; x.nome = r[1]; x.carregado = true; render();
+      }, function () { x.erro = true; x.carregado = true; render(); });
+      return x;
+    }
+    function produtosHtml(e) {
+      var h = '<section class="est-secao" aria-labelledby="estSecProdutos"><h5 class="est-secao-titulo" id="estSecProdutos">Produtos e serviços sob esta estrutura</h5>';
+      if (st.vinculos === undefined || ligacoesLidas === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
+      var estado = { estruturas: st.estruturas, vinculos: st.vinculos }, objs = N().objetosDaEstrutura(estado, e.id);
+      if (!objs.length) return h + '<p class="est-vazio" id="estSemProdutos">Nenhum produto ou serviço vinculado a esta estrutura.</p></section>';
+      return h + '<ul class="est-produtos" id="estProdutos">' + objs.map(function (o) {
+        var v = st.vinculos[o.vinculoId], x = itemVinculado(o.objetoId, v);
+        if (!x.carregado) return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="loading-msg">Carregando…</span></li>';
+        var sit = N().situacaoResponsavel(estado, o.objetoId, x.p || null, refsDaTela());
+        return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="est-produto-nome">' + esc(x.nome || o.objetoId) + '</span>' + situacaoVinculoHtml(sit) +
+          '<a class="btn btn--sm est-abrir-po" href="#avaliacoes?po=' + encodeURIComponent((x.p && x.p.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
+      }).join('') + '</ul></section>';
+    }
     function fichaHtml(e) {
       var linha = natureza(e.tipo) === 'Linha';
       return '<div class="est-ficha" id="estFicha">' +
@@ -337,7 +365,7 @@
       if (st.flash) h += '<div class="avp-flash-success est-flash" id="estFlash" role="status" tabindex="-1"><p>' + esc(st.flash.texto) + '</p>' +
         '<div class="est-flash-acoes">' + (!st.flash.encerrada ? '<a class="btn btn--sm btn--primary" id="estFlashMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Ver no Mapa da Floresta</a>' : '') +
         (st.flash.nova && podeManter() ? '<button type="button" class="btn btn--sm" id="estFlashOutra">Cadastrar outra</button>' : '') + '</div></div>';
-      h += fichaHtml(e) + associacaoHtml(e);
+      h += fichaHtml(e) + produtosHtml(e) + associacaoHtml(e);
       h += '<div class="est-acoes">';
       if (e.situacao === 'ativa') h += '<a class="btn" id="estVerNoMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Ver no Mapa da Floresta</a>';
       if (e.situacao === 'ativa' && podeManter()) h += '<button type="button" class="btn" id="estEditar">Editar</button><button type="button" class="btn btn--danger" id="estEncerrar">Encerrar</button>';
@@ -665,6 +693,27 @@
       default: return mensagem(e);
     }
   }
+  /* ligações oficiais (código do motor → conceito): undefined = lendo; null = não foi possível ler (o perfil avaliacao
+     não lê) — aí a situação é calculada sem conferir o tipo ("não sei" nunca vira "tipo não corresponde") */
+  var ligacoesLidas, lendoLigacoes = false, aoLerLigacoes = [], geracaoLigacoes = 0;
+  function lerLigacoes(cb) {
+    if (ligacoesLidas !== undefined) { cb(); return; }
+    aoLerLigacoes.push(cb);
+    if (lendoLigacoes || !disponivel()) return;
+    lendoLigacoes = true;
+    var g = geracaoLigacoes;
+    FB().lerLigacoes(window.firebase.database(), MOT().CODIGOS_FIRMES).then(function (l) {
+      if (g !== geracaoLigacoes) return; /* resposta da sessão anterior */
+      ligacoesLidas = l; lendoLigacoes = false; var fs = aoLerLigacoes; aoLerLigacoes = []; fs.forEach(function (f) { f(); });
+    });
+  }
+  function refsDaTela() { var r = { codigosFirmes: MOT().CODIGOS_FIRMES.slice() }; if (ligacoesLidas) r.ligacoes = ligacoesLidas; return r; }
+  /* a situação do vínculo (etiqueta + motivos de revisão), igual na ficha, no bloco e no Mapa */
+  function situacaoVinculoHtml(s) {
+    var h = ' <span class="est-situacao po-resp-situacao po-resp-situacao--' + esc(s.situacao) + '" data-situacao="' + esc(s.situacao) + '">' + esc(SITUACAO_VINCULO[s.situacao] || s.situacao) + '</span>';
+    if (s.situacao === 'precisa-revisao') h += ' <span class="po-resp-motivos">' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '</span>';
+    return h;
+  }
   var bloco = { itemId: null, el: null, posicionamento: null, estruturas: undefined, vinculos: undefined, refs: undefined, erroLeitura: null,
     modo: null, form: null, salvando: false, erros: [], op: null, flash: null, ligado: false, offset: 0 };
   function blocoDb() { return window.firebase.database(); }
@@ -677,9 +726,9 @@
       bloco.erroLeitura = null; desenharBloco();
     }, function (c) { bloco.erroLeitura = c; desenharBloco(); });
     blocoDb().ref('.info/serverTimeOffset').on('value', function (s) { bloco.offset = s.val() || 0; });
-    FB().criarPortas({ db: blocoDb(), codigosFirmes: MOT().CODIGOS_FIRMES }).lerReferencias().then(function (r) { bloco.refs = r; desenharBloco(); }, function () { bloco.refs = null; desenharBloco(); });
+    lerLigacoes(function () { bloco.refs = ligacoesLidas; desenharBloco(); });
   }
-  function refsBloco() { return { ligacoes: (bloco.refs && bloco.refs.ligacoes) || {}, codigosFirmes: MOT().CODIGOS_FIRMES.slice() }; }
+  function refsBloco() { return refsDaTela(); }
   function rotuloEstrutura(e) { return e ? esc(e.nome) + ' <span class="est-sigla">' + esc(natureza(e.tipo)) + ' · ' + esc(nomeTipo(e.tipo)) + '</span>' : '<span class="est-vazio">estrutura não encontrada</span>'; }
   function htmlBloco() {
     if (bloco.erroLeitura) return '<div class="avp-error-msg" role="alert">' + (bloco.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar a estrutura responsável.' : 'Não foi possível ler a estrutura responsável agora. Verifique se o ambiente de testes está aberto.') + '</div>';
@@ -699,11 +748,12 @@
     }
     h += '</dl>';
     if (s.situacao === 'precisa-revisao') h += '<p class="avp-decisao-aviso po-resp-revisao" id="poRespRevisao" role="status"><strong>Precisa de revisão:</strong> ' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '. O vínculo continua registrado até alguém substituí-lo ou encerrá-lo.</p>';
+    if (v && bloco.avisoBase) h += '<p class="avp-decisao-aviso po-resp-base" id="poRespBase" role="status"><strong>Aviso:</strong> ' + esc(bloco.avisoBase) + ' Isso não muda a situação do vínculo; confira o Posicionamento.</p>';
     if (s.situacao === 'ausente') h += '<p class="est-intro" id="poRespAusente">Nenhuma estrutura responsável registrada. O posicionamento efetivo do item é ' + esc(nomeTipo(ef.codigo)) + ' (' + (ef.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + ').</p>';
     if (s.situacao === 'nao-aplicavel') h += '<p class="est-intro" id="poRespNaoAplicavel">O item não tem posicionamento efetivo firme (decisão final ou recomendação firme): ainda não cabe registrar a estrutura responsável.</p>';
     if (bloco.erros.length) h += '<div class="avp-error-msg est-erros" id="poRespErros" role="alert" tabindex="-1"><strong>Não foi salvo.</strong><ul>' + bloco.erros.map(function (e) { return '<li>' + esc(mensagemVinculo(e)) + '</li>'; }).join('') + '</ul></div>';
     if (!manter) return h;
-    var tipo = ef.codigo ? ref.ligacoes[ef.codigo] : null;
+    var tipo = ef.codigo && ref.ligacoes ? ref.ligacoes[ef.codigo] : null;
     var opcoes = tipo ? Object.keys(bloco.estruturas).map(function (k) { return bloco.estruturas[k]; }).filter(function (e) { return e.situacao === 'ativa' && e.tipo === tipo && (!v || e.id !== v.estruturaId); })
       .sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); }) : [];
     var f = bloco.form || {};
@@ -773,7 +823,7 @@
   function montarResponsavel(el, dados) {
     if (!el || !disponivel()) return;
     if (bloco.itemId !== dados.itemId) { bloco.itemId = dados.itemId; bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; bloco.flash = null; }
-    bloco.el = el; bloco.posicionamento = dados.posicionamento || null;
+    bloco.el = el; bloco.posicionamento = dados.posicionamento || null; bloco.avisoBase = dados.avisoBase || null;
     ligarBloco();
     if (P()) P().iniciar();
     desenharBloco();
@@ -781,6 +831,7 @@
   /* troca de pessoa: nada do estado anterior sobrevive; a leitura recomeça com a sessão nova no próximo desenho */
   window.addEventListener('fa-auth-change', function () {
     if (bloco.desligar) bloco.desligar();
+    ligacoesLidas = undefined; lendoLigacoes = false; aoLerLigacoes = []; geracaoLigacoes++; /* outro perfil pode ler outras coisas */
     bloco.desligar = null; bloco.ligado = false; bloco.estruturas = undefined; bloco.vinculos = undefined; bloco.refs = undefined; bloco.erroLeitura = null;
     bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; bloco.flash = null;
   });
@@ -795,6 +846,9 @@
     fechar: function () { if (api) api.fechar(); },
     temAlteracaoNaoSalva: function () { return !!(api && api.temAlteracaoNaoSalva()); },
     /* M3: bloco Estrutura responsável na ficha do Posicionamento */
-    montarResponsavel: montarResponsavel
+    montarResponsavel: montarResponsavel,
+    /* M4: o Mapa e o Catálogo mostram a situação do vínculo com os mesmos textos e as mesmas ligações */
+    situacaoVinculoHtml: situacaoVinculoHtml,
+    lerLigacoes: function (cb) { lerLigacoes(function () { cb(refsDaTela()); }); }
   };
 })();

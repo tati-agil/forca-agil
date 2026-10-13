@@ -20,6 +20,7 @@
  * Uso (precisa de Docker e da imagem fa-emulador-regras:local; Playwright em NODE_PATH):
  *   node .github/scripts/teste-estruturas-jornada.js */
 'use strict';
+const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { execFileSync, spawn } = require('child_process');
@@ -140,7 +141,8 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(await noBloco('coe', idCoe) === 1, 'CoE de Dados em Centros de Excelência');
     afirma(await noBloco('ae', idAe) === 1, 'Área de Riscos em Áreas Especializadas');
     afirma(/Plataforma de Nuvem/.test(await texto(p, '#mfmDetalhe')) && /Estrutura cadastrada/.test(await texto(p, '#mfmDetalhe')), 'a estrutura salva abre com os detalhes no Mapa');
-    afirma(/Informação ainda indisponível/.test(await texto(p, '#mfmSemObjetos')), 'produtos e serviços: informação indisponível (nenhuma associação inventada)');
+    await esperarCondicaoAte(p, () => !!document.getElementById('mfmSemObjetos'), undefined, { limite: 15000 });
+    afirma(/Nenhum produto ou serviço vinculado/.test(await texto(p, '#mfmSemObjetos')), 'produtos e serviços: nenhum vínculo cadastrado → diz que não há (nada inventado; M4)');
     afirma(/Definição oficial\s*Definição vigente indisponível/.test(await texto(p, '#mfmDetalhe')), 'detalhe no Mapa: tipo sem definição vigente na Taxonomia → "indisponível", sem texto substituto (M2)');
     await p.click('[data-estrutura="' + idNeg + '"]');
     await p.waitForFunction((id) => location.hash.indexOf('e=' + id) !== -1, idNeg);
@@ -492,6 +494,67 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await cel.waitForSelector('#poRespFlash', { timeout: 15000 });
       afirma((await situacao(cel)) === 'Válido' && await semRolagemLateral(cel), '375 px: vincular funciona e a ficha continua sem rolagem lateral');
       await cel.context().close();
+    }
+
+    /* ===== 8c. M4 + M5: vínculos no Catálogo, no Mapa e na ficha da estrutura; sinais de revisão ===== */
+    console.log('\n8c. Vínculos no Catálogo, no Mapa e na ficha da estrutura; sinais de revisão (M4 + M5)');
+    {
+      /* a Avaliação de Produto/Serviço do item, reprocessada DEPOIS da conclusão do Posicionamento, com a classificação
+         mudando de Produto/Serviço principal para Componente (dados de TESTE no emulador desta jornada) */
+      const MOTOR_P = (fs.readFileSync(path.join(RAIZ, 'forca-agil', 'avaliacao-produto.js'), 'utf8').match(/\n  var MOTOR_VERSION = '([^']+)';/) || [])[1];
+      await S.banco('PATCH', '', { 'avaliacoes-produto/item-m3': { itemId: 'item-m3', nome: 'Produto Delta', status: 'concluido', versao: 1, excluido: false, motorVersion: MOTOR_P, motorVersionArquitetura: 2,
+        resultadoAutomatico: 'nao-produto', decisaoFinal: 'nao-produto', camadaSugerida: { id: 'componente', label: 'Componente' }, respostas: {}, criadoEm: '2026-09-30T09:00:00.000Z', atualizadoEm: '2026-10-02T09:00:00.000Z',
+        reprocessedAt: '2026-10-02T09:00:00.000Z', historicoMotor: [{ resultadoAutomatico: 'produto', camadaSugerida: { id: 'produto-principal', label: 'Produto/Serviço principal' }, processadoEm: '2026-09-30T09:00:00.000Z' }] } });
+      await ir(p, '#avaliacoes?po=pos-m3');
+      await esperarCondicaoAte(p, () => !!document.getElementById('poBaseRevisao') && !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 });
+      afirma(/foi reprocessada depois da conclusão e a classificação mudou/.test(await texto(p, '#poBaseRevisao')) && /nada foi alterado automaticamente/.test(await texto(p, '#poBaseRevisao')),
+        'ficha do Posicionamento: "Precisa de revisão" quando a base foi reprocessada e a classificação mudou; nada alterado', await texto(p, '#poBaseRevisao'));
+      afirma((await texto(p, '#poRespSituacao')) === 'Válido' && /não muda a situação do vínculo/.test(await texto(p, '#poRespBase')),
+        'bloco da estrutura responsável: o vínculo continua "Válido" e mostra só o aviso da base (decisão D)');
+      /* Catálogo */
+      await ir(p, '#avaliacoes?mf=catalogo');
+      const itemCat = '#mfCatalogo .mf-item[data-item="item-m3"]';
+      await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
+      const tCat = await texto(p, itemCat);
+      afirma(/Precisa de revisão/.test(tCat) && /classificação mudou/.test(tCat), 'Catálogo: o item mostra o sinal da base reprocessada', tCat.slice(0, 400));
+      afirma(/Estrutura responsável/.test(tCat) && /Linha de Investimentos/.test(tCat) && /Válido/.test(tCat) && /Aviso: a base do Posicionamento precisa de revisão/.test(tCat), 'Catálogo: a estrutura responsável do item, a situação do vínculo e o aviso', tCat.slice(0, 400));
+      afirma(/Ambiente de testes/.test(await texto(p, '#mfAvisoEstruturas')), 'Catálogo: no ambiente de testes, o aviso diz de onde vêm estruturas e vínculos');
+      /* Mapa: os produtos e serviços sob a estrutura */
+      await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+      await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'), undefined, { limite: 15000 });
+      const tObj = await texto(p, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]');
+      afirma(/Produto Delta/.test(tObj) && /Válido/.test(tObj) && /Aviso: a base do Posicionamento precisa de revisão/.test(tObj) &&
+        (await p.getAttribute('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] .mfm-abrir-po', 'href')) === '#avaliacoes?po=pos-m3', 'Mapa: o produto aparece na estrutura responsável, com a situação, o aviso e o atalho para o Posicionamento', tObj);
+      afirma(await p.locator('#mfmMapa .mfm-caixa[data-objeto]').count() === 0, 'Mapa: o produto não vira caixa do Mapa');
+      /* ficha da estrutura */
+      await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+      await esperarCondicaoAte(p, () => !!document.querySelector('#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
+      const tFicha = await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]');
+      afirma(/Produto Delta/.test(tFicha) && /Válido/.test(tFicha) && (await p.getAttribute('#estProdutos .est-produto[data-objeto="item-m3"] .est-abrir-po', 'href')) === '#avaliacoes?po=pos-m3',
+        'ficha da estrutura: os produtos e serviços sob ela, com a situação e o atalho para o Posicionamento (só consulta)', tFicha);
+      afirma(await p.locator('#estProdutos button').count() === 0, 'ficha da estrutura: nenhuma ação de vínculo (administrado só no Posicionamento)');
+      /* D: mudar só o nome da estrutura não invalida o vínculo */
+      await S.banco('PATCH', 'estruturas-concretas/registros/' + idNeg, { nome: 'Linha de Investimentos (novo nome)' });
+      await esperarCondicaoAte(p, () => /novo nome/.test((document.getElementById('estFicha') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(/Válido/.test(await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]')), 'só o nome da estrutura mudou: o vínculo continua "Válido" (decisão D)');
+      afirma(await semRolagemLateral(p), 'computador: ficha da estrutura com os produtos, sem rolagem lateral');
+      /* perfil só de consulta: não lê as ligações oficiais — a situação continua "Válido", sem "tipo não corresponde" */
+      const cq2 = await sessao('consulta');
+      await ir(cq2, '#avaliacoes?po=pos-m3');
+      await esperarCondicaoAte(cq2, () => !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 });
+      afirma((await texto(cq2, '#poRespSituacao')) === 'Válido', 'perfil avaliacao (consulta): o vínculo aparece "Válido" (sem as ligações, a situação não confere o tipo — nunca um falso "Precisa de revisão")', await texto(cq2, '#poResponsavel'));
+      await ir(cq2, '#avaliacoes?mf=catalogo');
+      await esperarCondicaoAte(cq2, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
+      afirma(/Válido/.test(await texto(cq2, itemCat)), 'perfil avaliacao (consulta): o Catálogo mostra a mesma situação "Válido"');
+      await cq2.context().close();
+      /* celular */
+      const cel2 = await sessao('configuracao', 375);
+      for (const [rot, hash, sel] of [['Catálogo com vínculos', '#avaliacoes?mf=catalogo', itemCat + ' .mf-vinculo [data-situacao]'], ['Mapa com os produtos da estrutura', '#avaliacoes?mf=mapa&e=' + idNeg, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'],
+        ['ficha da estrutura com os produtos', '#admin?arq=estruturas&e=' + idNeg, '#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'], ['ficha do Posicionamento com o sinal', '#avaliacoes?po=pos-m3', '#poBaseRevisao']]) {
+        await ir(cel2, hash); await cel2.waitForSelector(sel, { timeout: 15000 });
+        afirma(await semRolagemLateral(cel2), '375 px: ' + rot + ' sem rolagem lateral');
+      }
+      await cel2.context().close();
     }
 
     console.log('\n10. Celular (375 px) e computador');

@@ -74,7 +74,9 @@
 
   /* Um objeto do catálogo = um item (itemId agrupa as versões de P1–P16; nunca uma linha por versão).
      dados: { produtos, registros, vigentes, decisoes } — o que o banco devolveu.
-     deps:  { B: faBaseProdutoServico, ctxMotor, gateDoItem, posicionamentoEfetivo, codigosFirmes }.
+     deps:  { B: faBaseProdutoServico, ctxMotor, gateDoItem, posicionamentoEfetivo, codigosFirmes, baseReprocessadaComImpacto? }.
+     M5 (decisão E): baseRevisao = a base de P1–P16 do Posicionamento foi reprocessada depois da conclusão e mudou a
+     classificação ou o resultado — sinal informativo, nada muda sozinho.
      Precedência: o Posicionamento gravado manda (vigente concluída → firme ou A VALIDAR); sem ele, o gate diz se
      o item já pode iniciar O1–O9 (sem-posicionamento) ou se falta uma Avaliação de Produto/Serviço válida e com
      Motor atual (sem-base). Quando há Posicionamento mas a base de P1–P16 mudou ou deixou de valer, isso aparece
@@ -99,6 +101,8 @@
       var ef = deps.posicionamentoEfetivo(p, { codigosFirmes: deps.codigosFirmes });
       r.posicionamento = { avaliacaoId: vid, versao: reg.versao || 1, codigoAutomatico: ra.codigoResultado || null, tipoAValidar: ra.tipoAValidar || null,
         codigoDecisao: dec ? dec.codigoFinal : null, avaliacaoArquiteturalId: reg.avaliacaoArquiteturalId || null };
+      var imp = deps.baseReprocessadaComImpacto ? deps.baseReprocessadaComImpacto(reg, produtos) : null;
+      if (imp) r.baseRevisao = imp;
       if (ef.codigo) { r.situacao = 'firme'; r.efetivo = { codigo: ef.codigo, origem: ef.origem }; }
       else { r.situacao = 'a-validar'; r.motivo = ef.motivo; }
       if (gate.situacao !== 'verificando') {
@@ -198,7 +202,7 @@
     /* fonte do Mapa: 'cadastro' = estruturas cadastradas (só no AMBIENTE DE TESTES nesta etapa) | 'demo' = exemplos
        fictícios. As duas NUNCA se misturam: cada desenho usa uma só. Fora do ambiente de testes só existe 'demo'. */
     var fonte = cadastroDisponivel() ? 'cadastro' : 'demo';
-    var cadastro = { estruturas: undefined, subagrupadores: undefined, associacoes: undefined, erro: null, desligar: null };
+    var cadastro = { estruturas: undefined, subagrupadores: undefined, associacoes: undefined, vinculos: undefined, refs: undefined, erro: null, desligar: null };
 
     /* ---- painel e identidade da página (como o Posicionamento e a Squad) ---- */
     var identidadeOriginal = null;
@@ -285,7 +289,8 @@
     function deps() {
       var B = window.faBaseProdutoServico;
       return { B: B, ctxMotor: B ? B.contextoMotorAtual() : null, gateDoItem: window.faAvaliacaoPosicionamentoNucleo.gateDoItem,
-        posicionamentoEfetivo: window.faEstruturasNucleo.posicionamentoEfetivo, codigosFirmes: window.faMotorPosicionamentoNucleo.CODIGOS_FIRMES };
+        posicionamentoEfetivo: window.faEstruturasNucleo.posicionamentoEfetivo, codigosFirmes: window.faMotorPosicionamentoNucleo.CODIGOS_FIRMES,
+        baseReprocessadaComImpacto: window.faAvaliacaoPosicionamentoNucleo.baseReprocessadaComImpacto };
     }
     function modulosProntos() {
       return !!(window.faBaseProdutoServico && window.faAvaliacaoPosicionamentoNucleo && window.faEstruturasNucleo && window.faMotorPosicionamentoNucleo);
@@ -304,7 +309,9 @@
         '<p class="avp-intro">O Mapa da Floresta vai representar as estruturas organizacionais concretas de três categorias. Os produtos, serviços e demais objetos avaliados ' +
         'não viram nós do Mapa: aparecerão indiretamente, nos detalhes da estrutura responsável, quando essa associação for registrada. ' +
         'Este catálogo mostra, a partir das avaliações já gravadas, em que ponto cada objeto está. Nada aqui é gravado.</p>' +
-        '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>';
+        (cadastroDisponivel() ? '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Ambiente de testes.</strong> As estruturas e os vínculos de estrutura responsável vêm do Firebase Emulator — não são dados do banco oficial.</div>'
+          : '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>');
+      if (cadastroDisponivel() && podeLer()) ligarCadastro();
       if (!autorizacaoResolvida()) h += '<p class="loading-msg" role="status">Carregando…</p>';
       else if (!podeLer()) h += '<p class="avp-error-msg" id="mfSemAcesso">Este catálogo é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Configuração e administração geral). Seu acesso não inclui essa consulta.</p>';
       else if (state.erro) h += '<div class="mf-erro" id="mfErro" role="alert"><p class="avp-error-msg">Não foi possível ler as avaliações agora. Nada foi alterado.</p>' +
@@ -420,11 +427,33 @@
         if (x.rascunhoId) h += '<dt>Posicionamento</dt><dd>Há um rascunho de Posicionamento Organizacional em andamento.</dd>';
       } else h += '<dt>Situação</dt><dd>Verificando a versão do motor da Avaliação de Produto/Serviço…</dd>';
       if (x.alertaBase) h += '<dt>Atenção</dt><dd class="mf-alerta" data-alerta="' + esc(x.alertaBase) + '">' + esc(ROTULO_ALERTA[x.alertaBase] || ((N.ROTULO_GATE && N.ROTULO_GATE[x.alertaBase]) || x.alertaBase)) + '</dd>';
+      if (x.baseRevisao) h += '<dt>Precisa de revisão</dt><dd class="mf-base-revisao">' + esc(N.textoBaseRevisao(x.baseRevisao)) + ' Nada foi alterado automaticamente.</dd>';
+      h += vinculoDoItemHtml(x);
       h += '</dl><div class="mf-item-acoes">';
       if (x.posicionamento) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.posicionamento.avaliacaoId) + '">Abrir Posicionamento</a>';
       else if (x.rascunhoId) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.rascunhoId) + '">Abrir rascunho do Posicionamento</a>';
       if (x.chaveBase) h += '<a class="btn btn--sm mf-abrir-avp" href="#avaliacoes?' + (x.statusBase === 'rascunho' ? 'editar=' : 'avp=') + encodeURIComponent(x.chaveBase) + '">Abrir Avaliação de Produto/Serviço</a>';
       return h + '</div></li>';
+    }
+    /* M4/M5: o vínculo do item com a estrutura responsável (só ambiente de testes, onde o cadastro existe) */
+    function vinculosProntos() { return cadastroDisponivel() && !cadastro.erro && cadastro.estruturas !== undefined && cadastro.vinculos !== undefined && cadastro.refs !== undefined && !!window.faEstruturasAdmin; }
+    function posicionamentoDe(x) {
+      if (!x || !x.posicionamento) return null;
+      var p = { avaliacaoId: x.posicionamento.avaliacaoId, recomendacao: { codigoResultado: x.posicionamento.codigoAutomatico } };
+      if (x.posicionamento.codigoDecisao) p.decisao = { codigoFinal: x.posicionamento.codigoDecisao };
+      return p;
+    }
+    function situacaoVinculo(itemId, x) { return Est().situacaoResponsavel({ estruturas: cadastro.estruturas, vinculos: cadastro.vinculos }, itemId, posicionamentoDe(x), cadastro.refs); }
+    var TEXTO_AVISO_VINCULO = ' Isso não muda a situação do vínculo; confira o Posicionamento.';
+    function vinculoDoItemHtml(x) {
+      if (!cadastroDisponivel()) return '';
+      if (cadastro.erro) return '<dt>Estrutura responsável</dt><dd class="mf-vinculo">Não foi possível ler as estruturas agora.</dd>';
+      if (!vinculosProntos()) return '<dt>Estrutura responsável</dt><dd class="mf-vinculo">Carregando…</dd>';
+      var s = situacaoVinculo(x.itemId, x);
+      if (s.situacao === 'nao-aplicavel') return '';
+      var est = s.vinculo ? cadastro.estruturas[s.vinculo.estruturaId] : null;
+      return '<dt>Estrutura responsável</dt><dd class="mf-vinculo" data-situacao-vinculo="' + esc(s.situacao) + '">' + (est ? '<span class="mf-vinculo-estrutura">' + esc(est.nome) + '</span>' : '') +
+        window.faEstruturasAdmin.situacaoVinculoHtml(s) + (s.vinculo && x.baseRevisao ? '<span class="mf-vinculo-aviso"> Aviso: a base do Posicionamento precisa de revisão.' + esc(TEXTO_AVISO_VINCULO) + '</span>' : '') + '</dd>';
     }
     function rotuloAutomatico(p) {
       if (!p || !p.codigoAutomatico) return '—';
@@ -513,19 +542,22 @@
       return Object.keys(cadastro.estruturas).map(function (id) { var s = Est().subagrupadorDaLinha(E, id); return s.situacao === 'associada' ? { estruturaId: id, subagrupadorId: s.subagrupador.id } : null; }).filter(Boolean);
     }
     function ligarCadastro() {
-      if (fonte !== 'cadastro' || cadastro.desligar || !window.faEstruturasFirebase) return;
+      if (!cadastroDisponivel() || cadastro.desligar) return; /* M4: o Catálogo também lê o cadastro (vínculos), em qualquer fonte do Mapa */
       /* marca ANTES de ouvir: com dado em cache o Firebase responde na hora, e essa resposta redesenha (e chamaria
          ligarCadastro de novo) antes de a ligação ser guardada */
       var desligarEsta = null;
       cadastro.desligar = function () { if (desligarEsta) desligarEsta(); };
-      desligarEsta = window.faEstruturasFirebase.ouvir(null, ['registros', 'subagrupadores', 'associacoes'], /* só leitura, pelo adaptador */ function (m) {
+      desligarEsta = window.faEstruturasFirebase.ouvir(null, ['registros', 'subagrupadores', 'associacoes', 'vinculos'], /* só leitura, pelo adaptador */ function (m) {
         if (m.estruturas) cadastro.estruturas = m.estruturas;
         if (m.subagrupadores) cadastro.subagrupadores = m.subagrupadores;
         if (m.associacoesSubagrupador) cadastro.associacoes = m.associacoesSubagrupador;
-        cadastro.erro = null; if (!wrap.hidden && modo === 'mapa') render();
-      }, function (cod) { cadastro.erro = cod; if (!wrap.hidden && modo === 'mapa') render(); });
+        if (m.vinculos) cadastro.vinculos = m.vinculos;
+        cadastro.erro = null; if (!wrap.hidden) render();
+      }, function (cod) { cadastro.erro = cod; if (!wrap.hidden) render(); });
+      /* ligações oficiais para a situação do vínculo (null = o perfil não lê: a situação não confere o tipo) */
+      if (window.faEstruturasAdmin && window.faEstruturasAdmin.lerLigacoes) window.faEstruturasAdmin.lerLigacoes(function (ref) { cadastro.refs = ref; if (!wrap.hidden) render(); });
     }
-    function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = cadastro.subagrupadores = cadastro.associacoes = undefined; cadastro.erro = null; }
+    function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = cadastro.subagrupadores = cadastro.associacoes = cadastro.vinculos = cadastro.refs = undefined; cadastro.erro = null; }
     function blocoDoTipo(tipo) { return BLOCOS.filter(function (b) { return b.codigos.indexOf(tipo) !== -1; })[0] || null; }
     function estruturasDoBloco(b) {
       var D = dados();
@@ -609,6 +641,22 @@
     }
     function dataHora(v) { var t = Est().instante(v); return t === null ? '—' : new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
     function podeManterEstruturas() { var a = window.faAuth; return !!(a && ((a.isAdmin && a.isAdmin()) || (a.podeArquitetura && a.podeArquitetura()))); }
+    function produtosDaEstruturaHtml(e) {
+      var cat = modulosProntos() && state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined
+        ? C.montarCatalogo({ produtos: state.produtos, registros: state.registros, vigentes: state.vigentes, decisoes: state.decisoes }, deps()) : { pronto: false };
+      if (state.erro) return '<p class="mfm-sem-objetos" id="mfmSemObjetos">Não foi possível ler as avaliações agora.</p>';
+      if (!vinculosProntos() || !cat.pronto) return '<p class="mfm-sem-objetos" id="mfmCarregandoObjetos" role="status">Carregando…</p>';
+      var objs = Est().objetosDaEstrutura({ estruturas: cadastro.estruturas, vinculos: cadastro.vinculos }, e.id);
+      if (!objs.length) return '<p class="mfm-sem-objetos" id="mfmSemObjetos">Nenhum produto ou serviço vinculado a esta estrutura.</p>';
+      var porItem = {}; cat.itens.forEach(function (x) { porItem[x.itemId] = x; });
+      return '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
+        var x = porItem[o.objetoId] || null, s = situacaoVinculo(o.objetoId, x), v = cadastro.vinculos[o.vinculoId];
+        return '<li class="mfm-objeto" data-objeto="' + esc(o.objetoId) + '"><span class="mfm-objeto-nome">' + esc(x ? x.nome : o.objetoId) + '</span>' +
+          '<span class="mfm-objeto-papel">Responsável principal ·' + window.faEstruturasAdmin.situacaoVinculoHtml(s) + '</span>' +
+          (x && x.baseRevisao ? '<span class="mfm-objeto-desc mfm-objeto-aviso">Aviso: a base do Posicionamento precisa de revisão.' + esc(TEXTO_AVISO_VINCULO) + '</span>' : '') +
+          '<a class="mfm-acao mfm-abrir-po" href="#avaliacoes?po=' + encodeURIComponent((x && x.posicionamento && x.posicionamento.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
+      }).join('') + '</ul>';
+    }
     function detalheCadastroHtml(e, b) {
       var M = Mot(), linha = b && b.natureza === 'Linha', subCad = b && b.subagrupado ? subagrupadorDaEstrutura(e.id) : null;
       var h = '<aside class="mfm-detalhe" id="mfmDetalhe" style="--cor:' + (b ? b.cor : '#555') + '" aria-labelledby="mfmDetalheTitulo">' +
@@ -626,12 +674,12 @@
         '<dt>Cadastrada</dt><dd>' + dataHora(e.criadaEm) + (e.criadaPor ? ' · ' + esc(e.criadaPor.email || e.criadaPor.id) : '') + '</dd>' +
         (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + (e.alteradaPor ? ' · ' + esc(e.alteradaPor.email || e.alteradaPor.id) : '') + '</dd>' : '') + '</dl>' +
         '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
-        '<p class="mfm-sem-objetos" id="mfmSemObjetos">Informação ainda indisponível: a associação de produtos e serviços à estrutura responsável será registrada numa próxima etapa.</p>' +
+        produtosDaEstruturaHtml(e) +
         (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#admin?arq=estruturas&e=' + encodeURIComponent(e.id) + '">Abrir a ficha no cadastro (editar ou encerrar)</a>' : '');
       return h + '</aside>';
     }
     function renderMapaTela() {
-      if (fonte === 'cadastro' && podeLer()) ligarCadastro();
+      if (fonte === 'cadastro' && podeLer()) { ligarCadastro(); ligar(); } /* M4: os itens (nomes e Posicionamento) dos vínculos */
       var D = dados();
       if (selecionada && D && !D.estado.estruturas[selecionada]) selecionada = null; /* encerrada ou inexistente: volta ao Mapa */
       if (selecionada && D && D.estado.estruturas[selecionada].situacao !== 'ativa') selecionada = null;
