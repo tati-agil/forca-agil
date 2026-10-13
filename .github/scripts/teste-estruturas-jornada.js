@@ -405,6 +405,95 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(/CoE de Dados/.test(cadTxt) && await p.locator('#mfmMapa .mfm-caixa').count() === 3, 'de volta às cadastradas: só elas, nenhum exemplo fictício');
 
     /* ===== 10. Celular ===== */
+    /* ===== 8b. Estrutura responsável (M3 do Mapa) ===== */
+    console.log('\n8b. Estrutura responsável na ficha do Posicionamento (M3)');
+    {
+      /* um item com Posicionamento VIGENTE e concluído (resultado exato do motor v1: Negócios) e uma segunda Linha de
+         Negócios ativa — dados de TESTE no emulador próprio desta jornada */
+      const M = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento.js'));
+      const QUANDO = '2026-10-01T09:00:00.000Z', outra = { name: 'Outra', email: 'o@previ.com.br' };
+      const respostas = { O1: 'SIM', O2: 'NAO', O3: 'NAO', O4: 'NAO', O5: 'SIM' }, res = M.avaliar(respostas, {}), ra = {};
+      Object.keys(res).forEach((c) => { const v = res[c]; if (v !== null && !(Array.isArray(v) && !v.length)) ra[c] = v; });
+      const reg = { itemId: 'item-m3', itemNome: 'Produto Delta', avaliacaoArquiteturalId: 'item-m3', questionarioCodigo: 'POSICIONAMENTO_ORGANIZACIONAL', questionnaireContentVersion: 1, versao: 1, status: 'concluido', revisao: 2,
+        respostas: {}, criadoPor: outra, criadoEm: QUANDO, atualizadoPor: outra, atualizadoEm: QUANDO, auditoriaCriacaoId: 'ac-m3', concluidoPor: outra, concluidoEm: QUANDO, auditoriaConclusaoId: 'az-m3', resultadoAutomatico: ra };
+      Object.keys(respostas).forEach((q) => { reg.respostas[q] = { resposta: respostas[q], codigoPergunta: q, questionnaireContentVersion: 1, dataResposta: QUANDO, textoPerguntaNaEpoca: 'Texto de ' + q }; });
+      await S.banco('PATCH', '', { 'avaliacoes-posicionamento/pos-m3': reg, 'posicionamento-vigente-por-item/item-m3': 'pos-m3',
+        'estruturas-concretas/registros/neg-2': { id: 'neg-2', tipo: 'NEGOCIOS', nome: 'Linha de Crédito', situacao: 'ativa', revisao: 1, criadaEm: 1791713600000, criadaPor: { id: 'semente', email: 'semente@teste' }, ultimaOperacao: 'semente-m3' } });
+      afirma(ra.codigoResultado === 'NEGOCIOS', 'Posicionamento de teste concluído com o resultado do motor v1: Negócios', ra.codigoResultado);
+      const situacao = (pg) => pg.evaluate(() => (document.getElementById('poRespSituacao') || {}).textContent || '');
+      const prontoBloco = (pg) => esperarCondicaoAte(pg, () => { const el = document.getElementById('poResponsavel'); return !!el && !!document.getElementById('poRespSituacao'); }, undefined, { limite: 15000 });
+      const vinculos = async () => ((await S.banco('GET', 'estruturas-vinculos/registros')).corpo) || {};
+      await ir(p, '#avaliacoes?po=pos-m3');
+      afirma(await prontoBloco(p), 'a ficha do Posicionamento vigente mostra o bloco "Estrutura responsável"');
+      afirma((await situacao(p)) === 'Sem estrutura responsável' && /Negócios|Linha de Negócios/.test(await texto(p, '#poRespAusente')), 'sem vínculo: situação "Sem estrutura responsável", com o posicionamento efetivo do item', await texto(p, '#poResponsavel'));
+      await p.click('#poRespVincular');
+      await p.waitForSelector('#poRespEstruturaSel');
+      const opcoes = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean).sort());
+      afirma(JSON.stringify(opcoes) === JSON.stringify([idNeg, 'neg-2'].sort()), 'só aparecem estruturas ATIVAS do tipo do posicionamento efetivo (nenhum CoE nem Área)', JSON.stringify(opcoes));
+      await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespErros');
+      afirma(/Escolha a estrutura responsável/.test(await texto(p, '#poRespErros')) && Object.keys(await vinculos()).length === 0, 'salvar sem escolher explica o que falta e não grava nada');
+      await p.selectOption('#poRespEstruturaSel', idNeg);
+      await p.fill('#poRespJustificativa', 'Linha dona da jornada do produto');
+      await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespFlash', { timeout: 15000 });
+      let vs = await vinculos(), ativos = Object.values(vs).filter((v) => v.situacao === 'ativa');
+      afirma((await situacao(p)) === 'Válido' && /Linha de Investimentos/.test(await texto(p, '#poRespEstrutura')) && ativos.length === 1 && ativos[0].estruturaId === idNeg && ativos[0].base.codigo === 'NEGOCIOS' && ativos[0].base.origem === 'recomendacao',
+        'vincular: grava um responsável principal com a base do Posicionamento; a situação passa a "Válido"', JSON.stringify(ativos));
+      const idx = (await S.banco('GET', 'estruturas-vinculos/ativo-por-objeto/item-m3')).corpo;
+      afirma(idx === ativos[0].id, 'o índice do item aponta para o vínculo ativo');
+      await p.click('#poRespSubstituir');
+      await p.waitForSelector('#poRespEstruturaSel');
+      afirma(JSON.stringify(await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean))) === '["neg-2"]', 'substituir: a estrutura atual não aparece de novo');
+      await p.selectOption('#poRespEstruturaSel', 'neg-2');
+      await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespErros');
+      afirma(/Informe o motivo/.test(await texto(p, '#poRespErros')), 'substituir sem motivo é recusado (motivo obrigatório)');
+      await p.fill('#poRespMotivo', 'Reorganização das Linhas');
+      await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespFlash', { timeout: 15000 });
+      vs = await vinculos(); ativos = Object.values(vs).filter((v) => v.situacao === 'ativa');
+      const antigo = Object.values(vs).find((v) => v.situacao === 'encerrada');
+      afirma(ativos.length === 1 && ativos[0].estruturaId === 'neg-2' && antigo && antigo.encerramento.motivo === 'Reorganização das Linhas' && antigo.encerramento.substituidoPor === ativos[0].id && ativos[0].substitui === antigo.id,
+        'substituir: encerra o atual (com o motivo) e cria o novo na mesma operação; nada é apagado', JSON.stringify(vs));
+      /* D: a estrutura responsável encerrada → "Precisa de revisão", calculado pelo núcleo; nada muda sozinho */
+      await S.banco('PATCH', 'estruturas-concretas/registros/neg-2', { situacao: 'encerrada', revisao: 2, encerramento: { motivo: 'Teste', em: 1791713700000, por: { id: 'semente', email: 'semente@teste' } } });
+      await esperarCondicaoAte(p, () => (document.getElementById('poRespSituacao') || {}).textContent === 'Precisa de revisão', undefined, { limite: 15000 });
+      afirma((await situacao(p)) === 'Precisa de revisão' && /a estrutura responsável foi encerrada/.test(await texto(p, '#poRespRevisao')) && Object.values(await vinculos()).filter((v) => v.situacao === 'ativa').length === 1,
+        'estrutura responsável encerrada: "Precisa de revisão" com o motivo; o vínculo continua registrado (nada muda sozinho)');
+      await p.click('#poRespEncerrar');
+      await p.waitForSelector('#poRespMotivo');
+      await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespErros');
+      afirma(/Informe o motivo/.test(await texto(p, '#poRespErros')), 'encerrar sem motivo é recusado');
+      await p.fill('#poRespMotivo', 'A Linha foi encerrada');
+      await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespFlash', { timeout: 15000 });
+      vs = await vinculos();
+      afirma((await situacao(p)) === 'Sem estrutura responsável' && Object.values(vs).length === 2 && Object.values(vs).every((v) => v.situacao === 'encerrada') && (await S.banco('GET', 'estruturas-vinculos/ativo-por-objeto/item-m3')).corpo === null,
+        'encerrar: o item fica sem responsável; os dois vínculos continuam registrados, encerrados');
+      afirma(await semRolagemLateral(p), 'computador: ficha com o bloco sem rolagem lateral');
+      /* perfil só de consulta: vê, não mexe */
+      const cq = await sessao('consulta');
+      await ir(cq, '#avaliacoes?po=pos-m3');
+      afirma(await prontoBloco(cq), 'perfil avaliacao (consulta) vê o bloco');
+      afirma(await cq.locator('#poRespVincular, #poRespSubstituir, #poRespEncerrar, #poRespForm').count() === 0, 'perfil avaliacao (consulta) não tem botão nem formulário de vínculo');
+      await cq.context().close();
+      /* celular: vincular de novo, em 375 px */
+      const cel = await sessao('configuracao', 375);
+      await ir(cel, '#avaliacoes?po=pos-m3');
+      afirma(await prontoBloco(cel), '375 px: o bloco aparece');
+      await cel.click('#poRespVincular'); await cel.waitForSelector('#poRespEstruturaSel');
+      const alvoSel = await cel.locator('#poRespEstruturaSel').boundingBox(), alvoBtn = await cel.locator('#poRespSalvar').boundingBox();
+      afirma(alvoSel && alvoSel.height >= 40 && alvoBtn && alvoBtn.height >= 40, '375 px: seleção e botão com área de toque adequada', JSON.stringify([alvoSel && alvoSel.height, alvoBtn && alvoBtn.height]));
+      afirma(await semRolagemLateral(cel), '375 px: formulário de vínculo sem rolagem lateral');
+      await cel.selectOption('#poRespEstruturaSel', idNeg);
+      await cel.click('#poRespSalvar');
+      await cel.waitForSelector('#poRespFlash', { timeout: 15000 });
+      afirma((await situacao(cel)) === 'Válido' && await semRolagemLateral(cel), '375 px: vincular funciona e a ficha continua sem rolagem lateral');
+      await cel.context().close();
+    }
+
     console.log('\n10. Celular (375 px) e computador');
     afirma(await semRolagemLateral(p), 'computador: Mapa sem rolagem lateral');
     const m = await sessao('configuracao', 375);

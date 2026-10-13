@@ -560,6 +560,13 @@
       if (vistas[a.estruturaId]) v.push({ codigo: 'LINHA_JA_ASSOCIADA', estruturaId: a.estruturaId });
       vistas[a.estruturaId] = true;
     });
+    /* M3 do Mapa: no máximo um responsável principal ATIVO por item (V1 sob concorrência) */
+    var itens = {};
+    valores(colecao(estado, 'vinculos')).forEach(function (x) {
+      if (x.situacao !== SITUACAO.ATIVA || x.papel !== 'responsavel-principal') return;
+      if (itens[x.objetoId]) v.push({ codigo: 'RESPONSAVEL_PRINCIPAL_JA_EXISTE', objetoId: x.objetoId });
+      itens[x.objetoId] = true;
+    });
     return v;
   }
 

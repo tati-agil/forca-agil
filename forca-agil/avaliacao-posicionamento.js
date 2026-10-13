@@ -493,6 +493,7 @@
   function podeLer() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
   function podeEscrever() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
   function P() { return window.faPosicionamentos; }
+  function blocoResponsavelDisponivel() { var E = window.faEstruturasAdmin; return !!(E && E.montarResponsavel && E.disponivel && E.disponivel()); }
   function nomeAtual(c) { return P() ? P().nome(c) : c; }
   function spanNome(c) { return P() ? P().spanNome(c, 'po-nome') : esc(c); }
 
@@ -998,6 +999,9 @@
       h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + '</p><p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
       h += renderRespostasLidas(a) + '</section>';
       h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final</h4>' + renderDecisao(a, key, sit) + '</section>';
+      /* M3 do Mapa: a estrutura responsável do item — só na versão vigente; quem lê e grava é o módulo de Estruturas
+         (faEstruturasAdmin.montarResponsavel, ligado em bind), que só existe no ambiente de testes */
+      if (sit === 'vigente' && state.carregou.dec && blocoResponsavelDisponivel()) h += '<section class="po-bloco" id="poBlocoResponsavel"><h4 class="po-bloco-titulo">Estrutura responsável</h4><div id="poResponsavel"></div></section>';
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
       var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();
       /* H3-a: dormente — só aparece com um motor em vigor mais novo que o deste registro e a redação publicada dele */
@@ -1150,6 +1154,13 @@
       });
       var just = byId('poJustificativaInput'); if (just) just.addEventListener('input', function () { state.formDecisao.justificativa = just.value.slice(0, MAX_JUSTIFICATIVA); });
       var dec = byId('poDecidirBtn'); if (dec) dec.addEventListener('click', pedirDecisao);
+      /* M3: o posicionamento entregue é o gravado (decisão final, senão a recomendação) — o banco confere de novo */
+      var resp = byId('poResponsavel');
+      if (resp && state.atual) {
+        var pr = { avaliacaoId: state.chave, recomendacao: { codigoResultado: resultadoLido(state.atual.resultadoAutomatico).codigoResultado } }, dr = state.decisoes[state.chave];
+        if (dr) pr.decisao = { codigoFinal: dr.codigoFinal };
+        window.faEstruturasAdmin.montarResponsavel(resp, { itemId: state.atual.itemId, posicionamento: pr });
+      }
     }
 
     /* Muda uma resposta; se isso fechar um ramo, avisa o que sai (respostas, observações, diagnósticos). */

@@ -3242,3 +3242,11 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-previa-confirmar { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; font-weight: 600; }
 /* M2: definição oficial do tipo na ficha e no detalhe do Mapa (fundo claro: herda a cor do texto) */
 .mfm-ficha .fa-classif-def, .est-dado .fa-classif-def { font-size: inherit; color: inherit; margin: 0; }
+/* M3: bloco Estrutura responsável na ficha do Posicionamento (tema escuro do site; reaproveita as classes est-*) */
+#poBlocoResponsavel { --est-texto: var(--ink); --est-forte: var(--ink); --est-suave: var(--ink-2); --est-linha: var(--line); }
+#poBlocoResponsavel .est-dados { margin: 8px 0 12px; }
+#poBlocoResponsavel .est-secao-titulo { color: var(--accent-2); margin-top: 12px; }
+#poBlocoResponsavel select { width: 100%; max-width: 100%; min-height: 44px; }
+.po-resp-situacao--valido { background: #e3f4ea; color: #17643a; border: 1px solid #9fd3b4; }
+.po-resp-situacao--precisa-revisao { background: #fff4d6; color: #7a5300; border: 1px solid #e6c36a; }
+.po-resp-situacao--ausente, .po-resp-situacao--nao-aplicavel { background: #e7e9ee; color: #3f4859; border: 1px solid #b7beca; }
