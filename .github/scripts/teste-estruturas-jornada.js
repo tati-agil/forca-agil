@@ -515,7 +515,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma((await texto(p, '#poRespSituacao')) === 'Válido' && /não muda a situação do vínculo/.test(await texto(p, '#poRespBase')),
         'bloco da estrutura responsável: o vínculo continua "Válido" e mostra só o aviso da base (decisão D)');
       /* Catálogo */
-      await ir(p, '#avaliacoes?mf=catalogo');
+      await ir(p, '#avaliacoes?mf=catalogo&item=item-m3');
       const itemCat = '#mfCatalogo .mf-item[data-item="item-m3"]';
       await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
       const tCat = await texto(p, itemCat);
@@ -546,13 +546,13 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await ir(cq2, '#avaliacoes?po=pos-m3');
       await esperarCondicaoAte(cq2, () => !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 });
       afirma((await texto(cq2, '#poRespSituacao')) === 'Válido', 'perfil avaliacao (consulta): o vínculo aparece "Válido" (sem as ligações, a situação não confere o tipo — nunca um falso "Precisa de revisão")', await texto(cq2, '#poResponsavel'));
-      await ir(cq2, '#avaliacoes?mf=catalogo');
+      await ir(cq2, '#avaliacoes?mf=catalogo&item=item-m3');
       await esperarCondicaoAte(cq2, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
       afirma(/Válido/.test(await texto(cq2, itemCat)), 'perfil avaliacao (consulta): o Catálogo mostra a mesma situação "Válido"');
       await cq2.context().close();
       /* celular */
       const cel2 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['Catálogo com vínculos', '#avaliacoes?mf=catalogo', itemCat + ' .mf-vinculo [data-situacao]'], ['Mapa com os produtos da estrutura', '#avaliacoes?mf=mapa&e=' + idNeg, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'],
+      for (const [rot, hash, sel] of [['Catálogo com vínculos', '#avaliacoes?mf=catalogo&item=item-m3', itemCat + ' .mf-vinculo [data-situacao]'], ['Mapa com os produtos da estrutura', '#avaliacoes?mf=mapa&e=' + idNeg, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'],
         ['ficha da estrutura com os produtos', '#admin?arq=estruturas&e=' + idNeg, '#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'], ['ficha do Posicionamento com o sinal', '#avaliacoes?po=pos-m3', '#poBaseRevisao']]) {
         await ir(cel2, hash); await cel2.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel2), '375 px: ' + rot + ' sem rolagem lateral');
@@ -685,7 +685,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(JSON.stringify(v1) === JSON.stringify(v0), 'nada muda sozinho: o vínculo continua ativo, igual, até alguém substituí-lo ou encerrá-lo (D)');
       await foto(p, '#poResultado', 'm8-posicionamento-revisao-desktop.png');
       /* Catálogo, Mapa e ficha mostram a mesma situação */
-      await ir(p, '#avaliacoes?mf=catalogo');
+      await ir(p, '#avaliacoes?mf=catalogo&item=item-m3');
       const itemCat = '#mfCatalogo .mf-item[data-item="item-m3"]';
       await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
       const tCat = await texto(p, itemCat);
@@ -757,7 +757,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(await p.locator('#poBlocoResponsavel').count() === 0, 'marcador ausente: a ficha do Posicionamento não mostra o bloco de estrutura responsável');
       await ir(p, '#avaliacoes?mf=catalogo');
       await esperarCondicaoAte(p, () => !!document.getElementById('mfAvisoEstruturas'), undefined, { limite: 15000 });
-      afirma(/informação indisponível/.test(await texto(p, '#mfAvisoEstruturas')) && await p.locator('.mf-vinculo').count() === 0, 'marcador ausente: o Catálogo volta a dizer que as estruturas estão indisponíveis');
+      afirma(/informação indisponível/.test(await p.evaluate(() => (document.getElementById('mfAvisoEstruturas') || {}).textContent || '')) && await p.locator('.mf-vinculo').count() === 0, 'marcador ausente: o Catálogo volta a dizer que as estruturas estão indisponíveis');
       afirma(await fotosDb() === dbAntes, 'nos estados false e ausente nada foi gravado em estruturas, subagrupadores, vínculos ou relações');
       /* true de novo: a operação volta sem recarregar */
       await S.banco('PUT', TRAVA, true);
@@ -766,7 +766,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(await p.locator('#mfmMapa .mfm-caixa[data-estrutura="' + idCoe + '"]').count() === 1 && !/Gravação suspensa/.test(await texto(p, '#mfmFaixa')), 'marcador true de novo: o Mapa volta às estruturas, com manutenção');
       /* 5. celular: ficha do Posicionamento com decisão + bloco, e Mapa do CoE */
       const cel8 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['Posicionamento com decisão e estrutura responsável', '#avaliacoes?po=pos-m3', '#poRespSituacao'], ['Mapa do CoE com o produto', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'], ['Catálogo', '#avaliacoes?mf=catalogo', itemCat + ' .mf-vinculo [data-situacao]']]) {
+      for (const [rot, hash, sel] of [['Posicionamento com decisão e estrutura responsável', '#avaliacoes?po=pos-m3', '#poRespSituacao'], ['Mapa do CoE com o produto', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'], ['Catálogo', '#avaliacoes?mf=catalogo&item=item-m3', itemCat + ' .mf-vinculo [data-situacao]']]) {
         await ir(cel8, hash); await cel8.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel8), '375 px: ' + rot + ' sem rolagem lateral');
       }
@@ -807,7 +807,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const vP2 = Object.values(((await S.banco('GET', 'estruturas-vinculos/registros')).corpo) || {}).filter((v) => v.objetoId === 'obj-jur' && v.situacao === 'ativa');
       afirma(vP2.length === 1 && vP2[0].estruturaId === 'ae-p2' && vP2[0].base.codigo === 'AREA_ESPECIALIZADA' && (await texto(p, '#poRespSituacao')) === 'Válido',
         'vínculo da atuação gravado pelas regras reais; situação "Válido"', JSON.stringify(vP2));
-      await ir(p, '#avaliacoes?mf=catalogo');
+      await ir(p, '#avaliacoes?mf=catalogo&item=obj-jur');
       const itemP2 = '#mfCatalogo .mf-item[data-item="obj-jur"]';
       await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemP2, { limite: 15000 });
       const tP2 = await texto(p, itemP2);

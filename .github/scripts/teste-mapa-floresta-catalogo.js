@@ -136,7 +136,20 @@ const banco = (page) => page.evaluate(() => JSON.stringify(window.__CFG.__dbReal
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const texto = (page, sel) => page.locator(sel).innerText();
 const itensVisiveis = (page) => page.$$eval('#mfItens .mf-item', (els) => els.map((e) => e.getAttribute('data-item')).sort());
+/* lista simples (ajuste de usabilidade): filtros e contadores ficam recolhidos em "Filtros e contadores"; os detalhes de um
+   objeto abrem ao clicar nele (#avaliacoes?mf=catalogo&item=<id>) */
+async function abrirAvancados(page) {
+  const d = page.locator('#mfFiltrosAvancados');
+  if ((await d.count()) && !(await d.evaluate((x) => x.open))) await page.click('#mfFiltrosAvancados > summary');
+}
+async function detalhe(page, id) {
+  await page.evaluate((i) => { location.hash = '#avaliacoes?mf=catalogo&item=' + encodeURIComponent(i); }, id);
+  await page.waitForSelector('#mfItens .mf-item--detalhe[data-item="' + id + '"]');
+  return page.locator('#mfItens .mf-item--detalhe[data-item="' + id + '"]');
+}
+async function voltarLista(page) { await page.click('#mfVoltarLista'); await page.waitForSelector('#mfItens .mf-linha'); }
 async function abrirFiltroPosic(page) {
+  await abrirAvancados(page);
   if (!(await page.locator('#mfFiltroPosicionamentoBloco').evaluate((d) => d.open))) await page.click('#mfFiltroPosicionamentoBloco > summary');
 }
 async function posic(page, valor) {
@@ -161,19 +174,20 @@ async function principal(browser, viewport, rotulo) {
   await page.click('#avpMapaFlorestaBtn');
   await page.waitForSelector('#mfItens');
   afirma(await page.evaluate(() => location.hash) === '#avaliacoes?mf=catalogo', 'endereço próprio #avaliacoes?mf=catalogo');
-  afirma(/Jornada por objeto/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'título "Jornada por objeto" (PR 4; não o Mapa visual)');
+  afirma(/Jornada de Avaliação e Posicionamento/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'título "Jornada de Avaliação e Posicionamento" (não o Mapa visual)');
   afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de Avaliações fica por baixo, escondida');
-  afirma((await page.evaluate(() => (document.body.innerText.match(/Jornada por objeto/g) || []).length)) === 1, 'o título aparece uma vez só (sem repetir no cartão)');
+  afirma((await page.evaluate(() => (document.body.innerText.match(/Jornada de Avaliação e Posicionamento/g) || []).length)) === 1, 'o título aparece uma vez só (sem repetir no cartão)');
 
-  /* 0. categorias recolhíveis: recolhidas no celular, abertas na tela larga; o resumo mostra tipos, nunca contagem de estruturas */
+  /* 0. lista simples: busca em destaque; categorias, filtros, contadores e explicações recolhidos; nenhum detalhe aberto */
   const celular = viewport === CELULAR;
-  afirma(await page.locator('#mfCategoriasBloco').evaluate((d) => d.open) === !celular, celular ? 'celular: categorias começam recolhidas' : 'desktop: categorias começam abertas');
+  afirma(!(await page.locator('#mfCategoriasBloco').evaluate((d) => d.open)) && !(await page.locator('#mfFiltrosAvancados').evaluate((d) => d.open)) &&
+    !(await page.locator('#mfSobre').evaluate((d) => d.open)), 'categorias, "Filtros e contadores" e "Sobre esta tela" começam recolhidos');
+  afirma(await page.locator('#mfBusca').isVisible() && await page.locator('#mfItens .mf-trilha, #mfItens .mf-detalhes').count() === 0 && await page.locator('#mfItens .mf-linha .mf-linha-abrir').count() === 10,
+    'a busca à vista e a lista simples (nome, tipo, situação e "abrir"), sem os detalhes de nenhum objeto');
   const resumo = await texto(page, '#mfCategoriasResumo');
   afirma(/6 tipos firmes/.test(resumo) && !/estrutura/i.test(resumo) && !/d+s+(Linhas|estruturas|CoEs|Áreas)/i.test(resumo), 'resumo: Linha (6 tipos firmes) · Área Especializada · CoE — sem contagem de estruturas', resumo);
-  if (celular) {
-    await page.click('#mfCategoriasBloco > summary');
-    afirma(await page.locator('#mfCategoriasBloco').evaluate((d) => d.open) && await page.locator('#mfCategorias').isVisible(), 'tocar no resumo expande as categorias');
-  }
+  await page.click('#mfCategoriasBloco > summary');
+  afirma(await page.locator('#mfCategoriasBloco').evaluate((d) => d.open) && await page.locator('#mfCategorias').isVisible(), 'tocar no resumo expande as categorias');
 
   /* 1. categorias (os nomes chegam da Taxonomia depois do catálogo: a tela troca no lugar) */
   await esperarCondicao(page, () => /Tx LINHA/.test((document.querySelector('.mf-categoria[data-categoria="LINHA"] .mf-categoria-nome') || {}).textContent || ''), null, { limite: 10000, descricao: 'nome da Taxonomia na categoria Linha' });
@@ -185,7 +199,8 @@ async function principal(browser, viewport, rotulo) {
   afirma(linha.squad === 'sim' && cats.filter((c) => c.id !== 'LINHA').every((c) => c.squad === 'nao'), 'invariante: Linha pode ter Squads; Área Especializada e CoE não');
   afirma(/Tx LINHA/.test(linha.nome) && /Tx COE/.test((cats.find((c) => c.id === 'COE') || {}).nome), 'nomes vindos da Taxonomia Organizacional');
 
-  /* 2. estruturas: indisponível, nunca "nenhuma" */
+  /* 2. estruturas: indisponível, nunca "nenhuma" (a explicação fica em "Sobre esta tela") */
+  await page.click('#mfSobre > summary');
   const corpo = await texto(page, '#avaliacoesMapa');
   afirma(/informação indisponível nesta versão/i.test(await texto(page, '#mfAvisoEstruturas')) && /incremento posterior/.test(await texto(page, '#mfAvisoEstruturas')), 'aviso: Estruturas Concretas indisponíveis nesta versão, em incremento posterior');
   afirma(!/nenhuma estrutura/i.test(corpo) && !/sem responsável|responsável ausente|vínculo válido|a revisar/i.test(corpo), 'nunca "nenhuma estrutura", "sem responsável", vínculo válido ou a revisar');
@@ -196,22 +211,32 @@ async function principal(browser, viewport, rotulo) {
   const vistos = await itensVisiveis(page);
   afirma(JSON.stringify(vistos) === JSON.stringify(Object.keys(ESPERADO).sort()), 'um objeto por item, sem duplicar versões e sem os da Lixeira', JSON.stringify(vistos));
   for (const id of Object.keys(ESPERADO)) {
-    const e = ESPERADO[id], li = page.locator('#mfItens .mf-item[data-item="' + id + '"]');
-    const sit = await li.getAttribute('data-situacao');
-    let ok = sit === e.sit;
+    const e = ESPERADO[id];
+    const sit = await page.locator('#mfItens .mf-item[data-item="' + id + '"]').getAttribute('data-situacao');
+    const li = await detalhe(page, id);
+    let ok = sit === e.sit && (await li.getAttribute('data-situacao')) === e.sit;
     if (e.cod) { const dd = li.locator('.mf-efetivo'); ok = ok && await dd.getAttribute('data-codigo') === e.cod && await dd.getAttribute('data-origem') === e.origem; }
     if (e.alerta) ok = ok && await li.locator('.mf-alerta').getAttribute('data-alerta') === e.alerta;
-    afirma(ok, id + ': ' + e.sit + (e.cod ? ' ' + e.cod + ' (' + e.origem + ')' : '') + (e.alerta ? ', alerta ' + e.alerta : ''), sit);
+    afirma(ok, id + ': ' + e.sit + (e.cod ? ' ' + e.cod + ' (' + e.origem + ')' : '') + (e.alerta ? ', alerta ' + e.alerta : '') + ' (lista e detalhe)', sit);
+    await voltarLista(page);
   }
+  await detalhe(page, 'pV');
   afirma(/Item Versao Nova/.test(await texto(page, '#mfItens .mf-item[data-item="pV"]')), 'item reavaliado aparece com o nome da versão que vale');
+  await detalhe(page, 'pDiv');
   afirma(/decisão final/.test(await texto(page, '#mfItens .mf-item[data-item="pDiv"] .mf-efetivo')) && /Tx COE/.test(await texto(page, '#mfItens .mf-item[data-item="pDiv"] .mf-efetivo')) &&
     /Tx NEGOCIOS/.test(await texto(page, '#mfItens .mf-item[data-item="pDiv"]')), 'decisão final (CoE) prevalece sobre a recomendação (Negócios), que continua visível');
+  await detalhe(page, 'pAV');
   afirma(/não é exclusão/.test(await texto(page, '#mfItens .mf-item[data-item="pAV"]')), 'A VALIDAR sem decisão: "não é exclusão"');
-  afirma(await page.locator('#mfItens .mf-item[data-item="pDes"] [data-motivo="desatualizado"]').count() === 1 && /desatualizado/.test(await texto(page, '#mfItens .mf-item[data-item="pDes"]')) &&
+  await detalhe(page, 'pDes');
+  const desOk = await page.locator('#mfItens .mf-item[data-item="pDes"] [data-motivo="desatualizado"]').count() === 1 && /desatualizado/.test(await texto(page, '#mfItens .mf-item[data-item="pDes"]'));
+  await detalhe(page, 'pRasc');
+  afirma(desOk &&
     await page.locator('#mfItens .mf-item[data-item="pRasc"] [data-motivo="nao-concluida"]').count() === 1 && /não foi concluída/.test(await texto(page, '#mfItens .mf-item[data-item="pRasc"]')), 'sem base: o motivo por extenso (motor desatualizado; P1–P16 não concluída)');
+  await voltarLista(page);
   await capturar(page, 'catalogo-' + (viewport === DESKTOP ? 'desktop' : '375'));
 
-  /* 4. filtros */
+  /* 4. filtros (em "Filtros e contadores") */
+  await abrirAvancados(page);
   await page.selectOption('#mfFiltroSituacao', 'sem-base');
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pDes', 'pRasc']), 'filtro situação: sem Avaliação de Produto/Serviço válida ou atual');
   afirma(/2 de 10/.test(await texto(page, '#mfContador')), 'contador "2 de 10"', await texto(page, '#mfContador'));
@@ -254,13 +279,22 @@ async function principal(browser, viewport, rotulo) {
   afirma(JSON.stringify(await itensVisiveis(page)) === JSON.stringify(['pAE']), '"Ver no catálogo" da categoria filtra por ela');
   await page.click('#mfLimparFiltros');
 
-  /* 5. navegação */
+  /* 5. navegação: abrir o objeto, voltar à lista com a busca preservada; do objeto, "Abrir Posicionamento" */
+  await page.fill('#mfBusca', 'divergente');
+  await page.click('#mfItens .mf-item[data-item="pDiv"] .mf-linha-abrir');
+  await page.waitForSelector('#mfItens .mf-item--detalhe[data-item="pDiv"]');
+  afirma((await page.evaluate(() => location.hash)) === '#avaliacoes?mf=catalogo&item=pDiv' && await page.locator('#mfItens .mf-item').count() === 1, 'clicar no objeto abre só a jornada dele (endereço próprio)');
+  await voltarLista(page);
+  afirma((await page.inputValue('#mfBusca')) === 'divergente' && JSON.stringify(await itensVisiveis(page)) === '["pDiv"]', '"← Voltar para a lista" preserva a busca');
+  await page.click('#mfLimparFiltros');
+  await detalhe(page, 'pDiv');
   await page.click('#mfItens .mf-item[data-item="pDiv"] .mf-abrir-po');
   await page.waitForSelector('#poResultado');
   afirma(await page.locator('#avaliacoesMapa').isHidden() && /[?&]po=gDiv/.test(await page.evaluate(() => location.hash)), '"Abrir Posicionamento" abre a ficha da avaliação vigente');
   await page.goBack();
   await page.waitForSelector('#mfItens');
-  afirma(await page.locator('#avaliacoesPosicionamento').isHidden() && /Jornada por objeto/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'Voltar do navegador volta ao catálogo');
+  afirma(await page.locator('#avaliacoesPosicionamento').isHidden() && /Jornada de Avaliação e Posicionamento/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'Voltar do navegador volta ao catálogo');
+  await page.goBack(); await page.waitForSelector('#mfItens .mf-linha');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#mfItens');
   afirma((await itensVisiveis(page)).length === 10, 'F5 em #avaliacoes?mf=catalogo reabre o catálogo');
