@@ -39,3 +39,19 @@ ainda não confirmados.
 
 **Próximo passo:** depois da Porta 2 homologada, apresentar uma proposta visual enxuta e os critérios de aceite para
 aprovação, antes de qualquer implementação.
+
+## Acompanhamento (não é entrega; observar e agir se repetir)
+
+### Smoke contra o Firebase real: login recusado de forma intermitente
+
+*Registrado em 2026-10-13.* Na PR #355 (commit `a185838`), o Smoke (`.github/scripts/smoke-site-real.js`, job
+"Smoke test — login real no site publicado") falhou num único passo — "Avaliação: escolher a nota da seção 1 avança
+sozinho e o rascunho fica guardado" — com `login falhou: E-mail ou senha inválidos.`, enquanto os outros logins da
+MESMA conta de teste, na mesma execução, funcionaram. A PR não mexia em login. Rodar de novo só esse job passou.
+
+Hipótese (não comprovada): limitação de tentativas do Firebase Authentication real por muitos logins seguidos da
+mesma conta, que a tela mostra como "E-mail ou senha inválidos". O Smoke não bloqueia o merge.
+
+**Se repetir:** registrar a data e o passo; conferir no log se é sempre o mesmo passo; avaliar fazer o Smoke
+reaproveitar a sessão já aberta nesse passo (menos logins) e distinguir na tela "muitas tentativas" de "senha
+inválida". Nada disso entra numa PR funcional.
