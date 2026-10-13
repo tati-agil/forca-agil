@@ -211,5 +211,29 @@ afirma(linhaDe(todas.Resumo, 'ID da avaliação', 'gC')[col(todas.Resumo, 'Item'
 afirma(/Posicionamento_Organizacional_Gestao_de_Credito_Acao_Onibus_Sao_Joao_v1_2026-10-10\.pdf/.test(E.nomeArquivoPdf('gC', ctx(), '2026-10-10')), 'nome do arquivo sem acento e com a versão', E.nomeArquivoPdf('gC', ctx(), '2026-10-10'));
 afirma(E.documentoPdf('x', true, '2026-10-10T12:00:00.000Z').indexOf('Posicionamento Organizacional') !== -1 && /momento da exportação/.test(E.documentoPdf('x', true, '2026-10-10T12:00:00.000Z')), 'cabeçalho do PDF avisa que a situação é a do momento da exportação');
 
+console.log('\n== Porta 2: atuação organizacional (sem Avaliação de Produto/Serviço) ==');
+{
+  const gP2 = conc('oJur', 'Assessoramento jurídico', 1, AE, raAE, { origem: 'objeto-organizacional', hipoteseInicial: 'AREA_ESPECIALIZADA' });
+  delete gP2.avaliacaoArquiteturalId;
+  const objetos = { oJur: { nome: 'Assessoramento jurídico (nome atual)', descricao: 'Preventivo e consultivo.', finalidade: 'Segurança jurídica.', referenciaItemId: 'pJur', situacao: 'ativo' } };
+  const regs2 = Object.assign({}, registros, { gP2 });
+  const c2 = (extra) => ctx(Object.assign({ registros: regs2, vigentes: Object.assign({}, vigentes, { oJur: 'gP2' }), objetos }, extra || {}));
+  const t = texto(E.atomosPdf('gP2', c2()).join(''));
+  afirma(/Atuação organizacional \(Porta 2\)/.test(t) && /Não se aplica — atuação organizacional \(Porta 2\)/.test(t), 'PDF: origem Porta 2 e "Não se aplica" no lugar da Avaliação de Produto/Serviço');
+  afirma(/Assessoramento jurídico \(nome atual\)/.test(t) && /Segurança jurídica/.test(t) && /pJur — não participa do cálculo/.test(t) && /Ativa/.test(t), 'PDF: a atuação (nome atual, finalidade, referência informativa, situação)');
+  afirma(!/Dados da avaliação vinculada indisponíveis/.test(t), 'PDF: não trata a falta de P1–P16 como "indisponível"');
+  const t2 = texto(E.atomosPdf('gP2', c2({ objetos: {} })).join(''));
+  afirma(/oJur — dados da atuação indisponíveis/.test(t2), 'PDF sem a atuação lida: diz "indisponíveis", não inventa');
+  const a = {}; E.abasExcel(['gP2', 'gE'], c2()).forEach((x) => { a[x.nome] = x; });
+  const r = a.Resumo;
+  const lP2 = linhaDe(r, 'ID da avaliação', 'gP2'), lE = linhaDe(r, 'ID da avaliação', 'gE');
+  afirma(lP2[col(r, 'Origem')] === 'Atuação organizacional (Porta 2)' && lP2[col(r, 'Atuação organizacional (nome atual)')] === 'Assessoramento jurídico (nome atual)' &&
+    lP2[col(r, 'Referência informativa (P1–P16)')] === 'pJur' && lP2[col(r, 'Avaliação de Produto/Serviço usada')] === 'Não se aplica — atuação organizacional (Porta 2)' && lP2[col(r, 'ID da Avaliação de Produto/Serviço usada')] === '',
+    'Excel: origem, atuação e referência na linha da Porta 2');
+  afirma(lE[col(r, 'Origem')] === 'Produto/Serviço (Porta 1)' && lE[col(r, 'Atuação organizacional (nome atual)')] === '' && /Produto do item|pp-pE/.test(String(lE[col(r, 'Avaliação de Produto/Serviço usada')])),
+    'Excel: Porta 1 continua com a Avaliação de Produto/Serviço e origem Porta 1');
+  afirma(r.cabecalho.slice(0, 36).join('|') === E.abasExcel(['gE'], ctx())[0].cabecalho.slice(0, 36).join('|') && r.cabecalho.length === 38, 'Excel: as colunas antigas ficam no mesmo lugar; as novas vêm no fim');
+}
+
 console.log('\n============================\n' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));
 process.exit(falhas ? 1 : 0);

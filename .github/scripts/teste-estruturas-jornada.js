@@ -16,6 +16,8 @@
  *   8. Demonstração × cadastradas nunca se misturam.
  *   9. Nenhuma requisição ao Firebase oficial em nenhum momento.
  *  10. Celular (375 px) e computador: sem rolagem horizontal nas telas da jornada.
+ *  8f. Porta 2: a atuação organizacional (sem P1–P16) recebe a estrutura responsável pelas regras reais e aparece no
+ *      Catálogo, no Mapa e na ficha da estrutura.
  *
  * Uso (precisa de Docker e da imagem fa-emulador-regras:local; Playwright em NODE_PATH):
  *   node .github/scripts/teste-estruturas-jornada.js */
@@ -142,7 +144,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(await noBloco('ae', idAe) === 1, 'Área de Riscos em Áreas Especializadas');
     afirma(/Plataforma de Nuvem/.test(await texto(p, '#mfmDetalhe')) && /Estrutura cadastrada/.test(await texto(p, '#mfmDetalhe')), 'a estrutura salva abre com os detalhes no Mapa');
     await esperarCondicaoAte(p, () => !!document.getElementById('mfmSemObjetos'), undefined, { limite: 15000 });
-    afirma(/Nenhum produto ou serviço vinculado/.test(await texto(p, '#mfmSemObjetos')), 'produtos e serviços: nenhum vínculo cadastrado → diz que não há (nada inventado; M4)');
+    afirma(/Nenhum produto, serviço ou atuação vinculado/.test(await texto(p, '#mfmSemObjetos')), 'produtos e serviços: nenhum vínculo cadastrado → diz que não há (nada inventado; M4)');
     afirma(/Definição oficial\s*Definição vigente indisponível/.test(await texto(p, '#mfmDetalhe')), 'detalhe no Mapa: tipo sem definição vigente na Taxonomia → "indisponível", sem texto substituto (M2)');
     await p.click('[data-estrutura="' + idNeg + '"]');
     await p.waitForFunction((id) => location.hash.indexOf('e=' + id) !== -1, idNeg);
@@ -770,6 +772,52 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       }
       await foto(cel8, '#avaliacoesPosicionamento', 'm8-posicionamento-375.png');
       await cel8.context().close();
+    }
+
+    /* ===== 8f. Porta 2: a atuação organizacional reconhecida no vínculo, no Catálogo, no Mapa e na ficha da estrutura ===== */
+    console.log('\n8f. Porta 2: atuação organizacional no vínculo, no Catálogo e no Mapa');
+    {
+      const M = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento.js'));
+      const QUANDO = '2026-10-01T09:00:00.000Z', outra = { name: 'Outra', email: 'o@previ.com.br' };
+      const respostas = { O1: 'NAO', O2: 'SIM', O3: 'NAO' }, res = M.avaliar(respostas, {}), ra = {};
+      Object.keys(res).forEach((c) => { const v = res[c]; if (v !== null && !(Array.isArray(v) && !v.length)) ra[c] = v; });
+      const reg = { itemId: 'obj-jur', itemNome: 'Assessoramento jurídico', origem: 'objeto-organizacional', hipoteseInicial: 'AREA_ESPECIALIZADA', questionarioCodigo: 'POSICIONAMENTO_ORGANIZACIONAL',
+        questionnaireContentVersion: 1, versao: 1, status: 'concluido', revisao: 2, respostas: {}, criadoPor: outra, criadoEm: QUANDO, atualizadoPor: outra, atualizadoEm: QUANDO,
+        auditoriaCriacaoId: 'ac-p2', concluidoPor: outra, concluidoEm: QUANDO, auditoriaConclusaoId: 'az-p2', resultadoAutomatico: ra };
+      Object.keys(respostas).forEach((q) => { reg.respostas[q] = { resposta: respostas[q], codigoPergunta: q, questionnaireContentVersion: 1, dataResposta: QUANDO }; });
+      const quem = { uid: 'semente', email: 'semente@teste' };
+      /* dados de TESTE no emulador desta jornada (a tela que cria a atuação é a PR 3 da Porta 2) */
+      await S.banco('PATCH', '', {
+        'objetos-organizacionais/obj-jur': { nome: 'Assessoramento jurídico', descricao: 'Preventivo, consultivo, contencioso e negocial.', finalidade: 'Segurança jurídica.', situacao: 'ativo', revisao: 1,
+          criadoPor: quem, criadoEm: 1791713600000, atualizadoPor: quem, atualizadoEm: 1791713600000, auditoriaId: 'a-p2' },
+        'avaliacoes-posicionamento/pos-p2': reg, 'posicionamento-vigente-por-item/obj-jur': 'pos-p2',
+        'estruturas-concretas/registros/ae-p2': { id: 'ae-p2', tipo: 'AREA_ESPECIALIZADA', nome: 'Jurídico de Teste', situacao: 'ativa', revisao: 1, criadaEm: 1791713600000, criadaPor: { id: 'semente', email: 'semente@teste' }, ultimaOperacao: 'semente-p2' }
+      });
+      afirma(ra.codigoResultado === 'AREA_ESPECIALIZADA', 'Posicionamento de teste da atuação: Área Especializada (resultado do motor v1)');
+      await ir(p, '#avaliacoes?po=pos-p2');
+      afirma(await esperarCondicaoAte(p, () => !!document.getElementById('poObjetoNome') && !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 }) &&
+        (await texto(p, '#poRespSituacao')) === 'Sem estrutura responsável', 'ficha da atuação: bloco da atuação e da estrutura responsável ("Sem estrutura responsável")');
+      await p.click('#poRespVincular');
+      await p.waitForSelector('#poRespEstruturaSel');
+      const opcoesP2 = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean));
+      afirma(opcoesP2.indexOf('ae-p2') !== -1 && opcoesP2.indexOf(idNeg) === -1 && opcoesP2.indexOf(idCoe) === -1, 'só estruturas ativas de Área Especializada são oferecidas', JSON.stringify(opcoesP2));
+      await p.selectOption('#poRespEstruturaSel', 'ae-p2');
+      await p.click('#poRespSalvar');
+      await p.waitForSelector('#poRespFlash', { timeout: 15000 });
+      const vP2 = Object.values(((await S.banco('GET', 'estruturas-vinculos/registros')).corpo) || {}).filter((v) => v.objetoId === 'obj-jur' && v.situacao === 'ativa');
+      afirma(vP2.length === 1 && vP2[0].estruturaId === 'ae-p2' && vP2[0].base.codigo === 'AREA_ESPECIALIZADA' && (await texto(p, '#poRespSituacao')) === 'Válido',
+        'vínculo da atuação gravado pelas regras reais; situação "Válido"', JSON.stringify(vP2));
+      await ir(p, '#avaliacoes?mf=catalogo');
+      const itemP2 = '#mfCatalogo .mf-item[data-item="obj-jur"]';
+      await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemP2, { limite: 15000 });
+      const tP2 = await texto(p, itemP2);
+      afirma(/Atuação organizacional/.test(tP2) && /Jurídico de Teste/.test(tP2) && !(await p.$(itemP2 + ' .mf-abrir-avp')), 'Catálogo: a atuação com a estrutura responsável, sem link para P1–P16', tP2.slice(0, 300));
+      await ir(p, '#avaliacoes?mf=mapa&e=ae-p2');
+      afirma(await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="obj-jur"]'), undefined, { limite: 15000 }) &&
+        /Assessoramento jurídico/.test(await texto(p, '#mfmObjetos')) && /Produtos, serviços e atuações sob esta estrutura/.test(await texto(p, '#mfmDetalhe')), 'Mapa: a atuação aparece sob a estrutura responsável');
+      await ir(p, '#admin?arq=estruturas&e=ae-p2');
+      afirma(await esperarCondicaoAte(p, () => !!document.getElementById('estProdutos') && /Assessoramento jurídico/.test(document.getElementById('estProdutos').textContent), undefined, { limite: 15000 }),
+        'ficha da estrutura: a atuação na lista do que está sob ela');
     }
 
     console.log('\n10. Celular (375 px) e computador');

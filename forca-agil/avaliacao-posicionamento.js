@@ -50,6 +50,7 @@
   var VIGENCIA = 'posicionamento-motor-vigencia'; /* H3-b: a versão do motor em vigor (só a fronteira confiável grava) */
   var AUD = 'posicionamento-auditoria', PROD = 'avaliacoes-produto', DEC = 'posicionamento-decisoes';
   var QCOD = 'POSICIONAMENTO_ORGANIZACIONAL', DIAG = 'DIAG_CONFLITO_RECORTE';
+  var OBJ = 'objetos-organizacionais', ORIGEM_PORTA2 = 'objeto-organizacional';
   var MAX_OBS = 2000, MAX_MOTIVO = 500, MAX_JUSTIFICATIVA = 2000, TEMPO_GRAVACAO = 12000;
   var NIVEIS = { N1: ['O1', 'O2', 'O3'], N2: ['O4', 'O5'], N3: ['O6', 'O7', 'O8', 'O9'] };
   var ORDEM_NIVEIS = ['N1', 'N2', 'N3'];
@@ -573,7 +574,8 @@
     function novoEstado() { return {
       tela: 'lista', /* lista | escolher | checklist | resultado | descartado | carregando | nao-encontrada | sem-permissao */
       registros: {}, reservas: {}, vigentes: {}, produtos: {}, decisoes: {},
-      carregou: { av: false, res: false, vig: false, prod: false, dec: false, vigm: false }, erroLeitura: false, erroDec: false, vigenciaMotor: null, erroVigencia: false,
+      carregou: { av: false, res: false, vig: false, prod: false, dec: false, vigm: false, obj: false }, erroLeitura: false, erroDec: false, vigenciaMotor: null, erroVigencia: false,
+      objetos: {}, erroObj: false,
       mostrarHistorico: false, formDecisao: null, exportando: null, flashExportacao: null, menuExportarAberto: false,
       atual: null, chave: null, revisaoBase: 0, sujo: false, conflito: false, salvando: null, naoConfirmada: null, revisaoEmGravacao: null,
       itemEscolhido: null, busca: '', pendente: null, flash: null
@@ -709,6 +711,13 @@
        gravada no rascunho; senão devolve { situacao, texto } (o rascunho não é tocado) */
     function travaConclusao(a) {
       if (!a || a.status !== 'rascunho') return null;
+      if (ehPorta2(a)) {
+        if (state.erroObj) return { situacao: 'erro-objeto', texto: 'Não foi possível ler a atuação organizacional agora: a conclusão fica para quando a leitura voltar. O rascunho continua salvo.' };
+        if (!state.carregou.obj) return { situacao: 'verificando', texto: 'Verificando a atuação organizacional…' };
+        var ob = (state.objetos || {})[a.itemId];
+        if (!ob || ob.situacao !== 'ativo') return { situacao: 'objeto-encerrado', texto: 'A atuação organizacional deste Posicionamento está encerrada ou não foi encontrada: ele não pode ser concluído. O rascunho continua salvo.' };
+        return null;
+      }
       var g = gateAtual(a.itemId);
       if (!g.libera) return { situacao: g.situacao, texto: textoGate(g.situacao, 'concluir') };
       if (g.chave !== a.avaliacaoArquiteturalId) return { situacao: 'base-mudou', texto: textoGate('base-mudou', 'concluir') };
@@ -835,7 +844,8 @@
           h += '<div class="table-scroll-wrap"><table class="admin-table po-tabela"><thead><tr><th>Item</th><th>Versão</th><th>Motor e redação</th><th>Situação</th><th>Recomendação automática</th><th>Decisão final</th><th>Atualizado em</th><th></th></tr></thead><tbody>';
           lista.forEach(function (r) {
             var acao = r.status === 'rascunho' && podeEscrever() ? 'Continuar' : 'Abrir';
-            h += '<tr class="po-linha" data-key="' + esc(r._key) + '" data-situacao="' + esc(r._sit) + '"><td data-label="Item">' + esc(r.itemNome) + '</td>' +
+            h += '<tr class="po-linha" data-key="' + esc(r._key) + '" data-situacao="' + esc(r._sit) + '"><td data-label="Item">' + esc(r.itemNome) +
+              (ehPorta2(r) ? ' <span class="avp-badge po-badge-porta2">Atuação organizacional</span>' : '') + '</td>' +
               '<td data-label="Versão">v' + esc(r.versao || 1) + '</td><td data-label="Motor e redação" class="po-versoes-usadas">' + textoVersoes(r) + '</td><td data-label="Situação">' + badgeSituacao(r._sit) + '</td>' +
               '<td data-label="Recomendação automática">' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</td>' +
               '<td data-label="Decisão final" class="po-col-decisao">' + textoDecisao(r._key, r) + '</td>' +
@@ -897,7 +907,8 @@
     function renderChecklist() {
       var a = state.atual, edita = podeEscrever(), versao = a.questionnaireContentVersion, vm = versaoMotorDo(a);
       var h = '<div class="avp-form-card" id="poChecklist"><h3>' + esc(a.itemNome) + ' ' + badge(a.status) + '</h3>' +
-        '<p class="avp-intro">Responda considerando a responsabilidade organizacional associada a este objeto. As perguntas de cada nível aparecem conforme o caminho.</p>';
+        '<p class="avp-intro">Responda considerando a responsabilidade organizacional associada a este objeto. As perguntas de cada nível aparecem conforme o caminho.</p>' +
+        (ehPorta2(a) ? objetoHtml(a) : '');
       /* versão de motor sem a redação publicada que ela exige: nada de texto de outra versão nem de fábrica — trava */
       if (!redacaoDisponivel(a)) {
         return h + '<p class="avp-error-msg" id="poRedacaoIndisponivel" role="alert">Redação desta versão do motor (v' + esc(vm) + ') indisponível: ' +
@@ -1012,6 +1023,27 @@
       if (reg) h += '<p class="po-nome-conclusao" id="poNomeConclusao">Nome registrado na conclusão: ' + esc(reg.nome) + (reg.contingencia ? ' <em>(rótulo de contingência — a Taxonomia não respondeu na hora)</em>' : '') + '</p>';
       return h;
     }
+    /* ---- Porta 2: a atuação organizacional do registro (só leitura; o cadastro dela vem na jornada da Porta 2) ---- */
+    function ehPorta2(a) { return !!a && a.origem === ORIGEM_PORTA2; }
+    function objetoHtml(a) {
+      var h = '<section class="po-bloco po-objeto" id="poObjeto"><h4 class="po-bloco-titulo">Atuação organizacional</h4>' +
+        '<p class="avp-ficha-meta">Posicionada pela Porta 2: sem Avaliação de Produto/Serviço (P1–P16).</p>';
+      if (state.erroObj) return h + '<p class="avp-error-msg" id="poObjetoErro">Não foi possível ler a atuação organizacional agora.</p></section>';
+      if (!state.carregou.obj) return h + '<p class="loading-msg" id="poObjetoCarregando">Carregando…</p></section>';
+      var ob = (state.objetos || {})[a.itemId];
+      if (!ob) return h + '<p class="avp-error-msg" id="poObjetoAusente">Atuação organizacional não encontrada.</p></section>';
+      h += '<dl class="po-objeto-dados"><dt>Nome atual</dt><dd id="poObjetoNome">' + esc(ob.nome) + '</dd>';
+      if (ob.nome !== a.itemNome) h += '<dt>Nome neste Posicionamento</dt><dd id="poObjetoNomeRegistrado">' + esc(a.itemNome) + '</dd>';
+      h += '<dt>Descrição</dt><dd>' + esc(ob.descricao) + '</dd><dt>Finalidade</dt><dd>' + esc(ob.finalidade) + '</dd>';
+      if (ob.contexto) h += '<dt>Contexto</dt><dd>' + esc(ob.contexto) + '</dd>';
+      if (ob.referenciaItemId) {
+        var B0 = B(), base = B0 ? B0.baseDoItem(ob.referenciaItemId, state.produtos) : null, pr = base && base.chave ? state.produtos[base.chave] : null;
+        h += '<dt>Referência informativa</dt><dd id="poObjetoReferencia">' + esc((pr && pr.nome) || ob.referenciaItemId) + ' (Avaliação de Produto/Serviço) — só para consulta: não participa do cálculo.</dd>';
+      }
+      h += '<dt>Situação</dt><dd id="poObjetoSituacao" data-situacao="' + esc(ob.situacao) + '">' + (ob.situacao === 'ativo' ? 'Ativa'
+        : 'Encerrada' + (ob.encerramento && ob.encerramento.motivo ? ' — ' + esc(ob.encerramento.motivo) : '') + '. Não recebe nova avaliação nem novo vínculo; o que já existe continua.') + '</dd></dl>';
+      return h + '</section>';
+    }
     function renderResultado() {
       var a = state.atual, key = state.chave, ra = resultadoLido(a.resultadoAutomatico), sit = situacaoDe(key, a);
       var h = '<div class="avp-form-card" id="poResultado"><h3>' + esc(a.itemNome) + ' · v' + esc(a.versao || 1) + ' ' + (state.carregou.vig ? badgeSituacao(sit) : badge(a.status)) + '</h3>';
@@ -1025,6 +1057,7 @@
       if (resv) h += '<div class="po-reavaliacao-info" id="poReavaliacaoAndamento"><p>Há uma reavaliação em andamento' + (resr ? ' (versão ' + esc(resr.versao || '') + ')' : '') +
         '. Esta versão continua vigente até ela ser concluída.</p><button type="button" class="btn btn--sm po-abrir" data-key="' + esc(resv) + '">' + (podeEscrever() ? 'Continuar a reavaliação' : 'Abrir a reavaliação') + '</button></div>';
       if (a.avaliacaoAnteriorId) h += '<p class="avp-ficha-meta" id="poMotivoReavaliacao">Reavaliação da versão ' + esc((a.versao || 2) - 1) + ' — motivo: ' + esc(a.motivoReavaliacao) + '</p>';
+      if (ehPorta2(a)) h += objetoHtml(a);
       /* M5 (decisão E): sinal informativo — nada muda sozinho */
       var impB = sit === 'vigente' ? baseReprocessadaComImpacto(a, state.produtos) : null;
       if (impB) h += '<p class="avp-decisao-aviso po-base-revisao" id="poBaseRevisao" role="status"><strong>Precisa de revisão.</strong> ' + esc(textoBaseRevisao(impB)) +
@@ -1050,7 +1083,7 @@
          (faEstruturasAdmin.montarResponsavel, ligado em bind), que só existe com a operação habilitada (marcador presente) */
       if (sit === 'vigente' && state.carregou.dec && blocoResponsavelDisponivel()) h += '<section class="po-bloco" id="poBlocoResponsavel"><h4 class="po-bloco-titulo">Estrutura responsável</h4><div id="poResponsavel"></div></section>';
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
-      var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();
+      var podeReav = sit === 'vigente' && podeEscrever() && !resv && !ehPorta2(a), prontoPdf = prontoParaExportar();
       /* H3-a: dormente — só aparece com um motor em vigor mais novo que o deste registro e a redação publicada dele */
       var atu = podeReav ? atualizacaoDisponivel(a, versaoEmVigorLida()) : null;
       /* reavaliar passa pelo MESMO gate de iniciar: sem a base P1–P16 vigente e com Motor atual, o botão fica travado e diz por quê */
@@ -1395,7 +1428,8 @@
       REVISAO_DESATUALIZADA: 'Outra pessoa alterou este rascunho: ele foi recarregado. Confira e conclua de novo.',
       BASE_MUDOU: textoGate('base-mudou', 'concluir'), FALTAM_RESPOSTAS: 'Faltam respostas para concluir.',
       NAO_E_RASCUNHO: 'Esta avaliação não está mais em rascunho.', JA_TEM_VIGENTE: 'Este item já tem um Posicionamento concluído. Abra-o pela lista.',
-      AVALIACAO_INEXISTENTE: 'A avaliação não foi encontrada.', RECUSADA_PELAS_REGRAS: 'O banco recusou a conclusão. O rascunho continua salvo.'
+      AVALIACAO_INEXISTENTE: 'A avaliação não foi encontrada.',
+      PORTA2_NAO_SUPORTADA: 'A conclusão desta versão do motor para uma atuação organizacional (Porta 2) ainda não é feita pelo servidor. O rascunho continua salvo.', RECUSADA_PELAS_REGRAS: 'O banco recusou a conclusão. O rascunho continua salvo.'
     };
     function concluirPelaFronteira(limpo, usuario) {
       var chave = state.chave, payload = payloadSalvar(chave, limpo, usuario, agoraIso(), state.revisaoBase);
@@ -1587,7 +1621,7 @@
     }
     function contextoExportacao(trilha) {
       return { registros: clone(state.registros), decisoes: clone(state.decisoes), decisoesConhecidas: prontoParaExportar(), vigentes: clone(state.vigentes),
-        produtos: state.produtos, nomesAtuais: nomesAtuais(), trilha: trilha, geradoEm: agoraIso(),
+        produtos: state.produtos, objetos: state.objetos, nomesAtuais: nomesAtuais(), trilha: trilha, geradoEm: agoraIso(),
         textoQuestionario: function (codigo, versao) { return conteudo(codigo, versao); } };
     }
     function terminarExportacao(erro, origem) {
@@ -1644,6 +1678,7 @@
         if (chaveCarga === 'av') state.erroLeitura = true;
         if (chaveCarga === 'dec') state.erroDec = true; /* leitura recusada não é "sem decisão" */
         if (chaveCarga === 'vigm') state.erroVigencia = true; /* leitura recusada não é "v1" */
+        if (chaveCarga === 'obj') state.erroObj = true; /* leitura recusada não é "objeto inexistente" */
         aoChegar(chaveCarga);
       };
       ouvintes.push(S().ouvir(caminho, cb, erro));
@@ -1672,6 +1707,8 @@
       ouvir(VIG, 'vig', function (v) { state.vigentes = v; });
       ouvir(PROD, 'prod', function (v) { state.produtos = v; });
       ouvir(DEC, 'dec', function (v) { state.decisoes = v; state.erroDec = false; });
+      /* Porta 2: os objetos organizacionais (identidade do item sem P1–P16) */
+      ouvir(OBJ, 'obj', function (v) { state.objetos = v; state.erroObj = false; });
       /* H3-b: a versão do motor EM VIGOR vem do banco (sem registro = 1); enquanto não chega, nada nasce */
       ouvir(VIGENCIA, 'vigm', function (v) { state.vigenciaMotor = v; state.erroVigencia = false; });
       /* o gate precisa do motor de Produto/Serviço carregado: este onMudanca liga a leitura (garantirSync) e redesenha

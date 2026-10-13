@@ -312,6 +312,13 @@ const SEM_AUD = (db) => { const c = clone(db || {}); delete c[GT.NOS.auditoria];
   await database.ref('avaliacoes-posicionamento/gW').set(Object.assign({}, rasc, { itemId: 'pA', avaliacaoArquiteturalId: 'pA', versaoMotor: null }));
   afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gW', revisao: 3 })).motivos.join() === 'CONCLUSAO_PELA_TELA', 'avaliação v1: o servidor não conclui (é da tela)');
   await database.ref('avaliacoes-posicionamento/gW').remove();
+  /* Porta 2: atuação organizacional (sem P1–P16) — recusa explícita, nada gravado */
+  const rascP2 = Object.assign({}, rasc, { itemId: 'oP2', itemNome: 'Atuação', origem: 'objeto-organizacional', hipoteseInicial: 'COE' });
+  delete rascP2.avaliacaoArquiteturalId;
+  await database.ref('avaliacoes-posicionamento/gP2').set(rascP2);
+  afirma((await F.concluirAvaliacaoPosicionamento(auth(ARQ), { avaliacaoId: 'gP2', revisao: 3 })).motivos.join() === 'PORTA2_NAO_SUPORTADA' && (await ler('avaliacoes-posicionamento/gP2')).status === 'rascunho',
+    'atuação organizacional (Porta 2): o servidor recusa com motivo próprio e não grava nada');
+  await database.ref('avaliacoes-posicionamento/gP2').remove();
   afirma(JSON.stringify([await ler('avaliacoes-posicionamento/gA'), await ler('avaliacoes-posicionamento/gB'), await ler('posicionamento-decisoes')]) === v1Antes, 'as avaliações v1 existentes e as decisões ficam idênticas');
   /* a regra também recusa: a identidade restrita não conclui v1 nem altera o que é fixo */
   await database.ref('avaliacoes-posicionamento/gX').set(Object.assign({}, rasc, { itemId: 'pX', avaliacaoArquiteturalId: 'pV', versaoMotor: null, revisao: 1 }));
