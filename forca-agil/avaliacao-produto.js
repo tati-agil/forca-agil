@@ -3320,7 +3320,7 @@
       /* Posicionamento Organizacional (O1–O9): outra avaliação, consultada pelos três perfis; só Avaliação + Configuração grava. */
       if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpPosicionamentoBtn">Posicionamento Organizacional</button>';
       /* Catálogo preparatório do Mapa da Floresta: só consulta, os três perfis (mapa-floresta.js). */
-      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpMapaFlorestaBtn">Jornada por objeto (Mapa da Floresta)</button>';
+      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpMapaFlorestaBtn">Jornada de Avaliação e Posicionamento</button>';
       if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
@@ -7542,7 +7542,7 @@
         html += '<button class="btn" id="avpPosicionarBtn">Posicionamento Organizacional deste item</button>';
       }
       /* PR 4: a jornada do item (etapas e próximo passo; também mostra se ele é referência de uma atuação da Porta 2) */
-      if (modo === 'operacional' && a.status === 'concluido' && a.excluido !== true) html += '<a class="btn" id="avpVerJornadaBtn" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId || a._key) + '">Ver a jornada deste item</a>';
+      if (modo === 'operacional' && a.status === 'concluido' && a.excluido !== true) html += '<a class="btn" id="avpVerJornadaBtn" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId || a._key) + '">Ver na Jornada de Avaliação e Posicionamento</a>';
       html += '</div>';
 
       html += '</div>';

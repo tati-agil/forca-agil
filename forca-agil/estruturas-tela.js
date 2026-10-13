@@ -724,7 +724,7 @@
       else if (st.vista === 'sg-encerrar') h = podeManter() ? formSgEncerrarHtml() : subagrupadorHtml();
       else h = listaHtml();
       /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
-      if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar para a jornada do objeto</a>' + h;
+      if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';
       bind();
       if (P()) P().atualizarDom && P().atualizarDom(wrap);

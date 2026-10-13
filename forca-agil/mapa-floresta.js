@@ -198,10 +198,12 @@
      cad = { habilitado, pronto, erro, tipos: { <código>: nº de estruturas ATIVAS }, vinculo: { situacao, estruturaId, estruturaNome } | null }
            (pronto false = o cadastro ainda não chegou: as etapas 4 e 5 ficam "carregando", nunca "não tem");
      ctx = { podeEscrever, podeManterEstruturas, liberaSquad(codigo), hrefs: { … } montados por quem chama }.
-     Estados das etapas: ok · atual (a próxima ação) · futuro · na (não se aplica) · revisao · analise (A validar: análise,
-     decisão fundamentada ou reavaliação — nunca "obrigação de decidir") · opcional · carregando.
+     Estados das etapas: ok (concluída) · atual (próxima ação efetivamente necessária) · disponivel (pode ser feita; sem
+     critério aprovado que a exija — o Posicionamento de um item P1–P16 que ainda não o iniciou) · opcional · futuro ·
+     na (não se aplica) · revisao · analise (A validar: pendência de governança — análise, decisão fundamentada ou
+     reavaliação, nunca "obrigação de decidir") · carregando.
      completa = Posicionamento com posicionamento efetivo firme E vínculo válido (as etapas aplicáveis concluídas). */
-  var ETAPA_ESTADOS = ['ok', 'atual', 'futuro', 'na', 'revisao', 'analise', 'opcional', 'carregando'];
+  var ETAPA_ESTADOS = ['ok', 'atual', 'futuro', 'na', 'revisao', 'analise', 'opcional', 'disponivel', 'carregando'];
   var TEXTO_A_VALIDAR = {
     CONFLITO: 'dois papéis na mesma responsabilidade: analise as respostas e registre uma decisão fundamentada ou reavalie.',
     RECORTE: 'o objeto parece reunir responsabilidades distintas: considere recortá-lo (reavaliar ou separar em outro objeto).',
@@ -217,7 +219,8 @@
       texto: x.situacao === 'sem-base' ? 'Sem avaliação válida e atual' : x.situacao === 'verificando' ? 'Verificando…' : 'Concluída' });
     var e1ok = et[0].estado === 'ok';
     et.push(pos ? { id: 'posicionamento', rotulo: 'Posicionamento O1–O9', estado: 'ok', texto: 'Concluído' }
-      : { id: 'posicionamento', rotulo: 'Posicionamento O1–O9', estado: e1ok && !encerrada ? 'atual' : 'futuro', texto: x.rascunhoId ? 'Rascunho em andamento' : 'Não iniciado' });
+      : { id: 'posicionamento', rotulo: 'Posicionamento O1–O9', estado: !e1ok || encerrada ? 'futuro' : porta2 || x.rascunhoId ? 'atual' : 'disponivel',
+        texto: x.rascunhoId ? 'Rascunho em andamento' : porta2 ? 'Não iniciado' : 'Disponível, se este item tiver uma responsabilidade organizacional própria' });
     if (!pos) et.push({ id: 'decisao', rotulo: 'Decisão final', estado: 'futuro', texto: '' });
     else if (pos.codigoDecisao) et.push({ id: 'decisao', rotulo: 'Decisão final', estado: 'ok', texto: 'Registrada' + (pos.codigoAutomatico !== pos.codigoDecisao ? ' (diverge da recomendação)' : '') });
     else if (ef) et.push({ id: 'decisao', rotulo: 'Decisão final', estado: 'opcional', texto: 'Opcional: a recomendação automática firme vale como posicionamento efetivo' });
@@ -244,6 +247,9 @@
     if (!encerrada) {
       var proxima = et.filter(function (e) { return e.estado === 'atual' || e.estado === 'analise' || e.estado === 'revisao'; })[0];
       if (completa) acao = { tipo: 'mapa', rotulo: 'Ver no Mapa', href: h.mapa || null, consulta: true };
+      else if (!proxima && et[1].estado === 'disponivel')
+        acao = ctx.podeEscrever ? { tipo: 'disponivel', rotulo: 'Iniciar o Posicionamento', href: h.posicionamento || null, opcional: true }
+          : { tipo: 'disponivel', rotulo: null, opcional: true, texto: 'Posicionamento disponível, se este item tiver uma responsabilidade organizacional própria (somente consulta no seu perfil).' };
       else if (proxima) {
         if (proxima.id === 'p1p16') acao = { tipo: 'p1p16', rotulo: 'Abrir a Avaliação de Produto/Serviço', href: h.p1p16 || null };
         else if (proxima.id === 'posicionamento') acao = { tipo: 'posicionamento', rotulo: x.rascunhoId ? 'Continuar o Posicionamento' : 'Iniciar o Posicionamento', href: h.posicionamento || null };
@@ -255,6 +261,7 @@
       }
     }
     return { etapas: et, acao: acao, completa: completa, analise: et.some(function (e) { return e.estado === 'analise'; }), encerrada: encerrada,
+      disponivel: !!(acao && acao.opcional),
       carregando: et.some(function (e) { return e.estado === 'carregando'; }) };
   }
 
@@ -307,7 +314,7 @@
        fictícios. As duas NUNCA se misturam: cada desenho usa uma só. Com o marcador de habilitação ausente, só existe 'demo'. */
     var fonte = cadastroDisponivel() || habilitacaoPendente() ? 'cadastro' : 'demo';
     /* PR 4: o objeto em foco no catálogo (&item=) e o objeto para onde o Mapa volta (&item=) — endereços estáveis (F5) */
-    var focoItem = null, voltaItem = null, focoRolado = false;
+    var focoItem = null, voltaItem = null, focoRolado = false, voltouParaLista = false;
     var cadastro = { estruturas: undefined, subagrupadores: undefined, associacoes: undefined, vinculos: undefined, relacoes: undefined, refs: undefined, erro: null, desligar: null };
 
     /* ---- painel e identidade da página (como o Posicionamento e a Squad) ---- */
@@ -321,7 +328,7 @@
       if (!meu && !identidadeOriginal) return;
       var t = !meu ? identidadeOriginal : modo === 'mapa'
         ? { eyebrow: 'Mapa da Floresta', h1: 'Mapa da Floresta', p: fonte === 'cadastro' ? 'As estruturas organizacionais concretas cadastradas: Linhas, Centros de Excelência e Áreas Especializadas.' : 'Demonstração com exemplos fictícios: as estruturas organizacionais e os produtos e serviços sob a responsabilidade de cada uma.' }
-        : { eyebrow: 'Mapa da Floresta', h1: 'Jornada por objeto', p: 'Cada objeto avaliado, o que já foi feito e o próximo passo até a estrutura responsável no Mapa da Floresta.' };
+        : { eyebrow: 'Mapa da Floresta', h1: 'Jornada de Avaliação e Posicionamento', p: 'Cada item de Produto/Serviço e cada atuação organizacional: o que já foi feito e o que ainda pode ser feito até a estrutura responsável no Mapa da Floresta.' };
       if (eyebrow) eyebrow.textContent = t.eyebrow;
       if (h1) h1.textContent = t.h1;
       if (p) p.textContent = t.p;
@@ -374,7 +381,9 @@
         cenarioDemo = DM && DM.CENARIOS && DM.CENARIOS.indexOf(end.cenario) !== -1 ? end.cenario : 'habitual';
         /* a demonstração é sempre escolha explícita: enquanto a habilitação não chegou, "Carregando…" (nunca a demonstração) */
         fonte = end.fonte === 'demo' || (!cadastroDisponivel() && !habilitacaoPendente()) ? 'demo' : 'cadastro';
+        var eraDetalhe = !!focoItem;
         focoItem = modo === 'catalogo' ? end.item : null; voltaItem = modo === 'mapa' ? end.item : null; focoRolado = false;
+        voltouParaLista = eraDetalhe && !focoItem && modo === 'catalogo';
         /* no cadastro a estrutura pode ainda estar chegando: a escolha fica, e o desenho confere quando os dados chegam */
         var D = dados();
         selecionada = modo === 'mapa' && end.e && (fonte === 'cadastro' || habilitacaoPendente() || (D && D.estado.estruturas[end.e])) ? end.e : null;
@@ -383,6 +392,7 @@
       if (modo === 'mapa') ligarNomes(); else ligar();
       render();
       sincronizarEndereco();
+      if (voltouParaLista) { voltouParaLista = false; restaurarPosicaoLista(); } /* Voltar do navegador: a lista na mesma posição */
       /* outros ouvintes do mesmo evento podem rodar depois deste: reafirma o painel no fim da fila */
       setTimeout(function () { if (mfDoEndereco() && !wrap.hidden) mostrarPainel(); }, 0);
     }
@@ -417,13 +427,14 @@
       if (ativo && ativo.id && wrap.contains(ativo) && /^(INPUT|SELECT)$/.test(ativo.tagName)) foco = { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd };
       var h = '<button type="button" class="avp-voltar-link" id="mfVoltar">← Voltar para Avaliações</button>';
       h += '<button type="button" class="btn btn--sm mf-ir-mapa" id="mfIrMapa">Ver o Mapa da Floresta</button>';
-      h += '<div class="avp-form-card mf-card" id="mfCatalogo">' +
+      h += '<div class="avp-form-card mf-card" id="mfCatalogo">' + (focoItem ? '' : '<details class="mf-sobre" id="mfSobre"><summary>Sobre esta tela</summary>') +
         '<p class="avp-intro">O Mapa da Floresta vai representar as estruturas organizacionais concretas de três categorias. Os produtos, serviços e demais objetos avaliados ' +
         'não viram nós do Mapa: aparecerão indiretamente, nos detalhes da estrutura responsável, quando essa associação for registrada. ' +
         'Este catálogo mostra, a partir das avaliações já gravadas, em que ponto cada objeto está. Nada aqui é gravado.</p>' +
         (habilitacaoPendente() ? '' : cadastroDisponivel() ? '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note">' + (emTestes() ? '<strong>Ambiente de testes.</strong> As estruturas e os vínculos de estrutura responsável vêm do Firebase Emulator — não são dados do banco oficial.' + (gravacaoAtiva() ? '' : ' <strong>Gravação suspensa:</strong> só consulta.')
           : 'As estruturas e os vínculos de estrutura responsável vêm do cadastro de Estruturas Organizacionais.' + (gravacaoAtiva() ? '' : ' <strong>Gravação suspensa:</strong> só consulta.')) + '</div>'
-          : '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>');
+          : '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>') +
+        (focoItem ? '' : '</details>');
       if (cadastroDisponivel() && podeLer()) ligarCadastro();
       if (!autorizacaoResolvida()) h += '<p class="loading-msg" role="status">Carregando…</p>';
       else if (!podeLer()) h += '<p class="avp-error-msg" id="mfSemAcesso">Este catálogo é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Configuração e administração geral). Seu acesso não inclui essa consulta.</p>';
@@ -435,7 +446,7 @@
           h += '<p class="loading-msg" id="mfCarregando" role="status">Carregando…</p>';
           if (state.demorando) h += '<div class="mf-erro" id="mfDemora"><p class="avp-error-msg">A leitura está demorando mais que o normal. A tela continua esperando.</p>' +
             '<button type="button" class="btn btn--sm" id="mfTentarDeNovo">Tentar de novo</button></div>';
-        } else h += renderCategorias(cat.itens) + renderCatalogo(cat.itens);
+        } else h += focoItem ? renderCatalogo(cat.itens) : renderCategorias(cat.itens) + renderCatalogo(cat.itens);
       }
       h += '</div>';
       wrap.innerHTML = h;
@@ -447,7 +458,7 @@
 
     function renderCategorias(itens) {
       var cs = cats(), linha = cs.filter(function (c) { return c.id === 'LINHA'; })[0];
-      if (state.categoriasAbertas === null) state.categoriasAbertas = !(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
+      if (state.categoriasAbertas === null) state.categoriasAbertas = false; /* recolhidas por padrão: a lista de objetos vem primeiro */
       var resumo = cs.map(function (c) { return spanNome(c.codigoNome) + (c.id === 'LINHA' ? ' (' + linha.codigos.length + ' tipos firmes)' : ''); }).join(' · ');
       var h = '<details class="mf-secao mf-categorias-bloco" id="mfCategoriasBloco"' + (state.categoriasAbertas ? ' open' : '') + '>' +
         '<summary class="mf-categorias-resumo"><span class="mf-categorias-titulo" id="mfCategoriasTitulo">Categorias organizacionais do Mapa</span>' +
@@ -471,6 +482,7 @@
       return h + '</details>';
     }
 
+    function restaurarPosicaoLista() { var y = state.posicaoLista || 0; try { window.scrollTo(0, y); } catch (e) { /* sem rolagem */ } }
     function rolarFoco() {
       if (!focoItem || focoRolado || modo !== 'catalogo') return;
       var el = wrap.querySelector('.mf-item[data-item="' + (window.CSS && CSS.escape ? CSS.escape(focoItem) : focoItem) + '"]');
@@ -481,24 +493,29 @@
     function renderCatalogo(itens) {
       var cs = cats(), f = state.filtros, cont = C.contarPorSituacao(itens);
       jornadasDe(itens);
-      var vis = C.filtrar(itens, f, cs).filter(function (x) { return !f.soAcao || temProximaAcao(x); });
-      /* o objeto em foco (&item=) precisa aparecer: se um filtro o esconderia, o filtro é limpo */
-      if (focoItem && !focoRolado && !vis.some(function (x) { return x.itemId === focoItem; }) && itens.some(function (x) { return x.itemId === focoItem; })) {
-        state.filtros = f = { situacao: '', posicionamento: '', busca: '', soAcao: false }; vis = itens.slice();
+      /* detalhe de UM objeto (&item=): a jornada completa dele, com o caminho de volta para a lista */
+      if (focoItem) {
+        var alvo = itens.filter(function (x) { return x.itemId === focoItem; })[0];
+        return '<section class="mf-secao mf-detalhe-objeto" aria-labelledby="mfCatalogoTitulo"><button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">← Voltar para a lista</button>' +
+          '<h4 id="mfCatalogoTitulo" class="mf-sr">Jornada do objeto</h4>' +
+          (alvo ? '<ul class="mf-itens" id="mfItens">' + renderItem(alvo) + '</ul>' : '<p class="admin-empty" id="mfObjetoNaoEncontrado">Objeto não encontrado no catálogo.</p>') + '</section>';
       }
-      var h = '<section class="mf-secao" aria-labelledby="mfCatalogoTitulo"><h4 id="mfCatalogoTitulo">Objetos e o próximo passo de cada um</h4>' + resumoJornadaHtml(itens);
+      var vis = C.filtrar(itens, f, cs).filter(function (x) { return !f.soAcao || temProximaAcao(x); });
+      var h = '<section class="mf-secao" aria-labelledby="mfCatalogoTitulo"><h4 id="mfCatalogoTitulo">Objetos</h4>';
       if (!itens.length) return h + '<p class="admin-empty" id="mfVazio">Nenhum objeto avaliado no catálogo: não há Avaliação de Produto/Serviço registrada fora da Lixeira.</p></section>';
-      h += '<div class="mf-filtros" id="mfFiltros">' +
+      var avancado = !!(f.situacao || f.posicionamento || f.soAcao);
+      h += '<div class="avp-field mf-busca"><label for="mfBusca">Buscar pelo nome</label><input type="search" id="mfBusca" value="' + esc(f.busca) + '" autocomplete="off" placeholder="Digite parte do nome"></div>' +
+        '<details class="mf-filtros-avancados" id="mfFiltrosAvancados"' + (avancado || state.filtrosAbertos ? ' open' : '') + '><summary>Filtros e contadores</summary>' + resumoJornadaHtml(itens) +
+        '<div class="mf-filtros" id="mfFiltros">' +
         '<div class="avp-field"><label for="mfFiltroSituacao">Situação</label><select id="mfFiltroSituacao"><option value="">Todas (' + itens.length + ')</option>' +
         C.SITUACOES.concat(cont.verificando ? ['verificando'] : []).map(function (s) { return '<option value="' + s + '"' + (f.situacao === s ? ' selected' : '') + '>' + esc(C.ROTULO_CURTO[s]) + ' (' + (cont[s] || 0) + ')</option>'; }).join('') + '</select></div>' +
-        '<div class="avp-field"><label for="mfBusca">Buscar pelo nome</label><input type="search" id="mfBusca" value="' + esc(f.busca) + '" autocomplete="off"></div>' +
         renderFiltroPosicionamento(cs, f) +
-        '<button type="button" class="btn btn--sm mf-so-acao' + (f.soAcao ? ' mf-so-acao--ativo' : '') + '" id="mfSoAcao" aria-pressed="' + !!f.soAcao + '">Só os que têm próxima ação</button></div>';
+        '<button type="button" class="btn btn--sm mf-so-acao' + (f.soAcao ? ' mf-so-acao--ativo' : '') + '" id="mfSoAcao" aria-pressed="' + !!f.soAcao + '">Só os que têm próxima ação</button></div></details>';
       var recortado = !!(f.situacao || f.posicionamento || String(f.busca || '').trim() || f.soAcao);
       h += '<div class="mf-contador-linha"><span class="avp-total" id="mfContador" aria-live="polite">' + (recortado ? vis.length + ' de ' + itens.length : itens.length) + ' objeto' + (itens.length === 1 ? '' : 's') + '</span>' +
         (recortado ? ' <button type="button" class="btn btn--sm" id="mfLimparFiltros">Limpar filtros</button>' : '') + '</div>';
       if (!vis.length) return h + '<p class="admin-empty" id="mfNenhumFiltro">Nenhum objeto com esses filtros.</p></section>';
-      h += '<ul class="mf-itens" id="mfItens">' + vis.map(renderItem).join('') + '</ul>';
+      h += '<ul class="mf-itens mf-lista-simples" id="mfItens">' + vis.map(renderLinha).join('') + '</ul>';
       return h + '</section>';
     }
 
@@ -571,19 +588,19 @@
       /* P1–P16 referenciado por uma atuação ativa: representado por ela (a jornada que vale é a da atuação) */
       itens.forEach(function (x) { if (x.objetoReferente && jornadas[x.objetoReferente.id] && !x.posicionamento) jornadas[x.itemId] = { representadoPor: x.objetoReferente, jornadaDela: jornadas[x.objetoReferente.id] }; });
     }
-    function temProximaAcao(x) { var j = jornadas[x.itemId]; return !!(j && !j.representadoPor && !j.completa && !j.encerrada && !j.carregando && j.acao && j.acao.tipo !== 'mapa'); }
+    function temProximaAcao(x) { var j = jornadas[x.itemId]; return !!(j && !j.representadoPor && !j.completa && !j.encerrada && !j.carregando && j.acao && j.acao.tipo !== 'mapa' && !j.acao.opcional); }
     function resumoJornadaHtml(itens) {
-      var n = { completa: 0, acao: 0, analise: 0, encerrada: 0 }, carregando = false;
+      var n = { completa: 0, acao: 0, analise: 0, encerrada: 0, disponivel: 0 }, carregando = false;
       itens.forEach(function (x) {
         var j = jornadas[x.itemId]; if (!j || j.representadoPor) return;
         if (j.carregando) carregando = true;
-        if (j.encerrada) n.encerrada++; else if (j.completa) n.completa++; else if (j.analise) n.analise++; else if (temProximaAcao(x)) n.acao++;
+        if (j.encerrada) n.encerrada++; else if (j.completa) n.completa++; else if (j.analise) n.analise++; else if (temProximaAcao(x)) n.acao++; else if (j.disponivel) n.disponivel++;
       });
       if (carregando) return '<p class="mf-resumo loading-msg" id="mfResumo" role="status">Carregando a situação das estruturas…</p>';
       return '<p class="mf-resumo" id="mfResumo">Jornada completa: <strong>' + n.completa + '</strong> · Com próxima ação: <strong>' + n.acao + '</strong> · Em análise (A validar): <strong>' + n.analise +
-        '</strong> · Encerradas: <strong>' + n.encerrada + '</strong></p>';
+        '</strong> · Posicionamento disponível: <strong>' + n.disponivel + '</strong> · Encerradas: <strong>' + n.encerrada + '</strong></p>';
     }
-    var SIMBOLO_ETAPA = { ok: '✓', atual: '●', futuro: '○', na: '—', revisao: '⚠', analise: '⚖', opcional: '◇', carregando: '…' };
+    var SIMBOLO_ETAPA = { ok: '✓', atual: '●', futuro: '○', na: '—', revisao: '⚠', analise: '⚖', opcional: '◇', disponivel: '◇', carregando: '…' };
     function trilhaHtml(j, idTrilha) {
       return '<ol class="mf-trilha"' + (idTrilha ? ' id="' + idTrilha + '"' : '') + '>' + j.etapas.map(function (e) {
         return '<li class="mf-etapa mf-etapa--' + esc(e.estado) + '" data-etapa="' + esc(e.id) + '" data-estado="' + esc(e.estado) + '"><span class="mf-etapa-simbolo" aria-hidden="true">' + SIMBOLO_ETAPA[e.estado] + '</span>' +
@@ -596,7 +613,8 @@
       var a = j.acao;
       if (j.completa) return '<div class="mf-proxima mf-proxima--completa"><span class="mf-completa">✓ Jornada completa</span>' + (a && a.href ? ' <a class="btn btn--sm mf-acao" href="' + esc(a.href) + '">' + esc(a.rotulo) + '</a>' : '') + '</div>';
       if (!a) return '';
-      if (!a.rotulo) return '<p class="mf-proxima">' + esc(a.texto) + '</p>';
+      if (!a.rotulo) return '<p class="mf-proxima' + (a.opcional ? ' mf-proxima--disponivel' : '') + '">' + esc(a.texto) + '</p>';
+      if (a.opcional) return '<div class="mf-proxima mf-proxima--disponivel"><span class="mf-proxima-rotulo">Disponível (opcional)</span> <a class="btn btn--sm mf-acao" data-acao="' + esc(a.tipo) + '" href="' + esc(a.href || '#avaliacoes') + '">' + esc(a.rotulo) + '</a></div>';
       return '<div class="mf-proxima"><span class="mf-proxima-rotulo">Próximo passo</span> <a class="btn btn--primary btn--sm mf-acao" data-acao="' + esc(a.tipo) + '" href="' + esc(a.href || '#avaliacoes') + '">' + esc(a.rotulo) + ' →</a></div>';
     }
     var ROTULO_RESULTADO_P1 = { produto: 'Produto/Serviço principal', 'nao-produto': 'Não é Produto/Serviço principal', 'a-validar': 'A validar' };
@@ -612,9 +630,30 @@
       }
       return '<div class="mf-jornada">' + trilhaHtml(j) + acaoHtml(j) + '</div>';
     }
+    function situacaoCurta(x) {
+      var j = jornadas[x.itemId];
+      if (!j) return C.ROTULO_CURTO[x.situacao] || '';
+      if (j.representadoPor) return 'Representado pela atuação “' + j.representadoPor.nome + '”';
+      if (j.encerrada) return 'Encerrada';
+      if (j.carregando) return 'Carregando…';
+      if (j.completa) return '✓ Jornada completa';
+      if (j.analise) return 'Em análise (A validar)';
+      if (j.disponivel) return 'Posicionamento disponível (opcional)';
+      if (j.acao && j.acao.rotulo) return 'Próximo passo: ' + j.acao.rotulo;
+      var prox = j.etapas.filter(function (e) { return e.estado === 'atual'; })[0];
+      return prox ? 'Próximo passo: ' + prox.rotulo : (C.ROTULO_CURTO[x.situacao] || '');
+    }
+    function renderLinha(x) {
+      var j = jornadas[x.itemId], tipo = x.origem === ORIGEM_PORTA2 ? 'Atuação organizacional' : 'Produto/Serviço';
+      return '<li class="mf-item mf-linha" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '"' + (j && j.representadoPor ? ' data-representado="1"' : '') + '>' +
+        '<a class="mf-linha-abrir" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(x.itemId) + '"><span class="mf-linha-texto"><span class="mf-linha-nome">' + esc(x.nome) + '</span>' +
+        '<span class="mf-linha-tipo">' + tipo + (x.objeto && x.objeto.situacao === 'encerrado' ? ' · encerrada' : '') + '</span>' +
+        '<span class="mf-linha-situacao" data-jornada="' + esc(j ? (j.representadoPor ? 'representado' : j.completa ? 'completa' : j.analise ? 'analise' : j.encerrada ? 'encerrada' : j.disponivel ? 'disponivel' : 'proximo') : '') + '">' + esc(situacaoCurta(x)) + '</span></span>' +
+        '<span class="mf-linha-abre" aria-hidden="true">›</span></a></li>';
+    }
     function renderItem(x) {
       var N = window.faAvaliacaoPosicionamentoNucleo, jx = jornadas[x.itemId], repr = !!(jx && jx.representadoPor);
-      var h = '<li class="mf-item' + (focoItem === x.itemId ? ' mf-item--foco' : '') + '" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '"' + (repr ? ' data-representado="1"' : '') + '>' +
+      var h = '<li class="mf-item mf-item--detalhe" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '"' + (repr ? ' data-representado="1"' : '') + '>' +
         '<div class="mf-item-topo"><span class="mf-item-nome">' + esc(x.nome) + '</span>' +
         (x.origem === ORIGEM_PORTA2 ? '<span class="avp-badge mf-badge-porta2">Atuação organizacional</span>' : '') +
         (x.objeto && x.objeto.situacao === 'encerrado' ? '<span class="avp-badge mf-badge-encerrado">Encerrada</span>' : '') +
@@ -686,6 +725,9 @@
       });
       var blocoPosic = byId('mfFiltroPosicionamentoBloco'); if (blocoPosic) blocoPosic.addEventListener('toggle', function () { state.posicionamentoAberto = blocoPosic.open; });
       var b = byId('mfBusca'); if (b) b.addEventListener('input', function () { state.filtros.busca = b.value; render(); });
+      var vlt = byId('mfVoltarLista'); if (vlt) vlt.addEventListener('click', function () { focoItem = null; render(); sincronizarEndereco(); restaurarPosicaoLista(); });
+      Array.prototype.forEach.call(wrap.querySelectorAll('.mf-linha-abrir'), function (a) { a.addEventListener('click', function () { state.posicaoLista = window.scrollY || 0; }); });
+      var fav = byId('mfFiltrosAvancados'); if (fav) fav.addEventListener('toggle', function () { state.filtrosAbertos = fav.open; });
       var sa = byId('mfSoAcao'); if (sa) sa.addEventListener('click', function () { state.filtros.soAcao = !state.filtros.soAcao; render(); });
       var l = byId('mfLimparFiltros'); if (l) l.addEventListener('click', function () { state.filtros = { situacao: '', posicionamento: '', busca: '', soAcao: false }; render(); var s = byId('mfFiltroSituacao'); if (s) s.focus(); });
       var bloco = byId('mfCategoriasBloco'); if (bloco) bloco.addEventListener('toggle', function () { state.categoriasAbertas = bloco.open; });
@@ -899,7 +941,7 @@
       var h = '<aside class="mfm-detalhe" id="mfmDetalhe" style="--cor:' + (b ? b.cor : '#555') + '" aria-labelledby="mfmDetalheTitulo">' +
         '<button type="button" class="mfm-fechar" id="mfmFechar">← Voltar ao Mapa</button>' +
         '<p class="mfm-caminho">' + (b ? icone(b.icone, 'mfm-caminho-ic') : '') + esc(b ? b.titulo : '') + (b && b.subagrupado ? ' › ' + esc(subCad ? subCad.nome : 'Sem subagrupador') : linha && b.porCodigo ? ' › ' + spanNome(e.tipo) : '') + '</p>' +
-        (voltaItem ? '<a class="mfm-acao" id="mfmDetalheVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaItem) + '">← Voltar para a jornada do objeto</a>' : '') + '<h3 id="mfmDetalheTitulo" tabindex="-1">' + esc(e.nome) + '</h3>' +
+        (voltaItem ? '<a class="mfm-acao" id="mfmDetalheVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaItem) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' : '') + '<h3 id="mfmDetalheTitulo" tabindex="-1">' + esc(e.nome) + '</h3>' +
         '<span class="mfm-badge-cadastrada">Estrutura cadastrada</span>' +
         '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
@@ -926,8 +968,8 @@
       var h = '<div class="mfm-painel"><div class="mfm-cabecalho"><div class="mfm-cabecalho-texto"><h2 class="mfm-titulo">Mapa da Floresta</h2>' +
         '<p class="mfm-subtitulo">' + (fonte === 'cadastro' ? 'Visão organizacional · estruturas cadastradas' : 'Visão organizacional · demonstração com exemplos fictícios') + '</p></div>' +
         '<div class="mfm-acoes"><button type="button" class="mfm-acao" id="mfVoltar">← Voltar para Avaliações</button>' +
-        (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaItem) + '">← Voltar para a jornada do objeto</a>' : '') +
-        (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver a jornada por objeto</button>' : '') + '</div></div>';
+        (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaItem) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' : '') +
+        (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver a Jornada de Avaliação e Posicionamento</button>' : '') + '</div></div>';
       if (cadastroDisponivel() && autorizacaoResolvida() && podeLer()) h += '<div class="mfm-cenarios mfm-fontes" role="group" aria-label="Dados do Mapa"><span class="mfm-cenarios-rotulo">Dados:</span>' +
         [['cadastro', 'Estruturas cadastradas'], ['demo', 'Demonstração (fictícia)']].map(function (o) {
           return '<button type="button" class="mfm-cenario mfm-fonte' + (fonte === o[0] ? ' mfm-cenario--ativo' : '') + '" data-fonte="' + o[0] + '" aria-pressed="' + (fonte === o[0]) + '">' + o[1] + '</button>';

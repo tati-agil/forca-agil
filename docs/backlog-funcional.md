@@ -6,8 +6,8 @@ existem ficam em [backlog-testes.md](backlog-testes.md).
 
 ## 1. Jornada Guiada do Mapa da Floresta — entregue na PR 4
 
-*Registrada em 2026-10-13; proposta aprovada e implementada na PR 4 ("Jornada por objeto", sobre o Catálogo do Mapa
-da Floresta — ver `docs/referencia-tecnica.md`). Mantida aqui como registro do requisito.*
+*Registrada em 2026-10-13; proposta aprovada e implementada na PR 4 e no ajuste de usabilidade seguinte ("Jornada de Avaliação e Posicionamento", sobre o
+Catálogo do Mapa da Floresta — ver `docs/referencia-tecnica.md`). Mantida aqui como registro do requisito.*
 
 **Problema (homologação):** mesmo conhecendo o sistema, a responsável se perdeu entre a Avaliação de
 Produto/Serviço (P1–P16), o Posicionamento Organizacional (O1–O9), o cadastro de estruturas concretas, o vínculo da
