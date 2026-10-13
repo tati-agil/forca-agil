@@ -166,7 +166,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(await page.locator('.mf-item[data-item="oJur"] .mf-abrir-avp').count() === 0 && await page.locator('.mf-item[data-item="oJur"] .mf-abrir-po').count() === 1, 'sem link para Avaliação de Produto/Serviço; com link para o Posicionamento');
   afirma(/Encerrada/.test(await item('oEnc')) && /em andamento/.test(await item('oEnc')), 'atuação encerrada continua listada, marcada, com o rascunho em andamento');
   afirma(await page.locator('.mf-item[data-item="oAgi"]').getAttribute('data-situacao') === 'sem-posicionamento' && /em andamento/.test(await item('oAgi')), 'atuação com rascunho: sem Posicionamento, em andamento (nada de P1–P16)');
-  afirma(/referência informativa da atuação “Assessoramento jurídico”/.test(await item('pJur')), 'o item P1–P16 referenciado mostra a referência');
+  afirma(/Representado pela atuação “Assessoramento jurídico”/.test(await item('pJur')), 'o item P1–P16 referenciado mostra a referência (PR 4: representado pela atuação)');
   afirma(!/Atuação organizacional/.test(await item('pCapec')) && await page.locator('.mf-item[data-item="pCapec"] .mf-abrir-avp').count() === 1, 'a Porta 1 (Capec) continua igual');
   afirma(await larguraOk(page), 'catálogo sem rolagem lateral');
   afirma(erros.length === 0, 'nenhum erro de página', erros.join(' | '));

@@ -194,10 +194,22 @@
     function idDoEndereco() { var m = /^#admin\?arq=estruturas(?:&e=([^&]*))?/.exec(location.hash || ''); return m ? (m[1] ? decodeURIComponent(m[1]) : '') : null; }
     function sgDoEndereco() { if (!/^#admin\?arq=estruturas/.test(location.hash || '')) return null; var m = /[?&]sg=([^&]*)/.exec(location.hash || ''); return m ? decodeURIComponent(m[1]) : null; }
     var VISTAS_SG = { subagrupadores: 1, subagrupador: 1, 'sg-novo': 1, 'sg-renomear': 1, 'sg-encerrar': 1 };
+    /* PR 4 (jornada guiada): &nova=<TIPO> abre o cadastro com o tipo já escolhido — a pessoa confere e confirma, nada é
+       criado sozinho — e &objeto=<item> mostra o caminho de volta para a jornada daquele objeto (endereço estável: F5) */
+    function paramDoEndereco(nome) { var h = location.hash || ''; if (!/^#admin\?arq=estruturas/.test(h)) return null; var m = new RegExp('[?&]' + nome + '=([^&]*)').exec(h); return m ? decodeURIComponent(m[1]) : null; }
+    var voltaObjeto = null, novaTipo = null;
+    function sufixoJornada() { return (st.vista === 'nova' && novaTipo ? '&nova=' + encodeURIComponent(novaTipo) : '') + (voltaObjeto ? '&objeto=' + encodeURIComponent(voltaObjeto) : ''); }
+    function abrirNovaDoEndereco() {
+      novaTipo = paramDoEndereco('nova');
+      if (!novaTipo) return false;
+      irPara('nova');
+      if (MOT().CODIGOS_FIRMES.indexOf(novaTipo) !== -1) st.form.tipo = novaTipo;
+      return true;
+    }
     function sincronizar() {
       if (wrap.hidden) return;
       var alvo = VISTAS_SG[st.vista] ? RAIZ_ROTA + '&sg=' + (st.vista === 'subagrupadores' || st.vista === 'sg-novo' || !st.id ? 'lista' : encodeURIComponent(st.id))
-        : RAIZ_ROTA + (st.id && st.vista !== 'lista' && st.vista !== 'nova' ? '&e=' + encodeURIComponent(st.id) : '');
+        : RAIZ_ROTA + (st.id && st.vista !== 'lista' && st.vista !== 'nova' ? '&e=' + encodeURIComponent(st.id) : '') + sufixoJornada();
       if (location.hash !== alvo && /^#admin\?arq=estruturas/.test(location.hash || '')) history.replaceState(history.state, '', alvo);
     }
     window.addEventListener('hashchange', function () {
@@ -205,6 +217,7 @@
       var sg = sgDoEndereco();
       if (sg !== null) { if (st.sujo) return; if (sg === 'lista' && st.vista !== 'subagrupadores') irPara('subagrupadores'); else if (sg !== 'lista' && (st.vista !== 'subagrupador' || st.id !== sg)) irPara('subagrupador', sg); return; }
       var id = idDoEndereco(); if (id === null) return;
+      if (paramDoEndereco('nova') && st.vista !== 'nova' && !st.sujo) { voltaObjeto = paramDoEndereco('objeto'); abrirNovaDoEndereco(); render(); return; }
       if (id && id !== st.id) { if (st.sujo) return; irPara('detalhe', id); } else if (!id && st.vista !== 'lista' && st.vista !== 'nova' && !st.sujo) irPara('lista');
     });
 
@@ -711,6 +724,7 @@
       else if (st.vista === 'sg-encerrar') h = podeManter() ? formSgEncerrarHtml() : subagrupadorHtml();
       else h = listaHtml();
       /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
+      if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar para a jornada do objeto</a>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';
       bind();
       if (P()) P().atualizarDom && P().atualizarDom(wrap);
@@ -810,6 +824,9 @@
       vizinhos(true); wrap.hidden = false;
       ligar();
       var id = idDoEndereco(), sg = sgDoEndereco();
+      voltaObjeto = paramDoEndereco('objeto');
+      if (!sg && !id && abrirNovaDoEndereco()) { render(); sincronizar(); return; }
+      novaTipo = null;
       st.vista = sg ? (sg === 'lista' ? 'subagrupadores' : 'subagrupador') : id ? 'detalhe' : 'lista'; st.id = sg && sg !== 'lista' ? sg : id || null;
       st.form = null; st.erros = []; st.flash = null; st.sujo = false; st.assoc = st.vista === 'detalhe' ? { subagrupadorId: '', justificativa: '' } : null;
       render(); sincronizar();

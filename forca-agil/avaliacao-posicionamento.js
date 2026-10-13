@@ -658,6 +658,7 @@
       var desejado = enderecoDesejado();
       if (!desejado || location.hash === desejado) return;
       if ((location.hash || '').split('?')[0] !== '#avaliacoes') return;
+      if ((location.hash || '').indexOf(desejado + '&bloco=') === 0) { history.replaceState(history.state, '', desejado); return; }
       var st = history.state;
       if (st && st.poAnterior === desejado) { history.back(); return; }
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
@@ -676,6 +677,7 @@
     }
     function aplicarEndereco(po, item) {
       if (!po) return;
+      irParaBloco = /[?&]bloco=responsavel(&|$)/.test(location.hash || '') ? 'responsavel' : null;
       aplicando = true;
       try {
         mostrarPainel();
@@ -766,9 +768,10 @@
       else if (state.tela === 'descartado') h = renderDescartado();
       else if (state.tela === 'carregando') h = '<p class="loading-msg">Carregando…</p>';
       else if (state.tela === 'nao-encontrada') h = '<p class="admin-empty" id="poNaoEncontrada">Avaliação de posicionamento não encontrada.</p>' + rodapeVoltar();
-      wrap.innerHTML = '<button type="button" class="avp-voltar-link" id="poVoltar">← Voltar para Avaliações</button>' + avisoNaoConfirmada() + h;
+      wrap.innerHTML = '<button type="button" class="avp-voltar-link" id="poVoltar">← Voltar para Avaliações</button>' + jornadaFichaHtml() + avisoNaoConfirmada() + h;
       bind();
       if (P()) P().atualizarDom(wrap);
+      rolarParaBloco();
       if (foco) { var el = byId(foco.id); if (el && !el.disabled) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) { /* select e search sem seleção */ } } }
       sincronizarEndereco();
     }
@@ -1282,6 +1285,35 @@
           render(); aviso('Não foi possível iniciar o Posicionamento desta atuação. Confira se ela continua ativa e tente de novo.');
         }).catch(function () { render(); aviso('Não foi possível iniciar o Posicionamento desta atuação. Tente novamente.'); });
       });
+    }
+    /* ---- PR 4: jornada guiada — onde o objeto está e o caminho de volta (endereço estável, sem depender da sessão) ---- */
+    function jornadaFichaHtml() {
+      var a = state.atual;
+      if (!a || !state.chave || ['checklist', 'resultado', 'descartado'].indexOf(state.tela) === -1) return '';
+      var porta2 = ehPorta2(a), ra = a.resultadoAutomatico, dec = state.decisoes[state.chave], sit = state.carregou.vig ? situacaoDe(state.chave, a) : null;
+      var firme = ra && ra.codigoResultado && ra.codigoResultado !== 'A_VALIDAR';
+      var et = [
+        porta2 ? ['Atuação cadastrada', 'ok', ''] : ['Avaliação P1–P16', 'ok', ''],
+        a.status === 'concluido' ? ['Posicionamento O1–O9', 'ok', 'Concluído'] : a.status === 'descartado' ? ['Posicionamento O1–O9', 'na', 'Descartado'] : ['Posicionamento O1–O9', 'atual', 'Em andamento'],
+        a.status !== 'concluido' ? ['Decisão final', 'futuro', ''] : !state.carregou.dec ? ['Decisão final', 'carregando', 'Carregando…'] : dec ? ['Decisão final', 'ok', 'Registrada']
+          : firme ? ['Decisão final', 'opcional', 'Opcional: a recomendação firme vale'] : ['Decisão final', 'analise', 'A validar: requer análise']
+      ];
+      if (a.status === 'concluido' && sit === 'vigente') et.push(['Estrutura e vínculo', 'futuro', 'Veja "Estrutura responsável" abaixo']);
+      var sim = { ok: '✓', atual: '●', futuro: '○', na: '—', analise: '⚖', opcional: '◇', carregando: '…' };
+      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada deste objeto"><a class="po-jornada-voltar" id="poVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Jornada deste objeto</a>' +
+        '<ol class="mf-trilha mf-trilha--compacta">' + et.map(function (e) {
+          return '<li class="mf-etapa mf-etapa--' + e[1] + '" data-estado="' + e[1] + '"><span class="mf-etapa-simbolo" aria-hidden="true">' + sim[e[1]] + '</span><span class="mf-etapa-texto"><span class="mf-etapa-rotulo">' + esc(e[0]) + '</span>' +
+            (e[2] ? '<span class="mf-etapa-detalhe">' + esc(e[2]) + '</span>' : '') + '</span></li>';
+        }).join('') + '</ol></nav>';
+    }
+    /* &bloco=responsavel (vindo da jornada): leva ao bloco da estrutura responsável, uma vez */
+    var irParaBloco = null;
+    function rolarParaBloco() {
+      if (!irParaBloco || state.tela !== 'resultado') return;
+      var el = byId('poBlocoResponsavel');
+      if (!el) return;
+      irParaBloco = null;
+      try { el.scrollIntoView({ block: 'start' }); } catch (e) { el.scrollIntoView(); }
     }
     function renderResultado() {
       var a = state.atual, key = state.chave, ra = resultadoLido(a.resultadoAutomatico), sit = situacaoDe(key, a);

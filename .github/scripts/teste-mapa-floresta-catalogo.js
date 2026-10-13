@@ -161,9 +161,9 @@ async function principal(browser, viewport, rotulo) {
   await page.click('#avpMapaFlorestaBtn');
   await page.waitForSelector('#mfItens');
   afirma(await page.evaluate(() => location.hash) === '#avaliacoes?mf=catalogo', 'endereço próprio #avaliacoes?mf=catalogo');
-  afirma(/Catálogo preparatório do Mapa da Floresta/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'título "Catálogo preparatório do Mapa da Floresta" (não o Mapa visual)');
+  afirma(/Jornada por objeto/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'título "Jornada por objeto" (PR 4; não o Mapa visual)');
   afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de Avaliações fica por baixo, escondida');
-  afirma((await page.evaluate(() => (document.body.innerText.match(/Catálogo preparatório do Mapa da Floresta/g) || []).length)) === 1, 'o título aparece uma vez só (sem repetir no cartão)');
+  afirma((await page.evaluate(() => (document.body.innerText.match(/Jornada por objeto/g) || []).length)) === 1, 'o título aparece uma vez só (sem repetir no cartão)');
 
   /* 0. categorias recolhíveis: recolhidas no celular, abertas na tela larga; o resumo mostra tipos, nunca contagem de estruturas */
   const celular = viewport === CELULAR;
@@ -260,7 +260,7 @@ async function principal(browser, viewport, rotulo) {
   afirma(await page.locator('#avaliacoesMapa').isHidden() && /[?&]po=gDiv/.test(await page.evaluate(() => location.hash)), '"Abrir Posicionamento" abre a ficha da avaliação vigente');
   await page.goBack();
   await page.waitForSelector('#mfItens');
-  afirma(await page.locator('#avaliacoesPosicionamento').isHidden() && /Catálogo preparatório/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'Voltar do navegador volta ao catálogo');
+  afirma(await page.locator('#avaliacoesPosicionamento').isHidden() && /Jornada por objeto/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'Voltar do navegador volta ao catálogo');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#mfItens');
   afirma((await itensVisiveis(page)).length === 10, 'F5 em #avaliacoes?mf=catalogo reabre o catálogo');
@@ -335,7 +335,7 @@ async function perfis(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 7. perfis');
   let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', AVA);
   await page.waitForSelector('#mfItens');
-  afirma((await itensVisiveis(page)).length === 10 && await page.locator('#avaliacoesMapa button:not(.avp-voltar-link):not(.mf-filtrar-categoria):not(#mfLimparFiltros):not(#mfIrMapa)').count() === 0,
+  afirma((await itensVisiveis(page)).length === 10 && await page.locator('#avaliacoesMapa button:not(.avp-voltar-link):not(.mf-filtrar-categoria):not(#mfLimparFiltros):not(#mfIrMapa):not(#mfSoAcao)').count() === 0,
     'perfil "Avaliação": consulta o catálogo, sem nenhuma ação de gravação');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
