@@ -15,7 +15,12 @@ const U = require('../../forca-agil/estruturas-casos-de-uso.js');
   const r = await R.executar({ rotulo: 'referência em memória', criarPortas: (referencias) => U.persistenciaEmMemoria(N, { referencias }) });
   /* Etapa 5: o conjunto dos subagrupadores, com as Linhas do estado inicial de cada cenário */
   const r2 = await R.executar({ arquivo: R.ARQUIVO_SUBAGRUPADORES, rotulo: 'referência em memória', criarPortas: (referencias, estado) => U.persistenciaEmMemoria(N, { referencias, estado }) });
-  let falhas = r.falhas + r2.falhas;
+  /* M3 do Mapa: o conjunto dos vínculos item × estrutura responsável, com o Posicionamento vigente de cada item */
+  const r3 = await R.executar({ arquivo: R.ARQUIVO_VINCULOS, rotulo: 'referência em memória', criarPortas: (referencias, estado) => {
+    const e = Object.assign({}, estado), posicionamentos = e.posicionamentos; delete e.posicionamentos;
+    return U.persistenciaEmMemoria(N, { referencias, estado: e, posicionamentos });
+  } });
+  let falhas = r.falhas + r2.falhas + r3.falhas;
   /* guarda estática: o caso de uso não decide nada que seja do núcleo */
   const fonte = fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'estruturas-casos-de-uso.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   const proibidos = ['MAX', 'TIPO_IMUTAVEL', 'MOTIVO_OBRIGATORIO', 'CAMPO_OBRIGATORIO', 'TIPO_NAO_ADMITIDO', 'firebase', 'require(', 'Date.now', 'new Date', 'Math.random'];

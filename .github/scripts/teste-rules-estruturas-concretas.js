@@ -8,7 +8,9 @@
  *   C. gravações diretas inválidas recusadas: partes sozinhas, evento adulterado, autoria e horário do cliente, tipo
  *      fora dos 8 firmes / sem ligação / conceito inativo, campos inválidos, imutáveis, revisão, nada a alterar,
  *      reativação, apagar ou editar estrutura, evento ou operação, repetir operação;
- *   D. concorrência: duas gravações a partir da mesma revisão → só uma entra; mesma operação em paralelo → uma vez. */
+ *   D. concorrência: duas gravações a partir da mesma revisão → só uma entra; mesma operação em paralelo → uma vez;
+ *   E. M3 do Mapa — vínculo item × estrutura responsável (nó estruturas-vinculos): o conjunto vinculos-responsavel v1
+ *      pelo adaptador, autorização e trava, gravações diretas inválidas (V1–V5 conferidos no banco) e concorrência. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -274,6 +276,161 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
   const rep = await pa.gravar(m1.op).then((x) => x.situacao, (e) => e.codigo);
   afirma(rep === 'repetida', 'o adaptador reconhece a operação já aplicada como "repetida"', rep);
   await conferirIntegridade('depois das gravações diretas e da concorrência');
+
+  /* ===== E. M3 do Mapa: vínculo item × estrutura responsável principal (nó estruturas-vinculos) ===== */
+  console.log('\nE. vínculos item × estrutura responsável (M3) — conjunto vinculos-responsavel v1, autorização, adulterações e concorrência');
+  const EV = 'estruturas-vinculos';
+  const semNulos = (v) => (Array.isArray(v) ? v.map(semNulos) : v && typeof v === 'object' ? Object.keys(v).reduce((o, kk) => { if (v[kk] !== null && v[kk] !== undefined) o[kk] = semNulos(v[kk]); return o; }, {}) : v);
+  /* perfis, ligações, estruturas e o Posicionamento VIGENTE e concluído de cada item, como as telas os gravam */
+  async function semearVinculos(ref, ini) {
+    await semear(ref);
+    const e = ini || {}, m = {};
+    Object.keys(e.estruturas || {}).forEach((id) => { m[EC + '/registros/' + id] = semNulos(e.estruturas[id]); });
+    Object.keys(e.posicionamentos || {}).forEach((item) => {
+      const p = e.posicionamentos[item];
+      m['posicionamento-vigente-por-item/' + item] = p.avaliacaoId;
+      m['avaliacoes-posicionamento/' + p.avaliacaoId] = { status: 'concluido', itemId: item, resultadoAutomatico: { codigoResultado: p.recomendacao.codigoResultado } };
+      if (p.decisao) m['posicionamento-decisoes/' + p.avaliacaoId] = { codigoFinal: p.decisao.codigoFinal };
+    });
+    if (Object.keys(m).length) await semRegras((db) => db.ref().update(m));
+  }
+  /* integridade: vínculo = "depois" do seu último evento; mesmo horário em evento e operação; índice = vínculos ativos */
+  async function integridadeVinculos(rotulo) {
+    const v = (await bruto(EV)) || {}, regs = v.registros || {}, evs = v.eventos || {}, ops = v.operacoes || {};
+    let ok = true, det = '';
+    Object.values(evs).forEach((ev) => {
+      const op = ops[ev.operacaoId];
+      if (!op || op.em !== ev.em || op.objetoId !== ev.depois.objetoId) { ok = false; det = 'operação ≠ evento ' + ev.id; }
+      if ('antes' in ev) { ok = false; det = '"antes" gravado ' + ev.id; }
+    });
+    Object.keys(regs).forEach((id) => {
+      const r = clone(regs[id]), ev = evs[r.ultimoEvento];
+      delete r.ultimaOperacao; delete r.ultimoEvento;
+      if (!ev || JSON.stringify(ord(r)) !== JSON.stringify(ord(ev.depois))) { ok = false; det = 'vínculo ≠ último evento ' + id; }
+    });
+    const idx = v['ativo-por-objeto'] || {}, ativos = Object.values(regs).filter((x) => x.situacao === 'ativa');
+    if (Object.keys(idx).length !== ativos.length || ativos.some((x) => idx[x.objetoId] !== x.id)) { ok = false; det = 'índice ≠ vínculos ativos'; }
+    afirma(ok, rotulo + ': no banco, vínculo = depois do seu último evento, mesmo horário em evento e operação, índice = vínculos ativos', det);
+  }
+  const ord = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = ord(x[kk]); return o; }, {}) : x);
+
+  /* E1. o conjunto versionado, pelo caso de uso sobre o adaptador Firebase */
+  const conjV = R.carregar(R.ARQUIVO_VINCULOS).conj;
+  const inicioV = Date.now() - 2000;
+  let anteriorV = null;
+  const rv = await R.executar({
+    arquivo: R.ARQUIVO_VINCULOS, rotulo: 'Firebase Emulator (adaptador estruturas-firebase.js)',
+    normalizarHorario: (gravado, doCenario) => {
+      if (doCenario === undefined) return gravado;
+      return typeof gravado === 'number' && gravado >= inicioV && gravado <= Date.now() + 2000 ? doCenario : 'NÃO É HORÁRIO DO SERVIDOR: ' + JSON.stringify(gravado);
+    },
+    criarPortas: async (referencias, estadoInicial) => {
+      if (anteriorV) await integridadeVinculos(anteriorV);
+      await semearVinculos(referencias, estadoInicial);
+      anteriorV = 'cenário';
+      const porPessoa = {};
+      const portasDe = (u) => (porPessoa[u.id] = porPessoa[u.id] || FB.criarPortas({ db: sessao(u), codigosFirmes: FIRMES }));
+      return Object.assign({}, portasDe(ARQ), { gravar: (op) => portasDe(op.usuario).gravar(op) });
+    }
+  });
+  await integridadeVinculos('último cenário');
+  total += rv.total; falhas += rv.falhas;
+
+  /* base para as gravações diretas: o estado comum do conjunto (com as pessoas resolvidas) */
+  const pessoas = { arq: ARQ, adm: ADM };
+  const resolver = (v) => (Array.isArray(v) ? v.map(resolver) : v && typeof v === 'object' ? Object.keys(v).reduce((o, kk) => { o[kk] = ['criadaPor', 'por'].indexOf(kk) !== -1 && typeof v[kk] === 'string' ? pessoas[v[kk]] : resolver(v[kk]); return o; }, {}) : v);
+  const comum = resolver(clone(conjV.estados.comum));
+  await semearVinculos(conjV.referencias.padrao, comum);
+  const chV = (multi, parte) => Object.keys(multi).filter((c) => c.indexOf(EV + '/' + parte + '/') === 0);
+  const umV = (multi, parte) => chV(multi, parte)[0];
+
+  /* E2. autorização e trava */
+  console.log('\nE2. autorização e trava de produção');
+  const w1 = await preparar(ARQ, 'vincularResponsavel', { objetoId: 'item-a', estruturaId: 'L-1' }, { novoId: 'W1' });
+  const comoV = (u) => adulterar(w1.multi, (m) => { const p = { id: u.id, email: u.email }; m[umV(m, 'registros')].criadoPor = p; m[umV(m, 'eventos')].usuario = p; m[umV(m, 'eventos')].depois.criadoPor = p; m[umV(m, 'operacoes')].usuario = p; });
+  await caso('perfil avaliacao (só consulta) NÃO grava vínculo', gravarComo(AVAL, comoV(AVAL)), false);
+  await caso('pessoa sem perfil NÃO grava vínculo', gravarComo(OUTRA, comoV(OUTRA)), false);
+  await semRegras((db) => db.ref('estruturas-concretas-config/gravacaoHabilitada').remove());
+  await caso('trava desligada (marcador ausente, como no banco oficial): nem admin geral grava vínculo', gravarComo(ADM, comoV(ADM)), false);
+  await semRegras((db) => db.ref('estruturas-concretas-config/gravacaoHabilitada').set(true));
+  await caso('avaliacao-arquitetura grava (vínculo + índice + evento + operação)', gravarComo(ARQ, w1.multi), true);
+  for (const sub of ['registros', 'ativo-por-objeto', 'eventos', 'operacoes']) {
+    await caso('avaliacao (consulta) lê ' + sub, sessao(AVAL).ref(EV + '/' + sub).once('value'), true);
+    await caso('pessoa sem perfil NÃO lê ' + sub, sessao(OUTRA).ref(EV + '/' + sub).once('value'), false);
+  }
+
+  /* E3. gravações diretas inválidas (cada uma a partir de uma gravação VÁLIDA montada pelo caso de uso) */
+  console.log('\nE3. gravações diretas inválidas');
+  const w2 = await preparar(ADM, 'vincularResponsavel', { objetoId: 'item-c', estruturaId: 'C-1' }, { novoId: 'W2' });
+  const partes = (multi, manter) => Object.keys(multi).filter((c) => manter.some((p) => c.indexOf(EV + '/' + p + '/') === 0)).reduce((o, c) => { o[c] = multi[c]; return o; }, {});
+  for (const [nome, manter] of [['só o vínculo', ['registros']], ['vínculo sem o índice', ['registros', 'eventos', 'operacoes']], ['vínculo sem evento', ['registros', 'ativo-por-objeto', 'operacoes']], ['vínculo sem operação', ['registros', 'ativo-por-objeto', 'eventos']]]) {
+    await caso(nome + ' é recusado', gravarComo(ADM, partes(w2.multi, manter)), false);
+  }
+  const reg2 = (m) => m[umV(m, 'registros')], ev2 = (m) => m[umV(m, 'eventos')];
+  const ambos = (m, f) => { f(reg2(m)); f(ev2(m).depois); };
+  for (const [nome, f] of [
+    ['código efetivo forjado (CoE vira Negócios)', (m) => ambos(m, (x) => { x.base.codigo = 'NEGOCIOS'; })],
+    ['origem forjada (decisão vira recomendação)', (m) => ambos(m, (x) => { x.base.origem = 'recomendacao'; })],
+    ['base em outra avaliação (não é a vigente)', (m) => ambos(m, (x) => { x.base.avaliacaoId = 'pa1'; })],
+    ['estrutura de outro tipo (Linha para um CoE)', (m) => ambos(m, (x) => { x.estruturaId = 'L-2'; })],
+    ['estrutura encerrada', (m) => ambos(m, (x) => { x.estruturaId = 'L-9'; })],
+    ['papel diferente de responsável principal', (m) => ambos(m, (x) => { x.papel = 'outro'; })],
+    ['horário do cliente', (m) => ambos(m, (x) => { x.criadoEm = 1; })],
+    ['autoria de outra pessoa', (m) => ambos(m, (x) => { x.criadoPor = { id: ARQ.id, email: ARQ.email }; })],
+    ['já nasce encerrado', (m) => ambos(m, (x) => { x.situacao = 'encerrada'; x.encerramento = { motivo: 'x', em: { '.sv': 'timestamp' }, por: { id: ADM.id, email: ADM.email } }; })],
+    ['campo a mais', (m) => ambos(m, (x) => { x.extra = 'x'; })],
+    ['evento com "antes"', (m) => { ev2(m).antes = { id: 'W2' }; }],
+    ['evento de criação com motivo (sem substituição)', (m) => { ev2(m).motivo = 'x'; }],
+    ['operação de outro item', (m) => { m[umV(m, 'operacoes')].objetoId = 'item-a'; }]
+  ]) await caso(nome + ' é recusado', gravarComo(ADM, adulterar(w2.multi, f)), false);
+  /* item sem posicionamento firme (A_VALIDAR sem decisão): forjar um código firme não passa */
+  const w3 = adulterar(w2.multi, (m) => {
+    ambos(m, (x) => { x.objetoId = 'item-b'; x.base = { avaliacaoId: 'pb1', codigo: 'COE', origem: 'recomendacao' }; });
+    m[umV(m, 'operacoes')].objetoId = 'item-b';
+    const ci = umV(m, 'ativo-por-objeto'); m[EV + '/ativo-por-objeto/item-b'] = m[ci]; delete m[ci];
+  });
+  await caso('item com recomendação A_VALIDAR e sem decisão: vínculo forjado é recusado', gravarComo(ADM, w3), false);
+  /* segundo responsável ativo para item-a (W1 ativo): mesmo montando tudo, o índice já aponta para W1 */
+  const w4 = adulterar(w1.multi, (m) => {
+    const trocar = (o) => JSON.parse(JSON.stringify(o).split('W1').join('W4').split(w1.op.id).join('opx-dup'));
+    Object.keys(m).forEach((c) => { const v = m[c]; delete m[c]; m[c.split('W1').join('W4').split(w1.op.id).join('opx-dup')] = trocar(v); });
+  });
+  await caso('segundo responsável principal ativo para o mesmo item é recusado (índice)', gravarComo(ARQ, w4), false);
+  await caso('gravação válida (CoE pela decisão) entra', gravarComo(ADM, w2.multi), true);
+  /* encerrar: só com motivo, sem mudar o que é imutável, sem reativar, sem apagar */
+  const e1 = await preparar(ARQ, 'encerrarVinculo', { vinculoId: 'W1', motivo: 'Item descontinuado' });
+  for (const [nome, f] of [
+    ['encerrar sem motivo', (m) => ambos(m, (x) => { delete x.encerramento.motivo; })],
+    ['encerrar trocando a estrutura', (m) => ambos(m, (x) => { x.estruturaId = 'L-2'; })],
+    ['encerrar mantendo o índice no vínculo', (m) => { delete m[umV(m, 'ativo-por-objeto')]; }],
+    ['encerrar pulando revisão', (m) => ambos(m, (x) => { x.revisao = 3; })]
+  ]) await caso(nome + ' é recusado', gravarComo(ARQ, adulterar(e1.multi, f)), false);
+  await caso('encerrar com motivo entra', gravarComo(ARQ, e1.multi), true);
+  const reativarV = adulterar(e1.multi, (m) => {
+    const ren = (c) => c.split(e1.op.id).join('opx-reat');
+    Object.keys(m).forEach((c) => { const v = m[c]; delete m[c]; m[ren(c)] = JSON.parse(JSON.stringify(v).split(e1.op.id).join('opx-reat')); });
+    ambos(m, (x) => { x.situacao = 'ativa'; x.revisao = 3; delete x.encerramento; });
+    m[EV + '/ativo-por-objeto/item-a'] = 'W1';
+  });
+  await caso('reativar vínculo encerrado é recusado', gravarComo(ARQ, reativarV), false);
+  for (const [nome, c, v] of [
+    ['apagar vínculo', EV + '/registros/W2', null],
+    ['apagar o índice de um vínculo ativo', EV + '/ativo-por-objeto/item-c', null],
+    ['editar evento gravado', EV + '/eventos/' + w2.op.id + ':1/motivo', 'x'],
+    ['apagar operação', EV + '/operacoes/' + w2.op.id, null],
+    ['editar um campo do vínculo direto', EV + '/registros/W2/estruturaId', 'C-1']
+  ]) await caso(nome + ' é recusado (até para admin geral)', sessao(ADM).ref(c).set(v), false);
+
+  /* E4. concorrência direta: o mesmo item, duas pessoas, ao mesmo tempo */
+  console.log('\nE4. concorrência');
+  const x1 = await preparar(ARQ, 'vincularResponsavel', { objetoId: 'item-a', estruturaId: 'L-1' }, { novoId: 'X1' });
+  const x2 = await preparar(ADM, 'vincularResponsavel', { objetoId: 'item-a', estruturaId: 'L-2' }, { novoId: 'X2' });
+  const rx = await Promise.allSettled([gravarComo(ARQ, x1.multi), gravarComo(ADM, x2.multi)]);
+  afirma(rx.filter((x) => x.status === 'fulfilled').length === 1, 'dois vínculos do mesmo item ao mesmo tempo: só um entra', JSON.stringify(rx.map((x) => x.status)));
+  const perdeuV = rx[0].status === 'fulfilled' ? { prep: x2, quem: ADM } : { prep: x1, quem: ARQ };
+  const confV = await FB.criarPortas({ db: sessao(perdeuV.quem), codigosFirmes: FIRMES }).gravar(perdeuV.prep.op).then((x) => x.situacao, (e) => e.codigo);
+  afirma(confV === 'CONFLITO_DE_REVISAO', 'o adaptador devolve CONFLITO_DE_REVISAO a quem perdeu a corrida do vínculo', confV);
+  await integridadeVinculos('depois das gravações diretas e da concorrência');
 
   await env.cleanup();
   console.log('\n============================\n' + total + ' verificações — ' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));

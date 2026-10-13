@@ -27,20 +27,28 @@
      conferirOperacao(id)      → { aplicada: true|false } — usado antes de decidir (operação repetida) e depois de
                                  SEM_RESPOSTA, antes de dizer qualquer coisa.
      lerEventos()              → [ evento … ] na ordem gravada — o histórico (a tela ordena com historico() do núcleo).
+     lerPosicionamento(objeto) → { avaliacaoId, recomendacao: { codigoResultado }, decisao?: { codigoFinal } } ou null —
+                                 o Posicionamento VIGENTE do item (M3: só para vincular e substituir o responsável).
 
    RESULTADO de executar(): { ok: true, situacao: 'gravada'|'repetida', mudancas, eventos } ou { ok: false, erros }.
    Os códigos de erro são os do núcleo, mais os da persistência acima e GRAVACAO_NAO_CONFIRMADA.
 
    ESCOPO: os 8 tipos firmes do Posicionamento (seis do ramo Linha, Área Especializada e CoE) e, desde a Etapa 5, os
-   subagrupadores das Linhas de Negócios e a associação Linha × subagrupador. Squad, Capítulo, relações e vínculos
-   ficam fora (o núcleo já os conhece; os casos de uso não os expõem ainda).
+   subagrupadores das Linhas de Negócios e a associação Linha × subagrupador; desde a M3 do Mapa, o vínculo do item com
+   a estrutura responsável principal (V1–V8 do núcleo). Squad, Capítulo e relações ficam fora (o núcleo já os
+   conhece; os casos de uso não os expõem ainda).
    ============================================================ */
 (function () {
   'use strict';
 
   var OPERACOES = ['criarEstrutura', 'alterarEstrutura', 'encerrarEstrutura',
     /* Etapa 5: subagrupadores das Linhas de Negócios (apresentação do Mapa) e a associação Linha × subagrupador */
-    'criarSubagrupador', 'alterarSubagrupador', 'encerrarSubagrupador', 'associarLinha', 'substituirAssociacao', 'desassociarLinha'];
+    'criarSubagrupador', 'alterarSubagrupador', 'encerrarSubagrupador', 'associarLinha', 'substituirAssociacao', 'desassociarLinha',
+    /* M3 do Mapa: vínculo item × estrutura responsável principal */
+    'vincularResponsavel', 'substituirResponsavel', 'encerrarVinculo'];
+  /* operações que precisam das referências oficiais (ligações) e, as de vínculo, do Posicionamento vigente do item */
+  var COM_REFERENCIAS = { criarEstrutura: 1, vincularResponsavel: 1, substituirResponsavel: 1 };
+  var COM_POSICIONAMENTO = { vincularResponsavel: 1, substituirResponsavel: 1 };
   /* onde o horário do contrato aparece (em milissegundos UTC): o adaptador Firebase grava o horário do SERVIDOR
      exatamente nesses campos — da estrutura e das cópias antes/depois guardadas no evento */
   var CAMPOS_DE_HORARIO = Object.freeze({
@@ -63,8 +71,11 @@
         ligacoes: (ref && ref.ligacoes) || {}, codigosFirmes: firmes.slice(), conceitosTrabalho: [] };
     }
 
-    function decidir(operacao, entrada, estado, ref, ctx) {
+    function decidir(operacao, entrada, estado, ref, ctx, posicionamento) {
       var d = entrada || {};
+      if (operacao === 'vincularResponsavel') return N.vincularResponsavel(estado, { objetoId: d.objetoId, estruturaId: d.estruturaId, justificativa: d.justificativa }, posicionamento, ctx, ref);
+      if (operacao === 'substituirResponsavel') return N.substituirResponsavel(estado, d.vinculoId, { estruturaId: d.estruturaId, justificativa: d.justificativa }, d.motivo, posicionamento, ctx, ref);
+      if (operacao === 'encerrarVinculo') return N.encerrarVinculo(estado, d.vinculoId, d.motivo, ctx);
       if (operacao === 'criarEstrutura') return N.criarEstrutura(estado, { tipo: d.tipo, nome: d.nome, sigla: d.sigla, descricao: d.descricao }, ctx, ref);
       if (operacao === 'alterarEstrutura') return N.alterarEstrutura(estado, d.id, d.alteracoes, ctx, { justificativa: d.justificativa, revisaoEsperada: d.revisaoEsperada });
       if (operacao === 'encerrarEstrutura') return N.encerrarEstrutura(estado, d.id, d.motivo, ctx, { revisaoEsperada: d.revisaoEsperada });
@@ -88,10 +99,18 @@
       }, function (e) { return falha([erro(codigoDe(e) === 'RECUSADA' ? 'LEITURA_INDISPONIVEL' : codigoDe(e))]); });
     }
     function decidirEGravar(operacao, entrada, ctx, portas) {
-      var refP = operacao === 'criarEstrutura' ? portas.lerReferencias() : Promise.resolve(null);
+      var refP = COM_REFERENCIAS[operacao] ? portas.lerReferencias() : Promise.resolve(null);
       return Promise.all([refP, portas.lerEstado()]).then(function (lidos) {
         var ref = lidos[0] ? referenciasDoCadastro(lidos[0]) : referenciasDoCadastro(null);
-        var r = decidir(operacao, entrada, lidos[1] || {}, ref, ctx);
+        if (!COM_POSICIONAMENTO[operacao]) return [ref, lidos[1], null];
+        /* o item da substituição é o do vínculo atual (o núcleo recusa vínculo inexistente) */
+        var v = operacao === 'substituirResponsavel' ? ((lidos[1] && lidos[1].vinculos) || {})[(entrada || {}).vinculoId] : null;
+        var objeto = operacao === 'vincularResponsavel' ? (entrada || {}).objetoId : v && v.objetoId;
+        if (!objeto || !portas.lerPosicionamento) return [ref, lidos[1], null];
+        return portas.lerPosicionamento(objeto).then(function (p) { return [ref, lidos[1], p]; });
+      }).then(function (lidos) {
+        var ref = lidos[0];
+        var r = decidir(operacao, entrada, lidos[1] || {}, ref, ctx, lidos[2]);
         if (!r.ok) return falha(r.erros);
         var op = { id: ctx.operacaoId, tipo: operacao, usuario: ctx.usuario, mudancas: r.mudancas, eventos: r.eventos };
         return portas.gravar(op).then(function (g) {
@@ -118,6 +137,7 @@
     var clone = function (v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); };
     var estado = clone((inicial && inicial.estado) || { estruturas: {}, relacoes: {}, vinculos: {} });
     var referencias = clone((inicial && inicial.referencias) || {});
+    var posicionamentos = clone((inicial && inicial.posicionamentos) || {}); /* M3: o Posicionamento vigente de cada item */
     var eventos = [], operacoes = {};
     return {
       lerReferencias: function () { return Promise.resolve(clone(referencias)); },
@@ -134,6 +154,7 @@
       },
       conferirOperacao: function (id) { return Promise.resolve({ aplicada: !!operacoes[id] }); },
       lerEventos: function () { return Promise.resolve(clone(eventos)); },
+      lerPosicionamento: function (objetoId) { return Promise.resolve(clone(posicionamentos[objetoId] || null)); },
       /* só para inspeção nos testes */
       instantaneo: function () { return { estado: clone(estado), eventos: clone(eventos), operacoes: clone(operacoes) }; }
     };

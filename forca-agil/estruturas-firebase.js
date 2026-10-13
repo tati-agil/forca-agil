@@ -16,6 +16,11 @@
        ativa-por-estrutura/<estrutura>  índice: a associação ATIVA da Linha (no máximo uma, garantido pelas regras)
        eventos/<operacao>:<n>     um evento por mudança (uma troca de subagrupador tem dois)
        operacoes/<operacao>
+     família VÍNCULO (M3 do Mapa; nó estruturas-vinculos — item × estrutura responsável principal):
+       registros/<id>             o vínculo (+ ultimaOperacao, ultimoEvento)
+       ativo-por-objeto/<item>    índice: o vínculo ATIVO de responsável principal do item (no máximo um, pelas regras)
+       eventos/<operacao>:<n>     um evento por mudança (uma substituição tem dois)
+       operacoes/<operacao>       (+ objetoId)
    e as regras recusam qualquer parte sozinha, apagar, reativar, mudar o que é imutável, pular revisão, autoria
    diferente do token e horário diferente do horário do SERVIDOR.
 
@@ -32,7 +37,8 @@
 
   var RAIZ = 'estruturas-concretas';
   var RAIZ_SUBAGRUPADORES = 'mapa-subagrupadores';
-  /* TRAVA DE PRODUÇÃO: as regras só aceitam gravar em estruturas-concretas e em mapa-subagrupadores com este marcador
+  var RAIZ_VINCULOS = 'estruturas-vinculos';
+  /* TRAVA DE PRODUÇÃO: as regras só aceitam gravar em estruturas-concretas, mapa-subagrupadores e estruturas-vinculos com este marcador
      = true. Nenhum cliente o grava nem lê (nem admin geral): só o console ou uma conta de serviço. No banco oficial ele
      não existe — cadastro desligado até a autorização de publicação (depois da Etapa 3 e da paridade); no emulador, a
      semente do ambiente de testes liga. */
@@ -42,7 +48,8 @@
   var ENTIDADES = {
     estrutura: { familia: RAIZ, colecao: 'estruturas', no: RAIZ + '/registros', horarios: ['criadaEm', 'alteradaEm', 'encerramento.em'] },
     subagrupador: { familia: RAIZ_SUBAGRUPADORES, colecao: 'subagrupadores', no: RAIZ_SUBAGRUPADORES + '/registros', horarios: ['criadoEm', 'alteradoEm', 'encerramento.em'] },
-    'associacao-subagrupador': { familia: RAIZ_SUBAGRUPADORES, colecao: 'associacoesSubagrupador', no: RAIZ_SUBAGRUPADORES + '/associacoes', horarios: ['criadaEm', 'encerramento.em'] }
+    'associacao-subagrupador': { familia: RAIZ_SUBAGRUPADORES, colecao: 'associacoesSubagrupador', no: RAIZ_SUBAGRUPADORES + '/associacoes', horarios: ['criadaEm', 'encerramento.em'] },
+    vinculo: { familia: RAIZ_VINCULOS, colecao: 'vinculos', no: RAIZ_VINCULOS + '/registros', horarios: ['criadoEm', 'encerramento.em'] }
   };
   var CAMPOS_SO_DO_BANCO = ['ultimaOperacao', 'ultimoEvento'];
 
@@ -59,6 +66,7 @@
   function doBanco(e, entidade) {
     var x = clone(e); CAMPOS_SO_DO_BANCO.forEach(function (c) { delete x[c]; });
     if ((entidade || 'estrutura') === 'estrutura') { if (!('sigla' in x)) x.sigla = null; if (!('descricao' in x)) x.descricao = null; }
+    if (entidade === 'vinculo' && !('justificativa' in x)) x.justificativa = null;
     return x;
   }
   /* horário do servidor nos campos que ESTA operação define (os que mudaram em relação a antes) */
@@ -77,7 +85,7 @@
     op.mudancas.forEach(function (m, i) {
       var ent = ENTIDADES[m.entidade], ev = clone(op.eventos[i]);
       var reg = semNulos(comHorarioDoServidor(m.depois, m.antes, m.entidade)); reg.ultimaOperacao = op.id;
-      if (familia === RAIZ_SUBAGRUPADORES) reg.ultimoEvento = ev.id;
+      if (familia !== RAIZ) reg.ultimoEvento = ev.id;
       delete ev.antes;
       ev.depois = semNulos(comHorarioDoServidor(ev.depois, m.antes, m.entidade)); ev.em = AGORA_DO_SERVIDOR;
       multi[ent.no + '/' + m.id] = reg;
@@ -87,10 +95,17 @@
         if (m.depois.situacao === 'ativa') indice[m.depois.estruturaId] = m.id;
         else if (!(m.depois.estruturaId in indice)) indice[m.depois.estruturaId] = null;
       }
+      /* índice do responsável principal ativo de cada item: o novo ocupa; o que se encerra libera (se nada ocupou) */
+      if (m.entidade === 'vinculo') {
+        if (m.depois.situacao === 'ativa') indice[m.depois.objetoId] = m.id;
+        else if (!(m.depois.objetoId in indice)) indice[m.depois.objetoId] = null;
+      }
     });
-    Object.keys(indice).forEach(function (estruturaId) { multi[RAIZ_SUBAGRUPADORES + '/ativa-por-estrutura/' + estruturaId] = indice[estruturaId]; });
+    var noIndice = familia === RAIZ_VINCULOS ? RAIZ_VINCULOS + '/ativo-por-objeto/' : RAIZ_SUBAGRUPADORES + '/ativa-por-estrutura/';
+    Object.keys(indice).forEach(function (chave) { multi[noIndice + chave] = indice[chave]; });
     var registroOp = { tipo: op.tipo, usuario: semNulos({ id: op.usuario.id, email: op.usuario.email }), em: AGORA_DO_SERVIDOR };
     if (familia === RAIZ) registroOp.estruturaId = op.mudancas[0].id;
+    if (familia === RAIZ_VINCULOS) registroOp.objetoId = op.mudancas[0].depois.objetoId;
     multi[familia + '/operacoes/' + op.id] = registroOp;
     return multi;
   }
@@ -122,7 +137,9 @@
     eventos: { no: RAIZ + '/eventos', chave: 'eventos', conv: function (v) { return eventosDoValor(v); } },
     subagrupadores: { no: RAIZ_SUBAGRUPADORES + '/registros', chave: 'subagrupadores', conv: function (v) { return registrosDoValor(v, 'subagrupador'); } },
     associacoes: { no: RAIZ_SUBAGRUPADORES + '/associacoes', chave: 'associacoesSubagrupador', conv: function (v) { return registrosDoValor(v, 'associacao-subagrupador'); } },
-    eventosSubagrupadores: { no: RAIZ_SUBAGRUPADORES + '/eventos', chave: 'eventosSubagrupadores', conv: function (v) { return eventosDoValor(v); } }
+    eventosSubagrupadores: { no: RAIZ_SUBAGRUPADORES + '/eventos', chave: 'eventosSubagrupadores', conv: function (v) { return eventosDoValor(v); } },
+    vinculos: { no: RAIZ_VINCULOS + '/registros', chave: 'vinculos', conv: function (v) { return registrosDoValor(v, 'vinculo'); } },
+    eventosVinculos: { no: RAIZ_VINCULOS + '/eventos', chave: 'eventosVinculos', conv: function (v) { return eventosDoValor(v); } }
   };
   function ouvir(db, partes, aoMudar, aoFalhar) {
     db = db || window.firebase.database(); /* sem banco informado: o do site (a tela do Mapa não toca o Firebase) */
@@ -154,15 +171,28 @@
       });
     }
     function lerEstado() {
-      return Promise.all([umaVez(RAIZ + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/associacoes')]).then(function (v) {
-        return { estruturas: estruturasDoValor(v[0]), relacoes: {}, vinculos: {}, subagrupadores: registrosDoValor(v[1], 'subagrupador'), associacoesSubagrupador: registrosDoValor(v[2], 'associacao-subagrupador') };
+      return Promise.all([umaVez(RAIZ + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/associacoes'), umaVez(RAIZ_VINCULOS + '/registros')]).then(function (v) {
+        return { estruturas: estruturasDoValor(v[0]), relacoes: {}, vinculos: registrosDoValor(v[3], 'vinculo'), subagrupadores: registrosDoValor(v[1], 'subagrupador'), associacoesSubagrupador: registrosDoValor(v[2], 'associacao-subagrupador') };
+      });
+    }
+    /* M3: o Posicionamento VIGENTE do item (concluído), no formato de posicionamentoEfetivo do núcleo — só leitura;
+       o banco confere de novo, na gravação, que a base do vínculo é este Posicionamento */
+    function lerPosicionamento(objetoId) {
+      return umaVez('posicionamento-vigente-por-item/' + objetoId).then(function (id) {
+        if (typeof id !== 'string' || !id) return null;
+        return Promise.all([umaVez('avaliacoes-posicionamento/' + id + '/status'), umaVez('avaliacoes-posicionamento/' + id + '/resultadoAutomatico/codigoResultado'), umaVez('posicionamento-decisoes/' + id + '/codigoFinal')]).then(function (v) {
+          if (v[0] !== 'concluido') return null;
+          var p = { avaliacaoId: id, recomendacao: { codigoResultado: v[1] } };
+          if (v[2] !== null) p.decisao = { codigoFinal: v[2] };
+          return p;
+        });
       });
     }
     /* o identificador de operação é único entre as famílias: a operação foi aplicada se existe em qualquer uma */
     function conferirOperacao(id) {
-      return Promise.all([umaVez(RAIZ + '/operacoes/' + id), umaVez(RAIZ_SUBAGRUPADORES + '/operacoes/' + id)]).then(function (v) { return { aplicada: v[0] !== null || v[1] !== null }; });
+      return Promise.all([umaVez(RAIZ + '/operacoes/' + id), umaVez(RAIZ_SUBAGRUPADORES + '/operacoes/' + id), umaVez(RAIZ_VINCULOS + '/operacoes/' + id)]).then(function (v) { return { aplicada: v[0] !== null || v[1] !== null || v[2] !== null }; });
     }
-    function lerEventos() { return Promise.all([umaVez(RAIZ + '/eventos'), umaVez(RAIZ_SUBAGRUPADORES + '/eventos')]).then(function (v) { return eventosDoValor(v[0], v[1]); }); }
+    function lerEventos() { return Promise.all([umaVez(RAIZ + '/eventos'), umaVez(RAIZ_SUBAGRUPADORES + '/eventos'), umaVez(RAIZ_VINCULOS + '/eventos')]).then(function (v) { return eventosDoValor(v[0], v[1], v[2]); }); }
 
     function gravar(op) {
       if (!op || !op.id || !(op.mudancas || []).length || (op.eventos || []).length !== op.mudancas.length) return Promise.reject(recusa('RECUSADA'));
@@ -183,6 +213,9 @@
               if (m.entidade === 'associacao-subagrupador' && m.antes === null) {
                 return Object.keys(s.associacoesSubagrupador || {}).some(function (k) { var x = s.associacoesSubagrupador[k]; return x.situacao === 'ativa' && x.estruturaId === m.depois.estruturaId && k !== m.depois.substitui; });
               }
+              if (m.entidade === 'vinculo' && m.antes === null) {
+                return Object.keys(s.vinculos || {}).some(function (k) { var x = s.vinculos[k]; return x.situacao === 'ativa' && x.objetoId === m.depois.objetoId && k !== m.depois.substitui; });
+              }
               return false;
             });
             return Promise.reject(recusa(conflito ? 'CONFLITO_DE_REVISAO' : 'RECUSADA'));
@@ -191,11 +224,11 @@
       });
     }
 
-    return { lerReferencias: lerReferencias, lerEstado: lerEstado, gravar: gravar, conferirOperacao: conferirOperacao, lerEventos: lerEventos };
+    return { lerReferencias: lerReferencias, lerEstado: lerEstado, gravar: gravar, conferirOperacao: conferirOperacao, lerEventos: lerEventos, lerPosicionamento: lerPosicionamento };
   }
 
   var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, estruturasDoValor: estruturasDoValor, registrosDoValor: registrosDoValor,
-    eventosDoValor: eventosDoValor, RAIZ: RAIZ, RAIZ_SUBAGRUPADORES: RAIZ_SUBAGRUPADORES, TRAVA_PRODUCAO: TRAVA_PRODUCAO });
+    eventosDoValor: eventosDoValor, RAIZ: RAIZ, RAIZ_SUBAGRUPADORES: RAIZ_SUBAGRUPADORES, RAIZ_VINCULOS: RAIZ_VINCULOS, TRAVA_PRODUCAO: TRAVA_PRODUCAO });
   if (typeof window !== 'undefined') window.faEstruturasFirebase = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

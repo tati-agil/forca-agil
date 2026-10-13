@@ -17,6 +17,8 @@
    Etapa 5 — subagrupadores das Linhas de Negócios (agrupamento de APRESENTAÇÃO do Mapa): aba própria
    (#admin?arq=estruturas&sg=lista e &sg=<id>) para criar, renomear, ordenar e encerrar; na ficha de uma Linha de
    Negócios, associar, trocar ou tirar do subagrupador, com o histórico junto ao da estrutura.
+   M3 do Mapa — montarResponsavel(el, { itemId, posicionamento }): o bloco "Estrutura responsável" da ficha do Posicionamento
+   (vincular, substituir e encerrar, com motivo; situação calculada pelo núcleo).
    ============================================================ */
 (function () {
   'use strict';
@@ -632,6 +634,158 @@
     return { abrir: abrir, fechar: fechar, disponivel: disponivel, temAlteracaoNaoSalva: function () { return !wrap.hidden && !!st.sujo; } };
   }
 
+  /* ============================================================
+     M3 do Mapa — bloco "Estrutura responsável" na ficha do Posicionamento (decisão G)
+     A ficha do Posicionamento só reserva o lugar e entrega { itemId, posicionamento } (ela não fala com o Firebase —
+     B1); aqui ficam a leitura, a decisão (núcleo, pelo caso de uso compartilhado) e a gravação (adaptador; o banco
+     confere tudo de novo). Manter = admin geral e avaliacao-arquitetura; avaliacao só consulta. Situação calculada
+     pelo núcleo (situacaoResponsavel) — nada muda sozinho. Como o cadastro, só existe no AMBIENTE DE TESTES.
+     ============================================================ */
+  var SITUACAO_VINCULO = { valido: 'Válido', 'precisa-revisao': 'Precisa de revisão', ausente: 'Sem estrutura responsável', 'nao-aplicavel': 'Não se aplica' };
+  var MOTIVO_REVISAO = {
+    CODIGO_EFETIVO_MUDOU: 'o posicionamento efetivo do item mudou desde o vínculo',
+    POSICIONAMENTO_DEIXOU_DE_VALER: 'o item não tem mais Posicionamento vigente',
+    POSICIONAMENTO_SEM_CODIGO_FIRME: 'o Posicionamento vigente não tem mais um posicionamento firme (decisão final ou recomendação firme)',
+    ESTRUTURA_ENCERRADA: 'a estrutura responsável foi encerrada',
+    TIPO_NAO_CORRESPONDE: 'o tipo da estrutura não corresponde mais ao posicionamento efetivo'
+  };
+  function mensagemVinculo(e) {
+    switch (e && e.codigo) {
+      case 'RESPONSAVEL_PRINCIPAL_JA_EXISTE': return 'Este item já tem uma estrutura responsável principal ativa. Use "Substituir" ou encerre a atual.';
+      case 'SEM_POSICIONAMENTO_EFETIVO': return 'O item não tem posicionamento efetivo firme (decisão final ou recomendação firme): o vínculo não pode ser registrado.';
+      case 'LIGACAO_OFICIAL_AUSENTE': return 'A ligação oficial entre o código do Posicionamento e o conceito da Taxonomia não está registrada.';
+      case 'TIPO_INCOMPATIVEL': return 'A estrutura escolhida não é do tipo do posicionamento efetivo do item.';
+      case 'ESTRUTURA_ENCERRADA': return 'A estrutura escolhida está encerrada.';
+      case 'ESTRUTURA_INEXISTENTE': case 'CAMPO_OBRIGATORIO': return 'Escolha a estrutura responsável.';
+      case 'VINCULO_INEXISTENTE': return 'Este vínculo não foi encontrado.';
+      case 'VINCULO_ENCERRADO': return 'Este vínculo já foi encerrado.';
+      case 'MOTIVO_OBRIGATORIO': return 'Informe o motivo.';
+      case 'CONFLITO_DE_REVISAO': return 'Outra pessoa mudou a estrutura responsável deste item enquanto você trabalhava. O bloco já mostra a situação atual: confira e faça de novo, se ainda for o caso.';
+      case 'RECUSADA': return 'O banco recusou a gravação. Seu perfil pode não ter permissão para manter vínculos, ou os dados mudaram. Nada foi gravado.';
+      default: return mensagem(e);
+    }
+  }
+  var bloco = { itemId: null, el: null, posicionamento: null, estruturas: undefined, vinculos: undefined, refs: undefined, erroLeitura: null,
+    modo: null, form: null, salvando: false, erros: [], op: null, flash: null, ligado: false, offset: 0 };
+  function blocoDb() { return window.firebase.database(); }
+  function ligarBloco() {
+    if (bloco.ligado || !disponivel()) return;
+    bloco.ligado = true;
+    bloco.desligar = FB().ouvir(blocoDb(), ['registros', 'vinculos'], function (m) {
+      if (m.estruturas) bloco.estruturas = m.estruturas;
+      if (m.vinculos) bloco.vinculos = m.vinculos;
+      bloco.erroLeitura = null; desenharBloco();
+    }, function (c) { bloco.erroLeitura = c; desenharBloco(); });
+    blocoDb().ref('.info/serverTimeOffset').on('value', function (s) { bloco.offset = s.val() || 0; });
+    FB().criarPortas({ db: blocoDb(), codigosFirmes: MOT().CODIGOS_FIRMES }).lerReferencias().then(function (r) { bloco.refs = r; desenharBloco(); }, function () { bloco.refs = null; desenharBloco(); });
+  }
+  function refsBloco() { return { ligacoes: (bloco.refs && bloco.refs.ligacoes) || {}, codigosFirmes: MOT().CODIGOS_FIRMES.slice() }; }
+  function rotuloEstrutura(e) { return e ? esc(e.nome) + ' <span class="est-sigla">' + esc(natureza(e.tipo)) + ' · ' + esc(nomeTipo(e.tipo)) + '</span>' : '<span class="est-vazio">estrutura não encontrada</span>'; }
+  function htmlBloco() {
+    if (bloco.erroLeitura) return '<div class="avp-error-msg" role="alert">' + (bloco.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar a estrutura responsável.' : 'Não foi possível ler a estrutura responsável agora. Verifique se o ambiente de testes está aberto.') + '</div>';
+    if (bloco.estruturas === undefined || bloco.vinculos === undefined || bloco.refs === undefined) return '<p class="loading-msg" role="status">Carregando a estrutura responsável…</p>';
+    var estado = { estruturas: bloco.estruturas, vinculos: bloco.vinculos }, ref = refsBloco();
+    var s = N().situacaoResponsavel(estado, bloco.itemId, bloco.posicionamento, ref), v = s.vinculo, ef = s.efetivo, manter = podeManter();
+    var h = '<p class="avp-decisao-aviso est-ambiente" role="note"><strong>Ambiente de testes.</strong> O vínculo fica só no Firebase Emulator.</p>';
+    if (bloco.flash) h += '<p class="avp-flash-success" id="poRespFlash" tabindex="-1">' + esc(bloco.flash) + '</p>';
+    h += '<dl class="est-dados" id="poRespDados">' +
+      '<div class="est-dado"><dt>Situação</dt><dd><span class="est-situacao po-resp-situacao po-resp-situacao--' + esc(s.situacao) + '" id="poRespSituacao" data-situacao="' + esc(s.situacao) + '">' + esc(SITUACAO_VINCULO[s.situacao] || s.situacao) + '</span></dd></div>';
+    if (v) {
+      var est = bloco.estruturas[v.estruturaId];
+      h += '<div class="est-dado"><dt>Estrutura responsável principal</dt><dd id="poRespEstrutura">' + rotuloEstrutura(est) + '</dd></div>' +
+        '<div class="est-dado"><dt>Base do vínculo</dt><dd>' + esc(nomeTipo(v.base.codigo)) + ' · ' + (v.base.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + '</dd></div>' +
+        '<div class="est-dado"><dt>Registrado</dt><dd><span class="est-quando">' + dataHora(v.criadoEm) + '</span><span class="est-autor">' + quem(v.criadoPor) + '</span></dd></div>' +
+        (v.justificativa ? '<div class="est-dado est-dado--largo"><dt>Justificativa</dt><dd>' + esc(v.justificativa) + '</dd></div>' : '');
+    }
+    h += '</dl>';
+    if (s.situacao === 'precisa-revisao') h += '<p class="avp-decisao-aviso po-resp-revisao" id="poRespRevisao" role="status"><strong>Precisa de revisão:</strong> ' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '. O vínculo continua registrado até alguém substituí-lo ou encerrá-lo.</p>';
+    if (s.situacao === 'ausente') h += '<p class="est-intro" id="poRespAusente">Nenhuma estrutura responsável registrada. O posicionamento efetivo do item é ' + esc(nomeTipo(ef.codigo)) + ' (' + (ef.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + ').</p>';
+    if (s.situacao === 'nao-aplicavel') h += '<p class="est-intro" id="poRespNaoAplicavel">O item não tem posicionamento efetivo firme (decisão final ou recomendação firme): ainda não cabe registrar a estrutura responsável.</p>';
+    if (bloco.erros.length) h += '<div class="avp-error-msg est-erros" id="poRespErros" role="alert" tabindex="-1"><strong>Não foi salvo.</strong><ul>' + bloco.erros.map(function (e) { return '<li>' + esc(mensagemVinculo(e)) + '</li>'; }).join('') + '</ul></div>';
+    if (!manter) return h;
+    var tipo = ef.codigo ? ref.ligacoes[ef.codigo] : null;
+    var opcoes = tipo ? Object.keys(bloco.estruturas).map(function (k) { return bloco.estruturas[k]; }).filter(function (e) { return e.situacao === 'ativa' && e.tipo === tipo && (!v || e.id !== v.estruturaId); })
+      .sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); }) : [];
+    var f = bloco.form || {};
+    if (bloco.modo === 'vincular' || bloco.modo === 'substituir') {
+      h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir a estrutura responsável') + '</h5>';
+      if (!opcoes.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa do tipo ' + esc(nomeTipo(tipo)) + (v ? ' além da atual' : '') + ' está cadastrada. Cadastre-a em Estruturas Organizacionais.</p>';
+      else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura (' + esc(nomeTipo(tipo)) + ') <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
+        opcoes.map(function (e) { return '<option value="' + esc(e.id) + '"' + (f.estruturaId === e.id ? ' selected' : '') + '>' + esc(e.nome) + (e.sigla ? ' (' + esc(e.sigla) + ')' : '') + '</option>'; }).join('') + '</select></div>';
+      if (bloco.modo === 'substituir') h += '<div class="avp-field est-campo"><label for="poRespMotivo">Motivo da substituição <span class="est-obrig">(obrigatório)</span></label><textarea id="poRespMotivo" maxlength="' + N().MAX.motivo + '" rows="2">' + esc(f.motivo || '') + '</textarea></div>';
+      h += '<div class="avp-field est-campo"><label for="poRespJustificativa">Justificativa <span class="est-opc">(opcional)</span></label><textarea id="poRespJustificativa" maxlength="' + N().MAX.justificativa + '" rows="2">' + esc(f.justificativa || '') + '</textarea></div>' +
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando || !opcoes.length ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : 'Salvar') + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
+      return h;
+    }
+    if (bloco.modo === 'encerrar') {
+      return h + '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">Encerrar o vínculo</h5><p class="est-intro">O item fica sem estrutura responsável; o vínculo encerrado continua registrado.</p>' +
+        '<div class="avp-field est-campo"><label for="poRespMotivo">Motivo do encerramento <span class="est-obrig">(obrigatório)</span></label><textarea id="poRespMotivo" maxlength="' + N().MAX.motivo + '" rows="2">' + esc(f.motivo || '') + '</textarea></div>' +
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : 'Encerrar vínculo') + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
+    }
+    h += '<div class="avp-actions-footer po-resp-acoes">';
+    if (s.situacao === 'ausente') h += '<button type="button" class="btn btn--primary" id="poRespVincular">Vincular estrutura responsável</button>';
+    if (v && ef.codigo) h += '<button type="button" class="btn" id="poRespSubstituir">Substituir</button>';
+    if (v) h += '<button type="button" class="btn" id="poRespEncerrar">Encerrar vínculo</button>';
+    return h + '</div>';
+  }
+  function desenharBloco() {
+    var el = bloco.el;
+    if (!el || !el.isConnected) return;
+    el.innerHTML = htmlBloco();
+    var q = function (id) { return el.querySelector('#' + id); };
+    var abrirModo = function (modo) { bloco.modo = modo; bloco.form = { estruturaId: '', motivo: '', justificativa: '' }; bloco.erros = []; bloco.flash = null; bloco.op = null; desenharBloco(); };
+    [['poRespVincular', 'vincular'], ['poRespSubstituir', 'substituir'], ['poRespEncerrar', 'encerrar']].forEach(function (b) { var x = q(b[0]); if (x) x.addEventListener('click', function () { abrirModo(b[1]); }); });
+    var c = q('poRespCancelar'); if (c) c.addEventListener('click', function () { bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; desenharBloco(); });
+    [['poRespEstruturaSel', 'estruturaId', 'change'], ['poRespMotivo', 'motivo', 'input'], ['poRespJustificativa', 'justificativa', 'input']].forEach(function (b) {
+      var x = q(b[0]); if (x) x.addEventListener(b[2], function () { bloco.form[b[1]] = x.value; });
+    });
+    var form = q('poRespForm');
+    if (form) form.addEventListener('submit', function (ev) { ev.preventDefault(); salvarBloco(); });
+  }
+  function salvarBloco() {
+    if (bloco.salvando) return;
+    var u = window.firebase.auth().currentUser;
+    if (!u) { bloco.erros = [{ codigo: 'CONTEXTO_SEM_USUARIO' }]; desenharBloco(); return; }
+    var estado = { estruturas: bloco.estruturas, vinculos: bloco.vinculos };
+    var v = N().responsavelAtivo(estado, bloco.itemId), f = bloco.form || {}, modo = bloco.modo, operacao, entrada;
+    if (modo === 'vincular') { operacao = 'vincularResponsavel'; entrada = { objetoId: bloco.itemId, estruturaId: f.estruturaId, justificativa: f.justificativa }; }
+    else if (modo === 'substituir') { operacao = 'substituirResponsavel'; entrada = { vinculoId: v && v.id, estruturaId: f.estruturaId, motivo: f.motivo, justificativa: f.justificativa }; }
+    else { operacao = 'encerrarVinculo'; entrada = { vinculoId: v && v.id, motivo: f.motivo }; }
+    /* a MESMA tentativa reaproveita o identificador da operação: reenviar depois de "sem resposta" não duplica */
+    bloco.op = bloco.op || { operacaoId: blocoDb().ref().push().key, novoId: blocoDb().ref().push().key };
+    var ctx = { operacaoId: bloco.op.operacaoId, usuario: { id: u.uid, email: u.email }, agora: Date.now() + bloco.offset };
+    if (modo !== 'encerrar') ctx.novoId = bloco.op.novoId;
+    bloco.salvando = true; bloco.erros = []; desenharBloco();
+    U().criar({ nucleo: N(), codigosFirmes: MOT().CODIGOS_FIRMES }).executar(operacao, entrada, ctx, FB().criarPortas({ db: blocoDb(), codigosFirmes: MOT().CODIGOS_FIRMES })).then(function (r) {
+      bloco.salvando = false;
+      if (r.ok) {
+        bloco.op = null; bloco.modo = null; bloco.form = null;
+        bloco.flash = modo === 'vincular' ? 'Estrutura responsável registrada.' : modo === 'substituir' ? 'Estrutura responsável substituída. O vínculo anterior continua registrado, encerrado.' : 'Vínculo encerrado. Ele continua registrado.';
+        desenharBloco(); var fl = bloco.el && bloco.el.querySelector('#poRespFlash'); if (fl) fl.focus({ preventScroll: true });
+        return;
+      }
+      if (!r.erros.some(function (e) { return e.codigo === 'SEM_RESPOSTA' || e.codigo === 'GRAVACAO_NAO_CONFIRMADA'; })) bloco.op = null;
+      bloco.erros = r.erros; desenharBloco();
+      var al = bloco.el && bloco.el.querySelector('#poRespErros'); if (al) al.focus({ preventScroll: true });
+    }, function (e) { bloco.salvando = false; bloco.erros = [{ codigo: (e && e.codigo) || 'RECUSADA' }]; desenharBloco(); });
+  }
+  /* chamado pela ficha do Posicionamento a cada desenho: el = o lugar reservado; dados = { itemId, posicionamento } */
+  function montarResponsavel(el, dados) {
+    if (!el || !disponivel()) return;
+    if (bloco.itemId !== dados.itemId) { bloco.itemId = dados.itemId; bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; bloco.flash = null; }
+    bloco.el = el; bloco.posicionamento = dados.posicionamento || null;
+    ligarBloco();
+    if (P()) P().iniciar();
+    desenharBloco();
+  }
+  /* troca de pessoa: nada do estado anterior sobrevive; a leitura recomeça com a sessão nova no próximo desenho */
+  window.addEventListener('fa-auth-change', function () {
+    if (bloco.desligar) bloco.desligar();
+    bloco.desligar = null; bloco.ligado = false; bloco.estruturas = undefined; bloco.vinculos = undefined; bloco.refs = undefined; bloco.erroLeitura = null;
+    bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; bloco.flash = null;
+  });
+
+
   /* o contêiner está no index.html antes deste arquivo; disponivel() é false fora do ambiente de testes */
   var api = null;
   function garantir() { if (!api) api = montar(); return api; }
@@ -639,6 +793,8 @@
     disponivel: disponivel,
     abrir: function (o) { var a = garantir(); if (a) a.abrir(o); },
     fechar: function () { if (api) api.fechar(); },
-    temAlteracaoNaoSalva: function () { return !!(api && api.temAlteracaoNaoSalva()); }
+    temAlteracaoNaoSalva: function () { return !!(api && api.temAlteracaoNaoSalva()); },
+    /* M3: bloco Estrutura responsável na ficha do Posicionamento */
+    montarResponsavel: montarResponsavel
   };
 })();

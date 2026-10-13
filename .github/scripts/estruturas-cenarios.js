@@ -27,8 +27,9 @@ const U = require(path.join(RAIZ, 'forca-agil', 'estruturas-casos-de-uso.js'));
 const MOTOR = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento-nucleo.js'));
 const ARQUIVO = path.join(__dirname, 'cenarios', 'estruturas-concretas.v1.json');
 const ARQUIVO_SUBAGRUPADORES = path.join(__dirname, 'cenarios', 'mapa-subagrupadores.v1.json');
+const ARQUIVO_VINCULOS = path.join(__dirname, 'cenarios', 'vinculos-responsavel.v1.json');
 /* campos de horário por coleção (formato 2 do conjunto: estadoFinal por coleção) */
-const HORARIOS = { estruturas: ['criadaEm', 'alteradaEm', 'encerramento.em'], subagrupadores: ['criadoEm', 'alteradoEm', 'encerramento.em'], associacoesSubagrupador: ['criadaEm', 'encerramento.em'] };
+const HORARIOS = { estruturas: ['criadaEm', 'alteradaEm', 'encerramento.em'], subagrupadores: ['criadoEm', 'alteradoEm', 'encerramento.em'], associacoesSubagrupador: ['criadaEm', 'encerramento.em'], vinculos: ['criadoEm', 'encerramento.em'] };
 const ler = (o, c) => c.split('.').reduce((a, k) => (a && typeof a === 'object' ? a[k] : undefined), o);
 const por = (o, c, v) => { const p = c.split('.'); let a = o; for (let i = 0; i < p.length - 1; i++) a = a[p[i]]; a[p[p.length - 1]] = v; };
 
@@ -70,7 +71,9 @@ async function executar(opcoes) {
 
   for (const cen of conj.cenarios) {
     log(cen.id + ' ' + cen.titulo);
-    const inicial = cen.estadoInicial ? resolverUsuarios(JSON.parse(JSON.stringify(cen.estadoInicial)), usuarios) : undefined;
+    /* estadoInicial pode ser o nome de um estado comum do conjunto (conj.estados) */
+    const ini = typeof cen.estadoInicial === 'string' ? conj.estados[cen.estadoInicial] : cen.estadoInicial;
+    const inicial = ini ? resolverUsuarios(JSON.parse(JSON.stringify(ini)), usuarios) : undefined;
     const portas = await opcoes.criarPortas(JSON.parse(JSON.stringify(conj.referencias[cen.referencias])), inicial);
     const conferirResultado = (passo, r, rot) => {
       const esp = passo.esperado;
@@ -138,4 +141,4 @@ async function executar(opcoes) {
   return { total, falhas, conjunto: conj.conjunto, versao: conj.versao, sha256 };
 }
 
-module.exports = { executar, carregar, ARQUIVO, ARQUIVO_SUBAGRUPADORES };
+module.exports = { executar, carregar, ARQUIVO, ARQUIVO_SUBAGRUPADORES, ARQUIVO_VINCULOS };
