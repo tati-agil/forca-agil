@@ -42,7 +42,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 function aberto(porta) { return new Promise((ok) => { const r = http.get({ host: '127.0.0.1', port: porta, path: '/' }, (res) => { res.resume(); ok(true); }); r.on('error', () => ok(false)); r.setTimeout(1500, () => { r.destroy(); ok(false); }); }); }
 
 async function subirEmulador() {
-  const cache = process.env.FA_CACHE_EMULADOR || path.join(require('os').tmpdir(), 'fa-cache-emulador');
+  const cache = process.env.FA_CACHE_EMULADOR || path.join(require('os').tmpdir(), 'fa-cache-emulador-confirmacao');
   execFileSync('docker', ['run', '-d', '--rm', '--name', CONTEINER, '-p', '127.0.0.1:' + PORTA_BANCO + ':9000', '-p', '127.0.0.1:' + PORTA_LOGIN + ':9099',
     '-v', RAIZ + ':/src:ro', '-v', cache + ':/root/.cache/firebase', IMAGEM, 'sh', '-c',
     'mkdir -p /work && cp /src/database.rules.json /src/.github/scripts/ambiente-local/firebase.json /work/ && cd /work && exec /deps/node_modules/.bin/firebase emulators:start --only database,auth --project ' + S.PROJETO], { stdio: 'ignore', env: Object.assign({}, process.env, { MSYS_NO_PATHCONV: '1' }) });
