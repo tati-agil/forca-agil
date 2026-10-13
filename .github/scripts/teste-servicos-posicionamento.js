@@ -2,9 +2,10 @@
  *   A. A tela de Posicionamento não chama o Firebase: nenhum firebase./db() em avaliacao-posicionamento.js; o
  *      site carrega a interface depois de firebase.js e antes da tela.
  *   B. Contrato do adaptador Firebase: gravar atômico (um update da raiz com o payload inteiro, intacto); ok → null;
- *      recusa → o erro; prazo sem resposta → 'sem-resposta' (e a resposta atrasada é ignorada: cb uma vez só);
- *      exceção síncrona → o erro; novaChave; lerUmaVez (valor, null, recusa rejeita); ouvir (cada mudança,
- *      erro, cancelar desliga). */
+ *      recusa → o erro; prazo sem resposta → 'sem-resposta' (cb uma vez só; a resposta do servidor que chega depois
+ *      vai para "depois" — confirmação ou recusa —, nunca para cb); exceção síncrona → o erro; novaChave; lerUmaVez
+ *      (valor, null, recusa rejeita, leitura parada rejeita 'sem-resposta' no prazo); ouvir (cada mudança, erro,
+ *      cancelar desliga). */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -22,19 +23,19 @@ afirma(pos('firebase.js') !== -1 && pos('firebase.js') < pos('posicionamento-ser
 
 console.log('B. contrato do adaptador Firebase');
 function contexto() {
-  const log = { updates: [], on: [], off: [] }, pendentes = [], lidos = {}, recusas = {};
+  const log = { updates: [], on: [], off: [] }, pendentes = [], lidos = {}, recusas = {}, parados = {};
   const ctx = { console, JSON, Object, Array, String, Math, Number, Date, RegExp, Error, Promise, setTimeout, clearTimeout };
   ctx.window = ctx;
   ctx.firebase = { database: () => ({ ref: (p) => ({
     update(v, cb) { log.updates.push({ caminho: p, valor: v }); if (ctx.__lancar) throw new Error('falha síncrona'); pendentes.push(cb); },
     push() { return { key: 'k-' + (p || 'raiz') }; },
-    once() { return recusas[p] ? Promise.reject(new Error('permission_denied')) : Promise.resolve({ val: () => (p in lidos ? lidos[p] : null) }); },
+    once() { if (parados[p]) return new Promise(() => {}); return recusas[p] ? Promise.reject(new Error('permission_denied')) : Promise.resolve({ val: () => (p in lidos ? lidos[p] : null) }); },
     on(ev, cb, erro) { log.on.push({ caminho: p, ev, cb, erro }); },
     off(ev, cb) { log.off.push({ caminho: p, ev, cb }); }
   }) }) };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(RAIZ, 'forca-agil', 'posicionamento-servicos.js'), 'utf8'), ctx);
-  return { S: ctx.faServicosPosicionamento, log, pendentes, lidos, recusas, ctx };
+  return { S: ctx.faServicosPosicionamento, log, pendentes, lidos, recusas, parados, ctx };
 }
 (async () => {
   const c = contexto();
@@ -49,7 +50,20 @@ function contexto() {
   r = []; c.S.gravar(payload, 30, (e) => r.push(e));
   await new Promise((ok) => setTimeout(ok, 60));
   c.pendentes.shift()(null);
-  afirma(JSON.stringify(r) === '["sem-resposta"]', 'prazo sem resposta → "sem-resposta"; a resposta atrasada é ignorada (cb uma vez)');
+  afirma(JSON.stringify(r) === '["sem-resposta"]', 'prazo sem resposta → "sem-resposta"; sem "depois", a resposta atrasada é ignorada (cb uma vez)');
+  /* homologação 2026-10-13: a resposta que chega depois do prazo é a confirmação (ou a recusa) que a tela espera */
+  let tarde = []; r = []; c.S.gravar(payload, 30, (e) => r.push(e), (e) => tarde.push(e));
+  await new Promise((ok) => setTimeout(ok, 60));
+  afirma(JSON.stringify(r) === '["sem-resposta"]' && tarde.length === 0, 'prazo vencido: cb("sem-resposta") e nada em "depois" enquanto o servidor não responde');
+  c.pendentes.shift()(null);
+  afirma(JSON.stringify(r) === '["sem-resposta"]' && JSON.stringify(tarde) === '[null]', 'o servidor confirma depois do prazo → depois(null); cb não é chamado de novo');
+  tarde = []; r = []; c.S.gravar(payload, 30, (e) => r.push(e), (e) => tarde.push(e));
+  await new Promise((ok) => setTimeout(ok, 60));
+  c.pendentes.shift()(new Error('PERMISSION_DENIED'));
+  afirma(tarde.length === 1 && /PERMISSION_DENIED/.test(String(tarde[0])) && r.length === 1, 'o servidor recusa depois do prazo → depois(erro)');
+  tarde = []; r = []; c.S.gravar(payload, 200, (e) => r.push(e), (e) => tarde.push(e)); c.pendentes.shift()(null);
+  await new Promise((ok) => setTimeout(ok, 250));
+  afirma(JSON.stringify(r) === '[null]' && tarde.length === 0, 'resposta dentro do prazo → só cb; "depois" nunca é chamado');
   c.ctx.__lancar = true; r = []; c.S.gravar(payload, 200, (e) => r.push(e)); c.ctx.__lancar = false;
   afirma(r.length === 1 && /falha síncrona/.test(String(r[0])), 'exceção síncrona → cb(erro), uma vez');
   await new Promise((ok) => setTimeout(ok, 250));
@@ -60,6 +74,9 @@ function contexto() {
   c.recusas['x/3'] = true; let rejeitou = false;
   try { await c.S.lerUmaVez('x/3'); } catch (e) { rejeitou = true; }
   afirma(rejeitou, 'lerUmaVez recusada rejeita (nunca vira "vazio")');
+  c.parados['x/4'] = true; let motivo = null; const t0 = Date.now();
+  try { await c.S.lerUmaVez('x/4', 40); } catch (e) { motivo = e; }
+  afirma(motivo === 'sem-resposta' && Date.now() - t0 < 1000, 'lerUmaVez parada (conexão sem resposta) rejeita "sem-resposta" no prazo — nunca espera para sempre');
   const vistos = [], erros = [];
   const cancelar = c.S.ouvir('y', (v) => vistos.push(v), (e) => erros.push(e));
   const o = c.log.on[0];

@@ -560,7 +560,7 @@
       registros: {}, reservas: {}, vigentes: {}, produtos: {}, decisoes: {},
       carregou: { av: false, res: false, vig: false, prod: false, dec: false, vigm: false }, erroLeitura: false, erroDec: false, vigenciaMotor: null, erroVigencia: false,
       mostrarHistorico: false, formDecisao: null, exportando: null, flashExportacao: null, menuExportarAberto: false,
-      atual: null, chave: null, revisaoBase: 0, sujo: false, conflito: false, salvando: null, revisaoEmGravacao: null,
+      atual: null, chave: null, revisaoBase: 0, sujo: false, conflito: false, salvando: null, naoConfirmada: null, revisaoEmGravacao: null,
       itemEscolhido: null, busca: '', pendente: null, flash: null
     }; }
     var state = novoEstado();
@@ -723,7 +723,7 @@
       else if (state.tela === 'descartado') h = renderDescartado();
       else if (state.tela === 'carregando') h = '<p class="loading-msg">Carregando…</p>';
       else if (state.tela === 'nao-encontrada') h = '<p class="admin-empty" id="poNaoEncontrada">Avaliação de posicionamento não encontrada.</p>' + rodapeVoltar();
-      wrap.innerHTML = '<button type="button" class="avp-voltar-link" id="poVoltar">← Voltar para Avaliações</button>' + h;
+      wrap.innerHTML = '<button type="button" class="avp-voltar-link" id="poVoltar">← Voltar para Avaliações</button>' + avisoNaoConfirmada() + h;
       bind();
       if (P()) P().atualizarDom(wrap);
       if (foco) { var el = byId(foco.id); if (el && !el.disabled) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) { /* select e search sem seleção */ } } }
@@ -804,7 +804,7 @@
     function renderLista() {
       var h = '<div class="avp-form-card" id="poLista"><h3>Posicionamento Organizacional</h3>' +
         '<p class="avp-intro">Recomenda que tipo de estrutura organizacional deve sustentar a responsabilidade associada a cada item (O1–O9). Não escolhe uma estrutura concreta.</p>';
-      if (state.flash) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
+      if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (podeEscrever()) h += '<div class="avp-actions-bar"><button type="button" class="btn btn--primary" id="poNovoBtn">+ Avaliar posicionamento de um item</button></div>';
       /* sem o índice de vigentes, toda concluída pareceria histórica: espera os dois */
       if (!state.carregou.av || !state.carregou.vig) h += '<p class="loading-msg">Carregando…</p>';
@@ -873,7 +873,7 @@
       if (escolhido) {
         var vmv = versaoEmVigorLida();
         if (vmv === null) return '<p class="loading-msg" id="poVerificandoMotor" role="status">' + (state.erroVigencia ? 'Não foi possível ler a versão do motor em vigor agora.' : 'Verificando a versão do motor…') + '</p>';
-        return '<p class="avp-ficha-meta" id="poMotorEmVigor">Motor em vigor: v' + esc(vmv) + '</p><button type="button" class="btn btn--primary" id="poIniciarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando ? 'INICIANDO…' : 'Iniciar avaliação') + '</button>';
+        return '<p class="avp-ficha-meta" id="poMotorEmVigor">Motor em vigor: v' + esc(vmv) + '</p><button type="button" class="btn btn--primary" id="poIniciarBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando ? 'INICIANDO…' : 'Iniciar avaliação') + '</button>';
       }
       return '<button type="button" class="btn btn--sm po-item-escolher">Escolher</button>';
     }
@@ -891,25 +891,26 @@
       if (!edita) h += '<p class="avp-decisao-aviso" id="poSomenteLeitura">Somente consulta: responder, salvar e concluir são do perfil Avaliação + Configuração.</p>';
       if (state.conflito) h += '<div class="avp-error-msg" id="poConflito" role="alert">Outra pessoa alterou este rascunho depois que você o abriu. Para não sobrescrever o trabalho dela, recarregue antes de continuar. ' +
         '<button type="button" class="btn btn--sm" id="poRecarregarBtn">Recarregar</button></div>';
-      if (state.flash) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
+      if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (a.avaliacaoAnteriorId) h += '<div class="po-reavaliacao-info" id="poReavaliacaoInfo"><p><strong>Reavaliação — versão ' + esc(a.versao) + '.</strong> A versão ' + esc((a.versao || 2) - 1) +
         ' continua vigente até esta ser concluída; descartar esta reavaliação não muda nada nela.</p><p><strong>Motivo:</strong> ' + esc(a.motivoReavaliacao) + '</p>' +
         '<p class="avp-ficha-meta">As respostas da versão anterior vieram preenchidas; perguntas cuja redação mudou precisam ser respondidas de novo.</p></div>';
       h += '<p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
+      /* gravação não confirmada: as respostas ficam à vista, travadas até a resposta do servidor */
       var cam = caminho(a);
       ORDEM_NIVEIS.forEach(function (n) {
         var qs = NIVEIS[n].filter(function (q) { return cam.indexOf(q) !== -1; });
         if (!qs.length) return;
         h += '<section class="po-nivel" data-nivel="' + n + '"><h4 class="po-nivel-titulo">' + esc(TITULO_NIVEL[n]) + '</h4>';
-        qs.forEach(function (q) { h += renderPergunta(q, versao, edita, vm); });
-        if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita, vm);
+        qs.forEach(function (q) { h += renderPergunta(q, versao, edita && !state.naoConfirmada, vm); });
+        if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita && !state.naoConfirmada, vm);
         var pn = predominanciaNecessaria(a, n);
-        if (pn) h += renderPredominancia(n, pn.opcoes, versao, edita, vm);
+        if (pn) h += renderPredominancia(n, pn.opcoes, versao, edita && !state.naoConfirmada, vm);
         h += '</section>';
       });
       h += '</div>';
       if (edita) {
-        var f = falta(a), bloq = !!state.salvando || state.conflito, tc = travaConclusao(a);
+        var f = falta(a), bloq = ocupado() || state.conflito, tc = travaConclusao(a);
         /* a base P1–P16 deixou de valer: o rascunho continua salvável e descartável, só não conclui */
         if (tc) h += '<p class="' + (tc.situacao === 'verificando' ? 'loading-msg' : 'avp-error-msg') + ' po-gate" id="poGate" data-gate="' + esc(tc.situacao) + '" role="status">' + esc(tc.texto) + '</p>';
         h += '<div class="avp-actions-footer">' +
@@ -999,7 +1000,7 @@
     function renderResultado() {
       var a = state.atual, key = state.chave, ra = resultadoLido(a.resultadoAutomatico), sit = situacaoDe(key, a);
       var h = '<div class="avp-form-card" id="poResultado"><h3>' + esc(a.itemNome) + ' · v' + esc(a.versao || 1) + ' ' + (state.carregou.vig ? badgeSituacao(sit) : badge(a.status)) + '</h3>';
-      if (state.flash) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
+      if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (state.carregou.vig && sit === 'historica') {
         var vg = state.vigentes[a.itemId], vgr = vg && state.registros[vg];
         h += '<p class="avp-decisao-aviso po-aviso-historica" id="poHistorica">Versão histórica: substituída' + (vgr ? ' pela versão ' + esc(vgr.versao || 1) : '') + '. Só consulta — não recebe decisão nem reavaliação.' +
@@ -1045,8 +1046,8 @@
       var libS = sit === 'vigente' && podeLer() ? liberacaoSquad(a.itemId, dadosLiberacao()) : null;
       h += '<div class="avp-actions-footer po-ficha-acoes">' +
         (libS && libS.situacao === 'liberado' ? '<button type="button" class="btn btn--primary" id="poAvaliarSquadBtn">Avaliar Adequação à Squad</button>' : '') +
-        (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando || travaReav ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
-        (atu ? '<button type="button" class="btn" id="poAtualizarMotorBtn"' + (state.salvando || travaReav ? ' disabled' : '') + '>Atualizar com motor atual (v' + esc(atu.de) + ' → v' + esc(atu.para) + ')</button>' : '') +
+        (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (ocupado() || travaReav ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
+        (atu ? '<button type="button" class="btn" id="poAtualizarMotorBtn"' + (ocupado() || travaReav ? ' disabled' : '') + '>Atualizar com motor atual (v' + esc(atu.de) + ' → v' + esc(atu.para) + ')</button>' : '') +
         '<button type="button" class="btn btn--sm" id="poGerarPdfBtn"' + (!prontoPdf || state.exportando ? ' disabled' : '') + '>' +
         (state.exportando === 'pdf' ? 'Gerando arquivo…' : !prontoPdf && !state.erroDec ? 'Carregando…' : '📄 GERAR PDF') + '</button></div>' + avisoExportacao() + statusExportacao();
       h += '</div>';
@@ -1055,7 +1056,8 @@
     function renderDecisao(a, key, sit) {
       if (state.erroDec) return '<p class="avp-error-msg" id="poDecisaoErroLeitura">Não foi possível ler a decisão agora.</p>';
       if (!state.carregou.dec || !state.carregou.vig) return '<p class="loading-msg" id="poDecisaoCarregando">Carregando…</p>';
-      var d = state.decisoes[key], h;
+      var ncDec = !!state.naoConfirmada && state.naoConfirmada.acao === 'decisao' && state.naoConfirmada.chave === key;
+      var d = ncDec ? null : state.decisoes[key], h;
       if (d) {
         h = '<p class="po-decisao-final" id="poDecisaoFinal">Posicionamento organizacional decidido: ' + spanNome(d.codigoFinal) + '</p>' +
           '<p id="poTipoDecisao">' + esc(ROTULO_TIPO_DECISAO[d.tipoDecisao] || d.tipoDecisao) + '</p>';
@@ -1066,13 +1068,13 @@
         return h + '<p class="avp-ficha-meta">Decidida em ' + esc(fmtData(d.decididoEm)) + (d.decididoPor ? ' por ' + esc(d.decididoPor.name || d.decididoPor.email) : '') +
           ' · a decisão não muda; para corrigir, faça uma reavaliação.</p>';
       }
-      h = '<p class="po-sem-decisao" id="poSemDecisao">Sem decisão registrada.</p>';
+      h = ncDec ? '<p class="po-sem-decisao" id="poSemDecisao">Decisão enviada, ainda não confirmada pelo servidor: não conta como registrada.</p>' : '<p class="po-sem-decisao" id="poSemDecisao">Sem decisão registrada.</p>';
       if (sit !== 'vigente') return h;
       if (!podeEscrever()) return h;
       if (state.reservas[a.itemId]) return h + '<p class="avp-decisao-aviso" id="poDecisaoBloqueada" role="status">Há uma reavaliação em andamento. Conclua ou descarte essa reavaliação antes de registrar uma decisão para esta versão.</p>';
       var M = nucleo(), auto = a.resultadoAutomatico && a.resultadoAutomatico.codigoResultado;
       var f = state.formDecisao || (state.formDecisao = { codigo: M.CODIGOS_FIRMES.indexOf(auto) !== -1 ? auto : '', justificativa: '' });
-      var salvando = state.salvando === 'decisao';
+      var salvando = state.salvando === 'decisao' || ncDec;
       if (auto === 'A_VALIDAR') h += '<p class="avp-decisao-aviso" id="poOrientacaoAValidar">Se houver elementos suficientes, escolha um posicionamento firme e justifique. Se ainda não houver base para decidir, use Reavaliar.</p>';
       h += '<div class="po-decisao-form" id="poDecisaoForm"><div class="avp-field"><label for="poCodigoFinal">Posicionamento final *</label><select id="poCodigoFinal" class="avp-select"' + (salvando ? ' disabled' : '') + '>' +
         '<option value="">Escolha…</option>' + M.CODIGOS_FIRMES.map(function (c) {
@@ -1083,7 +1085,7 @@
         '<textarea id="poJustificativaInput" class="avp-observacao" rows="3" maxlength="' + MAX_JUSTIFICATIVA + '"' + (salvando ? ' disabled' : '') + '>' + esc(f.justificativa) + '</textarea></div>' +
         '<p class="avp-error-msg" id="poDecisaoErro"' + (f.erro ? '' : ' hidden') + '>' + esc(f.erro || '') + '</p>' +
         '<p class="avp-ficha-meta">A decisão não pode ser alterada depois: para corrigir, faça uma reavaliação. Só os posicionamentos firmes podem ser escolhidos (não Linha, Plataforma nem "A validar").</p>' +
-        '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="poDecidirBtn"' + (state.salvando ? ' disabled' : '') + '>' + (salvando ? 'REGISTRANDO…' : 'Registrar decisão') + '</button></div></div>';
+        '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="poDecidirBtn"' + (ocupado() ? ' disabled' : '') + '>' + (ncDec ? 'AGUARDANDO CONFIRMAÇÃO' : salvando ? 'REGISTRANDO…' : 'Registrar decisão') + '</button></div></div>';
       return h;
     }
     function textoTipoPrevisto(auto, cod) {
@@ -1213,7 +1215,7 @@
         { sim: 'Continuar', nao: 'Cancelar', aoSim: function () { confirmar(); return null; }, aoNao: function () { render(); } });
     }
     function responder(q, v) {
-      if (!podeEscrever() || state.salvando || state.conflito) return;
+      if (!podeEscrever() || ocupado() || state.conflito) return;
       var atual = respostaDe(q);
       if (atual && atual.resposta === v) return;
       var novo = clone(state.atual);
@@ -1222,7 +1224,7 @@
       aplicarMudanca(novo);
     }
     function responderDiagnostico(n, v) {
-      if (!podeEscrever() || state.salvando || state.conflito) return;
+      if (!podeEscrever() || ocupado() || state.conflito) return;
       var d = state.atual.diagnosticos && state.atual.diagnosticos[n];
       if (d && d.resposta === v) return;
       var novo = clone(state.atual);
@@ -1232,7 +1234,7 @@
       aplicarMudanca(novo);
     }
     function responderPredominancia(n, v) {
-      if (!podeEscrever() || state.salvando || state.conflito) return;
+      if (!podeEscrever() || ocupado() || state.conflito) return;
       var pn = predominanciaNecessaria(state.atual, n);
       if (!pn || pn.opcoes.indexOf(v) === -1) return;
       var d = state.atual.predominancias && state.atual.predominancias[n];
@@ -1244,8 +1246,35 @@
     }
 
     /* ---- gravação com prazo: sem resposta não é "falhou" — confere o banco antes de liberar ---- */
+    /* Homologação (2026-10-13): o SDK mostra a gravação pendente no cache local (ouvintes e lerUmaVez) antes de o
+       servidor confirmar. Prazo vencido NÃO é "gravou" nem "falhou": a tela fica em "Gravação não confirmada" (o que a
+       pessoa preencheu continua, nada mais é gravado nem conta como salvo) até a resposta do servidor, que o SDK obtém
+       sozinho quando a conexão volta; então segue o caminho normal (aoOk) ou o de recusa (aoErro). */
+    var TEXTO_NAO_CONFIRMADA = { criacao: 'o início da avaliação', rascunho: 'o rascunho', concluido: 'a conclusão', descarte: 'o descarte',
+      decisao: 'a decisão final', reavaliacao: 'o início da reavaliação' };
+    function ocupado() { return !!state.salvando || !!state.naoConfirmada; }
     function gravar(payload, aoOk, aoErro) {
-      S().gravar(payload, TEMPO_GRAVACAO, function (err) { if (err) aoErro(err); else aoOk(); });
+      var acao = state.salvando, chave = state.chave;
+      state.flash = null; /* um sucesso anterior não volta à tela se esta gravação não for confirmada */
+      var nome = state.atual ? state.atual.itemNome : (state.itemEscolhido ? (itemDoGate(state.itemEscolhido) || {}).nome : null);
+      S().gravar(payload, TEMPO_GRAVACAO, function (err) {
+        if (err !== 'sem-resposta') { if (err) aoErro(err); else aoOk(); return; }
+        state.salvando = null; state.naoConfirmada = { acao: acao, chave: chave, itemNome: nome || null }; render();
+      }, function (err) {
+        var nc = state.naoConfirmada, oque = TEXTO_NAO_CONFIRMADA[acao] + (nc && nc.itemNome ? ' de “' + nc.itemNome + '”' : '');
+        state.naoConfirmada = null;
+        /* a pessoa saiu da avaliação enquanto esperava: os ouvintes já trazem o que o servidor tem; só avisa */
+        if (state.chave !== chave) { render(); aviso(err ? 'O servidor recusou ' + oque + '. Abra a avaliação e confira.' : 'O servidor confirmou ' + oque + '.'); return; }
+        state.salvando = acao;
+        if (err) aoErro(err); else aoOk();
+      });
+    }
+    function avisoNaoConfirmada() {
+      var nc = state.naoConfirmada;
+      if (!nc) return '';
+      return '<div class="avp-error-msg po-nao-confirmada" id="poNaoConfirmada" role="alert"><strong>Gravação não confirmada.</strong> O servidor ainda não confirmou ' +
+        esc(TEXTO_NAO_CONFIRMADA[nc.acao] || 'a gravação') + (nc.itemNome ? ' de “' + esc(nc.itemNome) + '”' : '') + ' (conexão lenta ou interrompida): até lá, nada disso conta como salvo. ' +
+        'O que você preencheu continua nesta tela, e a gravação é reenviada sozinha quando a conexão voltar. Não recarregue nem feche a página antes disso: o que não foi confirmado se perderia.</div>';
     }
     function novaChave(caminho) { return S().novaChave(caminho); }
 
@@ -1262,7 +1291,7 @@
       return sit && sit.versaoPublicada ? sit.versaoPublicada : null;
     }
     function iniciar() {
-      if (!podeEscrever() || state.salvando) return;
+      if (!podeEscrever() || ocupado()) return;
       if (!state.itemEscolhido || !window.faQuestionarios.configCarregada(QCOD)) return;
       var it = itemDoGate(state.itemEscolhido);
       if (state.vigentes[it.itemId]) { irParaChave(state.vigentes[it.itemId]); return; }
@@ -1292,7 +1321,7 @@
           return S().lerUmaVez(VIG + '/' + it.itemId).then(function (v) {
             if (v) { irParaChave(v); return; }
             render();
-            aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar o início. Confira a lista antes de tentar de novo.' : 'Não foi possível iniciar a avaliação. Tente novamente.');
+            aviso('Não foi possível iniciar a avaliação. Tente novamente.');
           });
         }).catch(function () { render(); aviso('Não foi possível iniciar a avaliação. Tente novamente.'); });
       });
@@ -1304,11 +1333,11 @@
       S().lerUmaVez(NODE + '/' + id + '/revisao').then(function (rev) {
         if (rev !== state.revisaoBase) { state.conflito = true; render(); return; }
         render();
-        aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar. Confira antes de tentar de novo.' : 'Não foi possível ' + acao + '. Tente novamente.');
+        aviso('Não foi possível ' + acao + '. Tente novamente.');
       }).catch(function () { render(); aviso('Não foi possível ' + acao + '. Tente novamente.'); });
     }
     function salvar() {
-      if (!podeEscrever() || state.salvando || state.conflito) return;
+      if (!podeEscrever() || ocupado() || state.conflito) return;
       var usuario = sessaoAtual(); if (!usuario) return;
       var limpo = limparForaDoCaminho(state.atual).reg;
       var payload = payloadSalvar(state.chave, limpo, usuario, agoraIso(), state.revisaoBase);
@@ -1320,7 +1349,7 @@
       }, function (err) { state.revisaoEmGravacao = null; aposErroDeGravacao(err, 'salvar'); });
     }
     function concluir() {
-      if (!podeEscrever() || state.salvando || state.conflito) return;
+      if (!podeEscrever() || ocupado() || state.conflito) return;
       var limpo = limparForaDoCaminho(state.atual).reg;
       if (falta(limpo)) { render(); return; }
       /* o gate vale também na conclusão: a base P1–P16 pode ter mudado depois que o rascunho foi aberto. Bloqueia sem
@@ -1373,7 +1402,7 @@
       }, function (err) { state.revisaoEmGravacao = null; aposErroDeGravacao(err, 'concluir'); });
     }
     function pedirDescarte() {
-      if (!podeEscrever() || state.salvando || state.conflito) return;
+      if (!podeEscrever() || ocupado() || state.conflito) return;
       modal('<h4>Descartar este rascunho?</h4><p>O registro não é apagado: fica como descartado, com o motivo, e o item volta a poder ser avaliado.</p>' +
         '<label for="poMotivoDescarte">Motivo *</label><textarea id="poMotivoDescarte" rows="3" maxlength="' + MAX_MOTIVO + '"></textarea>',
         { sim: 'Descartar', nao: 'Cancelar', aoSim: function (box) {
@@ -1404,7 +1433,7 @@
     /* ---- decisão humana: uma por versão, só da vigente, sem reavaliação em andamento ---- */
     function erroDecisao(msg) { state.formDecisao.erro = msg; var e = byId('poDecisaoErro'); if (e) { e.textContent = msg; e.hidden = false; } }
     function pedirDecisao() {
-      if (!podeEscrever() || state.salvando || state.tela !== 'resultado') return;
+      if (!podeEscrever() || ocupado() || state.tela !== 'resultado') return;
       var a = state.atual, f = state.formDecisao, auto = a.resultadoAutomatico && a.resultadoAutomatico.codigoResultado;
       if (!f || !f.codigo) { erroDecisao('Escolha o posicionamento final.'); return; }
       var tipo = tipoDecisao(auto, f.codigo);
@@ -1433,13 +1462,13 @@
           if (r[0]) { state.decisoes[key] = r[0]; state.formDecisao = null; render(); aviso('Já havia uma decisão registrada para esta versão: ela foi mantida.'); return; }
           if (r[1]) { state.reservas[a.itemId] = r[1]; render(); aviso('Há uma reavaliação em andamento. Conclua ou descarte essa reavaliação antes de registrar uma decisão para esta versão.'); return; }
           render();
-          aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar a decisão. Confira a ficha antes de tentar de novo.' : 'Não foi possível registrar a decisão. Tente novamente.');
+          aviso('Não foi possível registrar a decisão. Tente novamente.');
         }).catch(function () { state.salvando = null; render(); aviso('Não foi possível registrar a decisão. Tente novamente.'); });
       });
     }
     /* ---- reavaliação: versão seguinte da vigente; a vigente fica até a nova ser concluída ---- */
     function pedirReavaliacao() {
-      if (!podeEscrever() || state.salvando) return;
+      if (!podeEscrever() || ocupado()) return;
       var a = state.atual, key = state.chave;
       if (state.vigentes[a.itemId] !== key) return;
       if (state.reservas[a.itemId]) { irParaChave(state.reservas[a.itemId]); return; }
@@ -1458,7 +1487,7 @@
         } });
     }
     function pedirAtualizacaoMotor() {
-      if (!podeEscrever() || state.salvando) return;
+      if (!podeEscrever() || ocupado()) return;
       var a = state.atual, key = state.chave, atu = atualizacaoDisponivel(a, versaoEmVigorLida());
       if (!atu || state.vigentes[a.itemId] !== key) return;
       if (state.reservas[a.itemId]) { irParaChave(state.reservas[a.itemId]); return; }
@@ -1510,7 +1539,7 @@
           state.salvando = null;
           if (outro && outro !== id) { state.reservas[it.itemId] = outro; render(); aviso('Outra pessoa iniciou uma reavaliação deste item ao mesmo tempo: abra-a pela ficha.'); return; }
           render();
-          aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar a reavaliação. Confira a ficha antes de tentar de novo.' : 'Não foi possível iniciar a reavaliação. Tente novamente.');
+          aviso('Não foi possível iniciar a reavaliação. Tente novamente.');
         }).catch(function () { state.salvando = null; render(); aviso('Não foi possível iniciar a reavaliação. Tente novamente.'); });
       });
     }
@@ -1664,7 +1693,7 @@
     }
     ['fa-auth-ready', 'fa-auth-change', 'fa-avaliacao-ready', 'fa-admin-ready'].forEach(function (ev) { window.addEventListener(ev, aoMudarSessao); });
     ligar();
-    window.addEventListener('beforeunload', function (e) { if (state.tela === 'checklist' && state.sujo) { e.preventDefault(); e.returnValue = ''; } });
+    window.addEventListener('beforeunload', function (e) { if ((state.tela === 'checklist' && state.sujo) || state.naoConfirmada) { e.preventDefault(); e.returnValue = ''; } });
     window.addEventListener('hashchange', function () {
       var e = poDoEndereco();
       if (!e.po) { if (!wrap.hidden) fecharPainel(); return; }

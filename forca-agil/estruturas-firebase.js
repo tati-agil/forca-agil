@@ -85,6 +85,17 @@
     return x;
   }
   function recusa(codigo) { return { codigo: codigo }; }
+  /* toda leitura e gravação de uma operação tem prazo: com a conexão parada, once() de um caminho fora do cache local
+     espera para sempre, e a tela ficava em "Salvando…" (homologação, 2026-10-13). Prazo vencido = SEM_RESPOSTA */
+  var PRAZO_PADRAO = 20000;
+  function comPrazo(p, prazoMs) {
+    var t, venceu = new Promise(function (_, rej) { t = setTimeout(function () { rej(recusa('SEM_RESPOSTA')); }, prazoMs || PRAZO_PADRAO); });
+    return Promise.race([p, venceu]).then(function (v) { clearTimeout(t); return v; }, function (e) { clearTimeout(t); return Promise.reject(e); });
+  }
+  /* gravações enviadas cujo servidor ainda não confirmou (operação → promessa do update). O SDK mostra a gravação
+     pendente no cache local, então ler o banco agora NÃO confirma nada: enquanto a operação está aqui, ela não conta
+     como aplicada e não é enviada de novo (o SDK já a reenvia sozinho quando a conexão volta) */
+  var naoConfirmadas = {};
   function ehNegado(e) { var t = String((e && (e.code || e.message)) || '').toLowerCase(); return t.indexOf('permission') !== -1 || t.indexOf('denied') !== -1; }
   function familiaDe(op) { var ent = op.mudancas[0] && ENTIDADES[op.mudancas[0].entidade]; return ent ? ent.familia : null; }
 
@@ -191,9 +202,9 @@
     });
   }
   /* para as telas só de consulta (todos os perfis da Avaliação): null se não foi possível ler */
-  function lerRelacoesConceituais(db, codigosLinha) {
+  function lerRelacoesConceituais(db, codigosLinha, prazoMs) {
     db = db || window.firebase.database();
-    var umaVez = function (c) { return db.ref(c).once('value').then(function (sn) { return sn.val(); }); };
+    var umaVez = function (c) { return comPrazo(db.ref(c).once('value').then(function (sn) { return sn.val(); }), prazoMs); };
     return lerTaxonomiaDasRelacoes(umaVez, codigosLinha).then(null, function () { return null; });
   }
   function lerLigacoes(db, codigosFirmes) {
@@ -201,10 +212,10 @@
   }
 
   function criarPortas(opcoes) {
-    var db = opcoes && opcoes.db, firmes = (opcoes && opcoes.codigosFirmes) || [], linha = (opcoes && opcoes.codigosLinha) || null, prazoMs = (opcoes && opcoes.prazoMs) || 20000;
+    var db = opcoes && opcoes.db, firmes = (opcoes && opcoes.codigosFirmes) || [], linha = (opcoes && opcoes.codigosLinha) || null, prazoMs = (opcoes && opcoes.prazoMs) || PRAZO_PADRAO;
     if (!db || !firmes.length) throw new Error('adaptador Firebase: falta o banco ou os códigos firmes');
     var ref = function (c) { return db.ref(c); };
-    var umaVez = function (c) { return ref(c).once('value').then(function (s) { return s.val(); }, function (e) { return Promise.reject(recusa(ehNegado(e) ? 'RECUSADA' : 'SEM_RESPOSTA')); }); };
+    var umaVez = function (c) { return comPrazo(ref(c).once('value').then(function (s) { return s.val(); }, function (e) { return Promise.reject(recusa(ehNegado(e) ? 'RECUSADA' : 'SEM_RESPOSTA')); }), prazoMs); };
 
     /* referências oficiais dos 8 tipos firmes: só o que as regras deixam ler a quem cadastra (ativo do conceito e
        registradoEm da ligação canônica). O banco confere as mesmas duas coisas NA gravação. */
@@ -243,6 +254,7 @@
     }
     /* o identificador de operação é único entre as famílias: a operação foi aplicada se existe em qualquer uma */
     function conferirOperacao(id) {
+      if (naoConfirmadas[id]) return Promise.reject(recusa('SEM_RESPOSTA'));
       return Promise.all([umaVez(RAIZ + '/operacoes/' + id), umaVez(RAIZ_SUBAGRUPADORES + '/operacoes/' + id), umaVez(RAIZ_VINCULOS + '/operacoes/' + id), umaVez(RAIZ_RELACOES + '/operacoes/' + id)]).then(function (v) { return { aplicada: v[0] !== null || v[1] !== null || v[2] !== null || v[3] !== null }; });
     }
     function lerEventos() { return Promise.all([umaVez(RAIZ + '/eventos'), umaVez(RAIZ_SUBAGRUPADORES + '/eventos'), umaVez(RAIZ_VINCULOS + '/eventos'), umaVez(RAIZ_RELACOES + '/eventos')]).then(function (v) { return eventosDoValor(v[0], v[1], v[2], v[3]); }); }
@@ -251,9 +263,10 @@
       if (!op || !op.id || !(op.mudancas || []).length || (op.eventos || []).length !== op.mudancas.length) return Promise.reject(recusa('RECUSADA'));
       if (op.mudancas.some(function (m) { return !ENTIDADES[m.entidade] || ENTIDADES[m.entidade].familia !== familiaDe(op); })) return Promise.reject(recusa('RECUSADA'));
       var multi = montarGravacao(op);
-      var prazo, venceu = new Promise(function (_, rej) { prazo = setTimeout(function () { rej(recusa('SEM_RESPOSTA')); }, prazoMs); });
-      return Promise.race([ref('/').update(multi), venceu]).then(function () { clearTimeout(prazo); return { situacao: 'gravada' }; }, function (e) {
-        clearTimeout(prazo);
+      if (naoConfirmadas[op.id]) return Promise.reject(recusa('SEM_RESPOSTA'));
+      var enviada = naoConfirmadas[op.id] = Promise.resolve(ref('/').update(multi));
+      enviada.then(function () { delete naoConfirmadas[op.id]; }, function () { delete naoConfirmadas[op.id]; });
+      return comPrazo(enviada, prazoMs).then(function () { return { situacao: 'gravada' }; }, function (e) {
         if (e && e.codigo === 'SEM_RESPOSTA') return Promise.reject(e);
         /* recusada pelo banco: a mesma operação já aplicada? outra pessoa gravou antes (revisão, ou a Linha já ganhou
            outra associação ativa)? ou recusa de fato */
