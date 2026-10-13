@@ -62,7 +62,7 @@ const resp = (q, v) => ({ resposta: v, codigoPergunta: q, questionnaireContentVe
     ['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].forEach((i) => { prods[i] = Object.assign({ itemId: i, status: 'concluido', excluido: false }, MOTOR_OK); });
     await d.ref('avaliacoes-produto').set(prods);
   });
-  const criacao = (id, item, e, vMotor) => T.payloadCriacao({ id, audId: 'ac' + id, itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: usuario(e), agora: QUANDO, versaoMotor: vMotor });
+  const criacao = (id, item, e, vMotor) => T.payloadCriacao({ hipoteseInicial: 'NAO_SEI', id, audId: 'ac' + id, itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: usuario(e), agora: QUANDO, versaoMotor: vMotor });
   const vig = (v) => admin(async (d) => { if (v === null) await d.ref('posicionamento-motor-vigencia').remove(); else await d.ref('posicionamento-motor-vigencia').set({ versaoEmVigor: v, seq: 1 }); });
 
   console.log('A. sem registro de vigência (v1)');
@@ -118,7 +118,7 @@ const resp = (q, v) => ({ resposta: v, codigoPergunta: q, questionnaireContentVe
   console.log('D. reavaliação e "Atualizar com motor atual"');
   const a1c = await ler(AV + '/a1');
   const reav = (id, ant, extra) => {
-    const p = T.payloadReavaliacao({ id, audId: 'ar' + id, anteriorId: 'a1', anterior: ant, itemNome: 'Item i1', avaliacaoArquiteturalId: 'i1', versao: 1, motivo: 'Revisar', usuario: usuario(ARQ), agora: QUANDO });
+    const p = T.payloadReavaliacao({ hipoteseInicial: 'NAO_SEI', id, audId: 'ar' + id, anteriorId: 'a1', anterior: ant, itemNome: 'Item i1', avaliacaoArquiteturalId: 'i1', versao: 1, motivo: 'Revisar', usuario: usuario(ARQ), agora: QUANDO });
     if (extra) extra(p);
     return p;
   };

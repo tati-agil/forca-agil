@@ -2,7 +2,7 @@
   "_comentario": [
     "Suíte hermética (Firebase falso, sem segredo, sem rede) rodada por rodar-suite.js — localmente e nos 4 grupos do CI (testes-automaticos.yml).",
     "Todo teste-*.js de .github/scripts precisa estar AQUI ou em foraDaSuite (com o motivo): rodar-suite.js recusa rodar se encontrar um que não está em nenhum dos dois — nenhum teste fica de fora por esquecimento.",
-    "duracao = segundos medidos no CI (execução de 13/10/2026 do commit a185838: os 4 grupos, um teste por vez). Só serve para equilibrar os grupos e ordenar a fila (mais lentos primeiro); errar o número não muda o que roda."
+    "duracao = segundos medidos no CI (média das execuções de 13/10/2026 dos commits a185838 e 8898d82: os 4 grupos, um teste por vez). Só serve para equilibrar os grupos e ordenar a fila (mais lentos primeiro); errar o número não muda o que roda."
   ],
   "foraDaSuite": {
     ".github/scripts/teste-rules-redacao-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
@@ -46,13 +46,13 @@
     {
       "arquivo": ".github/scripts/teste-curadoria-decisao-coerencia.js",
       "nome": "Avaliação: coerência da Curadoria × Decisão final × Reavaliação (desktop e celular)",
-      "duracao": 22,
+      "duracao": 20,
       "sobre": "Coerência da Curadoria e da Decisão final: reavaliar item com decisão manual avisa antes e não herda a decisão (a v2 nasce com auditoria própria); uma regra só para a Decisão final (legado sem decisaoFinal) e só o que foi REGISTRADO conta como curadoria (derivado do questionário e cadastro inaplicável não contam) — tela, PDF e Excel."
     },
     {
       "arquivo": ".github/scripts/teste-avaliacoes-navegacao.js",
       "nome": "Avaliação: navegação, URL e Voltar/Reavaliar/F5 (desktop e celular)",
-      "duracao": 52,
+      "duracao": 42,
       "sobre": "Navegação: a URL é a fonte de verdade (lista, ?avp=, ?nova=1, ?editar=, ?reavaliar=); Voltar sem laço e com o destino no texto; saída com alteração pergunta (Descartar alterações / Continuar editando), também no Voltar do navegador; F5 restaura/avisa; concluir substitui a entrada."
     },
     {
@@ -70,25 +70,25 @@
     {
       "arquivo": ".github/scripts/teste-taxonomia.js",
       "nome": "Taxonomia: interface, importador, edição, auditoria e vigência (desktop e celular)",
-      "duracao": 104,
+      "duracao": 107,
       "sobre": "Taxonomia (Admin → Taxonomia): estados de leitura (carregando ≠ erro ≠ sem acesso ≠ vazio), importação única atômica, dois domínios separados, definição vigente (equivalência com o ponteiro + segunda barreira na aplicação), edição que salva com auditoria, só admin; detalhe na ordem Identificação → Definição vigente (cartão em destaque, com \"Nova versão da definição\") → outras fontes → Critérios e pergunta → Atributos → Relações (saída e entrada separadas) → Histórico; históricos do conceito e global recolhidos por padrão (\"Histórico — N alterações\", inclusive N = 0) e abertos guardam o estado no re-render; ações gerais separadas das do conceito; \"← VOLTAR\" visível no topo e no fim (375 px) devolvendo a lista com o conceito marcado; desktop e celular. Conteúdo 100% fictício, conceitos sempre pelo código."
     },
     {
       "arquivo": ".github/scripts/teste-ficha-estrutura.js",
       "nome": "Avaliação: estrutura da ficha — seções, ações do item e rótulos (desktop e celular)",
-      "duracao": 28,
+      "duracao": 24,
       "sobre": "Estrutura da ficha: o sistema concluiu → uma pessoa complementou (Curadoria) → uma pessoa decidiu (Decisão final) → como chegamos até aqui (históricos, questionário). Reavaliar e GERAR PDF no cabeçalho, faixa-resumo, Forma da decisão sem Curadoria, justificativa automática sem valor cadastrado, rótulos dos Salvar, históricos fora da Curadoria."
     },
     {
       "arquivo": ".github/scripts/teste-curadoria-orfa.js",
       "nome": "Avaliação: curadoria anterior sem efeito e reconfirmação (desktop e celular)",
-      "duracao": 32,
+      "duracao": 27,
       "sobre": "Curadoria anterior sem efeito / disponível para revisão: cadastro de Especialização e Papel que a camada atual não admite fica preservado e fora da curadoria vigente; se a camada voltar a admitir, só volta a valer depois de confirmação humana (com auditoria); salvar um campo nunca apaga o outro; registro legado e abrir a ficha nunca gravam nada."
     },
     {
       "arquivo": ".github/scripts/teste-avaliacoes-ajustes.js",
       "nome": "Avaliação: filtros, PDFs em lote, voltar e Reavaliar (desktop e celular)",
-      "duracao": 13,
+      "duracao": 11,
       "sobre": "Ajustes de usabilidade da lista/detalhe: filtros com rótulo (Resultado Produto/Serviço × Classificação arquitetural), PDFs em lote, voltar com filtros e posição preservados e REAVALIAR (nova versão, anterior intacta)."
     },
     {
@@ -118,7 +118,7 @@
     {
       "arquivo": ".github/scripts/teste-questionario-posicionamento.js",
       "nome": "Questionário de Posicionamento Organizacional O1–O9 + diagnóstico, tipos de pergunta e regressão de P/S (desktop e celular)",
-      "duracao": 13,
+      "duracao": 12,
       "sobre": "Terceiro questionário de questionarios-config.js (POSICIONAMENTO_ORGANIZACIONAL): O1–O9 binárias com tipo explícito e o diagnóstico conflito × recorte (respostas estáveis mesma/distintas, as mesmas do motor; campos editoriais próprios, nunca justSim/justNao); tipo e códigos fora da edição e reconstruídos do código em toda gravação; editor por tipo; publicação do rótulo de \"mesma\" com versão nova e auditoria legível; rollback; Excel com as 7 colunas novas no fim. Regressão: P1–P16 e S1–S8 iguais, campo a campo e por sha256, à referência gravada do main antes da mudança (referencia-questionarios-p-s.json), com os mesmos campos no editor, a mesma auditoria e os mesmos valores nas 14 colunas antigas do Excel."
     },
     {
@@ -130,37 +130,37 @@
     {
       "arquivo": ".github/scripts/teste-motor-adicionar-condicao.js",
       "nome": "Avaliação: editor do motor — acrescentar condição sem publicar (desktop e celular)",
-      "duracao": 28,
+      "duracao": 24,
       "sobre": "Editor do motor arquitetural: acrescentar condição (P1–P16, SIM/NÃO) ao grupo \"SE TODAS\" de uma regra, sem duplicata; só a condição NOVA (vs. versão-base do rascunho) é removível; regra inalcançável bloqueia; nada é publicado sozinho."
     },
     {
       "arquivo": ".github/scripts/teste-motor-v7.js",
       "nome": "Motor arquitetural: proposta da versão 7 — incoerência, conflito de naturezas P9–P16 e recorte do objeto",
-      "duracao": 16,
+      "duracao": 13,
       "sobre": "Código real num vm: matriz dos 28 pares (13 conflitos, 15 recortes); V6 × V7 nas 65.536 com contagens exatas, 44.416 mudanças e delta origem → destino exato; as mesmas 252 Capacidades; Produto/Serviço, Unidade de valor, Componente, Modalidade, Regra e Processo intactos; com 0 ou 1 natureza só os 384 de P5 com uma P13/P14/P15; com 2 naturezas o tipo segue a matriz; P6, P7 e S1–S8 fora; firmes com as condições da V6; proposta só sobre a versão 6 exata, sem gravar; textos de incoerência, conflito, recorte e misto; V6 com os textos da época. Navegador (banco falso, desktop e 375 px): cartão, carregar, regras no editor, simulação com tipo e motivo sem gravar; com a V7 publicada, avaliações de recorte, incoerência e misto com rótulo, detalhe e justificativa, e a concluída antes intacta."
     },
     {
       "arquivo": ".github/scripts/teste-capacidade-g.js",
       "nome": "Motor arquitetural: Capacidade G (proposta da versão 6) — delta exato, proposta só pela tela, textos novos",
-      "duracao": 11,
+      "duracao": 8,
       "sobre": "Motor real num vm: sobre a versão 5, Capacidade passa de 128 para 252 nas 65.536 — exatamente 124 de A validar para Capacidade, os 4 com o núcleo completo (P1–P5 e P8) + P11 continuam A validar, os 128 de antes continuam Capacidade (só os motivos perdem P1), nada fora de Capacidade muda; P11 + P15 nunca vira Capacidade; S1–S8 não participam; a proposta só existe sobre a versão 5 exata e consultar nunca grava. Navegador (banco falso, desktop e 375 px): cartão no editor, carregar e simular sem gravar; com a versão 6 publicada, avaliação nova com P1 e P11 = SIM é Capacidade com motivos, relação e justificativa novos, e a concluída antes fica intacta."
     },
     {
       "arquivo": ".github/scripts/teste-conflito-naturezas.js",
       "nome": "Avaliação: política geral de conflitos de natureza (proposta da versão 4, desktop e celular)",
-      "duracao": 55,
+      "duracao": 54,
       "sobre": "Política geral de conflitos de natureza predominante (P11–P15): operador \"pelo menos N de\", conflito dinâmico (só as naturezas marcadas) e a proposta da versão 4 carregável no editor — versão 3 intacta byte a byte, simulação aprovada reproduzida nas 65.536 combinações, prova inversa; nada é publicado."
     },
     {
       "arquivo": ".github/scripts/teste-texto-unidade-valor.js",
       "nome": "Avaliação: texto da Unidade de valor sem jornada/mensuração obrigatórias (desktop e celular)",
-      "duracao": 13,
+      "duracao": 11,
       "sobre": "Correção editorial da Relação arquitetural de Unidade de valor associada: não afirma mais \"jornada e mensuração\" (P6/P7 são auxiliares); todo o resto das 65.536 combinações fica idêntico; histórico preservado; prova inversa."
     },
     {
       "arquivo": ".github/scripts/teste-texto-componente.js",
       "nome": "Avaliação: justificativa de Componente sem negar jornada (desktop e celular)",
-      "duracao": 13,
+      "duracao": 11,
       "sobre": "Correção editorial da justificativa de Componente: não nega mais \"jornada própria\" (a regra não verifica P6); \"elemento configurável\" intacto; todo o resto das 65.536 combinações idêntico; histórico preservado; prova inversa."
     },
     {
@@ -178,13 +178,13 @@
     {
       "arquivo": ".github/scripts/teste-squad-inicio-motor.js",
       "nome": "Avaliação: Adequação à Squad — início e motor legível (desktop e celular)",
-      "duracao": 3,
+      "duracao": 4,
       "sobre": "Adequação à Squad: início \"item já cadastrado × novo item\" (sem ficha duplicada) e motor de squad legível (Sn — título, combinação Eixo A + Eixo B em leitura), com a lógica intacta."
     },
     {
       "arquivo": ".github/scripts/teste-squad-exportacoes.js",
       "nome": "Avaliação: Adequação à Squad — exportações Excel e PDF (desktop e celular)",
-      "duracao": 16,
+      "duracao": 19,
       "sobre": "Adequação à Squad: exportações Excel (todas/filtradas/selecionadas) e PDF consolidado em blocos (sem página em branco, também com muitas avaliações longas e no celular); textos dos vereditos; PDF individual igual."
     },
     {
@@ -214,25 +214,25 @@
     {
       "arquivo": ".github/scripts/teste-motor-noop-atomico.js",
       "nome": "Motor arquitetural/squad: o caminho de no-op também é atomicamente seguro sob concorrência",
-      "duracao": 7,
+      "duracao": 6,
       "sobre": "Hermético. Complementa o teste de concorrência acima: o caminho de NO-OP (publicar um rascunho que já parece idêntico ao vigente) comparava contra o cache local e limpava o rascunho com um update() incondicional, fora da transaction — entre a comparação e a gravação, outra pessoa podia publicar uma mudança real, e o rascunho seria descartado mesmo deixando de ser, de fato, equivalente ao que passou a estar publicado. Agora a decisão inteira (comparar e gravar) acontece dentro da mesma transaction, contra o valor do servidor no momento do commit."
     },
     {
       "arquivo": ".github/scripts/teste-motor-fallback-persistencia.js",
       "nome": "Motor arquitetural: fallback explícito sobrevive à persistência real do Firebase",
-      "duracao": 10,
+      "duracao": 11,
       "sobre": "Hermético (só Node). O fallback do motor arquitetural era {all:[]}, que o Firebase REAL não grava: toda versão publicada voltava sem condicoes, o diff acusava mudança lógica falsa e a validação rejeitava a própria versão vigente — invisível aqui porque o banco falso devolvia {all:[]} intacto. Este teste passa cada configuração pelo formato do Firebase real (persistencia-firebase-real.js) e exige a mesma semântica antes e depois: validação, diff e o retorno completo do motor nas 65.536 combinações."
     },
     {
       "arquivo": ".github/scripts/teste-motor-reconciliacao.js",
       "nome": "Motor arquitetural: reconciliar versão equivalente sem reprocessar",
-      "duracao": 15,
+      "duracao": 14,
       "sobre": "Hermético, com o banco falso em persistenciaReal. Versão anterior comprovadamente equivalente à vigente é RECONCILIADA (só o carimbo de versão muda, com histórico e auditoria), nunca reprocessada; mudança lógica real bloqueia a reconciliação. Desktop e 375 px."
     },
     {
       "arquivo": ".github/scripts/teste-motor-modal-atualizacao.js",
       "nome": "Modal de atualização do motor: reconciliar x reprocessar, situação mista e 'verificando'",
-      "duracao": 14,
+      "duracao": 13,
       "sobre": "Hermético, banco falso em persistenciaReal. Modal único \"Atualizar avaliações para a versão atual do motor\": o cenário da tela (10 avaliações — 8 em versão anterior equivalente + 2 atuais), a situação mista (5 atuais + 8 equivalentes + 7 realmente desatualizadas, com botões separados), \"verificando\" enquanto a configuração do motor não chega, motivos do \"desatualizado\", e ausência de prova = sem reconciliação. Desktop e 375 px."
     },
     {
@@ -244,7 +244,7 @@
     {
       "arquivo": ".github/scripts/teste-tabela-avaliacoes-rolagem.js",
       "nome": "Tabela de avaliações: rolagem própria, cabeçalho/Item/Ações fixos",
-      "duracao": 9,
+      "duracao": 8,
       "sobre": "Hermético. Lista de avaliações (Admin → Arquitetura): o quadro da tabela rola sozinho, com cabeçalho sticky, Item (+ caixa) fixo à esquerda e Ações fixas à direita, fundos opacos, barra horizontal dentro da janela, sem rolagem horizontal da página e sem perder o lugar ao marcar uma linha. Cenários A-D em 1920x1080, 1600x900 e 1366x768; 768 px mantém; 375 px continua em cartões."
     },
     {
@@ -262,13 +262,13 @@
     {
       "arquivo": ".github/scripts/teste-natureza-catalogo-resiliente.js",
       "nome": "Natureza complementar: catálogo resiliente (sessão, demora, Tentar novamente) e salvamento A/B",
-      "duracao": 95,
+      "duracao": 94,
       "sobre": "Hermético. Catálogo de naturezas complementares resiliente: nenhuma leitura sem acesso nem antes de o acesso estar resolvido; login sem F5; sair desliga; troca de conta descarta a resposta da conta anterior; leitura sem resposta → aviso de demora (12 s) com \"Tentar novamente\" (avaliação e Admin) sem acumular ouvintes; salvamento A/B com a confirmação antiga chegando por último termina em B, sem auditoria duplicada. Desktop e 375 px."
     },
     {
       "arquivo": ".github/scripts/teste-textos-informacao-documento.js",
       "nome": "Textos de P5 e Informação/Documento refletem só o que as respostas sustentam",
-      "duracao": 9,
+      "duracao": 8,
       "sobre": "Hermético. Textos automáticos de P5 e de Informação/Documento (caso da Trilha de Educação Previdenciária: P2 = SIM, P5 = NÃO, P10 = SIM): a relação arquitetural e a justificativa não negam resultado próprio nem inferem dependência de outro Produto/Serviço, e a classificação das 65.536 combinações é idêntica à de antes (impressão digital); correção de P5 pela configuração parametrizada (versão nova do questionário, motorVersion intacto), histórico preservado. 375 px."
     },
     {
@@ -298,13 +298,13 @@
     {
       "arquivo": ".github/scripts/teste-admin-abrir-lista-restrita.js",
       "nome": "Admin — a lista de público restrito da turma se alcança (desktop, celular e rede lenta)",
-      "duracao": 7,
+      "duracao": 6,
       "sobre": "Hermético. Numa turma de público restrito, \"＋ Participante\" recusa quem não está na lista DELA — certo — mas o único caminho até essa lista era um botão escondido no menu ⋯, e o selo \"público restrito desta turma\", que é onde a mão vai, era texto inerte. Quem não achava lia \"Nenhum cadastro encontrado\" e concluía que faltava cadastro da pessoa, que já existia. Cobre também a rede lenta: a busca não pode dizer \"não achei\" enquanto fa-users não chegou."
     },
     {
       "arquivo": ".github/scripts/teste-aposta.js",
       "nome": "Construção da Aposta — o final não vaza e as etapas abrem uma por vez (desktop e celular)",
-      "duracao": 187,
+      "duracao": 176,
       "sobre": "Hermético. A Construção da Aposta tem duas exigências que só quebram em sala e não dá para ver lendo dez telas de texto: o final da dinâmica (OKR / Objective / Key Result) não pode vazar em NENHUMA etapa antes de a facilitadora revelar, e as etapas seguintes não podem abrir sozinhas — com o formulário inteiro à mostra, o grupo pula direto para a solução, que é o hábito que a oficina existe para interromper."
     },
     {
@@ -322,7 +322,7 @@
     {
       "arquivo": ".github/scripts/teste-publico-restrito-incluir-todos.js",
       "nome": "Público restrito — incluir todos de uma vez no aviso de divergência",
-      "duracao": 2,
+      "duracao": 1,
       "sobre": "Hermético. Regularizar quem já está na turma (ou no evento dela) sem estar no público restrito exigia abrir \"👥 Público restrito\" e buscar+clicar em cada pessoa, nome por nome, até duas vezes (lista da turma e lista do evento). O aviso que já lista essas pessoas ganhou um botão que grava todo mundo dele de uma vez."
     },
     {
@@ -346,13 +346,13 @@
     {
       "arquivo": ".github/scripts/teste-editar-cadastro.js",
       "nome": "Editar cadastro chega em todo lugar (desktop e iPhone)",
-      "duracao": 8,
+      "duracao": 9,
       "sobre": "Hermético. Prova que corrigir um cadastro chega em TODAS as cópias do nome/área (inscrição, presença, fila, listas, equipe) — e não só em fa-users, que é a versão da feature que passaria despercebida."
     },
     {
       "arquivo": ".github/scripts/teste-acoes-cadastrado.js",
       "nome": "Ações do cadastrado cabem na tela e gravam (desktop e iPhone)",
-      "duracao": 9,
+      "duracao": 8,
       "sobre": "Hermético. A linha da aba Cadastrados tinha uma coluna por ação e não cabia na tela: os últimos botões ficavam atrás de uma rolagem lateral cuja barra só aparecia no fim de uma tabela de milhares de pixels. Ação que ninguém alcança é ação que não existe — e isso não dá erro."
     },
     {
@@ -388,25 +388,25 @@
     {
       "arquivo": ".github/scripts/teste-treinamento-cartao.js",
       "nome": "Treinamento — o cartão fecha, mostra resumo, e abre sem perder progresso (desktop e iPhone)",
-      "duracao": 10,
+      "duracao": 9,
       "sobre": "Hermético. \"Está muito estranho\" — o convite da Construção da Aposta é um card pequeno e fechado; o Treinamento Jedi era um banner grande, sempre aberto, empilhado logo abaixo. Agora os dois compartilham o mesmo frame visual e o Treinamento também nasce fechado, com um resumo de status."
     },
     {
       "arquivo": ".github/scripts/teste-roteiro-texto-rico.js",
       "nome": "Abrir e salvar sem editar não corrompe texto com \"&\" (desktop e iPhone)",
-      "duracao": 16,
+      "duracao": 15,
       "sobre": "Hermético. As caixas de texto rico do Roteiro decidem se um valor é HTML novo ou texto puro antigo olhando só se tem alguma tag — nunca se já tem uma entidade (&amp; &nbsp;). Um \"&\" sem tag nenhuma era escapado de novo TODA vez que a atividade era aberta e salva, mesmo sem editar aquele campo — depois de duas rodadas virava um \"&amp;nbsp;\" literal na tela, sem erro algum."
     },
     {
       "arquivo": ".github/scripts/teste-turmas-expansiveis.js",
       "nome": "Turmas e Minha Área — acordeão de turma não mistura uma com a outra (desktop e iPhone)",
-      "duracao": 9,
+      "duracao": 8,
       "sobre": "Hermético. Turmas e Minha Área: cada turma virou um acordeão (<details>/<summary>, mesmo idioma do Manual) porque com duas ou mais turmas/eventos a fronteira entre um e outro não ficava clara — borda quase invisível no tema escuro em Minha Área, e um bloco \"A Missão\" inteiro entre um evento e o próximo na aba Turmas. O cabeçalho fechado agora É a fronteira."
     },
     {
       "arquivo": ".github/scripts/teste-turmas-dia-rotulo.js",
       "nome": "Turmas — dia do mês sempre rotulado, singular e plural (desktop e iPhone)",
-      "duracao": 4,
+      "duracao": 3,
       "sobre": "Hermético. O card de turma mostra só o número do dia embaixo do mês. Com 2+ datas a vírgula/\"e\" dá a pista de que é uma lista; com uma data só, o número ficava sozinho e não lia como dia nenhum — \"16\" parecia um valor perdido. \"dia\"/\"dias\" na frente resolve os dois casos com a mesma regra."
     },
     {
@@ -430,13 +430,13 @@
     {
       "arquivo": ".github/scripts/teste-corrigir-email.js",
       "nome": "Corrigir e-mail leva os dados junto (desktop e iPhone)",
-      "duracao": 3,
+      "duracao": 2,
       "sobre": "Hermético. A correção de e-mail é o caminho mais arriscado do painel: troca o login da pessoa no Auth e depois move TODOS os dados dela de uma chave para outra. Errar aqui não dá erro na tela — a pessoa só descobre depois, sem inscrição, sem presença, sem os próprios pedidos."
     },
     {
       "arquivo": ".github/scripts/teste-menu-notebook.js",
       "nome": "Menu superior — o Sair e os itens cabem em todas as larguras (celular a monitor)",
-      "duracao": 25,
+      "duracao": 24,
       "sobre": "Menu superior: o \"Sair\" e todos os itens sempre alcançáveis, de celular a monitor grande (o smoke com login real apontou o \"Sair\" fora da tela em 1280 px com todos os itens do menu)."
     },
     {
@@ -483,7 +483,7 @@
     {
       "arquivo": ".github/scripts/teste-squad-conclusao-motor.js",
       "nome": "Adequação à Squad: concluir pela tela usa a versão certa das regras (C1–C5, versão 2, regras atrasadas, trava no ADMIN)",
-      "duracao": 10,
+      "duracao": 9,
       "sobre": "Conclui pela tela uma combinação de cada resultado C1–C5 e confere o gravado e o exibido; com versão publicada 2 conclui pela 2; com a leitura das regras parada (celular 375 px) \"Concluir\" fica bloqueado e nada é gravado até as regras chegarem; leitura recusada mostra erro e Tentar novamente; no ADMIN, regras com combinações sem resultado não podem ser publicadas. Hermético."
     },
     {
@@ -495,19 +495,19 @@
     {
       "arquivo": ".github/scripts/teste-arquitetura-documentacao.js",
       "nome": "ADMIN › Avaliação e Mapa › Documentação e mapas (desktop e 375 px)",
-      "duracao": 4,
+      "duracao": 3,
       "sobre": "Cartão no grupo \"Referências\"; adicionar grava título, descrição, link https, autor e data com uma linha de histórico na mesma gravação; link sem https recusado na tela; editar/arquivar/restaurar nunca apagam; histórico recolhido com \"Ver detalhes\"; gravação recusada pelo banco mostra o erro e mantém o formulário. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-rolagem-decisao-tardia.js",
       "nome": "Roteador: decisão de rota tardia não joga a pessoa para o topo (desktop e celular)",
-      "duracao": 27,
+      "duracao": 28,
       "sobre": "Com rede lenta, o perfil da Avaliação ou a lista de admins chega depois de a página aparecer e a pessoa já está rolando; o roteador refaz a decisão de rota (show(rota, true)) e, se ela continua na MESMA página, a posição é preservada (antes voltava ao topo — o \"tela inicial rolada (50 px)\" de teste-admin-navegacao.js no CI). Mudança real de página continua começando no topo. Confere que a informação tardia chegou DEPOIS da rolagem. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-rolagem-voltar-carregamento.js",
       "nome": "Arquitetura: rolagem tardia não desfaz a posição da tela ao voltar (F5 lento e máquina lenta; desktop e celular)",
-      "duracao": 14,
+      "duracao": 15,
       "sobre": "Duas causas, provadas em separado. 1) avaliacao-produto.js: a restauração de rolagem do navegador vale por entrada do histórico (a de chegada); as entradas #admin?arq= ficavam 'auto' e, com a página recarregada ainda carregando, o navegador rolava no fim do carregamento até a posição antiga (o \"tela inicial rolada (50 px)\" de teste-admin-navegacao.js no CI) — cenários 1 e 4, com o carregamento segurado. 2) router.js: ao voltar, o hashchange chega numa tarefa depois do popstate e a subida genérica ao topo desfazia a posição que a tela tinha devolvido — cenário 3, com a CPU 8x mais lenta. Também: a pessoa rolou antes do fim do carregamento → posição dela mantida; Voltar/Avançar do navegador; fora da Arquitetura continua 'auto'. Hermético."
     },
     {
@@ -531,7 +531,7 @@
     {
       "arquivo": ".github/scripts/teste-taxonomia-governanca.js",
       "nome": "Taxonomia: ligações da Avaliação, inativação e relações (desktop e celular)",
-      "duracao": 11,
+      "duracao": 10,
       "sobre": "Aviso \"Proteção da Avaliação incompleta: X de 11\"; Conceitos-base com a situação de cada código do motor e registro das ligações com prévia (já ligado / será ligado / não pode ser ligado), idempotente, com recusa do banco visível; conceito ligado: \"Inativar\" só explica, nada é gravado; ligações sem resposta: \"Conferindo…\", nunca \"pode inativar\"; inativar com motivo, mostrando filhos e relações afetados, e reativar, tudo no histórico; relações: criar com histórico nas duas pontas (mesmo operacaoId), idêntica a uma encerrada bloqueada, encerrar com motivo (fica em \"Relações encerradas\"), alterar = encerrar + criar. Hermético; as travas de verdade, no banco, são provadas por teste-rules-taxonomia-governanca.js no emulador."
     },
     {
@@ -555,13 +555,13 @@
     {
       "arquivo": ".github/scripts/teste-squad-liberacao.js",
       "nome": "I2 — Adequação à Squad liberada pelo Posicionamento Organizacional: aviso, exigência, origem gravada, atalho e interruptor (desktop e 375 px)",
-      "duracao": 21,
+      "duracao": 20,
       "sobre": "Exigência desligada: aviso do Posicionamento vigente (decisão final ou recomendação automática), sem bloqueio, e a origem da liberação gravada na criação da avaliação S. Exigência ligada: item não liberado (Área/CoE, decisão CoE sobre recomendação Linha, item novo) não inicia e nada é gravado; A_VALIDAR com decisão liberadora inicia; rascunho anterior continua. Leitura lenta = Verificando; recusada = não foi possível verificar (nunca liberação fictícia). Atalho na ficha do Posicionamento abre a Squad do item sem duplicar. Interruptor no ADMIN: admin geral liga com motivo e auditoria; Avaliação + Configuração só consulta. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-squad-endereco.js",
       "nome": "Adequação à Squad: título próprio, endereço #avaliacoes?sq=…, F5 e Voltar/Avançar do navegador (desktop e 375 px)",
-      "duracao": 22,
+      "duracao": 23,
       "sobre": "Na área Avaliação a Squad troca o título da página para \"Adequação à Squad\" e restaura o original ao sair; #avaliacoes?sq=lista e ?sq=<chave> sobrevivem a F5 e link direto (leitura lenta mostra Carregando, nunca \"não encontrada\"); Voltar/Avançar do navegador andam entre avaliações, lista de squad e avaliação; \"← Voltar para Avaliações\" é botão no topo e no rodapé e não empilha histórico; com avaliacao-squad.js chegando ~3 s depois do roteador e de avaliacao-produto.js (máquina lenta), link direto para ?sq=sqA e ?sq=lista abre a tela certa sozinho, e montar de novo devolve a mesma instância, sem navegação duplicada. Hermético."
     },
     {
@@ -573,7 +573,7 @@
     {
       "arquivo": ".github/scripts/teste-mapa-floresta-catalogo.js",
       "nome": "Catálogo preparatório do Mapa da Floresta: categorias, pendências, filtros, navegação, nada gravado, perfis e rede (desktop e 375 px)",
-      "duracao": 32,
+      "duracao": 34,
       "sobre": "#avaliacoes?mf=catalogo, só consulta: as três categorias (Linha com os 6 códigos firmes do ramo Linha, Área Especializada, CoE) com nomes da Taxonomia e o invariante Linha × Squad; Estruturas Concretas e associações como informação INDISPONÍVEL (nunca \"nenhuma estrutura\" nem vínculo válido/ausente/a revisar); um objeto por item, sem Lixeira, nas quatro situações, com a decisão final prevalecendo; filtros, \"Abrir Posicionamento\", Voltar, F5; o banco inteiro igual antes e depois; perfil Avaliação consulta, sem acesso não vê; leitura lenta, recusada (Tentar de novo) e que não chega; nenhum cartão transborda em 375 px; título uma vez só; aviso de estruturas uma vez só (não repetido nos cartões); categorias recolhidas no celular e abertas no desktop, com resumo sem contagem de estruturas; filtro de posicionamento em opções que quebram linha (pelo código estável; recolhido no celular; teclado; nome oficial inteiro, sem corte, com nomes oficiais e sintéticos mais longos, desktop e 375 px) e filtro de situação cabendo na lista; áreas de toque com pelo menos 44 px. Hermético."
     },
     {
@@ -585,19 +585,19 @@
     {
       "arquivo": ".github/scripts/teste-mapa-floresta-visual.js",
       "nome": "Mapa da Floresta — versão visual demonstrativa, desenho aprovado (desktop e 375 px)",
-      "duracao": 6,
+      "duracao": 7,
       "sobre": "#avaliacoes?mf=mapa: faixa de dados demonstrativos; blocos de cima para baixo (Estratégia de Clientes, Canais, Negócios com subagrupadores, Plataformas Habilitadoras com os 3 sub-blocos oficiais, Áreas Especializadas por último) e CoEs numa coluna à direita (no celular, uma coluna com CoEs antes das AE); cores aprovadas; cada caixa uma estrutura concreta (8 códigos firmes cobertos); detalhe (&e=<id>) com natureza, especialização, subagrupador, Squads e produtos/serviços só ali, sem esconder o Mapa no desktop; foco, Esc, Voltar ao Mapa, Voltar do navegador, F5; atalhos Mapa ↔ Catálogo; configuração populosa (quantidade variável: 0, 1, 3 e 10+ por grupo, nomes longos, subagrupador vazio e um a mais) com todas as estruturas na ordem cadastrada, nenhum nome cortado, nenhuma caixa sobreposta e grupos vazios identificados; nada gravado, sem rolagem horizontal. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-classificacoes-fonte-unica.js",
       "nome": "Classificações da Avaliação: nome e definição vindos da Taxonomia Arquitetural, contingência e nome da época (desktop e 375 px)",
-      "duracao": 67,
+      "duracao": 65,
       "sobre": "O nome de cada classificação vem do conceito de MESMO código da Taxonomia Arquitetural (lista, filtro pelo código, ficha/resultado, histórico de versões, PDF, Excel, frase explicativa, contexto da Squad), ao vivo e sem recarregar; a definição é a da fonte apontada por definicaoVigenteFonteId (outra fonte também marcada vigente não aparece; trocar o ponteiro troca o texto); avaliação antiga mostra o nome atual e \"na conclusão: …\" (Excel com a coluna \"Rótulo registrado na conclusão\"), sem reescrever nada; Taxonomia lenta, que nunca responde ou recusada → rótulo de contingência com aviso discreto, e concluir grava resultado, camadaSugerida.id, decisão e respostas iguais aos de uma conclusão com a Taxonomia; o motor arquitetural não tem mais \"Editar textos\" (histórico antigo legível); Taxonomia › Arquitetural lista os conceitos-base da Avaliação e acusa o código sem conceito. Hermético; as regras ficam em teste-rules-perfis-avaliacao.js."
     },
     {
       "arquivo": ".github/scripts/teste-posicionamentos-fonte-unica.js",
       "nome": "Posicionamentos: Taxonomia Organizacional como fonte única do nome e da definição (desktop e celular)",
-      "duracao": 57,
+      "duracao": 58,
       "sobre": "window.faPosicionamentos (posicionamentos.js): catálogo = os 10 códigos do motor de Posicionamento (CODIGOS_INTERMEDIARIOS + CODIGOS_FIRMES, sem A_VALIDAR nem Squad/Capítulo/Disciplina); nome da Taxonomia Organizacional; definição só da fonte apontada (outra marcada vigente não é escolhida); só lê nome/ativo/ponteiro dos 10 e o texto da fonte apontada; renomear e trocar o ponteiro ao vivo (a escuta da fonte antiga é desligada); lenta, sem resposta ou recusada → só rótulo de contingência + aviso, sem definição inventada; perder o acesso descarta respostas atrasadas; não grava nada; o motor devolve o mesmo com a Taxonomia renomeada."
     },
     {
@@ -615,7 +615,7 @@
     {
       "arquivo": ".github/scripts/teste-posicionamento-decisao.js",
       "nome": "Posicionamento Organizacional: decisão humana, reavaliação e histórico de versões (desktop e 375 px)",
-      "duracao": 17,
+      "duracao": 16,
       "sobre": "Lista com vigentes e em andamento por padrão (históricas e descartadas no filtro), colunas Versão/Situação/Recomendação automática/Decisão final, cartões em 375 px; ficha em três blocos (Recomendação automática / Decisão final / Histórico de versões recolhido); seletor só com os 8 firmes; CONFIRMACAO sem justificativa, RESOLUCAO_A_VALIDAR exige justificativa; grava decisão + auditoria sem tocar no resultado automático; Reavaliar com motivo cria vN+1 pré-preenchida, apontando para a Avaliação de Produto/Serviço mais recente do item (v2, não a v1 nem a v3 excluída — garantia da tela), e a anterior continua vigente; textos \"Pela recomendação automática…\" × \"Pela decisão final…\", orientação do A validar e efeito em S1–S8 no modal; concluir troca o vigente e a anterior vira histórica com a decisão dela; D4: com reavaliação em andamento a vigente não oferece decisão (mensagem exata), descartar devolve o formulário; perfil Avaliação só consulta; decisões lentas → \"Carregando…\", recusadas → \"Não foi possível ler\", nunca \"Sem decisão registrada\". Hermético; as travas do banco são provadas por teste-rules-posicionamento-decisao.js no emulador."
     },
     {
@@ -657,13 +657,13 @@
     {
       "arquivo": ".github/scripts/teste-motor-posicionamento-nucleo.js",
       "nome": "Motor de Posicionamento: núcleo declarativo — a v1 como dados reproduz o motor atual (sem navegador)",
-      "duracao": 21,
+      "duracao": 16,
       "sobre": "H1.1: nos 531.441 estados a saída do núcleo com a definição v1 é idêntica à do motor (as 10 chaves) e tem o mesmo digest congelado; perguntasDoCaminho igual à do motor e diagnosticosNecessarios igual ao diagnosticoNecessario da tela em todos os estados; catálogo (níveis, perguntas, papéis, 25 regras, motivos) idêntico; invariante Linha × Squad literal e ausente da definição; casos de 0/1/2/3+ SIM, diagnóstico, incompletude, incoerência e resíduo; versão desconhecida recusada; definição e API congeladas, entradas intactas, sem DOM/Firebase; ainda fora do index.html."
     },
     {
       "arquivo": ".github/scripts/teste-motor-posicionamento-v2.js",
       "nome": "Motor de Posicionamento: validação de definição, enumeração, simulação, contrato com o questionário e v2 inativa (sem navegador)",
-      "duracao": 12,
+      "duracao": 14,
       "sobre": "H1-B: validarDefinicao recusa cada violação das regras fixas (significado fixo dos códigos, hierarquia, completude, incoerência, D1/D2, Plataforma só por O6–O9, Linha × Squad e texto fora da definição); enumeração estruturada determinística e completa (confere com força bruta: v1 2127 de 531.441; v2 664); a v2 inativa bate com um oráculo escrito à parte da especificação em todos os estados válidos e de incoerência; Linha × Squad literal; simular(v1, v2) reproduz docs/motor-posicionamento-v1-v2.md; conteudoCompativel exige estrutura exata e vínculo, legado só v1, podeEntrarEmVigor sem fallback."
     },
     {
@@ -675,7 +675,7 @@
     {
       "arquivo": ".github/scripts/teste-posicionamento-v2-tela.js",
       "nome": "Motor de Posicionamento v2 inativo: cartão do ADMIN e registro v2 na tela (desktop e 375 px)",
-      "duracao": 5,
+      "duracao": 4,
       "sobre": "H1-Final: ADMIN › Questionários mostra a redação para o motor v2 como inativa; importar carrega a carga só agora e grava só motores/2/rascunho (motorCompativel = 2), compatível, só leitura; descartar remove só ele; a redação em uso não muda. Registro v2 sem redação publicada → trava sem perguntas nem texto v1; com redação publicada → D1 com 3 SIM, D2 com 4 opções, Concluir só com a predominância, \"distintas\" avisa e tira a D2. Registro v1 sem D2 e com a redação v1. Sem rolagem horizontal nem erro de JS."
     },
     {
@@ -687,7 +687,7 @@
     {
       "arquivo": ".github/scripts/teste-posicionamento-governanca-tela.js",
       "nome": "Motor de Posicionamento: painel de versões, prontidão e impacto, edição do rascunho v2 e versões na avaliação (desktop e 375 px)",
-      "duracao": 62,
+      "duracao": 61,
       "sobre": "B3: proposta de entrada em vigor (só com redação publicada, simulação e impacto), aprovação dupla com três pessoas de UIDs distintos (quem propõe não aprova, conferir e reconhecer o impacto, 2ª sem admin geral não oferecida, 2ª de admin geral aprova e libera o índice), \"Autorizada — depende da fronteira confiável (B4)\", nada em vigor e nenhuma avaliação mudada, aprovada desatualizada com impacto novo, nova proposta e retirada com motivo, gravação recusada. H2-a/H3-a: ADMIN › Motores mostra v1 em vigor e v2 inativa, prontidão com o que falta, sem ação de ativar; simulação com 0 violações; impacto separa iguais, alterados, incomparáveis e violações contra o rascunho identificado, sem gravar. Questionários: edição do rascunho v2 só do texto, vínculo do sistema, nenhuma versão publicada, publicação bloqueada com motivo, recusa se outra pessoa salvou antes. Avaliação: motor v1 · redação v1 na lista e na ficha; sem \"Atualizar com motor atual\"."
     },
     {
@@ -697,9 +697,15 @@
       "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (cb uma vez; a resposta do servidor depois do prazo vai para \"depois\", confirmação ou recusa)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita, leitura parada rejeita no prazo); ouvir e cancelar."
     },
     {
+      "arquivo": ".github/scripts/teste-porta2-jornada.js",
+      "nome": "Porta 2: a jornada das duas portas, com a hipótese inicial (desktop e celular)",
+      "duracao": 20,
+      "sobre": "As duas portas na lista; cadastro da atuação (obrigatórios, referência informativa com os itens indisponíveis desabilitados e o motivo, revisão e auditoria); hipótese obrigatória, oculta nas perguntas e comparada no resultado (não confirmada com a regra do motor, confirmada, não registrada); edição (antes → depois); reavaliação da Porta 2 com hipótese nova; encerramento (com rascunho não encerra; com motivo, final); nota de Estratégia de Clientes; 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-porta2-reconhecimento.js",
       "nome": "Porta 2: atuações organizacionais reconhecidas no Posicionamento, na Squad e no Catálogo (desktop e celular)",
-      "duracao": 60,
+      "duracao": 2,
       "sobre": "Lista e ficha do Posicionamento com o bloco da atuação (sem gate P1–P16, sem Reavaliar até a PR 3); conclusão de rascunho da Porta 2 com objeto ativo e trava com objeto encerrado; atalho da Adequação à Squad para atuação liberada; Catálogo com as atuações, a encerrada e a referência informativa no item P1–P16; Porta 1 igual; 375 px sem rolagem lateral."
     },
     {
@@ -741,7 +747,7 @@
     {
       "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
       "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
-      "duracao": 25,
+      "duracao": 24,
       "sobre": "\"Exportar ▾\" na lista (Excel da lista atual, respeitando o filtro, e de todas) e \"📄 GERAR PDF\" na ficha concluída (vigente e histórica; rascunho e descartada sem PDF); o Excel baixado tem Resumo / Respostas O1–O9 / Histórico / Trilha, \"Situação na exportação\", datas como datas e acentos intactos; o PDF tem páginas e nenhuma em branco, a Avaliação de Produto/Serviço EXATA (v1 mesmo com v2 e v3), \"Sem decisão registrada.\", a decisão gravada e a trilha; decisões carregando → desabilitado, recusadas → bloqueado com explicação; auditoria recusada → \"Trilha indisponível\" com o resto completo; perfil Avaliação exporta. Hermético."
     },
     {

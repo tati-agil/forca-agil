@@ -170,7 +170,7 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   afirma(await larguraOk(page), 'sem rolagem horizontal (escolher)');
 
   console.log('\n== 2. Iniciar: rascunho + reserva + auditoria ==');
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await tela(page, 'poChecklist');
   const h = await hash(page);
   const id = (/[?&]po=([^&]+)/.exec(h) || [])[1];
@@ -266,7 +266,7 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   console.log('\n== 8. Firme (CoE) e item já concluído ==');
   await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher&item=p2'; });
   await tela(page, 'poIniciarBtn');
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await tela(page, 'poChecklist');
   await responder(page, 'O1', 'NAO'); await responder(page, 'O2', 'NAO'); await responder(page, 'O3', 'SIM');
   await page.click('#poConcluirBtn');
@@ -304,7 +304,7 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   afirma(true, 'depois do descarte, o item pode ser iniciado de novo');
 
   console.log('\n== 10. Concorrência ==');
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await tela(page, 'poChecklist');
   const id2 = (/[?&]po=([^&]+)/.exec(await hash(page)) || [])[1];
   await responder(page, 'O1', 'NAO');
@@ -355,7 +355,7 @@ async function redeLenta(browser, nomeTela, viewport) {
   afirma(/Rótulo de contingência/.test(await texto(page, '#poResultado')), 'Taxonomia recusada: aviso de contingência');
   await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher&item=p1'; });
   await tela(page, 'poIniciarBtn');
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await tela(page, 'poChecklist');
   await responder(page, 'O1', 'NAO'); await responder(page, 'O2', 'SIM'); await responder(page, 'O3', 'NAO');
   await page.click('#poConcluirBtn');
@@ -374,7 +374,7 @@ async function gravacaoRecusada(browser, nomeTela, viewport) {
   const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=escolher&item=p1', fail: ['posicionamento-auditoria'] });
   await tela(page, 'poIniciarBtn');
   const antes = await banco(page);
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await page.waitForSelector('.po-modal');
   afirma(/Não foi possível iniciar a avaliação/.test(await page.locator('.po-modal').innerText()), 'recusada: avisa "Não foi possível iniciar a avaliação"');
   const db = await banco(page);

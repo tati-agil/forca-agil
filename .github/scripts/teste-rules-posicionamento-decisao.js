@@ -117,7 +117,7 @@ async function main() {
   async function vigenteV1(item, est, email) {
     email = email || ARQ;
     const id = chave('v1-' + item + '-'), quem = pessoa(email);
-    const pc = N.payloadCriacao({ id, audId: chave('kc'), itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quem, agora: QUANDO });
+    const pc = N.payloadCriacao({ hipoteseInicial: 'NAO_SEI', id, audId: chave('kc'), itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quem, agora: QUANDO });
     await assertSucceeds(up(email, pc));
     const reg = js(pc[AV + '/' + id]);
     reg.respostas = {};
@@ -136,7 +136,7 @@ async function main() {
   async function iniciarReavaliacao(anteriorId, motivo, email) {
     email = email || ARQ;
     const ant = await reg(anteriorId), id = chave('re');
-    return { id, p: js(N.payloadReavaliacao({ id, audId: 'kre' + id, anteriorId, anterior: ant, itemNome: ant.itemNome, avaliacaoArquiteturalId: ant.avaliacaoArquiteturalId,
+    return { id, p: js(N.payloadReavaliacao({ hipoteseInicial: 'NAO_SEI', id, audId: 'kre' + id, anteriorId, anterior: ant, itemNome: ant.itemNome, avaliacaoArquiteturalId: ant.avaliacaoArquiteturalId,
       versao: 1, motivo, usuario: pessoa(email), agora: QUANDO })) };
   }
   async function concluirReavaliacao(id, email) {
@@ -249,7 +249,7 @@ async function main() {
   await nega('apagar a decisão (admin geral)', db(SUPER).ref(DEC + '/' + e1).remove());
   await nega('apagar a auditoria da decisão', db(SUPER).ref(audE).remove());
   await base();
-  const pr = N.payloadCriacao({ id: 'fr', audId: 'kfr', itemId: 'p1', itemNome: 'Item p1', avaliacaoArquiteturalId: 'p1', versao: 1, usuario: pessoa(ARQ), agora: QUANDO });
+  const pr = N.payloadCriacao({ hipoteseInicial: 'NAO_SEI', id: 'fr', audId: 'kfr', itemId: 'p1', itemNome: 'Item p1', avaliacaoArquiteturalId: 'p1', versao: 1, usuario: pessoa(ARQ), agora: QUANDO });
   await assertSucceeds(up(ARQ, pr));
   const falsoConcl = { itemId: 'p1', versao: 1, resultadoAutomatico: { codigoResultado: 'AREA_ESPECIALIZADA', versaoMotor: 1 } };
   await nega('rascunho NÃO recebe decisão', up(ARQ, N.payloadDecisao({ id: 'fr', reg: falsoConcl, codigoFinal: 'AREA_ESPECIALIZADA', usuario: pessoa(ARQ), agora: QUANDO, audId: 'kd1' })));
@@ -273,7 +273,7 @@ async function main() {
   await nega('reavaliação apontando para avaliação inexistente', up(ARQ, mexeR((r, a) => { r.avaliacaoAnteriorId = 'nada'; a.avaliacaoAnteriorId = 'nada'; })));
   await nega('reavaliação apontando para a vigente de OUTRO item', up(ARQ, mexeR((r, a) => { r.avaliacaoAnteriorId = g2; a.avaliacaoAnteriorId = g2; })));
   await nega('reavaliação sem anterior com o item já vigente (versão 2, sem avaliacaoAnteriorId)', up(ARQ, mexeR((r, a) => { delete r.avaliacaoAnteriorId; delete a.avaliacaoAnteriorId; })));
-  await nega('primeira versão com motivo de reavaliação', up(ARQ, (() => { const p = N.payloadCriacao({ id: 'gx', audId: 'kgx', itemId: 'p3', itemNome: 'Item p3', avaliacaoArquiteturalId: 'p3', versao: 1, usuario: pessoa(ARQ), agora: QUANDO }); p[AV + '/gx'].motivoReavaliacao = 'm'; p[AUD + '/gx/kgx'].motivo = 'm'; return p; })()));
+  await nega('primeira versão com motivo de reavaliação', up(ARQ, (() => { const p = N.payloadCriacao({ hipoteseInicial: 'NAO_SEI', id: 'gx', audId: 'kgx', itemId: 'p3', itemNome: 'Item p3', avaliacaoArquiteturalId: 'p3', versao: 1, usuario: pessoa(ARQ), agora: QUANDO }); p[AV + '/gx'].motivoReavaliacao = 'm'; p[AUD + '/gx/kgx'].motivo = 'm'; return p; })()));
   await nega('auditoria "criacao" sem o anterior', up(ARQ, mexeR((r, a) => { delete a.avaliacaoAnteriorId; })));
   await nega('auditoria "criacao" com outro motivo', up(ARQ, mexeR((r, a) => { a.motivo = 'outro'; })));
   await nega('"Avaliação" NÃO reavalia', up(AVAL, (await iniciarReavaliacao(g1, 'Motivo', AVAL)).p));
@@ -415,7 +415,7 @@ async function main() {
     const e = EST.filter((x) => x.res.codigoResultado === cod)[0];
     if (!e) { anota('há estado concluível com resultado ' + cod, false); continue; }
     const item = 'p' + (cods.length + i + 1), idc = chave('lq-' + item + '-'), quem = pessoa(ARQ);
-    const pc = N.payloadCriacao({ id: idc, audId: chave('kc'), itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quem, agora: QUANDO });
+    const pc = N.payloadCriacao({ hipoteseInicial: 'NAO_SEI', id: idc, audId: chave('kc'), itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quem, agora: QUANDO });
     await assertSucceeds(up(ARQ, pc));
     const r = js(pc[AV + '/' + idc]); r.respostas = {};
     Object.keys(e.est.respostas).forEach((q) => { r.respostas[q] = js(N.snapshotResposta(q, e.est.respostas[q], 1, null, QUANDO)); });

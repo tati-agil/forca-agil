@@ -239,7 +239,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   await confirmarModal(page);
   await page.waitForSelector('.po-modal .po-modal-erro:not([hidden])');
   afirma(/motivo/i.test(await texto(page, '.po-modal .po-modal-erro')), 'sem motivo: o modal pede o motivo');
-  await page.fill('#poMotivoReavaliacaoInput', 'Mudou a estrutura de atendimento');
+  await page.fill('#poMotivoReavaliacaoInput', 'Mudou a estrutura de atendimento'); await page.click('#poHipoteseReavaliacao input[value="NAO_SEI"]');
   await page.click('.po-modal .po-modal-sim');
   await tela(page, 'poReavaliacaoInfo');
   const nova = (await hash(page)).split('po=')[1];
@@ -274,7 +274,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(/Revisão anual/.test(await texto(page, '#poMotivoReavaliacao')), 'h2 mostra o motivo da reavaliação que a criou');
   await page.click('#poReavaliarBtn');
   await page.waitForSelector('#poMotivoReavaliacaoInput');
-  await page.fill('#poMotivoReavaliacaoInput', 'Terceira versão');
+  await page.fill('#poMotivoReavaliacaoInput', 'Terceira versão'); await page.click('#poHipoteseReavaliacao input[value="NAO_SEI"]');
   await page.click('.po-modal .po-modal-sim');
   await tela(page, 'poReavaliacaoInfo');
   const r3 = (await hash(page)).split('po=')[1];

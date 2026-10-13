@@ -223,7 +223,7 @@ async function fluxo(browser, nomeTela, viewport) {
   await ir(page, '#avaliacoes?po=escolher&item=pC');
   await page.waitForSelector('#avaliacoesPosicionamento #poIniciarBtn');
   afirma(!(await gate(page)), 'Motor atual: nenhum aviso de bloqueio');
-  await page.click('#poIniciarBtn');
+  await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await page.waitForSelector('#avaliacoesPosicionamento #poChecklist');
   const criadas = posicionamentosDo(await banco(page), 'pC');
   afirma(criadas.length === 1 && criadas[0].avaliacaoArquiteturalId === 'pCv2', 'criada apontando para a v2 de Produto/Serviço (a ponta)', JSON.stringify(criadas.map((c) => c.avaliacaoArquiteturalId)));

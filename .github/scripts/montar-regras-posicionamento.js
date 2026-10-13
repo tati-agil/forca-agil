@@ -19,7 +19,7 @@
  * (sem Avaliação de Produto/Serviço); o gate P1–P16 é trocado por "objeto ativo", na criação, na reavaliação e na
  * conclusão. Sem origem = Porta 1, exatamente como antes — e a Porta 1 não inicia um Posicionamento de item que um
  * objeto ativo referencia (objetos-organizacionais-por-referencia). hipoteseInicial (um dos 8 firmes ou NAO_SEI):
- * obrigatória na Porta 2, opcional na Porta 1 até a tela pedi-la; fixa no registro; nunca entra no resultado (o
+ * obrigatória nas duas portas em todo registro novo (só 'Atualizar com motor atual' segue sem ela, levando a da anterior); fixa no registro; nunca entra no resultado (o
  * resultado continua conferido pela tabela do motor, só a partir das respostas). Origem passa da anterior para a
  * reavaliação. */
 'use strict';
@@ -97,7 +97,9 @@ const criar = and([
   '(' + PORTA2 + ' ? (' + and([objetoAtivo, '!' + c('avaliacaoArquiteturalId') + '.exists()', v('itemNome') + ' === ' + OBJN + ".child('nome').val()",
     c('hipoteseInicial') + '.exists()']) + ') : (' + and([c('avaliacaoArquiteturalId') + '.exists()'].concat(baseValida).concat([
     '(' + P + ".child('itemId').val() === " + v('itemId') + ' || (!' + P + ".child('itemId').exists() && " + v('avaliacaoArquiteturalId') + ' === ' + v('itemId') + '))',
-    '!' + NOVO(IDXREF) + '.child(' + v('itemId') + ').exists()'])) + '))',
+    '!' + NOVO(IDXREF) + '.child(' + v('itemId') + ').exists()',
+    /* hipótese inicial obrigatória nos registros NOVOS (a atualização para o motor atual leva a da anterior, se houver) */
+    '(' + c('hipoteseInicial') + '.exists() || ' + v('origemReavaliacao') + " === 'motor')"])) + '))',
   /* primeira versão: o item não tem vigente. Reavaliação: versão seguinte da VIGENTE, com motivo. */
   '(' + c('avaliacaoAnteriorId') + '.exists() ? (' + and([
     ANT + ".child('status').val() === 'concluido'", ANT + ".child('itemId').val() === " + v('itemId'), ANT + ".child('origem').val() === " + v('origem'),
