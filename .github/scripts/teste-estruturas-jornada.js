@@ -146,8 +146,9 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(/Definição oficial\s*Definição vigente indisponível/.test(await texto(p, '#mfmDetalhe')), 'detalhe no Mapa: tipo sem definição vigente na Taxonomia → "indisponível", sem texto substituto (M2)');
     await p.click('[data-estrutura="' + idNeg + '"]');
     await p.waitForFunction((id) => location.hash.indexOf('e=' + id) !== -1, idNeg);
+    await esperarCondicaoAte(p, () => { const q = document.getElementById('mfmSquads'); return !!q && !/Carregando/.test(q.innerText); }, undefined, { limite: 15000 });
     const det = await texto(p, '#mfmDetalhe');
-    afirma(/Linha de Investimentos/.test(det) && /Sem subagrupador/.test(det) && /LINV/.test(det) && /Organização por Squads\s*Admitida para este tipo de estrutura/.test(det) && /Squads vinculados\s*Informação ainda indisponível/.test(det), 'clicar na estrutura mostra natureza, caminho, sigla e Squads (possível × vinculados, sem inventar)', det.slice(0, 200));
+    afirma(/Linha de Investimentos/.test(det) && /Sem subagrupador/.test(det) && /LINV/.test(det) && /Organização por Squads\s*Admitida para este tipo de estrutura/.test(det) && /Squads vinculados\s*Nenhum Squad vinculado/.test(det), 'clicar na estrutura mostra natureza, caminho, sigla e Squads (possível × vinculados, sem inventar)', det.slice(0, 200));
     afirma(/Definição oficial\s*Definição de teste — NEGOCIOS/.test(det), 'detalhe no Mapa: definição oficial vigente do tipo (M2)', det.slice(0, 300));
 
     /* ===== 4. Persistência ===== */
@@ -557,6 +558,102 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await cel2.context().close();
     }
 
+    /* ===== 8d. M6/M7: Squad e relações entre estruturas ===== */
+    console.log('\n8d. Squad e relações entre estruturas (M6/M7)');
+    {
+      /* Taxonomia de TESTE: Squad (camada de trabalho) compõe Negócios; CoE atende Negócios; e uma segunda Linha ativa */
+      const T = 'taxonomia/organizacional/', Q = '2026-10-01T12:00:00.000Z', ADMIN_T = S.CONTAS.admin.email;
+      await S.banco('PATCH', '', {
+        [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, situacaoDefinicao: 'ainda não registrada', camada: 'trabalho' },
+        [T + 'relacoes/SQUAD__compoe__NEGOCIOS']: { de: 'SQUAD', tipo: 'compoe', para: 'NEGOCIOS', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't1' },
+        [T + 'relacoes/COE__atende__NEGOCIOS']: { de: 'COE', tipo: 'atende', para: 'NEGOCIOS', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't2' },
+        'estruturas-concretas/registros/neg-3': { id: 'neg-3', tipo: 'NEGOCIOS', nome: 'Linha de Previdência', situacao: 'ativa', revisao: 1, criadaEm: 1791713600000, criadaPor: { id: 'semente', email: 'semente@teste' }, ultimaOperacao: 'semente-m7' }
+      });
+      const relacoesGravadas = async () => Object.values(((await S.banco('GET', 'estruturas-relacoes/registros')).corpo) || {});
+      /* C1: Squad cadastrável */
+      await ir(p, '#admin?arq=estruturas'); await p.waitForSelector('#estNova', { timeout: 15000 }); await p.click('#estNova');
+      await p.waitForSelector('#estTipos input[name="estTipo"]');
+      await esperarCondicaoAte(p, () => !!document.querySelector('#estTipos input[value="SQUAD"]'), undefined, { limite: 15000 });
+      afirma(/Organização do trabalho/.test(await texto(p, '#estTipos')) && /Squad/.test(await texto(p, '#estTipos')), 'cadastro: o Squad aparece como tipo, no grupo "Organização do trabalho", com o nome da Taxonomia (C1)');
+      await p.check('#estTipos input[value="SQUAD"]'); await p.fill('#estNome', 'Squad Alfa'); await p.click('#estSalvar');
+      await p.waitForSelector('#estFlash', { timeout: 15000 });
+      const idSq = await p.evaluate(() => (/[?&]e=([^&]+)/.exec(location.hash) || [])[1]);
+      afirma(!!idSq && /Organização do trabalho/.test(await texto(p, '#estFicha')), 'Squad cadastrado, com natureza "Organização do trabalho" e sem exigir vínculo (C3)');
+      await p.waitForSelector('#estRelacoes #estSemRelacoes', { timeout: 15000 });
+      /* C2: Squad compõe Linha — só as combinações que a Taxonomia admite */
+      await p.click('#estRelNova'); await p.waitForSelector('#estRelEscolha', { timeout: 15000 });
+      const opc = await p.$$eval('#estRelEscolha option', (os) => os.map((o) => o.value).filter(Boolean).sort());
+      afirma(JSON.stringify(opc) === JSON.stringify(['compoe|' + idNeg, 'compoe|neg-3'].sort()), 'nova relação: só "compõe" as Linhas ativas que a Taxonomia admite (nenhum CoE, Área ou Plataforma)', JSON.stringify(opc));
+      await p.selectOption('#estRelEscolha', 'compoe|' + idNeg); await p.click('#estRelSalvar');
+      await p.waitForSelector('#estFlash', { timeout: 15000 });
+      await esperarCondicaoAte(p, () => !!document.querySelector('#estRelacoesLista .est-relacao[data-tipo="compoe"]'), undefined, { limite: 15000 });
+      afirma(/compõe/.test(await texto(p, '#estRelacoesLista')) && /Válida/.test(await texto(p, '#estRelacoesLista')), 'Squad compõe Linha: gravada e "Válida"');
+      /* C3: sem segunda Linha */
+      await p.click('#estRelNova'); await p.waitForSelector('#estRelForm', { timeout: 15000 });
+      const opc2 = await p.$$eval('#estRelEscolha option', (os) => os.map((o) => o.value).filter(Boolean)).catch(() => []);
+      afirma(!opc2.some((v) => /^compoe\|/.test(v)), 'C3: com uma Linha ativa, a ficha não oferece compor uma segunda Linha', JSON.stringify(opc2));
+      await p.click('#estRelCancelar');
+      /* C3: trocar de Linha = substituir com motivo */
+      await p.waitForSelector('.est-rel-trocar'); await p.click('.est-rel-trocar'); await p.waitForSelector('#estRelEscolha', { timeout: 15000 });
+      await p.selectOption('#estRelEscolha', 'neg-3'); await p.click('#estRelSalvar');
+      await p.waitForSelector('#estErros');
+      afirma(/Informe o motivo/.test(await texto(p, '#estErros')), 'trocar de Linha sem motivo é recusado');
+      await p.fill('#estRelMotivo', 'Squad passou para a Previdência'); await p.click('#estRelSalvar');
+      await p.waitForSelector('#estFlash', { timeout: 15000 });
+      let rels = await relacoesGravadas();
+      const ativa = rels.find((r) => r.situacao === 'ativa' && r.tipo === 'compoe'), antiga = rels.find((r) => r.situacao === 'encerrada' && r.tipo === 'compoe');
+      afirma(ativa && ativa.destino === 'neg-3' && antiga && antiga.encerramento.motivo === 'Squad passou para a Previdência' && antiga.encerramento.substituidaPor === ativa.id, 'trocar de Linha: encerra a composição anterior (com o motivo) e cria a nova na mesma operação; nada apagado', JSON.stringify(rels));
+      afirma(/Relações encerradas — 1/.test(await texto(p, '#estRelacoesEncerradas')), 'a composição anterior continua consultável em "Relações encerradas"');
+      /* Mapa: o Squad dentro do detalhe da Linha, nunca como caixa */
+      await ir(p, '#avaliacoes?mf=mapa&e=neg-3');
+      await esperarCondicaoAte(p, () => /Squad Alfa/.test((document.getElementById('mfmSquads') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(/Squad Alfa/.test(await texto(p, '#mfmSquads')) && await p.locator('#mfmMapa .mfm-caixa[data-estrutura="' + idSq + '"]').count() === 0, 'Mapa: o Squad aparece dentro do detalhe da Linha ("Squads vinculados") e não vira caixa (C1)');
+      await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+      await esperarCondicaoAte(p, () => !!document.getElementById('mfmSquads') && !/Carregando/.test(document.getElementById('mfmSquads').innerText), undefined, { limite: 15000 });
+      afirma(/Nenhum Squad vinculado/.test(await texto(p, '#mfmSquads')), 'Mapa: a Linha anterior fica sem o Squad depois da troca');
+      /* relação não hierárquica admitida: CoE atende Linha; depois, encerrar com motivo */
+      await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+      await p.waitForSelector('#estRelNova', { timeout: 15000 }); await p.click('#estRelNova'); await p.waitForSelector('#estRelEscolha', { timeout: 15000 });
+      const opcCoe = await p.$$eval('#estRelEscolha option', (os) => os.map((o) => o.value).filter(Boolean));
+      afirma(opcCoe.indexOf('atende|neg-3') !== -1 && !opcCoe.some((v) => /^compoe\|/.test(v)), 'CoE: oferece "atende" (admitido pela Taxonomia) e nenhum "compõe" (C2)', JSON.stringify(opcCoe));
+      await p.selectOption('#estRelEscolha', 'atende|neg-3'); await p.fill('#estRelJustificativa', 'Atende a Previdência'); await p.click('#estRelSalvar');
+      await p.waitForSelector('#estFlash', { timeout: 15000 });
+      await ir(p, '#avaliacoes?mf=mapa&e=neg-3');
+      await esperarCondicaoAte(p, () => /CoE de Dados atende esta estrutura/.test((document.getElementById('mfmRelacoes') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(/CoE de Dados atende esta estrutura/.test(await texto(p, '#mfmRelacoes')), 'Mapa: as demais relações aparecem no detalhe, só para consulta');
+      await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+      await p.waitForSelector('.est-rel-encerrar', { timeout: 15000 }); await p.click('.est-rel-encerrar'); await p.waitForSelector('#estRelMotivo');
+      await p.click('#estRelSalvar'); await p.waitForSelector('#estErros');
+      afirma(/Informe o motivo/.test(await texto(p, '#estErros')), 'encerrar relação sem motivo é recusado');
+      await p.fill('#estRelMotivo', 'Deixou de atender'); await p.click('#estRelSalvar'); await p.waitForSelector('#estFlash', { timeout: 15000 });
+      rels = await relacoesGravadas();
+      afirma(rels.some((r) => r.tipo === 'atende' && r.situacao === 'encerrada' && r.encerramento.motivo === 'Deixou de atender'), 'encerrar: a relação fica registrada, encerrada, com o motivo');
+      afirma(await semRolagemLateral(p), 'computador: ficha com relações sem rolagem lateral');
+      /* perfil só de consulta (C4): não entra no cadastro (ADMIN); vê Squads e relações no Mapa, e o banco recusa gravar */
+      const cq3 = await sessao('consulta');
+      await ir(cq3, '#avaliacoes?mf=mapa&e=neg-3');
+      await esperarCondicaoAte(cq3, () => /Squad Alfa/.test((document.getElementById('mfmSquads') || {}).innerText || ''), undefined, { limite: 15000 });
+      afirma(/Squad Alfa/.test(await texto(cq3, '#mfmSquads')) && await cq3.locator('#mfmDetalhe button:not(#mfmFechar), #mfmAbrirCadastro').count() === 0, 'perfil avaliacao (consulta): vê os Squads da Linha no Mapa, sem nenhuma ação (C4)');
+      const rq = await cq3.evaluate(async (ids) => {
+        const M = faMotorPosicionamentoNucleo, linha = M.CODIGOS_FIRMES.filter((c) => M.liberaSquadParaCodigoFirme(c) === true), u = firebase.auth().currentUser;
+        const casos = faEstruturasCasosDeUso.criar({ nucleo: faEstruturasNucleo, codigosFirmes: M.CODIGOS_FIRMES, codigosLinha: linha });
+        return casos.executar('encerrarRelacao', { relacaoId: ids.rel, motivo: 'Indevido' }, { operacaoId: firebase.database().ref().push().key, usuario: { id: u.uid, email: u.email }, agora: Date.now() },
+          faEstruturasFirebase.criarPortas({ db: firebase.database(), codigosFirmes: M.CODIGOS_FIRMES, codigosLinha: linha }));
+      }, { rel: ativa.id });
+      afirma(!rq.ok, 'perfil avaliacao: mesmo pelo código, o banco recusa mexer numa relação', JSON.stringify(rq.erros || rq.situacao));
+      await cq3.context().close();
+      /* celular */
+      const cel3 = await sessao('configuracao', 375);
+      for (const [rot, hash, sel] of [['ficha do Squad com relações', '#admin?arq=estruturas&e=' + idSq, '#estRelacoesLista .est-relacao'], ['Mapa com os Squads da Linha', '#avaliacoes?mf=mapa&e=neg-3', '#mfmSquads .mfm-squad']]) {
+        await ir(cel3, hash); await cel3.waitForSelector(sel, { timeout: 15000 });
+        afirma(await semRolagemLateral(cel3), '375 px: ' + rot + ' sem rolagem lateral');
+      }
+      await ir(cel3, '#admin?arq=estruturas&e=' + idSq); await cel3.waitForSelector('.est-rel-trocar', { timeout: 15000 });
+      const bt = await cel3.locator('.est-rel-trocar').boundingBox();
+      afirma(bt && bt.height >= 40, '375 px: botões das relações com área de toque adequada', bt && bt.height);
+      await cel3.context().close();
+    }
+
     console.log('\n10. Celular (375 px) e computador');
     afirma(await semRolagemLateral(p), 'computador: Mapa sem rolagem lateral');
     const m = await sessao('configuracao', 375);
@@ -565,6 +662,8 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(await semRolagemLateral(m), '375 px: ' + rot + ' sem rolagem lateral');
     }
     await ir(m, '#admin?arq=estruturas'); await m.waitForSelector('#estNova'); await m.click('#estNova'); await m.waitForSelector('#estForm');
+    /* como na seção 2: mede depois que a conferência das referências oficiais terminou (ela redesenha o formulário) */
+    await esperarCondicaoAte(m, () => !!document.querySelector('#estTipos input') && !document.querySelector('#estTipos .loading-msg'), undefined, { limite: 15000 });
     afirma(await semRolagemLateral(m), '375 px: formulário de cadastro sem rolagem lateral');
     const alvo = await m.locator('#estSalvar').boundingBox();
     afirma(alvo && alvo.height >= 40, '375 px: botão salvar com área de toque adequada', alvo && alvo.height);

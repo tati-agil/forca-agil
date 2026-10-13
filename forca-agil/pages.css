@@ -3259,3 +3259,14 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-vinculo-estrutura { font-weight: 600; margin-right: 4px; overflow-wrap: anywhere; }
 .mf-vinculo-aviso, .mfm-objeto-aviso { display: block; font-size: .85rem; margin-top: 4px; }
 .mfm-objeto .mfm-abrir-po { display: inline-block; margin-top: 6px; }
+/* M6/M7: relações na ficha da estrutura (painel claro) e Squads no detalhe da Linha do Mapa */
+.est-relacoes-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.est-relacao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px; border: 1px solid var(--est-linha); border-radius: 10px; color: var(--est-forte); overflow-wrap: anywhere; }
+.est-relacao-acoes { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.est-relacao-acoes .btn { min-height: 40px; }
+.est-relacao-situacao--valida { background: #e3f4ea; color: #17643a; border: 1px solid #9fd3b4; }
+.est-relacao-situacao--a-revisar { background: #fff4d6; color: #7a5300; border: 1px solid #e6c36a; }
+.est-relacoes-encerradas { margin-top: 10px; color: var(--est-suave); }
+.est-rel-form { margin-top: 12px; }
+.est-rel-form select { width: 100%; max-width: 100%; min-height: 44px; }
+.mfm-squads-lista, .mfm-relacoes-lista { margin: 0; padding-left: 18px; }

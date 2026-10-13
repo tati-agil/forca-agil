@@ -202,7 +202,7 @@
     /* fonte do Mapa: 'cadastro' = estruturas cadastradas (só no AMBIENTE DE TESTES nesta etapa) | 'demo' = exemplos
        fictícios. As duas NUNCA se misturam: cada desenho usa uma só. Fora do ambiente de testes só existe 'demo'. */
     var fonte = cadastroDisponivel() ? 'cadastro' : 'demo';
-    var cadastro = { estruturas: undefined, subagrupadores: undefined, associacoes: undefined, vinculos: undefined, refs: undefined, erro: null, desligar: null };
+    var cadastro = { estruturas: undefined, subagrupadores: undefined, associacoes: undefined, vinculos: undefined, relacoes: undefined, refs: undefined, erro: null, desligar: null };
 
     /* ---- painel e identidade da página (como o Posicionamento e a Squad) ---- */
     var identidadeOriginal = null;
@@ -547,17 +547,18 @@
          ligarCadastro de novo) antes de a ligação ser guardada */
       var desligarEsta = null;
       cadastro.desligar = function () { if (desligarEsta) desligarEsta(); };
-      desligarEsta = window.faEstruturasFirebase.ouvir(null, ['registros', 'subagrupadores', 'associacoes', 'vinculos'], /* só leitura, pelo adaptador */ function (m) {
+      desligarEsta = window.faEstruturasFirebase.ouvir(null, ['registros', 'subagrupadores', 'associacoes', 'vinculos', 'relacoes'], /* só leitura, pelo adaptador */ function (m) {
         if (m.estruturas) cadastro.estruturas = m.estruturas;
         if (m.subagrupadores) cadastro.subagrupadores = m.subagrupadores;
         if (m.associacoesSubagrupador) cadastro.associacoes = m.associacoesSubagrupador;
         if (m.vinculos) cadastro.vinculos = m.vinculos;
+        if (m.relacoes) cadastro.relacoes = m.relacoes;
         cadastro.erro = null; if (!wrap.hidden) render();
       }, function (cod) { cadastro.erro = cod; if (!wrap.hidden) render(); });
       /* ligações oficiais para a situação do vínculo (null = o perfil não lê: a situação não confere o tipo) */
       if (window.faEstruturasAdmin && window.faEstruturasAdmin.lerLigacoes) window.faEstruturasAdmin.lerLigacoes(function (ref) { cadastro.refs = ref; if (!wrap.hidden) render(); });
     }
-    function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = cadastro.subagrupadores = cadastro.associacoes = cadastro.vinculos = cadastro.refs = undefined; cadastro.erro = null; }
+    function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = cadastro.subagrupadores = cadastro.associacoes = cadastro.vinculos = cadastro.relacoes = cadastro.refs = undefined; cadastro.erro = null; }
     function blocoDoTipo(tipo) { return BLOCOS.filter(function (b) { return b.codigos.indexOf(tipo) !== -1; })[0] || null; }
     function estruturasDoBloco(b) {
       var D = dados();
@@ -612,10 +613,33 @@
     }
     /* Squads: a POSSIBILIDADE vem da regra fixa Linha × Squad do motor (Áreas Especializadas e CoEs não formam
        Squads); a EXISTÊNCIA de Squads vinculados é outra informação, que ainda não existe — nunca inventada */
-    function squadsHtml(tipo, exemplo) {
+    function squadsHtml(tipo, exemplo, estruturaId) {
+      if (Mot().CODIGOS_FIRMES.indexOf(tipo) === -1) return ''; /* a regra fixa do motor só vale para códigos firmes */
       if (Mot().liberaSquadParaCodigoFirme(tipo) !== true) return '<dt>Organização por Squads</dt><dd class="mfm-squads" data-forma-squads="nao">Não se aplica: Áreas Especializadas e Centros de Excelência não formam Squads.</dd>';
       return '<dt>Organização por Squads</dt><dd class="mfm-squads" data-forma-squads="sim">Admitida para este tipo de estrutura (Linha).</dd>' +
-        '<dt>Squads vinculados</dt><dd class="mfm-squads-vinculados">' + (exemplo ? 'Nenhum nos exemplos fictícios.' : 'Informação ainda indisponível: a associação de Squads às estruturas não existe nesta versão.') + '</dd>';
+        '<dt>Squads vinculados</dt><dd class="mfm-squads-vinculados" id="mfmSquads">' + (exemplo ? 'Nenhum nos exemplos fictícios.' : squadsDaLinhaHtml(estruturaId)) + '</dd>';
+    }
+    /* M6/M7: os Squads que compõem a Linha CADASTRADA (relação "compõe" ativa, Squad ativo) — dentro do detalhe, nunca
+       caixa do Mapa (C1); e as demais relações da estrutura, só para consulta. Só com o que já foi lido do cadastro. */
+    function relacoesAtivasCadastro(id) {
+      return Object.keys(cadastro.relacoes || {}).map(function (k) { return cadastro.relacoes[k]; })
+        .filter(function (r) { return r.situacao === 'ativa' && (r.origem === id || r.destino === id); });
+    }
+    function squadsDaLinhaHtml(id) {
+      if (cadastro.relacoes === undefined) return 'Carregando…';
+      var sq = relacoesAtivasCadastro(id).filter(function (r) { var o = cadastro.estruturas[r.origem]; return r.tipo === 'compoe' && r.destino === id && o && o.situacao === 'ativa'; })
+        .map(function (r) { return cadastro.estruturas[r.origem]; }).sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+      return sq.length ? '<ul class="mfm-squads-lista">' + sq.map(function (x) { return '<li class="mfm-squad" data-estrutura="' + esc(x.id) + '">' + esc(x.nome) + (x.sigla ? ' <span class="mfm-nota">(' + esc(x.sigla) + ')</span>' : '') + '</li>'; }).join('') + '</ul>'
+        : 'Nenhum Squad vinculado a esta Linha.';
+    }
+    function relacoesDetalheHtml(id) {
+      if (cadastro.relacoes === undefined) return '<dt>Relações</dt><dd class="mfm-relacoes">Carregando…</dd>';
+      var rot = function (t) { return window.faEstruturasAdmin && window.faEstruturasAdmin.rotuloRelacao ? window.faEstruturasAdmin.rotuloRelacao(t) : t; };
+      var nome = function (x) { var e = cadastro.estruturas[x]; return e ? e.nome : x; };
+      var rs = relacoesAtivasCadastro(id).filter(function (r) { return !(r.tipo === 'compoe' && r.destino === id); }); /* os Squads da Linha já aparecem acima */
+      return '<dt>Relações</dt><dd class="mfm-relacoes" id="mfmRelacoes">' + (rs.length ? '<ul class="mfm-relacoes-lista">' + rs.map(function (r) {
+        return '<li data-relacao="' + esc(r.id) + '">' + (r.origem === id ? esc(rot(r.tipo)) + ' ' + esc(nome(r.destino)) : esc(nome(r.origem)) + ' ' + esc(rot(r.tipo)) + ' esta estrutura') + '</li>';
+      }).join('') + '</ul>' : 'Nenhuma relação registrada.') + '</dd>';
     }
     function detalheHtml(id) {
       var e = dados().estado.estruturas[id], b = blocoDoTipo(e.tipo), sub = subagrupadorDaEstrutura(id), objs = objetosDe(id), M = Mot();
@@ -670,7 +694,7 @@
         (b && b.subagrupado ? '<dt>Subagrupador</dt><dd id="mfmSubagrupador">' + (subCad ? esc(subCad.nome) : 'Sem subagrupador') + '</dd>' : '') +
         (e.sigla ? '<dt>Sigla</dt><dd>' + esc(e.sigla) + '</dd>' : '') +
         (e.descricao ? '<dt>Descrição</dt><dd class="mfm-descricao">' + esc(e.descricao) + '</dd>' : '') +
-        squadsHtml(e.tipo, false) +
+        squadsHtml(e.tipo, false, e.id) + relacoesDetalheHtml(e.id) +
         '<dt>Cadastrada</dt><dd>' + dataHora(e.criadaEm) + (e.criadaPor ? ' · ' + esc(e.criadaPor.email || e.criadaPor.id) : '') + '</dd>' +
         (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + (e.alteradaPor ? ' · ' + esc(e.alteradaPor.email || e.alteradaPor.id) : '') + '</dd>' : '') + '</dl>' +
         '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
@@ -683,6 +707,7 @@
       var D = dados();
       if (selecionada && D && !D.estado.estruturas[selecionada]) selecionada = null; /* encerrada ou inexistente: volta ao Mapa */
       if (selecionada && D && D.estado.estruturas[selecionada].situacao !== 'ativa') selecionada = null;
+      if (selecionada && D && !blocoDoTipo(D.estado.estruturas[selecionada].tipo)) selecionada = null; /* C1: Squad não é caixa do Mapa — aparece dentro da Linha */
       var pronto = autorizacaoResolvida() && podeLer() && D && Est() && Mot();
       /* um só painel claro: título, ações, aviso de demonstração e o quadro — o fundo do site fica só na margem */
       var h = '<div class="mfm-painel"><div class="mfm-cabecalho"><div class="mfm-cabecalho-texto"><h2 class="mfm-titulo">Mapa da Floresta</h2>' +

@@ -170,7 +170,22 @@ conceito da Taxonomia; só para estruturas do tipo Linha de Negócios (`NEGOCIOS
 - Cenários versionados: `.github/scripts/cenarios/mapa-subagrupadores.v1.json` (formato 2: estado inicial e estado
   final por coleção).
 
-### Pendências de governança — relações entre estruturas (Item 2)
+### Relações entre estruturas — M6/M7 do Mapa (decisões C1–C4 aprovadas em 2026-10-13)
+
+- **C1:** o Squad é estrutura concreta cadastrável (conceito da camada "Organização do trabalho" que a Taxonomia admite
+  compor uma Linha), mostrado dentro do detalhe da Linha — nunca caixa do Mapa. Capítulo fica fora desta entrega.
+- **C2:** no site, `compõe` só de Squad para uma das 6 especializações de Linha, e só se a Taxonomia admitir a combinação;
+  todo `compõe` geral continua bloqueado (as regras do banco garantem; por construção não há ciclo).
+- **C3:** um Squad compõe no máximo UMA Linha ativa (`COMPOSICAO_ATIVA_JA_EXISTE`, regra do núcleo); trocar = substituir
+  (`alterarRelacao`), com motivo e histórico; o cadastro do Squad não exige vínculo.
+- **C4:** admin geral e `avaliacao-arquitetura` mantêm as relações admitidas; `avaliacao` só consulta; leitura mínima das
+  relações conceituais e de camada/ativo/nome do Squad, sem ampliar escrita.
+- Os outros quatro tipos (não hierárquicos) valem entre quaisquer estruturas cujos tipos a Taxonomia admita — o conteúdo
+  oficial dessas relações conceituais é governança da Taxonomia, não do código. Herança pelo conceito-pai continua só
+  com previsão oficial (não presumida): uma relação conceitual registrada só para um conceito-pai (ex.: "Squad compõe
+  Linha") não admite as especializações.
+
+### Pendências de governança — relações entre estruturas (Item 2, situação anterior às decisões C1–C4)
 
 O núcleo já sabe validar relações entre estruturas (os 5 tipos da Taxonomia, só se a Taxonomia admitir entre os
 conceitos dos tipos; `compõe` sem ciclo; sem duplicata), mas NADA disso é gravado no site ainda. Faltam decisões que
@@ -193,4 +208,4 @@ não podem ser presumidas:
 - **Ler a Taxonomia, o motor e o Posicionamento:** quem chama lê e passa como `ref` ou `posicionamento`.
 - **Permissões:** quem pode executar cada operação é verificado por quem chama e pela persistência. O núcleo registra o autor recebido em `ctx`.
 - **Liberação para Squad (I2):** continua no núcleo do Posicionamento e não é lida aqui.
-- **Pontos em aberto:** cardinalidade de composição (quantas Linhas uma Squad compõe), unicidade de nome e sigla, e carga inicial das estruturas reais. Nada disso é imposto.
+- **Pontos em aberto:** unicidade de nome e sigla, e carga inicial das estruturas reais. Nada disso é imposto. (A cardinalidade da composição foi decidida em C3: um Squad, no máximo uma Linha ativa.)

@@ -883,14 +883,14 @@
             ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
             ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','ordem','ativo','situacaoDefinicao','camada']) && (!data.child('definicaoVigenteFonteId').exists() || newData.child('definicaoVigenteFonteId').val() === data.child('definicaoVigenteFonteId').val() || newData.parent().parent().child('fontes').child($codigo).child(data.child('definicaoVigenteFonteId').val()).child('situacao').val() !== 'vigente') && (!data.exists() ? (!newData.child('inativacao').exists() && !newData.child('reativacao').exists()) : ((newData.child('ativo').val() === false || !newData.child('inativacao').exists()) && (newData.child('ativo').val() === true || !newData.child('reativacao').exists()) && (data.child('ativo').val() === true && newData.child('ativo').val() === false ? (newData.child('inativacao').hasChildren(['motivo','em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child($codigo).child(newData.child('inativacao').child('auditoriaId').val()).child('tipo').val() === 'inativacao' && !root.child('taxonomia').child('organizacional').child('auditoria').child($codigo).child(newData.child('inativacao').child('auditoriaId').val()).exists() && !newData.parent().parent().parent().parent().child('posicionamento-classificacoes').child($codigo).exists()) : (data.child('ativo').val() === false && newData.child('ativo').val() === true ? (newData.child('reativacao').hasChildren(['em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child($codigo).child(newData.child('reativacao').child('auditoriaId').val()).child('tipo').val() === 'reativacao' && !root.child('taxonomia').child('organizacional').child('auditoria').child($codigo).child(newData.child('reativacao').child('auditoriaId').val()).exists()) : (newData.child('inativacao').child('motivo').val() === data.child('inativacao').child('motivo').val() && newData.child('inativacao').child('em').val() === data.child('inativacao').child('em').val() && newData.child('inativacao').child('por').val() === data.child('inativacao').child('por').val() && newData.child('inativacao').child('auditoriaId').val() === data.child('inativacao').child('auditoriaId').val() && newData.child('reativacao').child('em').val() === data.child('reativacao').child('em').val() && newData.child('reativacao').child('por').val() === data.child('reativacao').child('por').val() && newData.child('reativacao').child('auditoriaId').val() === data.child('reativacao').child('auditoriaId').val()))))) && (!data.exists() ? !newData.child('camadaAlteracao').exists() : (newData.child('camada').val() === data.child('camada').val() ? (newData.child('camadaAlteracao').child('de').val() === data.child('camadaAlteracao').child('de').val() && newData.child('camadaAlteracao').child('para').val() === data.child('camadaAlteracao').child('para').val() && newData.child('camadaAlteracao').child('motivo').val() === data.child('camadaAlteracao').child('motivo').val() && newData.child('camadaAlteracao').child('em').val() === data.child('camadaAlteracao').child('em').val() && newData.child('camadaAlteracao').child('por').val() === data.child('camadaAlteracao').child('por').val() && newData.child('camadaAlteracao').child('auditoriaId').val() === data.child('camadaAlteracao').child('auditoriaId').val()) : ((data.child('camada').val() === 'A' || data.child('camada').val() === 'trabalho') && (newData.child('camada').val() === 'A' || newData.child('camada').val() === 'trabalho') && !newData.child('pai').exists() && newData.child('camadaAlteracao').hasChildren(['de','para','motivo','em','por','auditoriaId']) && newData.child('camadaAlteracao').child('de').val() === data.child('camada').val() && newData.child('camadaAlteracao').child('para').val() === newData.child('camada').val() && newData.parent().parent().child('auditoria').child($codigo).child(newData.child('camadaAlteracao').child('auditoriaId').val()).child('tipo').val() === 'alteracao_camada' && !root.child('taxonomia').child('organizacional').child('auditoria').child($codigo).child(newData.child('camadaAlteracao').child('auditoriaId').val()).exists() && newData.parent().parent().parent().child('meta').child('indiceFilhos').exists() && !newData.parent().parent().child('filhos').child($codigo).exists() && !newData.parent().parent().parent().parent().child('posicionamento-classificacoes').child($codigo).exists()))) && (!newData.child('pai').exists() || (!newData.parent().parent().parent().child('meta').child('indiceFilhos').exists() && data.exists() && data.child('pai').val() === newData.child('pai').val()) || ((newData.child('ativo').val() === true) === newData.parent().parent().child('filhos').child(newData.child('pai').val()).child($codigo).exists())) && (!data.child('pai').exists() || data.child('pai').val() === newData.child('pai').val() || !newData.parent().parent().child('filhos').child(data.child('pai').val()).child($codigo).exists())",
             "nome": {
-              ".read": "auth != null && ($codigo === 'LINHA' || $codigo === 'ESTRATEGIA_CLIENTES' || $codigo === 'NEGOCIOS' || $codigo === 'PLATAFORMA' || $codigo === 'PLATAFORMA_CANAIS' || $codigo === 'PLATAFORMA_HABILITADORA_NEGOCIOS' || $codigo === 'PLATAFORMA_HABILITADORA_TECNOLOGIA' || $codigo === 'PLATAFORMA_CORPORATIVA' || $codigo === 'AREA_ESPECIALIZADA' || $codigo === 'COE') && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
+              ".read": "(auth != null && ($codigo === 'LINHA' || $codigo === 'ESTRATEGIA_CLIENTES' || $codigo === 'NEGOCIOS' || $codigo === 'PLATAFORMA' || $codigo === 'PLATAFORMA_CANAIS' || $codigo === 'PLATAFORMA_HABILITADORA_NEGOCIOS' || $codigo === 'PLATAFORMA_HABILITADORA_TECNOLOGIA' || $codigo === 'PLATAFORMA_CORPORATIVA' || $codigo === 'AREA_ESPECIALIZADA' || $codigo === 'COE') && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))) || ((auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && data.parent().child('camada').val() === 'trabalho' && ((root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__ESTRATEGIA_CLIENTES').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__ESTRATEGIA_CLIENTES').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CANAIS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CANAIS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CORPORATIVA').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CORPORATIVA').child('encerrada').exists())))",
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
             },
             "ordem": {
               ".validate": "newData.isNumber()"
             },
             "ativo": {
-              ".read": "auth != null && ($codigo === 'LINHA' || $codigo === 'ESTRATEGIA_CLIENTES' || $codigo === 'NEGOCIOS' || $codigo === 'PLATAFORMA' || $codigo === 'PLATAFORMA_CANAIS' || $codigo === 'PLATAFORMA_HABILITADORA_NEGOCIOS' || $codigo === 'PLATAFORMA_HABILITADORA_TECNOLOGIA' || $codigo === 'PLATAFORMA_CORPORATIVA' || $codigo === 'AREA_ESPECIALIZADA' || $codigo === 'COE') && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
+              ".read": "(auth != null && ($codigo === 'LINHA' || $codigo === 'ESTRATEGIA_CLIENTES' || $codigo === 'NEGOCIOS' || $codigo === 'PLATAFORMA' || $codigo === 'PLATAFORMA_CANAIS' || $codigo === 'PLATAFORMA_HABILITADORA_NEGOCIOS' || $codigo === 'PLATAFORMA_HABILITADORA_TECNOLOGIA' || $codigo === 'PLATAFORMA_CORPORATIVA' || $codigo === 'AREA_ESPECIALIZADA' || $codigo === 'COE') && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))) || ((auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && data.parent().child('camada').val() === 'trabalho' && ((root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__ESTRATEGIA_CLIENTES').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__ESTRATEGIA_CLIENTES').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CANAIS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CANAIS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CORPORATIVA').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CORPORATIVA').child('encerrada').exists())))",
               ".validate": "newData.isBoolean()"
             },
             "situacaoDefinicao": {
@@ -948,6 +948,7 @@
               "$outro": { ".validate": false }
             },
             "camada": {
+              ".read": "(auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && data.val() === 'trabalho' && ((root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__ESTRATEGIA_CLIENTES').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__ESTRATEGIA_CLIENTES').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CANAIS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CANAIS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CORPORATIVA').exists() && !root.child('taxonomia/organizacional/relacoes/' + $codigo + '__compoe__PLATAFORMA_CORPORATIVA').child('encerrada').exists()))",
               ".validate": "(newData.val() === 'A' || newData.val() === 'B' || newData.val() === 'C' || newData.val() === 'trabalho' || newData.val() === 'auxiliar')"
             },
             "camadaAlteracao": {
@@ -1110,7 +1111,7 @@
           }
         },
         "relacoes": {
-          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          ".read": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
           "$chave": {
             ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
             ".validate": "newData.hasChildren(['de','tipo','para']) && (newData.child('tipo').val() === 'compoe' || newData.child('tipo').val() === 'aloca-em' || newData.child('tipo').val() === 'atende' || newData.child('tipo').val() === 'desenvolve-disciplina' || newData.child('tipo').val() === 'pertence-a-disciplina') && $chave === newData.child('de').val() + '__' + newData.child('tipo').val() + '__' + newData.child('para').val() && newData.parent().parent().child('conceitos').child(newData.child('de').val()).exists() && newData.parent().parent().child('conceitos').child(newData.child('para').val()).exists() && (!data.exists() ? (!newData.child('encerrada').exists() && ((!root.child('taxonomia').child('meta').child('cargaInicial').exists() && newData.parent().parent().parent().child('meta').child('cargaInicial').exists()) || (newData.child('de').val() !== newData.child('para').val() && newData.parent().parent().child('conceitos').child(newData.child('de').val()).child('ativo').val() === true && newData.parent().parent().child('conceitos').child(newData.child('para').val()).child('ativo').val() === true && newData.hasChildren(['criadaEm','criadaPor','auditoriaId']) && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('tipo').val() === 'relacao_criada' && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).child('tipo').val() === 'relacao_criada' && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('operacaoId').isString() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('operacaoId').val() === newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).child('operacaoId').val()))) : (!data.child('encerrada').exists() && newData.child('nota').val() === data.child('nota').val() && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor').val() === data.child('criadaPor').val() && newData.child('auditoriaId').val() === data.child('auditoriaId').val() && newData.child('encerrada').hasChildren(['motivo','em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('tipo').val() === 'relacao_encerrada' && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('tipo').val() === 'relacao_encerrada' && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('operacaoId').isString() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('operacaoId').val() === newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('operacaoId').val()))",
@@ -2109,7 +2110,7 @@
       "registros": {
         "$id": {
           ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && newData.exists() && root.child('estruturas-concretas-config/gravacaoHabilitada').val() === true",
-          ".validate": "$id.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['id','tipo','nome','situacao','revisao','criadaEm','criadaPor','ultimaOperacao']) && newData.child('id').val() === $id && !root.child('estruturas-concretas/operacoes/' + newData.child('ultimaOperacao').val()).exists() && newData.parent().parent().child('operacoes/' + newData.child('ultimaOperacao').val() + '/estruturaId').val() === $id && newData.parent().parent().child('eventos/' + newData.child('ultimaOperacao').val() + ':1/entidadeId').val() === $id && (!data.exists() ? ((newData.child('tipo').val() === 'ESTRATEGIA_CLIENTES' || newData.child('tipo').val() === 'NEGOCIOS' || newData.child('tipo').val() === 'PLATAFORMA_CANAIS' || newData.child('tipo').val() === 'PLATAFORMA_HABILITADORA_NEGOCIOS' || newData.child('tipo').val() === 'PLATAFORMA_HABILITADORA_TECNOLOGIA' || newData.child('tipo').val() === 'PLATAFORMA_CORPORATIVA' || newData.child('tipo').val() === 'AREA_ESPECIALIZADA' || newData.child('tipo').val() === 'COE') && root.child('posicionamento-classificacoes/' + newData.child('tipo').val() + '/registradoEm').exists() && root.child('taxonomia/organizacional/conceitos/' + newData.child('tipo').val() + '/ativo').val() === true && newData.child('situacao').val() === 'ativa' && newData.child('revisao').val() === 1 && newData.child('criadaEm').val() === now && newData.child('criadaPor/id').val() === auth.uid && newData.child('criadaPor/email').val() === auth.token.email && !newData.child('alteradaEm').exists() && !newData.child('alteradaPor').exists() && !newData.child('encerramento').exists()) : (data.child('situacao').val() === 'ativa' && ((newData.child('situacao').val() === 'ativa' && newData.child('tipo').val() === data.child('tipo').val() && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor/id').val() === data.child('criadaPor/id').val() && newData.child('criadaPor/email').val() === data.child('criadaPor/email').val() && newData.child('revisao').val() === data.child('revisao').val() + 1 && newData.child('alteradaEm').val() === now && newData.child('alteradaPor/id').val() === auth.uid && newData.child('alteradaPor/email').val() === auth.token.email && !newData.child('encerramento').exists() && (newData.child('nome').val() !== data.child('nome').val() || newData.child('sigla').val() !== data.child('sigla').val() || newData.child('descricao').val() !== data.child('descricao').val())) || (newData.child('situacao').val() === 'encerrada' && newData.child('tipo').val() === data.child('tipo').val() && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor/id').val() === data.child('criadaPor/id').val() && newData.child('criadaPor/email').val() === data.child('criadaPor/email').val() && newData.child('revisao').val() === data.child('revisao').val() + 1 && newData.child('nome').val() === data.child('nome').val() && newData.child('sigla').val() === data.child('sigla').val() && newData.child('descricao').val() === data.child('descricao').val() && newData.child('alteradaEm').val() === data.child('alteradaEm').val() && newData.child('alteradaPor/id').val() === data.child('alteradaPor/id').val() && newData.child('alteradaPor/email').val() === data.child('alteradaPor/email').val() && newData.child('encerramento/em').val() === now && newData.child('encerramento/por/id').val() === auth.uid && newData.child('encerramento/por/email').val() === auth.token.email))))",
+          ".validate": "$id.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['id','tipo','nome','situacao','revisao','criadaEm','criadaPor','ultimaOperacao']) && newData.child('id').val() === $id && !root.child('estruturas-concretas/operacoes/' + newData.child('ultimaOperacao').val()).exists() && newData.parent().parent().child('operacoes/' + newData.child('ultimaOperacao').val() + '/estruturaId').val() === $id && newData.parent().parent().child('eventos/' + newData.child('ultimaOperacao').val() + ':1/entidadeId').val() === $id && (!data.exists() ? ((((newData.child('tipo').val() === 'ESTRATEGIA_CLIENTES' || newData.child('tipo').val() === 'NEGOCIOS' || newData.child('tipo').val() === 'PLATAFORMA_CANAIS' || newData.child('tipo').val() === 'PLATAFORMA_HABILITADORA_NEGOCIOS' || newData.child('tipo').val() === 'PLATAFORMA_HABILITADORA_TECNOLOGIA' || newData.child('tipo').val() === 'PLATAFORMA_CORPORATIVA' || newData.child('tipo').val() === 'AREA_ESPECIALIZADA' || newData.child('tipo').val() === 'COE') && root.child('posicionamento-classificacoes/' + newData.child('tipo').val() + '/registradoEm').exists()) || (root.child('taxonomia/organizacional/conceitos/' + newData.child('tipo').val() + '/camada').val() === 'trabalho' && ((root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__ESTRATEGIA_CLIENTES').exists() && !root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__ESTRATEGIA_CLIENTES').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_CANAIS').exists() && !root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_CANAIS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').exists() && !root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_HABILITADORA_NEGOCIOS').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').exists() && !root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_HABILITADORA_TECNOLOGIA').child('encerrada').exists()) || (root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_CORPORATIVA').exists() && !root.child('taxonomia/organizacional/relacoes/' + newData.child('tipo').val() + '__compoe__PLATAFORMA_CORPORATIVA').child('encerrada').exists())))) && root.child('taxonomia/organizacional/conceitos/' + newData.child('tipo').val() + '/ativo').val() === true && newData.child('situacao').val() === 'ativa' && newData.child('revisao').val() === 1 && newData.child('criadaEm').val() === now && newData.child('criadaPor/id').val() === auth.uid && newData.child('criadaPor/email').val() === auth.token.email && !newData.child('alteradaEm').exists() && !newData.child('alteradaPor').exists() && !newData.child('encerramento').exists()) : (data.child('situacao').val() === 'ativa' && ((newData.child('situacao').val() === 'ativa' && newData.child('tipo').val() === data.child('tipo').val() && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor/id').val() === data.child('criadaPor/id').val() && newData.child('criadaPor/email').val() === data.child('criadaPor/email').val() && newData.child('revisao').val() === data.child('revisao').val() + 1 && newData.child('alteradaEm').val() === now && newData.child('alteradaPor/id').val() === auth.uid && newData.child('alteradaPor/email').val() === auth.token.email && !newData.child('encerramento').exists() && (newData.child('nome').val() !== data.child('nome').val() || newData.child('sigla').val() !== data.child('sigla').val() || newData.child('descricao').val() !== data.child('descricao').val())) || (newData.child('situacao').val() === 'encerrada' && newData.child('tipo').val() === data.child('tipo').val() && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor/id').val() === data.child('criadaPor/id').val() && newData.child('criadaPor/email').val() === data.child('criadaPor/email').val() && newData.child('revisao').val() === data.child('revisao').val() + 1 && newData.child('nome').val() === data.child('nome').val() && newData.child('sigla').val() === data.child('sigla').val() && newData.child('descricao').val() === data.child('descricao').val() && newData.child('alteradaEm').val() === data.child('alteradaEm').val() && newData.child('alteradaPor/id').val() === data.child('alteradaPor/id').val() && newData.child('alteradaPor/email').val() === data.child('alteradaPor/email').val() && newData.child('encerramento/em').val() === now && newData.child('encerramento/por/id').val() === auth.uid && newData.child('encerramento/por/email').val() === auth.token.email))))",
           "id": {
             ".validate": "newData.isString()"
           },
@@ -2945,6 +2946,242 @@
             ".validate": "newData.isNumber()"
           },
           "objetoId": {
+            ".validate": "newData.isString()"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "estruturas-relacoes": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')",
+      "registros": {
+        "$id": {
+          ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && newData.exists() && root.child('estruturas-concretas-config/gravacaoHabilitada').val() === true",
+          ".validate": "$id.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['id','origem','tipo','destino','situacao','revisao','criadaEm','criadaPor','ultimaOperacao','ultimoEvento']) && newData.child('id').val() === $id && (newData.child('tipo').val() === 'compoe' || newData.child('tipo').val() === 'aloca-em' || newData.child('tipo').val() === 'atende' || newData.child('tipo').val() === 'desenvolve-disciplina' || newData.child('tipo').val() === 'pertence-a-disciplina') && !root.child('estruturas-relacoes/operacoes/' + newData.child('ultimaOperacao').val()).exists() && newData.parent().parent().child('operacoes/' + newData.child('ultimaOperacao').val()).exists() && newData.child('ultimoEvento').val().beginsWith(newData.child('ultimaOperacao').val() + ':') && newData.parent().parent().child('eventos/' + newData.child('ultimoEvento').val() + '/entidadeId').val() === $id && (!data.exists() ? (newData.child('situacao').val() === 'ativa' && newData.child('revisao').val() === 1 && newData.child('criadaEm').val() === now && newData.child('criadaPor/id').val() === auth.uid && newData.child('criadaPor/email').val() === auth.token.email && !newData.child('encerramento').exists() && newData.child('origem').val() !== newData.child('destino').val() && root.child('estruturas-concretas/registros/' + newData.child('origem').val() + '/situacao').val() === 'ativa' && root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/situacao').val() === 'ativa' && root.child('taxonomia/organizacional/relacoes/' + root.child('estruturas-concretas/registros/' + newData.child('origem').val() + '/tipo').val() + '__' + newData.child('tipo').val() + '__' + root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val()).exists() && !root.child('taxonomia/organizacional/relacoes/' + root.child('estruturas-concretas/registros/' + newData.child('origem').val() + '/tipo').val() + '__' + newData.child('tipo').val() + '__' + root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val()).child('encerrada').exists() && (newData.child('tipo').val() !== 'compoe' || (root.child('taxonomia/organizacional/conceitos/' + root.child('estruturas-concretas/registros/' + newData.child('origem').val() + '/tipo').val() + '/camada').val() === 'trabalho' && (root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val() === 'ESTRATEGIA_CLIENTES' || root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val() === 'NEGOCIOS' || root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val() === 'PLATAFORMA_CANAIS' || root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val() === 'PLATAFORMA_HABILITADORA_NEGOCIOS' || root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val() === 'PLATAFORMA_HABILITADORA_TECNOLOGIA' || root.child('estruturas-concretas/registros/' + newData.child('destino').val() + '/tipo').val() === 'PLATAFORMA_CORPORATIVA') && newData.parent().parent().child('compoe-ativa-por-origem/' + newData.child('origem').val()).val() === $id)) && newData.parent().parent().child('ativa-por-chave/' + newData.child('origem').val() + '__' + newData.child('tipo').val() + '__' + newData.child('destino').val()).val() === $id && (!newData.child('substitui').exists() || (root.child('estruturas-relacoes/registros/' + newData.child('substitui').val() + '/situacao').val() === 'ativa' && newData.parent().parent().child('registros/' + newData.child('substitui').val() + '/situacao').val() === 'encerrada'))) : (data.child('situacao').val() === 'ativa' && newData.child('situacao').val() === 'encerrada' && newData.child('origem').val() === data.child('origem').val() && newData.child('tipo').val() === data.child('tipo').val() && newData.child('destino').val() === data.child('destino').val() && newData.child('justificativa').val() === data.child('justificativa').val() && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor/id').val() === data.child('criadaPor/id').val() && newData.child('criadaPor/email').val() === data.child('criadaPor/email').val() && newData.child('substitui').val() === data.child('substitui').val() && newData.child('revisao').val() === data.child('revisao').val() + 1 && newData.child('encerramento/em').val() === now && newData.child('encerramento/por/id').val() === auth.uid && newData.child('encerramento/por/email').val() === auth.token.email && newData.parent().parent().child('ativa-por-chave/' + newData.child('origem').val() + '__' + newData.child('tipo').val() + '__' + newData.child('destino').val()).val() !== $id && (newData.child('tipo').val() !== 'compoe' || newData.parent().parent().child('compoe-ativa-por-origem/' + newData.child('origem').val()).val() !== $id) && (!newData.child('encerramento/substituidaPor').exists() || newData.parent().parent().child('registros/' + newData.child('encerramento/substituidaPor').val() + '/substitui').val() === $id)))",
+          "id": {
+            ".validate": "newData.isString()"
+          },
+          "origem": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+          },
+          "tipo": {
+            ".validate": "newData.isString()"
+          },
+          "destino": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+          },
+          "justificativa": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 2000 && !newData.val().beginsWith(' ') && !newData.val().endsWith(' ') && !newData.val().beginsWith('\\t') && !newData.val().endsWith('\\t') && !newData.val().beginsWith('\\n') && !newData.val().endsWith('\\n') && !newData.val().beginsWith('\\r') && !newData.val().endsWith('\\r')"
+          },
+          "situacao": {
+            ".validate": "newData.val() === 'ativa' || newData.val() === 'encerrada'"
+          },
+          "revisao": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() % 1 === 0"
+          },
+          "criadaEm": {
+            ".validate": "newData.isNumber()"
+          },
+          "criadaPor": {
+            ".validate": "newData.hasChildren(['id','email'])",
+            "id": {
+              ".validate": "newData.isString()"
+            },
+            "email": {
+              ".validate": "newData.isString()"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "substitui": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+          },
+          "encerramento": {
+            ".validate": "newData.hasChildren(['motivo','em','por'])",
+            "motivo": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500 && !newData.val().beginsWith(' ') && !newData.val().endsWith(' ') && !newData.val().beginsWith('\\t') && !newData.val().endsWith('\\t') && !newData.val().beginsWith('\\n') && !newData.val().endsWith('\\n') && !newData.val().beginsWith('\\r') && !newData.val().endsWith('\\r')"
+            },
+            "em": {
+              ".validate": "newData.isNumber()"
+            },
+            "por": {
+              ".validate": "newData.hasChildren(['id','email'])",
+              "id": {
+                ".validate": "newData.isString()"
+              },
+              "email": {
+                ".validate": "newData.isString()"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            },
+            "substituidaPor": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "ultimaOperacao": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+          },
+          "ultimoEvento": {
+            ".validate": "newData.isString()"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      },
+      "ativa-por-chave": {
+        "$chave": {
+          ".write": "(auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && (newData.exists() ? (newData.parent().parent().child('registros/' + newData.val()).child('situacao').val() === 'ativa' && newData.parent().parent().child('registros/' + newData.val()).child('origem').val() + '__' + newData.parent().parent().child('registros/' + newData.val()).child('tipo').val() + '__' + newData.parent().parent().child('registros/' + newData.val()).child('destino').val() === $chave && !root.child('estruturas-relacoes/operacoes/' + newData.parent().parent().child('registros/' + newData.val()).child('ultimaOperacao').val()).exists() && (!data.exists() || newData.parent().parent().child('registros/' + data.val()).child('situacao').val() === 'encerrada')) : (data.exists() && newData.parent().parent().child('registros/' + data.val()).child('situacao').val() === 'encerrada'))) && root.child('estruturas-concretas-config/gravacaoHabilitada').val() === true",
+          ".validate": "newData.isString()"
+        }
+      },
+      "compoe-ativa-por-origem": {
+        "$origem": {
+          ".write": "(auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && (newData.exists() ? (newData.parent().parent().child('registros/' + newData.val()).child('situacao').val() === 'ativa' && newData.parent().parent().child('registros/' + newData.val()).child('origem').val() === $origem && newData.parent().parent().child('registros/' + newData.val()).child('tipo').val() === 'compoe' && !root.child('estruturas-relacoes/operacoes/' + newData.parent().parent().child('registros/' + newData.val()).child('ultimaOperacao').val()).exists() && (!data.exists() || newData.parent().parent().child('registros/' + data.val()).child('situacao').val() === 'encerrada')) : (data.exists() && newData.parent().parent().child('registros/' + data.val()).child('situacao').val() === 'encerrada'))) && root.child('estruturas-concretas-config/gravacaoHabilitada').val() === true",
+          ".validate": "newData.isString()"
+        }
+      },
+      "eventos": {
+        "$ev": {
+          ".write": "(auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && !data.exists() && newData.exists()) && root.child('estruturas-concretas-config/gravacaoHabilitada').val() === true",
+          ".validate": "$ev.matches(/^[A-Za-z0-9_-]{1,60}:[1-9]$/) && newData.hasChildren(['id','operacaoId','tipo','entidade','entidadeId','usuario','em','depois']) && newData.child('id').val() === $ev && $ev.beginsWith(newData.child('operacaoId').val() + ':') && newData.child('usuario/id').val() === auth.uid && newData.child('usuario/email').val() === auth.token.email && newData.child('em').val() === now && !newData.child('antes').exists() && newData.child('entidade').val() === 'relacao' && !root.child('estruturas-relacoes/operacoes/' + newData.child('operacaoId').val()).exists() && newData.parent().parent().child('operacoes/' + newData.child('operacaoId').val()).exists() && newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/ultimoEvento').val() === $ev && newData.child('depois/id').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/id').val() && newData.child('depois/origem').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/origem').val() && newData.child('depois/tipo').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/tipo').val() && newData.child('depois/destino').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/destino').val() && newData.child('depois/justificativa').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/justificativa').val() && newData.child('depois/situacao').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/situacao').val() && newData.child('depois/revisao').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/revisao').val() && newData.child('depois/criadaEm').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/criadaEm').val() && newData.child('depois/criadaPor/id').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/criadaPor/id').val() && newData.child('depois/criadaPor/email').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/criadaPor/email').val() && newData.child('depois/substitui').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/substitui').val() && newData.child('depois/encerramento/motivo').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/encerramento/motivo').val() && newData.child('depois/encerramento/em').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/encerramento/em').val() && newData.child('depois/encerramento/por/id').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/encerramento/por/id').val() && newData.child('depois/encerramento/por/email').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/encerramento/por/email').val() && newData.child('depois/encerramento/substituidaPor').val() === newData.parent().parent().child('registros/' + newData.child('entidadeId').val() + '/encerramento/substituidaPor').val() && (!root.child('estruturas-relacoes/registros/' + newData.child('entidadeId').val()).exists() ? (newData.child('tipo').val() === 'relacao.criada' && (newData.child('depois/substitui').exists() ? newData.child('motivo').val() === newData.parent().parent().child('registros/' + newData.child('depois/substitui').val() + '/encerramento/motivo').val() : !newData.child('motivo').exists())) : (newData.child('tipo').val() === 'relacao.encerrada' && newData.child('motivo').val() === newData.child('depois/encerramento/motivo').val()))",
+          "id": {
+            ".validate": "newData.isString()"
+          },
+          "operacaoId": {
+            ".validate": "newData.isString()"
+          },
+          "tipo": {
+            ".validate": "newData.val() === 'relacao.criada' || newData.val() === 'relacao.encerrada'"
+          },
+          "entidade": {
+            ".validate": "newData.isString()"
+          },
+          "entidadeId": {
+            ".validate": "newData.isString()"
+          },
+          "usuario": {
+            ".validate": "newData.hasChildren(['id','email'])",
+            "id": {
+              ".validate": "newData.isString()"
+            },
+            "email": {
+              ".validate": "newData.isString()"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "em": {
+            ".validate": "newData.isNumber()"
+          },
+          "depois": {
+            "id": {
+              ".validate": true
+            },
+            "origem": {
+              ".validate": true
+            },
+            "tipo": {
+              ".validate": true
+            },
+            "destino": {
+              ".validate": true
+            },
+            "justificativa": {
+              ".validate": true
+            },
+            "situacao": {
+              ".validate": true
+            },
+            "revisao": {
+              ".validate": true
+            },
+            "criadaEm": {
+              ".validate": true
+            },
+            "criadaPor": {
+              "id": {
+                ".validate": true
+              },
+              "email": {
+                ".validate": true
+              },
+              "$outro": {
+                ".validate": false
+              }
+            },
+            "substitui": {
+              ".validate": true
+            },
+            "encerramento": {
+              "motivo": {
+                ".validate": true
+              },
+              "em": {
+                ".validate": true
+              },
+              "por": {
+                "id": {
+                  ".validate": true
+                },
+                "email": {
+                  ".validate": true
+                },
+                "$outro": {
+                  ".validate": false
+                }
+              },
+              "substituidaPor": {
+                ".validate": true
+              },
+              "$outro": {
+                ".validate": false
+              }
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "motivo": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500 && !newData.val().beginsWith(' ') && !newData.val().endsWith(' ') && !newData.val().beginsWith('\\t') && !newData.val().endsWith('\\t') && !newData.val().beginsWith('\\n') && !newData.val().endsWith('\\n') && !newData.val().beginsWith('\\r') && !newData.val().endsWith('\\r')"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      },
+      "operacoes": {
+        "$op": {
+          ".write": "(auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && !data.exists() && newData.exists()) && root.child('estruturas-concretas-config/gravacaoHabilitada').val() === true",
+          ".validate": "$op.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['tipo','usuario','em','origem']) && newData.child('em').val() === now && newData.child('usuario/id').val() === auth.uid && newData.child('usuario/email').val() === auth.token.email && (newData.child('tipo').val() === 'criarRelacao' || newData.child('tipo').val() === 'alterarRelacao' || newData.child('tipo').val() === 'encerrarRelacao') && newData.parent().parent().child('eventos/' + $op + ':1/operacaoId').val() === $op && newData.parent().parent().child('eventos/' + $op + ':1/depois/origem').val() === newData.child('origem').val()",
+          "tipo": {
+            ".validate": "newData.isString()"
+          },
+          "usuario": {
+            ".validate": "newData.hasChildren(['id','email'])",
+            "id": {
+              ".validate": "newData.isString()"
+            },
+            "email": {
+              ".validate": "newData.isString()"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          },
+          "em": {
+            ".validate": "newData.isNumber()"
+          },
+          "origem": {
             ".validate": "newData.isString()"
           },
           "$outro": {

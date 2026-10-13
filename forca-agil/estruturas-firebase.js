@@ -21,6 +21,12 @@
        ativo-por-objeto/<item>    índice: o vínculo ATIVO de responsável principal do item (no máximo um, pelas regras)
        eventos/<operacao>:<n>     um evento por mudança (uma substituição tem dois)
        operacoes/<operacao>       (+ objetoId)
+     família RELAÇÃO (M6/M7 do Mapa; nó estruturas-relacoes — relações entre estruturas, R1–R7 e C3):
+       registros/<id>             a relação (+ ultimaOperacao, ultimoEvento)
+       ativa-por-chave/<origem>__<tipo>__<destino>  índice: a relação ATIVA daquela combinação (nenhuma duplicata)
+       compoe-ativa-por-origem/<origem>             índice: o "compõe" ATIVO da estrutura (C3: um Squad, uma Linha)
+       eventos/<operacao>:<n>     um evento por mudança (alterar = encerrar + criar: dois)
+       operacoes/<operacao>       (+ origem)
    e as regras recusam qualquer parte sozinha, apagar, reativar, mudar o que é imutável, pular revisão, autoria
    diferente do token e horário diferente do horário do SERVIDOR.
 
@@ -38,6 +44,7 @@
   var RAIZ = 'estruturas-concretas';
   var RAIZ_SUBAGRUPADORES = 'mapa-subagrupadores';
   var RAIZ_VINCULOS = 'estruturas-vinculos';
+  var RAIZ_RELACOES = 'estruturas-relacoes';
   /* TRAVA DE PRODUÇÃO: as regras só aceitam gravar em estruturas-concretas, mapa-subagrupadores e estruturas-vinculos com este marcador
      = true. Nenhum cliente o grava nem lê (nem admin geral): só o console ou uma conta de serviço. No banco oficial ele
      não existe — cadastro desligado até a autorização de publicação (depois da Etapa 3 e da paridade); no emulador, a
@@ -49,7 +56,8 @@
     estrutura: { familia: RAIZ, colecao: 'estruturas', no: RAIZ + '/registros', horarios: ['criadaEm', 'alteradaEm', 'encerramento.em'] },
     subagrupador: { familia: RAIZ_SUBAGRUPADORES, colecao: 'subagrupadores', no: RAIZ_SUBAGRUPADORES + '/registros', horarios: ['criadoEm', 'alteradoEm', 'encerramento.em'] },
     'associacao-subagrupador': { familia: RAIZ_SUBAGRUPADORES, colecao: 'associacoesSubagrupador', no: RAIZ_SUBAGRUPADORES + '/associacoes', horarios: ['criadaEm', 'encerramento.em'] },
-    vinculo: { familia: RAIZ_VINCULOS, colecao: 'vinculos', no: RAIZ_VINCULOS + '/registros', horarios: ['criadoEm', 'encerramento.em'] }
+    vinculo: { familia: RAIZ_VINCULOS, colecao: 'vinculos', no: RAIZ_VINCULOS + '/registros', horarios: ['criadoEm', 'encerramento.em'] },
+    relacao: { familia: RAIZ_RELACOES, colecao: 'relacoes', no: RAIZ_RELACOES + '/registros', horarios: ['criadaEm', 'encerramento.em'] }
   };
   var CAMPOS_SO_DO_BANCO = ['ultimaOperacao', 'ultimoEvento'];
 
@@ -66,7 +74,7 @@
   function doBanco(e, entidade) {
     var x = clone(e); CAMPOS_SO_DO_BANCO.forEach(function (c) { delete x[c]; });
     if ((entidade || 'estrutura') === 'estrutura') { if (!('sigla' in x)) x.sigla = null; if (!('descricao' in x)) x.descricao = null; }
-    if (entidade === 'vinculo' && !('justificativa' in x)) x.justificativa = null;
+    if ((entidade === 'vinculo' || entidade === 'relacao') && !('justificativa' in x)) x.justificativa = null;
     return x;
   }
   /* horário do servidor nos campos que ESTA operação define (os que mudaram em relação a antes) */
@@ -79,6 +87,15 @@
   function ehNegado(e) { var t = String((e && (e.code || e.message)) || '').toLowerCase(); return t.indexOf('permission') !== -1 || t.indexOf('denied') !== -1; }
   function familiaDe(op) { var ent = op.mudancas[0] && ENTIDADES[op.mudancas[0].entidade]; return ent ? ent.familia : null; }
 
+  /* os índices que cada registro ocupa enquanto está ativo (e libera ao encerrar) */
+  function chaveRelacao(r) { return r.origem + '__' + r.tipo + '__' + r.destino; }
+  function indicesDe(m) {
+    var d = m.depois;
+    if (m.entidade === 'associacao-subagrupador') return [RAIZ_SUBAGRUPADORES + '/ativa-por-estrutura/' + d.estruturaId];
+    if (m.entidade === 'vinculo') return [RAIZ_VINCULOS + '/ativo-por-objeto/' + d.objetoId];
+    if (m.entidade === 'relacao') return [RAIZ_RELACOES + '/ativa-por-chave/' + chaveRelacao(d)].concat(d.tipo === 'compoe' ? [RAIZ_RELACOES + '/compoe-ativa-por-origem/' + d.origem] : []);
+    return [];
+  }
   /* a gravação multipath ÚNICA de uma operação (pura; exportada para os testes adulterarem uma gravação válida) */
   function montarGravacao(op) {
     var multi = {}, familia = familiaDe(op), indice = {};
@@ -90,22 +107,18 @@
       ev.depois = semNulos(comHorarioDoServidor(ev.depois, m.antes, m.entidade)); ev.em = AGORA_DO_SERVIDOR;
       multi[ent.no + '/' + m.id] = reg;
       multi[familia + '/eventos/' + ev.id] = semNulos(ev);
-      /* índice da associação ativa de cada Linha: a nova ativa ocupa; a que se encerra libera (se nada ocupou) */
-      if (m.entidade === 'associacao-subagrupador') {
-        if (m.depois.situacao === 'ativa') indice[m.depois.estruturaId] = m.id;
-        else if (!(m.depois.estruturaId in indice)) indice[m.depois.estruturaId] = null;
-      }
-      /* índice do responsável principal ativo de cada item: o novo ocupa; o que se encerra libera (se nada ocupou) */
-      if (m.entidade === 'vinculo') {
-        if (m.depois.situacao === 'ativa') indice[m.depois.objetoId] = m.id;
-        else if (!(m.depois.objetoId in indice)) indice[m.depois.objetoId] = null;
-      }
+      /* índices (associação ativa da Linha, responsável ativo do item, relação ativa da combinação e "compõe" ativo da
+         estrutura): o registro ativo ocupa; o que se encerra libera, se nada ocupou na mesma operação */
+      indicesDe(m).forEach(function (c) {
+        if (m.depois.situacao === 'ativa') indice[c] = m.id;
+        else if (!(c in indice)) indice[c] = null;
+      });
     });
-    var noIndice = familia === RAIZ_VINCULOS ? RAIZ_VINCULOS + '/ativo-por-objeto/' : RAIZ_SUBAGRUPADORES + '/ativa-por-estrutura/';
-    Object.keys(indice).forEach(function (chave) { multi[noIndice + chave] = indice[chave]; });
+    Object.keys(indice).forEach(function (c) { multi[c] = indice[c]; });
     var registroOp = { tipo: op.tipo, usuario: semNulos({ id: op.usuario.id, email: op.usuario.email }), em: AGORA_DO_SERVIDOR };
     if (familia === RAIZ) registroOp.estruturaId = op.mudancas[0].id;
     if (familia === RAIZ_VINCULOS) registroOp.objetoId = op.mudancas[0].depois.objetoId;
+    if (familia === RAIZ_RELACOES) registroOp.origem = op.mudancas[0].depois.origem;
     multi[familia + '/operacoes/' + op.id] = registroOp;
     return multi;
   }
@@ -139,7 +152,9 @@
     associacoes: { no: RAIZ_SUBAGRUPADORES + '/associacoes', chave: 'associacoesSubagrupador', conv: function (v) { return registrosDoValor(v, 'associacao-subagrupador'); } },
     eventosSubagrupadores: { no: RAIZ_SUBAGRUPADORES + '/eventos', chave: 'eventosSubagrupadores', conv: function (v) { return eventosDoValor(v); } },
     vinculos: { no: RAIZ_VINCULOS + '/registros', chave: 'vinculos', conv: function (v) { return registrosDoValor(v, 'vinculo'); } },
-    eventosVinculos: { no: RAIZ_VINCULOS + '/eventos', chave: 'eventosVinculos', conv: function (v) { return eventosDoValor(v); } }
+    eventosVinculos: { no: RAIZ_VINCULOS + '/eventos', chave: 'eventosVinculos', conv: function (v) { return eventosDoValor(v); } },
+    relacoes: { no: RAIZ_RELACOES + '/registros', chave: 'relacoes', conv: function (v) { return registrosDoValor(v, 'relacao'); } },
+    eventosRelacoes: { no: RAIZ_RELACOES + '/eventos', chave: 'eventosRelacoes', conv: function (v) { return eventosDoValor(v); } }
   };
   function ouvir(db, partes, aoMudar, aoFalhar) {
     db = db || window.firebase.database(); /* sem banco informado: o do site (a tela do Mapa não toca o Firebase) */
@@ -156,12 +171,34 @@
   /* M4: as ligações oficiais dos códigos firmes, para as telas só de consulta calcularem a situação do vínculo; sem
      banco informado, o do site (a tela do Mapa não toca o Firebase). Leitura recusada (o perfil avaliacao não lê as
      ligações) ou falha → null = "não sei", nunca "sem ligação". */
+  /* M6/M7: as relações conceituais da Taxonomia Organizacional ({ de, tipo, para, ativa }) e o Squad — os conceitos da
+     camada "Organização do trabalho" que a Taxonomia admite compor um código de Linha (Capítulo fica fora). Lê só o que
+     as regras liberam (relações; camada/ativo/nome dos conceitos de trabalho). Rejeita se a leitura for recusada. */
+  function lerTaxonomiaDasRelacoes(umaVez, codigosLinha) {
+    return umaVez('taxonomia/organizacional/relacoes').then(function (v) {
+      var rel = Object.keys(v || {}).map(function (k) { return { de: v[k].de, tipo: v[k].tipo, para: v[k].para, ativa: !v[k].encerrada }; });
+      var cand = [];
+      rel.forEach(function (r) { if (r.ativa && r.tipo === 'compoe' && (codigosLinha || []).indexOf(r.para) !== -1 && cand.indexOf(r.de) === -1) cand.push(r.de); });
+      var talvez = function (c) { return umaVez(c).then(null, function () { return null; }); }; /* conceito que não é de trabalho: leitura recusada = não é Squad */
+      return Promise.all(cand.map(function (c) { var b = 'taxonomia/organizacional/conceitos/' + c + '/'; return Promise.all([talvez(b + 'camada'), talvez(b + 'ativo'), talvez(b + 'nome')]); })).then(function (lidos) {
+        var trabalho = [], conceitos = {};
+        cand.forEach(function (c, i) { if (lidos[i][0] === 'trabalho') { trabalho.push(c); conceitos[c] = { ativo: lidos[i][1] === true, nome: typeof lidos[i][2] === 'string' ? lidos[i][2] : null }; } });
+        return { relacoesConceituais: rel, conceitosTrabalho: trabalho, conceitos: conceitos };
+      });
+    });
+  }
+  /* para as telas só de consulta (todos os perfis da Avaliação): null se não foi possível ler */
+  function lerRelacoesConceituais(db, codigosLinha) {
+    db = db || window.firebase.database();
+    var umaVez = function (c) { return db.ref(c).once('value').then(function (sn) { return sn.val(); }); };
+    return lerTaxonomiaDasRelacoes(umaVez, codigosLinha).then(null, function () { return null; });
+  }
   function lerLigacoes(db, codigosFirmes) {
     return criarPortas({ db: db || window.firebase.database(), codigosFirmes: codigosFirmes }).lerReferencias().then(function (r) { return r.ligacoes; }, function () { return null; });
   }
 
   function criarPortas(opcoes) {
-    var db = opcoes && opcoes.db, firmes = (opcoes && opcoes.codigosFirmes) || [], prazoMs = (opcoes && opcoes.prazoMs) || 20000;
+    var db = opcoes && opcoes.db, firmes = (opcoes && opcoes.codigosFirmes) || [], linha = (opcoes && opcoes.codigosLinha) || null, prazoMs = (opcoes && opcoes.prazoMs) || 20000;
     if (!db || !firmes.length) throw new Error('adaptador Firebase: falta o banco ou os códigos firmes');
     var ref = function (c) { return db.ref(c); };
     var umaVez = function (c) { return ref(c).once('value').then(function (s) { return s.val(); }, function (e) { return Promise.reject(recusa(ehNegado(e) ? 'RECUSADA' : 'SEM_RESPOSTA')); }); };
@@ -174,12 +211,18 @@
       })).then(function (lidos) {
         var conceitos = {}, ligacoes = {};
         firmes.forEach(function (c, i) { if (lidos[i][0] !== null) conceitos[c] = { ativo: lidos[i][0] === true }; if (lidos[i][1] !== null) ligacoes[c] = c; });
-        return { conceitos: conceitos, ligacoes: ligacoes, relacoesConceituais: [], herancaPeloPai: false };
+        var base = { conceitos: conceitos, ligacoes: ligacoes, relacoesConceituais: [], conceitosTrabalho: [], herancaPeloPai: false };
+        if (!linha) return base; /* quem não informa os códigos de Linha não trabalha com relações nem com Squad */
+        return lerTaxonomiaDasRelacoes(umaVez, linha).then(function (t) {
+          Object.keys(t.conceitos).forEach(function (c) { base.conceitos[c] = t.conceitos[c]; });
+          base.relacoesConceituais = t.relacoesConceituais; base.conceitosTrabalho = t.conceitosTrabalho;
+          return base;
+        });
       });
     }
     function lerEstado() {
-      return Promise.all([umaVez(RAIZ + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/associacoes'), umaVez(RAIZ_VINCULOS + '/registros')]).then(function (v) {
-        return { estruturas: estruturasDoValor(v[0]), relacoes: {}, vinculos: registrosDoValor(v[3], 'vinculo'), subagrupadores: registrosDoValor(v[1], 'subagrupador'), associacoesSubagrupador: registrosDoValor(v[2], 'associacao-subagrupador') };
+      return Promise.all([umaVez(RAIZ + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/registros'), umaVez(RAIZ_SUBAGRUPADORES + '/associacoes'), umaVez(RAIZ_VINCULOS + '/registros'), umaVez(RAIZ_RELACOES + '/registros')]).then(function (v) {
+        return { estruturas: estruturasDoValor(v[0]), relacoes: registrosDoValor(v[4], 'relacao'), vinculos: registrosDoValor(v[3], 'vinculo'), subagrupadores: registrosDoValor(v[1], 'subagrupador'), associacoesSubagrupador: registrosDoValor(v[2], 'associacao-subagrupador') };
       });
     }
     /* M3: o Posicionamento VIGENTE do item (concluído), no formato de posicionamentoEfetivo do núcleo — só leitura;
@@ -197,9 +240,9 @@
     }
     /* o identificador de operação é único entre as famílias: a operação foi aplicada se existe em qualquer uma */
     function conferirOperacao(id) {
-      return Promise.all([umaVez(RAIZ + '/operacoes/' + id), umaVez(RAIZ_SUBAGRUPADORES + '/operacoes/' + id), umaVez(RAIZ_VINCULOS + '/operacoes/' + id)]).then(function (v) { return { aplicada: v[0] !== null || v[1] !== null || v[2] !== null }; });
+      return Promise.all([umaVez(RAIZ + '/operacoes/' + id), umaVez(RAIZ_SUBAGRUPADORES + '/operacoes/' + id), umaVez(RAIZ_VINCULOS + '/operacoes/' + id), umaVez(RAIZ_RELACOES + '/operacoes/' + id)]).then(function (v) { return { aplicada: v[0] !== null || v[1] !== null || v[2] !== null || v[3] !== null }; });
     }
-    function lerEventos() { return Promise.all([umaVez(RAIZ + '/eventos'), umaVez(RAIZ_SUBAGRUPADORES + '/eventos'), umaVez(RAIZ_VINCULOS + '/eventos')]).then(function (v) { return eventosDoValor(v[0], v[1], v[2]); }); }
+    function lerEventos() { return Promise.all([umaVez(RAIZ + '/eventos'), umaVez(RAIZ_SUBAGRUPADORES + '/eventos'), umaVez(RAIZ_VINCULOS + '/eventos'), umaVez(RAIZ_RELACOES + '/eventos')]).then(function (v) { return eventosDoValor(v[0], v[1], v[2], v[3]); }); }
 
     function gravar(op) {
       if (!op || !op.id || !(op.mudancas || []).length || (op.eventos || []).length !== op.mudancas.length) return Promise.reject(recusa('RECUSADA'));
@@ -220,6 +263,12 @@
               if (m.entidade === 'associacao-subagrupador' && m.antes === null) {
                 return Object.keys(s.associacoesSubagrupador || {}).some(function (k) { var x = s.associacoesSubagrupador[k]; return x.situacao === 'ativa' && x.estruturaId === m.depois.estruturaId && k !== m.depois.substitui; });
               }
+              if (m.entidade === 'relacao' && m.antes === null) {
+                return Object.keys(s.relacoes || {}).some(function (k) {
+                  var x = s.relacoes[k];
+                  return x.situacao === 'ativa' && k !== m.depois.substitui && ((x.origem === m.depois.origem && x.tipo === m.depois.tipo && x.destino === m.depois.destino) || (m.depois.tipo === 'compoe' && x.tipo === 'compoe' && x.origem === m.depois.origem));
+                });
+              }
               if (m.entidade === 'vinculo' && m.antes === null) {
                 return Object.keys(s.vinculos || {}).some(function (k) { var x = s.vinculos[k]; return x.situacao === 'ativa' && x.objetoId === m.depois.objetoId && k !== m.depois.substitui; });
               }
@@ -235,7 +284,7 @@
   }
 
   var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, lerLigacoes: lerLigacoes, estruturasDoValor: estruturasDoValor, registrosDoValor: registrosDoValor,
-    eventosDoValor: eventosDoValor, RAIZ: RAIZ, RAIZ_SUBAGRUPADORES: RAIZ_SUBAGRUPADORES, RAIZ_VINCULOS: RAIZ_VINCULOS, TRAVA_PRODUCAO: TRAVA_PRODUCAO });
+    eventosDoValor: eventosDoValor, lerRelacoesConceituais: lerRelacoesConceituais, RAIZ: RAIZ, RAIZ_SUBAGRUPADORES: RAIZ_SUBAGRUPADORES, RAIZ_VINCULOS: RAIZ_VINCULOS, RAIZ_RELACOES: RAIZ_RELACOES, TRAVA_PRODUCAO: TRAVA_PRODUCAO });
   if (typeof window !== 'undefined') window.faEstruturasFirebase = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

@@ -1,0 +1,170 @@
+{
+  "conjunto": "relacoes-estruturas",
+  "versao": 1,
+  "formato": 2,
+  "descricao": "M6/M7 do Mapa da Floresta: relações entre estruturas (R1–R7 do núcleo) e o Squad como estrutura (C1), com o recorte do site — 'compõe' só de Squad para Linha (C2) — e no máximo uma Linha ativa por Squad (C3). Esperado escrito a partir das regras aprovadas, nunca calculado pelo núcleo. As relações conceituais e a camada dos conceitos vêm das referências (no emulador, gravadas na Taxonomia).",
+  "usuarios": {
+    "arq": { "id": "u-arquitetura", "email": "arquitetura@exemplo.com" },
+    "adm": { "id": "u-admin", "email": "admin@exemplo.com" }
+  },
+  "referencias": {
+    "padrao": {
+      "conceitos": { "NEGOCIOS": { "ativo": true }, "ESTRATEGIA_CLIENTES": { "ativo": true }, "AREA_ESPECIALIZADA": { "ativo": true }, "COE": { "ativo": true }, "SQUAD": { "ativo": true, "nome": "Squad" } },
+      "ligacoes": { "NEGOCIOS": "NEGOCIOS", "ESTRATEGIA_CLIENTES": "ESTRATEGIA_CLIENTES", "AREA_ESPECIALIZADA": "AREA_ESPECIALIZADA", "COE": "COE" },
+      "conceitosTrabalho": ["SQUAD"],
+      "camadas": { "SQUAD": "trabalho", "CAPITULO": "trabalho" },
+      "relacoesConceituais": [
+        { "de": "SQUAD", "tipo": "compoe", "para": "NEGOCIOS", "ativa": true },
+        { "de": "SQUAD", "tipo": "compoe", "para": "ESTRATEGIA_CLIENTES", "ativa": true },
+        { "de": "SQUAD", "tipo": "compoe", "para": "AREA_ESPECIALIZADA", "ativa": true },
+        { "de": "NEGOCIOS", "tipo": "compoe", "para": "COE", "ativa": true },
+        { "de": "COE", "tipo": "atende", "para": "NEGOCIOS", "ativa": true },
+        { "de": "COE", "tipo": "atende", "para": "COE", "ativa": true },
+        { "de": "AREA_ESPECIALIZADA", "tipo": "atende", "para": "NEGOCIOS", "ativa": false },
+        { "de": "CAPITULO", "tipo": "aloca-em", "para": "SQUAD", "ativa": true }
+      ]
+    }
+  },
+  "cenarios": [
+    {
+      "id": "R01",
+      "titulo": "Squad compõe uma Linha; a mesma Squad não compõe uma segunda Linha (C3); outra Squad compõe a mesma Linha",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "L-1", "justificativa": "Squad da jornada de investimentos" }, "ctx": { "operacaoId": "op-r01-1", "novoId": "R-1", "usuario": "arq", "agora": 1791900000000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "L-2" }, "ctx": { "operacaoId": "op-r01-2", "novoId": "R-2", "usuario": "arq", "agora": 1791900001000 }, "esperado": { "ok": false, "erros": ["COMPOSICAO_ATIVA_JA_EXISTE"] } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-2", "tipo": "compoe", "destino": "L-1" }, "ctx": { "operacaoId": "op-r01-3", "novoId": "R-3", "usuario": "adm", "agora": 1791900002000 }, "esperado": { "ok": true, "situacao": "gravada" } }
+      ],
+      "estadoFinal": {
+        "relacoes": {
+          "R-1": { "id": "R-1", "origem": "S-1", "tipo": "compoe", "destino": "L-1", "justificativa": "Squad da jornada de investimentos", "situacao": "ativa", "criadaEm": 1791900000000, "criadaPor": "arq", "revisao": 1 },
+          "R-3": { "id": "R-3", "origem": "S-2", "tipo": "compoe", "destino": "L-1", "justificativa": null, "situacao": "ativa", "criadaEm": 1791900002000, "criadaPor": "adm", "revisao": 1 }
+        }
+      },
+      "eventos": [
+        { "id": "op-r01-1:1", "tipo": "relacao.criada", "entidade": "relacao", "entidadeId": "R-1", "usuario": "arq", "em": 1791900000000 },
+        { "id": "op-r01-3:1", "tipo": "relacao.criada", "entidade": "relacao", "entidadeId": "R-3", "usuario": "adm", "em": 1791900002000 }
+      ]
+    },
+    {
+      "id": "R02",
+      "titulo": "Recusas: 'compõe' geral e Squad → Área Especializada bloqueados no site (C2) mesmo com a Taxonomia admitindo; relação conceitual encerrada; autorrelação; estrutura encerrada ou inexistente",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        { "operacao": "criarRelacao", "entrada": { "origem": "L-1", "tipo": "compoe", "destino": "C-1" }, "ctx": { "operacaoId": "op-r02-1", "novoId": "X-1", "usuario": "arq", "agora": 1791900000000 }, "esperado": { "ok": false, "erros": ["RELACAO_NAO_ADMITIDA_PELA_TAXONOMIA"] } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "A-1" }, "ctx": { "operacaoId": "op-r02-2", "novoId": "X-2", "usuario": "arq", "agora": 1791900001000 }, "esperado": { "ok": false, "erros": ["RELACAO_NAO_ADMITIDA_PELA_TAXONOMIA"] } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "A-1", "tipo": "atende", "destino": "L-1" }, "ctx": { "operacaoId": "op-r02-3", "novoId": "X-3", "usuario": "arq", "agora": 1791900002000 }, "esperado": { "ok": false, "erros": ["RELACAO_NAO_ADMITIDA_PELA_TAXONOMIA"] } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "C-1", "tipo": "atende", "destino": "C-1" }, "ctx": { "operacaoId": "op-r02-4", "novoId": "X-4", "usuario": "arq", "agora": 1791900003000 }, "esperado": { "ok": false, "erros": ["AUTORRELACAO"] } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "L-9" }, "ctx": { "operacaoId": "op-r02-5", "novoId": "X-5", "usuario": "arq", "agora": 1791900004000 }, "esperado": { "ok": false, "erros": ["ESTRUTURA_ENCERRADA"] } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "X-404" }, "ctx": { "operacaoId": "op-r02-6", "novoId": "X-6", "usuario": "arq", "agora": 1791900005000 }, "esperado": { "ok": false, "erros": ["ESTRUTURA_INEXISTENTE"] } }
+      ],
+      "estadoFinal": { "relacoes": {} },
+      "eventos": []
+    },
+    {
+      "id": "R03",
+      "titulo": "Relação não hierárquica admitida pela Taxonomia: criar, duplicata recusada, encerrar exige motivo, criar de novo depois de encerrar",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        { "operacao": "criarRelacao", "entrada": { "origem": "C-1", "tipo": "atende", "destino": "L-1" }, "ctx": { "operacaoId": "op-r03-1", "novoId": "R-1", "usuario": "arq", "agora": 1791900000000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "C-1", "tipo": "atende", "destino": "L-1" }, "ctx": { "operacaoId": "op-r03-2", "novoId": "R-2", "usuario": "arq", "agora": 1791900001000 }, "esperado": { "ok": false, "erros": ["RELACAO_DUPLICADA"] } },
+        { "operacao": "encerrarRelacao", "entrada": { "relacaoId": "R-1" }, "ctx": { "operacaoId": "op-r03-3", "usuario": "arq", "agora": 1791900002000 }, "esperado": { "ok": false, "erros": ["MOTIVO_OBRIGATORIO"] } },
+        { "operacao": "encerrarRelacao", "entrada": { "relacaoId": "R-1", "motivo": "O CoE deixou de atender a Linha" }, "ctx": { "operacaoId": "op-r03-4", "usuario": "arq", "agora": 1791900003000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarRelacao", "entrada": { "origem": "C-1", "tipo": "atende", "destino": "L-1" }, "ctx": { "operacaoId": "op-r03-5", "novoId": "R-5", "usuario": "arq", "agora": 1791900004000 }, "esperado": { "ok": true, "situacao": "gravada" } }
+      ],
+      "estadoFinal": {
+        "relacoes": {
+          "R-1": { "id": "R-1", "origem": "C-1", "tipo": "atende", "destino": "L-1", "justificativa": null, "situacao": "encerrada", "criadaEm": 1791900000000, "criadaPor": "arq", "revisao": 2,
+            "encerramento": { "motivo": "O CoE deixou de atender a Linha", "em": 1791900003000, "por": "arq" } },
+          "R-5": { "id": "R-5", "origem": "C-1", "tipo": "atende", "destino": "L-1", "justificativa": null, "situacao": "ativa", "criadaEm": 1791900004000, "criadaPor": "arq", "revisao": 1 }
+        }
+      },
+      "eventos": [
+        { "id": "op-r03-1:1", "tipo": "relacao.criada", "entidade": "relacao", "entidadeId": "R-1", "usuario": "arq", "em": 1791900000000 },
+        { "id": "op-r03-4:1", "tipo": "relacao.encerrada", "entidade": "relacao", "entidadeId": "R-1", "usuario": "arq", "em": 1791900003000, "motivo": "O CoE deixou de atender a Linha" },
+        { "id": "op-r03-5:1", "tipo": "relacao.criada", "entidade": "relacao", "entidadeId": "R-5", "usuario": "arq", "em": 1791900004000 }
+      ]
+    },
+    {
+      "id": "R04",
+      "titulo": "Trocar a Squad de Linha (C3): substituição exige motivo e preserva o histórico (encerra a antiga e cria a nova juntas)",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "L-1" }, "ctx": { "operacaoId": "op-r04-1", "novoId": "R-1", "usuario": "arq", "agora": 1791900000000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "alterarRelacao", "entrada": { "relacaoId": "R-1", "novos": { "destino": "L-2" } }, "ctx": { "operacaoId": "op-r04-2", "novoId": "R-2", "usuario": "arq", "agora": 1791900001000 }, "esperado": { "ok": false, "erros": ["MOTIVO_OBRIGATORIO"] } },
+        { "operacao": "alterarRelacao", "entrada": { "relacaoId": "R-1", "novos": { "destino": "L-2" }, "motivo": "Squad passou a atender a Estratégia de Clientes" }, "ctx": { "operacaoId": "op-r04-3", "novoId": "R-3", "usuario": "arq", "agora": 1791900002000 }, "esperado": { "ok": true, "situacao": "gravada" } }
+      ],
+      "estadoFinal": {
+        "relacoes": {
+          "R-1": { "id": "R-1", "origem": "S-1", "tipo": "compoe", "destino": "L-1", "justificativa": null, "situacao": "encerrada", "criadaEm": 1791900000000, "criadaPor": "arq", "revisao": 2,
+            "encerramento": { "motivo": "Squad passou a atender a Estratégia de Clientes", "em": 1791900002000, "por": "arq", "substituidaPor": "R-3" } },
+          "R-3": { "id": "R-3", "origem": "S-1", "tipo": "compoe", "destino": "L-2", "justificativa": null, "situacao": "ativa", "criadaEm": 1791900002000, "criadaPor": "arq", "revisao": 1, "substitui": "R-1" }
+        }
+      },
+      "eventos": [
+        { "id": "op-r04-1:1", "tipo": "relacao.criada", "entidade": "relacao", "entidadeId": "R-1", "usuario": "arq", "em": 1791900000000 },
+        { "id": "op-r04-3:1", "tipo": "relacao.encerrada", "entidade": "relacao", "entidadeId": "R-1", "usuario": "arq", "em": 1791900002000, "motivo": "Squad passou a atender a Estratégia de Clientes" },
+        { "id": "op-r04-3:2", "tipo": "relacao.criada", "entidade": "relacao", "entidadeId": "R-3", "usuario": "arq", "em": 1791900002000, "motivo": "Squad passou a atender a Estratégia de Clientes" }
+      ]
+    },
+    {
+      "id": "R05",
+      "titulo": "Concorrência: a mesma Squad em duas Linhas ao mesmo tempo → só uma entra (C3); a mesma operação repetida não duplica",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        { "concorrentes": [
+          { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "L-1" }, "ctx": { "operacaoId": "op-r05-1", "novoId": "R-1", "usuario": "arq", "agora": 1791900000000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+          { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "L-2" }, "ctx": { "operacaoId": "op-r05-2", "novoId": "R-2", "usuario": "adm", "agora": 1791900000000 }, "esperado": { "ok": false, "erros": ["CONFLITO_DE_REVISAO"] } }
+        ] },
+        { "operacao": "criarRelacao", "entrada": { "origem": "S-1", "tipo": "compoe", "destino": "L-1" }, "ctx": { "operacaoId": "op-r05-1", "novoId": "R-1", "usuario": "arq", "agora": 1791900001000 }, "esperado": { "ok": true, "situacao": "repetida" } }
+      ],
+      "estadoFinal": {
+        "relacoes": {
+          "R-1": { "id": "R-1", "origem": "S-1", "tipo": "compoe", "destino": "L-1", "justificativa": null, "situacao": "ativa", "criadaEm": 1791900000000, "criadaPor": "arq", "revisao": 1 }
+        }
+      },
+      "eventos": [
+        { "id": "op-r05-1:1", "tipo": "relacao.criada", "entidade": "relacao", "entidadeId": "R-1", "usuario": "arq", "em": 1791900000000 }
+      ]
+    },
+    {
+      "id": "R06",
+      "titulo": "Squad é estrutura cadastrável (C1); Capítulo não é admitido nesta entrega (a Taxonomia não o admite compor uma Linha)",
+      "referencias": "padrao",
+      "estadoInicial": "soLinha",
+      "passos": [
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "SQUAD", "nome": "Squad Gama" }, "ctx": { "operacaoId": "op-r06-1", "novoId": "S-9", "usuario": "arq", "agora": 1791900000000 }, "esperado": { "ok": true, "situacao": "gravada" } },
+        { "operacao": "criarEstrutura", "entrada": { "tipo": "CAPITULO", "nome": "Capítulo de Dados" }, "ctx": { "operacaoId": "op-r06-2", "novoId": "K-1", "usuario": "arq", "agora": 1791900001000 }, "esperado": { "ok": false, "erros": ["TIPO_NAO_ADMITIDO"] } }
+      ],
+      "estadoFinal": {
+        "estruturas": {
+          "L-1": { "id": "L-1", "tipo": "NEGOCIOS", "nome": "Linha de Investimentos", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 },
+          "S-9": { "id": "S-9", "tipo": "SQUAD", "nome": "Squad Gama", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791900000000, "criadaPor": "arq", "revisao": 1 }
+        }
+      }
+    }
+  ],
+  "estados": {
+    "comum": {
+      "estruturas": {
+        "S-1": { "id": "S-1", "tipo": "SQUAD", "nome": "Squad Alfa", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 },
+        "S-2": { "id": "S-2", "tipo": "SQUAD", "nome": "Squad Beta", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 },
+        "L-1": { "id": "L-1", "tipo": "NEGOCIOS", "nome": "Linha de Investimentos", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 },
+        "L-2": { "id": "L-2", "tipo": "ESTRATEGIA_CLIENTES", "nome": "Linha de Relacionamento", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 },
+        "A-1": { "id": "A-1", "tipo": "AREA_ESPECIALIZADA", "nome": "Área de Riscos", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 },
+        "C-1": { "id": "C-1", "tipo": "COE", "nome": "CoE de Dados", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 },
+        "L-9": { "id": "L-9", "tipo": "NEGOCIOS", "nome": "Linha Antiga", "sigla": null, "descricao": null, "situacao": "encerrada", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 2, "encerramento": { "motivo": "Incorporada", "em": 1791713700000, "por": "arq" } }
+      }
+    },
+    "soLinha": {
+      "estruturas": {
+        "L-1": { "id": "L-1", "tipo": "NEGOCIOS", "nome": "Linha de Investimentos", "sigla": null, "descricao": null, "situacao": "ativa", "criadaEm": 1791713600000, "criadaPor": "arq", "revisao": 1 }
+      }
+    }
+  }
+}

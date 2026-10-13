@@ -19,6 +19,9 @@
    Negócios, associar, trocar ou tirar do subagrupador, com o histórico junto ao da estrutura.
    M3 do Mapa — montarResponsavel(el, { itemId, posicionamento }): o bloco "Estrutura responsável" da ficha do Posicionamento
    (vincular, substituir e encerrar, com motivo; situação calculada pelo núcleo).
+   M6/M7 — o Squad é estrutura cadastrável (conceito da camada "Organização do trabalho" que a Taxonomia admite compor
+   uma Linha) e a ficha tem "Relações com outras estruturas": só as combinações que a Taxonomia admite; "compõe" só de
+   Squad para Linha (C2) e no máximo uma Linha ativa por Squad (C3, trocar = substituir com motivo).
    ============================================================ */
 (function () {
   'use strict';
@@ -31,13 +34,35 @@
   function P() { return window.faPosicionamentos; }
   function A() { return window.faAuth; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function nomeTipo(c) { return P() ? P().nome(c) : c; }
+  function nomeTipo(c) {
+    var t = taxRel && taxRel.conceitos && taxRel.conceitos[c];
+    if (t && t.nome) return t.nome;
+    return P() ? P().nome(c) : c;
+  }
+  function ehTrabalho(tipo) { return !!(taxRel && taxRel.conceitosTrabalho && taxRel.conceitosTrabalho.indexOf(tipo) !== -1); }
+  function LINHA() { return MOT() ? MOT().CODIGOS_FIRMES.filter(function (c) { return MOT().liberaSquadParaCodigoFirme(c) === true; }) : []; }
+  /* M6/M7: relações conceituais e Squad (adaptador; os três perfis da Avaliação leem): undefined = lendo; null = falhou */
+  var taxRel, lendoTaxRel = false, aoLerTaxRel = [], geracaoTaxRel = 0;
+  function lerTaxRel(cb) {
+    if (taxRel !== undefined) { cb(); return; }
+    aoLerTaxRel.push(cb);
+    if (lendoTaxRel || !disponivel()) return;
+    lendoTaxRel = true;
+    var g = geracaoTaxRel;
+    FB().lerRelacoesConceituais(window.firebase.database(), LINHA()).then(function (t) {
+      if (g !== geracaoTaxRel) return;
+      taxRel = t; lendoTaxRel = false; var fs = aoLerTaxRel; aoLerTaxRel = []; fs.forEach(function (fn) { fn(); });
+    });
+  }
+  var ROTULO_RELACAO = { compoe: 'compõe', 'aloca-em': 'aloca em', atende: 'atende', 'desenvolve-disciplina': 'desenvolve a disciplina', 'pertence-a-disciplina': 'pertence à disciplina' };
   function disponivel() { return !!(window.faAmbiente && window.faAmbiente.testes && N() && U() && FB() && MOT() && window.firebase); }
   function podeManter() { var a = A(); return !!(a && ((a.isAdmin && a.isAdmin()) || (a.podeArquitetura && a.podeArquitetura()))); }
   function natureza(tipo) {
     if (tipo === 'AREA_ESPECIALIZADA') return 'Área Especializada';
     if (tipo === 'COE') return 'Centro de Excelência';
-    return MOT() && MOT().liberaSquadParaCodigoFirme(tipo) === true ? 'Linha' : '—';
+    if (ehTrabalho(tipo)) return 'Organização do trabalho';
+    /* a regra fixa do motor só vale para códigos firmes (o Squad não é um deles) */
+    return MOT() && MOT().CODIGOS_FIRMES.indexOf(tipo) !== -1 && MOT().liberaSquadParaCodigoFirme(tipo) === true ? 'Linha' : '—';
   }
   function dataHora(v) {
     var t = N() ? N().instante(v) : null;
@@ -51,10 +76,22 @@
     var c = e && e.codigo;
     if (c === 'NADA_A_ALTERAR' && contexto === 'subagrupador') return 'Nada mudou. Informe um nome diferente do atual.';
     if (c === 'NADA_A_ALTERAR' && contexto === 'associacao') return 'A Linha já está neste subagrupador.';
+    if (c === 'NADA_A_ALTERAR' && contexto === 'relacao') return 'Escolha uma Linha diferente da atual.';
+    if (c === 'CAMPO_OBRIGATORIO' && contexto === 'relacao') return e.campo === 'motivo' ? 'Informe o motivo.' : 'Escolha a relação.';
+    if (c === 'MOTIVO_OBRIGATORIO' && contexto === 'relacao') return 'Informe o motivo.';
+    if ((c === 'REVISAO_DESATUALIZADA' || c === 'CONFLITO_DE_REVISAO') && contexto === 'relacao') return 'Outra pessoa mudou as relações desta estrutura enquanto você trabalhava. A tela já mostra a situação atual: confira e faça de novo, se ainda for o caso.';
     if ((c === 'REVISAO_DESATUALIZADA' || c === 'CONFLITO_DE_REVISAO') && contexto === 'associacao') return 'Outra pessoa mudou o subagrupador desta Linha enquanto você trabalhava. A tela já mostra a situação atual: confira e faça de novo, se ainda for o caso.';
     if ((c === 'REVISAO_DESATUALIZADA' || c === 'CONFLITO_DE_REVISAO') && contexto === 'subagrupador') return 'Outra pessoa alterou este subagrupador enquanto você trabalhava. A tela já mostra a versão atual: confira e faça de novo, se ainda for o caso.';
     switch (c) {
       case 'SUBAGRUPADOR_INEXISTENTE': return 'Este subagrupador não foi encontrado.';
+      case 'COMPOSICAO_ATIVA_JA_EXISTE': return 'Este Squad já compõe uma Linha. Para mudar, use "Trocar de Linha".';
+      case 'RELACAO_DUPLICADA': return 'Esta relação já existe e está ativa.';
+      case 'RELACAO_NAO_ADMITIDA_PELA_TAXONOMIA': return 'A Taxonomia não admite esta relação entre esses tipos de estrutura.';
+      case 'AUTORRELACAO': return 'Uma estrutura não se relaciona com ela mesma.';
+      case 'CICLO_NA_COMPOSICAO': return 'Esta composição formaria um ciclo.';
+      case 'RELACAO_INEXISTENTE': return 'Esta relação não foi encontrada.';
+      case 'RELACAO_ENCERRADA': return 'Esta relação já foi encerrada.';
+      case 'TIPO_RELACAO_INVALIDO': return 'Escolha a relação.';
       case 'SUBAGRUPADOR_ENCERRADO': return 'Este subagrupador está encerrado: não pode ser alterado nem receber Linhas.';
       case 'ESTRUTURA_NAO_ADMITE_SUBAGRUPADOR': return 'Só Linhas de Negócios podem ficar num subagrupador.';
       case 'LINHA_JA_ASSOCIADA': return 'Esta Linha já está num subagrupador. Use "Trocar de subagrupador".';
@@ -92,29 +129,33 @@
       /* Etapa 5 */
       subagrupadores: undefined, associacoes: undefined, eventosSg: undefined, mostrarSgEncerrados: false, assoc: null, contextoErro: null,
       /* M4 */
-      vinculos: undefined, itensVinculados: {} }; }
+      vinculos: undefined, itensVinculados: {},
+      /* M6/M7 */
+      relacoes: undefined, rel: null }; }
 
     /* ---------- banco: leitura ao vivo e portas ---------- */
     var desligar = null, offset = 0, offsetLigado = false;
     function db() { return window.firebase.database(); }
     function ligar() {
       if (desligar || !disponivel()) return;
-      desligar = FB().ouvir(db(), ['registros', 'eventos', 'subagrupadores', 'associacoes', 'eventosSubagrupadores', 'vinculos'], function (m) {
+      desligar = FB().ouvir(db(), ['registros', 'eventos', 'subagrupadores', 'associacoes', 'eventosSubagrupadores', 'vinculos', 'relacoes'], function (m) {
         if (m.estruturas) st.estruturas = m.estruturas;
         if (m.eventos) st.eventos = m.eventos;
         if (m.subagrupadores) st.subagrupadores = m.subagrupadores;
         if (m.associacoesSubagrupador) st.associacoes = m.associacoesSubagrupador;
         if (m.eventosSubagrupadores) st.eventosSg = m.eventosSubagrupadores;
-        if (m.vinculos) { st.vinculos = m.vinculos; st.itensVinculados = {}; if (st.vista !== 'detalhe') return; } /* M4: só a ficha mostra os vínculos (nenhum redesenho num formulário aberto) */
+        if (m.vinculos) { st.vinculos = m.vinculos; st.itensVinculados = {}; if (st.vista !== 'detalhe') return; }
+        if (m.relacoes) { st.relacoes = m.relacoes; if (st.vista !== 'detalhe') return; } /* M6/M7: só a ficha mostra as relações */ /* M4: só a ficha mostra os vínculos (nenhum redesenho num formulário aberto) */
         st.erroLeitura = null; render();
       }, function (c) { st.erroLeitura = c; render(); });
       if (!offsetLigado) { offsetLigado = true; db().ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; }); }
       lerLigacoes(function () { if (!wrap.hidden && st.vista === 'detalhe') render(); });
+      lerTaxRel(function () { if (!wrap.hidden && (st.vista === 'detalhe' || st.vista === 'lista')) render(); });
       if (P()) { P().iniciar(); if (!ligar._nomes) { ligar._nomes = true; P().onMudanca(function () { if (!wrap.hidden) render(); }); } }
     }
     function desligarTudo() { if (desligar) { desligar(); desligar = null; } }
-    function portas() { return FB().criarPortas({ db: db(), codigosFirmes: MOT().CODIGOS_FIRMES }); }
-    function casos() { return U().criar({ nucleo: N(), codigosFirmes: MOT().CODIGOS_FIRMES }); }
+    function portas() { return FB().criarPortas({ db: db(), codigosFirmes: MOT().CODIGOS_FIRMES, codigosLinha: LINHA() }); }
+    function casos() { return U().criar({ nucleo: N(), codigosFirmes: MOT().CODIGOS_FIRMES, codigosLinha: LINHA() }); }
     function lerRefs() {
       st.refs = undefined; st.refsErro = false;
       portas().lerReferencias().then(function (r) { st.refs = r; render(); }, function () { st.refs = null; st.refsErro = true; render(); });
@@ -144,6 +185,9 @@
       st.vista = vista; st.id = id || null; st.erros = []; st.sujo = false; st.salvando = false; st.op = null; st.historicoAberto = false; st.contextoErro = null;
       st.flash = null; /* a confirmação é de UMA ação: nunca reaparece em outra tela (quem salva define a sua logo depois) */
       st.assoc = vista === 'detalhe' ? { subagrupadorId: '', justificativa: '' } : null;
+      st.rel = null;
+      /* M6/M7: a Taxonomia pode ter mudado — relações conceituais e Squad relidos a cada ficha ou cadastro aberto */
+      if (vista === 'detalhe' || vista === 'nova') { taxRel = undefined; lendoTaxRel = false; aoLerTaxRel = []; geracaoTaxRel++; lerTaxRel(function () { if (!wrap.hidden && st.vista === 'detalhe') render(); }); }
       var sgAtual = id && st.subagrupadores ? st.subagrupadores[id] : null;
       var e = id && st.estruturas ? st.estruturas[id] : null;
       if (vista === 'nova') { st.form = { tipo: '', nome: '', sigla: '', descricao: '' }; lerRefs(); }
@@ -160,7 +204,7 @@
     function confirmarDescarte() { return !st.sujo || window.confirm('Há alterações que ainda não foram salvas. Sair mesmo assim?'); }
 
     /* ---------- salvar (sempre pelo caso de uso compartilhado) ---------- */
-    var COM_NOVO_ID = { criarEstrutura: 1, criarSubagrupador: 1, associarLinha: 1, substituirAssociacao: 1 };
+    var COM_NOVO_ID = { criarEstrutura: 1, criarSubagrupador: 1, associarLinha: 1, substituirAssociacao: 1, criarRelacao: 1, alterarRelacao: 1 };
     function salvar(operacao, entrada, contexto, aoGravar) {
       if (st.salvando) return;
       var u = window.firebase.auth().currentUser;
@@ -249,8 +293,10 @@
       var firmes = MOT().CODIGOS_FIRMES, refs = st.refs;
       var linha = firmes.filter(function (c) { return MOT().liberaSquadParaCodigoFirme(c) === true; });
       var outros = firmes.filter(function (c) { return linha.indexOf(c) === -1; });
+      var trabalho = (refs && refs.conceitosTrabalho) || [];
       function situacaoRef(c) {
         if (!refs) return null;
+        if (trabalho.indexOf(c) !== -1) return refs.conceitos && refs.conceitos[c] && refs.conceitos[c].ativo === true ? null : 'conceito inativo na Taxonomia';
         if (!refs.ligacoes || !refs.ligacoes[c]) return 'ligação oficial não registrada';
         if (!refs.conceitos || !refs.conceitos[c] || refs.conceitos[c].ativo !== true) return 'conceito inativo na Taxonomia';
         return null;
@@ -258,13 +304,14 @@
       function opcao(c) {
         var motivo = situacaoRef(c), marcado = st.form.tipo === c;
         return '<label class="est-tipo' + (motivo ? ' est-tipo--indisponivel' : '') + '"><input type="radio" name="estTipo" value="' + esc(c) + '"' + (marcado ? ' checked' : '') + (motivo ? ' disabled' : '') + '> ' +
-          '<span>' + esc(nomeTipo(c)) + (motivo ? ' <em class="est-tipo-motivo">— indisponível: ' + esc(motivo) + '</em>' : '') + '</span></label>';
+          '<span>' + esc((trabalho.indexOf(c) !== -1 && refs.conceitos[c] && refs.conceitos[c].nome) || nomeTipo(c)) + (motivo ? ' <em class="est-tipo-motivo">— indisponível: ' + esc(motivo) + '</em>' : '') + '</span></label>';
       }
       var h = '<fieldset class="est-tipos" id="estTipos"' + (invalido('tipo') ? ' aria-invalid="true"' : '') + '><legend>Tipo <span class="est-obrig">(obrigatório)</span></legend>';
       if (refs === undefined) h += '<p class="loading-msg" role="status">Conferindo as referências oficiais…</p>';
       if (st.refsErro) h += '<p class="avp-error-msg" id="estRefsErro">Não foi possível conferir as referências oficiais agora. Você pode escolher o tipo; a conferência é refeita ao salvar.</p>';
       h += '<p class="est-grupo-tipo">Linha (especialização)</p>' + linha.map(opcao).join('');
       h += '<p class="est-grupo-tipo">Outras categorias</p>' + outros.map(opcao).join('');
+      if (trabalho.length) h += '<p class="est-grupo-tipo">Organização do trabalho</p>' + trabalho.map(opcao).join('');
       return h + '<p class="avp-natureza-ajuda">O tipo não poderá ser alterado depois. Os tipos e nomes vêm do Posicionamento Organizacional e da Taxonomia.</p></fieldset>';
     }
     function formNovaHtml() {
@@ -297,6 +344,7 @@
     }
     function produtosHtml(e) {
       var h = '<section class="est-secao" aria-labelledby="estSecProdutos"><h5 class="est-secao-titulo" id="estSecProdutos">Produtos e serviços sob esta estrutura</h5>';
+      garantirLeituras();
       if (st.vinculos === undefined || ligacoesLidas === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
       var estado = { estruturas: st.estruturas, vinculos: st.vinculos }, objs = N().objetosDaEstrutura(estado, e.id);
       if (!objs.length) return h + '<p class="est-vazio" id="estSemProdutos">Nenhum produto ou serviço vinculado a esta estrutura.</p></section>';
@@ -365,7 +413,7 @@
       if (st.flash) h += '<div class="avp-flash-success est-flash" id="estFlash" role="status" tabindex="-1"><p>' + esc(st.flash.texto) + '</p>' +
         '<div class="est-flash-acoes">' + (!st.flash.encerrada ? '<a class="btn btn--sm btn--primary" id="estFlashMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Ver no Mapa da Floresta</a>' : '') +
         (st.flash.nova && podeManter() ? '<button type="button" class="btn btn--sm" id="estFlashOutra">Cadastrar outra</button>' : '') + '</div></div>';
-      h += fichaHtml(e) + produtosHtml(e) + associacaoHtml(e);
+      h += fichaHtml(e) + produtosHtml(e) + relacoesHtml(e) + associacaoHtml(e);
       h += '<div class="est-acoes">';
       if (e.situacao === 'ativa') h += '<a class="btn" id="estVerNoMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Ver no Mapa da Floresta</a>';
       if (e.situacao === 'ativa' && podeManter()) h += '<button type="button" class="btn" id="estEditar">Editar</button><button type="button" class="btn btn--danger" id="estEncerrar">Encerrar</button>';
@@ -524,6 +572,76 @@
         (n ? 'As ' + n + ' Linha' + (n === 1 ? '' : 's') + ' associada' + (n === 1 ? '' : 's') + ' passa' + (n === 1 ? '' : 'm') + ' a aparecer em "Sem subagrupador"; as associações ficam no histórico. ' : '') + 'Nada é apagado.</div>');
     }
     /* na ficha de uma Linha de Negócios: onde ela aparece no Mapa e como mudar */
+    /* M6/M7: relações com outras estruturas — situação calculada pelo núcleo; criar só o que o núcleo aceita (as mesmas
+       referências do caso de uso, com o recorte C2); trocar de Linha (C3) = substituir com motivo; encerrar com motivo */
+    /* uma troca de pessoa zera as leituras em andamento: a ficha as dispara de novo (uma vez cada), com um só redesenho ao chegar */
+    function garantirLeituras() {
+      var redesenhar = function () { if (!wrap.hidden && st.vista === 'detalhe') render(); };
+      if (ligacoesLidas === undefined && !lendoLigacoes) lerLigacoes(redesenhar);
+      if (taxRel === undefined && !lendoTaxRel) lerTaxRel(redesenhar);
+    }
+    function estadoRel() { return { estruturas: st.estruturas, relacoes: st.relacoes, vinculos: {} }; }
+    function nomeEst(id) { var x = st.estruturas && st.estruturas[id]; return x ? x.nome : id; }
+    function refsRel() { return st.refs ? casos().referencias(st.refs) : null; }
+    var CTX_PREVIA = { operacaoId: 'previa', novoId: 'previa', usuario: { id: 'previa' }, agora: 1 };
+    function linhasParaTroca(r) {
+      var ref = refsRel(); if (!ref) return [];
+      return Object.keys(st.estruturas || {}).map(function (k) { return st.estruturas[k]; })
+        .filter(function (x) { return x.situacao === 'ativa' && x.id !== r.destino && N().alterarRelacao(estadoRel(), r.id, { destino: x.id }, 'previa', CTX_PREVIA, ref).ok; })
+        .sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+    }
+    function itemRelacao(r, dir, e, manter) {
+      var sit = taxRel ? N().situacaoRelacao(estadoRel(), r.id, { relacoesConceituais: taxRel.relacoesConceituais }) : null;
+      var texto = dir === 'saida' ? esc(ROTULO_RELACAO[r.tipo] || r.tipo) + ' <strong>' + esc(nomeEst(r.destino)) + '</strong>' : '<strong>' + esc(nomeEst(r.origem)) + '</strong> ' + esc(ROTULO_RELACAO[r.tipo] || r.tipo) + ' esta estrutura';
+      var h = '<li class="est-relacao" data-relacao="' + esc(r.id) + '" data-tipo="' + esc(r.tipo) + '"><span class="est-relacao-texto">' + texto + '</span>' +
+        (sit ? ' <span class="est-situacao est-relacao-situacao est-relacao-situacao--' + esc(sit.situacao) + '" data-situacao="' + esc(sit.situacao) + '">' + (sit.situacao === 'valida' ? 'Válida' : 'A revisar') + '</span>' : '') +
+        (sit && sit.motivos && sit.motivos.length ? ' <span class="po-resp-motivos">' + esc(sit.motivos.map(function (m) { return { ORIGEM_ENCERRADA: 'a origem foi encerrada', DESTINO_ENCERRADO: 'o destino foi encerrado', TAXONOMIA_NAO_ADMITE_MAIS: 'a Taxonomia não admite mais' }[m] || m; }).join('; ')) + '</span>' : '');
+      if (manter) {
+        h += '<span class="est-relacao-acoes">' + (dir === 'saida' && r.tipo === 'compoe' && ehTrabalho(e.tipo) ? '<button type="button" class="btn btn--sm est-rel-trocar" data-relacao="' + esc(r.id) + '">Trocar de Linha</button>' : '') +
+          '<button type="button" class="btn btn--sm est-rel-encerrar" data-relacao="' + esc(r.id) + '">Encerrar</button></span>';
+      }
+      return h + '</li>';
+    }
+    function relacoesHtml(e) {
+      var h = '<section class="est-secao est-relacoes" id="estRelacoes" aria-labelledby="estSecRelacoes"><h5 class="est-secao-titulo" id="estSecRelacoes">Relações com outras estruturas</h5>';
+      garantirLeituras();
+      if (st.relacoes === undefined || taxRel === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
+      var estado = estadoRel(), ativas = N().relacoesDaEstrutura(estado, e.id), todas = N().relacoesDaEstrutura(estado, e.id, { incluirEncerradas: true });
+      var manter = podeManter() && e.situacao === 'ativa', sr = st.rel || {};
+      var itens = ativas.saida.map(function (r) { return itemRelacao(r, 'saida', e, manter && !sr.modo); }).concat(ativas.entrada.map(function (r) { return itemRelacao(r, 'entrada', e, manter && !sr.modo); }));
+      h += itens.length ? '<ul class="est-relacoes-lista" id="estRelacoesLista">' + itens.join('') + '</ul>' : '<p class="est-vazio" id="estSemRelacoes">Nenhuma relação ativa.</p>';
+      var enc = todas.saida.concat(todas.entrada).filter(function (r, i, l) { return r.situacao !== 'ativa' && l.indexOf(r) === i; });
+      if (enc.length) h += '<details class="est-relacoes-encerradas" id="estRelacoesEncerradas"><summary>Relações encerradas — ' + enc.length + '</summary><ul>' + enc.map(function (r) {
+        return '<li>' + esc(nomeEst(r.origem)) + ' ' + esc(ROTULO_RELACAO[r.tipo] || r.tipo) + ' ' + esc(nomeEst(r.destino)) + ' — encerrada em ' + dataHora(r.encerramento && r.encerramento.em) + (r.encerramento && r.encerramento.motivo ? ': ' + esc(r.encerramento.motivo) : '') + '</li>';
+      }).join('') + '</ul></details>';
+      if (!manter) return h + '</section>';
+      if (!sr.modo) return h + '<div class="est-acoes"><button type="button" class="btn" id="estRelNova">Nova relação</button></div></section>';
+      var erros = st.contextoErro === 'relacao' ? errosHtml() : '';
+      if (sr.modo === 'nova') {
+        var ref = refsRel();
+        if (st.refs === undefined) return h + '<p class="loading-msg" role="status">Conferindo as referências oficiais…</p></section>';
+        var poss = ref ? N().relacoesPossiveis(estado, e.id, ref) : [];
+        h += '<div class="est-rel-form" id="estRelForm"><h6 class="est-secao-titulo">Nova relação</h6>';
+        h += poss.length ? '<div class="avp-field est-campo"><label for="estRelEscolha">Relação <span class="est-obrig">(obrigatório)</span></label><select id="estRelEscolha" class="avp-select"><option value="">Escolha…</option>' +
+          poss.map(function (p) { var v = p.tipo + '|' + p.destino; return '<option value="' + esc(v) + '"' + (sr.escolha === v ? ' selected' : '') + '>' + esc((ROTULO_RELACAO[p.tipo] || p.tipo) + ' ' + nomeEst(p.destino)) + '</option>'; }).join('') + '</select></div>'
+          : '<p class="admin-empty" id="estRelSemOpcoes">' + (st.refsErro ? 'Não foi possível conferir as referências oficiais agora.' : 'Nenhuma relação admitida pela Taxonomia a partir desta estrutura (ou todas as possíveis já existem).') + '</p>';
+        h += '<div class="avp-field est-campo"><label for="estRelJustificativa">Justificativa <span class="est-opc">(opcional)</span></label><textarea id="estRelJustificativa" maxlength="' + N().MAX.justificativa + '" rows="2">' + esc(sr.justificativa || '') + '</textarea></div>';
+      } else {
+        var r = st.relacoes[sr.relacaoId];
+        h += '<div class="est-rel-form" id="estRelForm"><h6 class="est-secao-titulo">' + (sr.modo === 'trocar' ? 'Trocar de Linha' : 'Encerrar a relação') + '</h6>' +
+          '<p class="est-intro">' + esc(nomeEst(r.origem)) + ' ' + esc(ROTULO_RELACAO[r.tipo] || r.tipo) + ' ' + esc(nomeEst(r.destino)) + '</p>';
+        if (sr.modo === 'trocar') {
+          if (st.refs === undefined) return h + '<p class="loading-msg" role="status">Conferindo as referências oficiais…</p></div></section>';
+          var op = linhasParaTroca(r);
+          h += op.length ? '<div class="avp-field est-campo"><label for="estRelEscolha">Nova Linha <span class="est-obrig">(obrigatório)</span></label><select id="estRelEscolha" class="avp-select"><option value="">Escolha…</option>' +
+            op.map(function (x) { return '<option value="' + esc(x.id) + '"' + (sr.escolha === x.id ? ' selected' : '') + '>' + esc(x.nome) + '</option>'; }).join('') + '</select></div>'
+            : '<p class="admin-empty" id="estRelSemOpcoes">Nenhuma outra Linha admitida pela Taxonomia para este Squad.</p>';
+        }
+        h += '<div class="avp-field est-campo"><label for="estRelMotivo">Motivo <span class="est-obrig">(obrigatório)</span></label><textarea id="estRelMotivo" maxlength="' + N().MAX.motivo + '" rows="2">' + esc(sr.motivo || '') + '</textarea></div>';
+      }
+      return h + erros + '<div class="est-acoes"><button type="button" class="btn btn--primary" id="estRelSalvar"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : sr.modo === 'encerrar' ? 'Encerrar relação' : 'Salvar') + '</button>' +
+        '<button type="button" class="btn" id="estRelCancelar">Cancelar</button></div></div></section>';
+    }
     function associacaoHtml(e) {
       if (e.tipo !== N().TIPO_COM_SUBAGRUPADOR) return '';
       if (st.subagrupadores === undefined || st.associacoes === undefined) return '<section class="est-secao est-sg" id="estSubagrupador"><p class="loading-msg">Carregando subagrupador…</p></section>';
@@ -614,6 +732,26 @@
         var sit = N().subagrupadorDaLinha(estadoSg(), st.id), idE = st.id, e = st.estruturas[idE];
         if (!sit.associacao || !window.confirm('Tirar "' + e.nome + '" do subagrupador? Ela passa a aparecer em "Sem subagrupador" no Mapa. A associação fica no histórico.')) return;
         salvar('desassociarLinha', { associacaoId: sit.associacao.id, justificativa: st.assoc.justificativa }, 'associacao', function () { irPara('detalhe', idE); st.flash = { texto: e.nome + ' saiu do subagrupador e aparece em "Sem subagrupador" no Mapa.' }; render(); });
+      });
+      /* M6/M7: relações */
+      /* a confirmação é de UMA ação: abrir outro formulário a tira da tela */
+      var abrirRel = function (modo, relacaoId) { st.rel = { modo: modo, relacaoId: relacaoId || null, escolha: '', motivo: '', justificativa: '' }; st.erros = []; st.contextoErro = null; st.op = null; st.flash = null; if (modo !== 'encerrar' && st.refs === undefined) lerRefs(); render(); };
+      em('estRelNova', 'click', function () { abrirRel('nova'); });
+      Array.prototype.forEach.call(wrap.querySelectorAll('.est-rel-trocar'), function (b) { b.addEventListener('click', function () { abrirRel('trocar', b.getAttribute('data-relacao')); }); });
+      Array.prototype.forEach.call(wrap.querySelectorAll('.est-rel-encerrar'), function (b) { b.addEventListener('click', function () { abrirRel('encerrar', b.getAttribute('data-relacao')); }); });
+      em('estRelCancelar', 'click', function () { st.rel = null; st.erros = []; st.contextoErro = null; st.op = null; render(); });
+      [['estRelEscolha', 'escolha', 'change'], ['estRelMotivo', 'motivo', 'input'], ['estRelJustificativa', 'justificativa', 'input']].forEach(function (x) { em(x[0], x[2], function (ev) { if (st.rel) st.rel[x[1]] = ev.target.value; }); });
+      em('estRelSalvar', 'click', function () {
+        var sr = st.rel, idE = st.id, depois = function (texto) { return function () { irPara('detalhe', idE); st.flash = { texto: texto }; render(); }; };
+        if (!sr) return;
+        if (sr.modo === 'nova') {
+          var p = (sr.escolha || '').split('|');
+          if (!sr.escolha) { st.contextoErro = 'relacao'; st.erros = [{ codigo: 'CAMPO_OBRIGATORIO', campo: 'relacao' }]; render(); return; }
+          salvar('criarRelacao', { origem: idE, tipo: p[0], destino: p[1], justificativa: sr.justificativa }, 'relacao', depois('Relação registrada.'));
+        } else if (sr.modo === 'trocar') {
+          if (!sr.escolha) { st.contextoErro = 'relacao'; st.erros = [{ codigo: 'CAMPO_OBRIGATORIO', campo: 'relacao' }]; render(); return; }
+          salvar('alterarRelacao', { relacaoId: sr.relacaoId, novos: { destino: sr.escolha, justificativa: sr.justificativa }, motivo: sr.motivo }, 'relacao', depois('Squad trocado de Linha. A composição anterior continua registrada, encerrada.'));
+        } else salvar('encerrarRelacao', { relacaoId: sr.relacaoId, motivo: sr.motivo }, 'relacao', depois('Relação encerrada. Ela continua registrada.'));
       });
       Array.prototype.forEach.call(wrap.querySelectorAll('.est-item'), function (b) { b.addEventListener('click', function () { irPara('detalhe', b.getAttribute('data-estrutura')); }); });
       Array.prototype.forEach.call(wrap.querySelectorAll('[data-campo]'), function (el) {
@@ -831,7 +969,8 @@
   /* troca de pessoa: nada do estado anterior sobrevive; a leitura recomeça com a sessão nova no próximo desenho */
   window.addEventListener('fa-auth-change', function () {
     if (bloco.desligar) bloco.desligar();
-    ligacoesLidas = undefined; lendoLigacoes = false; aoLerLigacoes = []; geracaoLigacoes++; /* outro perfil pode ler outras coisas */
+    ligacoesLidas = undefined; lendoLigacoes = false; aoLerLigacoes = []; geracaoLigacoes++;
+    taxRel = undefined; lendoTaxRel = false; aoLerTaxRel = []; geracaoTaxRel++; /* outro perfil pode ler outras coisas */
     bloco.desligar = null; bloco.ligado = false; bloco.estruturas = undefined; bloco.vinculos = undefined; bloco.refs = undefined; bloco.erroLeitura = null;
     bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; bloco.flash = null;
   });
@@ -849,6 +988,8 @@
     montarResponsavel: montarResponsavel,
     /* M4: o Mapa e o Catálogo mostram a situação do vínculo com os mesmos textos e as mesmas ligações */
     situacaoVinculoHtml: situacaoVinculoHtml,
-    lerLigacoes: function (cb) { lerLigacoes(function () { cb(refsDaTela()); }); }
+    lerLigacoes: function (cb) { lerLigacoes(function () { cb(refsDaTela()); }); },
+    /* M6/M7: o rótulo de cada tipo de relação (o Mapa mostra as relações só para consulta) */
+    rotuloRelacao: function (tipo) { return ROTULO_RELACAO[tipo] || tipo; }
   };
 })();

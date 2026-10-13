@@ -121,8 +121,10 @@ console.log('B. relações entre estruturas (R1–R7)');
 exec(N.criarRelacao(estado, { origem: 'SQA', tipo: 'compoe', destino: 'LNF1', justificativa: 'ilustrativo' }, ctx('R1'), REF), 'Squad Alfa compõe a Linha de Negócios (Taxonomia admite Squad compõe Negócios)');
 exec(N.criarRelacao(estado, { origem: 'SQB', tipo: 'compoe', destino: 'LNF1' }, ctx('R2'), REF), 'outra Squad compõe a mesma Linha');
 afirma(temErro(N.criarRelacao(estado, { origem: 'SQA', tipo: 'compoe', destino: 'PC1' }, ctx('X'), REF), 'RELACAO_NAO_ADMITIDA_PELA_TAXONOMIA'), 'Squad compõe Plataforma de Canais: a Taxonomia não admite diretamente — sem herança presumida');
-afirma(N.criarRelacao(estado, { origem: 'SQA', tipo: 'compoe', destino: 'PC1' }, ctx('X'), Object.assign({}, REF, { herancaPeloPai: true })).ok, '…com herança OFICIAL pelo pai (Plataforma → Linha), passa a ser admitida');
-exec(N.criarRelacao(estado, { origem: 'SQA', tipo: 'compoe', destino: 'LNF2' }, ctx('R3'), REF), 'a mesma Squad compõe uma segunda Linha (cardinalidade não imposta)');
+afirma(N.criarRelacao(estado, { origem: 'SQG', tipo: 'compoe', destino: 'PC1' }, ctx('X'), Object.assign({}, REF, { herancaPeloPai: true })).ok, '…com herança OFICIAL pelo pai (Plataforma → Linha), passa a ser admitida');
+/* C3 (decisão aprovada na M6/M7): uma Squad compõe no máximo UMA Linha ativa */
+afirma(temErro(N.criarRelacao(estado, { origem: 'SQA', tipo: 'compoe', destino: 'LNF2' }, ctx('X'), REF), 'COMPOSICAO_ATIVA_JA_EXISTE'), 'C3: a mesma Squad NÃO compõe uma segunda Linha (no máximo uma Linha ativa)');
+exec(N.criarRelacao(estado, { origem: 'SQG', tipo: 'compoe', destino: 'LNF2' }, ctx('R3'), REF), 'outra Squad compõe a segunda Linha');
 afirma(temErro(N.criarRelacao(estado, { origem: 'SQA', tipo: 'compoe', destino: 'LNF1' }, ctx('X'), REF), 'RELACAO_DUPLICADA'), 'duplicidade ativa: recusa');
 afirma(temErro(N.criarRelacao(estado, { origem: 'SQA', tipo: 'compoe', destino: 'SQA' }, ctx('X'), REF), 'AUTORRELACAO'), 'autorrelação: recusa');
 afirma(temErro(N.criarRelacao(estado, { origem: 'SQA', tipo: 'gerencia', destino: 'LNF1' }, ctx('X'), REF), 'TIPO_RELACAO_INVALIDO'), 'só os 5 tipos da Taxonomia');
@@ -136,15 +138,26 @@ exec(N.criarRelacao(estado, { origem: 'SQA', tipo: 'pertence-a-disciplina', dest
 afirma(N.criarRelacao(estado, { origem: 'CAP1', tipo: 'pertence-a-disciplina', destino: 'SQA' }, ctx('X'), REF).ok, '"pertence à disciplina" no sentido contrário não é tratado como ciclo de composição');
 exec(N.criarRelacao(estado, { origem: 'CAP1', tipo: 'aloca-em', destino: 'SQA' }, ctx('R7'), REF), 'Capítulo aloca em Squad');
 const rel = N.relacoesDaEstrutura(estado, 'SQA');
-afirma(rel.saida.length === 4 && rel.entrada.length === 1, 'a mesma estrutura participa de várias relações válidas (4 de saída, 1 de entrada)', rel);
+afirma(rel.saida.length === 3 && rel.entrada.length === 1, 'a mesma estrutura participa de várias relações válidas (3 de saída, 1 de entrada)', rel);
+afirma(N.relacoesPossiveis(estado, 'SQA', REF).every((p) => !(p.tipo === 'compoe' && p.destino === 'LNF2')), 'C3: relações possíveis não oferecem uma segunda Linha à Squad que já compõe uma');
 afirma(N.relacoesPossiveis(estado, 'SQG', REF).every((p) => !(p.tipo === 'compoe' && p.destino === 'SQA')), 'relações possíveis: não oferece a que formaria ciclo');
-exec(N.alterarRelacao(estado, 'R3', { origem: 'SQG' }, 'Correção da Squad', ctx('R3b'), REF), 'alterar = encerrar a antiga e criar a nova, juntas');
+exec(N.alterarRelacao(estado, 'R3', { destino: 'LNF1' }, 'Troca de Linha', ctx('R3b'), REF), 'alterar = encerrar a antiga e criar a nova, juntas (C3: trocar de Linha é substituir, com motivo)');
 afirma(estado.relacoes.R3.situacao === 'encerrada' && estado.relacoes.R3.encerramento.substituidaPor === 'R3b' && estado.relacoes.R3b.substitui === 'R3' && estado.relacoes.R3b.origem === 'SQG', 'a antiga fica encerrada apontando para a nova; nada apagado');
 afirma(temErro(N.alterarRelacao(estado, 'R3b', {}, 'x', ctx('R3c'), REF), 'NADA_A_ALTERAR') && temErro(N.alterarRelacao(estado, 'R3b', { destino: 'PC1' }, '', ctx('R3c'), REF), 'MOTIVO_OBRIGATORIO'), 'alterar exige mudança e motivo');
 afirma(temErro(N.encerrarRelacao(estado, 'R1', '', ctx()), 'MOTIVO_OBRIGATORIO'), 'encerrar relação exige motivo');
 exec(N.encerrarRelacao(estado, 'R5', 'Fim da composição (ilustrativo)', ctx()), 'encerra relação');
 afirma(N.criarRelacao(estado, { origem: 'SQG', tipo: 'compoe', destino: 'SQA' }, ctx('X'), REF).ok, 'com a composição encerrada, o caminho que formava ciclo deixa de contar');
 afirma(N.situacaoRelacao(estado, 'R1', REF).situacao === 'valida', 'relação ativa e admitida: válida');
+{ /* C3 depois de encerrar e sob concorrência (referência em memória: violacoesDeUnicidade com as referências) */
+  const e2 = N.aplicar(estado, N.encerrarRelacao(estado, 'R3b', 'Squad saiu da Linha', ctx()).mudancas).estado;
+  afirma(N.criarRelacao(e2, { origem: 'SQG', tipo: 'compoe', destino: 'LNF2' }, ctx('X'), REF).ok, 'C3: com a composição encerrada, a Squad pode compor outra Linha');
+  const a1 = N.criarRelacao(e2, { origem: 'SQG', tipo: 'compoe', destino: 'LNF2' }, ctx('C1'), REF), a2 = N.criarRelacao(e2, { origem: 'SQG', tipo: 'compoe', destino: 'LNF1' }, ctx('C2'), REF);
+  const juntas = N.aplicar(N.aplicar(e2, a1.mudancas).estado, a2.mudancas).estado;
+  afirma(a1.ok && a2.ok && N.violacoesDeUnicidade(juntas, REF).some((v) => v.codigo === 'COMPOSICAO_ATIVA_JA_EXISTE') && !N.violacoesDeUnicidade(N.aplicar(e2, a1.mudancas).estado, REF).length,
+    'C3 sob concorrência: duas composições da mesma Squad decididas no mesmo estado → a persistência acusa a violação');
+  const d1 = N.criarRelacao(e2, { origem: 'CAP1', tipo: 'aloca-em', destino: 'SQB' }, ctx('D1'), REF), d2 = N.criarRelacao(e2, { origem: 'CAP1', tipo: 'aloca-em', destino: 'SQB' }, ctx('D2'), REF);
+  afirma(N.violacoesDeUnicidade(N.aplicar(N.aplicar(e2, d1.mudancas).estado, d2.mudancas).estado).some((v) => v.codigo === 'RELACAO_DUPLICADA'), 'relação ativa duplicada sob concorrência → a persistência acusa a violação');
+}
 const refSemSquadNeg = Object.assign({}, REF, { relacoesConceituais: REL_CONC.map((r) => (r.de === 'SQUAD' && r.para === 'NEGOCIOS' ? Object.assign({}, r, { ativa: false }) : r)) });
 const sr = N.situacaoRelacao(estado, 'R1', refSemSquadNeg);
 afirma(sr.situacao === 'a-revisar' && sr.motivos.join() === 'TAXONOMIA_NAO_ADMITE_MAIS' && estado.relacoes.R1.situacao === 'ativa', 'R7: Taxonomia deixou de admitir → "a revisar", sem encerrar sozinha');

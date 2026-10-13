@@ -35,8 +35,11 @@
 
    ESCOPO: os 8 tipos firmes do Posicionamento (seis do ramo Linha, Área Especializada e CoE) e, desde a Etapa 5, os
    subagrupadores das Linhas de Negócios e a associação Linha × subagrupador; desde a M3 do Mapa, o vínculo do item com
-   a estrutura responsável principal (V1–V8 do núcleo). Squad, Capítulo e relações ficam fora (o núcleo já os
-   conhece; os casos de uso não os expõem ainda).
+   a estrutura responsável principal (V1–V8 do núcleo); desde a M6/M7, as relações entre estruturas (R1–R7 e C3) e o
+   Squad como tipo de estrutura (conceito da camada "Organização do trabalho" que a Taxonomia admite compor uma Linha).
+   Capítulo fica fora. RECORTE DO SITE (C2, paridade Firebase × PostgreSQL): "compõe" só é entregue ao núcleo como
+   admitido quando vai de um conceito de trabalho (Squad) para um código de Linha — todo "compõe" geral continua
+   bloqueado no site (as regras do banco garantem o mesmo).
    ============================================================ */
 (function () {
   'use strict';
@@ -45,9 +48,11 @@
     /* Etapa 5: subagrupadores das Linhas de Negócios (apresentação do Mapa) e a associação Linha × subagrupador */
     'criarSubagrupador', 'alterarSubagrupador', 'encerrarSubagrupador', 'associarLinha', 'substituirAssociacao', 'desassociarLinha',
     /* M3 do Mapa: vínculo item × estrutura responsável principal */
-    'vincularResponsavel', 'substituirResponsavel', 'encerrarVinculo'];
+    'vincularResponsavel', 'substituirResponsavel', 'encerrarVinculo',
+    /* M6/M7 do Mapa: relações entre estruturas */
+    'criarRelacao', 'alterarRelacao', 'encerrarRelacao'];
   /* operações que precisam das referências oficiais (ligações) e, as de vínculo, do Posicionamento vigente do item */
-  var COM_REFERENCIAS = { criarEstrutura: 1, vincularResponsavel: 1, substituirResponsavel: 1 };
+  var COM_REFERENCIAS = { criarEstrutura: 1, vincularResponsavel: 1, substituirResponsavel: 1, criarRelacao: 1, alterarRelacao: 1 };
   var COM_POSICIONAMENTO = { vincularResponsavel: 1, substituirResponsavel: 1 };
   /* onde o horário do contrato aparece (em milissegundos UTC): o adaptador Firebase grava o horário do SERVIDOR
      exatamente nesses campos — da estrutura e das cópias antes/depois guardadas no evento */
@@ -60,15 +65,19 @@
   function erro(codigo, extra) { var e = { codigo: codigo }; if (extra) Object.keys(extra).forEach(function (k) { e[k] = extra[k]; }); return e; }
   function codigoDe(e) { return (e && e.codigo) || 'RECUSADA'; }
 
-  /* deps: { nucleo: estruturas-nucleo.js, codigosFirmes: os códigos firmes do motor de Posicionamento } */
+  /* deps: { nucleo: estruturas-nucleo.js, codigosFirmes: os códigos firmes do motor de Posicionamento,
+            codigosLinha: os códigos firmes do ramo Linha (motor; sem eles, nenhum "compõe" é admitido no site) } */
   function criar(deps) {
-    var N = deps && deps.nucleo, firmes = (deps && deps.codigosFirmes) || [];
+    var N = deps && deps.nucleo, firmes = (deps && deps.codigosFirmes) || [], linha = (deps && deps.codigosLinha) || [];
     if (!N || !firmes.length) throw new Error('casos de uso: falta o núcleo ou os códigos firmes');
 
-    /* 1º cadastro: só os 8 tipos firmes — Squad e Capítulo não são admitidos nesta entrega */
+    /* os 8 tipos firmes e o Squad (conceitosTrabalho informados pela persistência); relações conceituais com o recorte
+       do site (C2): "compõe" só de conceito de trabalho para código de Linha */
     function referenciasDoCadastro(ref) {
-      return { conceitos: (ref && ref.conceitos) || {}, relacoesConceituais: (ref && ref.relacoesConceituais) || [], herancaPeloPai: !!(ref && ref.herancaPeloPai),
-        ligacoes: (ref && ref.ligacoes) || {}, codigosFirmes: firmes.slice(), conceitosTrabalho: [] };
+      var trabalho = (ref && ref.conceitosTrabalho) || [];
+      var rel = ((ref && ref.relacoesConceituais) || []).filter(function (r) { return r && (r.tipo !== 'compoe' || (trabalho.indexOf(r.de) !== -1 && linha.indexOf(r.para) !== -1)); });
+      return { conceitos: (ref && ref.conceitos) || {}, relacoesConceituais: rel, herancaPeloPai: !!(ref && ref.herancaPeloPai),
+        ligacoes: (ref && ref.ligacoes) || {}, codigosFirmes: firmes.slice(), conceitosTrabalho: trabalho.slice() };
     }
 
     function decidir(operacao, entrada, estado, ref, ctx, posicionamento) {
@@ -76,6 +85,9 @@
       if (operacao === 'vincularResponsavel') return N.vincularResponsavel(estado, { objetoId: d.objetoId, estruturaId: d.estruturaId, justificativa: d.justificativa }, posicionamento, ctx, ref);
       if (operacao === 'substituirResponsavel') return N.substituirResponsavel(estado, d.vinculoId, { estruturaId: d.estruturaId, justificativa: d.justificativa }, d.motivo, posicionamento, ctx, ref);
       if (operacao === 'encerrarVinculo') return N.encerrarVinculo(estado, d.vinculoId, d.motivo, ctx);
+      if (operacao === 'criarRelacao') return N.criarRelacao(estado, { origem: d.origem, tipo: d.tipo, destino: d.destino, justificativa: d.justificativa }, ctx, ref);
+      if (operacao === 'alterarRelacao') return N.alterarRelacao(estado, d.relacaoId, d.novos, d.motivo, ctx, ref);
+      if (operacao === 'encerrarRelacao') return N.encerrarRelacao(estado, d.relacaoId, d.motivo, ctx);
       if (operacao === 'criarEstrutura') return N.criarEstrutura(estado, { tipo: d.tipo, nome: d.nome, sigla: d.sigla, descricao: d.descricao }, ctx, ref);
       if (operacao === 'alterarEstrutura') return N.alterarEstrutura(estado, d.id, d.alteracoes, ctx, { justificativa: d.justificativa, revisaoEsperada: d.revisaoEsperada });
       if (operacao === 'encerrarEstrutura') return N.encerrarEstrutura(estado, d.id, d.motivo, ctx, { revisaoEsperada: d.revisaoEsperada });
@@ -126,7 +138,8 @@
       }, function (e) { return falha([erro(codigoDe(e) === 'RECUSADA' ? 'LEITURA_INDISPONIVEL' : codigoDe(e))]); });
     }
 
-    return Object.freeze({ executar: executar, OPERACOES: OPERACOES.slice(), CAMPOS_DE_HORARIO: CAMPOS_DE_HORARIO });
+    /* referencias: as mesmas referências que o núcleo recebe (com o recorte do site, C2) — para a tela oferecer só o que o núcleo aceita */
+    return Object.freeze({ executar: executar, referencias: referenciasDoCadastro, OPERACOES: OPERACOES.slice(), CAMPOS_DE_HORARIO: CAMPOS_DE_HORARIO });
   }
 
   /* ---------- REFERÊNCIA EM MEMÓRIA do contrato de persistência ----------
@@ -138,6 +151,8 @@
     var estado = clone((inicial && inicial.estado) || { estruturas: {}, relacoes: {}, vinculos: {} });
     var referencias = clone((inicial && inicial.referencias) || {});
     var posicionamentos = clone((inicial && inicial.posicionamentos) || {}); /* M3: o Posicionamento vigente de cada item */
+    /* C3 sob concorrência precisa saber quem é Squad e quem é Linha: as mesmas referências */
+    var refUnicidade = Object.assign({ codigosFirmes: Object.keys(referencias.ligacoes || {}) }, referencias);
     var eventos = [], operacoes = {};
     return {
       lerReferencias: function () { return Promise.resolve(clone(referencias)); },
@@ -147,7 +162,7 @@
         var r = N.aplicar(estado, op.mudancas);
         if (!r.ok) return Promise.reject({ codigo: r.erro === 'CONFLITO_DE_REVISAO' ? 'CONFLITO_DE_REVISAO' : 'RECUSADA' });
         /* unicidade garantida pela persistência sob concorrência (como o índice do banco): quem chegou depois perde */
-        if (N.violacoesDeUnicidade && N.violacoesDeUnicidade(r.estado).length) return Promise.reject({ codigo: 'CONFLITO_DE_REVISAO' });
+        if (N.violacoesDeUnicidade && N.violacoesDeUnicidade(r.estado, refUnicidade).length) return Promise.reject({ codigo: 'CONFLITO_DE_REVISAO' });
         estado = r.estado; operacoes[op.id] = { tipo: op.tipo, usuario: clone(op.usuario) };
         eventos = eventos.concat(clone(op.eventos));
         return Promise.resolve({ situacao: 'gravada' });
