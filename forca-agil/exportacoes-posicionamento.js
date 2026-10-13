@@ -13,6 +13,8 @@
 
    A Avaliação de Produto/Serviço mostrada é EXATAMENTE a de avaliacaoArquiteturalId — nunca a mais recente
    do item; ausente → o ID e "Dados da avaliação vinculada indisponíveis", sem inferir nada de outra.
+   Porta 2 (origem 'objeto-organizacional'): não há Avaliação de Produto/Serviço — "Não se aplica", e a atuação
+   organizacional (nome atual, descrição, finalidade, referência informativa) vem de ctx.objetos.
 
    ctx = {
      registros:  { <avaliacaoId>: avaliação },          avaliacoes-posicionamento
@@ -20,6 +22,7 @@
      decisoesConhecidas: true,                           só com a leitura das decisões CONCLUÍDA (senão: erro)
      vigentes:   { <itemId>: <avaliacaoId> },            posicionamento-vigente-por-item
      produtos:   { <id>: avaliação de Produto/Serviço }, avaliacoes-produto
+     objetos:    { <id>: objeto organizacional },        objetos-organizacionais (Porta 2; opcional — ausente: só o ID)
      nomesAtuais:{ <código>: { nome, contingencia } },   nome atual na Taxonomia (informação atual, nunca substitui o registrado)
      trilha:     { ok: bool, porAvaliacao: { <avaliacaoId>: { <id>: evento } } },  posicionamento-auditoria
      textoQuestionario: function (codigo, versao) → { titulo, texto }   só quando a resposta não guardou o texto
@@ -94,7 +97,12 @@
     var p = id ? (ctx.produtos || {})[id] : null;
     return { id: id || '', registro: p || null };
   }
+  var ORIGEM_PORTA2 = 'objeto-organizacional', NAO_SE_APLICA = 'Não se aplica — atuação organizacional (Porta 2)';
+  function ehPorta2(reg) { return !!reg && reg.origem === ORIGEM_PORTA2; }
+  function rotuloOrigem(reg) { return ehPorta2(reg) ? 'Atuação organizacional (Porta 2)' : 'Produto/Serviço (Porta 1)'; }
+  function objetoDe(reg, ctx) { return ehPorta2(reg) ? ((ctx.objetos || {})[reg.itemId] || null) : null; }
   function rotuloProduto(reg, ctx) {
+    if (ehPorta2(reg)) return NAO_SE_APLICA;
     var v = produtoVinculado(reg, ctx);
     if (!v.registro) return (v.id ? v.id + ' — ' : '') + VINCULADA_INDISPONIVEL;
     var p = v.registro, cam = p.camadaSugerida && (p.camadaSugerida.label || p.camadaSugerida.id);
@@ -166,6 +174,15 @@
   function documentoPdf(conteudo, comCabecalho, geradoEm) {
     return '<div class="pdf-doc"><style>' + CSS_PDF + '</style>' + (comCabecalho ? cabecalhoPdf(geradoEm) : '') + conteudo + '</div>';
   }
+  function linhasObjetoPdf(reg, ctx) {
+    if (!ehPorta2(reg)) return '';
+    var o = objetoDe(reg, ctx);
+    if (!o) return linhaTabela('Atuação organizacional', reg.itemId + ' — dados da atuação indisponíveis');
+    return linhaTabela('Atuação organizacional (nome atual)', o.nome) + linhaTabela('Descrição', o.descricao) + linhaTabela('Finalidade', o.finalidade) +
+      (o.contexto ? linhaTabela('Contexto', o.contexto) : '') +
+      (o.referenciaItemId ? linhaTabela('Referência informativa (P1–P16)', o.referenciaItemId + ' — não participa do cálculo') : '') +
+      linhaTabela('Situação da atuação', o.situacao === 'encerrado' ? 'Encerrada' + (o.encerramento && o.encerramento.motivo ? ' — ' + o.encerramento.motivo : '') : 'Ativa');
+  }
   function linhaTabela(rotulo, valor) { return '<tr><th>' + esc(rotulo) + '</th><td>' + esc(valor === '' || valor == null ? '—' : valor) + '</td></tr>'; }
   function blocoComTitulo(titulo, conteudo) { return '<div class="pdf-bloco"><h2 class="pdf-secao-titulo">' + esc(titulo) + '</h2>' + conteudo + '</div>'; }
 
@@ -181,7 +198,7 @@
     at.push(blocoComTitulo('Identificação', '<table class="pdf-tabela">' +
       linhaTabela('Item', reg.itemNome) + linhaTabela('ID do item', reg.itemId) + linhaTabela('ID da avaliação', id) +
       linhaTabela('Versão da avaliação', 'v' + (reg.versao || 1)) + linhaTabela('Situação na exportação', rotuloSituacao(id, reg, ctx)) +
-      linhaTabela('Avaliação de Produto/Serviço usada', rotuloProduto(reg, ctx)) +
+      linhaTabela('Origem', rotuloOrigem(reg)) + linhaTabela('Avaliação de Produto/Serviço usada', rotuloProduto(reg, ctx)) + linhasObjetoPdf(reg, ctx) +
       linhaTabela('Versão do questionário', reg.questionnaireContentVersion) + linhaTabela('Versão do motor', ra.versaoMotor) +
       linhaTabela('Iniciada por / em', porEm(reg.criadoPor, reg.criadoEm)) +
       linhaTabela('Concluída por / em', porEm(reg.concluidoPor, reg.concluidoEm)) + '</table>'));
@@ -296,7 +313,8 @@
     ['Decisão final (código)', 26], ['Decisão final', 34], ['Nome atual da decisão na Taxonomia', 34], ['Tipo da decisão', 30], ['Justificativa', 50],
     ['Libera S1–S8 (decisão final)', 16], ['Decidido por', 22], ['Decidido em', 18],
     ['Avaliação anterior', 24], ['Motivo da reavaliação', 40], ['Criado por', 22], ['Criado em', 18], ['Concluído por', 22], ['Concluído em', 18],
-    ['Motivo do descarte', 40], ['Descartado por', 22], ['Descartado em', 18]
+    ['Motivo do descarte', 40], ['Descartado por', 22], ['Descartado em', 18],
+    ['Origem', 26], ['Atuação organizacional (nome atual)', 34], ['Referência informativa (P1–P16)', 24]
   ];
   function linhaResumo(id, ctx) {
     var r = ctx.registros[id], ra = r.resultadoAutomatico || {}, conc = r.status === 'concluido', d = conc ? (ctx.decisoes || {})[id] : null;
@@ -311,7 +329,8 @@
       d ? ROTULO_TIPO_DECISAO[d.tipoDecisao] || d.tipoDecisao : '', d ? d.justificativa || '' : '', d ? simNao(d.liberaSquad) : '',
       d ? pessoa(d.decididoPor) : '', d ? data(d.decididoEm) : '',
       r.avaliacaoAnteriorId || '', r.motivoReavaliacao || '', pessoa(r.criadoPor), data(r.criadoEm), pessoa(r.concluidoPor), data(r.concluidoEm),
-      r.motivoDescarte || '', pessoa(r.descartadoPor), data(r.descartadoEm)
+      r.motivoDescarte || '', pessoa(r.descartadoPor), data(r.descartadoEm),
+      rotuloOrigem(r), ehPorta2(r) ? ((objetoDe(r, ctx) || {}).nome || '') : '', ehPorta2(r) ? ((objetoDe(r, ctx) || {}).referenciaItemId || '') : ''
     ];
   }
   var COLS_RESPOSTAS = [

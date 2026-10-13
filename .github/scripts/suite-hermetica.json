@@ -697,6 +697,12 @@
       "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (cb uma vez; a resposta do servidor depois do prazo vai para \"depois\", confirmação ou recusa)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita, leitura parada rejeita no prazo); ouvir e cancelar."
     },
     {
+      "arquivo": ".github/scripts/teste-porta2-reconhecimento.js",
+      "nome": "Porta 2: atuações organizacionais reconhecidas no Posicionamento, na Squad e no Catálogo (desktop e celular)",
+      "duracao": 60,
+      "sobre": "Lista e ficha do Posicionamento com o bloco da atuação (sem gate P1–P16, sem Reavaliar até a PR 3); conclusão de rascunho da Porta 2 com objeto ativo e trava com objeto encerrado; atalho da Adequação à Squad para atuação liberada; Catálogo com as atuações, a encerrada e a referência informativa no item P1–P16; Porta 1 igual; 375 px sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-objetos-organizacionais-nucleo.js",
       "nome": "Porta 2: objetos organizacionais — núcleo puro e contrato de independência da hipótese (sem navegador)",
       "duracao": 1,

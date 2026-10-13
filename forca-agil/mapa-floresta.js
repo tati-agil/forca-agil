@@ -35,6 +35,7 @@
 (function () {
   'use strict';
   var PROD = 'avaliacoes-produto', NODE = 'avaliacoes-posicionamento', VIG = 'posicionamento-vigente-por-item', DEC = 'posicionamento-decisoes';
+  var OBJ = 'objetos-organizacionais', ORIGEM_PORTA2 = 'objeto-organizacional';
   var TEMPO_DEMORA = 12000;
 
   /* ===================== NÚCLEO DO CATÁLOGO (puro: sem DOM, sem banco) ===================== */
@@ -82,29 +83,21 @@
      Motor atual (sem-base). Quando há Posicionamento mas a base de P1–P16 mudou ou deixou de valer, isso aparece
      como ALERTA, sem esconder o Posicionamento que existe. */
   function situacaoDoItem(itemId, dados, deps) {
-    var produtos = dados.produtos || {}, registros = dados.registros || {}, vigentes = dados.vigentes || {}, decisoes = dados.decisoes || {};
+    var produtos = dados.produtos || {}, registros = dados.registros || {};
     var base = deps.B.baseDoItem(itemId, produtos);
     var gate = deps.gateDoItem(itemId, produtos, deps.B, deps.ctxMotor);
     var ponta = base.chave ? produtos[base.chave] : null;
     var r = { itemId: itemId, nome: nomeDoItem(itemId, produtos, ponta), chaveBase: base.chave || null, situacaoBase: base.situacao,
       statusBase: ponta ? ponta.status : null, gate: gate.situacao, situacao: null, motivo: null, posicionamento: null, efetivo: null, rascunhoId: null, alertaBase: null };
     /* rascunho de Posicionamento aberto do item (o mais novo), só como informação */
-    Object.keys(registros).forEach(function (k) {
-      var g = registros[k];
-      if (g && g.itemId === itemId && g.status === 'rascunho' && (!r.rascunhoId || String(g.criadoEm || '') > String((registros[r.rascunhoId] || {}).criadoEm || ''))) r.rascunhoId = k;
-    });
-    var vid = vigentes[itemId], reg = vid ? registros[vid] : null;
-    if (reg && reg.status === 'concluido' && reg.resultadoAutomatico) {
-      var dec = decisoes[vid] || null, ra = reg.resultadoAutomatico;
-      var p = { avaliacaoId: vid, recomendacao: { codigoResultado: ra.codigoResultado } };
-      if (dec) p.decisao = { codigoFinal: dec.codigoFinal };
-      var ef = deps.posicionamentoEfetivo(p, { codigosFirmes: deps.codigosFirmes });
-      r.posicionamento = { avaliacaoId: vid, versao: reg.versao || 1, codigoAutomatico: ra.codigoResultado || null, tipoAValidar: ra.tipoAValidar || null,
-        codigoDecisao: dec ? dec.codigoFinal : null, avaliacaoArquiteturalId: reg.avaliacaoArquiteturalId || null };
+    r.rascunhoId = rascunhoDoItem(itemId, registros);
+    /* Porta 2: um objeto organizacional ativo que referencia este item (só informação; a referência não calcula nada) */
+    var refs = dados.objetos || {};
+    Object.keys(refs).forEach(function (k) { var o = refs[k]; if (o && o.referenciaItemId === itemId && o.situacao === 'ativo') r.objetoReferente = { id: k, nome: o.nome }; });
+    var reg = posicionamentoGravado(itemId, dados, deps, r);
+    if (reg) {
       var imp = deps.baseReprocessadaComImpacto ? deps.baseReprocessadaComImpacto(reg, produtos) : null;
       if (imp) r.baseRevisao = imp;
-      if (ef.codigo) { r.situacao = 'firme'; r.efetivo = { codigo: ef.codigo, origem: ef.origem }; }
-      else { r.situacao = 'a-validar'; r.motivo = ef.motivo; }
       if (gate.situacao !== 'verificando') {
         if (base.situacao !== 'valida') r.alertaBase = base.situacao;
         else if (gate.situacao !== 'atual') r.alertaBase = gate.situacao;
@@ -115,6 +108,41 @@
     if (gate.situacao === 'verificando') { r.situacao = 'verificando'; return r; }
     if (gate.libera) { r.situacao = 'sem-posicionamento'; return r; }
     r.situacao = 'sem-base'; r.motivo = gate.situacao;
+    return r;
+  }
+  /* o Posicionamento VIGENTE e concluído do item (as duas portas): preenche situacao/posicionamento/efetivo em r e
+     devolve o registro; sem ele, null (e r fica como estava) */
+  function posicionamentoGravado(itemId, dados, deps, r) {
+    var registros = dados.registros || {}, vigentes = dados.vigentes || {}, decisoes = dados.decisoes || {};
+    var vid = vigentes[itemId], reg = vid ? registros[vid] : null;
+    if (!reg || reg.status !== 'concluido' || !reg.resultadoAutomatico) return null;
+    var dec = decisoes[vid] || null, ra = reg.resultadoAutomatico;
+    var p = { avaliacaoId: vid, recomendacao: { codigoResultado: ra.codigoResultado } };
+    if (dec) p.decisao = { codigoFinal: dec.codigoFinal };
+    var ef = deps.posicionamentoEfetivo(p, { codigosFirmes: deps.codigosFirmes });
+    r.posicionamento = { avaliacaoId: vid, versao: reg.versao || 1, codigoAutomatico: ra.codigoResultado || null, tipoAValidar: ra.tipoAValidar || null,
+      codigoDecisao: dec ? dec.codigoFinal : null, avaliacaoArquiteturalId: reg.avaliacaoArquiteturalId || null };
+    if (ef.codigo) { r.situacao = 'firme'; r.efetivo = { codigo: ef.codigo, origem: ef.origem }; }
+    else { r.situacao = 'a-validar'; r.motivo = ef.motivo; }
+    return reg;
+  }
+  function rascunhoDoItem(itemId, registros) {
+    var id = null;
+    Object.keys(registros || {}).forEach(function (k) {
+      var g = registros[k];
+      if (g && g.itemId === itemId && g.status === 'rascunho' && (!id || String(g.criadoEm || '') > String((registros[id] || {}).criadoEm || ''))) id = k;
+    });
+    return id;
+  }
+  /* Porta 2: o objeto organizacional no catálogo — mesma régua de situações, sem as de P1–P16 (não há base nem gate):
+     com Posicionamento vigente concluído → firme ou A VALIDAR; sem ele → sem Posicionamento (com ou sem rascunho).
+     Encerrado continua listado (nada some), marcado como encerrado. */
+  function situacaoDoObjeto(id, dados, deps) {
+    var o = (dados.objetos || {})[id] || {};
+    var r = { itemId: id, nome: o.nome || id, origem: ORIGEM_PORTA2, objeto: { situacao: o.situacao || null, referenciaItemId: o.referenciaItemId || null },
+      chaveBase: null, situacaoBase: null, statusBase: null, gate: null, situacao: null, motivo: null, posicionamento: null, efetivo: null,
+      rascunhoId: rascunhoDoItem(id, dados.registros), alertaBase: null };
+    if (!posicionamentoGravado(id, dados, deps, r)) r.situacao = 'sem-posicionamento';
     return r;
   }
   /* o nome que vale: o da ponta; sem ponta única (cadeia ambígua), o da versão mais alta */
@@ -128,15 +156,16 @@
     return (melhor && melhor.nome) || itemId;
   }
   /* O catálogo inteiro: todos os itens que têm alguma Avaliação de Produto/Serviço, menos os que estão na Lixeira
-     (a versão que vale está excluída — a mesma regra da lista de Produto/Serviço), em ordem de nome.
-     Enquanto alguma das quatro leituras não chegou (undefined), não há catálogo: pronto = false. */
+     (a versão que vale está excluída — a mesma regra da lista de Produto/Serviço), e todos os objetos organizacionais
+     da Porta 2, em ordem de nome. Enquanto alguma das leituras não chegou (undefined), não há catálogo: pronto = false (objetos: só quando quem chama o informa — a tela sempre informa). */
   function montarCatalogo(dados, deps) {
-    if (!dados || dados.produtos === undefined || dados.registros === undefined || dados.vigentes === undefined || dados.decisoes === undefined) return { pronto: false, itens: [] };
+    if (!dados || dados.produtos === undefined || dados.registros === undefined || dados.vigentes === undefined || dados.decisoes === undefined || ('objetos' in dados && dados.objetos === undefined)) return { pronto: false, itens: [] };
     var ids = {};
     Object.keys(dados.produtos || {}).forEach(function (k) { var it = dados.produtos[k]; if (it) ids[it.itemId || k] = true; });
     var itens = Object.keys(ids)
       .filter(function (id) { return deps.B.baseDoItem(id, dados.produtos).situacao !== 'excluida'; })
       .map(function (id) { return situacaoDoItem(id, dados, deps); })
+      .concat(Object.keys(dados.objetos || {}).filter(function (id) { return !ids[id] && dados.objetos[id]; }).map(function (id) { return situacaoDoObjeto(id, dados, deps); }))
       .sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR') || (a.itemId < b.itemId ? -1 : 1); });
     return { pronto: true, itens: itens };
   }
@@ -163,7 +192,7 @@
 
   window.faMapaFlorestaCatalogo = Object.freeze({
     SITUACOES: SITUACOES.slice(), ROTULO_SITUACAO: Object.freeze(Object.assign({}, ROTULO_SITUACAO)), ROTULO_CURTO: Object.freeze(Object.assign({}, ROTULO_CURTO)),
-    categorias: categorias, categoriaDoCodigo: categoriaDoCodigo, situacaoDoItem: situacaoDoItem, montarCatalogo: montarCatalogo,
+    categorias: categorias, categoriaDoCodigo: categoriaDoCodigo, situacaoDoItem: situacaoDoItem, situacaoDoObjeto: situacaoDoObjeto, montarCatalogo: montarCatalogo,
     filtrar: filtrar, contarPorSituacao: contarPorSituacao
   });
   if (typeof document === 'undefined') return;
@@ -199,7 +228,7 @@
     function byId(id) { return wrap.querySelector('#' + id); }
 
     function novoEstado() { return {
-      produtos: undefined, registros: undefined, vigentes: undefined, decisoes: undefined,
+      produtos: undefined, registros: undefined, vigentes: undefined, decisoes: undefined, objetos: undefined,
       erro: false, demorando: false, filtros: { situacao: '', posicionamento: '', busca: '' }, categoriasAbertas: null, posicionamentoAberto: null
     }; }
     var state = novoEstado();
@@ -324,7 +353,7 @@
       else if (state.erro) h += '<div class="mf-erro" id="mfErro" role="alert"><p class="avp-error-msg">Não foi possível ler as avaliações agora. Nada foi alterado.</p>' +
         '<button type="button" class="btn btn--sm" id="mfTentarDeNovo">Tentar de novo</button></div>';
       else {
-        var cat = modulosProntos() ? C.montarCatalogo({ produtos: state.produtos, registros: state.registros, vigentes: state.vigentes, decisoes: state.decisoes }, deps()) : { pronto: false, itens: [] };
+        var cat = modulosProntos() ? C.montarCatalogo({ produtos: state.produtos, registros: state.registros, vigentes: state.vigentes, decisoes: state.decisoes, objetos: state.objetos }, deps()) : { pronto: false, itens: [] };
         if (!cat.pronto) {
           h += '<p class="loading-msg" id="mfCarregando" role="status">Carregando…</p>';
           if (state.demorando) h += '<div class="mf-erro" id="mfDemora"><p class="avp-error-msg">A leitura está demorando mais que o normal. A tela continua esperando.</p>' +
@@ -419,6 +448,8 @@
     function renderItem(x) {
       var N = window.faAvaliacaoPosicionamentoNucleo, h = '<li class="mf-item" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '">' +
         '<div class="mf-item-topo"><span class="mf-item-nome">' + esc(x.nome) + '</span>' +
+        (x.origem === ORIGEM_PORTA2 ? '<span class="avp-badge mf-badge-porta2">Atuação organizacional</span>' : '') +
+        (x.objeto && x.objeto.situacao === 'encerrado' ? '<span class="avp-badge mf-badge-encerrado">Encerrada</span>' : '') +
         '<span class="avp-badge mf-badge mf-badge--' + esc(x.situacao) + '">' + esc(C.ROTULO_SITUACAO[x.situacao] || x.situacao) + '</span></div><dl class="mf-detalhes">';
       if (x.situacao === 'firme') {
         h += '<dt>Posicionamento efetivo</dt><dd class="mf-efetivo" data-codigo="' + esc(x.efetivo.codigo) + '" data-origem="' + esc(x.efetivo.origem) + '">' + spanNome(x.efetivo.codigo) +
@@ -428,13 +459,17 @@
         h += '<dt>Recomendação automática</dt><dd>' + rotuloAutomatico(x.posicionamento) + '</dd>' +
           '<dt>Pendência</dt><dd>Falta a decisão final com um posicionamento firme. A VALIDAR não é exclusão: o objeto continua no catálogo.</dd>';
       } else if (x.situacao === 'sem-posicionamento') {
-        h += '<dt>Pendência</dt><dd>' + (x.rascunhoId ? 'Posicionamento Organizacional em andamento (rascunho), ainda não concluído.' : 'A Avaliação de Produto/Serviço permite iniciar o Posicionamento Organizacional (O1–O9).') + '</dd>';
+        h += '<dt>Pendência</dt><dd>' + (x.rascunhoId ? 'Posicionamento Organizacional em andamento (rascunho), ainda não concluído.'
+          : x.origem === ORIGEM_PORTA2 ? 'Posicionamento Organizacional (O1–O9) ainda não iniciado para esta atuação.'
+          : 'A Avaliação de Produto/Serviço permite iniciar o Posicionamento Organizacional (O1–O9).') + '</dd>';
       } else if (x.situacao === 'sem-base') {
         h += '<dt>Pendência</dt><dd data-motivo="' + esc(x.motivo) + '">' + esc(N.textoGate(x.motivo, 'iniciar') || (N.ROTULO_GATE && N.ROTULO_GATE[x.motivo]) || x.motivo) + '</dd>';
         if (x.rascunhoId) h += '<dt>Posicionamento</dt><dd>Há um rascunho de Posicionamento Organizacional em andamento.</dd>';
       } else h += '<dt>Situação</dt><dd>Verificando a versão do motor da Avaliação de Produto/Serviço…</dd>';
       if (x.alertaBase) h += '<dt>Atenção</dt><dd class="mf-alerta" data-alerta="' + esc(x.alertaBase) + '">' + esc(ROTULO_ALERTA[x.alertaBase] || ((N.ROTULO_GATE && N.ROTULO_GATE[x.alertaBase]) || x.alertaBase)) + '</dd>';
       if (x.baseRevisao) h += '<dt>Precisa de revisão</dt><dd class="mf-base-revisao">' + esc(N.textoBaseRevisao(x.baseRevisao)) + ' Nada foi alterado automaticamente.</dd>';
+      if (x.origem === ORIGEM_PORTA2) h += '<dt>Origem</dt><dd class="mf-porta2">Atuação organizacional, posicionada sem Avaliação de Produto/Serviço (Porta 2).</dd>';
+      if (x.objetoReferente) h += '<dt>Atuação organizacional</dt><dd class="mf-objeto-referente" data-objeto="' + esc(x.objetoReferente.id) + '">Este item é referência informativa da atuação “' + esc(x.objetoReferente.nome) + '” (Porta 2).</dd>';
       h += vinculoDoItemHtml(x);
       h += '</dl><div class="mf-item-acoes">';
       if (x.posicionamento) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.posicionamento.avaliacaoId) + '">Abrir Posicionamento</a>';
@@ -662,7 +697,7 @@
         '<dt>Definição oficial</dt><dd class="mfm-definicao">' + definicaoTipoHtml(e.tipo) + '</dd>' +
         (sub ? '<dt>Subagrupador</dt><dd>' + esc(sub.nome) + ' <span class="mfm-nota">(exemplo)</span></dd>' : '') +
         squadsHtml(e.tipo, true) + '</dl>' +
-        '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
+        '<h4 class="mfm-objetos-titulo">Produtos, serviços e atuações sob esta estrutura</h4>' +
         '<p class="mfm-ajuda">Eles não são caixas do Mapa: aparecem aqui, na estrutura responsável.</p>';
       h += objs.length ? '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
         return '<li class="mfm-objeto" data-objeto="' + esc(o.id) + '"><span class="mfm-objeto-nome">' + esc(o.nome) + '</span>' +
@@ -673,12 +708,12 @@
     function dataHora(v) { var t = Est().instante(v); return t === null ? '—' : new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
     function podeManterEstruturas() { var a = window.faAuth; return !!(a && ((a.isAdmin && a.isAdmin()) || (a.podeArquitetura && a.podeArquitetura()))); }
     function produtosDaEstruturaHtml(e) {
-      var cat = modulosProntos() && state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined
-        ? C.montarCatalogo({ produtos: state.produtos, registros: state.registros, vigentes: state.vigentes, decisoes: state.decisoes }, deps()) : { pronto: false };
+      var cat = modulosProntos() && state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined && state.objetos !== undefined
+        ? C.montarCatalogo({ produtos: state.produtos, registros: state.registros, vigentes: state.vigentes, decisoes: state.decisoes, objetos: state.objetos }, deps()) : { pronto: false };
       if (state.erro) return '<p class="mfm-sem-objetos" id="mfmSemObjetos">Não foi possível ler as avaliações agora.</p>';
       if (!vinculosProntos() || !cat.pronto) return '<p class="mfm-sem-objetos" id="mfmCarregandoObjetos" role="status">Carregando…</p>';
       var objs = Est().objetosDaEstrutura({ estruturas: cadastro.estruturas, vinculos: cadastro.vinculos }, e.id);
-      if (!objs.length) return '<p class="mfm-sem-objetos" id="mfmSemObjetos">Nenhum produto ou serviço vinculado a esta estrutura.</p>';
+      if (!objs.length) return '<p class="mfm-sem-objetos" id="mfmSemObjetos">Nenhum produto, serviço ou atuação vinculado a esta estrutura.</p>';
       var porItem = {}; cat.itens.forEach(function (x) { porItem[x.itemId] = x; });
       return '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
         var x = porItem[o.objetoId] || null, s = situacaoVinculo(o.objetoId, x), v = cadastro.vinculos[o.vinculoId];
@@ -704,7 +739,7 @@
         squadsHtml(e.tipo, false, e.id) + relacoesDetalheHtml(e.id) +
         '<dt>Cadastrada</dt><dd>' + dataHora(e.criadaEm) + (e.criadaPor ? ' · ' + esc(e.criadaPor.email || e.criadaPor.id) : '') + '</dd>' +
         (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + (e.alteradaPor ? ' · ' + esc(e.alteradaPor.email || e.alteradaPor.id) : '') + '</dd>' : '') + '</dl>' +
-        '<h4 class="mfm-objetos-titulo">Produtos e serviços sob esta estrutura</h4>' +
+        '<h4 class="mfm-objetos-titulo">Produtos, serviços e atuações sob esta estrutura</h4>' +
         produtosDaEstruturaHtml(e) +
         (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#admin?arq=estruturas&e=' + encodeURIComponent(e.id) + '">' + (gravacaoAtiva() ? 'Abrir a ficha no cadastro (editar ou encerrar)' : 'Abrir a ficha no cadastro') + '</a>' : '');
       return h + '</aside>';
@@ -805,7 +840,7 @@
       }));
     }
     function aoChegar() {
-      if (state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined) { clearTimeout(relogio); state.demorando = false; }
+      if (state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined && state.objetos !== undefined) { clearTimeout(relogio); state.demorando = false; }
       render();
     }
     function ligar() {
@@ -813,8 +848,8 @@
       ligado = true;
       state.erro = false; state.demorando = false;
       clearTimeout(relogio);
-      relogio = setTimeout(function () { if (state.produtos === undefined || state.registros === undefined || state.vigentes === undefined || state.decisoes === undefined) { state.demorando = true; render(); } }, TEMPO_DEMORA);
-      ouvir(PROD, 'produtos'); ouvir(NODE, 'registros'); ouvir(VIG, 'vigentes'); ouvir(DEC, 'decisoes');
+      relogio = setTimeout(function () { if (state.produtos === undefined || state.registros === undefined || state.vigentes === undefined || state.decisoes === undefined || state.objetos === undefined) { state.demorando = true; render(); } }, TEMPO_DEMORA);
+      ouvir(PROD, 'produtos'); ouvir(NODE, 'registros'); ouvir(VIG, 'vigentes'); ouvir(DEC, 'decisoes'); ouvir(OBJ, 'objetos');
       /* o gate precisa do motor de P1–P16 carregado (antes disso: "Verificando…", nunca "atual" nem "desatualizado") */
       if (window.faMotorArquitetura && !ligar._motor) { ligar._motor = true; window.faMotorArquitetura.onMudanca(function () { render(); }); }
       ligarNomes();
@@ -822,7 +857,7 @@
     function desligar() {
       ouvintes.forEach(function (cancelar) { cancelar(); });
       ouvintes = []; ligado = false; clearTimeout(relogio);
-      state.produtos = state.registros = state.vigentes = state.decisoes = undefined;
+      state.produtos = state.registros = state.vigentes = state.decisoes = state.objetos = undefined;
     }
     /* troca de pessoa sem recarregar: nada do estado anterior sobrevive */
     var pessoa = sessaoEmail();

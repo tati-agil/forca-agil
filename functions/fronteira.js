@@ -207,6 +207,8 @@ function criarFronteira(io, modulos) {
     if (!reg) return { concluida: false, motivos: ['AVALIACAO_INEXISTENTE'] };
     if (reg.status !== 'rascunho') return { concluida: false, motivos: ['NAO_E_RASCUNHO'] };
     if (typeof reg.versaoMotor !== 'number' || reg.versaoMotor < 2) return { concluida: false, motivos: ['CONCLUSAO_PELA_TELA'] };
+    /* Porta 2 (atuação organizacional, sem P1–P16): a fronteira ainda não a conclui — recusa explícita, nunca "base mudou" */
+    if (reg.origem === 'objeto-organizacional') return { concluida: false, motivos: ['PORTA2_NAO_SUPORTADA'] };
     if (reg.revisao !== dados.revisao) return { concluida: false, motivos: ['REVISAO_DESATUALIZADA'] };
     const [cfg, conceitos, fontes, produtos] = await Promise.all([io.ler('questionarios-config/' + CODIGO), io.ler('taxonomia/organizacional/conceitos'),
       io.ler('taxonomia/organizacional/fontes'), io.ler('avaliacoes-produto')]);

@@ -372,11 +372,11 @@
       return x;
     }
     function produtosHtml(e) {
-      var h = '<section class="est-secao" aria-labelledby="estSecProdutos"><h5 class="est-secao-titulo" id="estSecProdutos">Produtos e serviços sob esta estrutura</h5>';
+      var h = '<section class="est-secao" aria-labelledby="estSecProdutos"><h5 class="est-secao-titulo" id="estSecProdutos">Produtos, serviços e atuações sob esta estrutura</h5>';
       garantirLeituras();
       if (st.vinculos === undefined || ligacoesLidas === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
       var estado = { estruturas: st.estruturas, vinculos: st.vinculos }, objs = N().objetosDaEstrutura(estado, e.id);
-      if (!objs.length) return h + '<p class="est-vazio" id="estSemProdutos">Nenhum produto ou serviço vinculado a esta estrutura.</p></section>';
+      if (!objs.length) return h + '<p class="est-vazio" id="estSemProdutos">Nenhum produto, serviço ou atuação vinculado a esta estrutura.</p></section>';
       return h + '<ul class="est-produtos" id="estProdutos">' + objs.map(function (o) {
         var v = st.vinculos[o.vinculoId], x = itemVinculado(o.objetoId, v);
         if (!x.carregado) return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="loading-msg">Carregando…</span></li>';
