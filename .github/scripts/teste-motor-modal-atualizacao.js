@@ -15,7 +15,7 @@
  * Banco falso em persistenciaReal (grava/lê como o Firebase de verdade).
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
-const { esperarSessaoAssentada } = require('./esperas');
+const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -313,6 +313,80 @@ const textoModal = (page) => page.locator('body > .modal-overlay').last().innerT
     afirma(await larguraOk(page), 'resumo sem rolagem horizontal');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
+  }
+
+  /* ============================================================ */
+  console.log('\n== 6. Prévia individual do reprocessamento (só leitura): completude na versão vigente, impactos, confirmação, concorrência ==');
+  {
+    const VELHO = { motorVersion: '2026.08.01-1', motorVersionArquitetura: 2 };
+    const semResposta = (it, id) => { delete it.respostas[id]; return it; };
+    const COMPONENTE = { id: 'componente', label: 'Componente', motivos: ['m'], conflito: null, incoerencia: false, especializacao: 'Elemento X', papelEstrutural: 'essencial', relacao: null };
+    const montar = () => ({
+      pvOk: item('Sem impacto', 31, VELHO),
+      pvP15: semResposta(item('Sem P15', 32, VELHO), 'componente'),
+      pvOutra: semResposta(item('Sem P2', 33, VELHO), 'resultado'),
+      pvClasse: item('Muda a classificação', 34, Object.assign({}, VELHO, { camadaSugerida: copia(COMPONENTE), decisaoFinal: 'nao-produto', resultadoAutomatico: 'nao-produto', papelEstruturalCadastrado: 'essencial' })),
+      pvManual: item('Decisão manual', 35, Object.assign({}, VELHO, { camadaSugerida: copia(COMPONENTE), decisaoManual: true, decisaoFinal: 'nao-produto', justificativaDecisao: 'decidido por pessoa' }))
+    });
+    const cfg = { versaoPublicada: 2, versoes: { 2: { regras: LEGADO } } };
+    for (const [tela, vp] of [['desktop', null], ['celular 375px', { width: 375, height: 740 }]]) {
+      console.log('\n-- ' + tela + ' --');
+      const { ctx, page, erros } = await abrirApp(browser, montar(), cfg, vp || undefined);
+      const antes = await itens(page);
+      await abrirModal(page, '#avpReprocessarTudoBtn');
+      const contagens = await page.locator('#avpPreviaContagens li').allInnerTexts();
+      afirma(/^1 sem impacto/.test(contagens[0]) && /^2 com impacto/.test(contagens[1]) && /^2 bloqueadas/.test(contagens[2]), 'contagens: 1 sem impacto, 2 com impacto, 2 bloqueadas — ' + JSON.stringify(contagens));
+      const bloco = (k) => page.locator('.avp-previa-item[data-avaliacao="' + k + '"]').innerText();
+      afirma(/precisa ser reavaliada/.test(await bloco('pvP15')) && /P15/.test(await bloco('pvP15')), 'P15 ausente: bloqueada, "precisa ser reavaliada", aponta P15');
+      afirma(/precisa ser reavaliada/.test(await bloco('pvOutra')) && /P2/.test(await bloco('pvOutra')), 'outro critério obrigatório ausente (P2): bloqueada');
+      afirma(await page.locator('.avp-previa-item[data-avaliacao="pvP15"] .avp-previa-check').count() === 0, 'bloqueada não tem como ser confirmada');
+      const cl = await bloco('pvClasse');
+      afirma(/Classificação[\s\S]*\(muda\)/.test(cl), 'mudança de classificação mostrada (hoje × depois)');
+      afirma(/Especialização \(do motor\)[\s\S]*Elemento X[\s\S]*\(muda\)/.test(cl), 'mudança de especialização mostrada');
+      afirma(/Papel estrutural \(do motor\)[\s\S]*Essencial[\s\S]*\(muda\)/.test(cl), 'mudança de papel estrutural mostrada');
+      afirma(/Curadoria — papel estrutural vigente[\s\S]*Essencial/.test(cl) && /deixaria de valer/.test(cl), 'perda de vínculo de curadoria identificada (nada apagado)');
+      afirma(/Decisão final acompanha a nova recomendação/.test(cl), 'decisão automática: prevista a mudança');
+      afirma(/Decisão manual: preservada/.test(await bloco('pvManual')), 'decisão manual: preservada');
+      afirma(/Sem impacto/.test(await bloco('pvOk')) && /Motor usado: 2026\.08\.01-1/.test(await bloco('pvOk')), 'sem impacto: dito, com o motor usado e o vigente');
+      afirma(/^REPROCESSAR 1 AVALIAÇÃO$/.test((await page.locator('#avpLoteConfirmar').innerText()).trim()), 'sem confirmação, o lote só leva a sem impacto');
+      afirma(await larguraOk(page), 'prévia sem rolagem horizontal');
+      if (vp) { const cx = await page.locator('.avp-lote-modal-box').boundingBox(); afirma(cx && cx.x >= 0 && cx.x + cx.width <= 375, 'modal cabe em 375 px'); afirma(erros.length === 0, 'nenhum erro de JS'); await ctx.close(); continue; }
+      await page.check('.avp-previa-item[data-avaliacao="pvClasse"] .avp-previa-check');
+      afirma(/^REPROCESSAR 2 AVALIAÇÕES$/.test((await page.locator('#avpLoteConfirmar').innerText()).trim()), 'confirmada individualmente, a com impacto entra no lote');
+      /* concorrência: a avaliação sem impacto muda no banco DEPOIS da prévia e ANTES da gravação */
+      await page.evaluate(() => { window.__CFG.__dbReal['avaliacoes-produto'].pvOk.respostas.necessidade.observacao = 'mudou depois da prévia'; });
+      await page.click('#avpLoteConfirmar');
+      await page.waitForSelector('#avpLoteResumoFinal', { timeout: 15000 });
+      const fim = await page.locator('#avpLoteProgressoCard').innerText();
+      afirma(/mudou desde a prévia/.test(fim), 'concorrência: a que mudou depois da prévia NÃO é gravada ("mudou desde a prévia")');
+      const depois = await itens(page);
+      afirma(depois.pvOk.motorVersion === '2026.08.01-1' && depois.pvOk.reprocessedAt === antes.pvOk.reprocessedAt && depois.pvOk.historicoMotor.length === antes.pvOk.historicoMotor.length, 'concorrência: nada gravado na que mudou');
+      ['pvP15', 'pvOutra', 'pvManual'].forEach((k) => afirma(igual(depois[k], antes[k]), k + ': intocada (bloqueada ou não confirmada)'));
+      const c = depois.pvClasse, a0 = antes.pvClasse;
+      afirma(c.motorVersion === MOTOR_VERSION && c.decisaoFinal !== 'nao-produto', 'confirmada: reprocessada e a decisão automática acompanhou a nova recomendação');
+      afirma(c.historicoMotor.length === a0.historicoMotor.length + 1 && igual(c.historicoMotor[c.historicoMotor.length - 1].respostas, a0.respostas) && c.historicoMotor[c.historicoMotor.length - 1].camadaSugerida.id === 'componente', 'histórico do motor: versão anterior preservada com as respostas exatas e a classificação antiga');
+      afirma(Object.keys(a0.respostas).every((k) => c.respostas[k].valor === a0.respostas[k].valor && c.respostas[k].observacao === a0.respostas[k].observacao), 'respostas e observações humanas intactas');
+      afirma(c.papelEstruturalCadastrado === 'essencial' && c.papelEstruturalCamadaConfirmada === 'sem-vinculo', 'curadoria não apagada: o cadastro fica, marcado como vínculo perdido');
+      /* decisão manual preservada ao reprocessar (confirmada) */
+      await page.click('#avpLoteFechar');
+      await abrirModal(page, '#avpReprocessarTudoBtn');
+      await page.check('.avp-previa-item[data-avaliacao="pvManual"] .avp-previa-check');
+      await page.click('#avpLoteConfirmar');
+      await page.waitForSelector('#avpLoteResumoFinal', { timeout: 15000 });
+      const m = (await itens(page)).pvManual;
+      afirma(m.motorVersion === MOTOR_VERSION && m.decisaoManual === true && m.decisaoFinal === 'nao-produto' && m.justificativaDecisao === 'decidido por pessoa', 'decisão manual preservada (decisão, justificativa) depois do reprocessamento confirmado');
+      /* botão individual: incompleta é bloqueada antes de qualquer confirmação, e nada é gravado */
+      await page.click('#avpLoteFechar');
+      await page.click('.avp-act-ver[data-key="pvP15"]');
+      await page.waitForSelector('#avpReprocessarBtn', { timeout: 6000 });
+      await page.click('#avpReprocessarBtn');
+      await esperarCondicao(page, () => /não pode ser reprocessada/.test(document.body.innerText), undefined, { limite: 5000, descricao: 'aviso de reavaliação no botão individual' });
+      const aviso = await textoModal(page);
+      afirma(/não pode ser reprocessada/.test(aviso) && /P15/.test(aviso) && /precisa ser reavaliada/.test(aviso) && await page.locator('.avp-modal-cancel-btn').count() === 0, 'individual: sem P15 → aviso de reavaliação (sem opção de confirmar)');
+      afirma(igual((await itens(page)).pvP15, antes.pvP15), 'individual: nada gravado na incompleta');
+      afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+      await ctx.close();
+    }
   }
 
   await browser.close();

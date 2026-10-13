@@ -484,10 +484,14 @@ async function parteA() {
       'a gravação de curadoria (especialização/papel) nunca grava a marca nem a justificativa');
     console.log('   prova inversa da auditoria (mutações em memória, uma por vez):');
     const mut = (a1, b1) => { const r = SRC.avp.replace(a1, b1); return r === SRC.avp ? null : r; };
-    [['lote sem a espera', mut('quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA', '(function () {\n        var n = Math.min(CONCORRENCIA')],
+    /* várias mutações juntas (null se alguma não se aplicar): o caminho com a prévia tem duas esperas em sequência
+       (abrir a prévia e gravar) — sem espera nenhuma no caminho, a auditoria tem de falhar */
+    const muts = (...pares) => pares.reduce((t, [a1, b1]) => { if (!t) return null; const r = t.replace(a1, b1); return r === t ? null : r; }, SRC.avp);
+    const SEM_ESPERA_PREVIA_LOTE = ['function abrirModalAtualizarMotor() { quandoCompatibilidadePronta(function () { montarModalAtualizarMotor(); }); }', 'function abrirModalAtualizarMotor() { montarModalAtualizarMotor(); }'];
+    [['lote sem a espera', muts(['quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA', '(function () {\n        var n = Math.min(CONCORRENCIA'], SEM_ESPERA_PREVIA_LOTE)],
       ['Concluir sem a espera', mut("quandoCompatibilidadePronta(function () { salvarRegistro('concluido'", "(function () { salvarRegistro('concluido'")],
-      ['Reprocessar individual sem a espera', mut('quandoCompatibilidadePronta(function () {\n        var updates;', '(function () {\n        var updates;')],
-      ['lote com um ramo novo que inicia um worker sem a espera', mut('      quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA', '      if (fila.length > 100) { workersAtivos = 1; worker(); }\n      quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA')],
+      ['Reprocessar individual sem a espera', muts(['quandoCompatibilidadePronta(function () {\n        var previa = previaConfirmada;', '(function () {\n        var previa = previaConfirmada;'], ['quandoCompatibilidadePronta(function () {\n            /* prévia individual', '(function () {\n            /* prévia individual'])],
+      ['lote com um ramo novo que inicia um worker sem a espera', muts(['      quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA', '      if (fila.length > 100) { workersAtivos = 1; worker(); }\n      quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA'], SEM_ESPERA_PREVIA_LOTE)],
       ['caminho novo (prévia na tela) calculando sem a espera', mut('    function renderResultado() {', '    function previaDoResultado() { return computeResultado(state.atual); }\n    function renderResultado() { previaDoResultado();')],
       ["Concluir chamando a gravação de 'concluido' fora da espera", mut("salvarRegistro('rascunho', function (payload, key) {", "salvarRegistro('concluido', function (payload, key) {")]
     ].forEach(([nome, texto]) => {

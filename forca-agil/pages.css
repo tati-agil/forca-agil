@@ -3228,3 +3228,15 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
   .est-item .est-situacao { grid-column: 1; grid-row: auto; justify-self: start; }
   .est-item-seta { grid-column: 2; grid-row: 1 / span 3; }
 }
+
+/* Prévia individual do reprocessamento (modal "Atualizar avaliações para a versão atual do motor") — só leitura */
+.avp-previa-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.avp-previa-item { border: 1px solid var(--line-strong); border-left: 4px solid var(--cyan); border-radius: 10px; padding: 10px 12px; min-width: 0; overflow-wrap: anywhere; }
+.avp-previa-item--confirmar { border-left-color: var(--gold); }
+.avp-previa-item--reavaliar { border-left-color: var(--red, #ff3b30); }
+.avp-previa-item p { margin: 0 0 6px; font-size: .88rem; }
+.avp-previa-motor { opacity: .85; }
+.avp-previa-tabela { width: 100%; border-collapse: collapse; font-size: .82rem; table-layout: fixed; margin: 4px 0 6px; }
+.avp-previa-tabela th, .avp-previa-tabela td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line-strong); vertical-align: top; overflow-wrap: anywhere; }
+.avp-previa-muda td { font-weight: 600; }
+.avp-previa-confirmar { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; font-weight: 600; }
