@@ -3344,26 +3344,24 @@
       }
       var conector = function (id, texto) { return '<li class="avp-como-conector" id="' + id + '">' + texto + '</li>'; };
       return '<section class="avp-como" id="avpInicioConsultar" aria-labelledby="avpComoTitulo"><h3 id="avpComoTitulo">Como o sistema funciona</h3>' +
-        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Junto de cada uma, o que a sustenta no ADMIN. As ligações entre elas são possibilidades, não etapas obrigatórias.</p>' +
+        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista e mostra o que ela usa do ADMIN. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
         '<div class="avp-como-cabecalho" aria-hidden="true"><span>Realizar e consultar (Avaliação)</span><span>Configurar e governar (ADMIN)</span></div>' +
         '<ol class="avp-como-lista" id="avpComoFunciona">' +
-        linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'P1–P16 · O que é o item?'),
+        linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'Descobre o que o item é · P1–P16'),
           'perguntas e regras em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios', arq, 'adm') + ' e ' +
-          fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + '; nomes oficiais das classificações na ' +
+          fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + '; nomes das classificações na ' +
           fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax') + '.') +
-        conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento · ou começar direto nele pelo Caminho 2 (atuação)') +
-        linha('avpComoPosicionamento', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'O1–O9 · Que tipo de estrutura deve assumir a responsabilidade? Resultado: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + '.'),
-          'texto das perguntas em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios2', arq, 'adm') + '; tipos de estrutura, com nomes e definições oficiais, na ' +
-          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax') + '. Recomenda um tipo; não cria a estrutura.') +
-        linha('avpComoSquad', trab('avpInicioRegSquad', 'Adequação à Squad', 'S1–S8 · possibilidade só quando o resultado é ' + ramo('LINHA') + ' · opcional'),
-          'regras no ' + fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Avalia o trabalho; não cadastra Squad.', ' avp-como-linha--ramo') +
-        conector('avpComoConectorMapa', 'a responsabilidade pode ser ligada a uma estrutura concreta') +
-        linha('avpComoMapa', trab('avpInicioRegMapa', 'Mapa da Floresta', 'Estruturas e vínculos registrados'),
-          'as estruturas concretas são cadastradas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
-          '. O vínculo de cada item com a estrutura é registrado na ficha do Posicionamento (área Avaliação). O Mapa mostra as estruturas e os vínculos registrados; uma Linha pode existir sem Squads cadastradas.') +
+        conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento, que também começa direto por uma atuação (Caminho 2)') +
+        linha('avpComoPosicionamento', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Indica o tipo de estrutura que deve cuidar da responsabilidade: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + ' · O1–O9'),
+          'perguntas em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios2', arq, 'adm') + '; tipos de estrutura na ' +
+          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax') + '. Indica o tipo, mas não cria a estrutura.') +
+        linha('avpComoSquad', trab('avpInicioRegSquad', 'Adequação à Squad', 'Opcional, só quando o tipo indicado é ' + ramo('LINHA') + ': avalia se o trabalho pode se organizar em Squads · S1–S8'),
+          'regras no ' + fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Não cadastra Squad.', ' avp-como-linha--ramo') +
+        conector('avpComoConectorMapa', 'a responsabilidade pode ser ligada a uma estrutura real') +
+        linha('avpComoMapa', trab('avpInicioRegMapa', 'Mapa da Floresta', 'Mostra as estruturas registradas e o que está ligado a cada uma'),
+          'as estruturas são cadastradas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
+          '. A ligação de cada item a uma estrutura é registrada na ficha do Posicionamento. Uma Linha pode não ter Squads.') +
         '</ol>' +
-        '<p class="avp-como-rodape" id="avpComoRodape"><span><span aria-hidden="true">◆</span> <strong>ADMIN › Taxonomia</strong>: mantida pelo admin geral.</span> ' +
-        '<span><span aria-hidden="true">●</span> <strong>ADMIN › Avaliação e Mapa</strong>: admin geral e Avaliação + Configuração.</span></p>' +
         (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') + '</section>';
     }
     /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço

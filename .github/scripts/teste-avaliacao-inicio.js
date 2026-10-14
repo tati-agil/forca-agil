@@ -100,7 +100,7 @@ async function rodada(browser, viewport, rotulo) {
     const r = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
     return { itens: Array.prototype.map.call(document.querySelectorAll('#avpComoFunciona > li'), (li) => li.id).join(','),
       sub: t('avpComoSub'), nat: t('avpComoNatureza'), pos: t('avpComoPosicionamento'), sq: t('avpComoSquad'), mapa: t('avpComoMapa'),
-      conPos: t('avpComoConectorPosicionamento'), conMapa: t('avpComoConectorMapa'), rodape: t('avpComoRodape'),
+      conPos: t('avpComoConectorPosicionamento'), conMapa: t('avpComoConectorMapa'), rodape: !!document.getElementById('avpComoRodape'),
       ramoSquad: document.getElementById('avpComoSquad').classList.contains('avp-como-linha--ramo'),
       links: ['avpInicioRegNatureza', 'avpInicioRegPosicionamento', 'avpInicioRegSquad', 'avpInicioRegMapa'].map((i) => document.getElementById(i).getAttribute('href')).join(' '),
       alturas: ['avpInicioRegNatureza', 'avpInicioRegPosicionamento', 'avpInicioRegSquad', 'avpInicioRegMapa'].map((i) => document.getElementById(i).getBoundingClientRect().height),
@@ -110,18 +110,18 @@ async function rodada(browser, viewport, rotulo) {
   });
   afirma(como.itens === 'avpComoNatureza,avpComoConectorPosicionamento,avpComoPosicionamento,avpComoSquad,avpComoConectorMapa,avpComoMapa',
     'um bloco: Produto/Serviço, Posicionamento (com a Squad como ramo), Mapa, ligados por conectores', como.itens);
-  afirma(/possibilidades, não etapas obrigatórias/.test(como.sub) && /O que você precisa fazer|Como o sistema funciona/.test(await texto(page, '#avpInicioConsultar')),
-    'o bloco diz que as ligações são possibilidades, não etapas obrigatórias', como.sub);
+  afirma(/nenhuma é etapa obrigatória/.test(como.sub) && /O que você precisa fazer|Como o sistema funciona/.test(await texto(page, '#avpInicioConsultar')),
+    'o bloco diz que uma atividade pode levar à outra, mas nenhuma é etapa obrigatória', como.sub);
   afirma(/Realizar e consultar \(Avaliação\)/.test(await texto(page, '.avp-como-cabecalho')) && /Configurar e governar \(ADMIN\)/.test(await texto(page, '.avp-como-cabecalho')) &&
     /No ADMIN:/.test(como.nat), 'distinção entre realizar/consultar (Avaliação) e configurar/governar (ADMIN)');
-  afirma(/perguntas e regras em .*Questionários.* e .*Motores.*; nomes oficiais das classificações na .*Taxonomia/.test(como.nat), 'P1–P16: perguntas e regras (Questionários, Motores) e nomes das classificações (Taxonomia)', como.nat);
-  afirma(/texto das perguntas em .*Questionários.*; tipos de estrutura, com nomes e definições oficiais, na .*Taxonomia.*Recomenda um tipo; não cria a estrutura/.test(como.pos), 'O1–O9: texto das perguntas (Questionários) e tipos de estrutura (Taxonomia); recomenda um tipo, não cria estrutura', como.pos);
-  afirma(como.ramoSquad && /possibilidade só quando o resultado é .*Linha.* · opcional/i.test(como.sq) && /Motor de Squad/.test(como.sq) && /não cadastra Squad/.test(como.sq), 'Adequação à Squad: ramo lateral, só quando o resultado é Linha, opcional; não cadastra Squad', como.sq);
-  afirma(/as estruturas concretas são cadastradas em .*Estruturas/.test(como.mapa) && /O vínculo de cada item com a estrutura é registrado na ficha do Posicionamento/.test(como.mapa) &&
-    /O Mapa mostra as estruturas e os vínculos registrados/.test(como.mapa) && /uma Linha pode existir sem Squads cadastradas/.test(como.mapa),
+  afirma(/Descobre o que o item é · P1–P16/.test(como.nat) && /perguntas e regras em .*Questionários.* e .*Motores.*; nomes das classificações na .*Taxonomia/.test(como.nat), 'P1–P16: função antes da sigla; perguntas e regras (Questionários, Motores) e nomes das classificações (Taxonomia)', como.nat);
+  afirma(/Indica o tipo de estrutura que deve cuidar da responsabilidade: .*linha.*, .*area_especializada.* ou .*coe.* · O1–O9/i.test(como.pos) && /perguntas em .*Questionários.*; tipos de estrutura na .*Taxonomia.*Indica o tipo, mas não cria a estrutura/.test(como.pos), 'O1–O9: função antes da sigla; perguntas (Questionários) e tipos de estrutura (Taxonomia); indica o tipo, não cria estrutura', como.pos);
+  afirma(como.ramoSquad && /Opcional, só quando o tipo indicado é .*linha.*: avalia se o trabalho pode se organizar em Squads · S1–S8/i.test(como.sq) && /Motor de Squad/.test(como.sq) && /Não cadastra Squad/.test(como.sq), 'Adequação à Squad: ramo lateral, opcional, só quando o tipo é Linha; não cadastra Squad', como.sq);
+  afirma(/as estruturas são cadastradas em .*Estruturas/.test(como.mapa) && /A ligação de cada item a uma estrutura é registrada na ficha do Posicionamento/.test(como.mapa) &&
+    /Mostra as estruturas registradas e o que está ligado a cada uma/.test(como.mapa) && /Uma Linha pode não ter Squads/.test(como.mapa),
     'Mapa: estruturas cadastradas no ADMIN; vínculo na ficha do Posicionamento; o Mapa mostra o que está registrado', como.mapa);
-  afirma(/ou começar direto nele pelo Caminho 2/.test(como.conPos) && /pode ser ligada a uma estrutura concreta/.test(como.conMapa) && /ADMIN › Taxonomia.*admin geral/.test(como.rodape) && /ADMIN › Avaliação e Mapa/.test(como.rodape),
-    'conectores (Caminho 2 direto no Posicionamento; ligação possível a uma estrutura) e rodapé com quem mantém cada área');
+  afirma(como.conPos.indexOf('também começa direto por uma atuação (Caminho 2)') !== -1 && /pode ser ligada a uma estrutura real/.test(como.conMapa) && !como.rodape,
+    'conectores (Caminho 2 direto no Posicionamento; ligação possível a uma estrutura) e sem o rodapé repetido das áreas');
   afirma(como.links === '#avaliacoes?av=lista #avaliacoes?po=lista #avaliacoes?sq=lista #avaliacoes?mf=mapa', 'os quatro elementos levam às consultas de sempre', como.links);
   afirma(como.alturas.every((a) => a >= 44), 'áreas de toque das quatro atividades ≥ 44 px', como.alturas.join(','));
   afirma(como.marcas, 'a área se lê pela forma (◆/●) e pelo texto, não só pela cor');
@@ -284,6 +284,9 @@ async function rodada(browser, viewport, rotulo) {
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes'));
   await noInicio(page);
   const barra = () => page.evaluate(() => { const b = document.getElementById('adminVoltaInicio'); return !!b && !b.hidden && b.offsetParent !== null; });
+  /* o atalho só aparece quando o cadastro está habilitado (o marcador chega depois e o Início se redesenha): espera estabilizar */
+  await esperar(page, () => !!document.getElementById('avpComoIrEstruturas'), undefined, 15000);
+  await page.waitForTimeout(300);
   await page.click('#avpComoIrEstruturas');
   await esperar(page, () => location.hash.indexOf('#admin?arq=estruturas') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
   afirma(await barra() && /Voltar ao Início de Avaliações/.test(await texto(page, '#adminVoltaInicio')), 'atalho Estruturas: abre ADMIN › Estruturas com "← Voltar ao Início de Avaliações"');
@@ -314,7 +317,7 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Perfis');
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { email: AVAL }));
   await noInicio(page);
-  afirma(await page.locator('#avpInicioConsultar a.avp-como-fonte').count() === 0 && await page.locator('#avpInicioConsultar strong.avp-como-fonte').count() === 7 && /mantida pelo admin geral/.test(await texto(page, '#avpComoRodape')),
+  afirma(await page.locator('#avpInicioConsultar a.avp-como-fonte').count() === 0 && await page.locator('#avpInicioConsultar strong.avp-como-fonte').count() === 7,
     'perfil Avaliação (consulta): as áreas e quem as mantém, sem nenhum atalho para tela bloqueada');
   afirma(!(await visivel(page, '#avpInicioAtuacao')) && /perfil Avaliação \+ Configuração/.test(await texto(page, '#avpInicioAtuacaoPerfil')) && await visivel(page, '#avpInicioNatureza'),
     'perfil Avaliação: começa avaliação de natureza; a atuação explica quem inicia (sem botão)');

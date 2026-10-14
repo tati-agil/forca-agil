@@ -3383,7 +3383,6 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .avp-como-marca { font-size: .74rem; margin-right: 3px; }
 .avp-como-conector { position: relative; padding: 2px 0 2px 26px; font-size: .8rem; color: var(--ink-3); }
 .avp-como-conector::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; border-left: 2px dashed currentColor; }
-.avp-inicio .avp-como-rodape { display: flex; flex-wrap: wrap; gap: 2px 16px; margin: 10px 0 0; padding: 0 6px; font-size: .84rem; color: var(--ink-3); }
 @media (max-width: 640px) {
   .avp-como-cabecalho { display: none; }
   .avp-como-linha { grid-template-columns: minmax(0, 1fr); gap: 0; }
