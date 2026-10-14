@@ -4319,19 +4319,19 @@
     });
   }
 
+  /* O mesmo envio do "Esqueci minha senha" (faAuth.sendPasswordReset): link do Firebase em português, mensagens neutras
+     (a proteção contra enumeração não deixa saber se a conta existe) e falhas com a causa. Nunca senha temporária. */
   function handlePwdReset(email, name) {
-    adminConfirm('Enviar e-mail de redefinição de senha para ' + name + ' (' + email + ')?', function () {
-      firebase.auth().sendPasswordResetEmail(email)
-        .then(function () {
-          adminAlert('E-mail enviado para ' + email + '.\n' + name + ' receberá o link em alguns minutos para definir uma nova senha.');
-        })
-        .catch(function (err) {
-          if (err.code === 'auth/user-not-found') {
-            adminAlert(name + ' ainda não tem cadastro ativo. A pessoa precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
-          } else {
-            adminAlert('Erro ao enviar: ' + err.message);
-          }
-        });
+    adminConfirm('Enviar o link de redefinição de senha para ' + name + ' (' + email + ')?', function () {
+      if (!window.faAuth || !window.faAuth.sendPasswordReset) { adminAlert('Não foi possível enviar agora. Recarregue a página e tente de novo.'); return; }
+      window.faAuth.sendPasswordReset(email, function (r) {
+        if (r && r.success) {
+          adminAlert('Pedido de redefinição enviado para ' + email + '.\nSe houver conta com esse endereço, ' + name + ' recebe o link de ' + (window.faAuth.REMETENTE_RESET || 'noreply@kyber-agil.firebaseapp.com') +
+            ' em alguns minutos. Oriente a pessoa a verificar também a quarentena e o lixo eletrônico.');
+        } else {
+          adminAlert((r && r.error) || 'Não foi possível enviar agora. Tente de novo.');
+        }
+      });
     });
   }
 

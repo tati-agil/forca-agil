@@ -688,16 +688,43 @@
     });
   }
 
-  /* ---- Redefinição de senha ---- */
+  /* ---- Redefinição de senha ----
+     O Firebase envia um LINK para a própria pessoa criar a senha nova (nunca senha temporária). A proteção contra
+     enumeração do projeto está ligada: a resposta é a mesma para conta existente e inexistente, e a tela também nunca
+     distingue — "ok" quer dizer "pedido aceito", não "e-mail entregue". Falhas mostram a causa (rede, excesso de
+     tentativas, e-mail inválido) e o código; no console vai só o código, nunca o e-mail. Usada pelo login
+     ("Esqueci minha senha") e pelo ADMIN ("Redefinir senha"). */
+  var IDIOMA_EMAIL_SENHA = 'pt-BR', PRAZO_RESET_MS = 20000, VOLTA_RESET = 'https://kyber-agil.web.app/';
+  var REMETENTE_RESET = 'noreply@kyber-agil.firebaseapp.com';
+  var MSG_ERRO_RESET = {
+    'auth/network-request-failed': 'Sem conexão com o servidor. Verifique a rede e tente de novo.',
+    'auth/too-many-requests': 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.',
+    'auth/invalid-email': 'E-mail inválido.',
+    'auth/missing-email': 'E-mail inválido.'
+  };
+  function mensagemErroReset(code) {
+    return MSG_ERRO_RESET[code] || ('Não foi possível enviar agora. Tente de novo.' + (code ? ' (código: ' + code + ')' : ''));
+  }
+  /* depois de criar a senha, o link volta ao site — ao mesmo endereço quando ele é um domínio autorizado do projeto */
+  function voltaDoReset() {
+    var o = (window.location && window.location.origin) || '';
+    return /^https:\/\/kyber-agil[a-z0-9-]*\.(web\.app|firebaseapp\.com)$/.test(o) ? o + '/' : VOLTA_RESET;
+  }
   function sendPasswordReset(email, cb) {
     email = (email || '').trim().toLowerCase();
     if (!isPrevi(email)) return cb({ error: 'Use seu e-mail @previ.com.br.' });
-    firebase.auth().sendPasswordResetEmail(email)
-      .then(function () { cb({ success: true }); })
-      .catch(function (err) {
-        let msg = 'Erro ao enviar. Tente novamente.';
-        cb({ error: msg });
-      });
+    var auth = firebase.auth(), terminou = false;
+    try { auth.languageCode = IDIOMA_EMAIL_SENHA; } catch (e) { /* idioma é só preferência do e-mail */ }
+    function fim(r) { if (terminou) return; terminou = true; clearTimeout(prazo); cb(r); }
+    var prazo = setTimeout(function () { fim({ error: 'O servidor não respondeu a tempo. Verifique a rede e tente de novo.', code: 'sem-resposta' }); }, PRAZO_RESET_MS);
+    var p;
+    try { p = auth.sendPasswordResetEmail(email, { url: voltaDoReset() }); }
+    catch (e) { p = Promise.reject(e); }
+    Promise.resolve(p).then(function () { fim({ success: true }); }, function (err) {
+      var code = (err && err.code) || '';
+      try { console.warn('[faAuth] redefinição de senha não enviada:', code || 'sem código'); } catch (e) { /* sem console */ }
+      fim({ error: mensagemErroReset(code), code: code });
+    });
   }
 
   /* ---- Nav state ---- */
@@ -947,7 +974,7 @@
       sendPasswordReset(email, function (r) {
         btn.disabled = false; btn.textContent = 'Enviar link →';
         if (r.error) { err.textContent = r.error; err.hidden = false; }
-        else { ok.textContent = 'Se este e-mail estiver cadastrado, você receberá o link de redefinição em breve.'; ok.hidden = false; forgotForm.reset(); }
+        else { ok.textContent = 'Pedido enviado. Se houver uma conta com este e-mail, o link chega em alguns minutos, enviado por ' + REMETENTE_RESET + '. Não chegou? Verifique a quarentena e o lixo eletrônico, ou fale com a coordenação.'; ok.hidden = false; forgotForm.reset(); }
       });
     });
 
@@ -1049,7 +1076,7 @@
     corrigirEmailPorAdmin: corrigirEmailPorAdmin,
     getSession: getSession, isAdmin: isAdmin, isSuperAdmin: isSuperAdmin, isDiretor: isDiretor, isFacilitador: isFacilitador, isPrevi: isPrevi,
     register: register, login: login,
-    logout: logout, sendPasswordReset: sendPasswordReset,
+    logout: logout, sendPasswordReset: sendPasswordReset, REMETENTE_RESET: REMETENTE_RESET,
     getAccessLevel: getAccessLevel,
     criarContaPorAdmin: criarContaPorAdmin,
     resendVerification: resendVerification,

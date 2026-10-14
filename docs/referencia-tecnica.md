@@ -67,7 +67,7 @@ alguém precisa).
 | `forca-agil/turmas-util.js` | index.html | Utilitários de turma (datas, mês, pessoas por turma) usados por várias telas. |
 | `forca-agil/roteiro.js` | index.html | Roteiro de facilitação (base por evento + personalização por turma), sem rota própria; usado por ADMIN e `#facilitador` (`window.faRoteiro`). |
 | `forca-agil/router.js` | index.html | Roteador por hash e controle de acesso às rotas (`window.faRouter`). |
-| `forca-agil/auth.js` | index.html | Login, cadastro, sessão, níveis e perfis de acesso, menu (`window.faAuth`). |
+| `forca-agil/auth.js` | index.html | Login, cadastro, sessão, níveis e perfis de acesso, menu (`window.faAuth`). **Recuperação de senha** (`sendPasswordReset`, usada pelo "Esqueci minha senha" e pelo "Redefinir senha" do ADMIN): o Firebase envia um LINK (nunca senha temporária), com `languageCode = 'pt-BR'` e endereço de volta ao site; a proteção contra enumeração do projeto está ligada, então a mensagem é a mesma para conta existente e inexistente ("pedido enviado", não "e-mail entregue"), com o remetente `noreply@kyber-agil.firebaseapp.com` e a orientação de olhar a quarentena; falhas mostram a causa (rede, excesso de tentativas, e-mail inválido; outro código entre parênteses; sem resposta em 20 s → aviso); no console só o código, nunca o e-mail (`teste-recuperar-senha.js`). |
 | `forca-agil/stars.js` | index.html | Fundo animado. |
 | `forca-agil/app.js` | index.html | Início e Turmas: vitrine de eventos/turmas, interesse, lista de espera, abertura animada. |
 | `forca-agil/home-nav.js` | index.html | Navegação lateral do Início. |

@@ -432,7 +432,14 @@
           authCbs.forEach(function (cb) { cb(null); });
           return Promise.resolve();
         },
-        sendPasswordResetEmail: function () { return Promise.resolve(); },
+        /* CFG.resetFalha = 'auth/<código>' (rejeita) | 'sem-resposta' (nunca responde); CFG.__resets = os pedidos feitos */
+        sendPasswordResetEmail: function (email, settings) {
+          CFG.__resets = CFG.__resets || [];
+          CFG.__resets.push({ email: email, settings: settings || null, languageCode: this.languageCode || null });
+          if (CFG.resetFalha === 'sem-resposta') return new Promise(function () {});
+          if (CFG.resetFalha) { var e = new Error('falha simulada'); e.code = CFG.resetFalha; return Promise.reject(e); }
+          return Promise.resolve();
+        },
         createUserWithEmailAndPassword: function () { return Promise.resolve({ user: currentUser }); }
       };
     },
