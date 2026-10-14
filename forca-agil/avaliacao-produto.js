@@ -3315,29 +3315,56 @@
       avpInicioRegMapa: '#avaliacoes?mf=mapa'
     };
     var inicioOuveNomes = false;
-    /* O QUE SUSTENTA ESTE TRABALHO: as duas áreas do ADMIN, com as MESMAS funções das etiquetas das caixas acima (relações
-       verificadas no código: Taxonomia = definições, tipos/relações e ligações; Avaliação e Mapa = critérios e perguntas, e o
-       cadastro das estruturas). O vínculo item × estrutura NÃO é do ADMIN: fica na ficha do Posicionamento. Acessos só para
-       quem entra naquela área (nenhum link leva a tela bloqueada); para os demais, só quem mantém. Não são etapas. */
-    function sustentaHtml() {
-      var A = window.faAuth, arq = !!(A && A.podeArquitetura && A.podeArquitetura()), geral = souAdminGeral();
-      function ir(texto, destino, aba, id) { return '<a class="avp-sustenta-link" id="' + id + '" href="' + destino + '" data-admin-destino="' + destino + '"' + (aba ? ' data-admin-aba="' + aba + '"' : '') + '>' + texto + ' ›</a>'; }
-      return '<section class="avp-sustenta" id="avpSustenta" aria-labelledby="avpSustentaTitulo"><h3 id="avpSustentaTitulo">O que sustenta este trabalho</h3>' +
-        '<p class="avp-sustenta-sub">Definido no ADMIN e usado pelas atividades acima (as etiquetas ◆ e ●). Não são etapas.</p><div class="avp-sustenta-areas">' +
-        '<div class="avp-sustenta-area avp-sustenta-area--tax" id="avpSustentaTaxonomia"><h4><span aria-hidden="true">◆</span> ADMIN › Taxonomia</h4>' +
-        '<p class="avp-sustenta-quem">Mantida pelo admin geral</p><ul>' +
-        '<li><strong>Definições</strong> — nomes e definições oficiais usados nas avaliações, no Posicionamento e no Mapa.</li>' +
-        '<li><strong>Tipos e relações</strong> — o que pode ser cadastrado e composto como estrutura.</li>' +
-        '<li><strong>Ligações</strong> — ligam cada código dos motores ao seu conceito.</li></ul>' +
-        (geral ? '<p class="avp-sustenta-acoes">' + ir('Abrir a Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpSustentaIrTaxonomia') + '</p>' : '') + '</div>' +
-        '<div class="avp-sustenta-area avp-sustenta-area--adm" id="avpSustentaAdmin"><h4><span aria-hidden="true">●</span> ADMIN › Avaliação e Mapa</h4>' +
-        '<p class="avp-sustenta-quem">Admin geral e Avaliação + Configuração</p><ul>' +
-        '<li><strong>Critérios e perguntas</strong> (Configuração) — questionários de P1–P16, O1–O9 e S1–S8 e motores.' +
-        (arq ? ' <span class="avp-sustenta-acoes">' + ir('Questionários', '#admin?arq=questionarios', null, 'avpSustentaIrQuestionarios') + ir('Motores', '#admin?arq=motores', null, 'avpSustentaIrMotores') + '</span>' : '') + '</li>' +
-        '<li><strong>Estruturas</strong> (Cadastro) — Linhas, Áreas Especializadas e CoEs, e sua organização no Mapa.' +
-        (arq ? ' <span class="avp-sustenta-acoes">' + ir('Estruturas', '#admin?arq=estruturas', null, 'avpSustentaIrEstruturas') + '</span>' : '') + '</li></ul>' +
-        '<p class="avp-sustenta-nota" id="avpSustentaVinculo">O vínculo de cada item com uma estrutura fica na ficha do Posicionamento, não aqui.</p></div>' +
-        '</div></section>';
+    /* COMO O SISTEMA FUNCIONA — um bloco só: cada atividade numa linha, de um lado o que ela é (o link para a lista,
+       área Avaliação: realizar e consultar), do outro o que a sustenta e de onde vem (ADMIN: configurar e governar), em
+       frase simples. Relações verificadas no código: P1–P16 usa Questionários e Motores (perguntas e regras) e os nomes
+       das classificações (Taxonomia); O1–O9 usa o texto das perguntas (Questionários; a regra é fixa no código) e os tipos
+       de estrutura (Taxonomia); S1–S8 usa o Motor de Squad e só cabe no resultado Linha (ramo lateral, opcional); o Mapa
+       mostra as estruturas cadastradas no ADMIN (Estruturas) e os vínculos registrados na ficha do Posicionamento. As
+       ligações são possibilidades, nunca etapas. Os nomes das áreas do ADMIN viram atalhos SÓ para quem entra nelas
+       (Taxonomia: admin geral; Questionários, Motores, Motor de Squad e Estruturas: admin geral e Avaliação +
+       Configuração; Estruturas só com o cadastro habilitado); para os demais, o mesmo nome sem link. */
+    function comoFuncionaHtml() {
+      var A = window.faAuth, arq = !!(A && A.podeArquitetura && A.podeArquitetura()), geral = souAdminGeral(), cadastro = arq && estruturasDisponiveis();
+      var P = window.faPosicionamentos;
+      function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
+      function ramo(c) { return P ? P.spanNome(c, 'avp-como-ramo') : ({ LINHA: 'Linha', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência' })[c]; }
+      /* nome de uma área do ADMIN: atalho para quem entra, negrito para quem não entra; ◆ Taxonomia, ● Avaliação e Mapa (forma e texto; a cor só reforça) */
+      function fonte(texto, destino, aba, id, pode, area) {
+        var marca = '<span class="avp-como-marca" aria-hidden="true">' + (area === 'tax' ? '◆' : '●') + '</span>';
+        if (!pode) return '<strong class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '">' + marca + texto + '</strong>';
+        return '<a class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '" id="' + id + '" href="' + destino + '" data-admin-destino="' + destino + '"' + (aba ? ' data-admin-aba="' + aba + '"' : '') + '>' + marca + texto + '</a>';
+      }
+      function trab(id, titulo, detalhe) {
+        return link(id, 'avp-como-link', '<span class="avp-como-titulo">' + titulo + '</span><span class="avp-como-detalhe">' + detalhe + '</span><span class="avp-inicio-abrir" aria-hidden="true">›</span>');
+      }
+      function linha(id, linkTrab, usa, extra) {
+        return '<li class="avp-como-linha' + (extra || '') + '" id="' + id + '"><div class="avp-como-trab">' + linkTrab + '</div>' +
+          '<p class="avp-como-usa"><span class="avp-como-rot">No ADMIN:</span> ' + usa + '</p></li>';
+      }
+      var conector = function (id, texto) { return '<li class="avp-como-conector" id="' + id + '">' + texto + '</li>'; };
+      return '<section class="avp-como" id="avpInicioConsultar" aria-labelledby="avpComoTitulo"><h3 id="avpComoTitulo">Como o sistema funciona</h3>' +
+        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Junto de cada uma, o que a sustenta no ADMIN. As ligações entre elas são possibilidades, não etapas obrigatórias.</p>' +
+        '<div class="avp-como-cabecalho" aria-hidden="true"><span>Realizar e consultar (Avaliação)</span><span>Configurar e governar (ADMIN)</span></div>' +
+        '<ol class="avp-como-lista" id="avpComoFunciona">' +
+        linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'P1–P16 · O que é o item?'),
+          'perguntas e regras em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios', arq, 'adm') + ' e ' +
+          fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + '; nomes oficiais das classificações na ' +
+          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax') + '.') +
+        conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento · ou começar direto nele pelo Caminho 2 (atuação)') +
+        linha('avpComoPosicionamento', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'O1–O9 · Que tipo de estrutura deve assumir a responsabilidade? Resultado: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + '.'),
+          'texto das perguntas em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios2', arq, 'adm') + '; tipos de estrutura, com nomes e definições oficiais, na ' +
+          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax') + '. Recomenda um tipo; não cria a estrutura.') +
+        linha('avpComoSquad', trab('avpInicioRegSquad', 'Adequação à Squad', 'S1–S8 · possibilidade só quando o resultado é ' + ramo('LINHA') + ' · opcional'),
+          'regras no ' + fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Avalia o trabalho; não cadastra Squad.', ' avp-como-linha--ramo') +
+        conector('avpComoConectorMapa', 'a responsabilidade pode ser ligada a uma estrutura concreta') +
+        linha('avpComoMapa', trab('avpInicioRegMapa', 'Mapa da Floresta', 'Estruturas e vínculos registrados'),
+          'as estruturas concretas são cadastradas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
+          '. O vínculo de cada item com a estrutura é registrado na ficha do Posicionamento (área Avaliação). O Mapa mostra as estruturas e os vínculos registrados; uma Linha pode existir sem Squads cadastradas.') +
+        '</ol>' +
+        '<p class="avp-como-rodape" id="avpComoRodape"><span><span aria-hidden="true">◆</span> <strong>ADMIN › Taxonomia</strong>: mantida pelo admin geral.</span> ' +
+        '<span><span aria-hidden="true">●</span> <strong>ADMIN › Avaliação e Mapa</strong>: admin geral e Avaliação + Configuração.</span></p>' +
+        (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') + '</section>';
     }
     /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço
        próprio, em faAbaAdmin): o ADMIN mostra "← Voltar ao Início de Avaliações" só nas entradas marcadas — quem entra no
@@ -3349,25 +3376,11 @@
       history.replaceState(st, '', location.href);
       if (window.faAdminAtualizarVoltaInicio) window.faAdminAtualizarVoltaInicio();
     }
+    if (modo === 'operacional') window.addEventListener('fa-estruturas-habilitacao', function () { if (state.tela === 'inicio' && !wrap.hidden) render(); });
     function podeIniciarPosicionamento() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
     function renderInicio() {
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
-      /* uma caixa da representação das relações: o link para a consulta de sempre (título, pergunta, sigla) */
-      /* etiqueta "função: área do ADMIN" — o que a caixa usa de cada área (verificado no código). A área se lê pelo texto e
-         pela forma (◆ Taxonomia, ● Avaliação e Mapa); a cor só reforça. */
-      function etiqueta(area, texto) {
-        return '<span class="avp-rel-tag avp-rel-tag--' + area + '" data-area="' + area + '"><span class="avp-rel-tag-marca" aria-hidden="true">' + (area === 'tax' ? '◆' : '●') + '</span>' + texto + '</span>';
-      }
-      function caixa(id, titulo, pergunta, sigla, nota, tags) {
-        return link(id, 'avp-rel-link', '<span class="avp-rel-titulo">' + titulo + '</span>' + (pergunta ? '<span class="avp-rel-pergunta">' + pergunta + '</span>' : '') +
-          '<span class="avp-rel-sigla">' + sigla + '</span>' + (nota ? '<span class="avp-rel-nota">' + nota + '</span>' : '') +
-          (tags ? '<span class="avp-rel-tags">' + tags + '</span>' : '') + '<span class="avp-inicio-abrir" aria-hidden="true">›</span>');
-      }
-      var TAG_DEF = etiqueta('tax', 'Definições: Taxonomia'), TAG_CRIT = etiqueta('adm', 'Critérios: Configuração'),
-        TAG_PERG = etiqueta('adm', 'Perguntas: Configuração'), TAG_EST = etiqueta('adm', 'Estruturas: Cadastro');
-      /* os três resultados do Posicionamento: nomes da Taxonomia Organizacional (fonte única), sem definição */
       var P = window.faPosicionamentos;
-      function ramo(c) { return P ? P.spanNome(c, 'avp-rel-ramo-nome') : ({ LINHA: 'Linha', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência' })[c]; }
       var h = '<div class="avp-inicio" id="avpInicio"><h2 class="avp-inicio-titulo">O que você precisa fazer?</h2>' +
         '<section class="avp-inicio-principal" id="avpInicioContinuar" aria-labelledby="avpInicioContinuarTitulo">' +
         '<h3 id="avpInicioContinuarTitulo">Continuar ou consultar um trabalho</h3>' +
@@ -3387,32 +3400,7 @@
           : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As atuações já posicionadas aparecem na Jornada.</p>') +
         '</div></div>' +
         '<p class="avp-inicio-nota" id="avpInicioNota">Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +
-        /* Consultar registros completos — COMO OS ASSUNTOS SE RELACIONAM: o caminho principal tem três caixas
-           (Produto/Serviço → Posicionamento → Mapa), ligadas por possibilidades (tracejado), nunca etapas obrigatórias.
-           A Adequação à Squad é um RAMO lateral, só do resultado Linha (regra fixa Linha × Squad do motor), dentro da
-           caixa do Posicionamento: o caminho para o Mapa sai do Posicionamento e não passa por ela. O Mapa mostra o que
-           está CADASTRADO (estruturas e vínculos registrados), não uma consequência do O1–O9. Nada é afirmado como
-           cadastrado (Squads, vínculos) — só possibilidades. */
-        '<section class="avp-inicio-consultar" id="avpInicioConsultar" aria-labelledby="avpInicioConsultarTitulo"><h3 id="avpInicioConsultarTitulo">Consultar registros completos</h3>' +
-        '<p class="avp-rel-subtitulo">Como os assuntos se relacionam</p>' +
-        '<ol class="avp-rel" id="avpRelacoes" aria-describedby="avpRelLegenda">' +
-        '<li class="avp-rel-no" id="avpRelNatureza">' + caixa('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'O que é o item?', 'P1–P16', '', TAG_DEF + TAG_CRIT) + '</li>' +
-        '<li class="avp-rel-no" id="avpRelPosicionamento"><p class="avp-rel-seta" id="avpRelSetaPosicionamento">pode seguir<span class="avp-rel-seta-alt"> · ou direto pelo Caminho 2 (atuação), sem P1–P16</span></p>' +
-        '<div class="avp-rel-caixa">' + caixa('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Que tipo de estrutura deve assumir a responsabilidade?', 'O1–O9', '', TAG_DEF + TAG_PERG) +
-        '<p class="avp-rel-resultado-rotulo" id="avpRelResultadoRotulo">Resultado:</p>' +
-        '<ul class="avp-rel-ramos" aria-labelledby="avpRelResultadoRotulo">' +
-        '<li class="avp-rel-ramo" data-ramo="LINHA">' + ramo('LINHA') + '</li>' +
-        '<li class="avp-rel-ramo" data-ramo="AREA_ESPECIALIZADA">' + ramo('AREA_ESPECIALIZADA') + '</li>' +
-        '<li class="avp-rel-ramo" data-ramo="COE">' + ramo('COE') + '</li></ul>' +
-        '<div class="avp-rel-squad" id="avpRelSquad" data-ramo="LINHA"><p class="avp-rel-seta avp-rel-seta--ramo">só se o resultado for ' + ramo('LINHA') + ' · opcional</p>' +
-        caixa('avpInicioRegSquad', 'Adequação à Squad', '', 'S1–S8', 'Avalia o trabalho; não cadastra Squad', TAG_CRIT) + '</div>' +
-        '</div></li>' +
-        '<li class="avp-rel-no" id="avpRelMapa"><p class="avp-rel-seta" id="avpRelSetaMapa">vínculo registrado com uma estrutura concreta<span class="avp-rel-seta-alt"> (na ficha do Posicionamento)</span></p>' +
-        caixa('avpInicioRegMapa', 'Mapa da Floresta', 'Estruturas concretas cadastradas e vínculos registrados', '', 'Uma Linha pode existir sem Squads cadastradas', TAG_EST + TAG_DEF) + '</li>' +
-        '</ol>' +
-        '<p class="avp-rel-legenda" id="avpRelLegenda"><span class="avp-rel-legenda-traco" aria-hidden="true"></span> possibilidade, não etapa obrigatória</p>' +
-        (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') +
-        '</section>' + sustentaHtml() + '</div>';
+        comoFuncionaHtml() + '</div>';
       wrap.innerHTML = h;
       Array.prototype.forEach.call(wrap.querySelectorAll('[data-admin-destino]'), function (el) {
         el.addEventListener('click', function (ev) {

@@ -3344,45 +3344,6 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
   .avp-inicio-acao, .avp-inicio-cartao .avp-inicio-acao { width: 100%; align-self: stretch; }
 }
 
-/* Início › Consultar registros: como os assuntos se relacionam. Caminho principal = Produto/Serviço → Posicionamento →
-   Mapa (possibilidades, tracejado); a Adequação à Squad é ramo lateral do resultado Linha, dentro do Posicionamento. */
-.avp-inicio .avp-rel-subtitulo { margin: -4px 0 10px; font-size: .9rem; color: var(--ink-3); }
-.avp-rel { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); gap: 0; align-items: start; }
-.avp-rel-no { display: flex; align-items: flex-start; min-width: 0; }
-.avp-rel-caixa, .avp-rel-no > .avp-rel-link { flex: 1 1 auto; min-width: 0; }
-.avp-rel-caixa { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; padding: 0 0 10px; }
-.avp-rel-no > .avp-rel-link { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; }
-.avp-rel-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; min-height: 44px; padding: 10px 12px; color: inherit; text-decoration: none; border-radius: 10px; }
-.avp-rel-link:hover { background: rgba(127, 127, 127, .08); }
-.avp-rel-link:focus-visible { outline: 3px solid var(--accent, #2a6fdb); outline-offset: 2px; }
-.avp-rel-link > span:not(.avp-inicio-abrir) { grid-column: 1; overflow-wrap: anywhere; }
-.avp-rel-link .avp-inicio-abrir { grid-column: 2; grid-row: 1 / span 4; align-self: center; font-size: 1.4rem; opacity: .6; }
-.avp-rel-titulo { font-weight: 600; }
-.avp-rel-pergunta { font-size: .88rem; }
-.avp-rel-sigla { font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); }
-.avp-rel-nota { font-size: .82rem; color: var(--ink-3); }
-.avp-inicio .avp-rel-seta { flex: 0 0 104px; margin: 0; padding: 18px 8px 0; font-size: .74rem; line-height: 1.25; color: var(--ink-3); text-align: center; position: relative; }
-.avp-rel-seta::before { content: ''; display: block; border-top: 2px dashed currentColor; margin: 0 4px 6px; }
-.avp-rel-seta::after { content: '▸'; position: absolute; right: 2px; top: 8px; font-size: .9rem; }
-.avp-rel-seta-alt { display: block; margin-top: 4px; }
-.avp-inicio .avp-rel-resultado-rotulo { margin: 4px 12px 4px; font-size: .78rem; color: var(--ink-3); }
-.avp-rel-ramos { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 12px; padding: 0; }
-.avp-rel-ramo { border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px 10px; font-size: .82rem; }
-.avp-rel-squad { margin: 8px 12px 0 22px; padding-left: 12px; border-left: 2px dashed var(--line-strong); }
-.avp-inicio .avp-rel-seta--ramo { flex: none; padding: 0 0 4px; text-align: left; }
-.avp-rel-seta--ramo::before, .avp-rel-seta--ramo::after { display: none; }
-.avp-rel-squad .avp-rel-link { border: 1px dashed var(--line-strong); }
-.avp-inicio .avp-rel-legenda { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: .8rem; color: var(--ink-3); }
-.avp-rel-legenda-traco { display: inline-block; width: 28px; border-top: 2px dashed currentColor; }
-@media (max-width: 760px) {
-  .avp-rel { grid-template-columns: minmax(0, 1fr); }
-  .avp-rel-no { flex-direction: column; align-items: stretch; }
-  .avp-inicio .avp-rel-seta { flex: none; padding: 6px 0 6px 26px; text-align: left; min-height: 30px; }
-  .avp-rel-seta::before { position: absolute; left: 12px; top: 0; bottom: 0; border-top: 0; border-left: 2px dashed currentColor; margin: 0; }
-  .avp-rel-seta::after { content: '▾'; left: 7px; right: auto; top: auto; bottom: -6px; }
-  .avp-inicio .avp-rel-seta--ramo { padding: 0 0 4px; }
-  .avp-rel-seta--ramo::before, .avp-rel-seta--ramo::after { display: none; }
-}
 
 /* I1 — integração entre as áreas: caminhos de entrada, "Quem sustenta", onde aparece (ADMIN), o que falta (Jornada) */
 .avp-inicio .avp-inicio-caminho { margin: 0 0 2px; font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
@@ -3395,33 +3356,38 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .est-tax-aviso { margin: 4px 0; }
 @media (max-width: 640px) { .mf-falta > div { grid-template-columns: minmax(0, 1fr); } }
 
-/* Início › O que sustenta este trabalho: etiquetas "função: área" nas caixas (◆ Taxonomia, ● Avaliação e Mapa — forma e
-   texto, a cor só reforça) e as duas áreas do ADMIN, com os acessos do perfil */
-.avp-rel-tags { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
-.avp-rel-tag { display: inline-flex; align-items: center; gap: 4px; font-size: .74rem; line-height: 1.3; padding: 1px 8px; border-radius: 999px; border: 1px solid; }
-.avp-rel-tag-marca { font-size: .7rem; }
-.avp-rel-tag--tax, .avp-sustenta-area--tax h4 { color: #b9a7f5; }
-.avp-rel-tag--tax { border-color: rgba(185, 167, 245, .45); background: rgba(185, 167, 245, .08); }
-.avp-rel-tag--adm, .avp-sustenta-area--adm h4 { color: #7fd3c7; }
-.avp-rel-tag--adm { border-color: rgba(127, 211, 199, .45); background: rgba(127, 211, 199, .08); }
-.avp-inicio .avp-sustenta { margin-top: 18px; padding-top: 0; border-top: 0; }
-.avp-inicio .avp-sustenta h3 { margin: 0 0 2px; }
-.avp-inicio .avp-sustenta-sub { margin: 0 0 10px; font-size: .86rem; color: var(--ink-3); }
-.avp-sustenta-areas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.avp-sustenta-area { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; }
-.avp-sustenta-area--tax { border-left: 3px solid rgba(185, 167, 245, .7); }
-.avp-sustenta-area--adm { border-left: 3px solid rgba(127, 211, 199, .7); }
-.avp-inicio .avp-sustenta-area h4 { margin: 0; font-size: .95rem; }
-.avp-inicio .avp-sustenta-quem { margin: 0 0 6px; font-size: .78rem; color: var(--ink-3); }
-.avp-sustenta-area ul { margin: 0; padding-left: 18px; }
-.avp-sustenta-area li { font-size: .86rem; margin-bottom: 4px; overflow-wrap: anywhere; }
-.avp-inicio .avp-sustenta-acoes { margin: 4px 0 0; }
-.avp-sustenta-acoes { display: flex; flex-wrap: wrap; gap: 0 14px; }
-.avp-sustenta-link { display: inline-flex; align-items: center; min-height: 44px; font-size: .86rem; font-weight: 600; color: var(--accent); text-decoration: none; }
-.avp-sustenta-link:hover, .avp-sustenta-link:focus-visible { text-decoration: underline; }
-.avp-inicio .avp-sustenta-nota { margin: 4px 0 0; font-size: .8rem; color: var(--ink-3); }
 .admin-volta-inicio { margin: 0 0 8px; }
 .admin-volta-inicio a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); text-decoration: none; font-weight: 600; }
+
+/* Início › Como o sistema funciona: cada atividade (Avaliação: realizar e consultar) com o que a sustenta (ADMIN:
+   configurar e governar). ◆ Taxonomia, ● Avaliação e Mapa — forma e texto; a cor só reforça. Ligações tracejadas =
+   possibilidades, nunca etapas; a Squad é ramo lateral recuado do Posicionamento. */
+.avp-inicio .avp-como-sub { margin: -4px 0 10px; font-size: .9rem; color: var(--ink-3); }
+.avp-como-cabecalho { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 18px; font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); padding: 0 6px 4px; }
+.avp-como-lista { list-style: none; margin: 0; padding: 0; }
+.avp-como-linha { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 4px 18px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+.avp-como-linha--ramo { margin-left: 22px; padding-left: 12px; border-top: 0; border-left: 2px dashed var(--line-strong); }
+.avp-como-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; min-height: 44px; color: inherit; text-decoration: none; border-radius: 8px; padding: 4px 6px; }
+.avp-como-link:hover { background: rgba(127, 127, 127, .08); }
+.avp-como-link:focus-visible { outline: 3px solid var(--accent, #2a6fdb); outline-offset: 2px; }
+.avp-como-titulo { font-weight: 600; grid-column: 1; }
+.avp-como-detalhe { grid-column: 1; font-size: .86rem; color: var(--ink-3); overflow-wrap: anywhere; }
+.avp-como-link .avp-inicio-abrir { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 1.3rem; opacity: .6; }
+.avp-inicio .avp-como-usa { margin: 0; padding: 4px 6px 0; font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; }
+.avp-como-rot { display: none; font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.avp-como-fonte { font-weight: 600; white-space: nowrap; }
+.avp-como-fonte--tax { color: #b9a7f5; }
+.avp-como-fonte--adm { color: #7fd3c7; }
+a.avp-como-fonte { text-decoration: underline; text-underline-offset: 3px; }
+a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.avp-como-marca { font-size: .74rem; margin-right: 3px; }
+.avp-como-conector { position: relative; padding: 2px 0 2px 26px; font-size: .8rem; color: var(--ink-3); }
+.avp-como-conector::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; border-left: 2px dashed currentColor; }
+.avp-inicio .avp-como-rodape { display: flex; flex-wrap: wrap; gap: 2px 16px; margin: 10px 0 0; padding: 0 6px; font-size: .84rem; color: var(--ink-3); }
 @media (max-width: 640px) {
-  .avp-sustenta-areas { grid-template-columns: minmax(0, 1fr); }
+  .avp-como-cabecalho { display: none; }
+  .avp-como-linha { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .avp-como-linha--ramo { margin-left: 10px; }
+  .avp-como-rot { display: inline; }
+  a.avp-como-fonte { display: inline-block; padding: 5px 0; }
 }
