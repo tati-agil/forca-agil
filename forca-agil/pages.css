@@ -154,6 +154,12 @@
    o que vem depois é leitura, não uma ação a ser descoberta. */
 #page-ajuda .page-hero { padding-top: calc(var(--nav-h, 72px) + 20px); padding-bottom: 20px; }
 #page-ajuda .page-hero + .section { padding-top: 24px; }
+/* Avaliações: mesma lógica da Ajuda — o Início é uma página de AÇÕES (Jornada, Caminho 1, Caminho 2). O cabeçalho grande
+   empurrava a primeira ação para baixo da dobra no celular e em zoom ampliado; aqui ele encolhe e escala com a tela. */
+#page-avaliacoes .page-hero { padding-top: calc(var(--nav-h, 72px) + 20px); padding-bottom: 16px; }
+#page-avaliacoes .page-hero .eyebrow { margin-bottom: 6px; }
+#page-avaliacoes .page-hero h1 { font-size: clamp(1.7rem, 3.2vw + .6rem, 2.8rem); margin-bottom: 8px; }
+#page-avaliacoes .page-hero + .section { padding-top: 16px; }
 
 .page-hero .eyebrow { justify-content: center; margin-bottom: 12px; }
 .page-hero h1 { font-family: var(--font-display); font-size: clamp(2rem,6vw,4rem); color: var(--ink); margin: 0 0 16px; }
