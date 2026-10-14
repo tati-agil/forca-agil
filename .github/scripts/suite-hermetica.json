@@ -638,6 +638,12 @@
       "sobre": "O Hosting não publica backend/ e o deploy da main continua só hosting + database; nenhum arquivo do site cita o backend ou a API local, nem a CSP a libera; o backend carrega forca-agil/estruturas-nucleo.js sem cópia e a imagem leva o mesmo arquivo; .env e compose.override.yaml não são versionados, o compose exige a senha do .env, o PostgreSQL não publica porta e a API só escuta na própria máquina; o CI do backend é isolado (só backend/ e o núcleo, sem segredos, sem Firebase)."
     },
     {
+      "arquivo": ".github/scripts/teste-analises-organizacionais-tela.js",
+      "nome": "Porta 2 · Análise Organizacional: a jornada na tela — marcador, jornadas A/B/C, perfis, 375 px",
+      "duracao": 120,
+      "sobre": "Marcador de homologação (ausente = DESLIGADO, a Porta 2 fica como era; SOMENTE_ADMIN_GERAL; o admin geral muda no ADMIN com motivo e auditoria). Jornada B: uma pergunta por vez com o porquê, comparação pelos sete critérios, delimitação, fatos descritivos, atuação criada e O1–O9 respondido na tela do Posicionamento, situação formal, proposta pendente, ficha da estrutura, Jornada, histórico, Excel, F5. Jornada A: regressão políticas de SI × diretrizes contratuais (nunca juntadas sem comparação), aprovação como referência a ato externo só pelo admin geral. Jornada C: capacidade distribuída, referência sem trocar a origem, nenhuma estrutura Segurança. Perfil de consulta sem formulários; 375 px sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-analises-organizacionais-nucleo.js",
       "nome": "Porta 2 · Análise Organizacional: núcleo puro, em memória (sem navegador, sem Firebase)",
       "duracao": 1,

@@ -419,6 +419,14 @@
           '<a class="btn btn--sm est-abrir-po" href="#avaliacoes?po=' + encodeURIComponent((x.p && x.p.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
       }).join('') + '</ul></section>';
     }
+    /* Análise Organizacional (N4): o que a estrutura exerce SEGUNDO AS ANÁLISES — descritivo, com fonte, caráter e data;
+       nunca vínculo (só aparece quando o marcador de homologação libera a leitura) */
+    function exercidasHtml(e) {
+      var A = window.faAnalisesOrganizacionais;
+      if (!A || !A.exercidasHtml) return '';
+      if (!exercidasHtml.ligado) { exercidasHtml.ligado = true; A.ligar(); A.aoMudar(function () { if (st.vista === 'detalhe') render(); }); }
+      return A.exercidasHtml(e.id);
+    }
     function fichaHtml(e) {
       var linha = natureza(e.tipo) === 'Linha';
       return '<div class="est-ficha" id="estFicha">' +
@@ -476,7 +484,7 @@
       if (st.flash) h += '<div class="avp-flash-success est-flash" id="estFlash" role="status" tabindex="-1"><p>' + esc(st.flash.texto) + '</p>' +
         '<div class="est-flash-acoes">' + (!st.flash.encerrada ? '<a class="btn btn--sm btn--primary" id="estFlashMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Localizar esta estrutura no Mapa</a>' : '') +
         (st.flash.nova && podeManter() ? '<button type="button" class="btn btn--sm" id="estFlashOutra">Cadastrar outra</button>' : '') + '</div></div>';
-      h += fichaHtml(e) + produtosHtml(e) + relacoesHtml(e) + associacaoHtml(e);
+      h += fichaHtml(e) + produtosHtml(e) + exercidasHtml(e) + relacoesHtml(e) + associacaoHtml(e);
       h += '<div class="est-acoes">';
       if (e.situacao === 'ativa') h += '<a class="btn" id="estVerNoMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Localizar esta estrutura no Mapa</a>';
       if (e.situacao === 'ativa' && podeManter()) h += '<button type="button" class="btn" id="estEditar">Editar</button><button type="button" class="btn btn--danger" id="estEncerrar">Encerrar</button>';
