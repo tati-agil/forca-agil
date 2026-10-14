@@ -31,6 +31,7 @@
  *   novos; a Trilha antiga mantém, byte a byte, os textos da época.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { abrirRecolhidas } = require('./abrir-recolhidas');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -218,6 +219,8 @@ async function abrirApp(browser, viewport) {
   const erros = [];
   page.on('pageerror', (e) => { erros.push(String(e)); console.log('[PAGEERROR]', String(e)); });
   await ctx.addInitScript('window.__CFG = ' + JSON.stringify(cfg) + ';');
+  /* seções recolhidas do ADMIN (governança da v2, correções editoriais, redação da v2): abertas como a pessoa faria */
+  await ctx.addInitScript(abrirRecolhidas(['details.avp-config-sub']));
   await ctx.addInitScript(`
     window.__pdfs = [];
     new MutationObserver(function (ms) {

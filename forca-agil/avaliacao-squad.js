@@ -1542,11 +1542,11 @@
     function renderMotorPainel() {
       var c = state.motorConfig;
       var sit = window.faMotorSquad.situacao();
-      var html = '<div class="avp-form-card"><h3>Motor de Interpretação da Adequação à Squad</h3>';
-      html += '<p class="avp-decisao-aviso">Interpreta as respostas S1-S8 por condições lógicas e precedência — nunca por soma de respostas SIM, pontuação ou percentual. ' +
+      /* cabeçalho no mesmo padrão de Configuração dos Motores e de Questionários: título, para que serve, versão · situação */
+      var html = '<div class="avp-form-card"><h3>⚙ Motor de Squad <span class="avp-config-sigla">S1–S8</span></h3>';
+      html += '<p class="avp-decisao-aviso">Interpreta as respostas da Adequação à Squad (S1–S8) por condições lógicas e precedência — nunca por soma de respostas SIM, pontuação ou percentual. ' +
         'Totalmente independente do motor de classificação arquitetural.</p>';
-      html += '<p>Versão de regras publicada: <strong>' + esc(sit.versaoPublicada) + '</strong></p>';
-      html += '<p>Situação: ' + (sit.temRascunho ? '<strong>há um rascunho de regras não publicado</strong>' : 'sem alterações pendentes') + '</p>';
+      html += '<p>Versão de regras publicada: <strong>' + esc(sit.versaoPublicada) + '</strong> · Situação: ' + (sit.temRascunho ? '<strong>há um rascunho de regras não publicado</strong>' : 'sem alterações pendentes') + '</p>';
       html += '<p>Última publicação: ' + (sit.ultimaAlteracaoEm ? esc(fmtData(sit.ultimaAlteracaoEm)) + (sit.ultimaAlteracaoPor ? ' · ' + esc(sit.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica)') + '</p>';
       html += '</div>';
       if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';

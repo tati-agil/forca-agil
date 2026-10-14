@@ -20,6 +20,7 @@
  * Banco falso em persistenciaReal (grava/lê como o Firebase de verdade).
  * Hermético: sem rede, sem segredo. Desktop e celular (375 px). */
 const { chromium } = require('playwright');
+const { abrirRecolhidas } = require('./abrir-recolhidas');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -116,6 +117,8 @@ async function abrirApp(browser, extra, viewport) {
   const erros = [];
   page.on('pageerror', (e) => { erros.push(String(e)); console.log('[PAGEERROR]', String(e)); });
   await ctx.addInitScript('window.__CFG = ' + JSON.stringify(cfg) + ';');
+  /* seções recolhidas do ADMIN (governança da v2, correções editoriais, redação da v2): abertas como a pessoa faria */
+  await ctx.addInitScript(abrirRecolhidas(['details.avp-config-sub']));
   /* captura o HTML do PDF no instante em que é montado (o PDF em si é imagem) */
   await ctx.addInitScript(`
     window.__pdfs = [];

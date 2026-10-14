@@ -15,7 +15,11 @@
     /* A Taxonomia carrega ao abrir a aba — por QUALQUER caminho: clique na aba, atalho do Início de Avaliações, link do
        Manual, F5 (faAdminAbrirAba). Antes só o clique carregava, e os outros caminhos ficavam em "Carregando a Taxonomia…".
        Abrir de novo não relê nada: abrir() só lê o que está ocioso ou com erro. */
-    if (target === 'adminPanelTaxonomia' && window.faTaxonomia && window.faTaxonomia.abrir) window.faTaxonomia.abrir();
+    if (target === 'adminPanelTaxonomia' && window.faTaxonomia && window.faTaxonomia.abrir) {
+      /* vinda do Início de Avaliações: abre no domínio da atividade de origem (arquitetural/organizacional) */
+      var m = marcaVoltaInicio();
+      window.faTaxonomia.abrir(m && m.faTaxDominio ? { dominio: m.faTaxDominio, pedido: m.faTaxPedido || 0 } : undefined);
+    }
   }
 
   /* O Manual (manual.js) é documentação para a administradora: só é baixado na primeira vez que
@@ -63,7 +67,8 @@
 
   /* Entrada no ADMIN por um atalho do Início de Avaliações (avaliacao-produto.js marca a entrada do histórico com
      faVoltaInicio e, para a aba sem endereço próprio, faAbaAdmin): mostra "← Voltar ao Início de Avaliações" e reabre a aba
-     (F5, Voltar/Avançar). Sem a marca — quem entra no ADMIN direto —, nada aparece. */
+     (F5, Voltar/Avançar). Sem a marca — quem entra no ADMIN direto —, nada aparece. Fica logo acima do título da área
+     (depois das abas), perto do que a pessoa veio ver e separado do retorno interno "← Voltar para Avaliação e Mapa". */
   function marcaVoltaInicio() { var st = history.state; return st && st.faVoltaInicio ? st : null; }
   window.faAdminAtualizarVoltaInicio = function () {
     var pag = document.getElementById('page-admin'), wrap = pag && pag.querySelector('.wrap');
@@ -72,7 +77,8 @@
     if (!el) {
       el = document.createElement('p'); el.className = 'admin-volta-inicio'; el.id = 'adminVoltaInicio'; el.hidden = true;
       el.innerHTML = '<a href="#avaliacoes" id="adminVoltaInicioLink">← Voltar ao Início de Avaliações</a>';
-      wrap.insertBefore(el, wrap.firstChild);
+      var abas = wrap.querySelector('.admin-tabs-bar');
+      if (abas) abas.parentNode.insertBefore(el, abas.nextSibling); else wrap.insertBefore(el, wrap.firstChild);
     }
     var m = marcaVoltaInicio();
     el.hidden = !(m && /^#admin(\?|$)/.test(location.hash || ''));

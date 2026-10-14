@@ -2712,6 +2712,8 @@
       if (location.hash === desejado) return;
       /* Estruturas Organizacionais guardam a estrutura aberta no próprio endereço (&e=<id>): não é outra área */
       if (area === 'estruturas' && /^#admin\?arq=estruturas(&|$)/.test(location.hash || '')) return;
+      /* Questionários: &q=<questionário> (atalho do Início) localiza um cartão — mesma área */
+      if (area === 'questionarios' && /^#admin\?arq=questionarios&q=[a-z0-9]+$/.test(location.hash || '')) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
       var volta = history.state && history.state.faVoltaInicio ? { faVoltaInicio: true } : {}; /* atalho do Início: a marca segue */
       if (!areaDoEndereco()) { history.replaceState(Object.assign({ arq: area, seqArq: seqArqAtual() }, volta), '', desejado); politicaRolagemAdmin(); return; }
@@ -2771,6 +2773,7 @@
     function aplicarEnderecoAdmin() {
       politicaRolagemAdmin();
       var area = areaDoEndereco();
+      if (area === 'questionarios' && area === areaAtualAdmin()) { focarQuestionarioDoEndereco(); return; }
       if (!area || area === areaAtualAdmin()) return;
       if (edicaoSujaAdmin()) {
         var atual = areaAtualAdmin();
@@ -3323,54 +3326,64 @@
        mostra as estruturas cadastradas no ADMIN (Estruturas) e os vínculos registrados na ficha do Posicionamento. As
        ligações são possibilidades, nunca etapas. Os nomes das áreas do ADMIN viram atalhos SÓ para quem entra nelas
        (Taxonomia: admin geral; Questionários, Motores, Motor de Squad e Estruturas: admin geral e Avaliação +
-       Configuração; Estruturas só com o cadastro habilitado); para os demais, o mesmo nome sem link. */
+       Configuração; Estruturas só com o cadastro habilitado); para os demais, o mesmo nome sem link. Os atalhos levam
+       ao lugar exato: Questionários ao cartão do questionário da atividade (&q=), Taxonomia ao domínio dela
+       (arquitetural para P1–P16, organizacional para O1–O9). As duas áreas abrem o bloco numa legenda curta: Avaliações
+       (onde o trabalho acontece) × ADMIN (o que o sustenta; não é etapa) — a mesma diferença que os links mostram pela forma. */
     function comoFuncionaHtml() {
       var A = window.faAuth, arq = !!(A && A.podeArquitetura && A.podeArquitetura()), geral = souAdminGeral(), cadastro = arq && estruturasDisponiveis();
       var P = window.faPosicionamentos;
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
       function ramo(c) { return P ? P.spanNome(c, 'avp-como-ramo') : ({ LINHA: 'Linha', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência' })[c]; }
       /* nome de uma área do ADMIN: atalho para quem entra, negrito para quem não entra; ◆ Taxonomia, ● Avaliação e Mapa (forma e texto; a cor só reforça) */
-      function fonte(texto, destino, aba, id, pode, area) {
+      function fonte(texto, destino, aba, id, pode, area, dominio) {
         var marca = '<span class="avp-como-marca" aria-hidden="true">' + (area === 'tax' ? '◆' : '●') + '</span>';
         if (!pode) return '<strong class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '">' + marca + texto + '</strong>';
-        return '<a class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '" id="' + id + '" href="' + destino + '" data-admin-destino="' + destino + '"' + (aba ? ' data-admin-aba="' + aba + '"' : '') + '>' + marca + texto + '</a>';
+        return '<a class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '" id="' + id + '" href="' + destino + '" data-admin-destino="' + destino + '"' + (aba ? ' data-admin-aba="' + aba + '"' : '') +
+          (dominio ? ' data-admin-dominio="' + dominio + '"' : '') + ' title="Abrir no ADMIN">' + marca + texto + '</a>';
       }
       function trab(id, titulo, detalhe) {
         return link(id, 'avp-como-link', '<span class="avp-como-titulo">' + titulo + '</span><span class="avp-como-detalhe">' + detalhe + '</span><span class="avp-inicio-abrir" aria-hidden="true">›</span>');
       }
       function linha(id, linkTrab, usa, extra) {
         return '<li class="avp-como-linha' + (extra || '') + '" id="' + id + '"><div class="avp-como-trab">' + linkTrab + '</div>' +
-          '<p class="avp-como-usa"><span class="avp-como-rot">No ADMIN:</span> ' + usa + '</p></li>';
+          '<p class="avp-como-usa"><span class="avp-como-rot">O ADMIN fornece:</span> ' + usa + '</p></li>';
       }
       var conector = function (id, texto) { return '<li class="avp-como-conector" id="' + id + '">' + texto + '</li>'; };
       return '<section class="avp-como" id="avpInicioConsultar" aria-labelledby="avpComoTitulo"><h3 id="avpComoTitulo">Como o sistema funciona</h3>' +
-        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista e mostra o que ela usa do ADMIN. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
-        '<div class="avp-como-cabecalho" aria-hidden="true"><span>Realizar e consultar (Avaliação)</span><span>Configurar e governar (ADMIN)</span></div>' +
+        '<div class="avp-como-areas" id="avpComoAreas">' +
+        '<p class="avp-como-area avp-como-area--aval" id="avpComoAreaAval"><span class="avp-como-area-nome">Avaliações</span> onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável.</p>' +
+        '<p class="avp-como-area avp-como-area--adm" id="avpComoAreaAdm"><span class="avp-como-area-nome">ADMIN</span> onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho. Não é etapa da Jornada.</p></div>' +
+        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
         '<ol class="avp-como-lista" id="avpComoFunciona">' +
         linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'Descobre o que o item é · P1–P16'),
-          'perguntas e regras em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios', arq, 'adm') + ' e ' +
-          fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + '; nomes das classificações na ' +
-          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax') + '.') +
+          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=p1p16', null, 'avpComoIrQuestionarios', arq, 'adm') + ', as regras em ' +
+          fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + ' e os nomes das classificações na ' +
+          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax', 'arquitetural') + '.') +
         conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento, que também começa direto por uma atuação (Caminho 2)') +
         linha('avpComoPosicionamento', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Indica o tipo de estrutura que deve cuidar da responsabilidade: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + ' · O1–O9'),
-          'perguntas em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios2', arq, 'adm') + '; tipos de estrutura na ' +
-          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax') + '. Indica o tipo, mas não cria a estrutura.') +
+          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=o1o9', null, 'avpComoIrQuestionarios2', arq, 'adm') + ' e os tipos de estrutura na ' +
+          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax', 'organizacional') + '; a regra é fixa no sistema. Indica o tipo, mas não cria a estrutura.') +
         linha('avpComoSquad', trab('avpInicioRegSquad', 'Adequação à Squad', 'Opcional, só quando o tipo indicado é ' + ramo('LINHA') + ': avalia se o trabalho pode se organizar em Squads · S1–S8'),
-          'regras no ' + fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Não cadastra Squad.', ' avp-como-linha--ramo') +
+          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=s1s8', null, 'avpComoIrQuestionarios3', arq, 'adm') + ' e as regras no ' +
+          fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Não cadastra Squad.', ' avp-como-linha--ramo') +
         conector('avpComoConectorMapa', 'a responsabilidade pode ser ligada a uma estrutura real') +
         linha('avpComoMapa', trab('avpInicioRegMapa', 'Mapa da Floresta', 'Mostra as estruturas registradas e o que está ligado a cada uma'),
-          'as estruturas são cadastradas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
-          '. A ligação de cada item a uma estrutura é registrada na ficha do Posicionamento. Uma Linha pode não ter Squads.') +
+          'o cadastro das estruturas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
+          '. A ligação de cada item a uma estrutura é registrada em Avaliações, na ficha do Posicionamento — não no ADMIN. Uma Linha pode não ter Squads.') +
         '</ol>' +
         (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') + '</section>';
     }
     /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço
        próprio, em faAbaAdmin): o ADMIN mostra "← Voltar ao Início de Avaliações" só nas entradas marcadas — quem entra no
        ADMIN direto não vê nada novo. A marca vive no histórico: sobrevive a F5 e Voltar/Avançar. */
-    function abrirAdminDoInicio(destino, aba) {
+    function abrirAdminDoInicio(destino, aba, dominio) {
       location.hash = destino;
       var st = Object.assign({}, history.state || {}, { faVoltaInicio: true });
       if (aba) st.faAbaAdmin = aba;
+      /* Taxonomia: o domínio da atividade de origem (lido pelo ADMIN ao abrir a aba; o pedido distingue um clique novo
+         de uma reabertura, para não desfazer a troca de domínio que a pessoa fizer depois) */
+      if (dominio) { st.faTaxDominio = dominio; st.faTaxPedido = Date.now(); }
       history.replaceState(st, '', location.href);
       if (window.faAdminAtualizarVoltaInicio) window.faAdminAtualizarVoltaInicio();
     }
@@ -3404,7 +3417,7 @@
         el.addEventListener('click', function (ev) {
           if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
           ev.preventDefault();
-          abrirAdminDoInicio(el.getAttribute('data-admin-destino'), el.getAttribute('data-admin-aba') || null);
+          abrirAdminDoInicio(el.getAttribute('data-admin-destino'), el.getAttribute('data-admin-aba') || null, el.getAttribute('data-admin-dominio') || null);
         });
       });
       /* os nomes chegam depois (a tela não espera o banco): atualiza no lugar */
@@ -4022,7 +4035,7 @@
         if (c.sub === 'lista') fecharConfigQuestionarios();
         else sairComAviso(c, function () { c.sub = 'lista'; c.sujo = false; render(); });
       });
-      if (c.sub === 'lista') bindConfigLista();
+      if (c.sub === 'lista') { bindConfigLista(); focarQuestionarioDoEndereco(); }
       else if (c.sub === 'editar') bindConfigEditar();
       else if (c.sub === 'auditoria') bindConfigAuditoria();
     }
@@ -4041,20 +4054,69 @@
       Object.keys(window.faQuestionarios.CODIGOS).forEach(function (chave) {
         var codigo = window.faQuestionarios.CODIGOS[chave];
         var sit = window.faQuestionarios.situacao(codigo);
-        html += '<div class="avp-form-card avp-config-item-card">';
-        html += '<h4>' + esc(sit.nome) + '</h4>';
-        html += '<p>' + esc(sit.qtdPerguntas) + ' pergunta' + (sit.qtdPerguntas === 1 ? '' : 's') + ' · Versão publicada: ' + esc(sit.versaoPublicada) + '</p>';
-        html += '<p>Situação: ' + (sit.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'sem alterações pendentes') + '</p>';
+        /* um cartão por questionário: o que está vigente e as ações sempre à vista; correções editoriais e a redação da
+           versão futura do motor ficam DENTRO do cartão, recolhidas (nada é apagado). id/data-q: o atalho do Início
+           (#admin?arq=questionarios&q=p1p16|s1s8|o1o9) localiza este cartão. */
+        var q = QUESTIONARIO_ALIAS[codigo] || {};
+        html += '<div class="avp-form-card avp-config-item-card" id="avpCfgCard-' + codigo + '" data-q="' + (q.alias || '') + '" tabindex="-1">';
+        html += '<h4>' + esc(sit.nome) + (q.sigla ? ' <span class="avp-config-sigla">' + q.sigla + '</span>' : '') + '</h4>';
+        html += '<p>' + qtdPerguntasRotulo(codigo, sit) + ' · Versão publicada: <strong>' + esc(sit.versaoPublicada) + '</strong> · Situação: ' + (sit.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'sem alterações pendentes') + '</p>';
         html += '<p>Última publicação: ' + (sit.ultimaAlteracaoEm ? esc(fmtData(sit.ultimaAlteracaoEm)) + (sit.ultimaAlteracaoPor ? ' · ' + esc(sit.ultimaAlteracaoPor) : '') : 'nunca alterado (conteúdo de fábrica)') + '</p>';
         html += '<div class="avp-actions-footer">';
         html += '<button class="btn btn--sm avp-config-editar-btn" data-codigo="' + codigo + '">Editar perguntas</button>';
         html += '<button class="btn btn--sm avp-config-auditoria-btn" data-codigo="' + codigo + '">Ver histórico de alterações</button>';
         html += '<button class="btn btn--sm avp-config-exportar-btn" data-codigo="' + codigo + '"' + (c.exportando ? ' disabled' : '') + '>📊 Exportar Excel</button>';
-        html += '</div></div>';
-        window.faQuestionarios.listarCorrecoesEditoriais(codigo).forEach(function (corr) { html += renderCorrecaoEditorial(corr.id); });
-        if (codigo === window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL) html += renderConteudoMotorNovo(codigo, 2);
+        html += '</div>';
+        var corrs = window.faQuestionarios.listarCorrecoesEditoriais(codigo);
+        if (corrs.length) {
+          var pend = corrs.filter(function (corr) { var x = window.faQuestionarios.situacaoCorrecaoEditorial(corr.id); return x && !x.aplicada; }).length;
+          html += recolhivel('cfgCorrecoes-' + codigo, 'avpCfgCorrecoes-' + codigo, 'avp-config-sub',
+            'Correções editoriais (' + corrs.length + ') — ' + (pend ? pend + ' pendente' + (pend === 1 ? '' : 's') : 'todas aplicadas'), !!pend,
+            corrs.map(function (corr) { return renderCorrecaoEditorial(corr.id); }).join(''));
+        }
+        if (codigo === window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL) {
+          html += recolhivel('cfgMotorV2', 'avpCfgMotorV2', 'avp-config-sub avp-config-sub--futura',
+            'Versão futura inativa — redação para o motor de Posicionamento v2', false, renderConteudoMotorNovo(codigo, 2));
+        }
+        html += '</div>';
       });
       return html;
+    }
+    /* Seção recolhível do ADMIN que lembra se a pessoa a abriu (data-det → state.detAbertos), inclusive entre os
+       redesenhos de uma ação dentro dela. Sem escolha registrada, abre quando há algo a fazer (abrirSePendente). */
+    function recolhivel(chaveDet, id, classe, titulo, abrirSePendente, conteudo) {
+      var escolha = state.detAbertos ? state.detAbertos[chaveDet] : undefined;
+      var aberta = escolha === true || (escolha === undefined && abrirSePendente);
+      return '<details class="' + classe + '" id="' + id + '" data-det="' + chaveDet + '"' + (aberta ? ' open' : '') + '><summary>' + esc(titulo) + '</summary>' +
+        '<div class="avp-config-sub-corpo">' + conteudo + '</div></details>';
+    }
+    var QUESTIONARIO_ALIAS = { CLASSIFICACAO_ARQUITETURAL: { alias: 'p1p16', sigla: 'P1–P16' }, ADEQUACAO_SQUAD: { alias: 's1s8', sigla: 'S1–S8' },
+      POSICIONAMENTO_ORGANIZACIONAL: { alias: 'o1o9', sigla: 'O1–O9' } };
+    /* O1–O9 tem também o diagnóstico de conflito/recorte (não é "O10"): "9 perguntas + diagnóstico" */
+    function qtdPerguntasRotulo(codigo, sit) {
+      var lista = window.faQuestionarios.perguntasDaVersao ? window.faQuestionarios.perguntasDaVersao(codigo, sit.versaoPublicada) || [] : [];
+      var diag = lista.filter(function (p) { return p && p.tipo === 'diagnostico-conflito-recorte'; }).length;
+      var n = (lista.length || sit.qtdPerguntas) - diag;
+      return esc(n) + ' pergunta' + (n === 1 ? '' : 's') + (diag ? ' + diagnóstico' : '');
+    }
+    /* &q=p1p16|s1s8|o1o9 no endereço (atalho do Início): leva ao cartão do questionário e o destaca — sem abrir edição */
+    var focoQuestionarioFeito = null;
+    function focarQuestionarioDoEndereco() {
+      var m = /[?&]q=([a-z0-9]+)/.exec(location.hash || '');
+      var alvo = null;
+      Object.keys(QUESTIONARIO_ALIAS).forEach(function (c) { if (m && QUESTIONARIO_ALIAS[c].alias === m[1]) alvo = c; });
+      document.querySelectorAll('.avp-config-item-card--foco').forEach(function (el) { el.classList.remove('avp-config-item-card--foco'); });
+      if (!alvo) { focoQuestionarioFeito = null; return; }
+      var card = document.getElementById('avpCfgCard-' + alvo);
+      if (!card) return;
+      card.classList.add('avp-config-item-card--foco');
+      if (focoQuestionarioFeito === location.hash) return; /* rola uma vez por chegada, não a cada redesenho */
+      focoQuestionarioFeito = location.hash;
+      setTimeout(function () {
+        var topo = card.getBoundingClientRect().top + (window.pageYOffset || 0) - 96;
+        window.scrollTo({ top: Math.max(0, topo), left: 0, behavior: 'instant' });
+        try { card.focus({ preventScroll: true }); } catch (e) { /* navegador antigo */ }
+      }, 60);
     }
     /* H1-Final — redação para uma versão NOVA (inativa) do motor de Posicionamento. Trilha separada
        (questionarios-config/<código>/motores/<v>): nada aqui muda a redação v1 que o site usa nem põe o motor em
@@ -5950,6 +6012,10 @@
       var defA = N.definicao(alvo), defV = N.definicao(emVigor);
       var pubs = (alvo === 1 ? [ultimaRedacaoPublicada(codigo, 1)] : Q.versoesPublicadasConteudoMotor(codigo, alvo)).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
       var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null, redacaoValidada: redacaoAtualValidada(codigo, alvo) });
+      /* o que está em vigor fica à vista; a preparação da versão futura (prontidão, simulação, impacto, aprovação dupla,
+         fronteira, histórico) vai para uma seção avançada recolhida — inteira, com todos os bloqueios, ao abrir */
+      html += '<p class="avp-pos-resumo" id="avpPosResumo"><strong>v' + alvo + ' inativa</strong> — existem requisitos pendentes para entrada em vigor. A v' + emVigor + ' continua em vigor.</p>';
+      var inicioAvancado = html.length;
       html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
         return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
       }).join('') +
@@ -5981,6 +6047,9 @@
         html += '<p class="avp-ficha-meta">Quem aprovar a entrada em vigor terá de reconhecer explicitamente estes números, inclusive os incomparáveis. Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
       }
       html += renderGovernancaPosicionamento(cp, alvo, defA, pr);
+      var avancado = html.slice(inicioAvancado);
+      html = html.slice(0, inicioAvancado) + recolhivel('motorPosGovernanca', 'avpPosAvancado', 'avp-config-sub avp-pos-avancado',
+        'Governança e versões futuras — prontidão, simulação, impacto e aprovação da v' + alvo, !!(cp.simulacao || cp.impacto || cp.lendo || cp.erro), avancado);
       return html + '</div>';
     }
     /* ---- B3: governança persistida — proposta de entrada em vigor e aprovação dupla. Toda a regra está em

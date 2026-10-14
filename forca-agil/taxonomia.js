@@ -2356,8 +2356,16 @@
   }
 
   /* Abre a área (ao entrar na aba). Reavalia o acesso; troca de usuário reinicia o estado. */
+  var pedidoDominio = null;
   function abrir(opcoes) {
-    if (opcoes) st.opcoes = Object.assign({ somenteLeitura: false }, opcoes);
+    /* domínio pedido pela origem (atalho do Início): aplicado uma vez por pedido — reabrir a aba não desfaz a escolha
+       que a pessoa fez depois */
+    if (opcoes && DOMINIOS[opcoes.dominio] && opcoes.pedido !== pedidoDominio) {
+      pedidoDominio = opcoes.pedido;
+      if (st.dominio !== opcoes.dominio) { st.dominio = opcoes.dominio; st.vista = 'lista'; st.flash = null; }
+      st.aba = 'dominio';
+    }
+    if (opcoes) st.opcoes = Object.assign({ somenteLeitura: false }, { somenteLeitura: !!opcoes.somenteLeitura });
     if (st.opcoes.somenteLeitura) st.aba = 'dominio';
     var el = raiz();
     if (!el) return;

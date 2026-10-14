@@ -20,6 +20,7 @@
  * Banco falso em persistenciaReal (grava/lê como o Firebase de verdade). Hermético: sem rede,
  * sem segredo. Desktop e celular (375 px). */
 const { chromium } = require('playwright');
+const { abrirRecolhidas } = require('./abrir-recolhidas');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -155,6 +156,8 @@ async function abrirApp(browser, db, viewport) {
   const erros = [];
   page.on('pageerror', (e) => { erros.push(String(e)); });
   await ctx.addInitScript('window.__CFG = ' + JSON.stringify(cfg) + ';');
+  /* seções recolhidas do ADMIN (governança da v2, correções editoriais, redação da v2): abertas como a pessoa faria */
+  await ctx.addInitScript(abrirRecolhidas(['details.avp-config-sub']));
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());

@@ -224,9 +224,10 @@ async function parte2(browser, fq, nomeTela, viewport) {
   const { ctx, page, erros } = await abrir(browser, viewport);
 
   console.log('\n== Lista: o terceiro questionário aparece ==');
-  const cartoes = await page.locator('.avp-config-item-card h4').allTextContents();
+  /* o título de cada cartão (sem a sigla); as seções recolhidas dentro dele têm cartões próprios, que não contam */
+  const cartoes = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.avp-config-item-card[data-q] > h4'), (h) => { const c = h.cloneNode(true); c.querySelectorAll('.avp-config-sigla').forEach((x) => x.remove()); return c.textContent.trim(); }));
   afirma(igual(cartoes, ['Classificação arquitetural (Produto/Serviço)', 'Adequação à gestão por Squad', 'Posicionamento Organizacional']), 'três questionários: ' + cartoes.join(' | '));
-  afirma(/10 perguntas · Versão publicada: 1/.test(await page.locator('.avp-config-item-card').nth(2).innerText()), 'Posicionamento: 10 perguntas, versão 1 (fábrica)');
+  afirma(/9 perguntas \+ diagnóstico · Versão publicada: 1/.test(await page.locator('.avp-config-item-card[data-q]').nth(2).innerText()), 'Posicionamento: 9 perguntas + diagnóstico, versão 1 (fábrica)');
 
   console.log('\n== Editor de P1–P16 e S1–S8: os mesmos campos e rótulos de antes ==');
   for (const cod of ['CLASSIFICACAO_ARQUITETURAL', 'ADEQUACAO_SQUAD']) {
@@ -262,7 +263,7 @@ async function parte2(browser, fq, nomeTela, viewport) {
   await page.locator('[data-campo="rotuloMesma"]').fill('Mesma responsabilidade (revisado)');
   await page.locator('[data-campo="textoAjuda.quandoDistintas"]').fill('Ajuda distintas revisada.');
   await publicarEditor(page);
-  await esperarCondicao(page, () => /Versão publicada: 2/.test(document.querySelectorAll('.avp-config-item-card')[2].innerText), null, { descricao: 'versão 2 do Posicionamento na lista' });
+  await esperarCondicao(page, () => /Versão publicada: 2/.test(document.querySelectorAll('.avp-config-item-card[data-q]')[2].innerText), null, { descricao: 'versão 2 do Posicionamento na lista' });
   let cfg = await lerConfig(page, POS);
   let v2 = cfg.versoes[2].perguntas;
   afirma(cfg.versaoPublicada === 2 && v2[9].rotuloMesma === 'Mesma responsabilidade (revisado)' && v2[9].textoAjuda.quandoDistintas === 'Ajuda distintas revisada.', 'versão 2 gravada com o rótulo e a ajuda novos');
@@ -313,7 +314,7 @@ async function parte2(browser, fq, nomeTela, viewport) {
   const esperadoRasc = clone(REFERENCIA.CLASSIFICACAO_ARQUITETURAL.perguntas); esperadoRasc[0].titulo = 'Necessidade do cliente (revisado)';
   afirma(cfg.rascunho && igual(cfg.rascunho.perguntas, esperadoRasc), 'rascunho de P gravado: só o título mudou, nenhum "tipo" acrescentado');
   await publicarEditor(page);
-  await esperarCondicao(page, () => /Versão publicada: 2/.test(document.querySelectorAll('.avp-config-item-card')[0].innerText), null, { descricao: 'versão 2 da classificação' });
+  await esperarCondicao(page, () => /Versão publicada: 2/.test(document.querySelectorAll('.avp-config-item-card[data-q]')[0].innerText), null, { descricao: 'versão 2 da classificação' });
   cfg = await lerConfig(page, 'CLASSIFICACAO_ARQUITETURAL');
   afirma(igual(cfg.versoes[2].perguntas, esperadoRasc) && !cfg.rascunho, 'versão 2 de P = referência + título; rascunho limpo');
   const audP = await lerAuditoria(page, 'CLASSIFICACAO_ARQUITETURAL');
@@ -334,7 +335,7 @@ async function parte2(browser, fq, nomeTela, viewport) {
   await abrirEditor(page, 'ADEQUACAO_SQUAD');
   await page.locator('[data-campo="justNao"]').nth(7).fill('NÃO — revisado.');
   await publicarEditor(page);
-  await esperarCondicao(page, () => /Versão publicada: 2/.test(document.querySelectorAll('.avp-config-item-card')[1].innerText), null, { descricao: 'versão 2 de squad' });
+  await esperarCondicao(page, () => /Versão publicada: 2/.test(document.querySelectorAll('.avp-config-item-card[data-q]')[1].innerText), null, { descricao: 'versão 2 de squad' });
   cfg = await lerConfig(page, 'ADEQUACAO_SQUAD');
   const esperadoS = clone(REFERENCIA.ADEQUACAO_SQUAD.perguntas); esperadoS[7].justNao = 'NÃO — revisado.';
   afirma(igual(cfg.versoes[2].perguntas, esperadoS), 'S: versão 2 = referência + justNao de S8, sem "tipo"');

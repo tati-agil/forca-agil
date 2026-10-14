@@ -721,6 +721,12 @@
       "sobre": "#avaliacoes = Início, sem ler o banco; a Jornada como ação principal; as duas portas (natureza P1–P16, atuação O1–O9 só para quem grava); a lista P1–P16 em ?av=lista com busca, Exportar e Lixeira; Posicionamentos, Squad e Mapa; Agilidade, Jurídico, sem Posicionamento (disponível), Squad só no ramo Linha com volta ao mesmo objeto (também com Voltar durante o carregamento); F5, Voltar/Avançar, menu e links diretos antigos; 375 px."
     },
     {
+      "arquivo": ".github/scripts/teste-admin-usabilidade.js",
+      "nome": "Usabilidade do ADMIN › Avaliação e Mapa: Questionários, Motores, Motor de Squad, Estruturas escuras, larguras e perfis",
+      "duracao": 60,
+      "sobre": "Um cartão por questionário com ações à vista e seções recolhidas (correções editoriais, v2 inativa); &q= localiza o cartão sem abrir a edição (F5, Voltar/Avançar); resumo exato da v2 inativa e governança recolhida, sem Ativar; D2 (marcadores dentro do cartão); cabeçalho do Motor de Squad; Estruturas em superfícies escuras com contraste ≥ 4,5:1; 375, 640, 768, 1280, 1440 e 1920 px sem rolagem lateral, com a primeira ação do Início visível; perfis Avaliação + Configuração e consulta."
+    },
+    {
       "arquivo": ".github/scripts/teste-porta2-jornada.js",
       "nome": "Porta 2: a jornada das duas portas, com a hipótese inicial (desktop e celular)",
       "duracao": 20,
