@@ -12,6 +12,7 @@
  *      predominância sai e, confirmando, ela sai.
  *   4. Um registro v1 continua sem D2 (3 SIM = recorte, sem diagnóstico). Sem rolagem horizontal; sem erro de JS. */
 const { chromium } = require('playwright');
+const { abrirRecolhidas } = require('./abrir-recolhidas');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -91,6 +92,8 @@ async function abrir(browser, viewport, hash, comRedacaoV2) {
   const erros = [];
   page.on('pageerror', (e) => { erros.push(String(e)); console.log('[PAGEERROR]', String(e)); });
   await ctx.addInitScript('window.__CFG = ' + JSON.stringify(cfg) + ';');
+  /* seções recolhidas do ADMIN (governança da v2, correções editoriais, redação da v2): abertas como a pessoa faria */
+  await ctx.addInitScript(abrirRecolhidas(['details.avp-config-sub']));
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
