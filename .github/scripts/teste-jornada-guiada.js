@@ -93,7 +93,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma((await etapas(page, 'pCapec')) === 'p1p16:ok posicionamento:ok decisao:opcional estrutura:ok vinculo:ok squad:opcional' && /Jornada completa/.test(await texto(page, card('pCapec'))),
     '1. Capec: completa; decisão opcional (recomendação firme); Squad só opcional', await etapas(page, 'pCapec'));
   const mapaCapec = await acao(page, 'pCapec');
-  afirma(mapaCapec && mapaCapec.h === '#avaliacoes?mf=mapa&e=neg-1&item=pCapec', '1. Capec: "Ver no Mapa" leva à estrutura responsável', JSON.stringify(mapaCapec));
+  afirma(mapaCapec && mapaCapec.h === '#avaliacoes?mf=mapa&e=neg-1&item=pCapec', '1. Capec: "Localizar estrutura responsável no Mapa" leva à estrutura responsável', JSON.stringify(mapaCapec));
   await page.click('#mfVoltarLista');
   await page.waitForSelector(linha('pCapec'));
   afirma((await page.inputValue('#mfBusca')) === 'Capec' && await page.locator('#mfItens .mf-linha').count() === 1 && (await hash(page)) === '#avaliacoes?mf=catalogo', '"← Voltar para a lista": a busca é preservada');
@@ -148,9 +148,10 @@ async function rodada(browser, viewport, rotulo) {
   afirma(true, 'do Mapa, volta para a jornada do objeto');
   await page.click('#mfVoltarLista');
   await page.waitForSelector('#mfIrMapa');
+  afirma(/^Ver Mapa completo$/i.test((await texto(page, '#mfIrMapa')).trim()), 'o acesso geral se chama "Ver Mapa completo"');
   await page.click('#mfIrMapa');
   await page.waitForSelector('.mfm-subtitulo');
-  afirma(/estruturas cadastradas/.test(await texto(page, '.mfm-subtitulo')), '"Ver o Mapa da Floresta" (na lista): estruturas cadastradas');
+  afirma(/estruturas cadastradas/.test(await texto(page, '.mfm-subtitulo')), '"Ver Mapa completo" (na lista): estruturas cadastradas');
   await page.click('.mfm-fonte[data-fonte="demo"]');
   await esperarCondicao(page, () => /demonstração/.test((document.querySelector('.mfm-subtitulo') || {}).textContent || ''), undefined, { limite: 5000 });
   afirma(/fonte=demo/.test(await hash(page)), 'a demonstração é escolha explícita (e fica no endereço)');
@@ -174,7 +175,7 @@ async function rodada(browser, viewport, rotulo) {
   await abre(page, 'pSem');
   const consultaSem = !(await page.$(card('pSem') + ' .mf-acao')) && /somente consulta/.test(await texto(page, card('pSem')));
   await abre(page, 'pCapec');
-  afirma(consultaSem && !!(await page.$(card('pCapec') + ' .mf-acao')), 'consulta: sem ações de gravar (só "Ver no Mapa"), com o próximo passo explicado');
+  afirma(consultaSem && !!(await page.$(card('pCapec') + ' .mf-acao')), 'consulta: sem ações de gravar (só "Localizar estrutura responsável no Mapa"), com o próximo passo explicado');
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', { delays: { 'estruturas-vinculos': 4000 } }));
   await page.waitForSelector(linha('pCapec'), { timeout: 15000 });

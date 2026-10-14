@@ -3334,12 +3334,6 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-inicio-sigla { font-size: .8rem; color: var(--ink-3); font-family: var(--font-mono); }
 .avp-inicio-perfil { margin-top: auto; font-size: .88rem; color: var(--ink-3); }
 .avp-inicio-nota { margin-top: 10px; font-size: .9rem; color: var(--ink-3); }
-.avp-inicio-registros { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-.avp-inicio-registro { border-bottom: 1px solid var(--line); }
-.avp-inicio-registro-link { display: grid; grid-template-columns: minmax(180px, 16rem) minmax(0, 1fr) auto; align-items: center; gap: 4px 14px; min-height: 52px; padding: 8px 4px; color: inherit; text-decoration: none; }
-.avp-inicio-registro-link:hover, .avp-inicio-registro-link:focus-visible { background: rgba(127, 127, 127, .08); }
-.avp-inicio-registro-nome { font-weight: 600; }
-.avp-inicio-registro-texto { font-size: .88rem; color: var(--ink-3); overflow-wrap: anywhere; }
 .avp-inicio-abrir { font-size: 1.4rem; opacity: .6; }
 .avp-lista-topo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
 .avp-lista-topo .btn { min-height: 44px; }
@@ -3348,8 +3342,44 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 @media (max-width: 640px) {
   .avp-inicio-cartoes { grid-template-columns: 1fr; }
   .avp-inicio-acao, .avp-inicio-cartao .avp-inicio-acao { width: 100%; align-self: stretch; }
-  .avp-inicio-registro-link { grid-template-columns: minmax(0, 1fr) auto; }
-  .avp-inicio-registro-nome { grid-column: 1; }
-  .avp-inicio-registro-texto { grid-column: 1; grid-row: 2; }
-  .avp-inicio-abrir { grid-column: 2; grid-row: 1 / span 2; }
+}
+
+/* Início › Consultar registros: como os assuntos se relacionam. Caminho principal = Produto/Serviço → Posicionamento →
+   Mapa (possibilidades, tracejado); a Adequação à Squad é ramo lateral do resultado Linha, dentro do Posicionamento. */
+.avp-inicio .avp-rel-subtitulo { margin: -4px 0 10px; font-size: .9rem; color: var(--ink-3); }
+.avp-rel { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr); gap: 0; align-items: start; }
+.avp-rel-no { display: flex; align-items: flex-start; min-width: 0; }
+.avp-rel-caixa, .avp-rel-no > .avp-rel-link { flex: 1 1 auto; min-width: 0; }
+.avp-rel-caixa { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; padding: 0 0 10px; }
+.avp-rel-no > .avp-rel-link { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px; }
+.avp-rel-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; min-height: 44px; padding: 10px 12px; color: inherit; text-decoration: none; border-radius: 10px; }
+.avp-rel-link:hover { background: rgba(127, 127, 127, .08); }
+.avp-rel-link:focus-visible { outline: 3px solid var(--accent, #2a6fdb); outline-offset: 2px; }
+.avp-rel-link > span:not(.avp-inicio-abrir) { grid-column: 1; overflow-wrap: anywhere; }
+.avp-rel-link .avp-inicio-abrir { grid-column: 2; grid-row: 1 / span 4; align-self: center; font-size: 1.4rem; opacity: .6; }
+.avp-rel-titulo { font-weight: 600; }
+.avp-rel-pergunta { font-size: .88rem; }
+.avp-rel-sigla { font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); }
+.avp-rel-nota { font-size: .82rem; color: var(--ink-3); }
+.avp-inicio .avp-rel-seta { flex: 0 0 104px; margin: 0; padding: 18px 8px 0; font-size: .74rem; line-height: 1.25; color: var(--ink-3); text-align: center; position: relative; }
+.avp-rel-seta::before { content: ''; display: block; border-top: 2px dashed currentColor; margin: 0 4px 6px; }
+.avp-rel-seta::after { content: '▸'; position: absolute; right: 2px; top: 8px; font-size: .9rem; }
+.avp-rel-seta-alt { display: block; margin-top: 4px; }
+.avp-inicio .avp-rel-resultado-rotulo { margin: 4px 12px 4px; font-size: .78rem; color: var(--ink-3); }
+.avp-rel-ramos { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 12px; padding: 0; }
+.avp-rel-ramo { border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px 10px; font-size: .82rem; }
+.avp-rel-squad { margin: 8px 12px 0 22px; padding-left: 12px; border-left: 2px dashed var(--line-strong); }
+.avp-inicio .avp-rel-seta--ramo { flex: none; padding: 0 0 4px; text-align: left; }
+.avp-rel-seta--ramo::before, .avp-rel-seta--ramo::after { display: none; }
+.avp-rel-squad .avp-rel-link { border: 1px dashed var(--line-strong); }
+.avp-inicio .avp-rel-legenda { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: .8rem; color: var(--ink-3); }
+.avp-rel-legenda-traco { display: inline-block; width: 28px; border-top: 2px dashed currentColor; }
+@media (max-width: 760px) {
+  .avp-rel { grid-template-columns: minmax(0, 1fr); }
+  .avp-rel-no { flex-direction: column; align-items: stretch; }
+  .avp-inicio .avp-rel-seta { flex: none; padding: 6px 0 6px 26px; text-align: left; min-height: 30px; }
+  .avp-rel-seta::before { position: absolute; left: 12px; top: 0; bottom: 0; border-top: 0; border-left: 2px dashed currentColor; margin: 0; }
+  .avp-rel-seta::after { content: '▾'; left: 7px; right: auto; top: auto; bottom: -6px; }
+  .avp-inicio .avp-rel-seta--ramo { padding: 0 0 4px; }
+  .avp-rel-seta--ramo::before, .avp-rel-seta--ramo::after { display: none; }
 }

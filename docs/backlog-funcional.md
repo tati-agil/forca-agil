@@ -40,6 +40,22 @@ ainda não confirmados.
 **Próximo passo:** depois da Porta 2 homologada, apresentar uma proposta visual enxuta e os critérios de aceite para
 aprovação, antes de qualquer implementação.
 
+## Pendência arquitetural — composição Squad × Linha (decisão de governança)
+
+*Registrada em 2026-10-13 (consulta só de leitura ao banco oficial, autorizada pela responsável). Não resolver sem
+decisão própria: nada de cadastrar relações, ligar herança ou mudar regras por conta.*
+
+- **Conceito oficial (Taxonomia vigente):** Squad (camada "Organização do trabalho") compõe Linha — relação
+  `SQUAD__compoe__LINHA`, ativa, com a nota de que, por herança, os tipos de Linha também são compostos por Squads
+  ("regra do modelo, não fato comprovado pelos textos-fonte das Plataformas").
+- **Regra implementada:** o cadastro de estruturas (tela e `database.rules.json`) só aceita Squad concreta e `compõe`
+  com a relação EXATA `<conceito de trabalho>__compoe__<tipo específico de Linha>` (os 6 códigos do ramo Linha), sem
+  herança pelo pai (decisões C2/C3).
+- **Dados cadastrados:** não existe relação específica para nenhum dos 6 tipos; em produção não há Squad concreta nem
+  `compõe` — e hoje não é possível cadastrá-los.
+- **A apresentar depois:** alternativas (relações específicas na Taxonomia × herança na tela e nas regras) e
+  consequências para o modelo, o Firebase e a paridade com o PostgreSQL.
+
 ## Acompanhamento (não é entrega; observar e agir se repetir)
 
 ### Smoke contra o Firebase real: login recusado de forma intermitente
