@@ -3457,7 +3457,8 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-estados dt { font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
 .an-estados dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
 .an-secao h3, .an-pergunta h3 { margin: 0 0 8px; font-size: 1.05rem; }
-.an-pergunta { border: 1px solid var(--accent); }
+.an-pergunta { border: 1px solid var(--accent); border-radius: 10px; padding: 12px 14px; margin: 8px 0; display: grid; gap: 4px; min-width: 0; }
+.an-pergunta h4 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
 .an-contador { margin: 0 0 4px; color: var(--gold-soft); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
 .an-sobre, .an-par { margin: 0 0 6px; color: var(--ink-2); overflow-wrap: anywhere; }
 .an-opcoes, .an-criterio { border: 0; margin: 0 0 10px; padding: 0; min-width: 0; display: grid; gap: 6px; }
@@ -3490,8 +3491,43 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-habilitacao { display: grid; gap: 8px; }
 .an-habilitacao p { margin: 0; }
 .an-exercidas ul { margin: 0 0 6px; padding-left: 18px; display: grid; gap: 4px; }
+/* jornada progressiva: quatro passos, próxima ação, objeto, conceitos e os dois caminhos da Porta 2 */
+.an-trilha li.bloqueada { border-style: dashed; }
+.an-trilha-n { font-weight: 700; }
+.an-trilha-s { font-weight: 400; }
+.an-proxima { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 10px; background: rgba(245,197,24,.06); }
+.an-proxima p { margin: 0; flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.an-passo { display: grid; gap: 8px; min-width: 0; }
+.an-passo-cab { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.an-passo-cab h3 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.an-passo-num { display: inline-block; margin-right: 4px; color: var(--gold-soft); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+.an-passo--atual { border-color: var(--accent); }
+.an-passo--indisponivel { border-style: dashed; opacity: .92; }
+.an-chip--atual { background: var(--accent); color: var(--space-0); border: 1px solid var(--accent); }
+.an-indisponivel { margin: 0; color: var(--ink-2); }
+.an-ajuda { margin: 0; color: var(--ink-2); font-size: .9rem; line-height: 1.55; max-width: 72ch; }
+.an-objeto-dl, .an-conceitos-dl { margin: 0; display: grid; gap: 6px; }
+.an-objeto-dl > div, .an-conceitos-dl > div { display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 1fr); gap: 2px 12px; min-width: 0; }
+.an-objeto-dl dt, .an-conceitos-dl dt { color: var(--ink-3); font-size: .86rem; }
+.an-objeto-dl dd, .an-conceitos-dl dd { margin: 0; overflow-wrap: anywhere; }
+.an-alterar { margin-left: 6px; }
+.an-conceitos { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); display: grid; gap: 6px; }
+.an-conceitos summary, .an-pendencias summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.an-conceitos p { margin: 0; }
+.an-pendencias ul { margin: 0 0 6px; padding-left: 18px; display: grid; gap: 2px; color: var(--ink-2); font-size: .9rem; }
+.an-secao-entregas h4 { margin: 4px 0 6px; }
+.an-entrega { flex-direction: column; align-items: stretch; }
+.an-entrega-cab { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.an-dependente select:disabled { opacity: .55; cursor: not-allowed; }
+.an-entrada h4 { margin: 0; font-size: 1rem; }
+.an-caminhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.an-caminho { padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel); display: grid; gap: 6px; align-content: start; min-width: 0; }
+.an-caminho p { margin: 0; overflow-wrap: anywhere; }
+.an-caminho-rotulo { color: var(--gold-soft); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
 @media (max-width: 640px) {
   .an-estados { grid-template-columns: minmax(0, 1fr); }
+  .an-caminhos { grid-template-columns: minmax(0, 1fr); }
+  .an-objeto-dl > div, .an-conceitos-dl > div { grid-template-columns: minmax(0, 1fr); }
   .an-criterio { grid-template-columns: minmax(0, 1fr); }
   .an-item { grid-template-columns: minmax(0, 1fr); }
   .an-item .an-chip { grid-column: 1; grid-row: auto; justify-self: start; }

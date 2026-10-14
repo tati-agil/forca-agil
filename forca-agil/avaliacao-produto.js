@@ -3374,7 +3374,7 @@
           'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=p1p16', null, 'avpComoIrQuestionarios', arq, 'adm') + ', as regras em ' +
           fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + ' e os nomes das classificações na ' +
           fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax', 'arquitetural') + '.') +
-        conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento, que também começa direto por uma atuação (Caminho 2)') +
+        conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento, que também começa direto por uma atuação (Porta 2)') +
         linha('avpComoPosicionamento', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Indica o tipo de estrutura que deve cuidar da responsabilidade: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + ' · O1–O9'),
           'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=o1o9', null, 'avpComoIrQuestionarios2', arq, 'adm') + ' e os tipos de estrutura na ' +
           fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax', 'organizacional') + '; a regra é fixa no sistema. Indica o tipo, mas não cria a estrutura.') +
@@ -3402,6 +3402,16 @@
       if (window.faAdminAtualizarVoltaInicio) window.faAdminAtualizarVoltaInicio();
     }
     if (modo === 'operacional') window.addEventListener('fa-estruturas-habilitacao', function () { if (state.tela === 'inicio' && !wrap.hidden) render(); });
+    /* o atalho do Caminho B no Início depende do marcador da Análise Organizacional, que pode chegar depois do desenho
+       (e com o Início escondido): a vaga do cartão é preenchida de novo a cada mudança, sem redesenhar a tela. A escuta
+       é ligada no primeiro desenho — num link direto, este arquivo sobe antes de analises-organizacionais.js carregar */
+    var escutaCaminhoB = false;
+    function caminhoAssistidoHtml() {
+      var AO = window.faAnalisesOrganizacionais;
+      if (!AO || !AO.caminhoAssistidoInicioHtml) return '';
+      if (!escutaCaminhoB && AO.aoMudar) { escutaCaminhoB = true; AO.aoMudar(function () { var v = document.getElementById('avpInicioCaminhoBVaga'); if (v) { var h = AO.caminhoAssistidoInicioHtml(); if (v.innerHTML !== h) v.innerHTML = h; } }); }
+      return AO.caminhoAssistidoInicioHtml();
+    }
     function podeIniciarPosicionamento() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
     function renderInicio() {
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
@@ -3413,14 +3423,15 @@
         link('avpInicioJornada', 'btn btn--primary avp-inicio-acao', 'Abrir a Jornada de Avaliação e Posicionamento →') + '</section>' +
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
         '<div class="avp-inicio-cartoes">' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Caminho 1</p><h4>Avaliar Produto/Serviço ou outra natureza</h4>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1</p><h4>Avaliar Produto/Serviço ou outra natureza</h4>' +
         '<p>Descubra se o item é um Produto/Serviço independente ou se faz parte de outra solução.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
         '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Caminho 2 · sem avaliação P1–P16</p><h4>Posicionar diretamente uma atuação organizacional</h4>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionar diretamente uma atuação organizacional</h4>' +
         '<p>Para uma responsabilidade, atividade ou capacidade já delimitada como atuação, que não precisa passar pela avaliação de Produto/Serviço.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade.</p>' +
         '<p class="avp-inicio-sigla">Questionário O1–O9 · a hipótese inicial é obrigatória e não entra no cálculo</p>' +
+        '<div id="avpInicioCaminhoBVaga">' + caminhoAssistidoHtml() + '</div>' +
         (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Começar o posicionamento de uma atuação')
           : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As atuações já posicionadas aparecem na Jornada.</p>') +
         '</div></div>' +

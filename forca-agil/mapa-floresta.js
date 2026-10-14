@@ -660,7 +660,7 @@
       var j = jornadas[x.itemId]; if (!j) return '';
       if (j.representadoPor) {
         var jd = j.jornadaDela, rb = x.resultadoBase, res = rb ? (rb.decisao || rb.automatico) : null;
-        return '<div class="mf-representado" id="mfRepresentado-' + esc(x.itemId) + '"><p><strong>Representado pela atuação “' + esc(j.representadoPor.nome) + '” (Caminho 2 — atuação organizacional).</strong> ' +
+        return '<div class="mf-representado" id="mfRepresentado-' + esc(x.itemId) + '"><p><strong>Representado pela atuação “' + esc(j.representadoPor.nome) + '” (Porta 2 — atuação organizacional).</strong> ' +
           (jd.completa ? 'A jornada dela está completa.' : jd.encerrada ? 'Ela está encerrada.' : 'Acompanhe a jornada na atuação.') + '</p>' +
           (res ? '<p class="mf-resultado-p1">Resultado da Avaliação de Produto/Serviço (P1–P16): ' + esc(ROTULO_RESULTADO_P1[res] || res) +
             ' — análise de Produto/Serviço; não é pendência do Posicionamento da atuação.</p>' : '') +
@@ -724,7 +724,7 @@
       } else h += '<dt>Situação</dt><dd>Verificando a versão do motor da Avaliação de Produto/Serviço…</dd>';
       if (x.alertaBase) h += '<dt>Atenção</dt><dd class="mf-alerta" data-alerta="' + esc(x.alertaBase) + '">' + esc(ROTULO_ALERTA[x.alertaBase] || ((N.ROTULO_GATE && N.ROTULO_GATE[x.alertaBase]) || x.alertaBase)) + '</dd>';
       if (x.baseRevisao) h += '<dt>Precisa de revisão</dt><dd class="mf-base-revisao">' + esc(N.textoBaseRevisao(x.baseRevisao)) + ' Nada foi alterado automaticamente.</dd>';
-      if (x.origem === ORIGEM_PORTA2) h += '<dt>Caminho</dt><dd class="mf-porta2">Caminho 2 — atuação organizacional posicionada diretamente, sem Avaliação de Produto/Serviço ("Porta 2").</dd>';
+      if (x.origem === ORIGEM_PORTA2) h += '<dt>Porta</dt><dd class="mf-porta2">Porta 2 — atuação organizacional posicionada diretamente, sem Avaliação de Produto/Serviço.</dd>';
       if (x.objetoReferente) h += '<dt>Atuação organizacional</dt><dd class="mf-objeto-referente" data-objeto="' + esc(x.objetoReferente.id) + '">Este item é referência informativa da atuação “' + esc(x.objetoReferente.nome) + '” (Porta 2).</dd>';
       h += vinculoDoItemHtml(x);
       h += '</dl><div class="mf-item-acoes">';

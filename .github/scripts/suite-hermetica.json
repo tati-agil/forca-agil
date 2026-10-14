@@ -644,6 +644,12 @@
       "sobre": "Marcador de homologação (ausente = DESLIGADO, a Porta 2 fica como era; SOMENTE_ADMIN_GERAL; o admin geral muda no ADMIN com motivo e auditoria). Jornada B: uma pergunta por vez com o porquê, comparação pelos sete critérios, delimitação, fatos descritivos, atuação criada e O1–O9 respondido na tela do Posicionamento, situação formal, proposta pendente, ficha da estrutura, Jornada, histórico, Excel, F5. Jornada A: regressão políticas de SI × diretrizes contratuais (nunca juntadas sem comparação), aprovação como referência a ato externo só pelo admin geral. Jornada C: capacidade distribuída, referência sem trocar a origem, nenhuma estrutura Segurança. Perfil de consulta sem formulários; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-analises-organizacionais-usabilidade.js",
+      "nome": "Porta 2 · Análise Organizacional: usabilidade — dois caminhos, quatro passos, F2b condicional, entregas",
+      "duracao": 60,
+      "sobre": "Cenário hipotético TESTE — Núcleo de Governança de TI. Porta 2 com Caminho A (direto) e B (assistido) convergindo para o O1–O9; Início com Porta 1/Porta 2 e atalho do Caminho B só com o marcador liberado. Atuação prévia opcional (Não por padrão). F2b: pergunta e ajuda novas, estrutura só com Está cadastrada (habilitada, obrigatória; trocar desabilita e limpa; teclado), recusa no núcleo, Alterar com histórico, F5. Quatro passos com estado real, próxima ação, passos futuros com motivo e condição; conceitos hipotéticos; entregas com instrução, total, editar e excluir (fica no histórico); nenhuma responsabilidade presumida. Legado incoerente corrigido só na próxima gravação. Não consigo identificar entregas. Marcador desligado/só admin geral = Porta 2 de antes; consulta; 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-analises-organizacionais-nucleo.js",
       "nome": "Porta 2 · Análise Organizacional: núcleo puro, em memória (sem navegador, sem Firebase)",
       "duracao": 1,

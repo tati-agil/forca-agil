@@ -126,7 +126,22 @@
     if (a.situacao === 'descartada') return { erro: erro('ANALISE_DESCARTADA', { analiseId: analiseId }) };
     if (dados && dados.revisaoEsperada !== undefined && dados.revisaoEsperada !== a.revisao) return { erro: erro('REVISAO_DESATUALIZADA', { atual: a.revisao }) };
     var d = clone(a); d.revisao = a.revisao + 1;
+    normalizarEstruturaReferida(d);
     return { antes: a, depois: d };
+  }
+  /* F2b: a estrutura cadastrada só existe com a resposta "Está cadastrada". Registro legado incoerente (resposta
+     diferente com estrutura gravada) é corrigido só neste ponto, na próxima gravação da própria análise — fica no
+     antes/depois da mudança; nada é limpo em lote nem sem uma operação da pessoa */
+  function normalizarEstruturaReferida(d) {
+    var f2b = d.respostas && d.respostas.F2b;
+    if (!f2b) return;
+    if (f2b.valor !== 'cadastrada') { if (f2b.estruturaId !== undefined) delete f2b.estruturaId; if (d.estruturaReferidaId) d.estruturaReferidaId = null; }
+  }
+  /* leitura coerente para as telas: a estrutura referida só vale com F2b = "Está cadastrada" */
+  function cadastroReferido(a) {
+    var f2b = a && a.respostas && a.respostas.F2b;
+    if (f2b && f2b.valor !== 'cadastrada') return null;
+    return (a && a.estruturaReferidaId) || null;
   }
   function mudancaAnalise(antes, depois) { return { entidade: 'analise', id: depois.id, antes: clone(antes), depois: depois, revisaoAnterior: antes.revisao }; }
 
@@ -203,6 +218,8 @@
       if (!v || !texto(v.estruturaId, MAX.chave)) return erro('ESTRUTURA_NAO_INFORMADA');
       registro.estruturaId = v.estruturaId;
     }
+    /* "Existe, mas não está cadastrada" e "É informal" não apontam estrutura do cadastro */
+    if (q.id === 'F2b' && valor !== 'cadastrada' && v && typeof v === 'object' && v.estruturaId) return erro('ESTRUTURA_INCOMPATIVEL_COM_RESPOSTA');
     var depois = al.depois, alvo, antesResp;
     if (q.alvo === 'entrega') {
       var ent = depois.entregas[dados.entregaId];
@@ -217,7 +234,7 @@
     }
     antesResp = alvo[q.id] ? clone(alvo[q.id]) : null;
     alvo[q.id] = registro;
-    if (q.id === 'F2b' && valor === 'cadastrada') depois.estruturaReferidaId = registro.estruturaId;
+    if (q.id === 'F2b') depois.estruturaReferidaId = valor === 'cadastrada' ? registro.estruturaId : null;
     return { ok: true, mudancas: [mudancaAnalise(al.antes, depois)],
       eventos: [evento('resposta.registrada', analiseId, ctx, { pergunta: q.id, entregaId: dados.entregaId || null, antes: antesResp, depois: clone(registro) })] };
   }
@@ -231,6 +248,40 @@
     if (al.depois.entregas[ctx.novoId]) return erro('ID_JA_USADO');
     al.depois.entregas[ctx.novoId] = { id: ctx.novoId, descricao: dados.descricao.trim(), exemplo: dados.exemplo || null, respostas: {}, situacao: 'ativa', criadaEm: ctx.agora };
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('entrega.adicionada', analiseId, ctx, { entregaId: ctx.novoId })] };
+  }
+
+  /* editar uma entrega: só o texto (descrição e exemplo). Entrega de uma responsabilidade que já virou atuação não
+     muda — a avaliação O1–O9 foi feita sobre aquele texto; para rever, descarte a responsabilidade e delimite de novo */
+  function entregaEmRecorte(a, entregaId, soAvaliados) {
+    return Object.keys(a.recortes).some(function (k) { var r = a.recortes[k]; return r.situacao === 'ativo' && r.entregas.indexOf(entregaId) !== -1 && (!soAvaliados || !!r.objetoId); });
+  }
+  function editarEntrega(estado, analiseId, entregaId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    if (!texto(dados.descricao, MAX.texto)) return erro('ENTREGA_SEM_DESCRICAO');
+    if (!textoOpcional(dados.exemplo, MAX.texto)) return erro('EXEMPLO_INVALIDO');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var e = al.depois.entregas[entregaId];
+    if (!e) return erro('ENTREGA_INEXISTENTE', { entregaId: entregaId });
+    if (e.situacao !== 'ativa') return erro('ENTREGA_DESCARTADA');
+    if (entregaEmRecorte(al.depois, entregaId, true)) return erro('ENTREGA_EM_RESPONSABILIDADE_AVALIADA');
+    var antes = { descricao: e.descricao, exemplo: e.exemplo || null };
+    e.descricao = dados.descricao.trim(); e.exemplo = dados.exemplo ? dados.exemplo : null;
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('entrega.editada', analiseId, ctx, { entregaId: entregaId, antes: antes, depois: { descricao: e.descricao, exemplo: e.exemplo } })] };
+  }
+  /* descartar uma entrega: fica no histórico (situacao "descartada"), nunca é apagada; entrega dentro de uma
+     responsabilidade delimitada não sai sozinha — descarte ou reveja a responsabilidade antes */
+  function descartarEntrega(estado, analiseId, entregaId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    if (!textoOpcional(dados.motivo, MAX.motivo)) return erro('MOTIVO_INVALIDO');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var e = al.depois.entregas[entregaId];
+    if (!e) return erro('ENTREGA_INEXISTENTE', { entregaId: entregaId });
+    if (e.situacao !== 'ativa') return erro('ENTREGA_DESCARTADA');
+    if (entregaEmRecorte(al.depois, entregaId, false)) return erro('ENTREGA_EM_RESPONSABILIDADE');
+    e.situacao = 'descartada'; e.descarte = { em: ctx.agora, por: autor(ctx) }; if (dados.motivo) e.descarte.motivo = dados.motivo;
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('entrega.descartada', analiseId, ctx, { entregaId: entregaId, motivo: dados.motivo || null })] };
   }
 
   /* F10: a pessoa compara duas entregas pelos sete critérios; o núcleo só interpreta os indícios */
@@ -522,7 +573,10 @@
       if (x.F6 && x.F6.valor === 'nao-sei') l.push({ tipo: 'responsavel-desconhecido', entregaId: k });
       if (x.F8 && x.F8.valor === 'sem-evidencia') l.push({ tipo: 'hipotese-sem-evidencia', entregaId: k });
     });
-    Object.keys(a.comparacoes).sort().forEach(function (k) { if (a.comparacoes[k].conclusao === 'nao-sei') l.push({ tipo: 'identidade-nao-concluida', par: k }); });
+    Object.keys(a.comparacoes).sort().forEach(function (k) {
+      var p = k.split('|'), ativa = function (id) { return a.entregas[id] && a.entregas[id].situacao === 'ativa'; };
+      if (a.comparacoes[k].conclusao === 'nao-sei' && ativa(p[0]) && ativa(p[1])) l.push({ tipo: 'identidade-nao-concluida', par: k });
+    });
     var semRecorte = Object.keys(a.entregas).filter(function (k) {
       var e = a.entregas[k]; if (e.situacao !== 'ativa' || execucaoParaOutra(e)) return false;
       return !Object.keys(a.recortes).some(function (r2) { return a.recortes[r2].situacao === 'ativo' && a.recortes[r2].entregas.indexOf(k) !== -1; });
@@ -660,7 +714,8 @@
     ALTERNATIVAS_RECUSADAS: ALTERNATIVAS_RECUSADAS.slice(), SITUACAO_FORMAL: SITUACAO_FORMAL.slice(), CATEGORIAS: CATEGORIAS.slice(),
     MAX: clone(MAX), MATRIZ: clone(MATRIZ), HABILITACAO: HABILITACAO.slice(), acessoPelaHabilitacao: acessoPelaHabilitacao,
     registrarEvidenciaQualitativa: registrarEvidenciaQualitativa,
-    criarAnalise: criarAnalise, responder: responder, adicionarEntrega: adicionarEntrega, compararEntregas: compararEntregas,
+    criarAnalise: criarAnalise, responder: responder, adicionarEntrega: adicionarEntrega, editarEntrega: editarEntrega, descartarEntrega: descartarEntrega,
+    compararEntregas: compararEntregas, cadastroReferido: cadastroReferido,
     definirRecorte: definirRecorte, ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, registrarFatos: registrarFatos,
     associarAtuacao: associarAtuacao, referenciarResponsabilidade: referenciarResponsabilidade, descartarAnalise: descartarAnalise,
     registrarProposta: registrarProposta, registrarAprovacao: registrarAprovacao,

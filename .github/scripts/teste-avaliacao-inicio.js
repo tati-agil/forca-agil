@@ -27,7 +27,7 @@
  *   (arquitetural para P1–P16, organizacional para O1–O9).
  * + Botões do Mapa: "Ver Mapa completo" (geral) e "Localizar estrutura responsável no Mapa" (contextual, com o nome da
  *   estrutura só no rótulo acessível).
- * + I1: os dois caminhos com nome e exemplos (Caminho 1 — Produto/Serviço; Caminho 2 — atuação, sem P1–P16).
+ * + I1: os dois caminhos com nome e exemplos (Porta 1 — Produto/Serviço; Porta 2 — atuação, sem P1–P16).
  * + Três perfis (avaliacao-arquitetura, avaliacao, admin geral): só quem grava vê "Começar o posicionamento de uma
  *   atuação"; F5 e Voltar/Avançar; links diretos antigos (?avp=, ?po=…) intactos; 375 px sem rolagem lateral. */
 const { chromium } = require('playwright');
@@ -94,8 +94,8 @@ async function rodada(browser, viewport, rotulo) {
     'as duas portas explicadas em linguagem simples antes das siglas');
   afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Começar o posicionamento de uma atuação"');
   console.log('Caminhos e quem sustenta (I1)');
-  afirma(/^Caminho 1$/i.test((await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')).trim()) && /Caminho 2 · sem avaliação P1–P16/i.test(await texto(page, '#avpInicioCartaoAtuacao .avp-inicio-caminho')),
-    'cartões com o nome do caminho (Caminho 1; Caminho 2 · sem avaliação P1–P16)');
+  afirma(/^Porta 1$/i.test((await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')).trim()) && /Porta 2 · sem avaliação P1–P16/i.test(await texto(page, '#avpInicioCartaoAtuacao .avp-inicio-caminho')),
+    'cartões com o nome do caminho (Porta 1; Porta 2 · sem avaliação P1–P16)');
   afirma(/Exemplos: Capec, Assessoria Previdenciária\./.test(await texto(page, '#avpInicioCartaoNatureza')) && /Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade\./.test(await texto(page, '#avpInicioCartaoAtuacao')),
     'exemplos de uso de cada caminho (sem afirmar situação de nenhum registro)');
   afirma(/Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro\./.test(await texto(page, '#avpInicioNota')), 'os dois caminhos não são etapas de um mesmo fluxo');
@@ -140,8 +140,8 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/o cadastro das estruturas em .*Estruturas/.test(como.mapa) && /A ligação de cada item a uma estrutura é registrada em Avaliações, na ficha do Posicionamento — não no ADMIN/.test(como.mapa) &&
     /Mostra as estruturas registradas e o que está ligado a cada uma/.test(como.mapa) && /Uma Linha pode não ter Squads/.test(como.mapa),
     'Mapa: estruturas cadastradas no ADMIN; vínculo registrado em Avaliações (ficha do Posicionamento), não no ADMIN', como.mapa);
-  afirma(como.conPos.indexOf('também começa direto por uma atuação (Caminho 2)') !== -1 && /pode ser ligada a uma estrutura real/.test(como.conMapa) && !como.rodape,
-    'conectores (Caminho 2 direto no Posicionamento; ligação possível a uma estrutura) e sem o rodapé repetido das áreas');
+  afirma(como.conPos.indexOf('também começa direto por uma atuação (Porta 2)') !== -1 && /pode ser ligada a uma estrutura real/.test(como.conMapa) && !como.rodape,
+    'conectores (Porta 2 direto no Posicionamento; ligação possível a uma estrutura) e sem o rodapé repetido das áreas');
   afirma(como.links === '#avaliacoes?av=lista #avaliacoes?po=lista #avaliacoes?sq=lista #avaliacoes?mf=mapa', 'os quatro elementos levam às consultas de sempre', como.links);
   afirma(como.alturas.every((a) => a >= 44), 'áreas de toque das quatro atividades ≥ 44 px', como.alturas.join(','));
   afirma(como.marcas, 'a área se lê pela forma (◆/●) e pelo texto, não só pela cor');

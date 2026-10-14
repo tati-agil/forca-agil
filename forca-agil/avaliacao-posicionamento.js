@@ -855,7 +855,7 @@
       if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (podeEscrever()) h += '<div class="avp-actions-bar"><button type="button" class="btn btn--primary" id="poNovoBtn">+ Avaliar posicionamento de um item</button>' +
         '<button type="button" class="btn" id="poAtuacoesBtn">+ Posicionar uma atuação organizacional</button></div>' +
-        '<p class="avp-ficha-meta" id="poDuasPortas">Caminho 1 — produto ou serviço: parte da Avaliação de Produto/Serviço (P1–P16). Caminho 2 — atuação, responsabilidade ou capacidade organizacional: não precisa de P1–P16.</p>';
+        '<p class="avp-ficha-meta" id="poDuasPortas">Porta 1 — produto ou serviço: parte da Avaliação de Produto/Serviço (P1–P16). Porta 2 — atuação, responsabilidade ou capacidade organizacional: não precisa de P1–P16.</p>';
       /* sem o índice de vigentes, toda concluída pareceria histórica: espera os dois */
       if (!state.carregou.av || !state.carregou.vig) h += '<p class="loading-msg">Carregando…</p>';
       else if (state.erroLeitura) h += '<p class="avp-error-msg">Não foi possível ler as avaliações agora.</p>';
@@ -1111,7 +1111,7 @@
     }
     function objetoHtml(a) {
       var h = '<section class="po-bloco po-objeto" id="poObjeto"><h4 class="po-bloco-titulo">Atuação organizacional</h4>' +
-        '<p class="avp-ficha-meta">Caminho 2 — posicionada diretamente, sem Avaliação de Produto/Serviço (P1–P16) ("Porta 2").</p>';
+        '<p class="avp-ficha-meta">Porta 2 — posicionada diretamente, sem Avaliação de Produto/Serviço (P1–P16).</p>';
       if (state.erroObj) return h + '<p class="avp-error-msg" id="poObjetoErro">Não foi possível ler a atuação organizacional agora.</p></section>';
       if (!state.carregou.obj) return h + '<p class="loading-msg" id="poObjetoCarregando">Carregando…</p></section>';
       var ob = (state.objetos || {})[a.itemId];
@@ -1137,14 +1137,16 @@
     function posicionamentoDoItem(id) { var vig = state.vigentes[id], res = state.reservas[id]; return vig ? { tipo: 'vigente', key: vig } : res ? { tipo: 'rascunho', key: res } : null; }
     function renderAtuacoes() {
       var h = '<div class="avp-form-card" id="poAtuacoes"><h3>Atuações organizacionais</h3>' +
-        '<p class="avp-intro">Caminho 2 ("Porta 2"): posicione diretamente uma atuação, responsabilidade ou capacidade organizacional, sem passar pela Avaliação de Produto/Serviço (P1–P16). ' +
-        'Produtos e serviços seguem o Caminho 1 (Avaliação de Produto/Serviço). O tipo organizacional não é presumido pelo nome: ele sai do Posicionamento.</p>';
-      if (!state.itemEscolhido && window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.entradaAtuacoesHtml) h += window.faAnalisesOrganizacionais.entradaAtuacoesHtml();
+        '<p class="avp-intro">Porta 2: posicione diretamente uma atuação, responsabilidade ou capacidade organizacional, sem passar pela Avaliação de Produto/Serviço (P1–P16). ' +
+        'Produtos e serviços seguem a Porta 1 (Avaliação de Produto/Serviço). O tipo organizacional não é presumido pelo nome: ele sai do Posicionamento.</p>';
       if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (state.erroObj) return h + '<p class="avp-error-msg" id="poAtuacoesErro">Não foi possível ler as atuações organizacionais agora.</p></div>' + rodapeVoltar();
       if (!state.carregou.obj || !tudoCarregado()) return h + '<p class="loading-msg">Carregando…</p></div>';
       if (state.itemEscolhido) return h + renderAtuacao(state.itemEscolhido) + '</div>' + rodapeVoltar();
-      if (podeEscrever()) h += '<div class="avp-actions-bar"><button type="button" class="btn btn--primary" id="poNovaAtuacaoBtn">+ Nova atuação organizacional</button></div>';
+      /* com a Análise Organizacional liberada, o botão de sempre vai para o cartão "Caminho A · Direto" */
+      var direto = podeEscrever() ? '<button type="button" class="btn btn--primary" id="poNovaAtuacaoBtn">+ Nova atuação organizacional</button>' : '';
+      var AO = window.faAnalisesOrganizacionais, entrada = AO && AO.entradaAtuacoesHtml ? AO.entradaAtuacoesHtml(direto) : '';
+      if (entrada) h += entrada; else if (direto) h += '<div class="avp-actions-bar">' + direto + '</div>';
       var lista = objetosOrdenados();
       if (!lista.length) h += '<p class="admin-empty" id="poSemAtuacoes">Nenhuma atuação organizacional cadastrada.</p>';
       h += '<ul class="po-itens" id="poListaAtuacoes">' + lista.map(function (o) {

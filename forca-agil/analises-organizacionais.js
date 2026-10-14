@@ -80,7 +80,15 @@
     INCOERENCIA: ['Uma resposta SIM ficou fora do caminho do questionário.', 'Confira as respostas no Posicionamento (reavaliação) ou volte à delimitação, se elas refletem responsabilidades diferentes.']
   };
   var HAB = { DESLIGADO: 'Desligado', SOMENTE_ADMIN_GERAL: 'Somente admin geral (homologação)', LIBERADO_PARA_PERFIS_AUTORIZADOS: 'Liberado para os perfis autorizados' };
-  var ETAPAS = ['Objeto', 'Descoberta', 'Delimitação', 'Avaliação O1–O9', 'Aprofundamento', 'Composição', 'Decisão'];
+  /* textos de tela de algumas perguntas (a matriz F1–F17 do núcleo continua a fonte da pergunta e do porquê) */
+  var TEXTO_PERGUNTA = {
+    F2a: { curta: 'Um só resultado e um só destinatário?' },
+    F2b: { curta: 'No cadastro de Estruturas Organizacionais (ADMIN)',
+      pergunta: 'Essa estrutura já está cadastrada no ADMIN para representação no Mapa da Floresta?',
+      ajuda: 'Consulte em ADMIN → Avaliação e Mapa → Estruturas Organizacionais. Esse cadastro registra estruturas concretas da organização e não deve ser confundido com o cadastro de Atuações Organizacionais da Porta 2. Não é necessário cadastrar uma estrutura para continuar esta análise.',
+      valores: { cadastrada: 'Existe no cadastro de Estruturas Organizacionais do ADMIN.', 'nao-cadastrada': 'É uma estrutura formal que ainda não consta naquele cadastro.', informal: 'É um agrupamento ou atuação sem formalização como estrutura organizacional.' } },
+    F2c: { curta: 'Entregas da capacidade' }
+  };
   var PRAZO = 15000;
 
   /* ===================== estado compartilhado (lido ao vivo) ===================== */
@@ -179,7 +187,9 @@
     PROPOSTA_PENDENTE_NAO_SE_APROVA: 'Uma proposta pendente não recebe aprovação.', PROPOSTA_NAO_VIGENTE: 'Só a proposta vigente recebe aprovação.',
     RESPONSAVEL_NAO_DEFINIDO_COM_ESTRUTURA: '"Ainda não definido" não aponta estrutura.', RESPONSAVEL_FORMAL_INVALIDO: 'Diga qual estrutura responde (ou marque "ainda não definido"), com caráter e fonte.',
     EXECUCAO_INVALIDA: 'Cada informação de execução precisa da estrutura (ou descrição), do caráter e da fonte.', OUTRA_ESTRUTURA_SEM_IDENTIFICACAO: 'Diga qual estrutura responde.',
-    EVIDENCIA_SEM_DESCRICAO: 'Descreva a evidência ou registre como hipótese.', NORMA_NAO_CITADA: 'Cite a norma.', ESTRUTURA_NAO_INFORMADA: 'Escolha a estrutura cadastrada.',
+    EVIDENCIA_SEM_DESCRICAO: 'Descreva a evidência ou registre como hipótese.', NORMA_NAO_CITADA: 'Cite a norma.', ESTRUTURA_NAO_INFORMADA: 'Escolha qual estrutura cadastrada (a resposta "Está cadastrada" pede a estrutura).',
+    ESTRUTURA_INCOMPATIVEL_COM_RESPOSTA: 'Só a resposta "Está cadastrada" aponta uma estrutura do cadastro.', ENTREGA_EM_RESPONSABILIDADE: 'Esta entrega está numa responsabilidade delimitada: tire-a de lá antes (descarte ou reveja a responsabilidade).',
+    ENTREGA_EM_RESPONSABILIDADE_AVALIADA: 'Esta entrega está numa responsabilidade já avaliada pelo O1–O9: o texto não muda. Para rever, descarte a responsabilidade e delimite de novo.', ENTREGA_DESCARTADA: 'Esta entrega já foi excluída.', ENTREGA_INEXISTENTE: 'Entrega não encontrada.',
     CERTEZA_RESPONSAVEL_INVALIDA: 'Diga se o responsável é conhecido, provável ou ainda não definido.', NOME_OBRIGATORIO: 'O nome é obrigatório.', RESULTADO_OBRIGATORIO: 'O resultado é obrigatório.',
     JUSTIFICATIVA_DO_RECORTE_OBRIGATORIA: 'Explique por que esta responsabilidade é distinta das outras.', JUSTIFICATIVA_OBRIGATORIA: 'A justificativa é obrigatória.', MOTIVO_OBRIGATORIO: 'O motivo é obrigatório.',
     RECORTE_SEM_ENTREGA: 'Escolha ao menos uma entrega.', ENTREGA_SEM_DESCRICAO: 'Descreva a entrega.', EVIDENCIA_SEM_TEXTO: 'Escreva a evidência.', TIPO_ESCOPO_INVALIDO: 'Escolha o que você vai analisar.',
@@ -277,21 +287,96 @@
         '<div class="avp-field"><label for="anNome">Nome</label><input id="anNome" maxlength="200" value="' + esc(f.nome || '') + '"></div>' +
         '<div class="avp-field"><label for="anDescricao">Descrição <span class="an-opc">(opcional)</span></label><textarea id="anDescricao" rows="2" maxlength="2000">' + esc(f.descricao || '') + '</textarea></div>' +
         '<div class="avp-field"><label for="anCapacidades">Capacidades relacionadas <span class="an-opc">(opcional, separadas por ponto e vírgula; só referência)</span></label><input id="anCapacidades" value="' + esc(f.capacidades || '') + '"></div>' +
-        (atuacoes.length ? '<div class="avp-field"><label for="anObjetoAmplo">Esta análise detalha uma atuação já cadastrada? <span class="an-opc">(opcional)</span></label><select id="anObjetoAmplo"><option value="">Não</option>' +
-          atuacoes.map(function (k) { return '<option value="' + esc(k) + '"' + (f.objetoAmploId === k ? ' selected' : '') + '>' + esc(D.objetos[k].nome) + '</option>'; }).join('') + '</select>' +
-          '<p class="an-nota">A atuação ampla continua como está e passa a aparecer como "delimitada em N responsabilidades".</p></div>' : '') +
+        '<fieldset class="an-opcoes" id="anAprofunda" aria-describedby="anAprofundaAjuda"><legend>Você quer aprofundar uma atuação organizacional já registrada na Porta 2?</legend>' +
+          '<p class="an-ajuda" id="anAprofundaAjuda">Não é necessário cadastrar uma atuação antes de começar. Se você está investigando uma estrutura ou conjunto de atividades, pode iniciar diretamente por esta análise. As responsabilidades identificadas poderão originar atuações para avaliação posterior.</p>' +
+          '<label class="an-opcao"><input type="radio" name="anTemAtuacao" value="nao"' + (f.objetoAmploId ? '' : ' checked') + '><span><strong>Não — começar uma análise nova</strong><span class="an-exemplo">O caso mais comum. As atuações nascem depois, das responsabilidades que a análise delimitar.</span></span></label>' +
+          '<label class="an-opcao"><input type="radio" name="anTemAtuacao" value="sim"' + (f.objetoAmploId ? ' checked' : '') + (atuacoes.length ? '' : ' disabled') + '><span><strong>Sim — aprofundar uma atuação já registrada</strong><span class="an-exemplo">' + (atuacoes.length ? 'Para uma atuação ampla demais: ela continua como está e passa a aparecer como "delimitada em N responsabilidades".' : 'Ainda não há atuação registrada na Porta 2.') + '</span></span></label>' +
+          (atuacoes.length ? '<div class="avp-field an-dependente"><label for="anObjetoAmplo">Qual atuação? <span class="an-opc" id="anObjetoAmploDica">' + (f.objetoAmploId ? '(obrigatória)' : '(só para "Sim")') + '</span></label><select id="anObjetoAmplo" aria-describedby="anObjetoAmploDica"' + (f.objetoAmploId ? '' : ' disabled') + '><option value="">—</option>' +
+            atuacoes.map(function (k) { return '<option value="' + esc(k) + '"' + (f.objetoAmploId === k ? ' selected' : '') + '>' + esc(D.objetos[k].nome) + '</option>'; }).join('') + '</select></div>' : '') +
+          '<p class="an-nota">Isto se refere às Atuações Organizacionais da Porta 2 (área Avaliação), e não às Estruturas Organizacionais cadastradas no ADMIN.</p></fieldset>' +
         (st.erro ? '<p class="avp-error-msg" id="anErro" role="alert">' + esc(st.erro) + '</p>' : '') +
         '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anCriarBtn"' + (st.gravando ? ' disabled' : '') + '>' + (st.gravando ? 'Gravando…' : 'Abrir a análise') + '</button></div></form>';
     }
 
-    function trilha(atual) { return '<ol class="an-trilha" id="anTrilha" aria-label="Etapas">' + ETAPAS.map(function (t, i) { var n = i + 1; return '<li class="' + (n < atual ? 'feita' : n === atual ? 'atual' : '') + '"' + (n === atual ? ' aria-current="step"' : '') + '>' + n + ' ' + esc(t) + '</li>'; }).join('') + '</ol>'; }
-    function etapaAtual(a, pend, ativos) {
-      if (pend.length) return 2;
-      if (!ativos.length) return 3;
-      var sf = ativos.map(function (k) { return situacaoFormalDe(a.recortes[k]); });
-      if (sf.some(function (x) { return x.s === 'sem-classificacao'; })) return 4;
-      if (sf.some(function (x) { return x.s === 'classificacao-a-validar'; })) return 5;
-      return a.propostaVigente ? 7 : 6;
+    /* ---------- jornada progressiva: quatro passos que não travam ---------- */
+    var GRUPO = { F2a: 0, F2b: 0, F2c: 0, F3: 1, F4: 1, F5: 1, F6: 1, F7: 1, F8: 1, F12: 1, F13: 1, F10: 2, F11: 2 };
+    function entregasAtivas(a) { return Object.keys(a.entregas).filter(function (k) { return a.entregas[k].situacao === 'ativa'; }).sort(function (x, y) { return (a.entregas[x].criadaEm || 0) - (a.entregas[y].criadaEm || 0); }); }
+    function descrita(e) { var r = e.respostas; return !!(r.F4 && r.F5 && r.F6 && r.F8); }
+    function recorteDaEntrega(a, ativos, e) { for (var i = 0; i < ativos.length; i++) if (a.recortes[ativos[i]].entregas.indexOf(e) !== -1) return a.recortes[ativos[i]]; return null; }
+    function execOutra(e) { return !!(e.respostas.F7 && e.respostas.F7.valor === 'sim'); }
+    function passos(a, pend, ativos, sfs) {
+      var ents = entregasAtivas(a), g = [[], [], []];
+      /* F3 (a primeira entrega) é o próprio formulário de entregas: não conta como pergunta pendente */
+      pend.forEach(function (q) { if (q.pergunta !== 'F3') g[GRUPO[q.pergunta] || 0].push(q); });
+      var semEntregas = !!(a.respostas.F3 && a.respostas.F3.valor === 'nenhuma');
+      var livres = ents.filter(function (e) { return !execOutra(a.entregas[e]) && !recorteDaEntrega(a, ativos, e); });
+      var descritas = ents.filter(function (e) { return descrita(a.entregas[e]); }).length;
+      var avaliadas = sfs.filter(function (x) { return x.p.estado === 'concluido'; }).length;
+      var semDescricao = !ents.length && semEntregas;
+      var p = [
+        { n: 1, titulo: 'Descobrir as entregas', pend: g[0].concat(g[1]), disponivel: true, concluido: !g[0].length && !g[1].length && (ents.length > 0 || semEntregas) },
+        { n: 2, titulo: 'Delimitar as responsabilidades', pend: g[2], disponivel: descritas > 0 || ativos.length > 0,
+          motivo: semDescricao ? 'Você registrou que não consegue identificar entregas — isso fica como lacuna da análise.' : 'Ainda não há nenhuma entrega descrita por completo.',
+          condicao: semDescricao ? 'Quando identificar uma entrega, registre-a no Passo 1.' : 'No Passo 1, registre uma entrega e responda as perguntas sobre ela (forma, destinatário, quem responde e evidência).',
+          concluido: ativos.length > 0 && !g[2].length && !livres.length },
+        { n: 3, titulo: 'Avaliar cada responsabilidade com o O1–O9', pend: [], disponivel: ativos.length > 0, motivo: 'Ainda não há responsabilidade delimitada.', condicao: 'Delimite ao menos uma responsabilidade no Passo 2.',
+          concluido: ativos.length > 0 && avaliadas === ativos.length },
+        { n: 4, titulo: 'Composição organizacional', pend: [], disponivel: avaliadas > 0 || !!a.propostaVigente, motivo: 'Nenhuma responsabilidade tem o O1–O9 concluído.', condicao: 'Conclua o O1–O9 de ao menos uma responsabilidade (Passo 3).',
+          concluido: !!a.propostaVigente }
+      ];
+      var atual = 4;
+      for (var i = 0; i < p.length; i++) if (!p[i].concluido && p[i].disponivel) { atual = p[i].n; break; }
+      return { lista: p, atual: atual, livres: livres, ents: ents, semEntregas: semEntregas };
+    }
+    function trilha(ps) {
+      return '<ol class="an-trilha" id="anTrilha" aria-label="Passos da análise">' + ps.lista.map(function (p) {
+        var s = p.concluido ? 'concluído' : !p.disponivel ? 'ainda não disponível' : p.n === ps.atual ? 'passo atual' : 'disponível';
+        return '<li class="' + (p.concluido ? 'feita' : p.n === ps.atual ? 'atual' : !p.disponivel ? 'bloqueada' : '') + '"' + (p.n === ps.atual ? ' aria-current="step"' : '') + '>' +
+          '<span class="an-trilha-n">' + p.n + '</span> ' + esc(p.titulo) + ' <span class="an-trilha-s">· ' + s + '</span></li>';
+      }).join('') + '</ol>';
+    }
+    function rotuloPendencia(a, q) {
+      var ent = q.entregaId && a.entregas[q.entregaId] ? ' — entrega "' + a.entregas[q.entregaId].descricao + '"' : '';
+      var t = { F2a: 'Se a responsabilidade tem um só resultado e destinatário', F2b: 'Se a estrutura está no cadastro do ADMIN', F2c: 'Se você vai listar as entregas da capacidade', F3: 'Registrar a primeira entrega',
+        F4: 'Forma da entrega', F5: 'Para quem é a entrega', F6: 'Quem responde pela entrega', F7: 'Se a execução é para outra estrutura', F8: 'Evidência da entrega', F12: 'Para quem é o padrão ou a capacitação', F13: 'De quem são as regras do serviço ou solução',
+        F10: 'Comparar duas entregas parecidas', F11: 'Se política e operação precisam ficar separadas' }[q.pergunta] || q.pergunta;
+      if (q.pergunta === 'F10') { var x = a.entregas[q.par[0]], y = a.entregas[q.par[1]]; ent = x && y ? ': "' + x.descricao + '" × "' + y.descricao + '"' : ''; }
+      return t + ent;
+    }
+    function pendenciasHtml(a, p, idCard) {
+      if (!p.pend.length) return '';
+      var n = p.pend.length, aqui = idCard === p.n;
+      return '<details class="an-pendencias" id="anPendencias' + p.n + '"><summary>' + n + ' pergunta' + (n === 1 ? '' : 's') + ' pendente' + (n === 1 ? '' : 's') + ' neste passo' +
+        (aqui ? '' : ' — aparece' + (n === 1 ? '' : 'm') + ' uma por vez, depois da pergunta atual') + '</summary><ul>' +
+        p.pend.map(function (q) { return '<li>' + esc(rotuloPendencia(a, q)) + '</li>'; }).join('') + '</ul></details>';
+    }
+    function secaoPasso(p, ps, corpo, sempre) {
+      var s = p.concluido ? ['concluido', 'Concluído', 'ok'] : !p.disponivel ? ['indisponivel', 'Ainda não disponível', 'neu'] : p.n === ps.atual ? ['atual', 'Passo atual', 'atual'] : ['disponivel', 'Disponível', 'neu'];
+      var h = '<section class="avp-form-card an-passo an-passo--' + s[0] + '" id="anPasso' + p.n + '" aria-labelledby="anPasso' + p.n + 'Titulo"><header class="an-passo-cab"><h3 id="anPasso' + p.n + 'Titulo"><span class="an-passo-num">Passo ' + p.n + '</span> ' + esc(p.titulo) + '</h3>' +
+        '<span class="an-chip an-chip--' + s[2] + '" id="anPasso' + p.n + 'Estado">' + s[1] + '</span></header>';
+      if (!p.disponivel && !p.concluido) return h + '<p class="an-indisponivel" id="anPasso' + p.n + 'Motivo"><strong>Por quê:</strong> ' + esc(p.motivo) + '</p><p class="an-nota" id="anPasso' + p.n + 'Condicao"><strong>Para avançar:</strong> ' + esc(p.condicao) + '</p>' + (sempre || '') + '</section>';
+      return h + corpo + (sempre || '') + '</section>';
+    }
+    /* a próxima ação: uma frase e um botão que leva até ela (sem trocar de endereço) */
+    function proximaAcao(a, pend, ps, ativos, sfs, gravar) {
+      if (a.situacao === 'descartada') return { t: 'Análise descartada: só consulta. Nada foi apagado.' };
+      if (!gravar) return { t: 'Você está consultando: pode ler tudo, mas gravar é do perfil Avaliação + Configuração.' };
+      var q = pend[0];
+      if (q && q.pergunta === 'F3') return { t: 'Registre a primeira entrega — ou diga que não consegue identificar nenhuma.', alvo: 'anEntregaDesc' };
+      if (q) {
+        var ent = q.entregaId && a.entregas[q.entregaId] ? ' sobre a entrega "' + a.entregas[q.entregaId].descricao + '"' : '';
+        return { t: (GRUPO[q.pergunta] === 0 ? 'Responda a pergunta sobre o objeto da análise.' : q.pergunta === 'F10' ? 'Compare duas entregas parecidas (Passo 2).' : 'Responda a pergunta' + ent + ' (Passo ' + (GRUPO[q.pergunta] === 2 ? 2 : 1) + ').'), alvo: 'anPergunta' };
+      }
+      if (!ps.ents.length && !ps.semEntregas) return { t: 'Registre a primeira entrega.', alvo: 'anEntregaDesc' };
+      if (ps.livres.length && ps.lista[1].disponivel) return { t: 'Delimite uma responsabilidade com as entregas que ainda estão fora de qualquer uma (' + ps.livres.length + ').', alvo: 'anFormRecorte' };
+      for (var i = 0; i < ativos.length; i++) {
+        var r = a.recortes[ativos[i]], p = sfs[i].p;
+        if (!r.objetoId) return N().prontaParaO1O9(a, ativos[i]).pronta ? { t: 'Avalie "' + r.nome + '" com o O1–O9.', alvo: 'anCriarAtuacao_' + ativos[i] } : { t: 'Complete as informações de "' + r.nome + '" para poder avaliá-la.', alvo: 'anNaoPronta_' + ativos[i] };
+        if (p.estado !== 'concluido') return { t: 'Responda o O1–O9 de "' + r.nome + '" no Posicionamento.', alvo: 'anAbrirPos_' + ativos[i] };
+      }
+      if (!ativos.length) return ps.semEntregas ? { t: 'Você registrou que não consegue identificar entregas. Quando identificar uma, registre-a no Passo 1.', alvo: 'anEntregaDesc' } : { t: 'Delimite a primeira responsabilidade.', alvo: 'anFormRecorte' };
+      if (!a.propostaVigente) return { t: 'Registre a proposta de composição (Passo 4).', alvo: 'anAbrirProposta' };
+      return { t: 'Proposta registrada. A aprovação do desenho é de uma instância institucional; o admin geral registra a referência ao ato.' };
     }
     function renderAnalise(acc) {
       var est = estado(), a = est.analises[st.id];
@@ -303,29 +388,50 @@
       var pendForm = sfs.filter(function (x) { return x.s && x.s !== 'compativel'; }).length;
       var vig = N().propostaVigente(est, st.id), aprov = vig ? est.aprovacoes[vig.id] : null;
       var decisao = !vig ? 'Sem proposta' : vig.situacao === 'pendente' ? 'Pendente (proposta v' + vig.versao + ')' : aprov ? 'Aprovação registrada (referência a ato externo)' : 'Proposta v' + vig.versao + ', sem aprovação registrada';
+      var ps = passos(a, pend, ativos, sfs);
+      /* a pergunta da vez: uma só, no passo a que pertence (ou a resposta que a pessoa pediu para alterar) */
+      var alterando = gravar && st.form && st.form.tipo === 'alterar-objeto' ? st.form.q : null;
+      var card = !gravar ? null : alterando ? { grupo: 0, html: renderPergunta(a, [{ pergunta: alterando }], true) } : pend.length && pend[0].pergunta !== 'F3' ? { grupo: GRUPO[pend[0].pergunta] || 0, html: renderPergunta(a, pend) } : null;
+      var cardEm = card ? (card.grupo === 0 ? 0 : card.grupo === 1 ? 1 : 2) : -1;
+      var px = proximaAcao(a, alterando ? [] : pend, ps, ativos, sfs, gravar);
       var h = voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') +
         '<h2 class="an-titulo" id="anTitulo">' + esc(a.nome) + '</h2>' +
-        '<p class="an-meta">' + esc(ESCOPO[a.tipoEscopo] ? ESCOPO[a.tipoEscopo][0] : a.tipoEscopo) +
-        (a.estruturaReferidaId ? ' · estrutura: ' + esc(nomeEstrutura(a.estruturaReferidaId)) : '') +
-        (a.capacidades.length ? ' · capacidades: ' + a.capacidades.map(function (c) { return esc(c.rotulo); }).join(', ') : '') + '</p>' +
         (a.situacao === 'descartada' ? '<p class="avp-error-msg" id="anDescartada">Análise descartada: ' + esc(a.descarte && a.descarte.motivo) + '. Nada foi apagado.</p>' : '') +
-        trilha(etapaAtual(a, pend, ativos)) +
-        '<dl class="an-estados" id="anEstados">' +
-        '<div><dt>Classificação (O1–O9)</dt><dd id="anEstadoClassificacao">' + classificadas + ' de ' + ativos.length + ' responsabilidade' + (ativos.length === 1 ? '' : 's') + '</dd></div>' +
-        '<div><dt>Diagnóstico de vínculo</dt><dd id="anEstadoDiagnostico">' + (ativos.length ? (pendForm ? pendForm + ' com pendência' : 'sem pendência conhecida') : '—') + '</dd></div>' +
-        '<div><dt>Decisão organizacional</dt><dd id="anEstadoDecisao">' + esc(decisao) + '</dd></div></dl>' +
+        trilha(ps) +
+        '<div class="an-proxima" id="anProximaAcao" role="status"><p><strong>Próxima ação:</strong> ' + esc(px.t) + '</p>' +
+        (px.alvo ? '<button type="button" class="btn btn--primary btn--sm" data-an="ir-para" data-alvo="' + esc(px.alvo) + '" id="anIrProxima">Ir para lá</button>' : '') + '</div>' +
         (st.flash ? '<p class="avp-flash-success" id="anFlash" role="status">' + esc(st.flash) + '</p>' : '') +
         (st.erro ? '<p class="avp-error-msg" id="anErro" role="alert">' + esc(st.erro) + '</p>' : '');
-      if (gravar && pend.length) h += renderPergunta(a, pend);
-      h += renderEntregas(a, gravar);
-      h += renderRecortes(a, ativos, sfs, gravar);
+      h += renderObjeto(a, gravar, cardEm === 0 ? card.html : '');
+      h += secaoPasso(ps.lista[0], ps, pendenciasHtml(a, ps.lista[0], cardEm === 1 ? 1 : -1) + (cardEm === 1 ? card.html : '') + renderEntregas(a, ativos, ps, gravar));
+      h += secaoPasso(ps.lista[1], ps, pendenciasHtml(a, ps.lista[1], cardEm === 2 ? 2 : -1) + (cardEm === 2 ? card.html : '') + renderDelimitacao(a, ativos, gravar), renderReferencias(a, gravar));
+      h += secaoPasso(ps.lista[2], ps, renderRecortes(a, ativos, sfs, gravar));
+      h += secaoPasso(ps.lista[3], ps, renderComposicao(est, a, ativos, sfs, acc));
+      h += '<dl class="an-estados" id="anEstados">' +
+        '<div><dt>Classificação (O1–O9)</dt><dd id="anEstadoClassificacao">' + classificadas + ' de ' + ativos.length + ' responsabilidade' + (ativos.length === 1 ? '' : 's') + '</dd></div>' +
+        '<div><dt>Diagnóstico de vínculo</dt><dd id="anEstadoDiagnostico">' + (ativos.length ? (pendForm ? pendForm + ' com pendência' : 'sem pendência conhecida') : '—') + '</dd></div>' +
+        '<div><dt>Decisão organizacional</dt><dd id="anEstadoDecisao">' + esc(decisao) + '</dd></div></dl>';
       if (lac.length) h += '<section class="avp-form-card an-secao" id="anLacunas"><h3>Lacunas (não impedem continuar)</h3><ul>' + lac.map(function (l) { return '<li>' + esc(textoLacuna(a, l)) + '</li>'; }).join('') + '</ul></section>';
-      h += renderComposicao(est, a, ativos, sfs, acc);
       h += renderHistorico(a);
       h += '<div class="avp-actions-footer an-rodape"><button type="button" class="btn btn--sm" id="anExportarBtn" data-an="exportar">📊 Exportar Excel</button>' +
         (gravar ? '<button type="button" class="btn btn--sm btn--danger" data-an="abrir-form" data-form="descartar" id="anDescartarBtn">Descartar a análise</button>' : '') + '</div>';
       if (st.form && st.form.tipo === 'descartar') h += '<form class="avp-form-card an-form" id="anFormDescartar"><div class="avp-field"><label for="anMotivoDescarte">Motivo do descarte</label><textarea id="anMotivoDescarte" maxlength="500" rows="2"></textarea></div><p class="an-nota">Nada é apagado: a análise fica no histórico como descartada.</p><div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarDescarte">Descartar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
       return h;
+    }
+    /* o objeto da análise: o que foi escolhido ao abrir e as respostas sobre ele, que podem ser alteradas */
+    function renderObjeto(a, gravar, card) {
+      var amplo = a.objetoAmploId ? (D.objetos || {})[a.objetoAmploId] : null, h = '<section class="avp-form-card an-objeto" id="anObjeto" aria-labelledby="anObjetoTitulo"><h3 id="anObjetoTitulo">O que está sendo analisado</h3><dl class="an-objeto-dl">' +
+        '<div><dt>Escopo</dt><dd id="anObjetoEscopo">' + esc(ESCOPO[a.tipoEscopo] ? ESCOPO[a.tipoEscopo][0] : a.tipoEscopo) + '</dd></div>' +
+        (a.descricao ? '<div><dt>Descrição</dt><dd>' + esc(a.descricao) + '</dd></div>' : '') +
+        (a.capacidades.length ? '<div><dt>Capacidades (só referência)</dt><dd>' + a.capacidades.map(function (c) { return esc(c.rotulo); }).join(', ') + '</dd></div>' : '') +
+        (a.objetoAmploId ? '<div><dt>Aprofunda a atuação da Porta 2</dt><dd>' + esc(amplo ? amplo.nome : a.objetoAmploId) + '</dd></div>' : '');
+      ['F2a', 'F2b', 'F2c'].forEach(function (q) {
+        var r = a.respostas[q]; if (!r) return;
+        var ref = q === 'F2b' ? N().cadastroReferido(a) : null;
+        h += '<div><dt>' + esc(TEXTO_PERGUNTA[q] ? TEXTO_PERGUNTA[q].curta : q) + '</dt><dd id="anObjeto' + q + '">' + esc((ROT[q] || {})[r.valor] || r.valor) + (ref ? ': ' + esc(nomeEstrutura(ref)) : '') +
+          (gravar && !card ? ' <button type="button" class="btn btn--sm an-alterar" data-an="abrir-form" data-form="alterar-objeto" data-q="' + q + '" id="anAlterar' + q + '">Alterar</button>' : '') + '</dd></div>';
+      });
+      return h + '</dl>' + card + '</section>';
     }
     function nomeEntrega(a, id) { var e = a.entregas[id]; return e ? e.descricao : id; }
     function textoLacuna(a, l) {
@@ -337,38 +443,46 @@
       if (l.tipo === 'entrega-sem-recorte') return 'Entrega ainda fora de qualquer responsabilidade: ' + nomeEntrega(a, l.entregaId) + '.';
       return l.tipo;
     }
-    /* a pergunta da vez — uma só, com o porquê */
-    function renderPergunta(a, pend) {
+    /* a pergunta da vez — uma só, com o porquê; "alterando" reabre uma resposta já dada sobre o objeto */
+    function renderPergunta(a, pend, alterando) {
       var q = pend[0], M = {}; N().MATRIZ.forEach(function (x) { M[x.id] = x; });
-      var def = M[q.pergunta], h = '<section class="avp-form-card an-pergunta" id="anPergunta" aria-labelledby="anPerguntaTitulo"><p class="an-contador">' + pend.length + ' pergunta' + (pend.length === 1 ? '' : 's') + ' pendente' + (pend.length === 1 ? '' : 's') + '</p>';
+      var def = M[q.pergunta], tx = TEXTO_PERGUNTA[q.pergunta] || {}, atual = alterando ? a.respostas[q.pergunta] : null;
+      var h = '<div class="an-pergunta" id="anPergunta" aria-labelledby="anPerguntaTitulo">' + (alterando ? '<p class="an-contador">Alterando uma resposta já dada</p>' : '<p class="an-contador">Pergunta atual</p>');
       if (q.pergunta === 'F10') {
         var x = a.entregas[q.par[0]], y = a.entregas[q.par[1]];
-        h += '<h3 id="anPerguntaTitulo">Estas duas entregas são a mesma responsabilidade?</h3><p class="an-par"><strong>' + esc(x.descricao) + '</strong> × <strong>' + esc(y.descricao) + '</strong></p>' +
-          '<p class="an-porque">Por que perguntamos: elas se parecem (' + esc(q.sinais.map(function (s) { return { 'mesma-forma': 'mesma forma', 'mesmo-destinatario': 'mesmo destinatário', 'mesmo-responsavel': 'mesmo responsável', 'padrao-aplicado-nos-proprios-casos': 'padrão aplicado nos próprios casos' }[s] || s; }).join(', ')) + '). Parecer não basta: a identidade depende dos critérios abaixo, e nada é juntado sem a sua conclusão.</p>' +
+        h += '<h4 id="anPerguntaTitulo">Estas duas entregas são a mesma responsabilidade?</h4><p class="an-par"><strong>' + esc(x.descricao) + '</strong> × <strong>' + esc(y.descricao) + '</strong></p>' +
+          '<p class="an-porque">Por que perguntamos: elas se parecem (' + esc(q.sinais.map(function (s) { return { 'mesma-forma': 'mesma forma', 'mesmo-destinatario': 'mesmo destinatário', 'mesmo-responsavel': 'mesmo responsável', 'padrao-aplicado-nos-proprios-casos': 'padrão aplicado nos próprios casos' }[s] || s; }).join(', ')) + '). Parecer não basta: a identidade depende dos critérios abaixo, e nada é juntado sem a sua conclusão. Uma responsabilidade pode reunir várias entregas; uma entrega não é, sozinha, uma responsabilidade.</p>' +
           '<form id="anFormComparar" data-a="' + esc(q.par[0]) + '" data-b="' + esc(q.par[1]) + '">' + Object.keys(CRITERIO).map(function (k) {
             return '<fieldset class="an-criterio"><legend>' + esc(CRITERIO[k][0]) + ' <span class="an-exemplo">' + esc(CRITERIO[k][1]) + '</span></legend>' + ['igual', 'diferente', 'nao-sei'].map(function (v) {
               return '<label class="an-opcao an-opcao--linha"><input type="radio" name="anCrit_' + k + '" value="' + v + '"><span>' + { igual: 'Igual', diferente: 'Diferente', 'nao-sei': 'Não sei' }[v] + '</span></label>'; }).join('') + '</fieldset>';
           }).join('') +
           '<fieldset class="an-opcoes"><legend>Sua conclusão</legend>' + Object.keys(CONCLUSAO).map(function (k) { return '<label class="an-opcao"><input type="radio" name="anConclusao" value="' + k + '"><span>' + esc(CONCLUSAO[k]) + '</span></label>'; }).join('') + '</fieldset>' +
           '<div class="avp-field"><label for="anJustComp">Justificativa <span class="an-opc">(obrigatória se contrariar os critérios)</span></label><textarea id="anJustComp" rows="2" maxlength="2000"></textarea></div>' +
-          '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anResponderBtn"' + (st.gravando ? ' disabled' : '') + '>Registrar a comparação</button></div></form></section>';
-        return h;
-      }
-      if (q.pergunta === 'F3') {
-        h += '<h3 id="anPerguntaTitulo">' + esc(def.pergunta) + '</h3><p class="an-porque">Por que perguntamos: ' + esc(def.porque) + ' Uma entrega é algo que sai daqui e alguém usa — um parecer, um serviço, uma política, um sistema.</p>' +
-          '<p class="an-nota">Use o formulário "Adicionar entrega" logo abaixo. Se não há nenhuma: <button type="button" class="btn btn--sm" data-an="responder" data-q="F3" data-v="nenhuma" id="anSemEntregas">Não consigo identificar entregas</button></p></section>';
+          '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anResponderBtn"' + (st.gravando ? ' disabled' : '') + '>Registrar a comparação</button></div></form></div>';
         return h;
       }
       var ent = q.entregaId ? a.entregas[q.entregaId] : null;
-      h += (ent ? '<p class="an-sobre">Sobre a entrega: <strong>' + esc(ent.descricao) + '</strong></p>' : '') + '<h3 id="anPerguntaTitulo">' + esc(def.pergunta) + '</h3>' +
-        '<p class="an-porque">Por que perguntamos: ' + esc(def.porque) + '</p><form id="anFormResponder" data-q="' + q.pergunta + '" data-entrega="' + esc(q.entregaId || '') + '">' +
+      h += (ent ? '<p class="an-sobre">Sobre a entrega: <strong>' + esc(ent.descricao) + '</strong></p>' : '') + '<h4 id="anPerguntaTitulo">' + esc(tx.pergunta || def.pergunta) + '</h4>' +
+        (tx.ajuda ? '<p class="an-ajuda" id="anPerguntaAjuda">' + esc(tx.ajuda) + '</p>' : '<p class="an-porque">Por que perguntamos: ' + esc(def.porque) + '</p>') +
+        '<form id="anFormResponder" data-q="' + q.pergunta + '" data-entrega="' + esc(q.entregaId || '') + '"' + (alterando ? ' data-alterando="1"' : '') + '>' +
         '<fieldset class="an-opcoes"><legend class="sr-only">Respostas</legend>' + def.valores.map(function (v) {
-          return '<label class="an-opcao"><input type="radio" name="anResposta" value="' + v + '"><span>' + esc((ROT[q.pergunta] || {})[v] || v) + '</span></label>'; }).join('') + '</fieldset>';
+          var d = tx.valores && tx.valores[v];
+          return '<label class="an-opcao"><input type="radio" name="anResposta" value="' + v + '"' + (atual && atual.valor === v ? ' checked' : '') + '><span>' + (d ? '<strong>' + esc((ROT[q.pergunta] || {})[v] || v) + '</strong><span class="an-exemplo">' + esc(d) + '</span>' : esc((ROT[q.pergunta] || {})[v] || v)) + '</span></label>'; }).join('') + '</fieldset>';
       if (q.pergunta === 'F6') h += '<div class="avp-field"><label for="anCerteza">Isso é</label><select id="anCerteza">' + Object.keys(CERTEZA).map(function (k) { return '<option value="' + k + '">' + esc(CERTEZA[k]) + '</option>'; }).join('') + '</select></div>' + campoEstrutura('anOutraEstrutura', 'Qual estrutura (se for outra)?', true);
       if (q.pergunta === 'F8' || q.pergunta === 'F11') h += '<div class="avp-field"><label for="anTextoResp">' + (q.pergunta === 'F8' ? 'Evidência (documento, indicador, ata, exemplo de caso)' : 'Norma (se for exigência normativa)') + '</label><textarea id="anTextoResp" rows="2" maxlength="2000"></textarea></div>';
-      if (q.pergunta === 'F2b') h += campoEstrutura('anEstruturaCadastrada', 'Qual estrutura cadastrada?', false);
-      h += '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anResponderBtn"' + (st.gravando ? ' disabled' : '') + '>Responder</button></div></form></section>';
+      if (q.pergunta === 'F2b') h += campoEstruturaCadastrada(atual);
+      h += '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anResponderBtn"' + (st.gravando ? ' disabled' : '') + '>' + (alterando ? 'Gravar a alteração' : 'Responder') + '</button>' +
+        (alterando ? '<button type="button" class="btn btn--sm" data-an="cancelar" id="anCancelarAlteracao">Cancelar</button>' : '') + '</div></form></div>';
       return h;
+    }
+    /* F2b: a estrutura cadastrada só existe (e só é exigida) com "Está cadastrada"; nas outras respostas o campo fica
+       desabilitado e vazio. O núcleo recusa a combinação incoerente — a tela só evita oferecê-la */
+    function campoEstruturaCadastrada(atual) {
+      var ests = D.estruturas ? Object.keys(D.estruturas).filter(function (k) { return D.estruturas[k].situacao === 'ativa'; }).sort(function (x, y) { return String(D.estruturas[x].nome).localeCompare(D.estruturas[y].nome); }) : [];
+      var ligado = !!(atual && atual.valor === 'cadastrada'), sel = ligado ? atual.estruturaId : '';
+      if (!ests.length) return '<p class="an-nota" id="anEstruturaCadastradaAviso">' + (D.estruturas === undefined ? 'Lendo o cadastro de Estruturas Organizacionais…' : 'O cadastro de Estruturas Organizacionais não está disponível agora (ou ainda não tem estruturas ativas). Se a estrutura está cadastrada, volte a esta pergunta depois; se não está, escolha outra resposta.') + '</p>';
+      return '<div class="avp-field an-dependente" id="anEstruturaCadastradaCampo"><label for="anEstruturaCadastrada">Qual estrutura cadastrada? <span class="an-opc" id="anEstruturaCadastradaDica">' + (ligado ? '(obrigatória)' : '(só para "Está cadastrada")') + '</span></label>' +
+        '<select id="anEstruturaCadastrada" aria-describedby="anEstruturaCadastradaDica"' + (ligado ? ' required' : ' disabled') + '><option value="">—</option>' + ests.map(function (k) { return '<option value="' + esc(k) + '"' + (k === sel ? ' selected' : '') + '>' + esc(D.estruturas[k].nome) + '</option>'; }).join('') + '</select></div>';
     }
     function campoEstrutura(id, rotulo, comTexto) {
       var ests = D.estruturas ? Object.keys(D.estruturas).filter(function (k) { return D.estruturas[k].situacao === 'ativa'; }).sort(function (x, y) { return String(D.estruturas[x].nome).localeCompare(D.estruturas[y].nome); }) : [];
@@ -376,21 +490,54 @@
         (comTexto || !ests.length ? '<input id="' + id + 'Texto" placeholder="' + (ests.length ? 'ou descreva' : 'descreva a estrutura') + '" maxlength="2000">' : '') + '</div>';
     }
     function resumoResposta(r, q) { if (!r) return '—'; var t = (ROT[q] || {})[r.valor] || r.valor; if (q === 'F6') t += ' (' + (CERTEZA[r.certeza] || r.certeza) + ')' + (r.estruturaId ? ': ' + nomeEstrutura(r.estruturaId) : r.texto ? ': ' + r.texto : ''); if (r.texto && q !== 'F6') t += ': ' + r.texto; return t; }
-    function renderEntregas(a, gravar) {
-      var ids = Object.keys(a.entregas).filter(function (k) { return a.entregas[k].situacao === 'ativa'; }).sort(function (x, y) { return (a.entregas[x].criadaEm || 0) - (a.entregas[y].criadaEm || 0); });
-      var h = '<section class="avp-form-card an-secao" id="anEntregas"><h3>Entregas (' + ids.length + ')</h3>';
-      if (!ids.length) h += '<p class="admin-empty">Nenhuma entrega ainda.</p>';
+    function conceitosHtml(aberto) {
+      return '<details class="an-conceitos" id="anConceitos"' + (aberto ? ' open' : '') + '><summary>Campo de atuação, responsabilidade, entrega e evidência — o que é cada um</summary>' +
+        '<p class="an-nota">Exemplos <strong>hipotéticos</strong>, só para ilustrar:</p><dl class="an-conceitos-dl">' +
+        '<div><dt>Campo de atuação</dt><dd>O assunto amplo em que se trabalha. <span class="an-exemplo">Ex.: Governança de TI.</span></dd></div>' +
+        '<div><dt>Responsabilidade</dt><dd>Aquilo por que alguém responde, com um resultado. <span class="an-exemplo">Ex.: avaliar a aderência dos processos de TI às diretrizes de governança.</span></dd></div>' +
+        '<div><dt>Entrega</dt><dd>O resultado que sai daqui e alguém usa. <span class="an-exemplo">Ex.: diagnóstico de aderência com recomendações.</span></dd></div>' +
+        '<div><dt>Exemplo concreto (evidência)</dt><dd>Um caso real daquela entrega. <span class="an-exemplo">Ex.: relatório de avaliação de controles de um processo de TI.</span></dd></div></dl>' +
+        '<p class="an-nota">Uma responsabilidade pode reunir várias entregas: nunca presuma que cada entrega é uma responsabilidade — isso se decide no Passo 2, comparando. Um documento sozinho não prova a natureza organizacional; ele ilustra a entrega. Quem classifica é o O1–O9, no Passo 3.</p></details>';
+    }
+    function renderEntregas(a, ativos, ps, gravar) {
+      var ids = ps.ents, h = conceitosHtml(st.abertos.conceitos !== undefined ? st.abertos.conceitos : !ids.length) + '<div class="an-secao-entregas" id="anEntregas"><h4>Entregas registradas (' + ids.length + ')</h4>';
+      if (!ids.length) h += ps.semEntregas ? '<p class="an-nota" id="anSemEntregasRegistrado">Você registrou que não consegue identificar entregas. Isso fica como lacuna e não impede continuar; se identificar uma depois, registre aqui.</p>'
+        : '<p class="admin-empty" id="anEntregasVazio">Nenhuma entrega registrada ainda. Comece pela primeira: o que se produz aqui para alguém?</p>';
       else h += '<ul class="an-entregas">' + ids.map(function (k) {
-        var e = a.entregas[k], r = e.respostas;
-        var exec = r.F7 && r.F7.valor === 'sim';
-        return '<li class="an-entrega" data-entrega="' + esc(k) + '"><strong>' + esc(e.descricao) + '</strong>' + (exec ? ' <span class="an-chip an-chip--neu">execução para outra estrutura</span>' : '') +
+        var e = a.entregas[k], r = e.respostas, rec = recorteDaEntrega(a, ativos, k);
+        var faltam = ['F4', 'F5', 'F6', 'F8'].filter(function (q) { return !r[q]; }).map(function (q) { return { F4: 'forma', F5: 'destinatário', F6: 'quem responde', F8: 'evidência' }[q]; });
+        var li = '<li class="an-entrega" data-entrega="' + esc(k) + '"><div class="an-entrega-cab"><strong>' + esc(e.descricao) + '</strong>' +
+          (faltam.length ? ' <span class="an-chip an-chip--pend">falta: ' + esc(faltam.join(', ')) + '</span>' : ' <span class="an-chip an-chip--ok">descrita</span>') +
+          (execOutra(e) ? ' <span class="an-chip an-chip--neu">execução para outra estrutura</span>' : '') + (r.F8 && r.F8.valor === 'sem-evidencia' ? ' <span class="an-chip an-chip--pend">hipótese</span>' : '') + '</div>' +
+          (e.exemplo ? '<span class="an-det">Exemplo: ' + esc(e.exemplo) + '</span>' : '') +
           '<span class="an-det">' + ['F4', 'F5', 'F6', 'F8'].map(function (q) { return r[q] ? esc(resumoResposta(r[q], q)) : ''; }).filter(Boolean).join(' · ') + '</span>' +
-          (r.F8 && r.F8.valor === 'sem-evidencia' ? '<span class="an-chip an-chip--pend">hipótese</span>' : '') + '</li>';
+          (rec ? '<span class="an-det">Na responsabilidade "' + esc(rec.nome) + '"</span>' : '');
+        if (gravar) {
+          var editavel = !(rec && rec.objetoId), removivel = !rec;
+          li += '<div class="an-acoes">' + (editavel ? '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="editar-entrega" data-entrega="' + esc(k) + '" id="anEditarEntrega_' + esc(k) + '">Editar</button>' : '') +
+            (removivel ? '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="descartar-entrega" data-entrega="' + esc(k) + '" id="anExcluirEntrega_' + esc(k) + '">Excluir</button>' : '') +
+            (!editavel ? '<span class="an-nota">Já avaliada pelo O1–O9: o texto não muda.</span>' : !removivel ? '<span class="an-nota">Para excluir, tire-a antes da responsabilidade.</span>' : '') + '</div>';
+          if (st.form && st.form.entrega === k && st.form.tipo === 'editar-entrega') li += '<form class="an-form" id="anFormEditarEntrega" data-entrega="' + esc(k) + '"><div class="avp-field"><label for="anEditDesc">Entrega</label><input id="anEditDesc" maxlength="2000" value="' + esc(e.descricao) + '"></div>' +
+            '<div class="avp-field"><label for="anEditEx">Exemplo concreto <span class="an-opc">(opcional)</span></label><input id="anEditEx" maxlength="2000" value="' + esc(e.exemplo || '') + '"></div>' +
+            '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anSalvarEntrega">Gravar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+          if (st.form && st.form.entrega === k && st.form.tipo === 'descartar-entrega') li += '<form class="an-form" id="anFormDescartarEntrega" data-entrega="' + esc(k) + '"><p class="an-nota">A entrega sai da análise e fica no histórico (nada é apagado).</p><div class="avp-field"><label for="anMotivoEntrega">Motivo <span class="an-opc">(opcional)</span></label><input id="anMotivoEntrega" maxlength="500"></div>' +
+            '<div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarExcluirEntrega">Excluir a entrega</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+        }
+        return li + '</li>';
       }).join('') + '</ul>';
-      if (gravar) h += '<form class="an-form an-form--inline" id="anFormEntrega"><div class="avp-field"><label for="anEntregaDesc">Adicionar entrega</label><input id="anEntregaDesc" maxlength="2000" placeholder="Ex.: pareceres sobre as soluções propostas"></div>' +
-        '<div class="avp-field"><label for="anEntregaEx">Exemplo concreto <span class="an-opc">(opcional)</span></label><input id="anEntregaEx" maxlength="2000"></div>' +
-        '<div class="avp-actions-footer"><button type="submit" class="btn btn--sm" id="anAddEntregaBtn"' + (st.gravando ? ' disabled' : '') + '>Adicionar</button></div></form>';
-      return h + '</section>';
+      h += '</div>';
+      if (gravar) {
+        /* o total vem do que o banco já devolveu (a escuta pode chegar um instante depois da confirmação da gravação) */
+        var fe = st.flashEntrega && ids.some(function (k) { return a.entregas[k].descricao === st.flashEntrega.descricao; }) ? st.flashEntrega : null;
+        h += (fe ? '<p class="avp-flash-success" id="anEntregaFeedback" role="status">Entrega registrada: "' + esc(fe.descricao) + '". Total: ' + ids.length + ' entrega' + (ids.length === 1 ? '' : 's') + '. Adicione outra, se houver, ou responda as perguntas sobre ela (veja a próxima ação). Quando todas estiverem descritas, siga para o Passo 2 — Delimitar as responsabilidades.</p>' : '') +
+          '<form class="an-form" id="anFormEntrega" aria-labelledby="anFormEntregaTitulo"><h4 id="anFormEntregaTitulo">' + (ids.length ? 'Adicionar outra entrega' : 'Adicionar a primeira entrega') + '</h4>' +
+          '<p class="an-ajuda" id="anEntregaInstrucao">Registre uma entrega por vez. Pense no resultado que o núcleo produz para alguém, e não no nome da área ou no cargo das pessoas. Você poderá adicionar várias entregas e depois analisar quais pertencem à mesma responsabilidade.</p>' +
+          '<div class="avp-field"><label for="anEntregaDesc">Entrega</label><input id="anEntregaDesc" maxlength="2000" aria-describedby="anEntregaInstrucao" placeholder="Ex.: diagnóstico de aderência dos processos de TI, com recomendações"></div>' +
+          '<div class="avp-field"><label for="anEntregaEx">Exemplo concreto <span class="an-opc">(opcional)</span></label><input id="anEntregaEx" maxlength="2000" placeholder="Ex.: relatório de avaliação de controles de um processo de TI"></div>' +
+          '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anAddEntregaBtn"' + (st.gravando ? ' disabled' : '') + '>Adicionar entrega</button>' +
+          (!ids.length && !ps.semEntregas ? '<button type="button" class="btn btn--sm" data-an="responder" data-q="F3" data-v="nenhuma" id="anSemEntregas">Não consigo identificar entregas</button>' : '') + '</div></form>';
+      }
+      return h;
     }
     function textoPos(p) {
       if (p.estado === 'sem-atuacao') return 'Ainda não avaliada';
@@ -407,9 +554,39 @@
         '<p class="an-fato"><strong>Quem responde formalmente:</strong> ' + esc(CERTEZA[rf.certeza] || rf.certeza) + (rf.certeza !== 'nao-definido' ? ' — ' + fx(rf) : ' <span class="an-det">fonte: ' + esc(rf.fonte) + ' · ' + esc(fmtData(rf.informadoEm)) + '</span>') + '</p>' +
         '<p class="an-nota">Estas são informações descritivas da análise: não são vínculo formal (o vínculo é registrado na ficha do Posicionamento).</p>';
     }
+    /* Passo 2: comparar e delimitar (as responsabilidades delimitadas são avaliadas no Passo 3) */
+    function renderDelimitacao(a, ativos, gravar) {
+      var h = '<p class="an-nota">Compare as entregas parecidas e diga quais pertencem à mesma responsabilidade. Uma responsabilidade pode reunir várias entregas. <strong>Separar para avaliar não cria estrutura.</strong></p>';
+      if (ativos.length) h += '<p class="an-det" id="anDelimitadas">Já delimitadas (' + ativos.length + '): ' + ativos.map(function (k) { return esc(a.recortes[k].nome); }).join('; ') + ' — avaliadas no Passo 3.</p>';
+      if (!gravar) return h;
+      var livres = Object.keys(a.entregas).filter(function (e) { var x = a.entregas[e]; return x.situacao === 'ativa' && !execOutra(x) && !recorteDaEntrega(a, ativos, e); });
+      if (livres.length) h += '<form class="an-form" id="anFormRecorte"><h4>Delimitar uma responsabilidade</h4><fieldset class="an-opcoes"><legend>Entregas que ela reúne</legend>' + livres.map(function (e) { return '<label class="an-opcao"><input type="checkbox" name="anRecEntrega" value="' + esc(e) + '"><span>' + esc(a.entregas[e].descricao) + '</span>' + (descrita(a.entregas[e]) ? '' : ' <span class="an-chip an-chip--pend">descrição incompleta</span>') + '</label>'; }).join('') + '</fieldset>' +
+        '<p class="an-nota">Duas entregas só ficam juntas depois de comparadas (pergunta "São a mesma responsabilidade?").</p>' +
+        '<div class="avp-field"><label for="anRecNome">Nome da responsabilidade</label><input id="anRecNome" maxlength="200" placeholder="Ex.: avaliar a aderência dos processos de TI às diretrizes de governança"></div>' +
+        '<div class="avp-field"><label for="anRecResultado">Resultado pelo qual ela responde</label><input id="anRecResultado" maxlength="2000" placeholder="Ex.: processos de TI aderentes, com desvios conhecidos e tratados"></div>' +
+        '<div class="avp-field"><label for="anRecJust">Por que é distinta das outras</label><textarea id="anRecJust" rows="2" maxlength="2000"></textarea></div>' +
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anDefinirRecorteBtn"' + (st.gravando ? ' disabled' : '') + '>Delimitar</button></div></form>';
+      else if (Object.keys(a.entregas).some(function (e) { return a.entregas[e].situacao === 'ativa'; })) h += '<p class="an-nota" id="anSemLivres">Todas as entregas já estão em alguma responsabilidade (ou são execução para outra estrutura).</p>';
+      return h;
+    }
+    /* N:N — responsabilidades já delimitadas em OUTRAS análises: referenciadas, nunca duplicadas nem com a origem trocada.
+       Fica no Passo 2 mesmo antes de haver entregas: referenciar não depende delas */
+    function renderReferencias(a, gravar) {
+      var h = '', refs = Object.keys(a.referencias || {});
+      if (refs.length) h += '<div class="an-referencias" id="anReferencias"><h4>Responsabilidades de outras análises referenciadas aqui</h4><ul>' + refs.map(function (o) {
+        var ob = (D.objetos || {})[o], orig = (D.porObjeto || {})[o], an = orig ? (D.analises || {})[orig.analiseId] : null;
+        return '<li data-referencia="' + esc(o) + '"><strong>' + esc(ob ? ob.nome : o) + '</strong> <span class="an-det">' + esc(textoPos(posicionamentoDa(o))) + (an ? ' · origem: análise "' + esc(an.nome) + '"' : '') + '</span></li>';
+      }).join('') + '</ul></div>';
+      if (!gravar) return h;
+      var candidatas = Object.keys(D.porObjeto || {}).filter(function (o) { return D.porObjeto[o].analiseId !== a.id && !(a.referencias || {})[o] && (D.objetos || {})[o]; });
+      if (candidatas.length) h += '<form class="an-form an-form--inline" id="anFormReferencia"><div class="avp-field"><label for="anReferenciaSel">Referenciar uma responsabilidade já delimitada em outra análise</label><select id="anReferenciaSel"><option value="">—</option>' +
+        candidatas.map(function (o) { return '<option value="' + esc(o) + '">' + esc(D.objetos[o].nome) + '</option>'; }).join('') + '</select></div>' +
+        '<p class="an-nota">Ela continua pertencendo à análise de origem; aqui só é citada (não é contada duas vezes).</p><div class="avp-actions-footer"><button type="submit" class="btn btn--sm" id="anReferenciarBtn">Referenciar</button></div></form>';
+      return h;
+    }
+    /* Passo 3: cada responsabilidade delimitada vira uma atuação da Porta 2 e é avaliada pelo O1–O9 de sempre */
     function renderRecortes(a, ativos, sfs, gravar) {
-      var h = '<section class="avp-form-card an-secao" id="anRecortes"><h3>Responsabilidades delimitadas (' + ativos.length + ')</h3>' +
-        '<p class="an-nota">Separar para avaliar não cria estrutura. Cada responsabilidade é avaliada pelo O1–O9 como uma atuação da Porta 2.</p>';
+      var h = '<div id="anRecortes"><p class="an-nota">Cada responsabilidade é avaliada pelo O1–O9 como uma atuação da Porta 2 — o mesmo questionário do Caminho A. Separar para avaliar não cria estrutura.</p>';
       ativos.forEach(function (k, i) {
         var r = a.recortes[k], sf = sfs[i], pr = N().prontaParaO1O9(a, k), s = sf.s ? SITUACAO_FORMAL[sf.s] : null;
         h += '<article class="an-recorte" data-recorte="' + esc(k) + '"><h4>' + esc(r.nome) + '</h4><p class="an-det">Resultado: ' + esc(r.resultado) + ' · Por que é distinta: ' + esc(r.justificativa) + '</p>' +
@@ -422,33 +599,12 @@
         if (r.objetoId) h += '<a class="btn btn--sm" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anAbrirPos_' + esc(k) + '">Abrir no Posicionamento</a>';
         if (gravar) {
           h += '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="fatos" data-recorte="' + esc(k) + '">Quem executa e quem responde</button>';
-          if (!r.objetoId) h += pr.pronta ? '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="atuacao" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar com O1–O9</button>' : '<span class="an-nota" id="anNaoPronta_' + esc(k) + '">Para avaliar, falta: ' + esc(pr.faltas.map(function (f) { return { NOME: 'nome', RESULTADO: 'resultado' }[f] || ({ FORMA: 'forma', DESTINATARIO: 'destinatário', EVIDENCIA_OU_HIPOTESE: 'evidência ou hipótese' }[f.split(':')[0]] + ' de ' + nomeEntrega(a, f.split(':')[1])); }).join(', ')) + '</span>';
+          if (!r.objetoId) h += pr.pronta ? '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="atuacao" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar com O1–O9</button>' : '<span class="an-nota" id="anNaoPronta_' + esc(k) + '" tabindex="-1">Para avaliar, falta: ' + esc(pr.faltas.map(function (f) { return { NOME: 'nome', RESULTADO: 'resultado' }[f] || ({ FORMA: 'forma', DESTINATARIO: 'destinatário', EVIDENCIA_OU_HIPOTESE: 'evidência ou hipótese' }[f.split(':')[0]] + ' de ' + nomeEntrega(a, f.split(':')[1])); }).join(', ')) + ' (Passo 1)</span>';
           if (!r.objetoId) h += '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="descartar-recorte" data-recorte="' + esc(k) + '">Descartar</button>';
         }
         h += '</div>' + renderFormRecorte(a, r, k) + '</article>';
       });
-      /* N:N — responsabilidades já delimitadas em OUTRAS análises: referenciadas, nunca duplicadas nem com a origem trocada */
-      var refs = Object.keys(a.referencias || {});
-      if (refs.length) h += '<div class="an-referencias" id="anReferencias"><h4>Responsabilidades de outras análises referenciadas aqui</h4><ul>' + refs.map(function (o) {
-        var ob = (D.objetos || {})[o], orig = (D.porObjeto || {})[o], an = orig ? (D.analises || {})[orig.analiseId] : null;
-        return '<li data-referencia="' + esc(o) + '"><strong>' + esc(ob ? ob.nome : o) + '</strong> <span class="an-det">' + esc(textoPos(posicionamentoDa(o))) + (an ? ' · origem: análise "' + esc(an.nome) + '"' : '') + '</span></li>';
-      }).join('') + '</ul></div>';
-      if (gravar) {
-        var candidatas = Object.keys(D.porObjeto || {}).filter(function (o) { return D.porObjeto[o].analiseId !== a.id && !(a.referencias || {})[o] && (D.objetos || {})[o]; });
-        if (candidatas.length) h += '<form class="an-form an-form--inline" id="anFormReferencia"><div class="avp-field"><label for="anReferenciaSel">Referenciar uma responsabilidade já delimitada em outra análise</label><select id="anReferenciaSel"><option value="">—</option>' +
-          candidatas.map(function (o) { return '<option value="' + esc(o) + '">' + esc(D.objetos[o].nome) + '</option>'; }).join('') + '</select></div>' +
-          '<p class="an-nota">Ela continua pertencendo à análise de origem; aqui só é citada (não é contada duas vezes).</p><div class="avp-actions-footer"><button type="submit" class="btn btn--sm" id="anReferenciarBtn">Referenciar</button></div></form>';
-      }
-      if (gravar) {
-        var livres = Object.keys(a.entregas).filter(function (e) { var x = a.entregas[e]; return x.situacao === 'ativa' && !(x.respostas.F7 && x.respostas.F7.valor === 'sim') && !ativos.some(function (k) { return a.recortes[k].entregas.indexOf(e) !== -1; }); });
-        if (livres.length) h += '<form class="an-form" id="anFormRecorte"><h4>Delimitar uma responsabilidade</h4><fieldset class="an-opcoes"><legend>Entregas que ela reúne</legend>' + livres.map(function (e) { return '<label class="an-opcao"><input type="checkbox" name="anRecEntrega" value="' + esc(e) + '"><span>' + esc(a.entregas[e].descricao) + '</span></label>'; }).join('') + '</fieldset>' +
-          '<p class="an-nota">Duas entregas só ficam juntas depois de comparadas (pergunta "São a mesma responsabilidade?").</p>' +
-          '<div class="avp-field"><label for="anRecNome">Nome da responsabilidade</label><input id="anRecNome" maxlength="200"></div>' +
-          '<div class="avp-field"><label for="anRecResultado">Resultado pelo qual ela responde</label><input id="anRecResultado" maxlength="2000"></div>' +
-          '<div class="avp-field"><label for="anRecJust">Por que é distinta das outras</label><textarea id="anRecJust" rows="2" maxlength="2000"></textarea></div>' +
-          '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anDefinirRecorteBtn"' + (st.gravando ? ' disabled' : '') + '>Delimitar</button></div></form>';
-      }
-      return h + '</section>';
+      return h + '</div>';
     }
     function renderAprofundar(r, k, p, gravar) {
       var t = A_VALIDAR[p.tipo], ev = Array.isArray(r.evidenciasQualitativas) ? r.evidenciasQualitativas : [];
@@ -477,10 +633,10 @@
       return '';
     }
     function seletor(id, rotulo, mapa) { return '<div class="avp-field"><label for="' + id + '">' + esc(rotulo) + '</label><select id="' + id + '">' + Object.keys(mapa).map(function (k) { return '<option value="' + k + '">' + esc(mapa[k]) + '</option>'; }).join('') + '</select></div>'; }
-    function renderComposicao(est, a, ativos, sfs, acc) {
+    function renderComposicao(est, a, ativos, sfs, acc) { /* Passo 4 */
       var props = Object.keys(est.propostas).map(function (k) { return est.propostas[k]; }).filter(function (p) { return p.analiseId === a.id; }).sort(function (x, y) { return y.versao - x.versao; });
       var vig = props[0] || null, gravar = acc.gravar && a.situacao === 'aberta';
-      var h = '<section class="avp-form-card an-secao" id="anComposicao"><h3>Composição organizacional</h3>' +
+      var h = '<div id="anComposicao">' +
         '<p class="an-nota">A proposta diz como as responsabilidades devem ficar organizadas. Ela <strong>nunca</strong> cadastra nem muda estrutura, vínculo ou Mapa, e nenhuma alternativa troca a classificação.</p>';
       if (vig) {
         var ap = est.aprovacoes[vig.id];
@@ -512,7 +668,7 @@
             '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anRegistrarProposta">Registrar a proposta</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
         } else h += '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="proposta" id="anAbrirProposta">' + (vig ? 'Registrar nova proposta' : 'Registrar uma proposta') + '</button>';
       }
-      return h + '</section>';
+      return h + '</div>';
     }
     function renderHistorico(a) {
       var ev = st.historico && st.historico.id === a.id ? st.historico.eventos : null;
@@ -520,7 +676,7 @@
         (ev === null ? '<p class="loading-msg">Carregando…</p>' : ev === false ? '<p class="avp-error-msg">Histórico indisponível agora.</p>' :
           '<ol class="an-eventos">' + ev.map(function (e) { return '<li><strong>' + esc(TIPO_EVENTO[e.tipo] || e.tipo) + '</strong> <span class="an-det">' + esc(fmtData(e.em)) + ' · ' + esc((e.por || {}).email || '') + '</span></li>'; }).join('') + '</ol>') + '</details>';
     }
-    var TIPO_EVENTO = { 'analise.criada': 'Análise aberta', 'resposta.registrada': 'Resposta registrada', 'entrega.adicionada': 'Entrega adicionada', 'comparacao.registrada': 'Comparação registrada', 'recorte.definido': 'Responsabilidade delimitada', 'recorte.ajustado': 'Delimitação revista', 'recorte.descartado': 'Responsabilidade descartada', 'fatos.registrados': 'Quem executa / responde informado', 'recorte.atuacao-associada': 'Atuação criada para o O1–O9', 'responsabilidade.referenciada': 'Responsabilidade referenciada', 'evidencia.registrada': 'Evidência qualitativa registrada', 'proposta.registrada': 'Proposta registrada', 'aprovacao.registrada': 'Referência à aprovação registrada', 'analise.descartada': 'Análise descartada' };
+    var TIPO_EVENTO = { 'analise.criada': 'Análise aberta', 'resposta.registrada': 'Resposta registrada', 'entrega.adicionada': 'Entrega adicionada', 'entrega.editada': 'Entrega alterada', 'entrega.descartada': 'Entrega excluída', 'comparacao.registrada': 'Comparação registrada', 'recorte.definido': 'Responsabilidade delimitada', 'recorte.ajustado': 'Delimitação revista', 'recorte.descartado': 'Responsabilidade descartada', 'fatos.registrados': 'Quem executa / responde informado', 'recorte.atuacao-associada': 'Atuação criada para o O1–O9', 'responsabilidade.referenciada': 'Responsabilidade referenciada', 'evidencia.registrada': 'Evidência qualitativa registrada', 'proposta.registrada': 'Proposta registrada', 'aprovacao.registrada': 'Referência à aprovação registrada', 'analise.descartada': 'Análise descartada' };
     function carregarHistorico() {
       var id = st.id; st.historico = { id: id, eventos: null };
       S().lerUmaVez(F().NOS.auditoria + '/' + id, 12000).then(function (v) {
@@ -531,7 +687,7 @@
 
     /* ---------- ações ---------- */
     function terminar(r, flash, depois) {
-      st.gravando = false;
+      st.gravando = false; st.flashEntrega = null;
       if (r.erro) { st.erro = r.erro; st.flash = null; render(); return; }
       st.erro = null; st.flash = flash || null; st.form = null;
       if (depois) depois(r); else render();
@@ -546,16 +702,18 @@
       var id = st.id;
       if (form.id === 'anFormNova') {
         var caps = val('anCapacidades').split(';').map(function (x) { return x.trim(); }).filter(Boolean).map(function (r, i) { return { tipo: 'texto', chave: slug(r, i + 1), rotulo: r }; });
-        st.form = { tipo: 'nova', tipoEscopo: marcado('anEscopo'), nome: val('anNome'), descricao: val('anDescricao'), capacidades: val('anCapacidades'), objetoAmploId: val('anObjetoAmplo') };
-        var dados = { nome: val('anNome'), tipoEscopo: marcado('anEscopo'), descricao: val('anDescricao') || undefined, capacidades: caps, objetoAmploId: val('anObjetoAmplo') || undefined };
+        var amplo = marcado('anTemAtuacao') === 'sim' ? val('anObjetoAmplo') : '';
+        st.form = { tipo: 'nova', tipoEscopo: marcado('anEscopo'), nome: val('anNome'), descricao: val('anDescricao'), capacidades: val('anCapacidades'), objetoAmploId: amplo };
+        if (marcado('anTemAtuacao') === 'sim' && !amplo) { st.erro = 'Escolha a atuação que esta análise aprofunda (ou responda "Não").'; render(); return; }
+        var dados = { nome: val('anNome'), tipoEscopo: marcado('anEscopo'), descricao: val('anDescricao') || undefined, capacidades: caps, objetoAmploId: amplo || undefined };
         executar(function (est, c) { return N().criarAnalise(est, dados, c); }, 'Análise aberta.', function (r) { st.form = null; ir(r.novoId); });
       } else if (form.id === 'anFormResponder') {
         var q = form.getAttribute('data-q'), ent = form.getAttribute('data-entrega') || undefined, v = marcado('anResposta');
         var valor = v;
         if (q === 'F6') { var oe = val('anOutraEstrutura'), ot = val('anOutraEstruturaTexto'); valor = { valor: v, certeza: val('anCerteza') }; if (oe) valor.estruturaId = oe; else if (ot) valor.texto = ot; }
         else if (q === 'F8' || q === 'F11') { valor = { valor: v }; if (val('anTextoResp')) valor.texto = val('anTextoResp'); }
-        else if (q === 'F2b') { valor = { valor: v }; var ec = val('anEstruturaCadastrada'); if (ec) valor.estruturaId = ec; }
-        executar(function (est, c) { return N().responder(est, id, { pergunta: q, entregaId: ent, valor: valor }, c); }, 'Resposta registrada.');
+        else if (q === 'F2b') { valor = { valor: v }; var ec = val('anEstruturaCadastrada'); if (v === 'cadastrada' && ec) valor.estruturaId = ec; }
+        executar(function (est, c) { return N().responder(est, id, { pergunta: q, entregaId: ent, valor: valor }, c); }, form.getAttribute('data-alterando') ? 'Resposta alterada (a anterior fica no histórico).' : 'Resposta registrada.');
       } else if (form.id === 'anFormComparar') {
         var crit = {}; Object.keys(CRITERIO).forEach(function (k) { crit[k] = marcado('anCrit_' + k); });
         var dc = { a: form.getAttribute('data-a'), b: form.getAttribute('data-b'), criterios: crit, conclusao: marcado('anConclusao') };
@@ -566,7 +724,16 @@
         executar(function (est, c) { return N().referenciarResponsabilidade(est, id, oref, c); }, 'Responsabilidade referenciada (a origem dela não muda).');
       } else if (form.id === 'anFormEntrega') {
         var de = { descricao: val('anEntregaDesc') }; if (val('anEntregaEx')) de.exemplo = val('anEntregaEx');
-        executar(function (est, c) { return N().adicionarEntrega(est, id, de, c); }, 'Entrega adicionada.');
+        executar(function (est, c) { return N().adicionarEntrega(est, id, de, c); }, null, function () {
+          st.flashEntrega = { descricao: de.descricao.trim() };
+          render(); var c = document.getElementById('anEntregaDesc'); if (c) c.focus({ preventScroll: true });
+        });
+      } else if (form.id === 'anFormEditarEntrega') {
+        var ke = form.getAttribute('data-entrega'), dee = { descricao: val('anEditDesc'), exemplo: val('anEditEx') || null };
+        executar(function (est, c) { return N().editarEntrega(est, id, ke, dee, c); }, 'Entrega alterada (o texto anterior fica no histórico).');
+      } else if (form.id === 'anFormDescartarEntrega') {
+        var kd = form.getAttribute('data-entrega'), mde = val('anMotivoEntrega');
+        executar(function (est, c) { return N().descartarEntrega(est, id, kd, mde ? { motivo: mde } : {}, c); }, 'Entrega excluída da análise (fica no histórico).');
       } else if (form.id === 'anFormRecorte') {
         var dr = { nome: val('anRecNome'), resultado: val('anRecResultado'), justificativa: val('anRecJust'), entregas: marcados('anRecEntrega') };
         executar(function (est, c) { return N().definirRecorte(est, id, dr, c); }, 'Responsabilidade delimitada. Separar para avaliar não cria estrutura.');
@@ -607,11 +774,31 @@
     wrap.addEventListener('click', function (ev) {
       var b = ev.target.closest('[data-an]'); if (!b || !wrap.contains(b)) return;
       var acao = b.getAttribute('data-an');
-      if (acao === 'abrir-form') { st.form = { tipo: b.getAttribute('data-form'), recorte: b.getAttribute('data-recorte') || null }; st.erro = null; render(); var f = wrap.querySelector('form.an-form input, form.an-form textarea, form.an-form select'); if (f) f.focus(); }
+      if (acao === 'abrir-form') {
+        st.form = { tipo: b.getAttribute('data-form'), recorte: b.getAttribute('data-recorte') || null, entrega: b.getAttribute('data-entrega') || null, q: b.getAttribute('data-q') || null }; st.erro = null; st.flashEntrega = null; render();
+        var f = st.form.tipo === 'alterar-objeto' ? wrap.querySelector('#anFormResponder input:checked, #anFormResponder input') : wrap.querySelector('form.an-form input, form.an-form textarea, form.an-form select'); if (f) f.focus();
+      }
+      else if (acao === 'ir-para') {
+        var alvo = document.getElementById(b.getAttribute('data-alvo')); if (!alvo) return;
+        alvo.scrollIntoView({ block: 'center' });
+        var foco = /^(INPUT|SELECT|TEXTAREA|BUTTON|A)$/.test(alvo.tagName) ? alvo : alvo.querySelector('input:not([disabled]), textarea, select:not([disabled]), button');
+        if (!foco) { alvo.setAttribute('tabindex', '-1'); foco = alvo; }
+        foco.focus({ preventScroll: true });
+      }
       else if (acao === 'cancelar') { st.form = null; st.erro = null; render(); }
       else if (acao === 'responder') { var q = b.getAttribute('data-q'), v = b.getAttribute('data-v'), id = st.id; executar(function (est, c) { return N().responder(est, id, { pergunta: q, valor: v }, c); }, 'Resposta registrada.'); }
       else if (acao === 'exportar') exportar();
     });
+    /* campos dependentes: só ficam habilitados (e obrigatórios) com a resposta que os pede; trocar a resposta limpa o campo */
+    wrap.addEventListener('change', function (ev) {
+      var t = ev.target, dep = null, liga = false, dica = null;
+      if (t.name === 'anResposta' && t.closest('#anFormResponder[data-q="F2b"]')) { dep = document.getElementById('anEstruturaCadastrada'); dica = document.getElementById('anEstruturaCadastradaDica'); liga = t.value === 'cadastrada'; }
+      else if (t.name === 'anTemAtuacao') { dep = document.getElementById('anObjetoAmplo'); dica = document.getElementById('anObjetoAmploDica'); liga = t.value === 'sim'; }
+      if (!dep) return;
+      dep.disabled = !liga; dep.required = liga; if (!liga) dep.value = '';
+      if (dica) dica.textContent = liga ? '(obrigatória)' : (t.name === 'anTemAtuacao' ? '(só para "Sim")' : '(só para "Está cadastrada")');
+    });
+    wrap.addEventListener('toggle', function (ev) { if (ev.target && ev.target.id === 'anConceitos') st.abertos.conceitos = ev.target.open; }, true);
     wrap.addEventListener('toggle', function (ev) { if (ev.target && ev.target.id === 'anHistorico') { st.abertos.historico = ev.target.open; if (ev.target.open && (!st.historico || st.historico.id !== st.id)) carregarHistorico(); } }, true);
 
     /* ---------- exportação (fotografia do que está gravado) ---------- */
@@ -654,12 +841,24 @@
 
   /* ===================== integrações (só quando o marcador libera a leitura) ===================== */
   function pronto() { return acesso().ler && dadosProntos(); }
-  /* lista de atuações da Porta 2: entrada para a análise */
-  function entradaAtuacoesHtml() {
+  /* lista de atuações da Porta 2: os dois caminhos de início, que convergem para o O1–O9. Vazio com o marcador
+     desligado — aí a Porta 2 continua exatamente como antes. botaoDireto: o botão de sempre de "nova atuação" */
+  function entradaAtuacoesHtml(botaoDireto) {
     ligarConfig();
     var a = acesso(); if (!a.ler) return '';
-    return '<div class="an-entrada" id="anEntradaAtuacoes"><p><strong>O que você quer entender é amplo?</strong> Uma estrutura, uma grande área, um conjunto ou uma capacidade: a Análise Organizacional ajuda a descobrir as responsabilidades que existem ali antes de avaliar cada uma.</p>' +
-      '<div class="an-acoes">' + (a.gravar ? '<a class="btn btn--sm" id="anEntradaNova" href="#avaliacoes?an=nova">Abrir uma análise</a>' : '') + '<a class="btn btn--sm" id="anEntradaLista" href="#avaliacoes?an=lista">Análises organizacionais</a></div></div>';
+    return '<section class="an-entrada" id="anEntradaAtuacoes" aria-labelledby="anEntradaTitulo"><h4 id="anEntradaTitulo">Dois jeitos de começar — os dois terminam na mesma avaliação O1–O9</h4><div class="an-caminhos">' +
+      '<div class="an-caminho" id="anCaminhoDireto"><p class="an-caminho-rotulo">Caminho A · Direto</p><p><strong>Já sei qual responsabilidade quero avaliar.</strong></p>' +
+      '<p class="an-nota">Cadastre a atuação (ou abra uma da lista abaixo) e responda o O1–O9.</p>' + (botaoDireto || '') + '</div>' +
+      '<div class="an-caminho" id="anCaminhoAssistido"><p class="an-caminho-rotulo">Caminho B · Assistido</p><p><strong>Quero investigar uma estrutura, uma área ou um conjunto de atividades para descobrir quais responsabilidades existem ali.</strong></p>' +
+      '<p class="an-nota">A Análise Organizacional ajuda a descobrir as entregas e delimitar as responsabilidades; cada uma vira uma atuação avaliada pelo mesmo O1–O9. Ela não classifica nada.</p>' +
+      '<div class="an-acoes">' + (a.gravar ? '<a class="btn btn--sm btn--primary" id="anEntradaNova" href="#avaliacoes?an=nova">Abrir uma análise</a>' : '') + '<a class="btn btn--sm" id="anEntradaLista" href="#avaliacoes?an=lista">Análises organizacionais</a></div></div></div>' +
+      '<p class="an-nota" id="anEntradaNotas">A Porta 1 (Produto/Serviço, P1–P16) é opcional e independente. A Adequação à Squad vem depois, só quando o resultado for Linha. O Mapa da Floresta mostra o que foi registrado — não é uma entrada de avaliação.</p></section>';
+  }
+  /* Início de Avaliações, no cartão da Porta 2: o atalho para o Caminho B (só quando o marcador libera a leitura) */
+  function caminhoAssistidoInicioHtml() {
+    ligarConfig();
+    var a = acesso(); if (!a.ler) return '';
+    return '<p class="avp-inicio-exemplo" id="avpInicioCaminhoB">Ainda não sabe qual responsabilidade avaliar? <a href="#avaliacoes?an=' + (a.gravar ? 'nova' : 'lista') + '" id="avpInicioAnalise">' + (a.gravar ? 'Comece por uma Análise Organizacional' : 'Veja as análises organizacionais') + '</a> (Caminho B, assistido).</p>';
   }
   /* ficha do Posicionamento de uma atuação nascida de uma análise */
   function origemDe(objetoId) {
@@ -724,7 +923,7 @@
     var api = montar();
     if (api) Object.keys(api).forEach(function (k) { window.faAnalisesOrganizacionais[k] = api[k]; });
   };
-  window.faAnalisesOrganizacionais = { entradaAtuacoesHtml: entradaAtuacoesHtml, origemHtml: origemHtml, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
+  window.faAnalisesOrganizacionais = { entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, origemHtml: origemHtml, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
     exercidasHtml: exercidasHtml, montarHabilitacao: montarHabilitacao, acesso: acesso, aoMudar: function (f) { aoMudarFns.push(f); }, ligar: function () { ligarConfig(); ligarDados(); } };
   if (/^#avaliacoes\?(.*&)?an=/.test(location.hash || '')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.faInitAnalisesOrganizacionais); else window.faInitAnalisesOrganizacionais(); }
 })();

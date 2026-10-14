@@ -303,6 +303,42 @@ afirma(temErro(N.adicionarEntrega(congelado, 'jornada-B', { descricao: 'x', revi
 afirma(N.aplicar(congelado, [{ entidade: 'estrutura', id: 'x', antes: null, depois: {}, revisaoAnterior: null }]).erro === 'ENTIDADE_DESCONHECIDA', 'aplicar recusa qualquer entidade fora de análise, proposta e aprovação');
 aplicar(N.descartarAnalise(estado, 'an-vazia', { motivo: 'Aberta por engano' }, ctx()), 'descartar');
 afirma(temErro(N.adicionarEntrega(estado, 'an-vazia', { descricao: 'x' }, ctx('pos-desc')), 'ANALISE_DESCARTADA') && N.situacaoDaAnalise(estado, 'an-vazia') === 'descartada', 'análise descartada não aceita mais nada (nada é apagado)');
+/* ---------------- K. usabilidade: F2b coerente e entregas editáveis ---------------- */
+console.log('K. F2b coerente com a estrutura; editar e descartar entrega');
+aplicar(N.criarAnalise(estado, { nome: 'TESTE — Núcleo de Governança de TI', tipoEscopo: 'estrutura' }, ctx('an-gov')), 'criar gov');
+afirma(temErro(N.responder(estado, 'an-gov', { pergunta: 'F2b', valor: { valor: 'nao-cadastrada', estruturaId: 'ae1' } }, ctx()), 'ESTRUTURA_INCOMPATIVEL_COM_RESPOSTA'), '"Existe, mas não está cadastrada" com estrutura escolhida: recusado');
+afirma(temErro(N.responder(estado, 'an-gov', { pergunta: 'F2b', valor: { valor: 'informal', estruturaId: 'ae1' } }, ctx()), 'ESTRUTURA_INCOMPATIVEL_COM_RESPOSTA'), '"É informal" com estrutura escolhida: recusado');
+afirma(temErro(N.responder(estado, 'an-gov', { pergunta: 'F2b', valor: { valor: 'cadastrada' } }, ctx()), 'ESTRUTURA_NAO_INFORMADA'), '"Está cadastrada" sem estrutura: recusado');
+aplicar(N.responder(estado, 'an-gov', { pergunta: 'F2b', valor: { valor: 'cadastrada', estruturaId: 'ae1' } }, ctx()), 'F2b cadastrada');
+afirma(analise('an-gov').estruturaReferidaId === 'ae1' && N.cadastroReferido(analise('an-gov')) === 'ae1', '"Está cadastrada": a estrutura fica referida');
+aplicar(N.responder(estado, 'an-gov', { pergunta: 'F2b', valor: { valor: 'nao-cadastrada' } }, ctx()), 'F2b troca');
+afirma(analise('an-gov').estruturaReferidaId === null && !('estruturaId' in analise('an-gov').respostas.F2b) && N.cadastroReferido(analise('an-gov')) === null, 'trocar para outra resposta limpa a estrutura (resposta e análise)');
+const ultimo = eventos.slice(-1)[0];
+afirma(ultimo.detalhe.antes.estruturaId === 'ae1' && !ultimo.detalhe.depois.estruturaId, 'o histórico guarda a estrutura de antes e a resposta nova sem ela');
+/* legado incoerente: resposta "informal" com estrutura gravada (antes desta correção) */
+const legado = JSON.parse(JSON.stringify(analise('an-gov'))); legado.id = 'an-leg'; legado.respostas.F2b = { valor: 'informal', estruturaId: 'ae1', em: 1, por: USUARIO }; legado.estruturaReferidaId = 'ae1';
+estado.analises['an-leg'] = legado;
+afirma(N.cadastroReferido(legado) === null, 'legado incoerente: a leitura não mostra a estrutura');
+afirma(estado.analises['an-leg'].estruturaReferidaId === 'ae1', 'legado incoerente: a leitura não apaga nada');
+aplicar(N.adicionarEntrega(estado, 'an-leg', { descricao: 'x' }, ctx('e-leg')), 'gravação no legado');
+afirma(analise('an-leg').estruturaReferidaId === null && !('estruturaId' in analise('an-leg').respostas.F2b), 'legado incoerente: corrigido só na próxima gravação da própria análise');
+afirma(N.responder(estado, 'an-gov', { pergunta: 'F2b', valor: { valor: 'informal' } }, ctx()).ok, 'resposta coerente sem estrutura: aceita');
+/* entregas */
+aplicar(N.adicionarEntrega(estado, 'an-gov', { descricao: 'Diagnósticos de governança', exemplo: 'Relatório hipotético' }, ctx('eg1')), 'e1');
+aplicar(N.editarEntrega(estado, 'an-gov', 'eg1', { descricao: 'Diagnósticos de aderência com recomendações', exemplo: '' }, ctx()), 'editar');
+const eg = analise('an-gov').entregas.eg1, evEd = eventos.slice(-1)[0];
+afirma(eg.descricao === 'Diagnósticos de aderência com recomendações' && eg.exemplo === null && evEd.tipo === 'entrega.editada' && evEd.detalhe.antes.descricao === 'Diagnósticos de governança', 'editar entrega: texto novo, histórico com antes e depois');
+afirma(temErro(N.editarEntrega(estado, 'an-gov', 'eg1', { descricao: ' ' }, ctx()), 'ENTREGA_SEM_DESCRICAO') && temErro(N.editarEntrega(estado, 'an-gov', 'nao-ha', { descricao: 'x' }, ctx()), 'ENTREGA_INEXISTENTE'), 'editar: descrição obrigatória; entrega inexistente recusada');
+aplicar(N.adicionarEntrega(estado, 'an-gov', { descricao: 'Lançada por engano' }, ctx('eg2')), 'e2');
+aplicar(N.descartarEntrega(estado, 'an-gov', 'eg2', { motivo: 'Duplicada' }, ctx()), 'descartar e2');
+afirma(analise('an-gov').entregas.eg2.situacao === 'descartada' && analise('an-gov').entregas.eg2.descarte.motivo === 'Duplicada' && eventos.slice(-1)[0].tipo === 'entrega.descartada', 'descartar entrega: fica no histórico, não é apagada');
+afirma(!N.proximasPerguntas(analise('an-gov')).some((q) => q.entregaId === 'eg2') && temErro(N.editarEntrega(estado, 'an-gov', 'eg2', { descricao: 'x' }, ctx()), 'ENTREGA_DESCARTADA'), 'entrega descartada sai das perguntas e não é mais editada');
+['F4', 'F5', 'F6', 'F8'].forEach((q) => aplicar(N.responder(estado, 'an-gov', { pergunta: q, entregaId: 'eg1', valor: q === 'F4' ? 'julgamento-tecnico' : q === 'F5' ? 'diversas-linhas' : q === 'F6' ? { valor: 'esta-estrutura', certeza: 'conhecido' } : { valor: 'sem-evidencia' } }, ctx()), q));
+aplicar(N.definirRecorte(estado, 'an-gov', { nome: 'Avaliar aderência', resultado: 'Diagnóstico', justificativa: 'j', entregas: ['eg1'] }, ctx('rg1')), 'recorte');
+afirma(temErro(N.descartarEntrega(estado, 'an-gov', 'eg1', {}, ctx()), 'ENTREGA_EM_RESPONSABILIDADE'), 'entrega dentro de uma responsabilidade delimitada não é descartada');
+afirma(N.editarEntrega(estado, 'an-gov', 'eg1', { descricao: 'Ajuste de redação' }, ctx()).ok, 'responsabilidade ainda não avaliada: a entrega pode ter o texto ajustado');
+aplicar(N.associarAtuacao(estado, 'an-gov', 'rg1', 'obj-gov-1', ctx()), 'atuação');
+afirma(temErro(N.editarEntrega(estado, 'an-gov', 'eg1', { descricao: 'Outra coisa' }, ctx()), 'ENTREGA_EM_RESPONSABILIDADE_AVALIADA'), 'responsabilidade já com atuação: a entrega não muda (o O1–O9 foi feito sobre ela)');
 
 console.log('\n' + total + ' verificações — ' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));
 process.exit(falhas ? 1 : 0);

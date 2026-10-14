@@ -188,16 +188,16 @@ async function jornadaB(browser) {
   console.log('\n== B. Jornada B — Núcleo de Arquitetura de TI ==');
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab: 'LIBERADO_PARA_PERFIS_AUTORIZADOS' });
   await page.waitForSelector('#anEntradaAtuacoes');
-  afirma(/escopo amplo|é amplo/.test(await texto(page, '#anEntradaAtuacoes')) && await existe(page, '#poNovaAtuacaoBtn'), 'Porta 2: a entrada da análise aparece junto da "+ Nova atuação" de sempre');
+  afirma(/Caminho A · Direto/.test(await texto(page, '#anEntradaAtuacoes')) && /Caminho B · Assistido/.test(await texto(page, '#anEntradaAtuacoes')) && await existe(page, '#anCaminhoDireto #poNovaAtuacaoBtn'), 'Porta 2: dois caminhos — A direto (com a "+ Nova atuação" de sempre) e B assistido');
   await page.click('#anEntradaNova');
   await page.waitForSelector('#anFormNova');
   const escopos = await page.evaluate(() => Array.from(document.querySelectorAll('#anEscopo .an-opcao')).map((l) => l.textContent));
   afirma(escopos.length === 6 && escopos.every((t) => /Ex\.:/.test(t)), 'etapa 1: seis escopos, cada um com exemplo contrastante', escopos.length);
   afirma(!/Área Especializada|Centro de Excelência|CoE|Plataforma/.test(await texto(page, '#anFormNova')), 'nenhum tipo organizacional oferecido antes do O1–O9');
   const id = await abrirAnaliseNova(page, 'Núcleo de Arquitetura de TI', 'estrutura');
-  afirma(/Por que perguntamos/.test(await texto(page, '#anPergunta')) && /cadastrada/.test(await texto(page, '#anPerguntaTitulo')), 'uma pergunta por vez, com o porquê (F2b)');
+  afirma(/Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && /não deve ser confundido com o cadastro de Atuações/.test(await texto(page, '#anPerguntaAjuda')), 'uma pergunta por vez, com a explicação (F2b: cadastro de Estruturas do ADMIN ≠ Atuações)');
   await responderPendentes(page, mapaB);
-  afirma(/Quais entregas concretas/.test(await texto(page, '#anPerguntaTitulo')), 'sem entregas: pergunta as entregas (F3)');
+  afirma(/Registre a primeira entrega/.test(await texto(page, '#anProximaAcao')) && await existe(page, '#anSemEntregas'), 'sem entregas: a próxima ação pede a primeira entrega (F3), com "Não consigo identificar entregas"');
   await adicionarEntregas(page, Object.keys(B));
   mapaB.justificar = false;
   const r1 = await responderPendentes(page, mapaB);
@@ -310,7 +310,7 @@ async function jornadaA(browser, db) {
   /* antes de comparar: tentar juntar políticas de SI e diretrizes contratuais */
   await responderPendentes(page, (info) => (info.q === 'F10' ? null : mapaA(info)));
   const sinais = await texto(page, '#anPergunta');
-  afirma(/3 perguntas pendentes/.test(sinais) && /mesmo destinatário/.test(sinais) && /Parecer não basta/.test(sinais) && /nada é juntado sem a sua conclusão/.test(sinais), 'semelhança de superfície só SUGERE comparar (3 pares), com o porquê', sinais.slice(0, 200));
+  afirma(/3 perguntas pendentes/.test(await texto(page, '#anPendencias2')) && /mesmo destinatário/.test(sinais) && /Parecer não basta/.test(sinais) && /nada é juntado sem a sua conclusão/.test(sinais), 'semelhança de superfície só SUGERE comparar (3 pares), com o porquê', sinais.slice(0, 200));
   const errJuntar = await delimitar(page, 'Políticas e diretrizes', 'Normas', 'Mesmo documento para os gestores', ['Políticas de Segurança da Informação', 'Diretrizes de gestão contratual']);
   afirma(/só podem ficar na mesma responsabilidade depois de comparadas/.test(errJuntar), 'REGRESSÃO: políticas de SI + diretrizes contratuais NÃO são juntadas sem comparação', errJuntar);
   await responderPendentes(page, mapaA);
@@ -365,7 +365,7 @@ async function jornadaC(browser, db, objPol) {
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { db });
   await page.waitForSelector('#anNovaBtn');
   const id = await abrirAnaliseNova(page, 'Segurança de TI', 'capacidade', { capacidades: 'Proteger informações e ambientes' });
-  afirma(/capacidades: Proteger informações e ambientes/.test(await texto(page, '.an-meta')), 'capacidade registrada só como referência');
+  afirma(/Capacidades \(só referência\)Proteger informações e ambientes/.test(await texto(page, '#anObjeto')), 'capacidade registrada só como referência');
   await responderPendentes(page, (info) => (info.q === 'F2c' ? { valor: 'listadas' } : null));
   await page.selectOption('#anReferenciaSel', objPol);
   await page.click('#anReferenciarBtn');

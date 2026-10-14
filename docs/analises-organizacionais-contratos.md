@@ -68,6 +68,13 @@ O contrato é o mesmo de `estruturas-nucleo.js`:
   - 375 px.
 - **Limite das regras:** o RTDB não percorre listas. A regra "duas entregas só ficam juntas depois de comparadas" é garantida pelo núcleo (o mesmo arquivo nas telas e nos testes), não pelas regras. As regras garantem autorização, imutabilidade, sequência, origem e histórico.
 
+## Correção de usabilidade (sem mudar regras nem nós)
+
+- **F2b coerente:** `responder` recusa estrutura com resposta diferente de "Está cadastrada" (`ESTRUTURA_INCOMPATIVEL_COM_RESPOSTA`) e, ao trocar a resposta, grava `estruturaReferidaId = null`. Registro legado incoerente é corrigido só na próxima gravação da própria análise (`abrirAlteracao`), com antes e depois na mudança — nada é limpo em lote. `cadastroReferido(analise)` é a leitura coerente para as telas.
+- **Entregas:** `editarEntrega` (só descrição e exemplo; recusada se a entrega está numa responsabilidade que já virou atuação — `ENTREGA_EM_RESPONSABILIDADE_AVALIADA`) e `descartarEntrega` (motivo opcional; `situacao: descartada` + `descarte`, nunca apagada; recusada dentro de uma responsabilidade delimitada — `ENTREGA_EM_RESPONSABILIDADE`). Eventos `entrega.editada` e `entrega.descartada`.
+- **Retrocompatibilidade:** as duas operações gravam a análise inteira pela mesma gravação de sempre (revisão + 1, evento novo); as regras não validam o conteúdo das entregas nem o tipo do evento, então nada nas regras nem nos nós muda. Registros existentes continuam válidos.
+- **Tela:** dois caminhos na Porta 2, quatro passos, próxima ação, conceitos e o campo dependente da F2b — provados por `teste-analises-organizacionais-usabilidade.js`; o núcleo, pela seção K de `teste-analises-organizacionais-nucleo.js`.
+
 ## Reservado às próximas ondas
 
 - **Onda 2:** registro governado de execução, separado de `estruturas-vinculos`.
