@@ -1,7 +1,7 @@
 # Análise Organizacional (Porta 2): contratos do núcleo
 
 Núcleo puro `forca-agil/analises-organizacionais-nucleo.js` (`window.faAnalisesOrganizacionaisNucleo` /
-`module.exports`). É a **PR 1** da especificação aprovada ("Da classificação ao desenho organizacional", revisão 3).
+`module.exports`). Entrou na **PR 1** da especificação aprovada ("Da classificação ao desenho organizacional", revisão 3); a **PR A** acrescentou a persistência, as regras, a tela e o marcador de homologação (ver o fim deste documento).
 
 Situação atual:
 
@@ -53,10 +53,23 @@ O contrato é o mesmo de `estruturas-nucleo.js`:
 | D6: o objeto amplo delimitado vira agrupador e sai das contagens de pendência. | `objetoAmploDelimitado`, `contagens` |
 | D2: a capacidade é só uma referência estável. Uma fonte oficial só é aceita se quem chama a informar. | `validarCapacidades` |
 
-## Reservado às próximas PRs e ondas
+## PR A: persistência, regras, tela e marcador
 
-- **PR 2:** nós e regras do Firebase atrás de um marcador desligado (`analises-organizacionais`, auditoria, propostas, aprovações e `analises-por-objeto`). A permissão do admin geral para a aprovação (N1) fica nas regras, não no núcleo.
-- **PRs 3–6:** telas das etapas, painel, aprofundamento de "A validar", composição, ficha da estrutura e Jornada.
+- **Adaptador** `forca-agil/analises-organizacionais-firebase.js`: o resultado do núcleo vira uma gravação multipath (horário do servidor, autoria, evento de auditoria apontado pela análise). A atuação criada a partir de um recorte vai na mesma gravação que o recorte ligado e o índice de origem. O nó das atuações não muda.
+- **Regras** dos 7 nós novos, montadas por `.github/scripts/montar-regras-analises-organizacionais.js` e provadas no emulador por `teste-rules-analises-organizacionais.js`:
+  - o marcador `analises-organizacionais-config/habilitacao` vale nas operações de dados (ausente = DESLIGADO);
+  - revisão + 1;
+  - origem única;
+  - propostas imutáveis em sequência;
+  - aprovação só do admin geral, como referência a ato externo.
+- **Tela** `forca-agil/analises-organizacionais.js` (`#avaliacoes?an=`), provada por `teste-analises-organizacionais-tela.js`:
+  - as jornadas A, B e C pela interface, com o O1–O9 respondido na tela de sempre;
+  - os três estados do marcador nos três perfis;
+  - 375 px.
+- **Limite das regras:** o RTDB não percorre listas. A regra "duas entregas só ficam juntas depois de comparadas" é garantida pelo núcleo (o mesmo arquivo nas telas e nos testes), não pelas regras. As regras garantem autorização, imutabilidade, sequência, origem e histórico.
+
+## Reservado às próximas ondas
+
 - **Onda 2:** registro governado de execução, separado de `estruturas-vinculos`.
 - **Onda 3:** vista de proposta separada do Mapa vigente.
 - **Onda 4:** pessoas e alocações.

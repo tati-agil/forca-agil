@@ -605,6 +605,8 @@
     function aberto() { return !wrap.hidden; }
     /* D2: o bloco Estrutura responsável aparece ou some conforme a habilitação operacional (lida depois do login) */
     window.addEventListener('fa-estruturas-habilitacao', function () { if (aberto() && state.atual) render(); });
+    /* a Análise Organizacional chega depois (marcador e dados): só redesenha telas de consulta, nunca um formulário em edição */
+    if (window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.aoMudar) window.faAnalisesOrganizacionais.aoMudar(function () { if (aberto() && (state.tela === 'atuacoes' || state.tela === 'resultado')) render(); });
     function mostrarPainel() {
       var v = vizinho(); if (v) v.hidden = true;
       var sq = document.getElementById('avaliacoesSquad'); if (sq) sq.hidden = true;
@@ -1114,7 +1116,16 @@
       if (!state.carregou.obj) return h + '<p class="loading-msg" id="poObjetoCarregando">Carregando…</p></section>';
       var ob = (state.objetos || {})[a.itemId];
       if (!ob) return h + '<p class="avp-error-msg" id="poObjetoAusente">Atuação organizacional não encontrada.</p></section>';
-      return h + objetoDadosHtml(ob, a.itemNome) + '</section>';
+      return h + objetoDadosHtml(ob, a.itemNome) + analiseHtml(a.itemId) + '</section>';
+    }
+    /* Análise Organizacional (analises-organizacionais.js): só aparece quando o marcador de homologação libera a leitura
+       — a atuação nascida de um recorte mostra a análise de origem; a atuação ampla delimitada vira agrupador (D6) */
+    function analiseHtml(objetoId) {
+      var A = window.faAnalisesOrganizacionais;
+      if (!A || !A.origemHtml) return '';
+      var h = A.origemHtml(objetoId), d = A.delimitacaoDe ? A.delimitacaoDe(objetoId) : null;
+      if (d) h += '<p class="an-origem" id="anDelimitada">Delimitada em ' + d.responsabilidades + ' responsabilidade' + (d.responsabilidades === 1 ? '' : 's') + ' na <a href="#avaliacoes?an=' + encodeURIComponent(d.analiseId) + '">análise organizacional</a>. O que já foi registrado para esta atuação ampla continua no histórico.</p>';
+      return h;
     }
 
     /* ---- Porta 2: as telas da atuação (lista, escolhida, cadastro e edição) ---- */
@@ -1128,6 +1139,7 @@
       var h = '<div class="avp-form-card" id="poAtuacoes"><h3>Atuações organizacionais</h3>' +
         '<p class="avp-intro">Caminho 2 ("Porta 2"): posicione diretamente uma atuação, responsabilidade ou capacidade organizacional, sem passar pela Avaliação de Produto/Serviço (P1–P16). ' +
         'Produtos e serviços seguem o Caminho 1 (Avaliação de Produto/Serviço). O tipo organizacional não é presumido pelo nome: ele sai do Posicionamento.</p>';
+      if (!state.itemEscolhido && window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.entradaAtuacoesHtml) h += window.faAnalisesOrganizacionais.entradaAtuacoesHtml();
       if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (state.erroObj) return h + '<p class="avp-error-msg" id="poAtuacoesErro">Não foi possível ler as atuações organizacionais agora.</p></div>' + rodapeVoltar();
       if (!state.carregou.obj || !tudoCarregado()) return h + '<p class="loading-msg">Carregando…</p></div>';
@@ -1147,7 +1159,7 @@
     function renderAtuacao(id) {
       var ob = (state.objetos || {})[id];
       if (!ob) return '<p class="avp-error-msg" id="poAtuacaoAusente">Atuação organizacional não encontrada.</p><button type="button" class="btn btn--sm" id="poOutraAtuacao">Ver todas as atuações</button>';
-      var h = '<div class="po-item-escolhido" id="poAtuacaoSelecionada">' + objetoDadosHtml(ob, null), sp = posicionamentoDoItem(id);
+      var h = '<div class="po-item-escolhido" id="poAtuacaoSelecionada">' + objetoDadosHtml(ob, null) + analiseHtml(id), sp = posicionamentoDoItem(id);
       if (sp) h += '<p class="po-item-situacao">' + (sp.tipo === 'vigente' ? 'Posicionamento concluído' : 'Rascunho em andamento') + '</p>' +
         '<button type="button" class="btn btn--sm po-item-abrir" data-key="' + esc(sp.key) + '">' + (sp.tipo === 'vigente' ? 'Abrir o Posicionamento' : 'Continuar o Posicionamento') + '</button>';
       else if (ob.situacao === 'ativo' && podeEscrever()) {

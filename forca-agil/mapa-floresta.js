@@ -612,18 +612,24 @@
       });
       /* P1–P16 referenciado por uma atuação ativa: representado por ela (a jornada que vale é a da atuação) */
       itens.forEach(function (x) { if (x.objetoReferente && jornadas[x.objetoReferente.id] && !x.posicionamento) jornadas[x.itemId] = { representadoPor: x.objetoReferente, jornadaDela: jornadas[x.objetoReferente.id] }; });
+      /* Análise Organizacional (D6): a atuação ampla delimitada vira AGRUPADOR — sai das contagens de pendência (as
+         responsabilidades dela é que são contadas); o que já foi registrado para ela continua. Só com o marcador liberando. */
+      var AO = window.faAnalisesOrganizacionais;
+      if (AO && AO.delimitacaoDe) itens.forEach(function (x) { var d = jornadas[x.itemId] && !jornadas[x.itemId].representadoPor ? AO.delimitacaoDe(x.itemId) : null; if (d) jornadas[x.itemId] = Object.assign({}, jornadas[x.itemId], { delimitada: d }); });
     }
-    function temProximaAcao(x) { var j = jornadas[x.itemId]; return !!(j && !j.representadoPor && !j.completa && !j.encerrada && !j.carregando && j.acao && j.acao.tipo !== 'mapa' && !j.acao.opcional); }
+    function temProximaAcao(x) { var j = jornadas[x.itemId]; return !!(j && !j.representadoPor && !j.delimitada && !j.completa && !j.encerrada && !j.carregando && j.acao && j.acao.tipo !== 'mapa' && !j.acao.opcional); }
     function resumoJornadaHtml(itens) {
-      var n = { completa: 0, acao: 0, analise: 0, encerrada: 0, disponivel: 0 }, carregando = false;
+      var n = { completa: 0, acao: 0, analise: 0, encerrada: 0, disponivel: 0, delimitada: 0 }, carregando = false;
       itens.forEach(function (x) {
         var j = jornadas[x.itemId]; if (!j || j.representadoPor) return;
+        if (j.delimitada) { n.delimitada++; return; }
         if (j.carregando) carregando = true;
         if (j.encerrada) n.encerrada++; else if (j.completa) n.completa++; else if (j.analise) n.analise++; else if (temProximaAcao(x)) n.acao++; else if (j.disponivel) n.disponivel++;
       });
       if (carregando) return '<p class="mf-resumo loading-msg" id="mfResumo" role="status">Carregando a situação das estruturas…</p>';
       return '<p class="mf-resumo" id="mfResumo">Jornada completa: <strong>' + n.completa + '</strong> · Com próxima ação: <strong>' + n.acao + '</strong> · Em análise (A validar): <strong>' + n.analise +
-        '</strong> · Posicionamento disponível: <strong>' + n.disponivel + '</strong> · Encerradas: <strong>' + n.encerrada + '</strong></p>';
+        '</strong> · Posicionamento disponível: <strong>' + n.disponivel + '</strong> · Encerradas: <strong>' + n.encerrada + '</strong>' +
+        (n.delimitada ? ' · Delimitadas em responsabilidades: <strong>' + n.delimitada + '</strong>' : '') + '</p>';
     }
     var SIMBOLO_ETAPA = { ok: '✓', atual: '●', futuro: '○', na: '—', revisao: '⚠', analise: '⚖', opcional: '◇', disponivel: '◇', carregando: '…' };
     function trilhaHtml(j, idTrilha) {
@@ -666,6 +672,7 @@
       var j = jornadas[x.itemId];
       if (!j) return C.ROTULO_CURTO[x.situacao] || '';
       if (j.representadoPor) return 'Representado pela atuação “' + j.representadoPor.nome + '”';
+      if (j.delimitada) return 'Delimitada em ' + j.delimitada.responsabilidades + ' responsabilidade' + (j.delimitada.responsabilidades === 1 ? '' : 's');
       if (j.encerrada) return 'Encerrada';
       if (j.carregando) return 'Carregando…';
       if (j.completa) return '✓ Jornada completa';
@@ -674,6 +681,14 @@
       if (j.acao && j.acao.rotulo) return 'Próximo passo: ' + j.acao.rotulo;
       var prox = j.etapas.filter(function (e) { return e.estado === 'atual'; })[0];
       return prox ? 'Próximo passo: ' + prox.rotulo : (C.ROTULO_CURTO[x.situacao] || '');
+    }
+    /* Análise Organizacional: origem da atuação (recorte de uma análise) e atuação ampla delimitada (agrupador) */
+    function analiseOrganizacionalHtml(x) {
+      var AO = window.faAnalisesOrganizacionais, j = jornadas[x.itemId];
+      if (!AO || !AO.origemHtml || x.origem !== ORIGEM_PORTA2) return '';
+      var h = AO.origemHtml(x.itemId);
+      if (j && j.delimitada) h += '<p class="an-origem" id="mfDelimitada-' + esc(x.itemId) + '">Delimitada em ' + j.delimitada.responsabilidades + ' responsabilidade' + (j.delimitada.responsabilidades === 1 ? '' : 's') + ' na <a href="#avaliacoes?an=' + encodeURIComponent(j.delimitada.analiseId) + '">análise organizacional</a>: as pendências passam a ser as delas. O que foi registrado para esta atuação ampla continua no histórico.</p>';
+      return h;
     }
     function renderLinha(x) {
       var j = jornadas[x.itemId], tipo = x.origem === ORIGEM_PORTA2 ? 'Atuação organizacional' : 'Produto/Serviço';
@@ -690,7 +705,7 @@
         (x.origem === ORIGEM_PORTA2 ? '<span class="avp-badge mf-badge-porta2">Atuação organizacional</span>' : '') +
         (x.objeto && x.objeto.situacao === 'encerrado' ? '<span class="avp-badge mf-badge-encerrado">Encerrada</span>' : '') +
         (repr ? '<span class="avp-badge mf-badge mf-badge--representado">Representado por atuação</span>' : '<span class="avp-badge mf-badge mf-badge--' + esc(x.situacao) + '">' + esc(C.ROTULO_SITUACAO[x.situacao] || x.situacao) + '</span>') +
-        '</div>' + jornadaHtml(x) + (repr ? '' : faltaHtml(x)) + (repr ? '</li>' : '') + '<dl class="mf-detalhes">';
+        '</div>' + analiseOrganizacionalHtml(x) + jornadaHtml(x) + (repr ? '' : faltaHtml(x)) + (repr ? '</li>' : '') + '<dl class="mf-detalhes">';
       if (repr) return h.slice(0, h.lastIndexOf('<dl class="mf-detalhes">'));
       if (x.situacao === 'firme') {
         h += '<dt>Posicionamento efetivo</dt><dd class="mf-efetivo" data-codigo="' + esc(x.efetivo.codigo) + '" data-origem="' + esc(x.efetivo.origem) + '">' + spanNome(x.efetivo.codigo) +
@@ -1134,6 +1149,8 @@
     });
     /* o marcador pode chegar antes ou depois de o painel abrir (rede lenta): o endereço é sempre reaplicado */
     window.addEventListener('fa-estruturas-habilitacao', function () { if (mfDoEndereco()) aplicarEndereco(); });
+    /* a Análise Organizacional (marcador e dados) chega depois: redesenha o catálogo aberto */
+    if (window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.aoMudar) { window.faAnalisesOrganizacionais.ligar(); window.faAnalisesOrganizacionais.aoMudar(function () { if (!wrap.hidden && modo !== 'mapa') render(); }); }
     var api = { abrir: function () { aplicarEndereco(); }, aplicarEndereco: aplicarEndereco, fechar: function () { fecharPainel(); }, aberto: function () { return !wrap.hidden; } };
     if (mfDoEndereco()) aplicarEndereco();
     return api;

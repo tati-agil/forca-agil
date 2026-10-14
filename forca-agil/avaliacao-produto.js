@@ -2965,6 +2965,7 @@
       if (p.po) return { t: 'posicionamento', po: p.po, item: p.item || null }; /* Posicionamento Organizacional: o endereço é dele (avaliacao-posicionamento.js) */
       if (p.sq) return { t: 'squad', sq: p.sq }; /* Adequação à Squad: o endereço é dela (avaliacao-squad.js) */
       if (p.mf) return { t: 'mapa', mf: p.mf }; /* Catálogo preparatório do Mapa da Floresta: o endereço é dele (mapa-floresta.js) */
+      if (p.an) return { t: 'analise', an: p.an }; /* Análise Organizacional (Porta 2): o endereço é dela (analises-organizacionais.js) */
       if (p.avp) return { t: 'avaliacao', key: p.avp };
       if (p.reavaliar) return { t: 'reavaliar', key: p.reavaliar };
       if (p.editar) return { t: 'editar', key: p.editar };
@@ -3118,6 +3119,19 @@
       if (d.t !== 'posicionamento' && window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.fechar();
       /* idem o Catálogo do Mapa da Floresta — fecha antes de outro painel assumir a página */
       if (d.t !== 'mapa' && window.faMapaFloresta) window.faMapaFloresta.fechar();
+      /* idem a Análise Organizacional */
+      if (d.t !== 'analise' && window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.fechar) window.faAnalisesOrganizacionais.fechar();
+      if (d.t === 'analise') {
+        if (state.tela !== 'inicio' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+          state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
+          state.tela = 'inicio'; render();
+        }
+        if (window.faAvaliacaoSquad && window.faAvaliacaoSquad.fechar) window.faAvaliacaoSquad.fechar();
+        if (window.faInitAnalisesOrganizacionais) window.faInitAnalisesOrganizacionais();
+        if (window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.aplicarEndereco) window.faAnalisesOrganizacionais.aplicarEndereco();
+        fim();
+        return;
+      }
       if (d.t === 'mapa') {
         if (state.tela !== 'inicio' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
           state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
@@ -4997,6 +5011,12 @@
           cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'),
           'na etapa "Estrutura concreta" da Jornada, na estrutura responsável da ficha do Posicionamento e no Mapa da Floresta.');
       }
+      /* Análise Organizacional (Porta 2): o marcador de homologação — só admin geral (analises-organizacionais.js) */
+      if (souAdminGeral() && window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao) {
+        html += '<section class="avp-form-card avp-admin-inicio avp-admin-grupo" aria-label="Análise Organizacional"><h4>Análise Organizacional (Porta 2)</h4>' +
+          '<p class="avp-admin-grupo-desc">Jornada para descobrir e delimitar responsabilidades num escopo amplo. Começa desligada; a habilitação vale também no banco.</p>' +
+          '<p class="avp-admin-grupo-uso"><strong>Onde aparece:</strong> nas atuações organizacionais da área Avaliação (Porta 2).</p><div id="anHabilitacaoAdmin"></div></section>';
+      }
       html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
         cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
       if (souAdminGeral()) {
@@ -5014,6 +5034,8 @@
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
       document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);
+      var habAn = document.getElementById('anHabilitacaoAdmin');
+      if (habAn) window.faAnalisesOrganizacionais.montarHabilitacao(habAn);
     }
 
     /* ===================== HISTÓRICO RECOLHIDO (padrão único) =====================

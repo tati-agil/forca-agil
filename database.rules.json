@@ -3384,6 +3384,150 @@
         ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && newData.parent().parent().child('objetos-organizacionais').child(data.val()).child('situacao').val() === 'encerrado'))",
         ".validate": "$itemId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.isString() && newData.parent().parent().child('objetos-organizacionais').child(newData.val()).child('referenciaItemId').val() === $itemId && newData.parent().parent().child('objetos-organizacionais').child(newData.val()).child('situacao').val() === 'ativo' && !root.child('objetos-organizacionais').child(newData.val()).exists()"
       }
+    },
+    "analises-organizacionais": {
+      ".read": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')))",
+      "$id": {
+        ".write": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))) && newData.exists() && (!data.exists() || data.child('situacao').val() === 'aberta')",
+        ".validate": "$id.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['id','nome','tipoEscopo','situacao','revisao','criadaEm','criadaPor','atualizadoEm','atualizadoPor','auditoriaId']) && newData.child('id').val() === $id && newData.child('atualizadoEm').val() === now && newData.parent().parent().child('analises-organizacionais-auditoria').child($id).child(newData.child('auditoriaId').val()).exists() && !root.child('analises-organizacionais-auditoria').child($id).child(newData.child('auditoriaId').val()).exists() && (newData.child('situacao').val() === 'descartada') === newData.child('descarte').exists() && (data.exists() ? (newData.child('revisao').val() === data.child('revisao').val() + 1 && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor').child('id').val() === data.child('criadaPor').child('id').val() && newData.child('tipoEscopo').val() === data.child('tipoEscopo').val() && newData.child('objetoAmploId').val() === data.child('objetoAmploId').val() && (newData.child('propostaVigente').val() === data.child('propostaVigente').val() || (newData.child('propostaVigente').val() === (data.child('propostaVigente').exists() ? data.child('propostaVigente').val() + 1 : 1) && newData.parent().parent().child('analises-propostas').child($id).child('v' + newData.child('propostaVigente').val()).exists() && !root.child('analises-propostas').child($id).child('v' + newData.child('propostaVigente').val()).exists()))) : (newData.child('revisao').val() === 1 && newData.child('situacao').val() === 'aberta' && newData.child('criadaEm').val() === now && newData.child('criadaPor').child('id').val() === auth.uid && !newData.child('propostaVigente').exists()))",
+        "nome": {
+          ".validate": "newData.isString() && newData.val().length <= 200 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+        },
+        "tipoEscopo": {
+          ".validate": "(newData.val() === 'responsabilidade' || newData.val() === 'estrutura' || newData.val() === 'grande-area' || newData.val() === 'conjunto' || newData.val() === 'capacidade' || newData.val() === 'atuacao-informal')"
+        },
+        "situacao": {
+          ".validate": "(newData.val() === 'aberta' || newData.val() === 'descartada')"
+        },
+        "revisao": {
+          ".validate": "newData.isNumber()"
+        },
+        "propostaVigente": {
+          ".validate": "newData.isNumber() && newData.val() >= 1"
+        },
+        "atualizadoPor": {
+          ".validate": "newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email"
+        },
+        "criadaPor": {
+          ".validate": "newData.hasChildren(['id'])"
+        },
+        "descarte": {
+          ".validate": "newData.hasChildren(['motivo']) && newData.child('motivo').isString() && newData.child('motivo').val().length <= 500"
+        },
+        "recortes": {
+          "$r": {
+            "objetoId": {
+              ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val()) && newData.parent().parent().parent().parent().parent().child('analises-por-objeto').child(newData.val()).child('analiseId').val() === $id && newData.parent().parent().parent().parent().parent().child('analises-por-objeto').child(newData.val()).child('recorteId').val() === $r"
+            }
+          }
+        }
+      }
+    },
+    "analises-organizacionais-auditoria": {
+      ".read": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')))",
+      "$id": {
+        "$evento": {
+          ".write": "(auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))) || auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && (root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' || root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS')) && !data.exists() && newData.exists()",
+          ".validate": "$evento.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['tipo','em','por']) && newData.child('em').val() === now && newData.child('por').child('uid').val() === auth.uid && newData.child('por').child('email').val() === auth.token.email && (newData.parent().parent().parent().child('analises-organizacionais').child($id).child('auditoriaId').val() === $evento || newData.child('tipo').val() === 'aprovacao.registrada')"
+        }
+      }
+    },
+    "analises-propostas": {
+      ".read": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')))",
+      "$id": {
+        "$v": {
+          ".write": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))) && !data.exists() && newData.exists()",
+          ".validate": "$v === 'v' + newData.child('versao').val() && newData.hasChildren(['id','analiseId','versao','alternativa','recortes','justificativa','situacao','registradaEm','registradaPor']) && newData.child('analiseId').val() === $id && newData.child('registradaEm').val() === now && newData.parent().parent().parent().child('analises-organizacionais').child($id).child('propostaVigente').val() === newData.child('versao').val() && (root.child('analises-organizacionais').child($id).child('propostaVigente').exists() ? root.child('analises-organizacionais').child($id).child('propostaVigente').val() + 1 === newData.child('versao').val() : newData.child('versao').val() === 1) && (newData.child('alternativa').val() === 'manter-consciente' || newData.child('alternativa').val() === 'rever-delimitacao' || newData.child('alternativa').val() === 'integrar-recortes' || newData.child('alternativa').val() === 'distribuir-existentes' || newData.child('alternativa').val() === 'propor-estrutura' || newData.child('alternativa').val() === 'pendente') && (newData.child('alternativa').val() === 'pendente') === (newData.child('situacao').val() === 'pendente') && (newData.child('situacao').val() === 'proposta' || newData.child('situacao').val() === 'pendente') && (newData.child('situacao').val() === 'pendente') === newData.child('pendencia').exists()",
+          "versao": {
+            ".validate": "newData.isNumber() && newData.val() >= 1"
+          },
+          "justificativa": {
+            ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+          },
+          "registradaPor": {
+            ".validate": "newData.child('id').val() === auth.uid"
+          },
+          "pendencia": {
+            ".validate": "newData.hasChildren(['falta','proximaAcao','quemDecide'])"
+          }
+        }
+      }
+    },
+    "analises-aprovacoes": {
+      ".read": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')))",
+      "$id": {
+        "$v": {
+          ".write": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && (root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' || root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS') && !data.exists() && newData.exists()",
+          ".validate": "$v === 'v' + newData.child('versaoProposta').val() && newData.hasChildren(['analiseId','versaoProposta','natureza','autoridade','referencia','dataDoAto','objetoAprovado','registradoEm','registradoPor','auditoriaId']) && newData.child('natureza').val() === 'referencia-a-ato-externo' && newData.child('analiseId').val() === $id && newData.child('registradoEm').val() === now && root.child('analises-organizacionais').child($id).child('situacao').val() === 'aberta' && root.child('analises-organizacionais').child($id).child('propostaVigente').val() === newData.child('versaoProposta').val() && root.child('analises-propostas').child($id).child($v).child('situacao').val() === 'proposta' && newData.parent().parent().parent().child('analises-organizacionais-auditoria').child($id).child(newData.child('auditoriaId').val()).child('tipo').val() === 'aprovacao.registrada' && !root.child('analises-organizacionais-auditoria').child($id).child(newData.child('auditoriaId').val()).exists()",
+          "autoridade": {
+            ".validate": "newData.isString() && newData.val().length <= 200 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+          },
+          "referencia": {
+            ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+          },
+          "objetoAprovado": {
+            ".validate": "newData.isString() && newData.val().length <= 2000 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+          },
+          "registradoPor": {
+            ".validate": "newData.child('id').val() === auth.uid"
+          }
+        }
+      }
+    },
+    "analises-por-objeto": {
+      ".read": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')))",
+      "$objetoId": {
+        ".write": "auth != null && ((root.child('analises-organizacionais-config').child('habilitacao').val() === 'SOMENTE_ADMIN_GERAL' && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) || (root.child('analises-organizacionais-config').child('habilitacao').val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS' && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))) && !data.exists() && newData.exists()",
+        ".validate": "$objetoId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['analiseId','recorteId']) && newData.parent().parent().child('analises-organizacionais').child(newData.child('analiseId').val()).child('recortes').child(newData.child('recorteId').val()).child('objetoId').val() === $objetoId && newData.parent().parent().child('objetos-organizacionais').child($objetoId).exists()"
+      }
+    },
+    "analises-organizacionais-config": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')",
+      ".write": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && newData.exists()",
+      ".validate": "newData.hasChildren(['habilitacao','alteradoEm','alteradoPor','motivo','auditoriaId']) && newData.parent().child('analises-organizacionais-config-auditoria').child(newData.child('auditoriaId').val()).exists() && !root.child('analises-organizacionais-config-auditoria').child(newData.child('auditoriaId').val()).exists()",
+      "habilitacao": {
+        ".validate": "(newData.val() === 'DESLIGADO' || newData.val() === 'SOMENTE_ADMIN_GERAL' || newData.val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS')"
+      },
+      "alteradoEm": {
+        ".validate": "newData.val() === now"
+      },
+      "alteradoPor": {
+        ".validate": "newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email"
+      },
+      "motivo": {
+        ".validate": "newData.isString() && newData.val().length <= 500 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+      },
+      "auditoriaId": {
+        ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)"
+      },
+      "$outro": {
+        ".validate": false
+      }
+    },
+    "analises-organizacionais-config-auditoria": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')",
+      "$auditoriaId": {
+        ".write": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['habilitacao','anterior','motivo','usuario','dataHora']) && newData.parent().parent().child('analises-organizacionais-config').child('auditoriaId').val() === $auditoriaId && newData.child('habilitacao').val() === newData.parent().parent().child('analises-organizacionais-config').child('habilitacao').val() && newData.child('motivo').val() === newData.parent().parent().child('analises-organizacionais-config').child('motivo').val() && newData.child('anterior').val() === (root.child('analises-organizacionais-config').child('habilitacao').exists() ? root.child('analises-organizacionais-config').child('habilitacao').val() : 'DESLIGADO') && newData.child('dataHora').val() === now",
+        "habilitacao": {
+          ".validate": "(newData.val() === 'DESLIGADO' || newData.val() === 'SOMENTE_ADMIN_GERAL' || newData.val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS')"
+        },
+        "anterior": {
+          ".validate": "(newData.val() === 'DESLIGADO' || newData.val() === 'SOMENTE_ADMIN_GERAL' || newData.val() === 'LIBERADO_PARA_PERFIS_AUTORIZADOS')"
+        },
+        "usuario": {
+          ".validate": "newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email"
+        },
+        "motivo": {
+          ".validate": "newData.isString() && newData.val().length <= 500 && newData.val().replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0"
+        },
+        "dataHora": {
+          ".validate": "newData.val() === now"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
     }
   }
 }
