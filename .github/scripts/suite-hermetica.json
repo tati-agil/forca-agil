@@ -709,6 +709,12 @@
       "sobre": "Nenhum e-mail enviado (o falso só registra o pedido). Textos sem senha temporária; sucesso neutro, igual para conta existente e inexistente (proteção contra enumeração), com o remetente e a quarentena; pedido com idioma pt-BR e endereço de volta; rede, excesso de tentativas, e-mail inválido, código desconhecido e sem resposta (prazo no relógio falso); e-mail de fora barrado sem pedido; console sem e-mail; ADMIN com o mesmo envio, sem a mensagem falsa de sem cadastro nem err.message cru; 375 px."
     },
     {
+      "arquivo": ".github/scripts/teste-taxonomia-abrir-aba.js",
+      "nome": "Taxonomia abre por qualquer caminho: clique, atalho do Início, link do Manual e F5 — conteúdo carregado, sem leitura duplicada (desktop e celular)",
+      "duracao": 60,
+      "sobre": "Defeito D1: só o clique na aba carregava; atalho, Manual e F5 ficavam em Carregando a Taxonomia. Prova o conteúdo (não só a aba), F5 e Voltar/Avançar, uma única leitura dos conceitos no clique e nenhuma releitura ao voltar à aba, entrada direta sem o retorno ao Início, leitura lenta, sem resposta com Tentar novamente e leitura recusada (sem acesso)."
+    },
+    {
       "arquivo": ".github/scripts/teste-avaliacao-inicio.js",
       "nome": "Início da Avaliação: continuar/consultar, começar e registros completos — os 8 casos, três perfis, retornos contextuais (desktop e celular)",
       "duracao": 30,
