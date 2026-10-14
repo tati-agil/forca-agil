@@ -2381,10 +2381,8 @@
     if (D.estado === 'ocioso' || D.estado === 'erro') carregarDominio(st.dominio); else render();
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    var btn = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
-    if (btn) btn.addEventListener('click', function () { abrir(); });
-  });
+  /* Quem abre a aba é o ativador de abas do ADMIN (admin.js, ativarAba): um caminho só para o clique, o atalho do Início,
+     o link do Manual e o F5 — sem ouvinte de clique próprio aqui, para não inicializar duas vezes. */
 
   window.faTaxonomia = {
     abrir: abrir,

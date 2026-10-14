@@ -12,6 +12,10 @@
     document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.panel === target); });
     document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === target); });
     if (target === 'adminPanelManual') abrirManual();
+    /* A Taxonomia carrega ao abrir a aba — por QUALQUER caminho: clique na aba, atalho do Início de Avaliações, link do
+       Manual, F5 (faAdminAbrirAba). Antes só o clique carregava, e os outros caminhos ficavam em "Carregando a Taxonomia…".
+       Abrir de novo não relê nada: abrir() só lê o que está ocioso ou com erro. */
+    if (target === 'adminPanelTaxonomia' && window.faTaxonomia && window.faTaxonomia.abrir) window.faTaxonomia.abrir();
   }
 
   /* O Manual (manual.js) é documentação para a administradora: só é baixado na primeira vez que
