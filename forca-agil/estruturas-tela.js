@@ -197,8 +197,8 @@
     /* PR 4 (jornada guiada): &nova=<TIPO> abre o cadastro com o tipo já escolhido — a pessoa confere e confirma, nada é
        criado sozinho — e &objeto=<item> mostra o caminho de volta para a jornada daquele objeto (endereço estável: F5) */
     function paramDoEndereco(nome) { var h = location.hash || ''; if (!/^#admin\?arq=estruturas/.test(h)) return null; var m = new RegExp('[?&]' + nome + '=([^&]*)').exec(h); return m ? decodeURIComponent(m[1]) : null; }
-    var voltaObjeto = null, novaTipo = null;
-    function sufixoJornada() { return (st.vista === 'nova' && novaTipo ? '&nova=' + encodeURIComponent(novaTipo) : '') + (voltaObjeto ? '&objeto=' + encodeURIComponent(voltaObjeto) : ''); }
+    var voltaObjeto = null, novaTipo = null, voltaPo = null;
+    function sufixoJornada() { return (st.vista === 'nova' && novaTipo ? '&nova=' + encodeURIComponent(novaTipo) : '') + (voltaObjeto ? '&objeto=' + encodeURIComponent(voltaObjeto) : '') + (voltaPo ? '&po=' + encodeURIComponent(voltaPo) : ''); }
     function abrirNovaDoEndereco() {
       novaTipo = paramDoEndereco('nova');
       if (!novaTipo) return false;
@@ -217,7 +217,7 @@
       var sg = sgDoEndereco();
       if (sg !== null) { if (st.sujo) return; if (sg === 'lista' && st.vista !== 'subagrupadores') irPara('subagrupadores'); else if (sg !== 'lista' && (st.vista !== 'subagrupador' || st.id !== sg)) irPara('subagrupador', sg); return; }
       var id = idDoEndereco(); if (id === null) return;
-      if (paramDoEndereco('nova') && st.vista !== 'nova' && !st.sujo) { voltaObjeto = paramDoEndereco('objeto'); abrirNovaDoEndereco(); render(); return; }
+      if (paramDoEndereco('nova') && st.vista !== 'nova' && !st.sujo) { voltaObjeto = paramDoEndereco('objeto'); voltaPo = paramDoEndereco('po'); abrirNovaDoEndereco(); render(); return; }
       if (id && id !== st.id) { if (st.sujo) return; irPara('detalhe', id); } else if (!id && st.vista !== 'lista' && st.vista !== 'nova' && !st.sujo) irPara('lista');
     });
 
@@ -229,7 +229,12 @@
       st.rel = null;
       if (vista === 'detalhe') st.itensVinculados = {}; /* M8: Posicionamento dos itens relido a cada ficha aberta */
       /* M6/M7: a Taxonomia pode ter mudado — relações conceituais e Squad relidos a cada ficha ou cadastro aberto */
-      if (vista === 'detalhe' || vista === 'nova') { taxRel = undefined; lendoTaxRel = false; aoLerTaxRel = []; geracaoTaxRel++; lerTaxRel(function () { if (!wrap.hidden && st.vista === 'detalhe') render(); }); }
+      if (vista === 'detalhe' || vista === 'nova') { taxRel = undefined; lendoTaxRel = false; aoLerTaxRel = []; geracaoTaxRel++; lerTaxRel(function () {
+        if (wrap.hidden) return;
+        if (st.vista === 'detalhe') render();
+        /* no cadastro, só o aviso (sem redesenhar o formulário que a pessoa pode estar preenchendo) */
+        else if (st.vista === 'nova') { var av = document.getElementById('estTaxAviso'); if (av) av.innerHTML = taxAvisoHtml((st.refs && st.refs.conceitosTrabalho) || []); }
+      }); }
       var sgAtual = id && st.subagrupadores ? st.subagrupadores[id] : null;
       var e = id && st.estruturas ? st.estruturas[id] : null;
       if (vista === 'nova') { st.form = { tipo: '', nome: '', sigla: '', descricao: '' }; lerRefs(); }
@@ -309,7 +314,8 @@
     }
     function listaHtml() {
       var h = cabecalho('Estruturas Organizacionais', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliação e Mapa'), 'estVoltarOrigem') + abas('estruturas') + aviso();
-      h += '<p class="est-intro">As estruturas organizacionais concretas — Linhas, Áreas Especializadas e Centros de Excelência — que aparecem no Mapa da Floresta. O tipo de cada uma é um dos oito posicionamentos firmes.</p>';
+      h += '<p class="est-intro">As estruturas organizacionais concretas — Linhas, Áreas Especializadas e Centros de Excelência — que aparecem no Mapa da Floresta. O tipo de cada uma é um dos oito posicionamentos firmes.</p>' +
+        '<p class="est-intro est-tres" id="estTresCoisas">Três coisas diferentes: o <strong>tipo</strong> é recomendado pelo Posicionamento de cada item; a <strong>estrutura concreta</strong> é cadastrada aqui (pode existir antes de qualquer avaliação); o <strong>vínculo de responsabilidade</strong> é registrado na ficha do Posicionamento. O Mapa mostra as estruturas e os vínculos registrados.</p>';
       h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="estNova">Cadastrar estrutura</button>' : '') +
         '<a class="btn" id="estVerMapa" href="#avaliacoes?mf=mapa">Ver Mapa completo</a></div>';
       if (st.erroLeitura) return h + '<div class="avp-error-msg" id="estErroLeitura" role="alert">' + (st.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar as estruturas.' : 'Não foi possível ler as estruturas agora. ' + dicaLeitura()) + '</div>';
@@ -338,9 +344,9 @@
       var trabalho = (refs && refs.conceitosTrabalho) || [];
       function situacaoRef(c) {
         if (!refs) return null;
-        if (trabalho.indexOf(c) !== -1) return refs.conceitos && refs.conceitos[c] && refs.conceitos[c].ativo === true ? null : 'conceito inativo na Taxonomia';
-        if (!refs.ligacoes || !refs.ligacoes[c]) return 'ligação oficial não registrada';
-        if (!refs.conceitos || !refs.conceitos[c] || refs.conceitos[c].ativo !== true) return 'conceito inativo na Taxonomia';
+        if (trabalho.indexOf(c) !== -1) return refs.conceitos && refs.conceitos[c] && refs.conceitos[c].ativo === true ? null : 'conceito inativo na Taxonomia (resolvido em ADMIN › Taxonomia, pelo admin geral)';
+        if (!refs.ligacoes || !refs.ligacoes[c]) return 'ligação oficial não registrada (resolvida em ADMIN › Taxonomia › Conceitos-base do Posicionamento, pelo admin geral)';
+        if (!refs.conceitos || !refs.conceitos[c] || refs.conceitos[c].ativo !== true) return 'conceito inativo na Taxonomia (resolvido em ADMIN › Taxonomia, pelo admin geral)';
         return null;
       }
       function opcao(c) {
@@ -354,7 +360,22 @@
       h += '<p class="est-grupo-tipo">Linha (especialização)</p>' + linha.map(opcao).join('');
       h += '<p class="est-grupo-tipo">Outras categorias</p>' + outros.map(opcao).join('');
       if (trabalho.length) h += '<p class="est-grupo-tipo">Organização do trabalho</p>' + trabalho.map(opcao).join('');
+      h += '<div id="estTaxAviso">' + taxAvisoHtml(trabalho) + '</div>';
       return h + '<p class="avp-natureza-ajuda">O tipo não poderá ser alterado depois. Os tipos e nomes vêm do Posicionamento Organizacional e da Taxonomia.</p></fieldset>';
+    }
+    /* I1: conceito de trabalho que a Taxonomia diz compor um conceito GERAL (ex.: "Linha"), mas sem a relação para um
+       tipo específico de Linha — que é o que o cadastro exige (regras do banco, sem herança): explica, sem contornar. */
+    function taxAvisoHtml(trabalho) {
+      var gerais = (MOT() && MOT().CODIGOS_INTERMEDIARIOS) || [];
+      var g = taxRel && taxRel.composicoesGerais ? taxRel.composicoesGerais.filter(function (r) { return gerais.indexOf(r.para) !== -1 && (trabalho || []).indexOf(r.de) === -1; }) : [];
+      if (!g.length) return '';
+      var tipos = LINHA().map(nomeTipo).join(', ');
+      return g.map(function (r) {
+        /* o nome do conceito de trabalho não é legível nesta situação (as regras só o liberam quando ele compõe um tipo específico): o código, como código */
+        var nomeDe = '“' + r.de + '” (código da Taxonomia)', nomePara = nomeTipo(r.para);
+        return '<p class="est-tipo est-tipo--indisponivel est-tax-aviso" data-conceito="' + esc(r.de) + '"><span>' + esc(nomeDe) + ' <em class="est-tipo-motivo">— indisponível: a Taxonomia registra a relação "' + esc(r.de) + ' compõe ' + esc(nomePara) +
+          '" (conceito geral), mas o cadastro só aceita esse conceito quando a composição está registrada para um tipo específico de Linha (' + esc(tipos) + '), e nenhuma está registrada. É uma pendência de governança da Taxonomia, resolvida pelo admin geral; não há o que fazer aqui.</em></span></p>';
+      }).join('');
     }
     function formNovaHtml() {
       var M = N().MAX;
@@ -389,7 +410,7 @@
       garantirLeituras();
       if (st.vinculos === undefined || ligacoesLidas === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
       var estado = { estruturas: st.estruturas, vinculos: st.vinculos }, objs = N().objetosDaEstrutura(estado, e.id);
-      if (!objs.length) return h + '<p class="est-vazio" id="estSemProdutos">Nenhum produto, serviço ou atuação vinculado a esta estrutura.</p></section>';
+      if (!objs.length) return h + '<p class="est-vazio" id="estSemProdutos">Nenhum produto, serviço ou atuação vinculado a esta estrutura — não é erro. O vínculo de cada item é registrado na ficha do Posicionamento dele, na área Avaliação.</p></section>';
       return h + '<ul class="est-produtos" id="estProdutos">' + objs.map(function (o) {
         var v = st.vinculos[o.vinculoId], x = itemVinculado(o.objetoId, v);
         if (!x.carregado) return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="loading-msg">Carregando…</span></li>';
@@ -724,7 +745,8 @@
       else if (st.vista === 'sg-encerrar') h = podeManter() ? formSgEncerrarHtml() : subagrupadorHtml();
       else h = listaHtml();
       /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
-      if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
+      if (voltaPo) h = '<a class="est-voltar-jornada" id="estVoltarPosicionamento" href="#avaliacoes?po=' + encodeURIComponent(voltaPo) + '&bloco=responsavel">← Voltar ao Posicionamento (estrutura responsável)</a>' + h;
+      else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';
       bind();
       if (P()) P().atualizarDom && P().atualizarDom(wrap);
@@ -824,7 +846,7 @@
       vizinhos(true); wrap.hidden = false;
       ligar();
       var id = idDoEndereco(), sg = sgDoEndereco();
-      voltaObjeto = paramDoEndereco('objeto');
+      voltaObjeto = paramDoEndereco('objeto'); voltaPo = paramDoEndereco('po');
       if (!sg && !id && abrirNovaDoEndereco()) { render(); sincronizar(); return; }
       novaTipo = null;
       st.vista = sg ? (sg === 'lista' ? 'subagrupadores' : 'subagrupador') : id ? 'detalhe' : 'lista'; st.id = sg && sg !== 'lista' ? sg : id || null;
@@ -946,7 +968,10 @@
     var f = bloco.form || {};
     if (bloco.modo === 'vincular' || bloco.modo === 'substituir') {
       h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir a estrutura responsável') + '</h5>';
-      if (!opcoes.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa do tipo ' + esc(nomeTipo(tipo)) + (v ? ' além da atual' : '') + ' está cadastrada. Cadastre-a em Estruturas Organizacionais.</p>';
+      if (!opcoes.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa do tipo ' + esc(nomeTipo(tipo)) + (v ? ' além da atual' : '') + ' está cadastrada. ' +
+        'O Posicionamento definiu o tipo, mas não cria a estrutura: ela é cadastrada em ADMIN › Avaliação e Mapa › Estruturas Organizacionais, e você volta para cá depois.</p>' +
+        (tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#admin?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
+          (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura deste tipo</a></p>' : '');
       else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura (' + esc(nomeTipo(tipo)) + ') <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
         opcoes.map(function (e) { return '<option value="' + esc(e.id) + '"' + (f.estruturaId === e.id ? ' selected' : '') + '>' + esc(e.nome) + (e.sigla ? ' (' + esc(e.sigla) + ')' : '') + '</option>'; }).join('') + '</select></div>';
       if (bloco.modo === 'substituir') h += '<div class="avp-field est-campo"><label for="poRespMotivo">Motivo da substituição <span class="est-obrig">(obrigatório)</span></label><textarea id="poRespMotivo" maxlength="' + N().MAX.motivo + '" rows="2">' + esc(f.motivo || '') + '</textarea></div>';

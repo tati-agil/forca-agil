@@ -60,6 +60,8 @@ async function abre(page, id) {
 }
 const situacaoLinha = (page, id) => texto(page, linha(id) + ' .mf-linha-situacao');
 
+/* I1: "o que falta" da etapa que trava a jornada (o que, por quê, onde, quem pode) */
+const falta = (page, id) => page.evaluate((i) => { const d = document.getElementById('mfFalta-' + i); return d ? { etapa: d.getAttribute('data-etapa'), t: d.textContent } : null; }, id);
 async function rodada(browser, viewport, rotulo) {
   console.log('\n=== ' + rotulo + ' ===');
   let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo');
@@ -92,6 +94,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma((await hash(page)) === '#avaliacoes?mf=catalogo&item=pCapec' && await page.locator('#mfItens .mf-item').count() === 1, 'clicar abre só a jornada do objeto (endereço próprio)');
   afirma((await etapas(page, 'pCapec')) === 'p1p16:ok posicionamento:ok decisao:opcional estrutura:ok vinculo:ok squad:opcional' && /Jornada completa/.test(await texto(page, card('pCapec'))),
     '1. Capec: completa; decisão opcional (recomendação firme); Squad só opcional', await etapas(page, 'pCapec'));
+  afirma(await page.locator('#mfFalta-pCapec').count() === 0, 'I1: jornada completa não mostra "o que falta"');
   const mapaCapec = await acao(page, 'pCapec');
   afirma(mapaCapec && mapaCapec.h === '#avaliacoes?mf=mapa&e=neg-1&item=pCapec', '1. Capec: "Localizar estrutura responsável no Mapa" leva à estrutura responsável', JSON.stringify(mapaCapec));
   await page.click('#mfVoltarLista');
@@ -114,19 +117,29 @@ async function rodada(browser, viewport, rotulo) {
   afirma((await etapas(page, 'pSem')).indexOf('posicionamento:disponivel') !== -1 && aSem && /Iniciar o Posicionamento/.test(aSem.t) && aSem.h === '#avaliacoes?po=escolher&item=pSem' &&
     /Disponível \(opcional\)/.test(await texto(page, card('pSem'))) && !/Próximo passo/.test(await texto(page, card('pSem'))),
     '5. item P1–P16 sem Posicionamento: disponível (opcional), não "próximo passo"; "Iniciar" ao alcance', JSON.stringify(aSem));
+  afirma(await falta(page, 'pSem') === null, 'I1: o Posicionamento disponível (opcional) não aparece como "o que falta"');
   await abre(page, 'pVal');
   const aVal = await acao(page, 'pVal');
   afirma((await etapas(page, 'pVal')).indexOf('decisao:analise') !== -1 && aVal && /Analisar no Posicionamento/.test(aVal.t) && !/Registrar/.test(await texto(page, card('pVal'))) &&
     /reavalie|decisão fundamentada/.test(await texto(page, card('pVal'))), '6. A validar: em análise, "Analisar no Posicionamento" — nunca obrigação de decidir');
+  const fVal = await falta(page, 'pVal');
+  afirma(fVal && fVal.etapa === 'decisao' && /decisão final fundamentada ou uma reavaliação/.test(fVal.t) && /Ficha do Posicionamento/.test(fVal.t), 'I1: A validar — o que falta e onde (ficha do Posicionamento)', fVal && fVal.t);
   await abre(page, 'pPlat');
   const aPlat = await acao(page, 'pPlat');
   afirma((await etapas(page, 'pPlat')).indexOf('estrutura:atual') !== -1 && aPlat && aPlat.h === '#admin?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat', '7. firme sem estrutura do tipo: "Cadastrar estrutura deste tipo"', JSON.stringify(aPlat));
+  const fPlat = await falta(page, 'pPlat');
+  afirma(fPlat && fPlat.etapa === 'estrutura' && /estrutura concreta ativa do tipo/.test(fPlat.t) && /não cria a estrutura/.test(fPlat.t) && /ADMIN › Avaliação e Mapa › Estruturas Organizacionais/.test(fPlat.t) &&
+    /Quem pode.*Avaliação \+ Configuração ou admin geral/.test(fPlat.t), 'I1: sem estrutura do tipo — o que falta, por quê, onde (ADMIN › Estruturas) e quem pode', fPlat && fPlat.t);
   await abre(page, 'oEnc');
+  afirma(await falta(page, 'oEnc') === null, 'I1: atuação encerrada não mostra "o que falta"');
   afirma(/Atuação encerrada/.test(await texto(page, card('oEnc'))) && !(await page.$(card('oEnc') + ' .mf-acao')), 'atuação encerrada: sem ação');
   await abre(page, 'pVinc');
   const aVinc = await acao(page, 'pVinc');
   afirma(/estrutura disponível \(não quer dizer vinculada\)/.test(await texto(page, card('pVinc'))) && aVinc && /Vincular a estrutura responsável/.test(aVinc.t) && aVinc.h === '#avaliacoes?po=gPV&bloco=responsavel',
     '8. estrutura existe, vínculo pendente: "Vincular" (estrutura disponível ≠ vinculada)', JSON.stringify(aVinc));
+  const fVinc = await falta(page, 'pVinc');
+  afirma(fVinc && fVinc.etapa === 'vinculo' && /Registrar a estrutura responsável/.test(fVinc.t) && /Posicionamento sozinho não cria o vínculo/.test(fVinc.t) && /Estrutura responsável/.test(fVinc.t),
+    'I1: estrutura existe, vínculo pendente — o que falta e onde (ficha do Posicionamento › Estrutura responsável)', fVinc && fVinc.t);
   afirma(await larguraOk(page), 'detalhe sem rolagem lateral');
 
   console.log('Ida e volta pelo endereço');
@@ -176,6 +189,10 @@ async function rodada(browser, viewport, rotulo) {
   const consultaSem = !(await page.$(card('pSem') + ' .mf-acao')) && /somente consulta/.test(await texto(page, card('pSem')));
   await abre(page, 'pCapec');
   afirma(consultaSem && !!(await page.$(card('pCapec') + ' .mf-acao')), 'consulta: sem ações de gravar (só "Localizar estrutura responsável no Mapa"), com o próximo passo explicado');
+  await abre(page, 'pPlat');
+  const fConsulta = await falta(page, 'pPlat');
+  afirma(fConsulta && /Quem pode.*Avaliação \+ Configuração ou admin geral/.test(fConsulta.t) && !(await page.$(card('pPlat') + ' .mf-acao')),
+    'I1: perfil de consulta vê o que falta e quem pode, sem botão de gravar', fConsulta && fConsulta.t);
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', { delays: { 'estruturas-vinculos': 4000 } }));
   await page.waitForSelector(linha('pCapec'), { timeout: 15000 });

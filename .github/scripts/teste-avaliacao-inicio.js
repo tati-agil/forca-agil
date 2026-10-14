@@ -19,6 +19,8 @@
  *   cadastradas e vínculos registrados; nada afirmado como cadastrado; os 4 links levam às consultas de sempre; teclado.
  * + Botões do Mapa: "Ver Mapa completo" (geral) e "Localizar estrutura responsável no Mapa" (contextual, com o nome da
  *   estrutura só no rótulo acessível).
+ * + I1: os dois caminhos com nome e exemplos (Caminho 1 — Produto/Serviço; Caminho 2 — atuação, sem P1–P16) e a faixa
+ *   "Quem sustenta" (ADMIN › Taxonomia e ADMIN › Avaliação e Mapa, só texto: nem etapa nem botão).
  * + Três perfis (avaliacao-arquitetura, avaliacao, admin geral): só quem grava vê "Começar o posicionamento de uma
  *   atuação"; F5 e Voltar/Avançar; links diretos antigos (?avp=, ?po=…) intactos; 375 px sem rolagem lateral. */
 const { chromium } = require('playwright');
@@ -81,9 +83,20 @@ async function rodada(browser, viewport, rotulo) {
     'uma única ação principal: abrir a Jornada');
   afirma(/Avaliar Produto\/Serviço ou outra natureza/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se o item é um Produto\/Serviço independente ou se faz parte de outra solução\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
     (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' && /P1–P16/.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-sigla')) &&
-    /Posicionar uma atuação organizacional/.test(await texto(page, '#avpInicioCartaoAtuacao')) && /hipótese inicial é obrigatória e não entra no cálculo/.test(await texto(page, '#avpInicioCartaoAtuacao')),
+    /Posicionar diretamente uma atuação organizacional/.test(await texto(page, '#avpInicioCartaoAtuacao')) && /hipótese inicial é obrigatória e não entra no cálculo/.test(await texto(page, '#avpInicioCartaoAtuacao')),
     'as duas portas explicadas em linguagem simples antes das siglas');
   afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Começar o posicionamento de uma atuação"');
+  console.log('Caminhos e quem sustenta (I1)');
+  afirma(/^Caminho 1$/i.test((await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')).trim()) && /Caminho 2 · sem avaliação P1–P16/i.test(await texto(page, '#avpInicioCartaoAtuacao .avp-inicio-caminho')),
+    'cartões com o nome do caminho (Caminho 1; Caminho 2 · sem avaliação P1–P16)');
+  afirma(/Exemplos: Capec, Assessoria Previdenciária\./.test(await texto(page, '#avpInicioCartaoNatureza')) && /Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade\./.test(await texto(page, '#avpInicioCartaoAtuacao')),
+    'exemplos de uso de cada caminho (sem afirmar situação de nenhum registro)');
+  afirma(/Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro\./.test(await texto(page, '#avpInicioNota')), 'os dois caminhos não são etapas de um mesmo fluxo');
+  const sust = await texto(page, '#avpSustenta');
+  afirma(/Quem sustenta \(não são etapas\)/.test(sust) && /ADMIN › Taxonomia/.test(sust) && /admin geral/.test(sust) && /ADMIN › Avaliação e Mapa/.test(sust) && /estruturas concretas/.test(sust),
+    '"Quem sustenta": Taxonomia (admin geral) e Avaliação e Mapa (configuração e cadastro de estruturas)', sust);
+  afirma(await page.locator('#avpSustenta a, #avpSustenta button').count() === 0 && await page.locator('#avpInicio a, #avpInicio button').count() === 7,
+    '"Quem sustenta" sem botão nem link; o Início continua com as mesmas 7 ações', String(await page.locator('#avpInicio a, #avpInicio button').count()));
   console.log('Relações entre os assuntos');
   const rel = await page.evaluate(() => {
     const r = (id) => { const e = document.getElementById(id); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
@@ -102,7 +115,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(rel.squadNoPosic && rel.squadRamo === 'LINHA' && /só se o resultado for .*Linha.* · opcional/i.test(rel.rotuloSquad) && /não cadastra Squad/.test(rel.rotuloSquad),
     'Adequação à Squad: ramo lateral do resultado Linha, dentro do Posicionamento, opcional; não cadastra Squad', rel.rotuloSquad);
   afirma(rel.ramos === 'LINHA,AREA_ESPECIALIZADA,COE', 'resultados do Posicionamento: Linha, Área Especializada e CoE (nomes da Taxonomia)', rel.ramos);
-  afirma(/vínculo registrado com uma estrutura concreta/.test(rel.setaMapa) && /ou direto pela Porta 2, sem P1–P16/.test(rel.setaPosic) && /possibilidade, não etapa obrigatória/.test(rel.legenda),
+  afirma(/vínculo registrado com uma estrutura concreta/.test(rel.setaMapa) && /ou direto pelo Caminho 2 \(atuação\), sem P1–P16/.test(rel.setaPosic) && /possibilidade, não etapa obrigatória/.test(rel.legenda),
     'o Mapa vem de vínculo registrado; Posicionamento também direto pela Porta 2; legenda: possibilidade, não etapa', rel.setaMapa + ' | ' + rel.setaPosic);
   afirma(/Estruturas concretas cadastradas e vínculos registrados/.test(await texto(page, '#avpInicioRegMapa')) && /Uma Linha pode existir sem Squads cadastradas/.test(await texto(page, '#avpInicioRegMapa')),
     'Mapa: o que está cadastrado; Linha sem Squads cadastradas é possível (nada afirmado como cadastrado)');

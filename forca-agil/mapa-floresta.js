@@ -210,6 +210,28 @@
     EVIDENCIA_INSUFICIENTE: 'as evidências não bastaram: reavalie com mais informação ou registre uma decisão fundamentada.',
     INCOERENCIA: 'há respostas incoerentes com o caminho: reavalie.'
   };
+  /* I1 — O QUE FALTA: a etapa que trava a jornada, em linguagem de trabalho (o que falta, por quê, onde se resolve,
+     quem pode). Só a partir da trilha JÁ calculada por jornada(): nada é lido, decidido ou gravado aqui; o opcional e o
+     disponível não são "falta"; "Jornada completa" não muda. nomeTipo(código) vem de quem chama (Taxonomia). */
+  var QUEM_POSICIONA = 'perfil Avaliação + Configuração ou admin geral', QUEM_AVALIA = 'qualquer perfil da Avaliação';
+  function oQueFalta(j, x, nomeTipo) {
+    if (!j || j.completa || j.encerrada || j.carregando || j.representadoPor || !j.etapas) return null;
+    var e = j.etapas.filter(function (et) { return et.estado === 'atual' || et.estado === 'analise' || et.estado === 'revisao'; })[0];
+    if (!e) return null;
+    var tipo = x && x.efetivo ? (nomeTipo ? nomeTipo(x.efetivo.codigo) : x.efetivo.codigo) : null;
+    if (e.id === 'p1p16') return { etapa: e.id, falta: 'Uma Avaliação de Produto/Serviço (P1–P16) válida e atual para este item.',
+      porque: 'O Posicionamento de um item parte da avaliação que vale para ele.', onde: 'Avaliação › ficha da Avaliação de Produto/Serviço deste item.', quem: QUEM_AVALIA };
+    if (e.id === 'posicionamento') return { etapa: e.id, falta: x && x.rascunhoId ? 'Concluir o Posicionamento Organizacional (O1–O9), que está em rascunho.' : 'Fazer o Posicionamento Organizacional (O1–O9) desta atuação.',
+      porque: 'É o Posicionamento que recomenda o tipo de estrutura que deve assumir a responsabilidade.', onde: 'Avaliação › Posicionamento Organizacional, na ficha deste registro.', quem: QUEM_POSICIONA };
+    if (e.id === 'decisao') return { etapa: e.id, falta: 'Uma decisão final fundamentada ou uma reavaliação: a recomendação ficou "A validar".',
+      porque: 'Sem um posicionamento firme não há tipo de estrutura com que registrar o vínculo.', onde: 'Ficha do Posicionamento deste registro.', quem: QUEM_POSICIONA };
+    if (e.id === 'estrutura') return { etapa: e.id, falta: 'Uma estrutura concreta ativa do tipo ' + (tipo || 'recomendado') + '.',
+      porque: 'O Posicionamento definiu o tipo, mas não cria a estrutura; o vínculo só pode ser registrado com uma estrutura desse tipo.',
+      onde: 'ADMIN › Avaliação e Mapa › Estruturas Organizacionais (o tipo já vem escolhido; você confere antes de salvar). Depois, volte para este registro.', quem: QUEM_POSICIONA };
+    if (e.id === 'vinculo') return { etapa: e.id, falta: e.estado === 'revisao' ? 'Revisar a estrutura responsável: o vínculo precisa de revisão.' : 'Registrar a estrutura responsável (o vínculo).',
+      porque: 'A estrutura já existe, mas o Posicionamento sozinho não cria o vínculo; é o vínculo que leva este registro ao Mapa.', onde: 'Ficha do Posicionamento › Estrutura responsável.', quem: QUEM_POSICIONA };
+    return null;
+  }
   function jornada(x, cad, ctx) {
     cad = cad || {}; ctx = ctx || {};
     var porta2 = x.origem === 'objeto-organizacional', encerrada = !!(x.objeto && x.objeto.situacao === 'encerrado');
@@ -267,7 +289,7 @@
   }
 
   window.faMapaFlorestaCatalogo = Object.freeze({
-    ETAPA_ESTADOS: ETAPA_ESTADOS.slice(), jornada: jornada,
+    ETAPA_ESTADOS: ETAPA_ESTADOS.slice(), jornada: jornada, oQueFalta: oQueFalta,
     SITUACOES: SITUACOES.slice(), ROTULO_SITUACAO: Object.freeze(Object.assign({}, ROTULO_SITUACAO)), ROTULO_CURTO: Object.freeze(Object.assign({}, ROTULO_CURTO)),
     categorias: categorias, categoriaDoCodigo: categoriaDoCodigo, situacaoDoItem: situacaoDoItem, situacaoDoObjeto: situacaoDoObjeto, montarCatalogo: montarCatalogo,
     filtrar: filtrar, contarPorSituacao: contarPorSituacao
@@ -621,11 +643,18 @@
       return '<div class="mf-proxima"><span class="mf-proxima-rotulo">Próximo passo</span> <a class="btn btn--primary btn--sm mf-acao" data-acao="' + esc(a.tipo) + '" href="' + esc(a.href || '#avaliacoes') + '">' + esc(a.rotulo) + ' →</a></div>';
     }
     var ROTULO_RESULTADO_P1 = { produto: 'Produto/Serviço principal', 'nao-produto': 'Não é Produto/Serviço principal', 'a-validar': 'A validar' };
+    /* I1: "o que falta" da etapa que trava a jornada (só no detalhe; o botão da ação continua sendo o da trilha) */
+    function faltaHtml(x) {
+      var f = C.oQueFalta(jornadas[x.itemId], x, function (c) { return P() ? P().nome(c) : c; });
+      if (!f) return '';
+      return '<dl class="mf-falta" id="mfFalta-' + esc(x.itemId) + '" data-etapa="' + esc(f.etapa) + '"><div><dt>O que falta</dt><dd>' + esc(f.falta) + '</dd></div>' +
+        '<div><dt>Por quê</dt><dd>' + esc(f.porque) + '</dd></div><div><dt>Onde</dt><dd>' + esc(f.onde) + '</dd></div><div><dt>Quem pode</dt><dd>' + esc(f.quem) + '</dd></div></dl>';
+    }
     function jornadaHtml(x) {
       var j = jornadas[x.itemId]; if (!j) return '';
       if (j.representadoPor) {
         var jd = j.jornadaDela, rb = x.resultadoBase, res = rb ? (rb.decisao || rb.automatico) : null;
-        return '<div class="mf-representado" id="mfRepresentado-' + esc(x.itemId) + '"><p><strong>Representado pela atuação “' + esc(j.representadoPor.nome) + '” (Porta 2).</strong> ' +
+        return '<div class="mf-representado" id="mfRepresentado-' + esc(x.itemId) + '"><p><strong>Representado pela atuação “' + esc(j.representadoPor.nome) + '” (Caminho 2 — atuação organizacional).</strong> ' +
           (jd.completa ? 'A jornada dela está completa.' : jd.encerrada ? 'Ela está encerrada.' : 'Acompanhe a jornada na atuação.') + '</p>' +
           (res ? '<p class="mf-resultado-p1">Resultado da Avaliação de Produto/Serviço (P1–P16): ' + esc(ROTULO_RESULTADO_P1[res] || res) +
             ' — análise de Produto/Serviço; não é pendência do Posicionamento da atuação.</p>' : '') +
@@ -661,7 +690,7 @@
         (x.origem === ORIGEM_PORTA2 ? '<span class="avp-badge mf-badge-porta2">Atuação organizacional</span>' : '') +
         (x.objeto && x.objeto.situacao === 'encerrado' ? '<span class="avp-badge mf-badge-encerrado">Encerrada</span>' : '') +
         (repr ? '<span class="avp-badge mf-badge mf-badge--representado">Representado por atuação</span>' : '<span class="avp-badge mf-badge mf-badge--' + esc(x.situacao) + '">' + esc(C.ROTULO_SITUACAO[x.situacao] || x.situacao) + '</span>') +
-        '</div>' + jornadaHtml(x) + (repr ? '</li>' : '') + '<dl class="mf-detalhes">';
+        '</div>' + jornadaHtml(x) + (repr ? '' : faltaHtml(x)) + (repr ? '</li>' : '') + '<dl class="mf-detalhes">';
       if (repr) return h.slice(0, h.lastIndexOf('<dl class="mf-detalhes">'));
       if (x.situacao === 'firme') {
         h += '<dt>Posicionamento efetivo</dt><dd class="mf-efetivo" data-codigo="' + esc(x.efetivo.codigo) + '" data-origem="' + esc(x.efetivo.origem) + '">' + spanNome(x.efetivo.codigo) +
@@ -680,7 +709,7 @@
       } else h += '<dt>Situação</dt><dd>Verificando a versão do motor da Avaliação de Produto/Serviço…</dd>';
       if (x.alertaBase) h += '<dt>Atenção</dt><dd class="mf-alerta" data-alerta="' + esc(x.alertaBase) + '">' + esc(ROTULO_ALERTA[x.alertaBase] || ((N.ROTULO_GATE && N.ROTULO_GATE[x.alertaBase]) || x.alertaBase)) + '</dd>';
       if (x.baseRevisao) h += '<dt>Precisa de revisão</dt><dd class="mf-base-revisao">' + esc(N.textoBaseRevisao(x.baseRevisao)) + ' Nada foi alterado automaticamente.</dd>';
-      if (x.origem === ORIGEM_PORTA2) h += '<dt>Origem</dt><dd class="mf-porta2">Atuação organizacional, posicionada sem Avaliação de Produto/Serviço (Porta 2).</dd>';
+      if (x.origem === ORIGEM_PORTA2) h += '<dt>Caminho</dt><dd class="mf-porta2">Caminho 2 — atuação organizacional posicionada diretamente, sem Avaliação de Produto/Serviço ("Porta 2").</dd>';
       if (x.objetoReferente) h += '<dt>Atuação organizacional</dt><dd class="mf-objeto-referente" data-objeto="' + esc(x.objetoReferente.id) + '">Este item é referência informativa da atuação “' + esc(x.objetoReferente.nome) + '” (Porta 2).</dd>';
       h += vinculoDoItemHtml(x);
       h += '</dl><div class="mf-item-acoes">';
