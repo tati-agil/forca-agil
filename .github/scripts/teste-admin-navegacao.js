@@ -1,5 +1,5 @@
 /* Navegação do Admin da Avaliação de Produto/Serviço (PR 3 do prompt consolidado):
- *   - tela inicial organizada em quatro grupos: Regras e conceitos / Governança
+ *   - tela inicial organizada em quatro grupos: Configuração das avaliações / Governança
  *     arquitetural / Referências / Acesso (só organização — os mesmos cartões de antes, mais a Documentação);
  *   - TODA subtela tem um "← Voltar para <tela pai>" explícito, que sobe UM nível;
  *   - sair de uma tela de edição com alteração não salva pede confirmação
@@ -61,9 +61,11 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
 
     console.log('\n== Tela inicial: quatro grupos (com "Referências") ==');
     const titulos = await page.locator('#adminAvaliacaoProduto .avp-admin-grupo > h4').allTextContents();
-    afirma(JSON.stringify(titulos) === JSON.stringify(['Regras e conceitos', 'Governança arquitetural', 'Referências', 'Acesso']), 'grupos: ' + titulos.join(' | '));
+    afirma(JSON.stringify(titulos) === JSON.stringify(['Configuração das avaliações', 'Governança arquitetural', 'Referências', 'Acesso']), 'grupos: ' + titulos.join(' | '));
     const grupo = (n) => page.locator('#adminAvaliacaoProduto .avp-admin-grupo').nth(n);
-    afirma(await grupo(0).locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn').count() === 2, 'Regras e conceitos: Questionários e Motores');
+    afirma(await grupo(0).locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn').count() === 2, 'Configuração das avaliações: Questionários e Motores');
+    afirma(await page.locator('#adminAvaliacaoProduto .avp-admin-grupo-uso').count() >= 2 && /configurar/.test(await page.locator('#avpAdminPapel').innerText()) &&
+      /ADMIN › Taxonomia/.test(await page.locator('#avpAdminPapel').innerText()), 'I1: configuração × cadastro de estruturas × Taxonomia explicados, com "Onde aparece" em cada grupo');
     afirma(await grupo(1).locator('#avpConfigNaturezasBtn, #avpMotorSquadInicioBtn').count() === 2, 'Governança arquitetural: Naturezas complementares e Motor de Squad (a avaliação de Squad fica na área Avaliação)');
     afirma(await grupo(2).locator('#avpDocumentacaoBtn').count() === 1, 'Referências: Documentação e mapas');
     afirma(await grupo(3).locator('#avpUsuariosBtn').count() === 1, 'Acesso: Usuários autorizados');

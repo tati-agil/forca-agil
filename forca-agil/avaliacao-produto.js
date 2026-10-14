@@ -3332,16 +3332,18 @@
         link('avpInicioJornada', 'btn btn--primary avp-inicio-acao', 'Abrir a Jornada de Avaliação e Posicionamento →') + '</section>' +
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
         '<div class="avp-inicio-cartoes">' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><h4>Avaliar Produto/Serviço ou outra natureza</h4>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Caminho 1</p><h4>Avaliar Produto/Serviço ou outra natureza</h4>' +
         '<p>Descubra se o item é um Produto/Serviço independente ou se faz parte de outra solução.</p>' +
+        '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
         '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><h4>Posicionar uma atuação organizacional</h4>' +
-        '<p>Para uma responsabilidade, atuação ou capacidade organizacional que não passa pela avaliação de natureza.</p>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Caminho 2 · sem avaliação P1–P16</p><h4>Posicionar diretamente uma atuação organizacional</h4>' +
+        '<p>Para uma responsabilidade, atividade ou capacidade já delimitada como atuação, que não precisa passar pela avaliação de Produto/Serviço.</p>' +
+        '<p class="avp-inicio-exemplo">Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade.</p>' +
         '<p class="avp-inicio-sigla">Questionário O1–O9 · a hipótese inicial é obrigatória e não entra no cálculo</p>' +
         (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Começar o posicionamento de uma atuação')
           : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As atuações já posicionadas aparecem na Jornada.</p>') +
         '</div></div>' +
-        '<p class="avp-inicio-nota" id="avpInicioNota">Já avaliou um produto ou serviço? O Posicionamento dele começa pela Jornada, no próprio item.</p></section>' +
+        '<p class="avp-inicio-nota" id="avpInicioNota">Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +
         /* Consultar registros completos — COMO OS ASSUNTOS SE RELACIONAM: o caminho principal tem três caixas
            (Produto/Serviço → Posicionamento → Mapa), ligadas por possibilidades (tracejado), nunca etapas obrigatórias.
            A Adequação à Squad é um RAMO lateral, só do resultado Linha (regra fixa Linha × Squad do motor), dentro da
@@ -3352,7 +3354,7 @@
         '<p class="avp-rel-subtitulo">Como os assuntos se relacionam</p>' +
         '<ol class="avp-rel" id="avpRelacoes" aria-describedby="avpRelLegenda">' +
         '<li class="avp-rel-no" id="avpRelNatureza">' + caixa('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'O que é o item?', 'P1–P16') + '</li>' +
-        '<li class="avp-rel-no" id="avpRelPosicionamento"><p class="avp-rel-seta" id="avpRelSetaPosicionamento">pode seguir<span class="avp-rel-seta-alt"> · ou direto pela Porta 2, sem P1–P16</span></p>' +
+        '<li class="avp-rel-no" id="avpRelPosicionamento"><p class="avp-rel-seta" id="avpRelSetaPosicionamento">pode seguir<span class="avp-rel-seta-alt"> · ou direto pelo Caminho 2 (atuação), sem P1–P16</span></p>' +
         '<div class="avp-rel-caixa">' + caixa('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Que tipo de estrutura deve assumir a responsabilidade?', 'O1–O9') +
         '<p class="avp-rel-resultado-rotulo" id="avpRelResultadoRotulo">Resultado:</p>' +
         '<ul class="avp-rel-ramos" aria-labelledby="avpRelResultadoRotulo">' +
@@ -3367,6 +3369,11 @@
         '</ol>' +
         '<p class="avp-rel-legenda" id="avpRelLegenda"><span class="avp-rel-legenda-traco" aria-hidden="true"></span> possibilidade, não etapa obrigatória</p>' +
         (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') +
+        /* I1 — QUEM SUSTENTA: o que fornece conceitos, regras e estruturas a tudo acima. Só texto: não são etapas nem atalhos. */
+        '<div class="avp-sustenta" id="avpSustenta" aria-labelledby="avpSustentaTitulo"><p class="avp-sustenta-titulo" id="avpSustentaTitulo">Quem sustenta (não são etapas)</p><ul>' +
+        '<li id="avpSustentaTaxonomia"><strong>ADMIN › Taxonomia</strong> — conceitos, definições e relações oficiais: dão os nomes e dizem quais estruturas podem ser cadastradas. Mantida pelo admin geral.</li>' +
+        '<li id="avpSustentaAdmin"><strong>ADMIN › Avaliação e Mapa</strong> — configura questionários e motores e cadastra as estruturas concretas que recebem as responsabilidades e aparecem no Mapa.</li>' +
+        '</ul></div>' +
         '</section></div>';
       wrap.innerHTML = h;
       /* os nomes chegam depois (a tela não espera o banco): atualiza no lugar */
@@ -4868,10 +4875,11 @@
     function renderAdminInicio() {
       /* Três grupos, só de organização visual — cada cartão leva à mesma tela
          de antes. Rótulos dos grupos descrevem o que o administrador faz ali. */
-      function grupo(titulo, descricao, cartoes) {
+      function grupo(titulo, descricao, cartoes, uso) {
         var h = '<section class="avp-form-card avp-admin-inicio avp-admin-grupo" aria-label="' + esc(titulo) + '">';
         h += '<h4>' + esc(titulo) + '</h4>';
         h += '<p class="avp-admin-grupo-desc">' + esc(descricao) + '</p>';
+        if (uso) h += '<p class="avp-admin-grupo-uso"><strong>Onde aparece:</strong> ' + esc(uso) + '</p>';
         h += '<div class="avp-admin-cards">' + cartoes + '</div></section>';
         return h;
       }
@@ -4879,19 +4887,22 @@
         return '<button type="button" class="avp-admin-card" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
       }
       var html = '<div class="avp-form-card avp-admin-inicio">';
-      html += '<p class="avp-decisao-aviso">Parametrização e governança da Avaliação de Produto/Serviço e da Adequação à Squad. Consultar e realizar avaliações (inclusive as de Squad) é feito na área <strong>Avaliação</strong> do menu principal.</p>';
+      html += '<p class="avp-decisao-aviso" id="avpAdminPapel">Duas responsabilidades diferentes: <strong>configurar</strong> como as avaliações perguntam e classificam, e <strong>cadastrar as estruturas concretas</strong> que recebem as responsabilidades e aparecem no Mapa. Conceitos, definições e relações oficiais ficam em <strong>ADMIN › Taxonomia</strong> (admin geral). Consultar e realizar avaliações (inclusive as de Squad) é feito na área <strong>Avaliação</strong> do menu principal.</p>';
       html += '</div>';
-      html += grupo('Regras e conceitos', 'O que as perguntas dizem e como as respostas viram uma classificação.',
+      html += grupo('Configuração das avaliações', 'O que as perguntas dizem e como as respostas viram uma classificação.',
         cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Redação das perguntas e justificativas, com versões e auditoria.') +
-        cartao('avpConfigMotoresBtn', 'Configuração dos Motores', 'Regras que classificam os itens, com simulação e versões.'));
+        cartao('avpConfigMotoresBtn', 'Configuração dos Motores', 'Regras que classificam os itens, com simulação e versões.'),
+        'nas avaliações da área Avaliação (Produto/Serviço, Posicionamento e Adequação à Squad).');
       /* A avaliação de Squad em si mora na área AVALIAÇÃO do menu (junto das demais avaliações);
          aqui fica só a governança dela: o motor de squad. */
       html += grupo('Governança arquitetural', 'Opções de descrição dos itens e as regras da adequação à gestão por squad.',
         cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
-        (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Motor de Squad', 'Regras da adequação à gestão por squad (S1–S8), com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''));
+        (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Motor de Squad', 'Regras da adequação à gestão por squad (S1–S8), com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''),
+        'na descrição dos itens avaliados e na Adequação à Squad.');
       if (estruturasDisponiveis()) {
-        html += grupo('Mapa da Floresta', 'As estruturas organizacionais concretas que aparecem no Mapa.',
-          cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'));
+        html += grupo('Cadastro de estruturas concretas', 'As estruturas reais — por exemplo, uma Linha de Negócios específica — que recebem responsabilidades. O tipo vem do Posicionamento; a estrutura é cadastrada aqui; o vínculo de cada item é registrado na ficha do Posicionamento.',
+          cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'),
+          'na etapa "Estrutura concreta" da Jornada, na estrutura responsável da ficha do Posicionamento e no Mapa da Floresta.');
       }
       html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
         cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));

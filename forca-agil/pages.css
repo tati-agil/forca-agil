@@ -3383,3 +3383,18 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
   .avp-inicio .avp-rel-seta--ramo { padding: 0 0 4px; }
   .avp-rel-seta--ramo::before, .avp-rel-seta--ramo::after { display: none; }
 }
+
+/* I1 — integração entre as áreas: caminhos de entrada, "Quem sustenta", onde aparece (ADMIN), o que falta (Jornada) */
+.avp-inicio .avp-inicio-caminho { margin: 0 0 2px; font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.avp-inicio .avp-inicio-exemplo { margin: -4px 0 8px; font-size: .84rem; color: var(--ink-3); }
+.avp-sustenta { margin-top: 12px; padding-top: 10px; border-top: 1px dotted var(--line-strong); }
+.avp-inicio .avp-sustenta-titulo { margin: 0 0 4px; font-size: .78rem; font-family: var(--font-mono); color: var(--ink-3); }
+.avp-sustenta ul { margin: 0; padding-left: 18px; }
+.avp-sustenta li { font-size: .84rem; color: var(--ink-3); margin-bottom: 4px; overflow-wrap: anywhere; }
+.avp-admin-grupo-uso { margin: -6px 0 12px; font-size: .82rem; color: var(--ink-3); }
+.mf-falta { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--accent, #2a6fdb); background: rgba(127, 127, 127, .06); border-radius: 6px; }
+.mf-falta > div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 2px 10px; margin-bottom: 4px; }
+.mf-falta dt { font-weight: 600; font-size: .86rem; }
+.mf-falta dd { margin: 0; font-size: .88rem; overflow-wrap: anywhere; }
+.est-tax-aviso { margin: 4px 0; }
+@media (max-width: 640px) { .mf-falta > div { grid-template-columns: minmax(0, 1fr); } }

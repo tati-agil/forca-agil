@@ -499,6 +499,43 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await cel.context().close();
     }
 
+    /* ===== 8b2. I1: sem estrutura do tipo → "Cadastrar estrutura deste tipo" no bloco, com volta ao MESMO Posicionamento ===== */
+    console.log('\n8b2. Bloco "Estrutura responsável" sem estrutura do tipo: cadastrar e voltar (I1)');
+    {
+      const M = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento.js'));
+      const QUANDO = '2026-10-01T09:00:00.000Z', outra = { name: 'Outra', email: 'o@previ.com.br' };
+      const respostas = { O1: 'SIM', O2: 'NAO', O3: 'NAO', O4: 'NAO', O5: 'NAO', O6: 'SIM', O7: 'NAO', O8: 'NAO', O9: 'NAO' }, res = M.avaliar(respostas, {}), ra = {};
+      Object.keys(res).forEach((c) => { const v = res[c]; if (v !== null && !(Array.isArray(v) && !v.length)) ra[c] = v; });
+      const reg = { itemId: 'item-can', itemNome: 'Canal Ômega', avaliacaoArquiteturalId: 'item-can', questionarioCodigo: 'POSICIONAMENTO_ORGANIZACIONAL', questionnaireContentVersion: 1, versao: 1, status: 'concluido', revisao: 2,
+        respostas: {}, criadoPor: outra, criadoEm: QUANDO, atualizadoPor: outra, atualizadoEm: QUANDO, auditoriaCriacaoId: 'ac-can', concluidoPor: outra, concluidoEm: QUANDO, auditoriaConclusaoId: 'az-can', resultadoAutomatico: ra };
+      Object.keys(respostas).forEach((q) => { reg.respostas[q] = { resposta: respostas[q], codigoPergunta: q, questionnaireContentVersion: 1, dataResposta: QUANDO, textoPerguntaNaEpoca: 'Texto de ' + q }; });
+      await S.banco('PATCH', '', { 'avaliacoes-posicionamento/pos-can': reg, 'posicionamento-vigente-por-item/item-can': 'pos-can' });
+      afirma(ra.codigoResultado === 'PLATAFORMA_CANAIS', 'Posicionamento de teste: Plataforma de Canais (resultado do motor v1), sem nenhuma estrutura desse tipo', ra.codigoResultado);
+      const contarEstruturas = async () => Object.keys(((await S.banco('GET', 'estruturas-concretas/registros')).corpo) || {}).length;
+      const antes = await contarEstruturas();
+      await ir(p, '#avaliacoes?po=pos-can');
+      await p.waitForSelector('#poRespVincular', { timeout: 15000 });
+      await p.click('#poRespVincular');
+      await p.waitForSelector('#poRespSemOpcoes', { timeout: 15000 });
+      const href = await p.getAttribute('#poRespCadastrarTipo', 'href');
+      afirma(href === '#admin?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=item-can&po=pos-can' && /não cria a estrutura/.test(await texto(p, '#poRespSemOpcoes')),
+        'sem estrutura do tipo: explica e oferece "Cadastrar estrutura deste tipo" (tipo e volta no endereço)', href);
+      await p.click('#poRespCadastrarTipo');
+      await p.waitForSelector('#estVoltarPosicionamento', { timeout: 15000 });
+      afirma(await p.isChecked('#estTipos input[value="PLATAFORMA_CANAIS"]') && (await contarEstruturas()) === antes, 'cadastro aberto com o tipo já escolhido; nada foi criado sozinho');
+      await p.reload();
+      await p.waitForSelector('#estVoltarPosicionamento', { timeout: 20000 });
+      afirma(/[?&]po=pos-can/.test(await p.evaluate(() => location.hash)), 'F5 no cadastro: continua com o caminho de volta ao Posicionamento');
+      await p.click('#estVoltarPosicionamento');
+      await p.waitForSelector('#poRespSituacao', { timeout: 15000 });
+      afirma(/^#avaliacoes\?po=pos-can/.test(await p.evaluate(() => location.hash)), 'volta ao MESMO Posicionamento, no bloco da estrutura responsável');
+      await p.goBack();
+      await p.waitForSelector('#estVoltarPosicionamento', { timeout: 15000 });
+      await p.goForward();
+      await p.waitForSelector('#poRespSituacao', { timeout: 15000 });
+      afirma(true, 'Voltar e Avançar do navegador: cadastro ↔ Posicionamento');
+    }
+
     /* ===== 8c. M4 + M5: vínculos no Catálogo, no Mapa e na ficha da estrutura; sinais de revisão ===== */
     console.log('\n8c. Vínculos no Catálogo, no Mapa e na ficha da estrutura; sinais de revisão (M4 + M5)');
     {
@@ -565,6 +602,19 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     {
       /* Taxonomia de TESTE: Squad (camada de trabalho) compõe Negócios; CoE atende Negócios; e uma segunda Linha ativa */
       const T = 'taxonomia/organizacional/', Q = '2026-10-01T12:00:00.000Z', ADMIN_T = S.CONTAS.admin.email;
+      /* I1: Taxonomia como a de produção — Squad compõe só o conceito GERAL "Linha": o cadastro não oferece Squad e explica
+         a causa (lida da Taxonomia), sem caminho de contorno */
+      await S.banco('PATCH', '', {
+        [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, situacaoDefinicao: 'ainda não registrada', camada: 'trabalho' },
+        [T + 'relacoes/SQUAD__compoe__LINHA']: { de: 'SQUAD', tipo: 'compoe', para: 'LINHA', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't0' }
+      });
+      await ir(p, '#admin?arq=estruturas'); await p.waitForSelector('#estNova', { timeout: 15000 }); await p.click('#estNova');
+      await p.waitForSelector('#estTipos input[name="estTipo"]');
+      await esperarCondicaoAte(p, () => !!document.querySelector('#estTaxAviso .est-tax-aviso[data-conceito="SQUAD"]'), undefined, { limite: 15000 });
+      const avisoSq = await texto(p, '#estTaxAviso');
+      afirma(!(await p.$('#estTipos input[value="SQUAD"]')) && avisoSq.indexOf('“SQUAD” (código da Taxonomia) — indisponível') !== -1 && /SQUAD compõe/.test(avisoSq) && /tipo específico de Linha/.test(avisoSq) && /admin geral/.test(avisoSq),
+        'I1: com "Squad compõe Linha" só no conceito geral, o cadastro não oferece Squad e explica a pendência da Taxonomia (sem contorno)', avisoSq);
+      await p.click('#estCancelar');
       await S.banco('PATCH', '', {
         [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, situacaoDefinicao: 'ainda não registrada', camada: 'trabalho' },
         [T + 'relacoes/SQUAD__compoe__NEGOCIOS']: { de: 'SQUAD', tipo: 'compoe', para: 'NEGOCIOS', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't1' },

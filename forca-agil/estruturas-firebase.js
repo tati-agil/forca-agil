@@ -197,7 +197,11 @@
       return Promise.all(cand.map(function (c) { var b = 'taxonomia/organizacional/conceitos/' + c + '/'; return Promise.all([talvez(b + 'camada'), talvez(b + 'ativo'), talvez(b + 'nome')]); })).then(function (lidos) {
         var trabalho = [], conceitos = {};
         cand.forEach(function (c, i) { if (lidos[i][0] === 'trabalho') { trabalho.push(c); conceitos[c] = { ativo: lidos[i][1] === true, nome: typeof lidos[i][2] === 'string' ? lidos[i][2] : null }; } });
-        return { relacoesConceituais: rel, conceitosTrabalho: trabalho, conceitos: conceitos };
+        /* I1: 'compõe' ativo para um conceito que NÃO é um tipo específico de Linha (ex.: o conceito geral "Linha") — só
+           para a tela EXPLICAR por que o cadastro não oferece aquele conceito; não muda o que é cadastrável e não lê mais nada
+           (as regras só deixam ler camada/nome de um conceito de trabalho que componha um tipo específico) */
+        var composicoesGerais = rel.filter(function (r) { return r.ativa && r.tipo === 'compoe' && (codigosLinha || []).indexOf(r.para) === -1; }).map(function (r) { return { de: r.de, para: r.para }; });
+        return { relacoesConceituais: rel, conceitosTrabalho: trabalho, conceitos: conceitos, composicoesGerais: composicoesGerais };
       });
     });
   }
