@@ -272,6 +272,25 @@ aplicar(N.referenciarResponsabilidade(estado, 'cenario-3', 'ao-a1', ctx()), 'ref
 afirma(N.contagens(estado).responsabilidades === antes, 'uma responsabilidade referenciada por outra análise não é contada duas vezes');
 afirma(N.historico(eventos, 'jornada-A').every((e, i, l) => i === 0 || e.em >= l[i - 1].em) && N.historico(eventos, 'jornada-A').length > 10, 'histórico da análise em ordem cronológica');
 
+/* ---------------- J. marcador, evidência qualitativa e proposta sob concorrência (PR A) ---------------- */
+console.log('J. Marcador de homologação, evidência qualitativa (D7) e proposta sob concorrência');
+const acesso = (h, p) => { const a = N.acessoPelaHabilitacao(h, p); return [a.ler, a.gravar, a.registrarAprovacao].map(Number).join(''); };
+const G = { adminGeral: true }, AQ = { arquitetura: true }, AV = { avaliacao: true }, NADA = {};
+afirma([G, AQ, AV, NADA].every((p) => acesso(undefined, p) === '000' && acesso('DESLIGADO', p) === '000' && acesso('qualquer', p) === '000'), 'ausente, DESLIGADO ou valor desconhecido: ninguém lê nem grava');
+afirma(acesso('SOMENTE_ADMIN_GERAL', G) === '111' && [AQ, AV, NADA].every((p) => acesso('SOMENTE_ADMIN_GERAL', p) === '000'), 'SOMENTE_ADMIN_GERAL: só o admin geral');
+afirma(acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', G) === '111' && acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', AQ) === '110' && acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', AV) === '100' && acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', NADA) === '000', 'LIBERADO: perfis leem; Arquitetura grava; aprovação só do admin geral');
+afirma(temErro(N.registrarEvidenciaQualitativa(estado, 'jornada-A', 'r4', { texto: ' ' }, ctx()), 'EVIDENCIA_SEM_TEXTO'), 'evidência qualitativa exige texto');
+const antesR4 = JSON.stringify(analise('jornada-A').recortes.r4.objetoId);
+aplicar(N.registrarEvidenciaQualitativa(estado, 'jornada-A', 'r4', { texto: 'O papel de parecer aparece nas exceções à política; o de padrão, na revisão anual', exemplo: 'Exceção 7/2026' }, ctx()), 'evidência qualitativa');
+const ev = analise('jornada-A').recortes.r4.evidenciasQualitativas;
+afirma(ev.length === 1 && ev[0].exemplo === 'Exceção 7/2026' && JSON.stringify(analise('jornada-A').recortes.r4.objetoId) === antesR4 && !('codigo' in ev[0]), 'D7: predominância registrada como texto e exemplo, sem código e sem mexer na atuação avaliada');
+const pv = analise('jornada-A').propostaVigente;
+afirma(pv === 1, 'a análise aponta a proposta vigente', pv);
+const p1 = N.registrarProposta(estado, 'jornada-A', { alternativa: 'pendente', recortes: ['r4'], justificativa: 'j', pendencia: { falta: 'a', proximaAcao: 'b', quemDecide: 'c' } }, ctx());
+const p2 = N.registrarProposta(estado, 'jornada-A', { alternativa: 'manter-consciente', recortes: ['r4'], justificativa: 'j2' }, ctx());
+const ap1 = N.aplicar(estado, p1.mudancas);
+afirma(p1.ok && p2.ok && ap1.ok && N.aplicar(ap1.estado, p2.mudancas).erro === 'CONFLITO_DE_REVISAO', 'duas propostas sobre a mesma revisão da análise: só uma entra');
+
 /* ---------------- I. aplicar e imutabilidade ---------------- */
 console.log('I. aplicar(), revisão e imutabilidade');
 const congelado = congelaFundo(JSON.parse(JSON.stringify(estado)));

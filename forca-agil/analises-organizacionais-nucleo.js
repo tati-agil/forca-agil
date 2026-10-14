@@ -56,6 +56,17 @@
   var ESCOPOS_COM_ESTRUTURA_PROPRIA = ['estrutura', 'responsabilidade', 'atuacao-informal'];
   var CATEGORIAS = ['completa', 'diagnostico-concluido-pendente', 'funcionalidade-futura'];
   var MAX = { nome: 200, texto: 2000, motivo: 500, chave: 80 };
+  /* marcador de homologação (aprovado): ausente = DESLIGADO. As regras do banco aplicam o MESMO mapa — a tela só o
+     espelha para não oferecer o que o banco recusaria (a autorização nunca depende de esconder botão) */
+  var HABILITACAO = ['DESLIGADO', 'SOMENTE_ADMIN_GERAL', 'LIBERADO_PARA_PERFIS_AUTORIZADOS'];
+  function acessoPelaHabilitacao(habilitacao, perfil) {
+    perfil = perfil || {};
+    var h = HABILITACAO.indexOf(habilitacao) !== -1 ? habilitacao : 'DESLIGADO';
+    var geral = !!perfil.adminGeral, arq = !!perfil.arquitetura, aval = !!perfil.avaliacao;
+    if (h === 'SOMENTE_ADMIN_GERAL') return { habilitacao: h, ler: geral, gravar: geral, registrarAprovacao: geral };
+    if (h === 'LIBERADO_PARA_PERFIS_AUTORIZADOS') return { habilitacao: h, ler: geral || arq || aval, gravar: geral || arq, registrarAprovacao: geral };
+    return { habilitacao: h, ler: false, gravar: false, registrarAprovacao: false };
+  }
 
   /* ---------- matriz progressiva de navegação (F1–F17) ----------
      Só formas de entrega, destinatários e responsáveis: nenhuma resposta é um tipo organizacional. "alvo" diz onde a
@@ -334,6 +345,22 @@
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('fatos.registrados', analiseId, ctx, { recorteId: recorteId, antes: antesF, depois: clone(r.fatos) })] };
   }
 
+  /* D7: predominância investigada como EVIDÊNCIA QUALITATIVA (texto e exemplo) para a decisão humana — nunca uma escolha
+     entre códigos nem uma regra equivalente à v2; não muda a classificação */
+  function registrarEvidenciaQualitativa(estado, analiseId, recorteId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    if (!texto(dados.texto, MAX.texto)) return erro('EVIDENCIA_SEM_TEXTO');
+    if (!textoOpcional(dados.exemplo, MAX.texto)) return erro('EXEMPLO_INVALIDO');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var r = al.depois.recortes[recorteId];
+    if (!r || r.situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recorteId });
+    var lista = Array.isArray(r.evidenciasQualitativas) ? r.evidenciasQualitativas : [];
+    var item = { texto: dados.texto.trim(), em: ctx.agora, por: autor(ctx) };
+    if (dados.exemplo) item.exemplo = dados.exemplo;
+    r.evidenciasQualitativas = lista.concat([item]);
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('evidencia.registrada', analiseId, ctx, { recorteId: recorteId, texto: item.texto })] };
+  }
   /* origem única e imutável: uma atuação nasce de no máximo um recorte, em toda a base */
   function origemDoObjeto(estado, objetoId) {
     var as = (estado && estado.analises) || {};
@@ -392,9 +419,9 @@
     if (dentro(dados.alternativa, ALTERNATIVAS_RECUSADAS)) return erro('ALTERNATIVA_RECUSADA_NAO_RECLASSIFICA', { alternativa: dados.alternativa });
     if (!dentro(dados.alternativa, ALTERNATIVAS)) return erro('ALTERNATIVA_INVALIDA');
     if (!texto(dados.justificativa, MAX.texto)) return erro('JUSTIFICATIVA_OBRIGATORIA');
-    var a = lerAnalise(estado, analiseId);
-    if (!a) return erro('ANALISE_INEXISTENTE', { analiseId: analiseId });
-    if (a.situacao === 'descartada') return erro('ANALISE_DESCARTADA');
+    /* a proposta também atualiza a análise (versão vigente + revisão): duas propostas simultâneas não entram juntas */
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var a = al.antes;
     var recortes = dados.recortes || [];
     if (!Array.isArray(recortes) || recortes.length === 0) return erro('PROPOSTA_SEM_RECORTE');
     for (var i = 0; i < recortes.length; i++) if (!a.recortes[recortes[i]] || a.recortes[recortes[i]].situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recortes[i] });
@@ -403,12 +430,14 @@
       if (!texto(p.falta, MAX.texto) || !texto(p.proximaAcao, MAX.texto) || !texto(p.quemDecide, MAX.nome)) return erro('PENDENCIA_INCOMPLETA');
     }
     var anterior = propostaVigente(estado, analiseId), versao = anterior ? anterior.versao + 1 : 1;
+    if ((a.propostaVigente || 0) !== (anterior ? anterior.versao : 0)) return erro('PROPOSTA_DESATUALIZADA', { vigente: a.propostaVigente || 0 });
     if (dados.versaoAnteriorEsperada !== undefined && dados.versaoAnteriorEsperada !== (anterior ? anterior.versao : 0)) return erro('PROPOSTA_DESATUALIZADA', { vigente: anterior ? anterior.versao : 0 });
     var id = analiseId + '~' + versao;
     var prop = { id: id, analiseId: analiseId, versao: versao, alternativa: dados.alternativa, recortes: recortes.slice(), justificativa: dados.justificativa,
       criterios: clone(dados.criterios || {}), pendencia: dados.alternativa === 'pendente' ? clone(dados.pendencia) : null,
       situacao: dados.alternativa === 'pendente' ? 'pendente' : 'proposta', registradaEm: ctx.agora, registradaPor: autor(ctx), revisao: 1 };
-    return { ok: true, mudancas: [{ entidade: 'proposta', id: id, antes: null, depois: prop, revisaoAnterior: null }],
+    al.depois.propostaVigente = versao;
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois), { entidade: 'proposta', id: id, antes: null, depois: prop, revisaoAnterior: null }],
       eventos: [evento('proposta.registrada', analiseId, ctx, { versao: versao, alternativa: prop.alternativa, situacao: prop.situacao })] };
   }
   function registrarAprovacao(estado, analiseId, versao, dados, ctx) {
@@ -629,7 +658,8 @@
     CERTEZA_RESPONSAVEL: CERTEZA_RESPONSAVEL.slice(), CARATER: CARATER.slice(), CRITERIOS_IDENTIDADE: CRITERIOS_IDENTIDADE.slice(),
     CRITERIOS_NUCLEARES: CRITERIOS_NUCLEARES.slice(), CONCLUSOES: CONCLUSOES.slice(), ALTERNATIVAS: ALTERNATIVAS.slice(),
     ALTERNATIVAS_RECUSADAS: ALTERNATIVAS_RECUSADAS.slice(), SITUACAO_FORMAL: SITUACAO_FORMAL.slice(), CATEGORIAS: CATEGORIAS.slice(),
-    MAX: clone(MAX), MATRIZ: clone(MATRIZ),
+    MAX: clone(MAX), MATRIZ: clone(MATRIZ), HABILITACAO: HABILITACAO.slice(), acessoPelaHabilitacao: acessoPelaHabilitacao,
+    registrarEvidenciaQualitativa: registrarEvidenciaQualitativa,
     criarAnalise: criarAnalise, responder: responder, adicionarEntrega: adicionarEntrega, compararEntregas: compararEntregas,
     definirRecorte: definirRecorte, ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, registrarFatos: registrarFatos,
     associarAtuacao: associarAtuacao, referenciarResponsabilidade: referenciarResponsabilidade, descartarAnalise: descartarAnalise,
