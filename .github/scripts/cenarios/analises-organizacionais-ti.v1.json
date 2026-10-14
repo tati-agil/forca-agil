@@ -1,0 +1,231 @@
+{
+  "conjunto": "analises-organizacionais-ti",
+  "versao": 1,
+  "sobre": "Casos de estresse da grande área de TI para o núcleo da Análise Organizacional (Porta 2). DADOS FICTÍCIOS: nomes, tipos das estruturas e respostas são hipóteses de teste, não classificações oficiais. Os códigos de posicionamento aparecem só como ENTRADA (o resultado que o O1–O9 teria dado ao recorte), nunca como saída do núcleo. criterios: 7 letras na ordem finalidade, resultado, objeto, limitesAutonomia, riscos, obrigacaoResponder, governancaEspecializacao — I igual, D diferente, N não sei. Os casos rodam em sequência sobre o MESMO estado (a Jornada C referencia uma responsabilidade da Jornada A).",
+  "estruturas": {
+    "nucleo-gov": { "tipo": "AREA_ESPECIALIZADA", "situacao": "ativa" },
+    "nucleo-arq": { "tipo": "AREA_ESPECIALIZADA", "situacao": "ativa" },
+    "nucleo-infra": { "tipo": "PLATAFORMA_HABILITADORA_TECNOLOGIA", "situacao": "ativa" },
+    "plat-neg": { "tipo": "PLATAFORMA_HABILITADORA_NEGOCIOS", "situacao": "ativa" },
+    "corp-servicos": { "tipo": "PLATAFORMA_CORPORATIVA", "situacao": "ativa" },
+    "canais": { "tipo": "PLATAFORMA_CANAIS", "situacao": "ativa" },
+    "nucleo-dev": { "tipo": "AREA_ESPECIALIZADA", "situacao": "ativa" },
+    "suprimentos": { "tipo": "PLATAFORMA_CORPORATIVA", "situacao": "ativa" },
+    "linha-prev": { "tipo": "NEGOCIOS", "situacao": "ativa" },
+    "ae-arq2": { "tipo": "AREA_ESPECIALIZADA", "situacao": "ativa" },
+    "coe-arq2": { "tipo": "COE", "situacao": "ativa" }
+  },
+  "casos": [
+    {
+      "id": "jornada-A", "cenario": 7, "titulo": "Núcleo de Governança de TI (inclui a regressão políticas de SI × diretrizes contratuais)",
+      "analise": { "nome": "Núcleo de Governança de TI", "tipoEscopo": "estrutura" },
+      "respostas": [ { "pergunta": "F2b", "valor": { "valor": "cadastrada", "estruturaId": "nucleo-gov" } } ],
+      "entregas": [
+        { "id": "e1", "descricao": "Plano de TI e priorização do portfólio", "F4": "decisao-estrategica", "F5": "toda-organizacao", "F6": { "valor": "esta-estrutura", "certeza": "provavel" }, "F8": { "valor": "sem-evidencia" } },
+        { "id": "e2", "descricao": "Avaliações de conformidade, controles e indicadores", "F4": "julgamento-tecnico", "F5": "outro", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F8": { "valor": "evidencia", "texto": "Relatórios trimestrais de controles" } },
+        { "id": "e3", "descricao": "Acompanhamento, medição e renovação dos contratos de TI", "F4": "servico-operado", "F5": "cliente-interno", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F13": "administracao-interna", "F8": { "valor": "evidencia", "texto": "Planilha de medição dos contratos" } },
+        { "id": "e4", "descricao": "Políticas, normas e padrões de Segurança da Informação para os gestores de TI", "F4": "politica-norma", "F5": "cliente-interno", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F8": { "valor": "evidencia", "texto": "Política de SI publicada" } },
+        { "id": "e5", "descricao": "Diretrizes de gestão contratual para os gestores de TI", "F4": "politica-norma", "F5": "cliente-interno", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F8": { "valor": "evidencia", "texto": "Norma interna de gestão contratual" } }
+      ],
+      "respostasDepois": [ { "pergunta": "F11", "valor": { "valor": "boa-pratica" } } ],
+      "esperado": { "sugestoes": ["e3|e4", "e3|e5", "e4|e5"], "sinaisRegressao": { "par": "e4|e5", "sinais": ["mesma-forma", "mesmo-destinatario", "mesmo-responsavel"] } },
+      "comparacoes": [
+        { "a": "e4", "b": "e5", "criterios": "DDDIDDD", "conclusao": "distintas", "indicacaoEsperada": "indicios-de-distincao" },
+        { "a": "e3", "b": "e5", "criterios": "IIIIIII", "conclusao": "mesma", "indicacaoEsperada": "indicios-de-identidade" },
+        { "a": "e3", "b": "e4", "criterios": "DDDIDDD", "conclusao": "distintas", "indicacaoEsperada": "indicios-de-distincao" }
+      ],
+      "recortesRecusados": [ { "entregas": ["e4", "e5"], "erro": "AGRUPAMENTO_SEM_COMPARACAO" } ],
+      "recortes": [
+        { "id": "r1", "nome": "Estratégia e portfólio de TI", "resultado": "Portfólio de TI priorizado", "entregas": ["e1"], "fatos": { "execucao": [{ "estruturaId": "nucleo-gov", "carater": "declarado", "fonte": "Entrevista com a coordenação" }], "responsavelFormal": { "certeza": "provavel", "estruturaId": "nucleo-gov", "carater": "hipotese", "fonte": "Percepção da equipe" } }, "objetoId": "ao-a1", "posicionamento": { "codigoEfetivo": null, "aValidar": true }, "situacaoEsperada": "classificacao-a-validar" },
+        { "id": "r2", "nome": "Governança e conformidade de TI", "resultado": "Controles avaliados e reportados", "entregas": ["e2"], "fatos": { "execucao": [{ "estruturaId": "nucleo-gov", "carater": "confirmado", "fonte": "Regimento interno" }], "responsavelFormal": { "certeza": "conhecido", "estruturaId": "nucleo-gov", "carater": "confirmado", "fonte": "Regimento interno" } }, "objetoId": "ao-a2", "posicionamento": { "codigoEfetivo": "AREA_ESPECIALIZADA" }, "vinculoPrincipal": { "estruturaId": "nucleo-gov", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r3", "nome": "Gestão de contratos de TI (acompanhamento e diretrizes)", "resultado": "Contratos de TI geridos e regulados", "entregas": ["e3", "e5"], "fatos": { "execucao": [{ "estruturaId": "nucleo-gov", "carater": "declarado", "fonte": "Entrevista com a coordenação" }], "responsavelFormal": { "certeza": "conhecido", "estruturaId": "nucleo-gov", "carater": "declarado", "fonte": "Entrevista com a coordenação" } }, "objetoId": "ao-a3", "posicionamento": { "codigoEfetivo": "PLATAFORMA_CORPORATIVA" }, "situacaoEsperada": "exercida-sem-responsavel-formal-compativel" },
+        { "id": "r4", "nome": "Políticas e padrões de Segurança da Informação", "resultado": "Políticas de SI vigentes", "entregas": ["e4"], "fatos": { "execucao": [{ "estruturaId": "nucleo-gov", "carater": "confirmado", "fonte": "Política de SI publicada" }], "responsavelFormal": { "certeza": "conhecido", "estruturaId": "nucleo-gov", "carater": "confirmado", "fonte": "Política de SI publicada" } }, "objetoId": "ao-a4", "posicionamento": { "codigoEfetivo": null, "aValidar": true }, "situacaoEsperada": "classificacao-a-validar" }
+      ],
+      "finais": { "perguntasPendentes": [], "lacunas": ["hipotese-sem-evidencia:e1"], "categoria": "diagnostico-concluido-pendente" },
+      "propostaRecusada": { "alternativa": "reclassificar", "erro": "ALTERNATIVA_RECUSADA_NAO_RECLASSIFICA" },
+      "proposta": { "alternativa": "manter-consciente", "recortes": ["r1", "r2", "r3", "r4"], "justificativa": "Equipe integrada e custo de coordenação baixo; separar não traria ganho demonstrado." },
+      "situacaoAnaliseEsperada": "proposta"
+    },
+    {
+      "id": "jornada-B", "cenario": 5, "titulo": "Núcleo de Arquitetura de TI: pareceres (executados) e evolução da disciplina na mesma equipe",
+      "analise": { "nome": "Núcleo de Arquitetura de TI", "tipoEscopo": "estrutura" },
+      "respostas": [ { "pergunta": "F2b", "valor": { "valor": "cadastrada", "estruturaId": "nucleo-arq" } } ],
+      "entregas": [
+        { "id": "e1", "descricao": "Pareceres sobre soluções propostas", "F4": "julgamento-tecnico", "F5": "diversas-linhas", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F8": { "valor": "evidencia", "texto": "Pareceres em projetos" } },
+        { "id": "e2", "descricao": "Validação de aderência a padrões antes da implantação", "F4": "julgamento-tecnico", "F5": "diversas-linhas", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F8": { "valor": "evidencia", "texto": "Checklist de validação" } },
+        { "id": "e3", "descricao": "Padrões, guias e decisões de referência", "F4": "padrao-capacitacao", "F5": "toda-organizacao", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F12": "outras-equipes", "F8": { "valor": "evidencia", "texto": "Repositório de padrões" } },
+        { "id": "e4", "descricao": "Mentoria e trilhas de formação para as equipes", "F4": "padrao-capacitacao", "F5": "toda-organizacao", "F6": { "valor": "ninguem", "certeza": "nao-definido" }, "F12": "outras-equipes", "F8": { "valor": "evidencia", "texto": "Trilha de formação publicada" } }
+      ],
+      "esperado": { "sugestoes": ["e1|e2", "e3|e4"] },
+      "comparacoes": [
+        { "a": "e1", "b": "e2", "criterios": "IIIIIII", "conclusao": "mesma", "indicacaoEsperada": "indicios-de-identidade" },
+        { "a": "e3", "b": "e4", "criterios": "IIIIIDI", "conclusao": "integradas", "semJustificativaErro": "CONCLUSAO_CONTRA_OS_INDICIOS_SEM_JUSTIFICATIVA", "justificativa": "Padrões e mentoria formam o mesmo programa de evolução da disciplina; só a atribuição formal da mentoria está indefinida.", "indicacaoEsperada": "indicios-de-distincao" }
+      ],
+      "recortesRecusados": [ { "entregas": ["e2", "e3"], "erro": "AGRUPAMENTO_SEM_COMPARACAO" } ],
+      "recortes": [
+        { "id": "r1", "nome": "Pareceres e validações de arquitetura", "resultado": "Soluções avaliadas com parecer técnico", "entregas": ["e1", "e2"], "fatos": { "execucao": [{ "estruturaId": "nucleo-arq", "carater": "confirmado", "fonte": "Regimento interno" }], "responsavelFormal": { "certeza": "conhecido", "estruturaId": "nucleo-arq", "carater": "confirmado", "fonte": "Regimento interno" } }, "objetoId": "ao-b1", "posicionamento": { "codigoEfetivo": "AREA_ESPECIALIZADA" }, "vinculoPrincipal": { "estruturaId": "nucleo-arq", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r2", "nome": "Evolução da disciplina de arquitetura", "resultado": "Maturidade arquitetural das equipes", "entregas": ["e3", "e4"], "fatos": { "execucao": [{ "estruturaId": "nucleo-arq", "carater": "declarado", "fonte": "Entrevista com a coordenação" }], "responsavelFormal": { "certeza": "nao-definido", "carater": "declarado", "fonte": "Entrevista com a coordenação" } }, "objetoId": "ao-b2", "posicionamento": { "codigoEfetivo": "COE" }, "situacaoEsperada": "exercida-sem-responsavel-formal-compativel", "ajusteDepoisDeAvaliado": "RECORTE_JA_AVALIADO_DEFINA_OUTRO" }
+      ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "diagnostico-concluido-pendente" },
+      "exercidas": { "estruturaId": "nucleo-arq", "esperado": ["r1:confirmado", "r2:declarado"] },
+      "proposta": { "alternativa": "pendente", "recortes": ["r1", "r2"], "justificativa": "Sem demanda que justifique outra estrutura agora; falta definir quem responde pela disciplina.", "pendencia": { "falta": "Definir quem responde formalmente pela evolução da disciplina", "proximaAcao": "Levar ao comitê de TI", "quemDecide": "Diretoria de TI" } },
+      "aprovacaoRecusada": "PROPOSTA_PENDENTE_NAO_SE_APROVA",
+      "situacaoAnaliseEsperada": "com-pendencia"
+    },
+    {
+      "id": "jornada-C", "cenario": 8, "titulo": "Segurança de TI como capacidade distribuída (com lacuna de incidentes)",
+      "analise": { "nome": "Segurança de TI", "tipoEscopo": "capacidade", "capacidades": [{ "tipo": "texto", "chave": "cap-protecao-informacao", "rotulo": "Proteger informações e ambientes" }] },
+      "respostas": [ { "pergunta": "F2c", "valor": { "valor": "listadas" } } ],
+      "referencias": ["ao-a4"],
+      "entregas": [
+        { "id": "e1", "descricao": "Operação de firewalls, proteções e controles técnicos", "F4": "servico-operado", "F5": "diversas-linhas", "F6": { "valor": "outra-estrutura", "certeza": "provavel", "estruturaId": "nucleo-infra" }, "F13": "tecnicas-compartilhadas", "F8": { "valor": "evidencia", "texto": "Contrato de operação 24x7" } },
+        { "id": "e2", "descricao": "Resposta a incidentes de segurança" }
+      ],
+      "respostasDepois": [ { "pergunta": "F11", "valor": { "valor": "boa-pratica" } } ],
+      "esperado": { "sugestoes": [] },
+      "comparacoes": [],
+      "recortes": [
+        { "id": "r1", "nome": "Operação dos controles técnicos de segurança", "resultado": "Ambientes protegidos continuamente", "entregas": ["e1"], "fatos": { "execucao": [{ "estruturaId": "nucleo-infra", "carater": "hipotese", "fonte": "Percepção da equipe; confirmar" }], "responsavelFormal": { "certeza": "provavel", "estruturaId": "nucleo-infra", "carater": "hipotese", "fonte": "Percepção da equipe; confirmar" } }, "objetoId": "ao-c1", "posicionamento": { "codigoEfetivo": "PLATAFORMA_HABILITADORA_TECNOLOGIA" }, "vinculoPrincipal": { "estruturaId": "nucleo-infra", "situacao": "ativo" }, "situacaoEsperada": "compativel" }
+      ],
+      "finais": { "perguntasPendentes": ["F4:e2", "F5:e2", "F6:e2", "F8:e2"], "lacunas": ["entrega-sem-recorte:e2"] },
+      "situacaoAnaliseEsperada": "em-descoberta"
+    },
+    {
+      "id": "cenario-1", "cenario": 1, "titulo": "Plataforma Habilitadora de Tecnologia",
+      "analise": { "nome": "Núcleo de Infraestrutura", "tipoEscopo": "estrutura" },
+      "respostas": [ { "pergunta": "F2b", "valor": { "valor": "cadastrada", "estruturaId": "nucleo-infra" } } ],
+      "entregas": [ { "id": "e1", "descricao": "Infraestrutura, integração e automação compartilhadas", "F4": "servico-operado", "F5": "diversas-linhas", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F13": "tecnicas-compartilhadas", "F8": { "valor": "evidencia", "texto": "Catálogo de serviços técnicos" } } ],
+      "recortes": [ { "id": "r1", "nome": "Serviços técnicos compartilhados", "resultado": "Plataforma técnica disponível às Linhas", "entregas": ["e1"], "objetoId": "ao-1", "posicionamento": { "codigoEfetivo": "PLATAFORMA_HABILITADORA_TECNOLOGIA" }, "vinculoPrincipal": { "estruturaId": "nucleo-infra", "situacao": "ativo" }, "situacaoEsperada": "compativel" } ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "completa" }
+    },
+    {
+      "id": "cenario-2", "cenario": 2, "titulo": "Plataforma Habilitadora de Negócios: construir para a Linha × responder pela capacidade",
+      "analise": { "nome": "Plataforma de Negócios", "tipoEscopo": "estrutura" },
+      "respostas": [ { "pergunta": "F2b", "valor": { "valor": "cadastrada", "estruturaId": "plat-neg" } } ],
+      "entregas": [
+        { "id": "e1", "descricao": "Desenvolver o sistema de concessão da Linha", "F4": "solucao-construida", "F5": "linha-especifica", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "linha-prev" }, "F13": "de-uma-linha", "F7": "sim", "F8": { "valor": "evidencia", "texto": "Backlog priorizado pela Linha" } },
+        { "id": "e2", "descricao": "Fornecer o cálculo atuarial compartilhado às Linhas", "F4": "servico-operado", "F5": "diversas-linhas", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F13": "desta-estrutura", "F8": { "valor": "evidencia", "texto": "Acordo de nível de serviço" } }
+      ],
+      "esperado": { "sugestoes": [] },
+      "recortesRecusados": [ { "entregas": ["e1"], "erro": "ENTREGA_E_EXECUCAO_PARA_OUTRA" } ],
+      "recortes": [ { "id": "r1", "nome": "Cálculo atuarial compartilhado", "resultado": "Capacidade de negócio fornecida em escala", "entregas": ["e2"], "objetoId": "ao-2", "posicionamento": { "codigoEfetivo": "PLATAFORMA_HABILITADORA_NEGOCIOS" }, "vinculoPrincipal": { "estruturaId": "plat-neg", "situacao": "ativo" }, "situacaoEsperada": "compativel" } ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "completa" }
+    },
+    {
+      "id": "cenario-3", "cenario": 3, "titulo": "Gestão Corporativa: operar o serviço × construir o sistema",
+      "analise": { "nome": "Serviços corporativos de pessoal", "tipoEscopo": "conjunto" },
+      "entregas": [
+        { "id": "e1", "descricao": "Atendimento de folha e benefícios aos empregados", "F4": "servico-operado", "F5": "cliente-interno", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "corp-servicos" }, "F13": "administracao-interna", "F8": { "valor": "evidencia", "texto": "Portal de autosserviço" } },
+        { "id": "e2", "descricao": "Sistema de folha", "F4": "solucao-construida", "F5": "cliente-interno", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "nucleo-infra" }, "F13": "tecnicas-compartilhadas", "F8": { "valor": "evidencia", "texto": "Contrato de sustentação" } }
+      ],
+      "esperado": { "sugestoes": ["e1|e2"] },
+      "comparacoes": [ { "a": "e1", "b": "e2", "criterios": "DDDIDDD", "conclusao": "distintas", "indicacaoEsperada": "indicios-de-distincao" } ],
+      "recortes": [
+        { "id": "r1", "nome": "Serviços de folha e benefícios", "resultado": "Empregados atendidos", "entregas": ["e1"], "objetoId": "ao-3a", "posicionamento": { "codigoEfetivo": "PLATAFORMA_CORPORATIVA" }, "vinculoPrincipal": { "estruturaId": "corp-servicos", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r2", "nome": "Sustentação do sistema de folha", "resultado": "Sistema disponível", "entregas": ["e2"], "objetoId": "ao-3b", "posicionamento": { "codigoEfetivo": "PLATAFORMA_HABILITADORA_TECNOLOGIA" }, "vinculoPrincipal": { "estruturaId": "nucleo-infra", "situacao": "ativo" }, "situacaoEsperada": "compativel" }
+      ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "completa" }
+    },
+    {
+      "id": "cenario-4", "cenario": 4, "titulo": "Canais: o meio de interação × o serviço acessado nele",
+      "analise": { "nome": "Canais digitais", "tipoEscopo": "estrutura" },
+      "respostas": [ { "pergunta": "F2b", "valor": { "valor": "cadastrada", "estruturaId": "canais" } } ],
+      "entregas": [
+        { "id": "e1", "descricao": "Portal e app como meio contínuo de interação", "F4": "servico-operado", "F5": "cliente-externo", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F13": "desta-estrutura", "F8": { "valor": "evidencia", "texto": "Indicadores de experiência do canal" } },
+        { "id": "e2", "descricao": "Funcionalidades de produto exibidas no app", "F4": "solucao-construida", "F5": "cliente-externo", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "linha-prev" }, "F13": "de-uma-linha", "F7": "sim", "F8": { "valor": "evidencia", "texto": "Regras definidas pela Linha" } }
+      ],
+      "esperado": { "sugestoes": [] },
+      "recortes": [ { "id": "r1", "nome": "Meio digital de interação", "resultado": "Experiência integrada e contínua", "entregas": ["e1"], "objetoId": "ao-4", "posicionamento": { "codigoEfetivo": "PLATAFORMA_CANAIS" }, "vinculoPrincipal": { "estruturaId": "canais", "situacao": "ativo" }, "situacaoEsperada": "compativel" } ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "completa" }
+    },
+    {
+      "id": "cenario-6", "cenario": 6, "titulo": "Desenvolvimento e Sustentação: tickets não definem tipo",
+      "analise": { "nome": "Núcleo de Desenvolvimento e Sustentação", "tipoEscopo": "estrutura" },
+      "respostas": [ { "pergunta": "F2b", "valor": { "valor": "cadastrada", "estruturaId": "nucleo-dev" } } ],
+      "entregas": [
+        { "id": "e1", "descricao": "Correções, incidentes e evolutivas dos sistemas das Linhas", "F4": "servico-operado", "F5": "diversas-linhas", "F6": { "valor": "outra-estrutura", "certeza": "provavel", "texto": "As Linhas donas dos sistemas" }, "F13": "de-uma-linha", "F7": "sim", "F8": { "valor": "evidencia", "texto": "Fila de demandas por Linha" } },
+        { "id": "e2", "descricao": "Esteira de integração e entrega contínua compartilhada", "F4": "servico-operado", "F5": "diversas-linhas", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F13": "tecnicas-compartilhadas", "F8": { "valor": "evidencia", "texto": "Esteira usada por todas as equipes" } }
+      ],
+      "esperado": { "sugestoes": [] },
+      "recortes": [ { "id": "r1", "nome": "Esteira de entrega compartilhada", "resultado": "Entrega contínua disponível às equipes", "entregas": ["e2"], "fatos": { "execucao": [{ "estruturaId": "nucleo-dev", "carater": "declarado", "fonte": "Entrevista com a coordenação" }], "responsavelFormal": { "certeza": "conhecido", "estruturaId": "nucleo-dev", "carater": "declarado", "fonte": "Entrevista com a coordenação" } }, "objetoId": "ao-6", "posicionamento": { "codigoEfetivo": "PLATAFORMA_HABILITADORA_TECNOLOGIA" }, "situacaoEsperada": "exercida-sem-responsavel-formal-compativel" } ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "diagnostico-concluido-pendente" }
+    },
+    {
+      "id": "cenario-8", "cenario": 8, "titulo": "Segurança conceitual × operacional, com tipos compatíveis",
+      "analise": { "nome": "Segurança da Informação (capacidade)", "tipoEscopo": "capacidade", "capacidades": [{ "tipo": "texto", "chave": "cap-protecao-informacao", "rotulo": "Proteger informações e ambientes" }] },
+      "respostas": [ { "pergunta": "F2c", "valor": { "valor": "listadas" } } ],
+      "entregas": [
+        { "id": "e1", "descricao": "Políticas e padrões de Segurança da Informação", "F4": "politica-norma", "F5": "cliente-interno", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "nucleo-gov" }, "F8": { "valor": "evidencia", "texto": "Política de SI publicada" } },
+        { "id": "e2", "descricao": "Operação de firewalls e controles técnicos", "F4": "servico-operado", "F5": "diversas-linhas", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "nucleo-infra" }, "F13": "tecnicas-compartilhadas", "F8": { "valor": "evidencia", "texto": "Contrato de operação 24x7" } }
+      ],
+      "respostasDepois": [ { "pergunta": "F11", "valor": { "valor": "exigencia-normativa", "texto": "Norma interna de segregação de funções" } } ],
+      "esperado": { "sugestoes": [] },
+      "recortes": [
+        { "id": "r1", "nome": "Políticas e padrões de SI", "resultado": "Políticas vigentes", "entregas": ["e1"], "objetoId": "ao-8a", "posicionamento": { "codigoEfetivo": "AREA_ESPECIALIZADA" }, "vinculoPrincipal": { "estruturaId": "nucleo-gov", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r2", "nome": "Operação dos controles", "resultado": "Ambientes protegidos", "entregas": ["e2"], "objetoId": "ao-8b", "posicionamento": { "codigoEfetivo": "PLATAFORMA_HABILITADORA_TECNOLOGIA" }, "vinculoPrincipal": { "estruturaId": "nucleo-infra", "situacao": "ativo" }, "situacaoEsperada": "compativel" }
+      ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "completa" }
+    },
+    {
+      "id": "cenario-9", "cenario": 9, "titulo": "Contratos, suprimentos e conformidade: relacionados, não fundidos",
+      "analise": { "nome": "Contratos de TI e suprimentos", "tipoEscopo": "conjunto" },
+      "entregas": [
+        { "id": "e1", "descricao": "Compras e gestão administrativa de contratos", "F4": "servico-operado", "F5": "cliente-interno", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "suprimentos" }, "F13": "administracao-interna", "F8": { "valor": "evidencia", "texto": "Processo de compras" } },
+        { "id": "e2", "descricao": "Avaliação de conformidade dos contratos de TI", "F4": "julgamento-tecnico", "F5": "cliente-interno", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "nucleo-gov" }, "F8": { "valor": "evidencia", "texto": "Pareceres de conformidade" } }
+      ],
+      "esperado": { "sugestoes": ["e1|e2"] },
+      "comparacoes": [ { "a": "e1", "b": "e2", "criterios": "DDDIDDD", "conclusao": "distintas", "indicacaoEsperada": "indicios-de-distincao" } ],
+      "recortes": [
+        { "id": "r1", "nome": "Compras e gestão administrativa de contratos", "resultado": "Contratos firmados e administrados", "entregas": ["e1"], "objetoId": "ao-9a", "posicionamento": { "codigoEfetivo": "PLATAFORMA_CORPORATIVA" }, "vinculoPrincipal": { "estruturaId": "suprimentos", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r2", "nome": "Conformidade dos contratos de TI", "resultado": "Contratos avaliados", "entregas": ["e2"], "objetoId": "ao-9b", "posicionamento": { "codigoEfetivo": "AREA_ESPECIALIZADA" }, "vinculoPrincipal": { "estruturaId": "nucleo-gov", "situacao": "ativo" }, "situacaoEsperada": "compativel" }
+      ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "completa" }
+    },
+    {
+      "id": "cenario-10", "cenario": 10, "titulo": "Grande área com três naturezas: nenhuma classificação única para o conjunto",
+      "analise": { "nome": "Tecnologia da Informação", "tipoEscopo": "grande-area", "objetoAmploId": "ti-ampla" },
+      "entregas": [
+        { "id": "e1", "descricao": "Soluções de previdência entregues ao participante", "F4": "servico-operado", "F5": "cliente-externo", "F6": { "valor": "esta-estrutura", "certeza": "provavel" }, "F13": "desta-estrutura", "F8": { "valor": "evidencia", "texto": "Indicadores do produto" } },
+        { "id": "e2", "descricao": "Pareceres técnico-regulatórios de TI", "F4": "julgamento-tecnico", "F5": "diversas-linhas", "F6": { "valor": "esta-estrutura", "certeza": "conhecido" }, "F8": { "valor": "evidencia", "texto": "Pareceres emitidos" } },
+        { "id": "e3", "descricao": "Evolução da disciplina de dados", "F4": "padrao-capacitacao", "F5": "toda-organizacao", "F6": { "valor": "esta-estrutura", "certeza": "provavel" }, "F12": "outras-equipes", "F8": { "valor": "evidencia", "texto": "Comunidade de prática de dados" } }
+      ],
+      "esperado": { "sugestoes": [] },
+      "recortes": [
+        { "id": "r1", "nome": "Soluções de previdência", "resultado": "Participantes atendidos", "entregas": ["e1"], "objetoId": "ao-10a", "posicionamento": { "codigoEfetivo": "NEGOCIOS" }, "vinculoPrincipal": { "estruturaId": "linha-prev", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r2", "nome": "Pareceres técnico-regulatórios", "resultado": "Decisões fundamentadas", "entregas": ["e2"], "objetoId": "ao-10b", "posicionamento": { "codigoEfetivo": "AREA_ESPECIALIZADA" }, "vinculoPrincipal": { "estruturaId": "nucleo-gov", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r3", "nome": "Disciplina de dados", "resultado": "Maturidade em dados", "entregas": ["e3"], "objetoId": "ao-10c", "posicionamento": { "codigoEfetivo": "COE" }, "situacaoEsperada": "sem-estrutura" }
+      ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "diagnostico-concluido-pendente" },
+      "objetoAmplo": { "objetoId": "ti-ampla", "responsabilidades": 3 }
+    },
+    {
+      "id": "cenario-11", "cenario": 11, "titulo": "Pessoas compartilhadas entre Área Especializada e CoE formais",
+      "funcionalidadeFutura": "pessoas-e-alocacoes",
+      "analise": { "nome": "Arquitetura com duas estruturas formais", "tipoEscopo": "conjunto" },
+      "entregas": [
+        { "id": "e1", "descricao": "Pareceres de arquitetura", "F4": "julgamento-tecnico", "F5": "diversas-linhas", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "ae-arq2" }, "F8": { "valor": "evidencia", "texto": "Pareceres" } },
+        { "id": "e2", "descricao": "Evolução da disciplina de arquitetura", "F4": "padrao-capacitacao", "F5": "toda-organizacao", "F6": { "valor": "outra-estrutura", "certeza": "conhecido", "estruturaId": "coe-arq2" }, "F12": "outras-equipes", "F8": { "valor": "evidencia", "texto": "Trilha de formação" } }
+      ],
+      "esperado": { "sugestoes": [] },
+      "recortes": [
+        { "id": "r1", "nome": "Pareceres de arquitetura", "resultado": "Soluções avaliadas", "entregas": ["e1"], "objetoId": "ao-11a", "posicionamento": { "codigoEfetivo": "AREA_ESPECIALIZADA" }, "vinculoPrincipal": { "estruturaId": "ae-arq2", "situacao": "ativo" }, "situacaoEsperada": "compativel" },
+        { "id": "r2", "nome": "Disciplina de arquitetura", "resultado": "Maturidade arquitetural", "entregas": ["e2"], "objetoId": "ao-11b", "posicionamento": { "codigoEfetivo": "COE" }, "vinculoPrincipal": { "estruturaId": "coe-arq2", "situacao": "ativo" }, "situacaoEsperada": "compativel" }
+      ],
+      "finais": { "perguntasPendentes": [], "lacunas": [], "categoria": "funcionalidade-futura" }
+    },
+    {
+      "id": "cenario-12", "cenario": 12, "titulo": "Inconclusivo legítimo: a jornada termina, a classificação não",
+      "analise": { "nome": "Apoio a projetos diversos", "tipoEscopo": "atuacao-informal" },
+      "entregas": [
+        { "id": "e1", "descricao": "Apoio a projetos variados", "F4": "outra", "F5": "outro", "F6": { "valor": "nao-sei", "certeza": "nao-definido" }, "F8": { "valor": "sem-evidencia" } },
+        { "id": "e2", "descricao": "Relatórios gerenciais sob demanda", "F4": "outra", "F5": "outro", "F6": { "valor": "esta-estrutura", "certeza": "provavel" }, "F8": { "valor": "evidencia", "texto": "Relatórios enviados" } }
+      ],
+      "esperado": { "sugestoes": ["e1|e2"] },
+      "comparacoes": [ { "a": "e1", "b": "e2", "criterios": "NNNNNNN", "conclusao": "nao-sei", "indicacaoEsperada": "inconclusivo" } ],
+      "recortes": [ { "id": "r1", "nome": "Apoio a projetos", "resultado": "Projetos apoiados", "entregas": ["e1"], "objetoId": "ao-12", "posicionamento": { "codigoEfetivo": null, "aValidar": true }, "situacaoEsperada": "classificacao-a-validar", "prontaComHipotese": true } ],
+      "finais": { "perguntasPendentes": [], "lacunas": ["responsavel-desconhecido:e1", "hipotese-sem-evidencia:e1", "identidade-nao-concluida:e1|e2", "entrega-sem-recorte:e2"], "categoria": "diagnostico-concluido-pendente" },
+      "proposta": { "alternativa": "pendente", "recortes": ["r1"], "justificativa": "Sem evidência suficiente para delimitar nem classificar.", "pendencia": { "falta": "Exemplos concretos de entregas e de quem responde por elas", "proximaAcao": "Reunião com a coordenação para levantar evidências", "quemDecide": "Coordenação da área" } },
+      "situacaoAnaliseEsperada": "com-pendencia"
+    }
+  ]
+}
