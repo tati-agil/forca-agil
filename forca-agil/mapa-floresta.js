@@ -246,7 +246,8 @@
     var acao = null, h = ctx.hrefs || {};
     if (!encerrada) {
       var proxima = et.filter(function (e) { return e.estado === 'atual' || e.estado === 'analise' || e.estado === 'revisao'; })[0];
-      if (completa) acao = { tipo: 'mapa', rotulo: 'Ver no Mapa', href: h.mapa || null, consulta: true };
+      /* o nome da estrutura fica só no rótulo acessível (o texto visível é o mesmo em todo registro) */
+      if (completa) acao = { tipo: 'mapa', rotulo: 'Localizar estrutura responsável no Mapa', rotuloAcessivel: v.estruturaNome ? 'Localizar ' + v.estruturaNome + ' no Mapa' : null, href: h.mapa || null, consulta: true };
       else if (!proxima && et[1].estado === 'disponivel')
         acao = ctx.podeEscrever ? { tipo: 'disponivel', rotulo: 'Iniciar o Posicionamento', href: h.posicionamento || null, opcional: true }
           : { tipo: 'disponivel', rotulo: null, opcional: true, texto: 'Posicionamento disponível, se este item tiver uma responsabilidade organizacional própria (somente consulta no seu perfil).' };
@@ -426,7 +427,7 @@
       var ativo = document.activeElement, foco = null;
       if (ativo && ativo.id && wrap.contains(ativo) && /^(INPUT|SELECT)$/.test(ativo.tagName)) foco = { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd };
       var h = '<button type="button" class="avp-voltar-link" id="mfVoltar">← Voltar para Avaliações</button>';
-      h += '<button type="button" class="btn btn--sm mf-ir-mapa" id="mfIrMapa">Ver o Mapa da Floresta</button>';
+      h += '<button type="button" class="btn btn--sm mf-ir-mapa" id="mfIrMapa">Ver Mapa completo</button>';
       h += '<div class="avp-form-card mf-card" id="mfCatalogo">' + (focoItem ? '' : '<details class="mf-sobre" id="mfSobre"><summary>Sobre esta tela</summary>') +
         '<p class="avp-intro">O Mapa da Floresta vai representar as estruturas organizacionais concretas de três categorias. Os produtos, serviços e demais objetos avaliados ' +
         'não viram nós do Mapa: aparecerão indiretamente, nos detalhes da estrutura responsável, quando essa associação for registrada. ' +
@@ -613,7 +614,7 @@
       if (j.encerrada) return '<p class="mf-proxima mf-proxima--encerrada">Atuação encerrada: não recebe nova avaliação nem novo vínculo.</p>';
       if (j.carregando) return '<p class="mf-proxima loading-msg" role="status">Carregando…</p>';
       var a = j.acao;
-      if (j.completa) return '<div class="mf-proxima mf-proxima--completa"><span class="mf-completa">✓ Jornada completa</span>' + (a && a.href ? ' <a class="btn btn--sm mf-acao" href="' + esc(a.href) + '">' + esc(a.rotulo) + '</a>' : '') + '</div>';
+      if (j.completa) return '<div class="mf-proxima mf-proxima--completa"><span class="mf-completa">✓ Jornada completa</span>' + (a && a.href ? ' <a class="btn btn--sm mf-acao" href="' + esc(a.href) + '"' + (a.rotuloAcessivel ? ' aria-label="' + esc(a.rotuloAcessivel) + '"' : '') + '>' + esc(a.rotulo) + '</a>' : '') + '</div>';
       if (!a) return '';
       if (!a.rotulo) return '<p class="mf-proxima' + (a.opcional ? ' mf-proxima--disponivel' : '') + '">' + esc(a.texto) + '</p>';
       if (a.opcional) return '<div class="mf-proxima mf-proxima--disponivel"><span class="mf-proxima-rotulo">Disponível (opcional)</span> <a class="btn btn--sm mf-acao" data-acao="' + esc(a.tipo) + '" href="' + esc(a.href || '#avaliacoes') + '">' + esc(a.rotulo) + '</a></div>';

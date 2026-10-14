@@ -3313,13 +3313,18 @@
       avpInicioRegNatureza: '#avaliacoes?av=lista', avpInicioRegPosicionamento: '#avaliacoes?po=lista', avpInicioRegSquad: '#avaliacoes?sq=lista',
       avpInicioRegMapa: '#avaliacoes?mf=mapa'
     };
+    var inicioOuveNomes = false;
     function podeIniciarPosicionamento() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
     function renderInicio() {
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
-      function registro(id, titulo, texto) {
-        return '<li class="avp-inicio-registro">' + link(id, 'avp-inicio-registro-link', '<span class="avp-inicio-registro-nome">' + titulo + '</span>' +
-          '<span class="avp-inicio-registro-texto">' + texto + '</span><span class="avp-inicio-abrir" aria-hidden="true">›</span>') + '</li>';
+      /* uma caixa da representação das relações: o link para a consulta de sempre (título, pergunta, sigla) */
+      function caixa(id, titulo, pergunta, sigla, nota) {
+        return link(id, 'avp-rel-link', '<span class="avp-rel-titulo">' + titulo + '</span>' + (pergunta ? '<span class="avp-rel-pergunta">' + pergunta + '</span>' : '') +
+          '<span class="avp-rel-sigla">' + sigla + '</span>' + (nota ? '<span class="avp-rel-nota">' + nota + '</span>' : '') + '<span class="avp-inicio-abrir" aria-hidden="true">›</span>');
       }
+      /* os três resultados do Posicionamento: nomes da Taxonomia Organizacional (fonte única), sem definição */
+      var P = window.faPosicionamentos;
+      function ramo(c) { return P ? P.spanNome(c, 'avp-rel-ramo-nome') : ({ LINHA: 'Linha', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência' })[c]; }
       var h = '<div class="avp-inicio" id="avpInicio"><h2 class="avp-inicio-titulo">O que você precisa fazer?</h2>' +
         '<section class="avp-inicio-principal" id="avpInicioContinuar" aria-labelledby="avpInicioContinuarTitulo">' +
         '<h3 id="avpInicioContinuarTitulo">Continuar ou consultar um trabalho</h3>' +
@@ -3327,9 +3332,9 @@
         link('avpInicioJornada', 'btn btn--primary avp-inicio-acao', 'Abrir a Jornada de Avaliação e Posicionamento →') + '</section>' +
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
         '<div class="avp-inicio-cartoes">' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><h4>Avaliar a natureza de um item</h4>' +
-        '<p>Descobre se algo é um Produto/Serviço ou se tem outra natureza — componente, funcionalidade, capacidade, processo…</p>' +
-        '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Começar a avaliação de natureza') + '</div>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><h4>Avaliar Produto/Serviço ou outra natureza</h4>' +
+        '<p>Descubra se o item é um Produto/Serviço independente ou se faz parte de outra solução.</p>' +
+        '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
         '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><h4>Posicionar uma atuação organizacional</h4>' +
         '<p>Para uma responsabilidade, atuação ou capacidade organizacional que não passa pela avaliação de natureza.</p>' +
         '<p class="avp-inicio-sigla">Questionário O1–O9 · a hipótese inicial é obrigatória e não entra no cálculo</p>' +
@@ -3337,15 +3342,36 @@
           : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As atuações já posicionadas aparecem na Jornada.</p>') +
         '</div></div>' +
         '<p class="avp-inicio-nota" id="avpInicioNota">Já avaliou um produto ou serviço? O Posicionamento dele começa pela Jornada, no próprio item.</p></section>' +
+        /* Consultar registros completos — COMO OS ASSUNTOS SE RELACIONAM: o caminho principal tem três caixas
+           (Produto/Serviço → Posicionamento → Mapa), ligadas por possibilidades (tracejado), nunca etapas obrigatórias.
+           A Adequação à Squad é um RAMO lateral, só do resultado Linha (regra fixa Linha × Squad do motor), dentro da
+           caixa do Posicionamento: o caminho para o Mapa sai do Posicionamento e não passa por ela. O Mapa mostra o que
+           está CADASTRADO (estruturas e vínculos registrados), não uma consequência do O1–O9. Nada é afirmado como
+           cadastrado (Squads, vínculos) — só possibilidades. */
         '<section class="avp-inicio-consultar" id="avpInicioConsultar" aria-labelledby="avpInicioConsultarTitulo"><h3 id="avpInicioConsultarTitulo">Consultar registros completos</h3>' +
-        '<ul class="avp-inicio-registros">' +
-        registro('avpInicioRegNatureza', 'Avaliações de natureza (P1–P16)', 'Todas as avaliações e versões, filtros, exportação em Excel e PDF, atualização de motor e Lixeira.') +
-        registro('avpInicioRegPosicionamento', 'Posicionamentos (O1–O9)', 'Recomendações e decisões vigentes, em andamento, históricas e descartadas; exportação em Excel (o PDF fica na ficha).') +
-        registro('avpInicioRegSquad', 'Adequação à Squad (S1–S8)', 'Avalia se o trabalho pode se organizar por Squads — não a natureza do item nem o tipo de estrutura. ' +
-          'Só se aplica a itens posicionados no ramo Linha: Áreas Especializadas e CoEs não formam Squads. Histórico e exportação em Excel e PDF.') +
-        registro('avpInicioRegMapa', 'Mapa da Floresta', 'As estruturas responsáveis cadastradas e as relações entre elas.') +
-        '</ul></section></div>';
+        '<p class="avp-rel-subtitulo">Como os assuntos se relacionam</p>' +
+        '<ol class="avp-rel" id="avpRelacoes" aria-describedby="avpRelLegenda">' +
+        '<li class="avp-rel-no" id="avpRelNatureza">' + caixa('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'O que é o item?', 'P1–P16') + '</li>' +
+        '<li class="avp-rel-no" id="avpRelPosicionamento"><p class="avp-rel-seta" id="avpRelSetaPosicionamento">pode seguir<span class="avp-rel-seta-alt"> · ou direto pela Porta 2, sem P1–P16</span></p>' +
+        '<div class="avp-rel-caixa">' + caixa('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Que tipo de estrutura deve assumir a responsabilidade?', 'O1–O9') +
+        '<p class="avp-rel-resultado-rotulo" id="avpRelResultadoRotulo">Resultado:</p>' +
+        '<ul class="avp-rel-ramos" aria-labelledby="avpRelResultadoRotulo">' +
+        '<li class="avp-rel-ramo" data-ramo="LINHA">' + ramo('LINHA') + '</li>' +
+        '<li class="avp-rel-ramo" data-ramo="AREA_ESPECIALIZADA">' + ramo('AREA_ESPECIALIZADA') + '</li>' +
+        '<li class="avp-rel-ramo" data-ramo="COE">' + ramo('COE') + '</li></ul>' +
+        '<div class="avp-rel-squad" id="avpRelSquad" data-ramo="LINHA"><p class="avp-rel-seta avp-rel-seta--ramo">só se o resultado for ' + ramo('LINHA') + ' · opcional</p>' +
+        caixa('avpInicioRegSquad', 'Adequação à Squad', '', 'S1–S8', 'Avalia o trabalho; não cadastra Squad') + '</div>' +
+        '</div></li>' +
+        '<li class="avp-rel-no" id="avpRelMapa"><p class="avp-rel-seta" id="avpRelSetaMapa">vínculo registrado com uma estrutura concreta</p>' +
+        caixa('avpInicioRegMapa', 'Mapa da Floresta', 'Estruturas concretas cadastradas e vínculos registrados', '', 'Uma Linha pode existir sem Squads cadastradas') + '</li>' +
+        '</ol>' +
+        '<p class="avp-rel-legenda" id="avpRelLegenda"><span class="avp-rel-legenda-traco" aria-hidden="true"></span> possibilidade, não etapa obrigatória</p>' +
+        (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') +
+        '</section></div>';
       wrap.innerHTML = h;
+      /* os nomes chegam depois (a tela não espera o banco): atualiza no lugar */
+      if (P && !inicioOuveNomes) { inicioOuveNomes = true; P.onMudanca(function () { var el = document.getElementById('avpInicio'); if (el) P.atualizarDom(el); }); }
+      if (P) P.atualizarDom(wrap);
       Object.keys(DESTINOS_INICIO).forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.addEventListener('click', function (ev) {
@@ -3367,7 +3393,7 @@
       var filtrados = state.itens.filter(itemPassaFiltro);
       var html = '';
       if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="btn btn--sm" id="avpVoltarInicio">← Início da Avaliação</button>' +
-        '<h2 class="avp-lista-titulo" id="avpListaTitulo">Avaliações de natureza (P1–P16)</h2></div>';
+        '<h2 class="avp-lista-titulo" id="avpListaTitulo">Avaliações de Produto/Serviço ou outra natureza (P1–P16)</h2></div>';
       if (state.flashLista) {
         html += '<div class="avp-flash-success" id="avpFlashLista">' + esc(state.flashLista) +
           ' <button type="button" class="avp-flash-close" id="avpFlashListaClose" aria-label="Fechar">×</button></div>';

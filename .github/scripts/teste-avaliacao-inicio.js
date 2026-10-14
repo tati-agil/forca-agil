@@ -13,6 +13,12 @@
  *   7. Avaliação antiga, exportar, Lixeira: a lista P1–P16 em ?av=lista com busca, Exportar e Lixeira (F5 mantém);
  *      Posicionamentos e Squad com as listas e exportações de sempre.
  *   8. Mapa: pelo Início e pela Jornada.
+ * + Relações (Consultar registros completos): caminho principal Produto/Serviço → Posicionamento → Mapa, por
+ *   possibilidades (tracejado, nunca etapa obrigatória); a Adequação à Squad é ramo lateral, só do resultado Linha,
+ *   dentro da caixa do Posicionamento — o caminho para o Mapa não passa por ela (desktop e 375 px); o Mapa = estruturas
+ *   cadastradas e vínculos registrados; nada afirmado como cadastrado; os 4 links levam às consultas de sempre; teclado.
+ * + Botões do Mapa: "Ver Mapa completo" (geral) e "Localizar estrutura responsável no Mapa" (contextual, com o nome da
+ *   estrutura só no rótulo acessível).
  * + Três perfis (avaliacao-arquitetura, avaliacao, admin geral): só quem grava vê "Começar o posicionamento de uma
  *   atuação"; F5 e Voltar/Avançar; links diretos antigos (?avp=, ?po=…) intactos; 375 px sem rolagem lateral. */
 const { chromium } = require('playwright');
@@ -73,13 +79,46 @@ async function rodada(browser, viewport, rotulo) {
     'três blocos: continuar ou consultar, começar um trabalho novo, consultar registros completos');
   afirma(await page.locator('#avpInicio .btn--primary').count() === 1 && /Jornada de Avaliação e Posicionamento/.test(await texto(page, '#avpInicio .btn--primary')),
     'uma única ação principal: abrir a Jornada');
-  afirma(/natureza de um item/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Produto\/Serviço ou se tem outra natureza/.test(await texto(page, '#avpInicioCartaoNatureza')) &&
+  afirma(/Avaliar Produto\/Serviço ou outra natureza/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se o item é um Produto\/Serviço independente ou se faz parte de outra solução\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
+    (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' && /P1–P16/.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-sigla')) &&
     /Posicionar uma atuação organizacional/.test(await texto(page, '#avpInicioCartaoAtuacao')) && /hipótese inicial é obrigatória e não entra no cálculo/.test(await texto(page, '#avpInicioCartaoAtuacao')),
     'as duas portas explicadas em linguagem simples antes das siglas');
   afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Começar o posicionamento de uma atuação"');
-  afirma(/ramo Linha/.test(await texto(page, '#avpInicioRegSquad')) && /não a natureza do item nem o tipo de estrutura/.test(await texto(page, '#avpInicioRegSquad')),
-    'Adequação à Squad: o que avalia e quando se aplica');
-  afirma(/Lixeira/.test(await texto(page, '#avpInicioRegNatureza')) && /Excel/.test(await texto(page, '#avpInicioRegNatureza')), 'avaliações de natureza: versões, exportação e Lixeira');
+  console.log('Relações entre os assuntos');
+  const rel = await page.evaluate(() => {
+    const r = (id) => { const e = document.getElementById(id); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
+    const principal = Array.prototype.map.call(document.querySelectorAll('#avpRelacoes > li'), (li) => li.id);
+    const sq = document.getElementById('avpInicioRegSquad');
+    return { principal, squadNoPosic: !!sq.closest('#avpRelPosicionamento .avp-rel-caixa'), squadRamo: sq.closest('#avpRelSquad').getAttribute('data-ramo'),
+      ramos: Array.prototype.map.call(document.querySelectorAll('#avpRelPosicionamento .avp-rel-ramo'), (x) => x.getAttribute('data-ramo')).join(','),
+      setaMapa: document.getElementById('avpRelSetaMapa').textContent, setaPosic: document.getElementById('avpRelSetaPosicionamento').textContent,
+      legenda: document.getElementById('avpRelLegenda').textContent, rotuloSquad: document.getElementById('avpRelSquad').textContent,
+      links: ['avpInicioRegNatureza', 'avpInicioRegPosicionamento', 'avpInicioRegSquad', 'avpInicioRegMapa'].map((i) => document.getElementById(i).getAttribute('href')).join(' '),
+      posic: r('avpRelPosicionamento'), caixaPosic: (() => { const b = document.querySelector('#avpRelPosicionamento .avp-rel-caixa').getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; })(),
+      squad: r('avpRelSquad'), mapa: r('avpRelMapa'), natureza: r('avpRelNatureza'),
+      alturas: ['avpInicioRegNatureza', 'avpInicioRegPosicionamento', 'avpInicioRegSquad', 'avpInicioRegMapa'].map((i) => document.getElementById(i).getBoundingClientRect().height) };
+  });
+  afirma(rel.principal.join(',') === 'avpRelNatureza,avpRelPosicionamento,avpRelMapa', 'caminho principal com três caixas: Produto/Serviço → Posicionamento → Mapa (a Squad não é uma delas)', rel.principal.join(','));
+  afirma(rel.squadNoPosic && rel.squadRamo === 'LINHA' && /só se o resultado for .*Linha.* · opcional/i.test(rel.rotuloSquad) && /não cadastra Squad/.test(rel.rotuloSquad),
+    'Adequação à Squad: ramo lateral do resultado Linha, dentro do Posicionamento, opcional; não cadastra Squad', rel.rotuloSquad);
+  afirma(rel.ramos === 'LINHA,AREA_ESPECIALIZADA,COE', 'resultados do Posicionamento: Linha, Área Especializada e CoE (nomes da Taxonomia)', rel.ramos);
+  afirma(/vínculo registrado com uma estrutura concreta/.test(rel.setaMapa) && /ou direto pela Porta 2, sem P1–P16/.test(rel.setaPosic) && /possibilidade, não etapa obrigatória/.test(rel.legenda),
+    'o Mapa vem de vínculo registrado; Posicionamento também direto pela Porta 2; legenda: possibilidade, não etapa', rel.setaMapa + ' | ' + rel.setaPosic);
+  afirma(/Estruturas concretas cadastradas e vínculos registrados/.test(await texto(page, '#avpInicioRegMapa')) && /Uma Linha pode existir sem Squads cadastradas/.test(await texto(page, '#avpInicioRegMapa')),
+    'Mapa: o que está cadastrado; Linha sem Squads cadastradas é possível (nada afirmado como cadastrado)');
+  afirma(rel.links === '#avaliacoes?av=lista #avaliacoes?po=lista #avaliacoes?sq=lista #avaliacoes?mf=mapa', 'os quatro elementos levam às consultas de sempre', rel.links);
+  afirma(rel.alturas.every((a) => a >= 44), 'áreas de toque das quatro caixas ≥ 44 px', rel.alturas.join(','));
+  if (viewport.width >= 1000) {
+    afirma(rel.natureza.r <= rel.posic.l + 1 && rel.caixaPosic.r <= rel.mapa.l + 1, 'desktop: as três caixas lado a lado, com a seta para o Mapa saindo do Posicionamento');
+    afirma(rel.squad.t >= rel.caixaPosic.t && rel.squad.b <= rel.caixaPosic.b + 1 && rel.squad.r <= rel.caixaPosic.r + 1, 'desktop: a Squad fica dentro do Posicionamento, fora do caminho para o Mapa');
+  } else {
+    afirma(rel.natureza.b <= rel.posic.t + 1 && rel.caixaPosic.b <= rel.mapa.t + 1, '375 px: as três caixas em coluna');
+    afirma(rel.squad.t >= rel.caixaPosic.t && rel.squad.b <= rel.caixaPosic.b + 1, '375 px: a Squad fica dentro do Posicionamento; a seta para o Mapa vem depois da caixa do Posicionamento');
+  }
+  await page.focus('#avpInicioRegNatureza');
+  const ordem = [];
+  for (let i = 0; i < 4; i++) { ordem.push(await page.evaluate(() => document.activeElement.id)); await page.keyboard.press('Tab'); }
+  afirma(ordem.join(',') === 'avpInicioRegNatureza,avpInicioRegPosicionamento,avpInicioRegSquad,avpInicioRegMapa', 'teclado: Tab percorre as quatro caixas na ordem', ordem.join(','));
   afirma(await page.locator('#avpSquadBtn, #avpPosicionamentoBtn, #avpMapaFlorestaBtn').count() === 0, 'sem a antiga barra de atalhos soltos');
   afirma(await larguraOk(page), 'Início sem rolagem lateral');
   for (const id of ['avpInicioJornada', 'avpInicioNatureza', 'avpInicioAtuacao']) {
@@ -101,7 +140,9 @@ async function rodada(browser, viewport, rotulo) {
   await abreItem(page, 'oAgi');
   afirma(await page.locator(card('oAgi') + ' .mf-abrir-squad').count() === 0, 'CoE: sem "Acessar Adequação à Squad"');
   const verMapa = await page.getAttribute(card('oAgi') + ' .mf-acao', 'href');
-  afirma(verMapa === '#avaliacoes?mf=mapa&e=coe-ag&item=oAgi', '"Ver no Mapa" leva à estrutura vinculada, guardando o objeto', verMapa);
+  afirma(verMapa === '#avaliacoes?mf=mapa&e=coe-ag&item=oAgi', '"Localizar estrutura responsável no Mapa" leva à estrutura vinculada, guardando o objeto', verMapa);
+  afirma((await texto(page, card('oAgi') + ' .mf-acao')).trim() === 'Localizar estrutura responsável no Mapa' && await page.getAttribute(card('oAgi') + ' .mf-acao', 'aria-label') === 'Localizar CoE de Agilidade no Mapa',
+    'texto visível sem o nome; o nome da estrutura só no rótulo acessível', await page.getAttribute(card('oAgi') + ' .mf-acao', 'aria-label'));
   await page.click(card('oAgi') + ' .mf-acao');
   await page.waitForSelector('#mfmDetalheVoltarJornada', { timeout: 10000 });
   await page.click('#mfmDetalheVoltarJornada');
