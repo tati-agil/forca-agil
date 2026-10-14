@@ -79,9 +79,10 @@ async function recarregar(page, ctx) {
 async function responderF2b(page, valor, estrutura) {
   await page.check('#anFormResponder input[name="anResposta"][value="' + valor + '"]');
   if (estrutura) await page.selectOption('#anEstruturaCadastrada', estrutura);
-  const antes = await texto(page, '#avaliacoesAnalise');
   await page.click('#anResponderBtn');
-  await esperar(page, (a) => document.getElementById('avaliacoesAnalise').textContent !== a && !document.querySelector('#anResponderBtn[disabled]'), antes);
+  /* espera a escuta do banco devolver a resposta nova ao bloco do objeto (pode chegar depois da confirmação) */
+  const rot = { cadastrada: 'Está cadastrada', 'nao-cadastrada': 'Existe, mas não está cadastrada', informal: 'É informal' }[valor];
+  await esperar(page, (r) => { const o = document.getElementById('anObjetoF2b'); return !document.getElementById('anFormResponder') || !document.querySelector('#anFormResponder[data-q="F2b"]') ? !!o && o.textContent.indexOf(r) === 0 : false; }, rot);
 }
 async function adicionarEntrega(page, desc, ex) {
   const n = await page.evaluate(() => document.querySelectorAll('.an-entrega').length);
@@ -178,7 +179,7 @@ async function governanca(browser) {
   await responderF2b(page, 'nao-cadastrada');
   a = await analiseDoBanco(page, id);
   afirma(a.respostas.F2b.valor === 'nao-cadastrada' && !('estruturaId' in a.respostas.F2b) && !a.estruturaReferidaId, 'T5: gravado "nao-cadastrada" sem estrutura (registro e análise)', a.respostas.F2b);
-  afirma(/Existe, mas não está cadastrada$/.test((await texto(page, '#anObjetoF2b')).replace(/Alterar$/, '').trim()), 'a resposta aparece no bloco do objeto, com "Alterar"', await texto(page, '#anObjetoF2b'));
+  afirma(/^Existe, mas não está cadastrada\s*Alterar$/.test((await texto(page, '#anObjetoF2b')).trim()) && await existe(page, '#anAlterarF2b'), 'a resposta aparece no bloco do objeto, com "Alterar"', await texto(page, '#anObjetoF2b'));
   /* núcleo: a combinação incoerente é recusada mesmo se a tela fosse contornada */
   const recusa = await page.evaluate((i) => { const N = window.faAnalisesOrganizacionaisNucleo, F = window.faAnalisesFirebase; const est = F.estadoDoBanco({ analises: window.__CFG.__dbReal['analises-organizacionais'], propostas: {}, aprovacoes: {} });
     const r = N.responder(est, i, { pergunta: 'F2b', valor: { valor: 'informal', estruturaId: 'nucleo-gov' } }, { operacaoId: 'x', usuario: { id: 'u' }, agora: Date.now() }); return r.ok ? 'aceitou' : r.erros[0].codigo; }, id);
@@ -310,8 +311,11 @@ async function perfis(browser, idGov) {
   await page.click('#anCriarBtn'); await page.waitForSelector('#anFormResponder[data-q="F2b"]', { timeout: 20000 });
   afirma(await larguraOk(page), '375: F2b sem rolagem lateral');
   await responderF2b(page, 'informal');
-  await adicionarEntrega(page, 'Diagnósticos de aderência com recomendações');
-  afirma(await larguraOk(page) && await existe(page, '#anPasso4'), '375: passos, entregas e retorno sem rolagem lateral');
+  await adicionarEntrega(page, 'Diagnósticos de aderência dos processos de TI, com recomendações de governança');
+  await adicionarEntrega(page, 'Acompanhamentos contratuais e de desempenho de fornecedores de TI');
+  /* rolagem lateral não basta: um contêiner com overflow escondido corta o conteúdo sem rolar a página */
+  const estouro = await page.evaluate(() => Array.from(document.querySelectorAll('#avaliacoesAnalise *')).filter((e) => e.offsetParent && e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.tagName + '.' + e.className + '#' + e.id).slice(0, 5));
+  afirma(await larguraOk(page) && await existe(page, '#anPasso4') && !estouro.length, '375: passos, entregas (com o chip do que falta) e retorno sem rolagem lateral nem conteúdo cortado', estouro);
   const alturas = await page.$$eval('#avaliacoesAnalise .btn, #avaliacoesAnalise .an-opcao', (ls) => ls.filter((l) => l.offsetParent).map((l) => l.getBoundingClientRect().height));
   afirma(alturas.every((h) => h >= 40), '375: alvos de toque com pelo menos 40 px', Math.min.apply(null, alturas));
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));

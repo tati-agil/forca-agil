@@ -3497,7 +3497,7 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-trilha-s { font-weight: 400; }
 .an-proxima { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--accent); border-radius: 10px; background: rgba(245,197,24,.06); }
 .an-proxima p { margin: 0; flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
-.an-passo { display: grid; gap: 8px; min-width: 0; }
+.an-passo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
 .an-passo-cab { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
 .an-passo-cab h3 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
 .an-passo-num { display: inline-block; margin-right: 4px; color: var(--gold-soft); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
@@ -3516,8 +3516,9 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-conceitos p { margin: 0; }
 .an-pendencias ul { margin: 0 0 6px; padding-left: 18px; display: grid; gap: 2px; color: var(--ink-2); font-size: .9rem; }
 .an-secao-entregas h4 { margin: 4px 0 6px; }
-.an-entrega { flex-direction: column; align-items: stretch; }
-.an-entrega-cab { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.an-entrega { flex-direction: column; flex-wrap: nowrap; align-items: stretch; min-width: 0; }
+.an-entrega-cab { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; min-width: 0; }
+.an-entrega .an-chip, .an-opcao .an-chip { white-space: normal; }
 .an-dependente select:disabled { opacity: .55; cursor: not-allowed; }
 .an-entrada h4 { margin: 0; font-size: 1rem; }
 .an-caminhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
