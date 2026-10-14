@@ -3326,54 +3326,64 @@
        mostra as estruturas cadastradas no ADMIN (Estruturas) e os vínculos registrados na ficha do Posicionamento. As
        ligações são possibilidades, nunca etapas. Os nomes das áreas do ADMIN viram atalhos SÓ para quem entra nelas
        (Taxonomia: admin geral; Questionários, Motores, Motor de Squad e Estruturas: admin geral e Avaliação +
-       Configuração; Estruturas só com o cadastro habilitado); para os demais, o mesmo nome sem link. */
+       Configuração; Estruturas só com o cadastro habilitado); para os demais, o mesmo nome sem link. Os atalhos levam
+       ao lugar exato: Questionários ao cartão do questionário da atividade (&q=), Taxonomia ao domínio dela
+       (arquitetural para P1–P16, organizacional para O1–O9). As duas áreas abrem o bloco numa legenda curta: Avaliações
+       (onde o trabalho acontece) × ADMIN (o que o sustenta; não é etapa) — a mesma diferença que os links mostram pela forma. */
     function comoFuncionaHtml() {
       var A = window.faAuth, arq = !!(A && A.podeArquitetura && A.podeArquitetura()), geral = souAdminGeral(), cadastro = arq && estruturasDisponiveis();
       var P = window.faPosicionamentos;
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
       function ramo(c) { return P ? P.spanNome(c, 'avp-como-ramo') : ({ LINHA: 'Linha', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência' })[c]; }
       /* nome de uma área do ADMIN: atalho para quem entra, negrito para quem não entra; ◆ Taxonomia, ● Avaliação e Mapa (forma e texto; a cor só reforça) */
-      function fonte(texto, destino, aba, id, pode, area) {
+      function fonte(texto, destino, aba, id, pode, area, dominio) {
         var marca = '<span class="avp-como-marca" aria-hidden="true">' + (area === 'tax' ? '◆' : '●') + '</span>';
         if (!pode) return '<strong class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '">' + marca + texto + '</strong>';
-        return '<a class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '" id="' + id + '" href="' + destino + '" data-admin-destino="' + destino + '"' + (aba ? ' data-admin-aba="' + aba + '"' : '') + '>' + marca + texto + '</a>';
+        return '<a class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '" id="' + id + '" href="' + destino + '" data-admin-destino="' + destino + '"' + (aba ? ' data-admin-aba="' + aba + '"' : '') +
+          (dominio ? ' data-admin-dominio="' + dominio + '"' : '') + ' title="Abrir no ADMIN">' + marca + texto + '</a>';
       }
       function trab(id, titulo, detalhe) {
         return link(id, 'avp-como-link', '<span class="avp-como-titulo">' + titulo + '</span><span class="avp-como-detalhe">' + detalhe + '</span><span class="avp-inicio-abrir" aria-hidden="true">›</span>');
       }
       function linha(id, linkTrab, usa, extra) {
         return '<li class="avp-como-linha' + (extra || '') + '" id="' + id + '"><div class="avp-como-trab">' + linkTrab + '</div>' +
-          '<p class="avp-como-usa"><span class="avp-como-rot">No ADMIN:</span> ' + usa + '</p></li>';
+          '<p class="avp-como-usa"><span class="avp-como-rot">O ADMIN fornece:</span> ' + usa + '</p></li>';
       }
       var conector = function (id, texto) { return '<li class="avp-como-conector" id="' + id + '">' + texto + '</li>'; };
       return '<section class="avp-como" id="avpInicioConsultar" aria-labelledby="avpComoTitulo"><h3 id="avpComoTitulo">Como o sistema funciona</h3>' +
-        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista e mostra o que ela usa do ADMIN. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
-        '<div class="avp-como-cabecalho" aria-hidden="true"><span>Realizar e consultar (Avaliação)</span><span>Configurar e governar (ADMIN)</span></div>' +
+        '<div class="avp-como-areas" id="avpComoAreas">' +
+        '<p class="avp-como-area avp-como-area--aval" id="avpComoAreaAval"><span class="avp-como-area-nome">Avaliações</span> onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável.</p>' +
+        '<p class="avp-como-area avp-como-area--adm" id="avpComoAreaAdm"><span class="avp-como-area-nome">ADMIN</span> onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho. Não é etapa da Jornada.</p></div>' +
+        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
         '<ol class="avp-como-lista" id="avpComoFunciona">' +
         linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'Descobre o que o item é · P1–P16'),
-          'perguntas e regras em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios', arq, 'adm') + ' e ' +
-          fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + '; nomes das classificações na ' +
-          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax') + '.') +
+          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=p1p16', null, 'avpComoIrQuestionarios', arq, 'adm') + ', as regras em ' +
+          fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + ' e os nomes das classificações na ' +
+          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax', 'arquitetural') + '.') +
         conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento, que também começa direto por uma atuação (Caminho 2)') +
         linha('avpComoPosicionamento', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Indica o tipo de estrutura que deve cuidar da responsabilidade: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + ' · O1–O9'),
-          'perguntas em ' + fonte('Questionários', '#admin?arq=questionarios', null, 'avpComoIrQuestionarios2', arq, 'adm') + '; tipos de estrutura na ' +
-          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax') + '. Indica o tipo, mas não cria a estrutura.') +
+          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=o1o9', null, 'avpComoIrQuestionarios2', arq, 'adm') + ' e os tipos de estrutura na ' +
+          fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax', 'organizacional') + '; a regra é fixa no sistema. Indica o tipo, mas não cria a estrutura.') +
         linha('avpComoSquad', trab('avpInicioRegSquad', 'Adequação à Squad', 'Opcional, só quando o tipo indicado é ' + ramo('LINHA') + ': avalia se o trabalho pode se organizar em Squads · S1–S8'),
-          'regras no ' + fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Não cadastra Squad.', ' avp-como-linha--ramo') +
+          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=s1s8', null, 'avpComoIrQuestionarios3', arq, 'adm') + ' e as regras no ' +
+          fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Não cadastra Squad.', ' avp-como-linha--ramo') +
         conector('avpComoConectorMapa', 'a responsabilidade pode ser ligada a uma estrutura real') +
         linha('avpComoMapa', trab('avpInicioRegMapa', 'Mapa da Floresta', 'Mostra as estruturas registradas e o que está ligado a cada uma'),
-          'as estruturas são cadastradas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
-          '. A ligação de cada item a uma estrutura é registrada na ficha do Posicionamento. Uma Linha pode não ter Squads.') +
+          'o cadastro das estruturas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
+          '. A ligação de cada item a uma estrutura é registrada em Avaliações, na ficha do Posicionamento — não no ADMIN. Uma Linha pode não ter Squads.') +
         '</ol>' +
         (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') + '</section>';
     }
     /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço
        próprio, em faAbaAdmin): o ADMIN mostra "← Voltar ao Início de Avaliações" só nas entradas marcadas — quem entra no
        ADMIN direto não vê nada novo. A marca vive no histórico: sobrevive a F5 e Voltar/Avançar. */
-    function abrirAdminDoInicio(destino, aba) {
+    function abrirAdminDoInicio(destino, aba, dominio) {
       location.hash = destino;
       var st = Object.assign({}, history.state || {}, { faVoltaInicio: true });
       if (aba) st.faAbaAdmin = aba;
+      /* Taxonomia: o domínio da atividade de origem (lido pelo ADMIN ao abrir a aba; o pedido distingue um clique novo
+         de uma reabertura, para não desfazer a troca de domínio que a pessoa fizer depois) */
+      if (dominio) { st.faTaxDominio = dominio; st.faTaxPedido = Date.now(); }
       history.replaceState(st, '', location.href);
       if (window.faAdminAtualizarVoltaInicio) window.faAdminAtualizarVoltaInicio();
     }
@@ -3407,7 +3417,7 @@
         el.addEventListener('click', function (ev) {
           if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
           ev.preventDefault();
-          abrirAdminDoInicio(el.getAttribute('data-admin-destino'), el.getAttribute('data-admin-aba') || null);
+          abrirAdminDoInicio(el.getAttribute('data-admin-destino'), el.getAttribute('data-admin-aba') || null, el.getAttribute('data-admin-dominio') || null);
         });
       });
       /* os nomes chegam depois (a tela não espera o banco): atualiza no lugar */

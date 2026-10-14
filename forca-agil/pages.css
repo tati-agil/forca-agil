@@ -3356,39 +3356,53 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .est-tax-aviso { margin: 4px 0; }
 @media (max-width: 640px) { .mf-falta > div { grid-template-columns: minmax(0, 1fr); } }
 
-.admin-volta-inicio { margin: 0 0 8px; }
+.admin-volta-inicio { margin: 4px 0 0; }
 .admin-volta-inicio a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); text-decoration: none; font-weight: 600; }
 
-/* Início › Como o sistema funciona: cada atividade (Avaliação: realizar e consultar) com o que a sustenta (ADMIN:
-   configurar e governar). ◆ Taxonomia, ● Avaliação e Mapa — forma e texto; a cor só reforça. Ligações tracejadas =
-   possibilidades, nunca etapas; a Squad é ramo lateral recuado do Posicionamento. */
-.avp-inicio .avp-como-sub { margin: -4px 0 10px; font-size: .9rem; color: var(--ink-3); }
-.avp-como-cabecalho { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 18px; font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); padding: 0 6px 4px; }
+/* Início › Como o sistema funciona: a legenda das duas áreas (Avaliações: onde o trabalho acontece × ADMIN: o que o
+   sustenta, não é etapa) e cada atividade com o que o ADMIN fornece. A diferença se lê pela FORMA: Avaliações = faixa
+   sólida à esquerda (legenda e atividades); ADMIN = contorno tracejado (legenda e atalhos). ◆ Taxonomia, ● Avaliação e
+   Mapa — forma e texto; a cor só reforça. Ligações tracejadas = possibilidades, nunca etapas; a Squad é ramo lateral. */
+.avp-como { --como-adm: #7fd3c7; --como-tax: #b9a7f5; }
+.avp-como-areas { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 8px 18px; margin: 0 0 8px; }
+.avp-inicio .avp-como-area { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: .88rem; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
+.avp-como-area--aval { border-left: 3px solid var(--accent); background: rgba(245, 197, 24, .06); }
+.avp-como-area--adm { border: 1px dashed var(--como-adm); }
+.avp-como-area-nome { display: block; font-family: var(--font-mono); font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.avp-como-area--aval .avp-como-area-nome { color: var(--accent); }
+.avp-como-area--adm .avp-como-area-nome { color: var(--como-adm); }
+.avp-inicio .avp-como-sub { margin: 0 0 6px; font-size: .9rem; color: var(--ink-3); }
 .avp-como-lista { list-style: none; margin: 0; padding: 0; }
 .avp-como-linha { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 4px 18px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
 .avp-como-linha--ramo { margin-left: 22px; padding-left: 12px; border-top: 0; border-left: 2px dashed var(--line-strong); }
-.avp-como-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; min-height: 44px; color: inherit; text-decoration: none; border-radius: 8px; padding: 4px 6px; }
-.avp-como-link:hover { background: rgba(127, 127, 127, .08); }
+.avp-como-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; min-height: 44px; color: inherit; text-decoration: none; border-radius: 8px; padding: 4px 6px 4px 10px;
+  border-left: 3px solid var(--accent); background: rgba(245, 197, 24, .04); }
+.avp-como-link:hover { background: rgba(245, 197, 24, .10); }
 .avp-como-link:focus-visible { outline: 3px solid var(--accent, #2a6fdb); outline-offset: 2px; }
 .avp-como-titulo { font-weight: 600; grid-column: 1; }
 .avp-como-detalhe { grid-column: 1; font-size: .86rem; color: var(--ink-3); overflow-wrap: anywhere; }
 .avp-como-link .avp-inicio-abrir { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 1.3rem; opacity: .6; }
-.avp-inicio .avp-como-usa { margin: 0; padding: 4px 6px 0; font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; }
-.avp-como-rot { display: none; font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.avp-inicio .avp-como-usa { margin: 0; padding: 4px 6px 0; font-size: .9rem; line-height: 1.9; overflow-wrap: anywhere; }
+.avp-como-rot { font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--como-adm); }
 .avp-como-fonte { font-weight: 600; white-space: nowrap; }
-.avp-como-fonte--tax { color: #b9a7f5; }
-.avp-como-fonte--adm { color: #7fd3c7; }
-a.avp-como-fonte { text-decoration: underline; text-underline-offset: 3px; }
+.avp-como-fonte--tax { color: var(--como-tax); }
+.avp-como-fonte--adm { color: var(--como-adm); }
+/* atalho para o ADMIN: etiqueta de contorno tracejado (sem link, para quem não entra: só o nome em negrito) */
+a.avp-como-fonte { display: inline-block; text-decoration: none; border: 1px dashed currentColor; border-radius: 6px; padding: 0 7px; line-height: 1.55; }
+a.avp-como-fonte:hover { background: rgba(127, 211, 199, .10); }
+a.avp-como-fonte--tax:hover { background: rgba(185, 167, 245, .12); }
 a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .avp-como-marca { font-size: .74rem; margin-right: 3px; }
 .avp-como-conector { position: relative; padding: 2px 0 2px 26px; font-size: .8rem; color: var(--ink-3); }
 .avp-como-conector::before { content: ''; position: absolute; left: 12px; top: 0; bottom: 0; border-left: 2px dashed currentColor; }
 @media (max-width: 640px) {
-  .avp-como-cabecalho { display: none; }
+  .avp-como-areas { grid-template-columns: minmax(0, 1fr); }
+  .avp-como-area-nome { display: inline; margin-right: 6px; }
+  .avp-inicio .avp-como-area { padding: 6px 10px; }
   .avp-como-linha { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .avp-como-linha--ramo { margin-left: 10px; }
-  .avp-como-rot { display: inline; }
-  a.avp-como-fonte { display: inline-block; padding: 5px 0; }
+  .avp-como-rot { margin-right: 2px; }
+  a.avp-como-fonte { padding: 3px 8px; }
 }
 
 /* ADMIN › Questionários: um cartão por questionário (vigente + ações à vista); correções editoriais e a versão futura do
@@ -3397,7 +3411,10 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .avp-config-item-card--foco { outline: 2px solid var(--gold, #f5c518); outline-offset: 3px; }
 .avp-config-item-card:focus { outline: 2px solid var(--gold, #f5c518); outline-offset: 3px; }
 .avp-config-sub { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
-.avp-config-sub > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; color: var(--ink-2); }
+.avp-config-sub > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink-2); list-style: none; }
+.avp-config-sub > summary::-webkit-details-marker { display: none; }
+.avp-config-sub > summary::before { content: '▸'; flex: none; color: var(--accent); font-size: .95rem; }
+.avp-config-sub[open] > summary::before { content: '▾'; }
 .avp-config-sub--futura > summary { color: var(--ink-3); }
 .avp-config-sub-corpo { padding-top: 6px; }
 .avp-config-sub-corpo > .avp-form-card { background: var(--panel-2, var(--panel)); }
