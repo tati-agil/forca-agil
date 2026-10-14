@@ -3407,3 +3407,9 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .avp-config-sub--futura > summary { color: var(--ink-3); }
 .avp-config-sub-corpo { padding-top: 6px; }
 .avp-config-sub-corpo > .avp-form-card { background: var(--panel-2, var(--panel)); }
+
+/* ADMIN › Motores: resumo da versão futura sempre à vista; a governança fica na seção avançada recolhida.
+   D2: a lista de prontidão herdava padding-left 0 e os marcadores saíam para fora do cartão. */
+.avp-inicio .avp-pos-resumo, .avp-pos-resumo { margin: 8px 0 4px; color: var(--ink-2); }
+.avp-pos-prontidao, #avpPosImpacto ul { list-style: disc; padding-left: 22px; margin: 6px 0 10px; }
+.avp-pos-prontidao li, #avpPosImpacto li { margin-bottom: 4px; }

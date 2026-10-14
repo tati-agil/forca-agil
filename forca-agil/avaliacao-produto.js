@@ -6002,6 +6002,10 @@
       var defA = N.definicao(alvo), defV = N.definicao(emVigor);
       var pubs = (alvo === 1 ? [ultimaRedacaoPublicada(codigo, 1)] : Q.versoesPublicadasConteudoMotor(codigo, alvo)).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
       var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null, redacaoValidada: redacaoAtualValidada(codigo, alvo) });
+      /* o que está em vigor fica à vista; a preparação da versão futura (prontidão, simulação, impacto, aprovação dupla,
+         fronteira, histórico) vai para uma seção avançada recolhida — inteira, com todos os bloqueios, ao abrir */
+      html += '<p class="avp-pos-resumo" id="avpPosResumo"><strong>v' + alvo + ' inativa</strong> — existem requisitos pendentes para entrada em vigor. A v' + emVigor + ' continua em vigor.</p>';
+      var inicioAvancado = html.length;
       html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
         return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
       }).join('') +
@@ -6033,6 +6037,9 @@
         html += '<p class="avp-ficha-meta">Quem aprovar a entrada em vigor terá de reconhecer explicitamente estes números, inclusive os incomparáveis. Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
       }
       html += renderGovernancaPosicionamento(cp, alvo, defA, pr);
+      var avancado = html.slice(inicioAvancado);
+      html = html.slice(0, inicioAvancado) + recolhivel('motorPosGovernanca', 'avpPosAvancado', 'avp-config-sub avp-pos-avancado',
+        'Governança e versões futuras — prontidão, simulação, impacto e aprovação da v' + alvo, !!(cp.simulacao || cp.impacto || cp.lendo || cp.erro), avancado);
       return html + '</div>';
     }
     /* ---- B3: governança persistida — proposta de entrada em vigor e aprovação dupla. Toda a regra está em
