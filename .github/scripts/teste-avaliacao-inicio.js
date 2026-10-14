@@ -288,23 +288,23 @@ async function rodada(browser, viewport, rotulo) {
   await esperar(page, () => !!document.getElementById('avpComoIrEstruturas'), undefined, 15000);
   await page.waitForTimeout(300);
   await page.click('#avpComoIrEstruturas');
-  await esperar(page, () => location.hash.indexOf('#admin?arq=estruturas') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
+  await esperar(page, () => location.hash.indexOf('#admin?arq=estruturas') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra() && /Voltar ao Início de Avaliações/.test(await texto(page, '#adminVoltaInicio')), 'atalho Estruturas: abre ADMIN › Estruturas com "← Voltar ao Início de Avaliações"');
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
-  await esperar(page, () => !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
+  await esperar(page, () => !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra() && /^#admin\?arq=estruturas/.test(await hash(page)), 'F5 no ADMIN: continua com o retorno ao Início');
   await page.goBack();
   await noInicio(page);
   afirma(true, 'Voltar do navegador: Início');
   await page.goForward();
-  await esperar(page, () => /^#admin/.test(location.hash) && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
+  await esperar(page, () => /^#admin/.test(location.hash) && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra(), 'Avançar: de volta ao ADMIN, com o retorno');
   afirma(await larguraOk(page), 'ADMIN com a barra de retorno sem rolagem lateral');
   await page.click('#adminVoltaInicioLink');
   await noInicio(page);
   afirma(true, '"← Voltar ao Início de Avaliações" leva ao Início');
   await page.click('#avpComoIrQuestionarios');
-  await esperar(page, () => location.hash.indexOf('#admin?arq=questionarios') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
+  await esperar(page, () => location.hash.indexOf('#admin?arq=questionarios') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra(), 'atalho Questionários: abre ADMIN › Questionários com o retorno ao Início');
   await page.click('#adminVoltaInicioLink');
   await noInicio(page);
