@@ -703,6 +703,12 @@
       "sobre": "PR 4: os 8 casos de referência (Capec e Assessoria completas, Jurídico P1–P16 representado pela atuação com o A validar explicado, Agilidade Porta 2, sem Posicionamento, A validar em análise sem obrigação de decidir, firme sem estrutura com cadastro de tipo pré-escolhido, estrutura disponível sem vínculo); resumo e filtro; ida e volta por endereço estável (F5); Mapa nas estruturas cadastradas, demonstração só por escolha; perfil de consulta; rede lenta; 375 px."
     },
     {
+      "arquivo": ".github/scripts/teste-recuperar-senha.js",
+      "nome": "Recuperação de senha: Esqueci minha senha e Redefinir senha do ADMIN — link do Firebase, mensagens neutras, falhas com a causa (desktop e celular)",
+      "duracao": 20,
+      "sobre": "Nenhum e-mail enviado (o falso só registra o pedido). Textos sem senha temporária; sucesso neutro, igual para conta existente e inexistente (proteção contra enumeração), com o remetente e a quarentena; pedido com idioma pt-BR e endereço de volta; rede, excesso de tentativas, e-mail inválido, código desconhecido e sem resposta (prazo no relógio falso); e-mail de fora barrado sem pedido; console sem e-mail; ADMIN com o mesmo envio, sem a mensagem falsa de sem cadastro nem err.message cru; 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-avaliacao-inicio.js",
       "nome": "Início da Avaliação: continuar/consultar, começar e registros completos — os 8 casos, três perfis, retornos contextuais (desktop e celular)",
       "duracao": 30,
