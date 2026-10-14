@@ -2713,7 +2713,8 @@
       /* Estruturas Organizacionais guardam a estrutura aberta no próprio endereço (&e=<id>): não é outra área */
       if (area === 'estruturas' && /^#admin\?arq=estruturas(&|$)/.test(location.hash || '')) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
-      if (!areaDoEndereco()) { history.replaceState({ arq: area, seqArq: seqArqAtual() }, '', desejado); politicaRolagemAdmin(); return; }
+      var volta = history.state && history.state.faVoltaInicio ? { faVoltaInicio: true } : {}; /* atalho do Início: a marca segue */
+      if (!areaDoEndereco()) { history.replaceState(Object.assign({ arq: area, seqArq: seqArqAtual() }, volta), '', desejado); politicaRolagemAdmin(); return; }
       /* "← Voltar" da tela para a área de onde a pessoa veio = o Voltar do navegador (não empilha
          uma entrada nova; o Avançar continua funcionando). */
       var anterior = history.state && history.state.anteriorArq;
@@ -2728,7 +2729,7 @@
         history.back();
         return;
       }
-      history.pushState({ arq: area, anteriorArq: areaDoEndereco() }, '', desejado);
+      history.pushState(Object.assign({ arq: area, anteriorArq: areaDoEndereco() }, volta), '', desejado);
       politicaRolagemAdmin();
     }
     /* Quem posiciona a rolagem nas áreas da Arquitetura (#admin?arq=…) é esta tela (rolarAdmin, e o
@@ -3314,14 +3315,56 @@
       avpInicioRegMapa: '#avaliacoes?mf=mapa'
     };
     var inicioOuveNomes = false;
+    /* O QUE SUSTENTA ESTE TRABALHO: as duas áreas do ADMIN, com as MESMAS funções das etiquetas das caixas acima (relações
+       verificadas no código: Taxonomia = definições, tipos/relações e ligações; Avaliação e Mapa = critérios e perguntas, e o
+       cadastro das estruturas). O vínculo item × estrutura NÃO é do ADMIN: fica na ficha do Posicionamento. Acessos só para
+       quem entra naquela área (nenhum link leva a tela bloqueada); para os demais, só quem mantém. Não são etapas. */
+    function sustentaHtml() {
+      var A = window.faAuth, arq = !!(A && A.podeArquitetura && A.podeArquitetura()), geral = souAdminGeral();
+      function ir(texto, destino, aba, id) { return '<a class="avp-sustenta-link" id="' + id + '" href="' + destino + '" data-admin-destino="' + destino + '"' + (aba ? ' data-admin-aba="' + aba + '"' : '') + '>' + texto + ' ›</a>'; }
+      return '<section class="avp-sustenta" id="avpSustenta" aria-labelledby="avpSustentaTitulo"><h3 id="avpSustentaTitulo">O que sustenta este trabalho</h3>' +
+        '<p class="avp-sustenta-sub">Definido no ADMIN e usado pelas atividades acima (as etiquetas ◆ e ●). Não são etapas.</p><div class="avp-sustenta-areas">' +
+        '<div class="avp-sustenta-area avp-sustenta-area--tax" id="avpSustentaTaxonomia"><h4><span aria-hidden="true">◆</span> ADMIN › Taxonomia</h4>' +
+        '<p class="avp-sustenta-quem">Mantida pelo admin geral</p><ul>' +
+        '<li><strong>Definições</strong> — nomes e definições oficiais usados nas avaliações, no Posicionamento e no Mapa.</li>' +
+        '<li><strong>Tipos e relações</strong> — o que pode ser cadastrado e composto como estrutura.</li>' +
+        '<li><strong>Ligações</strong> — ligam cada código dos motores ao seu conceito.</li></ul>' +
+        (geral ? '<p class="avp-sustenta-acoes">' + ir('Abrir a Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpSustentaIrTaxonomia') + '</p>' : '') + '</div>' +
+        '<div class="avp-sustenta-area avp-sustenta-area--adm" id="avpSustentaAdmin"><h4><span aria-hidden="true">●</span> ADMIN › Avaliação e Mapa</h4>' +
+        '<p class="avp-sustenta-quem">Admin geral e Avaliação + Configuração</p><ul>' +
+        '<li><strong>Critérios e perguntas</strong> (Configuração) — questionários de P1–P16, O1–O9 e S1–S8 e motores.' +
+        (arq ? ' <span class="avp-sustenta-acoes">' + ir('Questionários', '#admin?arq=questionarios', null, 'avpSustentaIrQuestionarios') + ir('Motores', '#admin?arq=motores', null, 'avpSustentaIrMotores') + '</span>' : '') + '</li>' +
+        '<li><strong>Estruturas</strong> (Cadastro) — Linhas, Áreas Especializadas e CoEs, e sua organização no Mapa.' +
+        (arq ? ' <span class="avp-sustenta-acoes">' + ir('Estruturas', '#admin?arq=estruturas', null, 'avpSustentaIrEstruturas') + '</span>' : '') + '</li></ul>' +
+        '<p class="avp-sustenta-nota" id="avpSustentaVinculo">O vínculo de cada item com uma estrutura fica na ficha do Posicionamento, não aqui.</p></div>' +
+        '</div></section>';
+    }
+    /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço
+       próprio, em faAbaAdmin): o ADMIN mostra "← Voltar ao Início de Avaliações" só nas entradas marcadas — quem entra no
+       ADMIN direto não vê nada novo. A marca vive no histórico: sobrevive a F5 e Voltar/Avançar. */
+    function abrirAdminDoInicio(destino, aba) {
+      location.hash = destino;
+      var st = Object.assign({}, history.state || {}, { faVoltaInicio: true });
+      if (aba) st.faAbaAdmin = aba;
+      history.replaceState(st, '', location.href);
+      if (window.faAdminAtualizarVoltaInicio) window.faAdminAtualizarVoltaInicio();
+    }
     function podeIniciarPosicionamento() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
     function renderInicio() {
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
       /* uma caixa da representação das relações: o link para a consulta de sempre (título, pergunta, sigla) */
-      function caixa(id, titulo, pergunta, sigla, nota) {
-        return link(id, 'avp-rel-link', '<span class="avp-rel-titulo">' + titulo + '</span>' + (pergunta ? '<span class="avp-rel-pergunta">' + pergunta + '</span>' : '') +
-          '<span class="avp-rel-sigla">' + sigla + '</span>' + (nota ? '<span class="avp-rel-nota">' + nota + '</span>' : '') + '<span class="avp-inicio-abrir" aria-hidden="true">›</span>');
+      /* etiqueta "função: área do ADMIN" — o que a caixa usa de cada área (verificado no código). A área se lê pelo texto e
+         pela forma (◆ Taxonomia, ● Avaliação e Mapa); a cor só reforça. */
+      function etiqueta(area, texto) {
+        return '<span class="avp-rel-tag avp-rel-tag--' + area + '" data-area="' + area + '"><span class="avp-rel-tag-marca" aria-hidden="true">' + (area === 'tax' ? '◆' : '●') + '</span>' + texto + '</span>';
       }
+      function caixa(id, titulo, pergunta, sigla, nota, tags) {
+        return link(id, 'avp-rel-link', '<span class="avp-rel-titulo">' + titulo + '</span>' + (pergunta ? '<span class="avp-rel-pergunta">' + pergunta + '</span>' : '') +
+          '<span class="avp-rel-sigla">' + sigla + '</span>' + (nota ? '<span class="avp-rel-nota">' + nota + '</span>' : '') +
+          (tags ? '<span class="avp-rel-tags">' + tags + '</span>' : '') + '<span class="avp-inicio-abrir" aria-hidden="true">›</span>');
+      }
+      var TAG_DEF = etiqueta('tax', 'Definições: Taxonomia'), TAG_CRIT = etiqueta('adm', 'Critérios: Configuração'),
+        TAG_PERG = etiqueta('adm', 'Perguntas: Configuração'), TAG_EST = etiqueta('adm', 'Estruturas: Cadastro');
       /* os três resultados do Posicionamento: nomes da Taxonomia Organizacional (fonte única), sem definição */
       var P = window.faPosicionamentos;
       function ramo(c) { return P ? P.spanNome(c, 'avp-rel-ramo-nome') : ({ LINHA: 'Linha', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência' })[c]; }
@@ -3353,29 +3396,31 @@
         '<section class="avp-inicio-consultar" id="avpInicioConsultar" aria-labelledby="avpInicioConsultarTitulo"><h3 id="avpInicioConsultarTitulo">Consultar registros completos</h3>' +
         '<p class="avp-rel-subtitulo">Como os assuntos se relacionam</p>' +
         '<ol class="avp-rel" id="avpRelacoes" aria-describedby="avpRelLegenda">' +
-        '<li class="avp-rel-no" id="avpRelNatureza">' + caixa('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'O que é o item?', 'P1–P16') + '</li>' +
+        '<li class="avp-rel-no" id="avpRelNatureza">' + caixa('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'O que é o item?', 'P1–P16', '', TAG_DEF + TAG_CRIT) + '</li>' +
         '<li class="avp-rel-no" id="avpRelPosicionamento"><p class="avp-rel-seta" id="avpRelSetaPosicionamento">pode seguir<span class="avp-rel-seta-alt"> · ou direto pelo Caminho 2 (atuação), sem P1–P16</span></p>' +
-        '<div class="avp-rel-caixa">' + caixa('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Que tipo de estrutura deve assumir a responsabilidade?', 'O1–O9') +
+        '<div class="avp-rel-caixa">' + caixa('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Que tipo de estrutura deve assumir a responsabilidade?', 'O1–O9', '', TAG_DEF + TAG_PERG) +
         '<p class="avp-rel-resultado-rotulo" id="avpRelResultadoRotulo">Resultado:</p>' +
         '<ul class="avp-rel-ramos" aria-labelledby="avpRelResultadoRotulo">' +
         '<li class="avp-rel-ramo" data-ramo="LINHA">' + ramo('LINHA') + '</li>' +
         '<li class="avp-rel-ramo" data-ramo="AREA_ESPECIALIZADA">' + ramo('AREA_ESPECIALIZADA') + '</li>' +
         '<li class="avp-rel-ramo" data-ramo="COE">' + ramo('COE') + '</li></ul>' +
         '<div class="avp-rel-squad" id="avpRelSquad" data-ramo="LINHA"><p class="avp-rel-seta avp-rel-seta--ramo">só se o resultado for ' + ramo('LINHA') + ' · opcional</p>' +
-        caixa('avpInicioRegSquad', 'Adequação à Squad', '', 'S1–S8', 'Avalia o trabalho; não cadastra Squad') + '</div>' +
+        caixa('avpInicioRegSquad', 'Adequação à Squad', '', 'S1–S8', 'Avalia o trabalho; não cadastra Squad', TAG_CRIT) + '</div>' +
         '</div></li>' +
-        '<li class="avp-rel-no" id="avpRelMapa"><p class="avp-rel-seta" id="avpRelSetaMapa">vínculo registrado com uma estrutura concreta</p>' +
-        caixa('avpInicioRegMapa', 'Mapa da Floresta', 'Estruturas concretas cadastradas e vínculos registrados', '', 'Uma Linha pode existir sem Squads cadastradas') + '</li>' +
+        '<li class="avp-rel-no" id="avpRelMapa"><p class="avp-rel-seta" id="avpRelSetaMapa">vínculo registrado com uma estrutura concreta<span class="avp-rel-seta-alt"> (na ficha do Posicionamento)</span></p>' +
+        caixa('avpInicioRegMapa', 'Mapa da Floresta', 'Estruturas concretas cadastradas e vínculos registrados', '', 'Uma Linha pode existir sem Squads cadastradas', TAG_EST + TAG_DEF) + '</li>' +
         '</ol>' +
         '<p class="avp-rel-legenda" id="avpRelLegenda"><span class="avp-rel-legenda-traco" aria-hidden="true"></span> possibilidade, não etapa obrigatória</p>' +
         (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') +
-        /* I1 — QUEM SUSTENTA: o que fornece conceitos, regras e estruturas a tudo acima. Só texto: não são etapas nem atalhos. */
-        '<div class="avp-sustenta" id="avpSustenta" aria-labelledby="avpSustentaTitulo"><p class="avp-sustenta-titulo" id="avpSustentaTitulo">Quem sustenta (não são etapas)</p><ul>' +
-        '<li id="avpSustentaTaxonomia"><strong>ADMIN › Taxonomia</strong> — conceitos, definições e relações oficiais: dão os nomes e dizem quais estruturas podem ser cadastradas. Mantida pelo admin geral.</li>' +
-        '<li id="avpSustentaAdmin"><strong>ADMIN › Avaliação e Mapa</strong> — configura questionários e motores e cadastra as estruturas concretas que recebem as responsabilidades e aparecem no Mapa.</li>' +
-        '</ul></div>' +
-        '</section></div>';
+        '</section>' + sustentaHtml() + '</div>';
       wrap.innerHTML = h;
+      Array.prototype.forEach.call(wrap.querySelectorAll('[data-admin-destino]'), function (el) {
+        el.addEventListener('click', function (ev) {
+          if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+          ev.preventDefault();
+          abrirAdminDoInicio(el.getAttribute('data-admin-destino'), el.getAttribute('data-admin-aba') || null);
+        });
+      });
       /* os nomes chegam depois (a tela não espera o banco): atualiza no lugar */
       if (P && !inicioOuveNomes) { inicioOuveNomes = true; P.onMudanca(function () { var el = document.getElementById('avpInicio'); if (el) P.atualizarDom(el); }); }
       if (P) P.atualizarDom(wrap);

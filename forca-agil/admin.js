@@ -57,8 +57,29 @@
     return true;
   };
 
+  /* Entrada no ADMIN por um atalho do Início de Avaliações (avaliacao-produto.js marca a entrada do histórico com
+     faVoltaInicio e, para a aba sem endereço próprio, faAbaAdmin): mostra "← Voltar ao Início de Avaliações" e reabre a aba
+     (F5, Voltar/Avançar). Sem a marca — quem entra no ADMIN direto —, nada aparece. */
+  function marcaVoltaInicio() { var st = history.state; return st && st.faVoltaInicio ? st : null; }
+  window.faAdminAtualizarVoltaInicio = function () {
+    var pag = document.getElementById('page-admin'), wrap = pag && pag.querySelector('.wrap');
+    if (!wrap) return;
+    var el = document.getElementById('adminVoltaInicio');
+    if (!el) {
+      el = document.createElement('p'); el.className = 'admin-volta-inicio'; el.id = 'adminVoltaInicio'; el.hidden = true;
+      el.innerHTML = '<a href="#avaliacoes" id="adminVoltaInicioLink">← Voltar ao Início de Avaliações</a>';
+      wrap.insertBefore(el, wrap.firstChild);
+    }
+    var m = marcaVoltaInicio();
+    el.hidden = !(m && /^#admin(\?|$)/.test(location.hash || ''));
+    if (m && m.faAbaAdmin && !el.hidden) window.faAdminAbrirAba(m.faAbaAdmin);
+  };
+  window.addEventListener('hashchange', function () { window.faAdminAtualizarVoltaInicio(); });
+  window.addEventListener('popstate', function () { window.faAdminAtualizarVoltaInicio(); });
+
   document.addEventListener('DOMContentLoaded', function () {
     if (window.faRouter) window.faRouter.onPageInit('admin', initAdmin);
+    window.faAdminAtualizarVoltaInicio(); /* F5 numa entrada marcada pelo atalho do Início */
 
     /* Tab switching inside admin */
     document.querySelectorAll('.admin-tab-btn').forEach(function (btn) {
@@ -148,6 +169,7 @@
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
     if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
     initCertificados();
+    window.faAdminAtualizarVoltaInicio();
   }
 
   /* Admin restrito ("Avaliação + Configuração"): só o painel Avaliação e Mapa.
@@ -191,6 +213,7 @@
        já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
     if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
+    window.faAdminAtualizarVoltaInicio();
   }
 
   /* fa-espera guardava UMA entrada por pessoa. Agora guarda uma por pessoa e

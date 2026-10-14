@@ -20,7 +20,11 @@
  * + Botões do Mapa: "Ver Mapa completo" (geral) e "Localizar estrutura responsável no Mapa" (contextual, com o nome da
  *   estrutura só no rótulo acessível).
  * + I1: os dois caminhos com nome e exemplos (Caminho 1 — Produto/Serviço; Caminho 2 — atuação, sem P1–P16) e a faixa
- *   "Quem sustenta" (ADMIN › Taxonomia e ADMIN › Avaliação e Mapa, só texto: nem etapa nem botão).
+ *   "Quem sustenta" (I1), agora "O que sustenta este trabalho": etiquetas "função: área" nas caixas (◆ Definições:
+ *   Taxonomia; ● Critérios/Perguntas: Configuração; ● Estruturas: Cadastro — validadas no código), as duas áreas do ADMIN
+ *   com o vínculo na ficha do Posicionamento, acessos SÓ para quem entra (admin geral: Taxonomia; Avaliação +
+ *   Configuração: Questionários, Motores, Estruturas; consulta: nenhum) e "← Voltar ao Início de Avaliações" no ADMIN só
+ *   quando se entra pelos atalhos (F5, Voltar/Avançar; entrada direta não mostra nada).
  * + Três perfis (avaliacao-arquitetura, avaliacao, admin geral): só quem grava vê "Começar o posicionamento de uma
  *   atuação"; F5 e Voltar/Avançar; links diretos antigos (?avp=, ?po=…) intactos; 375 px sem rolagem lateral. */
 const { chromium } = require('playwright');
@@ -92,11 +96,23 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/Exemplos: Capec, Assessoria Previdenciária\./.test(await texto(page, '#avpInicioCartaoNatureza')) && /Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade\./.test(await texto(page, '#avpInicioCartaoAtuacao')),
     'exemplos de uso de cada caminho (sem afirmar situação de nenhum registro)');
   afirma(/Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro\./.test(await texto(page, '#avpInicioNota')), 'os dois caminhos não são etapas de um mesmo fluxo');
+  console.log('O que sustenta este trabalho');
+  const tags = await page.evaluate(() => { const t = (id) => Array.prototype.map.call(document.querySelectorAll('#' + id + ' .avp-rel-tag'), (x) => x.getAttribute('data-area') + ':' + x.textContent.replace(/[◆●]/g, '').trim()).join(' | ');
+    return { nat: t('avpInicioRegNatureza'), pos: t('avpInicioRegPosicionamento'), sq: t('avpInicioRegSquad'), mapa: t('avpInicioRegMapa') }; });
+  afirma(tags.nat === 'tax:Definições: Taxonomia | adm:Critérios: Configuração' && tags.pos === 'tax:Definições: Taxonomia | adm:Perguntas: Configuração' &&
+    tags.sq === 'adm:Critérios: Configuração' && tags.mapa === 'adm:Estruturas: Cadastro | tax:Definições: Taxonomia', 'etiquetas "função: área" de cada caixa (as relações verificadas no código)', JSON.stringify(tags));
+  afirma(await page.evaluate(() => Array.prototype.every.call(document.querySelectorAll('.avp-rel-tag'), (x) => /^[◆●]$/.test((x.querySelector('.avp-rel-tag-marca') || {}).textContent || '') && /: /.test(x.textContent))),
+    'a área se lê pela forma (◆/●) e pelo texto, não só pela cor');
   const sust = await texto(page, '#avpSustenta');
-  afirma(/Quem sustenta \(não são etapas\)/.test(sust) && /ADMIN › Taxonomia/.test(sust) && /admin geral/.test(sust) && /ADMIN › Avaliação e Mapa/.test(sust) && /estruturas concretas/.test(sust),
-    '"Quem sustenta": Taxonomia (admin geral) e Avaliação e Mapa (configuração e cadastro de estruturas)', sust);
-  afirma(await page.locator('#avpSustenta a, #avpSustenta button').count() === 0 && await page.locator('#avpInicio a, #avpInicio button').count() === 7,
-    '"Quem sustenta" sem botão nem link; o Início continua com as mesmas 7 ações', String(await page.locator('#avpInicio a, #avpInicio button').count()));
+  afirma(/O que sustenta este trabalho/.test(sust) && /Não são etapas/.test(sust) && /ADMIN › Taxonomia/.test(sust) && /Mantida pelo admin geral/.test(sust) && /ADMIN › Avaliação e Mapa/.test(sust) &&
+    /Definições/.test(await texto(page, '#avpSustentaTaxonomia')) && /Critérios e perguntas/.test(await texto(page, '#avpSustentaAdmin')) && /Estruturas/.test(await texto(page, '#avpSustentaAdmin')),
+    '"O que sustenta este trabalho": as duas áreas com as mesmas funções das etiquetas, sem ser etapa', sust);
+  afirma(/fica na ficha do Posicionamento, não aqui/.test(await texto(page, '#avpSustentaVinculo')) && /na ficha do Posicionamento/.test(await texto(page, '#avpRelSetaMapa')),
+    'o vínculo item × estrutura: na ficha do Posicionamento (não no ADMIN)');
+  const links = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('#avpSustenta a'), (a) => a.id + '=' + a.getAttribute('href')).join(' '));
+  afirma(links === 'avpSustentaIrQuestionarios=#admin?arq=questionarios avpSustentaIrMotores=#admin?arq=motores avpSustentaIrEstruturas=#admin?arq=estruturas',
+    'Avaliação + Configuração: acessos a Questionários, Motores e Estruturas; nenhum à Taxonomia (só admin geral)', links);
+  afirma(await page.locator('#avpInicio button').count() === 0 && (await page.locator('#avpInicio a').count()) === 7 + 3, 'as 7 ações do Início continuam; só os 3 acessos do perfil a mais', String(await page.locator('#avpInicio a').count()));
   console.log('Relações entre os assuntos');
   const rel = await page.evaluate(() => {
     const r = (id) => { const e = document.getElementById(id); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
@@ -274,9 +290,37 @@ async function rodada(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
+  console.log('ADMIN pelos atalhos do Início: ida e volta');
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes'));
+  await noInicio(page);
+  const barra = () => page.evaluate(() => { const b = document.getElementById('adminVoltaInicio'); return !!b && !b.hidden && b.offsetParent !== null; });
+  await page.click('#avpSustentaIrEstruturas');
+  await esperar(page, () => location.hash.indexOf('#admin?arq=estruturas') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
+  afirma(await barra() && /Voltar ao Início de Avaliações/.test(await texto(page, '#adminVoltaInicio')), 'atalho Estruturas: abre ADMIN › Estruturas com "← Voltar ao Início de Avaliações"');
+  await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
+  await esperar(page, () => !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
+  afirma(await barra() && /^#admin\?arq=estruturas/.test(await hash(page)), 'F5 no ADMIN: continua com o retorno ao Início');
+  await page.goBack();
+  await noInicio(page);
+  afirma(true, 'Voltar do navegador: Início');
+  await page.goForward();
+  await esperar(page, () => /^#admin/.test(location.hash) && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden, undefined, 15000);
+  afirma(await barra(), 'Avançar: de volta ao ADMIN, com o retorno');
+  afirma(await larguraOk(page), 'ADMIN com a barra de retorno sem rolagem lateral');
+  await page.click('#adminVoltaInicioLink');
+  await noInicio(page);
+  afirma(true, '"← Voltar ao Início de Avaliações" leva ao Início');
+  await page.evaluate(() => { location.hash = '#admin?arq=questionarios'; });
+  await esperar(page, () => location.hash === '#admin?arq=questionarios' && !document.getElementById('page-admin').hidden, undefined, 15000);
+  afirma(!(await barra()), 'entrada direta no ADMIN (sem o atalho): nenhuma barra nova');
+  afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
+  await ctx.close();
+
   console.log('Perfis');
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { email: AVAL }));
   await noInicio(page);
+  afirma(await page.locator('#avpSustenta a').count() === 0 && /Mantida pelo admin geral/.test(await texto(page, '#avpSustentaTaxonomia')) && /Admin geral e Avaliação \+ Configuração/.test(await texto(page, '#avpSustentaAdmin')),
+    'perfil Avaliação (consulta): as responsabilidades e quem mantém, sem nenhum acesso a tela bloqueada');
   afirma(!(await visivel(page, '#avpInicioAtuacao')) && /perfil Avaliação \+ Configuração/.test(await texto(page, '#avpInicioAtuacaoPerfil')) && await visivel(page, '#avpInicioNatureza'),
     'perfil Avaliação: começa avaliação de natureza; a atuação explica quem inicia (sem botão)');
   await page.click('#avpInicioJornada');
@@ -286,6 +330,17 @@ async function rodada(browser, viewport, rotulo) {
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { email: ADM }));
   await noInicio(page);
   afirma(await visivel(page, '#avpInicioAtuacao') && await visivel(page, '#avpInicioNatureza'), 'admin geral: as duas portas');
+  afirma(await page.locator('#avpSustentaIrTaxonomia').count() === 1 && await page.locator('#avpSustentaIrEstruturas').count() === 1, 'admin geral: acessos à Taxonomia e às áreas de Avaliação e Mapa');
+  await page.click('#avpSustentaIrTaxonomia');
+  const taxAtiva = () => page.evaluate(() => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); const v = document.getElementById('adminVoltaInicio'); return !!b && b.classList.contains('active') && !!v && !v.hidden; });
+  await esperar(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); return !!b && b.classList.contains('active'); }, undefined, 15000);
+  afirma(await taxAtiva() && await hash(page) === '#admin', 'atalho Taxonomia: abre a aba Taxonomia do ADMIN, com o retorno ao Início');
+  await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
+  await esperar(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); return !!b && b.classList.contains('active'); }, undefined, 15000);
+  afirma(await taxAtiva(), 'F5: a aba Taxonomia reabre, com o retorno');
+  await page.goBack();
+  await noInicio(page);
+  afirma(true, 'Voltar do navegador: Início');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 }
