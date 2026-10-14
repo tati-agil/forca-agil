@@ -3396,3 +3396,14 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
   .avp-como-rot { display: inline; }
   a.avp-como-fonte { display: inline-block; padding: 5px 0; }
 }
+
+/* ADMIN › Questionários: um cartão por questionário (vigente + ações à vista); correções editoriais e a versão futura do
+   motor ficam recolhidas dentro do cartão. O cartão localizado pelo atalho do Início fica destacado. */
+.avp-config-sigla { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-3); font-weight: 400; margin-left: 6px; white-space: nowrap; }
+.avp-config-item-card--foco { outline: 2px solid var(--gold, #f5c518); outline-offset: 3px; }
+.avp-config-item-card:focus { outline: 2px solid var(--gold, #f5c518); outline-offset: 3px; }
+.avp-config-sub { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.avp-config-sub > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; color: var(--ink-2); }
+.avp-config-sub--futura > summary { color: var(--ink-3); }
+.avp-config-sub-corpo { padding-top: 6px; }
+.avp-config-sub-corpo > .avp-form-card { background: var(--panel-2, var(--panel)); }

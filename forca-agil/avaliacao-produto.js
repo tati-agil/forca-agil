@@ -2712,6 +2712,8 @@
       if (location.hash === desejado) return;
       /* Estruturas Organizacionais guardam a estrutura aberta no próprio endereço (&e=<id>): não é outra área */
       if (area === 'estruturas' && /^#admin\?arq=estruturas(&|$)/.test(location.hash || '')) return;
+      /* Questionários: &q=<questionário> (atalho do Início) localiza um cartão — mesma área */
+      if (area === 'questionarios' && /^#admin\?arq=questionarios&q=[a-z0-9]+$/.test(location.hash || '')) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
       var volta = history.state && history.state.faVoltaInicio ? { faVoltaInicio: true } : {}; /* atalho do Início: a marca segue */
       if (!areaDoEndereco()) { history.replaceState(Object.assign({ arq: area, seqArq: seqArqAtual() }, volta), '', desejado); politicaRolagemAdmin(); return; }
@@ -2771,6 +2773,7 @@
     function aplicarEnderecoAdmin() {
       politicaRolagemAdmin();
       var area = areaDoEndereco();
+      if (area === 'questionarios' && area === areaAtualAdmin()) { focarQuestionarioDoEndereco(); return; }
       if (!area || area === areaAtualAdmin()) return;
       if (edicaoSujaAdmin()) {
         var atual = areaAtualAdmin();
@@ -4022,7 +4025,7 @@
         if (c.sub === 'lista') fecharConfigQuestionarios();
         else sairComAviso(c, function () { c.sub = 'lista'; c.sujo = false; render(); });
       });
-      if (c.sub === 'lista') bindConfigLista();
+      if (c.sub === 'lista') { bindConfigLista(); focarQuestionarioDoEndereco(); }
       else if (c.sub === 'editar') bindConfigEditar();
       else if (c.sub === 'auditoria') bindConfigAuditoria();
     }
@@ -4041,20 +4044,69 @@
       Object.keys(window.faQuestionarios.CODIGOS).forEach(function (chave) {
         var codigo = window.faQuestionarios.CODIGOS[chave];
         var sit = window.faQuestionarios.situacao(codigo);
-        html += '<div class="avp-form-card avp-config-item-card">';
-        html += '<h4>' + esc(sit.nome) + '</h4>';
-        html += '<p>' + esc(sit.qtdPerguntas) + ' pergunta' + (sit.qtdPerguntas === 1 ? '' : 's') + ' · Versão publicada: ' + esc(sit.versaoPublicada) + '</p>';
-        html += '<p>Situação: ' + (sit.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'sem alterações pendentes') + '</p>';
+        /* um cartão por questionário: o que está vigente e as ações sempre à vista; correções editoriais e a redação da
+           versão futura do motor ficam DENTRO do cartão, recolhidas (nada é apagado). id/data-q: o atalho do Início
+           (#admin?arq=questionarios&q=p1p16|s1s8|o1o9) localiza este cartão. */
+        var q = QUESTIONARIO_ALIAS[codigo] || {};
+        html += '<div class="avp-form-card avp-config-item-card" id="avpCfgCard-' + codigo + '" data-q="' + (q.alias || '') + '" tabindex="-1">';
+        html += '<h4>' + esc(sit.nome) + (q.sigla ? ' <span class="avp-config-sigla">' + q.sigla + '</span>' : '') + '</h4>';
+        html += '<p>' + qtdPerguntasRotulo(codigo, sit) + ' · Versão publicada: <strong>' + esc(sit.versaoPublicada) + '</strong> · Situação: ' + (sit.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'sem alterações pendentes') + '</p>';
         html += '<p>Última publicação: ' + (sit.ultimaAlteracaoEm ? esc(fmtData(sit.ultimaAlteracaoEm)) + (sit.ultimaAlteracaoPor ? ' · ' + esc(sit.ultimaAlteracaoPor) : '') : 'nunca alterado (conteúdo de fábrica)') + '</p>';
         html += '<div class="avp-actions-footer">';
         html += '<button class="btn btn--sm avp-config-editar-btn" data-codigo="' + codigo + '">Editar perguntas</button>';
         html += '<button class="btn btn--sm avp-config-auditoria-btn" data-codigo="' + codigo + '">Ver histórico de alterações</button>';
         html += '<button class="btn btn--sm avp-config-exportar-btn" data-codigo="' + codigo + '"' + (c.exportando ? ' disabled' : '') + '>📊 Exportar Excel</button>';
-        html += '</div></div>';
-        window.faQuestionarios.listarCorrecoesEditoriais(codigo).forEach(function (corr) { html += renderCorrecaoEditorial(corr.id); });
-        if (codigo === window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL) html += renderConteudoMotorNovo(codigo, 2);
+        html += '</div>';
+        var corrs = window.faQuestionarios.listarCorrecoesEditoriais(codigo);
+        if (corrs.length) {
+          var pend = corrs.filter(function (corr) { var x = window.faQuestionarios.situacaoCorrecaoEditorial(corr.id); return x && !x.aplicada; }).length;
+          html += recolhivel('cfgCorrecoes-' + codigo, 'avpCfgCorrecoes-' + codigo, 'avp-config-sub',
+            'Correções editoriais (' + corrs.length + ') — ' + (pend ? pend + ' pendente' + (pend === 1 ? '' : 's') : 'todas aplicadas'), !!pend,
+            corrs.map(function (corr) { return renderCorrecaoEditorial(corr.id); }).join(''));
+        }
+        if (codigo === window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL) {
+          html += recolhivel('cfgMotorV2', 'avpCfgMotorV2', 'avp-config-sub avp-config-sub--futura',
+            'Versão futura inativa — redação para o motor de Posicionamento v2', false, renderConteudoMotorNovo(codigo, 2));
+        }
+        html += '</div>';
       });
       return html;
+    }
+    /* Seção recolhível do ADMIN que lembra se a pessoa a abriu (data-det → state.detAbertos), inclusive entre os
+       redesenhos de uma ação dentro dela. Sem escolha registrada, abre quando há algo a fazer (abrirSePendente). */
+    function recolhivel(chaveDet, id, classe, titulo, abrirSePendente, conteudo) {
+      var escolha = state.detAbertos ? state.detAbertos[chaveDet] : undefined;
+      var aberta = escolha === true || (escolha === undefined && abrirSePendente);
+      return '<details class="' + classe + '" id="' + id + '" data-det="' + chaveDet + '"' + (aberta ? ' open' : '') + '><summary>' + esc(titulo) + '</summary>' +
+        '<div class="avp-config-sub-corpo">' + conteudo + '</div></details>';
+    }
+    var QUESTIONARIO_ALIAS = { CLASSIFICACAO_ARQUITETURAL: { alias: 'p1p16', sigla: 'P1–P16' }, ADEQUACAO_SQUAD: { alias: 's1s8', sigla: 'S1–S8' },
+      POSICIONAMENTO_ORGANIZACIONAL: { alias: 'o1o9', sigla: 'O1–O9' } };
+    /* O1–O9 tem também o diagnóstico de conflito/recorte (não é "O10"): "9 perguntas + diagnóstico" */
+    function qtdPerguntasRotulo(codigo, sit) {
+      var lista = window.faQuestionarios.perguntasDaVersao ? window.faQuestionarios.perguntasDaVersao(codigo, sit.versaoPublicada) || [] : [];
+      var diag = lista.filter(function (p) { return p && p.tipo === 'diagnostico-conflito-recorte'; }).length;
+      var n = (lista.length || sit.qtdPerguntas) - diag;
+      return esc(n) + ' pergunta' + (n === 1 ? '' : 's') + (diag ? ' + diagnóstico' : '');
+    }
+    /* &q=p1p16|s1s8|o1o9 no endereço (atalho do Início): leva ao cartão do questionário e o destaca — sem abrir edição */
+    var focoQuestionarioFeito = null;
+    function focarQuestionarioDoEndereco() {
+      var m = /[?&]q=([a-z0-9]+)/.exec(location.hash || '');
+      var alvo = null;
+      Object.keys(QUESTIONARIO_ALIAS).forEach(function (c) { if (m && QUESTIONARIO_ALIAS[c].alias === m[1]) alvo = c; });
+      document.querySelectorAll('.avp-config-item-card--foco').forEach(function (el) { el.classList.remove('avp-config-item-card--foco'); });
+      if (!alvo) { focoQuestionarioFeito = null; return; }
+      var card = document.getElementById('avpCfgCard-' + alvo);
+      if (!card) return;
+      card.classList.add('avp-config-item-card--foco');
+      if (focoQuestionarioFeito === location.hash) return; /* rola uma vez por chegada, não a cada redesenho */
+      focoQuestionarioFeito = location.hash;
+      setTimeout(function () {
+        var topo = card.getBoundingClientRect().top + (window.pageYOffset || 0) - 96;
+        window.scrollTo({ top: Math.max(0, topo), left: 0, behavior: 'instant' });
+        try { card.focus({ preventScroll: true }); } catch (e) { /* navegador antigo */ }
+      }, 60);
     }
     /* H1-Final — redação para uma versão NOVA (inativa) do motor de Posicionamento. Trilha separada
        (questionarios-config/<código>/motores/<v>): nada aqui muda a redação v1 que o site usa nem põe o motor em
