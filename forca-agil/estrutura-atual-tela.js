@@ -61,7 +61,12 @@
       if (ev.target && ev.target.id === 'eaMostrarEncerradas') { st.encerradas = ev.target.checked; render(); }
     });
     wrap.addEventListener('input', function (ev) { if (ev.target && ev.target.closest('form')) st.sujo = true; });
-    wrap.addEventListener('toggle', function (ev) { if (ev.target && ev.target.id === 'eaHistorico' && ev.target.open) carregarHistorico(); }, true);
+    /* redesenhar com o histórico aberto dispara "toggle" de novo: só carrega se ainda não carregou (ou está carregando) esta unidade */
+    wrap.addEventListener('toggle', function (ev) {
+      if (!ev.target || ev.target.id !== 'eaHistorico') return;
+      if (st.historico && st.historico.id === st.id) { st.historico.aberto = ev.target.open; return; }
+      if (ev.target.open) carregarHistorico();
+    }, true);
     return true;
   }
   function vizinhos(esconder) {
@@ -77,7 +82,7 @@
   function fechar() { if (!wrap) return; wrap.hidden = true; st.sujo = false; vizinhos(false); }
   function sair() { fechar(); if (origem && origem.voltar) origem.voltar(); }
   function confirmarDescarte() { return !st.sujo || window.confirm('Há alterações não gravadas. Sair mesmo assim?'); }
-  function ir(view, id, form) { st.view = view; st.id = id || null; st.form = form || null; st.erro = null; st.sujo = false; st.historico = null; render(); var t = document.getElementById('eaTitulo'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'start' }); } }
+  function ir(view, id, form) { st.view = view; st.id = id || null; st.form = form || null; st.erro = null; st.sujo = false; st.historico = null; render(); var t = document.getElementById('eaTitulo'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'start', behavior: 'instant' }); } }
 
   function cabecalho(titulo, voltarRotulo, voltarAcao) {
     return '<button type="button" class="avp-voltar-link" data-ea="' + voltarAcao + '" id="eaVoltar">← ' + esc(voltarRotulo) + '</button>' +

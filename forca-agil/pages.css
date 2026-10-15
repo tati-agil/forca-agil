@@ -3600,6 +3600,7 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 
 /* Estrutura Organizacional Atual (ADMIN › Avaliação e Mapa) — estrutura-atual-tela.js */
 .ea-tela { display: grid; gap: 12px; min-width: 0; }
+#adminEstruturaAtual [id] { scroll-margin-top: 88px; }
 .ea-marcador { padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel-2); }
 .ea-marcador p { margin: 0; }
 .ea-arvore { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
