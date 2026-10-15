@@ -626,6 +626,24 @@
           de: 'NÃO — Não existe um responsável claro pelo resultado desta solução.',
           para: 'NÃO — Não existe um responsável claro pelo resultado deste item ou domínio.' }
       ]
+    },
+    /* Orientação O7 × O9 aprovada pela responsável em 2026-10-15 (texto literal). A ajuda antiga da O9 associava a O7
+       a "valor previdenciário ou financeiro às Linhas", em tensão com a Ajuda da O7 ("não é necessário que o objeto
+       seja previdenciário ou financeiro"). Só redação: nenhuma regra do motor O1–O9 muda. */
+    {
+      id: 'orientacao-o7-o9',
+      codigo: 'POSICIONAMENTO_ORGANIZACIONAL',
+      titulo: 'Orientação para distinguir O7 e O9',
+      descricao: 'Nova Ajuda da O9: O7 = capacidades, serviços ou soluções de negócio compartilhados, consumidos em escala por diferentes Linhas e times (sem exigir objeto previdenciário ou financeiro nem entrega direta ao participante); O9 = serviços corporativos predominantemente para a administração e o controle da própria organização, ao cliente interno, padronizados. Nome, importância para as Linhas ou atender usuários internos não decidem sozinhos. Nenhuma regra do motor muda.',
+      ajustes: [
+        { pergunta: 'O9', campo: 'ajudaExtra',
+          de: 'Para diferenciar de O7, observar onde termina a cadeia de valor e de quem são as regras:\n' +
+            '- capacidades/regras ligadas à entrega de valor previdenciário ou financeiro às Linhas tendem a O7;\n' +
+            '- serviços ligados à administração interna da organização tendem a O9.',
+          para: 'Capacidades, serviços ou soluções de negócio compartilhados, consumidos em escala por diferentes Linhas e times para sustentar suas soluções, tendem a O7 — Plataforma Habilitadora de Negócios. Não é necessário que o objeto seja previdenciário ou financeiro, nem que a entrega chegue diretamente ao participante.\n' +
+            'Serviços corporativos destinados predominantemente à administração e ao controle da própria organização, prestados ao cliente interno de forma padronizada, tendem a O9 — Plataforma de Gestão Corporativa.\n' +
+            'A classificação deve considerar a finalidade da responsabilidade, a natureza da entrega e quem a consome e para quê. O nome da atividade, sua importância para as Linhas ou o simples fato de atender usuários internos não determinam isoladamente o tipo arquitetural.' }
+      ]
     }
   ];
   function correcaoPorId(id) { return CORRECOES_EDITORIAIS.filter(function (c) { return c.id === id; })[0] || null; }

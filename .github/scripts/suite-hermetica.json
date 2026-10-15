@@ -646,6 +646,12 @@
       "sobre": "Marcador de homologação (ausente = DESLIGADO, a Porta 2 fica como era; SOMENTE_ADMIN_GERAL; o admin geral muda no ADMIN com motivo e auditoria). Jornada B: uma pergunta por vez com o porquê, comparação pelos sete critérios, delimitação, fatos descritivos, atuação criada e O1–O9 respondido na tela do Posicionamento, situação formal, proposta pendente, ficha da estrutura, Jornada, histórico, Excel, F5. Jornada A: regressão políticas de SI × diretrizes contratuais (nunca juntadas sem comparação), aprovação como referência a ato externo só pelo admin geral. Jornada C: capacidade distribuída, referência sem trocar a origem, nenhuma estrutura Segurança. Perfil de consulta sem formulários; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-correcao-orientacao-o7-o9.js",
+      "nome": "Correção editorial \"Orientação para distinguir O7 e O9\": texto aprovado, aplicação pelo ADMIN e versões, desktop e 375 px",
+      "duracao": 45,
+      "sobre": "A correção mexe só na ajudaExtra da O9; o \"de\" é a ajuda de fábrica e o \"para\" é o texto aprovado literal; a fábrica (versão 1) não é reescrita. O admin geral aplica pelo ADMIN e nasce a versão 2 sem nenhum outro campo diferente; reaplicar não faz nada. Avaliação começada antes continua com a redação dela; começada depois cita o texto aprovado no apoio O7 × O9 e na Ajuda da O9."
+    },
+    {
       "arquivo": ".github/scripts/teste-pos-homologacao.js",
       "nome": "Pós-homologação da #375: ajuda O7 × O9 coerente, origem de análise excluída, consulta aos tipos antes de responder, confirmação de exclusão, desktop e 375 px",
       "duracao": 60,
