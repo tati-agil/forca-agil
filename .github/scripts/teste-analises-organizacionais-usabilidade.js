@@ -273,19 +273,19 @@ async function gecon(browser) {
   a = await analiseDoBanco(page, id);
   afirma(a.recortes[k(8)].fatos.execucao.length === 2 && a.recortes[k(7)].fatos.execucao.length === 1 && [0, 1, 2, 3, 4, 5, 9].every((i) => !a.recortes[k(i)].fatos), 'vários núcleos numa responsabilidade; o mesmo núcleo em várias; as outras sem núcleo (nada inferido)');
   afirma(/Não informado/.test(await texto(page, '#anNucleosTexto_' + k(4))), 'sem núcleo: "Não informado"');
-  /* o exemplo de homologação: estrutura atual × tipo recomendado × composição proposta × estrutura aprovada */
+  /* o exemplo de homologação: quem executa hoje × tipo recomendado × vínculo formal × proposta e aprovação */
   const cab = await texto(page, '.an-tab-cab');
-  afirma(/Estrutura atual \(declarada\)/.test(cab) && /Tipo arquitetural recomendado \(O1–O9\)/.test(cab) && /não é uma nova estrutura/.test(await texto(page, '#anLegendaLista')), 'lista: estrutura atual e tipo recomendado em colunas distintas, com a legenda');
+  afirma(/Núcleo\(s\) que executam hoje \(declarado\)/.test(cab) && /Tipo arquitetural recomendado \(O1–O9\)/.test(cab) && /não é uma nova estrutura/.test(await texto(page, '#anLegendaLista')) && /não é vínculo nem responsabilidade formal/.test(await texto(page, '#anLegendaLista')), 'lista: quem executa hoje (declarado) e tipo recomendado em colunas distintas, com a legenda');
   afirma((await texto(page, '#anTipo_' + k(7))).trim() === 'A determinar pelo O1–O9', '"Gerir o processo contábil": tipo recomendado a determinar pelo O1–O9');
   const q4 = await texto(page, '#anComposicaoAtual li[data-comp-resp="' + k(7) + '"]');
-  afirma(/Estrutura atualCONTA — Núcleo de Contabilidade/.test(q4) && /Tipo arquitetural recomendadoA determinar pelo O1–O9/.test(q4) && /Composição propostaAinda não definida/.test(q4) && /Estrutura aprovadaNenhuma registrada/.test(q4), 'composição: estrutura atual (CONTA), tipo a determinar, composição ainda não definida, nenhuma estrutura aprovada', q4);
+  afirma(/Núcleo\(s\) que executam hoje \(declarado\)CONTA — Núcleo de Contabilidade/.test(q4) && /Tipo arquitetural recomendadoA determinar pelo O1–O9/.test(q4) && /Estrutura com vínculo formal registradoNenhum registrado/.test(q4) && /Proposta de composição e aprovaçãoNenhuma proposta registrada/.test(q4), 'composição: CONTA executa hoje (declarado), tipo a determinar, nenhum vínculo formal, nenhuma proposta', q4);
   afirma(!/nova estrutura(?! nem)/i.test((await texto(page, '#avaliacoesAnalise')).replace(/não é uma nova estrutura/g, '')), 'o resultado do O1–O9 nunca é chamado de "nova estrutura"');
   const db0 = await banco(page);
   afirma(Object.keys(db0['estruturas-concretas'].registros).length === Object.keys(sementeAnalise()['estruturas-concretas'].registros).length && Object.keys((db0['estruturas-vinculos'] || {}).registros || {}).length === Object.keys((sementeAnalise()['estruturas-vinculos'] || {}).registros || {}).length, 'nenhuma estrutura nem vínculo criados');
   /* composição: uma estrutura com várias responsabilidades; uma responsabilidade em vários núcleos */
   const comp = await texto(page, '#anComposicaoAtual');
   afirma(/CONTA — Núcleo de Contabilidade.*2 responsabilidades/.test(comp) && /NUTRI — Núcleo Tributário.*1 responsabilidade/.test(comp) && /compartilhada com/.test(comp) && /Sem núcleo informado/.test(comp) && /não cadastrado no ADMIN — informação descritiva/.test(comp), 'composição: CONTA com duas responsabilidades, uma compartilhada com NUTRI, e as sem núcleo', comp.slice(0, 300));
-  afirma((await page.$$('#anComposicaoAtual li[data-comp-resp="' + k(8) + '"]')).length === 2 && /estrutura atual/.test(await texto(page, '#anComposicaoSecao')) && /tipo arquitetural recomendado/.test(await texto(page, '#anComposicaoSecao')) && /composição proposta/.test(await texto(page, '#anComposicaoSecao')) && /estrutura aprovada/.test(await texto(page, '#anComposicaoSecao')), 'a compartilhada aparece em cada núcleo (a mesma avaliação, sem duplicar); quatro conceitos separados');
+  afirma((await page.$$('#anComposicaoAtual li[data-comp-resp="' + k(8) + '"]')).length === 2 && /núcleo\(s\) que executam hoje/.test(await texto(page, '#anComposicaoSecao')) && /tipo arquitetural recomendado/.test(await texto(page, '#anComposicaoSecao')) && /estrutura com vínculo formal registrado/.test(await texto(page, '#anComposicaoSecao')) && /proposta de composição e aprovação/.test(await texto(page, '#anComposicaoSecao')), 'a compartilhada aparece em cada núcleo (a mesma avaliação, sem duplicar); quatro conceitos separados');
   /* avaliar uma, voltar à lista, ver os estados reais */
   await page.click('#anCriarAtuacao_' + k(7));
   await esperar(page, () => /po=atuacoes&item=/.test(location.hash));
@@ -305,7 +305,14 @@ async function gecon(browser) {
   await esperar(page, (kk) => /Avaliada/.test((document.getElementById('anSituacao_' + kk) || {}).textContent || ''), k(7));
   afirma(/Ver resultado/.test(await texto(page, '#anAbrirPos_' + k(7))) && /\(recomendação\)$/.test((await texto(page, '#anTipo_' + k(7))).trim()) && (await situacaoDe(page, k(0))) === 'Pronta para avaliar', 'concluída: "Avaliada" com "Ver resultado"; as outras seguem como estavam');
   afirma(/^11 responsabilidades — 1 avaliada, 4 prontas para avaliar e 6 pendentes de delimitação.$/.test((await texto(page, '#anResumo')).trim()), 'resumo dos estados reais (as duas partes entram; a original separada não conta)', await texto(page, '#anResumo'));
-  afirma(/Tipo arquitetural recomendado.*\(recomendação\)/.test(await texto(page, '#anComposicaoAtual li[data-comp-resp="' + k(7) + '"]')) && /Estrutura atualNão informada/.test(await texto(page, '#anComposicaoAtual li[data-comp-resp="' + k(7) + '"]')) === false, 'composição: o tipo recomendado aparece na responsabilidade, separado da estrutura atual');
+  afirma(/Tipo arquitetural recomendado.*\(recomendação\)/.test(await texto(page, '#anComposicaoAtual li[data-comp-resp="' + k(7) + '"]')) && /executam hoje \(declarado\)Não informado/.test(await texto(page, '#anComposicaoAtual li[data-comp-resp="' + k(7) + '"]')) === false, 'composição: o tipo recomendado aparece na responsabilidade, separado de quem executa hoje');
+  /* vínculo formal registrado (ficha do Posicionamento) ≠ aprovação do desenho; execução declarada ≠ responsabilidade formal */
+  await gravarDb(page, { ['estruturas-vinculos/registros/vin-' + obj]: { id: 'vin-' + obj, objetoId: obj, estruturaId: 'nucleo-gov', papel: 'responsavel-principal', base: { avaliacaoId: 'pos-' + obj, codigo: 'AREA_ESPECIALIZADA', origem: 'recomendacao' }, situacao: 'ativa', revisao: 1, criadoEm: 1791713600000, criadoPor: { id: 'semente' } },
+    ['estruturas-vinculos/ativo-por-objeto/' + obj]: 'vin-' + obj });
+  await esperar(page, (kk) => /Estrutura com vínculo formal registradoNúcleo de Governança de TI/.test((document.querySelector('#anComposicaoAtual li[data-comp-resp="' + kk + '"]') || {}).textContent || ''), k(7));
+  const comV = await texto(page, '#anComposicaoAtual li[data-comp-resp="' + k(7) + '"]');
+  afirma(/Proposta de composição e aprovaçãoNenhuma proposta registrada/.test(comV) && !/aprovação registrada:/.test(comV), 'vínculo formal aparece só como vínculo: nenhuma aprovação é deduzida dele', comV);
+  afirma(/Estrutura com vínculo formal registradoNenhum registrado/.test(await texto(page, '#anComposicaoAtual li[data-comp-resp="' + k(8) + '"]')), 'execução declarada (NUTRI, CONTA) não vira vínculo nem responsabilidade formal');
   /* F5: retomada */
   await recarregar(page, ctx);
   await page.waitForSelector('#anResponsabilidades', { timeout: 20000 });

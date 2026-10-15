@@ -348,17 +348,19 @@
       if (p.codigoEfetivo) return nomeCodigo(p.codigoEfetivo) + (p.decisao ? ' (decisão final)' : ' (recomendação)');
       return 'A validar — sem tipo definido ainda';
     }
-    /* composição proposta e estrutura aprovada de uma responsabilidade: a última proposta registrada que a inclui (com a
-       aprovação, se houver referência ao ato) e o vínculo formal com a estrutura responsável (ficha do Posicionamento) */
+    /* proposta de composição de uma responsabilidade: a última proposta registrada que a inclui; aprovação SÓ com a
+       referência ao ato registrada para aquela proposta (nunca deduzida de um vínculo nem de outra coisa) */
     function propostaDe(est, a, k) {
       var ps = Object.keys(est.propostas).map(function (x) { return est.propostas[x]; }).filter(function (p) { return p.analiseId === a.id && (p.recortes || []).indexOf(k) !== -1; }).sort(function (x, y) { return y.versao - x.versao; });
-      if (!ps.length) return 'Ainda não definida';
+      if (!ps.length) return 'Nenhuma proposta registrada';
       var p = ps[0], ap = est.aprovacoes[p.id];
-      return 'Proposta v' + p.versao + ': ' + (ALTERNATIVA[p.alternativa] || p.alternativa) + (p.situacao === 'pendente' ? ' (pendente)' : '') + (ap ? ' — aprovação registrada (referência a ato externo)' : '');
+      return 'Proposta v' + p.versao + ': ' + (ALTERNATIVA[p.alternativa] || p.alternativa) + (p.situacao === 'pendente' ? ' (pendente)' : '') +
+        (ap ? ' — aprovação registrada: ' + ap.autoridade + ', ' + ap.referencia + ', ' + fmtData(ap.dataDoAto) + ' (referência a ato externo)' : ' — sem aprovação registrada');
     }
-    function aprovadaDe(r) {
+    /* estrutura com vínculo formal registrado (ficha do Posicionamento): é o vínculo, não uma aprovação do desenho */
+    function vinculoFormalDe(r) {
       var v = r.objetoId ? vinculoAtivoDe(r.objetoId) : null;
-      return v ? 'Vínculo formal registrado: ' + nomeEstrutura(v.estruturaId) : 'Nenhuma registrada';
+      return v ? nomeEstrutura(v.estruturaId) : 'Nenhum registrado';
     }
     function situacaoResp(a, k, sf) {
       var r = a.recortes[k], p = sf.p;
@@ -486,8 +488,8 @@
       var h = '<section class="avp-form-card an-secao" id="anResponsabilidades" aria-labelledby="anListaTitulo"><h3 id="anListaTitulo">' + esc(a.nome) + ' — Responsabilidades Organizacionais</h3>';
       if (!ativos.length && !desd.length) return h + '<p class="admin-empty" id="anRespVazio">Nenhuma responsabilidade informada ainda. Registre abaixo — uma por vez ou várias de uma vez.</p></section>';
       h += '<p class="an-resumo" id="anResumo">' + esc(textoResumo(ativos.length, rs.n)) + '</p>' +
-        '<p class="an-nota" id="anLegendaLista"><strong>Estrutura atual</strong> é onde a responsabilidade está hoje (como declarado). <strong>Tipo arquitetural recomendado</strong> é o resultado do O1–O9 para a responsabilidade — não é uma nova estrutura e não cria, renomeia nem muda a unidade atual. A composição proposta e a estrutura aprovada ficam na composição organizacional, abaixo.</p>' +
-        '<div class="an-tabela" role="table" aria-label="Responsabilidades e andamento"><div class="an-tab-cab" role="row"><span role="columnheader">Responsabilidade</span><span role="columnheader">Estrutura atual (declarada)</span><span role="columnheader">Tipo arquitetural recomendado (O1–O9)</span><span role="columnheader">Situação</span><span role="columnheader">Ação</span></div>';
+        '<p class="an-nota" id="anLegendaLista"><strong>Núcleo(s) que executam hoje</strong> é a informação declarada de quem faz o trabalho — não é vínculo nem responsabilidade formal. <strong>Tipo arquitetural recomendado</strong> é o resultado do O1–O9 para a responsabilidade — não é uma nova estrutura e não cria, renomeia nem muda unidade nenhuma. O vínculo formal registrado e a proposta de composição (com a eventual aprovação) ficam na composição organizacional, abaixo.</p>' +
+        '<div class="an-tabela" role="table" aria-label="Responsabilidades e andamento"><div class="an-tab-cab" role="row"><span role="columnheader">Responsabilidade</span><span role="columnheader">Núcleo(s) que executam hoje (declarado)</span><span role="columnheader">Tipo arquitetural recomendado (O1–O9)</span><span role="columnheader">Situação</span><span role="columnheader">Ação</span></div>';
       ativos.forEach(function (k, i) {
         var r = a.recortes[k], s = rs.sits[i], p = sfs[i].p, origem = r.origemRecorteId ? a.recortes[r.origemRecorteId] : null, nucs = nucleosDe(r), sep = r.separacao ? r.separacao.valor : null;
         var acao = '';
@@ -500,7 +502,7 @@
         h += '<div class="an-linha an-resp" role="row" data-resp="' + esc(k) + '" data-situacao="' + s.c + '">' +
           '<div class="an-cel an-cel--resp" role="cell"><strong>' + esc(textoResp(r)) + '</strong>' + (origem ? '<span class="an-det">Parte de: "' + esc(textoResp(origem)) + '"</span>' : '') +
 '</div>' +
-          '<div class="an-cel" role="cell" data-rotulo="Estrutura atual (declarada)"><span id="anNucleosTexto_' + esc(k) + '">' + (nucs.length ? nucs.map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informado') + '</span>' +
+          '<div class="an-cel" role="cell" data-rotulo="Núcleo(s) que executam hoje (declarado)"><span id="anNucleosTexto_' + esc(k) + '">' + (nucs.length ? nucs.map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informado') + '</span>' +
             (gravar ? ' <button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="nucleos" data-recorte="' + esc(k) + '" id="anNucleos_' + esc(k) + '">' + (nucs.length ? 'Alterar' : 'Informar') + '</button>' : '') + '</div>' +
           '<div class="an-cel" role="cell" data-rotulo="Tipo arquitetural recomendado (O1–O9)"><span id="anTipo_' + esc(k) + '">' + esc(tipoRecomendado(p)) + '</span></div>' +
           '<div class="an-cel" role="cell" data-rotulo="Situação"><span class="an-chip an-chip--' + SITUACAO[s.c][1] + '" id="anSituacao_' + esc(k) + '">' + SITUACAO[s.c][0] + '</span>' +
@@ -519,7 +521,7 @@
         var r = a.recortes[k], partes = ((r.desdobramento || {}).partes || []).map(function (q) { return a.recortes[q] ? textoResp(a.recortes[q]) : q; });
         return '<div class="an-linha an-resp--desdobrada" role="row" data-desdobrada="' + esc(k) + '"><div class="an-cel an-cel--resp" role="cell"><strong>' + esc(textoResp(r)) + '</strong>' +
           '<span class="an-det">Descrição original, preservada. Separada em: ' + partes.map(function (q) { return '"' + esc(q) + '"'; }).join('; ') + '. Não é avaliada como um todo.</span></div>' +
-          '<div class="an-cel" role="cell" data-rotulo="Estrutura atual (declarada)">—</div><div class="an-cel" role="cell" data-rotulo="Tipo arquitetural recomendado (O1–O9)">—</div><div class="an-cel" role="cell" data-rotulo="Situação"><span class="an-chip an-chip--neu">Separada em ' + partes.length + ' partes</span></div><div class="an-cel" role="cell"></div></div>';
+          '<div class="an-cel" role="cell" data-rotulo="Núcleo(s) que executam hoje (declarado)">—</div><div class="an-cel" role="cell" data-rotulo="Tipo arquitetural recomendado (O1–O9)">—</div><div class="an-cel" role="cell" data-rotulo="Situação"><span class="an-chip an-chip--neu">Separada em ' + partes.length + ' partes</span></div><div class="an-cel" role="cell"></div></div>';
       }).join('');
       return h + '</div></section>';
     }
@@ -542,7 +544,7 @@
       var atuais = nucleosDe(r), ids = {}, textos = [];
       atuais.forEach(function (f) { if (f.estruturaId) ids[f.estruturaId] = true; else textos.push(f.texto); });
       var ests = D.estruturas ? Object.keys(D.estruturas).filter(function (x) { return D.estruturas[x].situacao === 'ativa'; }).sort(function (x, y) { return String(D.estruturas[x].nome).localeCompare(D.estruturas[y].nome); }) : [];
-      return '<form class="an-form an-linha-form" id="anFormNucleos" data-recorte="' + esc(k) + '"><h4>Estrutura atual: qual núcleo ou quais núcleos exercem esta responsabilidade atualmente?</h4>' +
+      return '<form class="an-form an-linha-form" id="anFormNucleos" data-recorte="' + esc(k) + '"><h4>Qual núcleo ou quais núcleos executam esta responsabilidade hoje?</h4>' +
         '<p class="an-nota">Opcional. Informe só o que se sabe — nada é associado pelo nome. É informação declarada: não cria estrutura, não cria vínculo formal e não muda o Mapa nem o O1–O9.</p>' +
         (ests.length ? '<fieldset class="an-opcoes"><legend>Cadastrados em ADMIN › Avaliação e Mapa › Estruturas Organizacionais</legend>' + ests.map(function (x) { return '<label class="an-opcao"><input type="checkbox" name="anNucEst" value="' + esc(x) + '"' + (ids[x] ? ' checked' : '') + '><span>' + esc(D.estruturas[x].nome) + '</span></label>'; }).join('') + '</fieldset>'
           : '<p class="an-nota" id="anNucSemCadastro">' + (D.estruturas === undefined ? 'Lendo o cadastro de Estruturas Organizacionais…' : 'O cadastro de Estruturas Organizacionais não está disponível agora (ou não tem estruturas ativas).') + '</p>') +
@@ -619,7 +621,7 @@
        avaliação só, mesmo compartilhada), e — separadas — a proposta e a decisão formal. Nada muda o Mapa nem estruturas */
     function renderComposicaoArea(est, a, ativos, sfs, acc, ps) {
       var h = '<section class="avp-form-card an-passo an-passo--opcional" id="anComposicaoSecao" aria-labelledby="anComposicaoTitulo"><header class="an-passo-cab"><h3 id="anComposicaoTitulo">Composição organizacional</h3><span class="an-chip an-chip--neu">Depois, se quiser</span></header>' +
-        '<p class="an-nota">Quatro coisas diferentes, que não se confundem: <strong>estrutura atual</strong> (a gerência, o núcleo ou a unidade que responde hoje, como declarado — "Núcleo" e "Gerência" são níveis organizacionais, não tipos arquiteturais), <strong>tipo arquitetural recomendado</strong> (o resultado do O1–O9 de cada responsabilidade, como Área Especializada ou CoE — não da área nem do núcleo, e não é uma nova estrutura), <strong>composição proposta</strong> (como uma ou várias responsabilidades poderiam ser organizadas, inclusive mantendo a estrutura atual) e <strong>estrutura aprovada</strong> (o que foi formalmente decidido e registrado pela governança). Nada aqui cria, renomeia, extingue ou transforma uma unidade, nem muda vínculos ou o Mapa da Floresta.</p>';
+        '<p class="an-nota">Quatro coisas diferentes, que não se confundem: <strong>núcleo(s) que executam hoje</strong> (informação declarada — não é vínculo nem responsabilidade formal; "Núcleo" e "Gerência" são níveis organizacionais, não tipos arquiteturais), <strong>tipo arquitetural recomendado</strong> (o resultado do O1–O9 de cada responsabilidade, como Área Especializada ou CoE — não da área nem do núcleo, e não é uma nova estrutura), <strong>estrutura com vínculo formal registrado</strong> (o vínculo da ficha do Posicionamento, quando existe — não é aprovação do desenho) e <strong>proposta de composição e aprovação</strong> (como as responsabilidades poderiam ser organizadas; aprovação só com a referência ao ato registrada). Nada aqui cria, renomeia, extingue ou transforma uma unidade, nem muda vínculos ou o Mapa da Floresta.</p>';
       if (!ativos.length) return h + '<p class="an-nota" id="anComposicaoVazia">Aparece quando houver responsabilidades na lista.</p></section>';
       var grupos = {}, ordemG = [], sem = [];
       ativos.forEach(function (k, i) {
@@ -634,17 +636,17 @@
       var item = function (i, g) {
         var k = ativos[i], r = a.recortes[k], p = sfs[i].p, outros = nucleosDe(r).filter(function (f) { return (f.estruturaId ? 'e:' + f.estruturaId : 't:' + normalizado(f.texto)) !== g; });
         return '<li data-comp-resp="' + esc(k) + '"><strong>' + esc(textoResp(r)) + '</strong>' + (outros.length ? ' <span class="an-chip an-chip--neu">compartilhada com ' + outros.map(function (f) { return esc(rotuloNucleo(f)); }).join(', ') + '</span>' : '') +
-          '<dl class="an-quatro"><div><dt>Estrutura atual</dt><dd>' + (nucleosDe(r).length ? nucleosDe(r).map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informada') + '</dd></div>' +
+          '<dl class="an-quatro"><div><dt>Núcleo(s) que executam hoje (declarado)</dt><dd>' + (nucleosDe(r).length ? nucleosDe(r).map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informado') + '</dd></div>' +
           '<div><dt>Tipo arquitetural recomendado</dt><dd>' + esc(tipoRecomendado(p)) + '</dd></div>' +
-          '<div><dt>Composição proposta</dt><dd>' + esc(propostaDe(est, a, k)) + '</dd></div>' +
-          '<div><dt>Estrutura aprovada</dt><dd>' + esc(aprovadaDe(r)) + '</dd></div></dl></li>';
+          '<div><dt>Estrutura com vínculo formal registrado</dt><dd>' + esc(vinculoFormalDe(r)) + '</dd></div>' +
+          '<div><dt>Proposta de composição e aprovação</dt><dd>' + esc(propostaDe(est, a, k)) + '</dd></div></dl></li>';
       };
-      h += '<h4>Por estrutura atual (declarada)</h4><div class="an-comp" id="anComposicaoAtual">' + ordemG.map(function (g) {
+      h += '<h4>Por núcleo que executa hoje (declarado)</h4><div class="an-comp" id="anComposicaoAtual">' + ordemG.map(function (g) {
         var G = grupos[g], av = G.itens.filter(function (i) { return sfs[i].p.estado === 'concluido'; }).length;
         return '<div class="an-comp-grupo" data-nucleo="' + esc(G.rotulo) + '"><p><strong>' + esc(G.rotulo) + '</strong> <span class="an-det">' + (G.oficial ? 'cadastrado no ADMIN' : 'não cadastrado no ADMIN — informação descritiva') + ' · ' + G.itens.length + ' responsabilidade' + (G.itens.length === 1 ? '' : 's') + ', ' + av + ' avaliada' + (av === 1 ? '' : 's') + '</span></p><ul>' + G.itens.map(function (i) { return item(i, g); }).join('') + '</ul></div>';
       }).join('') + (sem.length ? '<div class="an-comp-grupo" id="anComposicaoSemNucleo"><p><strong>Sem núcleo informado</strong> <span class="an-det">' + sem.length + ' responsabilidade' + (sem.length === 1 ? '' : 's') + '</span></p><ul>' + sem.map(function (i) { return item(i, null); }).join('') + '</ul></div>' : '') + '</div>' +
-        '<p class="an-nota">Uma estrutura atual pode abrigar várias responsabilidades com tipos recomendados diferentes. Isso não significa dividir o núcleo, criar estruturas nem mudar ninguém de lugar: é insumo para a análise, não decisão.</p>';
-      h += '<h4>Registrar uma composição proposta (e a referência à estrutura aprovada)</h4>' + (ps.avaliadas > 0 || a.propostaVigente ? renderComposicao(est, a, ativos, sfs, acc) : '<p class="an-nota" id="anComposicaoIndisponivel">A proposta fica disponível quando houver ao menos uma responsabilidade avaliada pelo O1–O9. Não é necessária para concluir as avaliações.</p>');
+        '<p class="an-nota">Um núcleo pode executar várias responsabilidades com tipos recomendados diferentes. Isso não significa dividir o núcleo, criar estruturas nem mudar ninguém de lugar: é insumo para a análise, não decisão.</p>';
+      h += '<h4>Proposta de composição e referência à aprovação</h4>' + (ps.avaliadas > 0 || a.propostaVigente ? renderComposicao(est, a, ativos, sfs, acc) : '<p class="an-nota" id="anComposicaoIndisponivel">A proposta fica disponível quando houver ao menos uma responsabilidade avaliada pelo O1–O9. Não é necessária para concluir as avaliações.</p>');
       return h + '</section>';
     }
     function nomeEntrega(a, id) { var e = a.entregas[id]; return e ? e.descricao : id; }
