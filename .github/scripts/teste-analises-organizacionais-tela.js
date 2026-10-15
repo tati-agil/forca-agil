@@ -127,8 +127,7 @@ async function adicionarEntregas(page, descricoes) {
 }
 async function delimitar(page, nome, resultado, justificativa, entregas) {
   await page.evaluate((es) => { document.querySelectorAll('#anFormRecorte .an-opcao').forEach((l) => { const i = l.querySelector('input'); i.checked = es.some((e) => l.textContent.trim() === e); }); }, entregas);
-  await page.fill('#anRecDesc', nome); /* modelo simples: a descrição; resultado e justificativa não são mais pedidos */
-  await page.check('#anFormRecorte input[name="anRecSep"][value="nao"]');
+  await page.fill('#anRecDesc', nome); /* registro direto: só a descrição (sem pergunta sobre separar) */
   await page.click('#anDefinirRecorteBtn');
   await esperar(page, (n) => Array.from(document.querySelectorAll('.an-recorte h4')).some((h) => h.textContent === n) || !!document.getElementById('anErro'), nome);
   return texto(page, '#anErro');
@@ -200,7 +199,7 @@ async function jornadaB(browser) {
   console.log('\n== B. Jornada B — Núcleo de Arquitetura de TI ==');
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab: 'LIBERADO_PARA_PERFIS_AUTORIZADOS' });
   await page.waitForSelector('#anEntradaAtuacoes');
-  afirma(/Caminho A · Direto/.test(await texto(page, '#anEntradaAtuacoes')) && /Caminho B · Assistido/.test(await texto(page, '#anEntradaAtuacoes')) && await existe(page, '#anCaminhoDireto #poNovaAtuacaoBtn'), 'Porta 2: dois caminhos — A direto (com a "+ Nova atuação" de sempre) e B assistido');
+  afirma(/Nova responsabilidade/.test(await texto(page, '#anEntradaAtuacoes #poNovaAtuacaoBtn')) && /Analisar uma área/.test(await texto(page, '#anEntradaNova')), 'Porta 2: "Nova responsabilidade" e "Analisar uma área"');
   await page.click('#anEntradaNova');
   await page.waitForSelector('#anFormNova');
   const escopos = await page.evaluate(() => Array.from(document.querySelectorAll('#anEscopo .an-opcao')).map((l) => l.textContent));
@@ -209,7 +208,7 @@ async function jornadaB(browser) {
   const id = await abrirAnaliseNova(page, 'Núcleo de Arquitetura de TI', 'estrutura');
   afirma(/Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && /não deve ser confundido com o cadastro de Responsabilidades Organizacionais/.test(await texto(page, '#anPerguntaAjuda')), 'uma pergunta por vez, com a explicação (F2b: cadastro de Estruturas do ADMIN ≠ Responsabilidades da Porta 2)');
   await responderPendentes(page, mapaB);
-  afirma(/Informe as responsabilidades da área/.test(await texto(page, '#anProximaAcao')) && !(await existe(page, '#anDetalhar')) && await existe(page, '#anAjudaSeparar'), 'sem nada registrado: a próxima ação pede as responsabilidades; entregas só como ajuda ("Preciso de ajuda para separar")');
+  afirma(/Informe as responsabilidades da área/.test(await texto(page, '#anProximaAcao')) && !(await existe(page, '#anDetalhar')) && await existe(page, '#anAjudaSeparar'), 'sem nada registrado: a próxima ação pede as responsabilidades; entregas só como ajuda opcional');
   await adicionarEntregas(page, Object.keys(B));
   mapaB.justificar = false;
   const r1 = await responderPendentes(page, mapaB);

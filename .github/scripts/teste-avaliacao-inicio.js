@@ -88,9 +88,9 @@ async function rodada(browser, viewport, rotulo) {
     'três blocos: continuar ou consultar, começar um trabalho novo, consultar registros completos');
   afirma(await page.locator('#avpInicio .btn--primary').count() === 1 && /Jornada de Avaliação e Posicionamento/.test(await texto(page, '#avpInicio .btn--primary')),
     'uma única ação principal: abrir a Jornada');
-  afirma(/Avaliar se é Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Verifique se o item constitui um Produto\/Serviço independente\. Caso não seja, a avaliação identifica sua natureza arquitetural ou indica a necessidade de validação\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
+  afirma(/Avaliar se é Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se um item constitui um Produto\/Serviço\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
     (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' && /P1–P16/.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-sigla')) &&
-    /Caminho A · Avaliar uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Caminho B · Analisar uma área/.test(await texto(page, '#avpInicioOpcaoB')) && (await texto(page, '#avpInicioAtuacao')).trim() === 'Avaliar uma responsabilidade',
+    /Caminho A · Uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Caminho B · Uma área com várias responsabilidades/.test(await texto(page, '#avpInicioOpcaoB')) && (await texto(page, '#avpInicioAtuacao')).trim() === 'Avaliar uma responsabilidade',
     'as duas portas explicadas em linguagem simples antes das siglas');
   afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Avaliar uma responsabilidade" (Caminho A)');
   console.log('Caminhos e quem sustenta (I1)');
@@ -237,7 +237,7 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Caso 4 — responsabilidade organizacional sem P1–P16 (Caminho A)');
   await page.click('#avpInicioAtuacao');
   await page.waitForSelector('#poFormAtuacao', { timeout: 10000 });
-  afirma(await hash(page) === '#avaliacoes?po=nova-atuacao' && /Nova responsabilidade organizacional/.test(await texto(page, '#poFormAtuacao')), 'Caminho A abre direto o cadastro da responsabilidade (Porta 2)', await hash(page));
+  afirma(await hash(page) === '#avaliacoes?po=nova-atuacao' && /Qual responsabilidade deseja avaliar\?/.test(await texto(page, '#poFormAtuacao')), 'Caminho A abre direto o cadastro da responsabilidade (Porta 2)', await hash(page));
   await page.goBack();
   await noInicio(page);
   afirma(true, 'Voltar do navegador: Início');

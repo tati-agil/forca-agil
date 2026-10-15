@@ -665,7 +665,9 @@
         '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="lote" id="anAbrirLote">Colar várias de uma vez</button></div></form>'
         : renderLote(a, lote ? st.form : { tipo: 'lote' });
       var aberto = !ativos.length || uma || lote || !!fr || !!st.flashLote || !!st.abertos.adicionar;
-      return '<details class="avp-form-card an-secao an-comp-secao" id="anRegistrar"' + (aberto ? ' open' : '') + '><summary id="anRegistrarTitulo">' + (ativos.length ? 'Adicionar responsabilidades' : 'Quais responsabilidades a área tem?') + '</summary>' + flash + corpo + '</details>';
+      /* ajuda opcional (nunca condição para avaliar): o detalhamento por entregas, para quem não sabe quais são as responsabilidades */
+      var ajuda = st.ajudaSeparar || entregasAtivas(a).length ? '' : '<p class="an-nota"><button type="button" class="btn btn--sm an-link" data-an="ajuda-separar" id="anAjudaSeparar">Não sabe quais são as responsabilidades? Detalhar com entregas (opcional)</button></p>';
+      return '<details class="avp-form-card an-secao an-comp-secao" id="anRegistrar"' + (aberto ? ' open' : '') + '><summary id="anRegistrarTitulo">' + (ativos.length ? 'Adicionar responsabilidades' : 'Quais responsabilidades a área tem?') + '</summary>' + flash + corpo + ajuda + '</details>';
     }
     /* lote: só separa por linha — nada de ponto e vírgula, numeração (a não ser que a pessoa peça), junção ou divisão */
     function linhasDoLote(texto, semNumeracao) {
@@ -705,7 +707,7 @@
        Ele nunca muda a resposta de nenhuma responsabilidade — isso só acontece na pessoa responder ou em "Revisar" */
     function renderDetalhar(a, ativos, ps, gravar, aberto, card) {
       if (!gravar && !ps.ents.length) return '';
-      return '<details class="an-detalhar" id="anDetalhar"' + (aberto ? ' open' : '') + '><summary>Ajuda para separar: detalhar com entregas (opcional)</summary>' +
+      return '<details class="an-detalhar" id="anDetalhar"' + (aberto ? ' open' : '') + '><summary>Ajuda para identificar responsabilidades: detalhar com entregas (opcional)</summary>' +
         '<p class="an-nota">Registre o que é produzido e compare o que se parece. O detalhamento não muda a resposta de nenhuma responsabilidade: quem decide é você.</p>' +
         pendenciasHtml(a, ps.detalhe, !!card) + card + renderEntregas(a, ativos, ps, gravar) + renderDelimitacao(a, ativos, gravar) + '</details>';
     }
@@ -870,7 +872,7 @@
       if (livres.length) h += '<form class="an-form" id="anFormRecorte"><h4>Delimitar uma responsabilidade a partir das entregas</h4><fieldset class="an-opcoes"><legend>Entregas que ela reúne</legend>' + livres.map(function (e) { return '<label class="an-opcao"><input type="checkbox" name="anRecEntrega" value="' + esc(e) + '"><span>' + esc(a.entregas[e].descricao) + '</span>' + (descrita(a.entregas[e]) ? '' : ' <span class="an-chip an-chip--pend">descrição incompleta</span>') + '</label>'; }).join('') + '</fieldset>' +
         '<p class="an-nota">Duas entregas só ficam juntas depois de comparadas (pergunta "São a mesma responsabilidade?").</p>' +
         '<div class="avp-field"><label for="anRecDesc">Descreva a responsabilidade</label><textarea id="anRecDesc" rows="2" maxlength="2000"></textarea></div>' +
-        radiosSeparacao('anRecSep', null) +
+        '<p class="an-nota">Ela entra pronta para avaliar pelo O1–O9.</p>' +
         '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anDefinirRecorteBtn"' + (st.gravando ? ' disabled' : '') + '>Delimitar</button></div></form>';
       else if (Object.keys(a.entregas).some(function (e) { return a.entregas[e].situacao === 'ativa'; })) h += '<p class="an-nota" id="anSemLivres">Todas as entregas já estão em alguma responsabilidade (ou são execução para outra estrutura).</p>';
       return h;
@@ -1088,7 +1090,7 @@
         executar(function (est, c) { return N().desdobrarResponsabilidade(est, id, ksp, { partes: partes.map(function (p) { return { descricao: p.descricao }; }) }, Object.assign(c, { novosIds: novosIds })); },
           'Responsabilidade separada em ' + partes.length + ' partes. A descrição original fica guardada e não é avaliada como um todo.');
       } else if (form.id === 'anFormRecorte') {
-        var dr = { descricao: val('anRecDesc'), entregas: marcados('anRecEntrega'), separacao: { valor: marcado('anRecSep') } };
+        var dr = { descricao: val('anRecDesc'), entregas: marcados('anRecEntrega') };
         executar(function (est, c) { return N().definirRecorte(est, id, dr, c); }, 'Responsabilidade registrada a partir das entregas. Separar para avaliar não cria estrutura.');
       } else if (form.getAttribute('data-form') === 'fatos') {
         var rk = form.getAttribute('data-recorte'), ee = val('anExecEstr'), et = val('anExecEstrTexto'), exec = [];
@@ -1270,10 +1272,15 @@
     var a = (D.analises || {})[o.analiseId]; return a ? { analiseId: o.analiseId, nome: a.nome } : null;
   }
   /* sigla da área quando o nome termina em " — SIGLA" (ex.: "... — GECON"); senão, o nome entre aspas */
-  function nomeCurtoArea(nome) { var m = /\s[—–-]\s*([A-ZÀ-Ú0-9]{2,12})\s*$/.exec(String(nome || '')); return m ? m[1] : 'área "' + nome + '"'; }
+  function nomeCurtoArea(o) {
+    var an = pronto() ? estado().analises[o.analiseId] : null, EAx = window.faEstruturaAtualAdmin, u = an && an.unidadeAtualId && EAx ? EAx.unidade(an.unidadeAtualId) : null;
+    if (u && u.sigla) return u.sigla;
+    var nome = String(o.nome || ''), m = /^([A-ZÀ-Ú0-9]{2,12})\s*[—–-]\s/.exec(nome) || /\s[—–-]\s*([A-ZÀ-Ú0-9]{2,12})\s*$/.exec(nome);
+    return m ? m[1] : 'área "' + nome + '"';
+  }
   function origemHtml(objetoId) { var o = origemDe(objetoId); return o ? '<p class="an-origem" id="anOrigem">Responsabilidade registrada na análise <a href="#avaliacoes?an=' + encodeURIComponent(o.analiseId) + '" id="anVoltarAnalise">' + esc(o.nome) + '</a>.</p>' : ''; }
   /* depois do O1–O9: voltar à lista da área para avaliar a próxima */
-  function voltarAreaHtml(objetoId) { var o = origemDe(objetoId); return o ? '<a class="btn btn--primary btn--sm" id="anVoltarResponsabilidades" href="#avaliacoes?an=' + encodeURIComponent(o.analiseId) + '">Voltar às responsabilidades da ' + esc(nomeCurtoArea(o.nome)) + '</a>' : ''; }
+  function voltarAreaHtml(objetoId) { var o = origemDe(objetoId); return o ? '<a class="btn btn--primary btn--sm" id="anVoltarResponsabilidades" href="#avaliacoes?an=' + encodeURIComponent(o.analiseId) + '">Voltar às responsabilidades da ' + esc(nomeCurtoArea(o)) + '</a>' : ''; }
   /* Jornada: a atuação ampla delimitada vira agrupador (D6) */
   function delimitacaoDe(objetoId) { if (!pronto()) return null; var r = N().objetoAmploDelimitado(estado(), objetoId); return r.delimitado ? r : null; }
   /* ficha da estrutura (N4): o que ela exerce segundo as análises — fonte, caráter e data; nunca vínculo */
