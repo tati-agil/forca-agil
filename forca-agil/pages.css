@@ -3265,7 +3265,10 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .po-objeto-dados dt { font-weight: 600; }
 .po-objeto-dados dd { margin: 0; overflow-wrap: anywhere; }
 @media (max-width: 480px) { .po-objeto-dados { grid-template-columns: minmax(0, 1fr); } .po-objeto-dados dd { margin-bottom: 6px; } }
-.po-badge-porta2, .po-badge-encerrada { font-size: .75rem; }
+.po-badge-porta2, .po-badge-encerrada, .po-badge-excluida { font-size: .75rem; }
+.po-excluido { border-left: 3px solid var(--red, #ff3b30); padding: 8px 12px; margin: 8px 0; overflow-wrap: anywhere; }
+.po-exc-registro, .po-exc-deps { overflow-wrap: anywhere; }
+.po-acoes-cadastro { flex-wrap: wrap; }
 .mf-vinculo-estrutura { font-weight: 600; margin-right: 4px; overflow-wrap: anywhere; }
 .mf-vinculo-aviso, .mfm-objeto-aviso { display: block; font-size: .85rem; margin-top: 4px; }
 .mfm-objeto .mfm-abrir-po { display: inline-block; margin-top: 6px; }
@@ -3572,6 +3575,9 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-linha-mais { justify-content: flex-end; }
 .an-linha-form { grid-column: 1 / -1; }
 .an-link { background: transparent; border-color: transparent; text-decoration: underline; }
+.an-link--perigo { color: var(--red, #ff3b30); }
+.an-det--excluido { color: var(--red, #ff3b30); overflow-wrap: anywhere; }
+.an-exc-deps { overflow-wrap: anywhere; }
 .an-resp--desdobrada { opacity: .85; border-style: dashed; }
 .an-lote { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .an-lote-item { display: grid; gap: 2px; padding: 4px 0; border-bottom: 1px solid var(--line); }
