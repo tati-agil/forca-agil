@@ -118,7 +118,7 @@ async function criar(page, d, botao) {
     afirma(/Criada subordinada a GECON/.test(await texto(page, '#eaEventos')), 'histórico: criação e encerramento, com autoria');
     await page.click('#eaVoltar'); await page.waitForSelector('#eaArvore');
     afirma(!(await existe(page, '#eaAbrir_' + nucot)), 'árvore sem as encerradas');
-    await page.check('#eaMostrarEncerradas'); afirma(await existe(page, '#eaAbrir_' + nucot), '"Mostrar encerradas" mostra o NUCOT');
+    await page.check('#eaMostrarEncerradas'); await page.waitForSelector('#eaAbrir_' + nucot); afirma(await existe(page, '#eaAbrir_' + nucot), '"Mostrar encerradas" mostra o NUCOT');
     const dbLiberado = await banco(page);
     await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
     await page.waitForSelector('#adminEstruturaAtual:not([hidden]) #eaMarcador', { timeout: 20000 });
