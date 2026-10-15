@@ -531,6 +531,10 @@
         if (p.analiseId === a.id && (p.recortes || []).indexOf(k) !== -1) b.push({ codigo: 'RECORTE_EM_PROPOSTA', recorteId: k, versao: p.versao });
       });
     });
+    /* proposta anterior ao índice de citações (sem `indexada` na v1): o banco não consegue provar o que ela cita — nenhuma
+       responsabilidade desta análise sai (as regras recusam do mesmo jeito) */
+    var v1 = (estado && estado.propostas || {})[a.id + '~1'];
+    if (v1 && v1.indexada !== true) b.push({ codigo: 'ANALISE_COM_PROPOSTA_ANTERIOR', recorteId: recorteId });
     if (r.origemRecorteId && a.recortes[r.origemRecorteId] && a.recortes[r.origemRecorteId].desdobramento) {
       var irmas = (a.recortes[r.origemRecorteId].desdobramento.partes || []).filter(function (k) { return k !== recorteId && a.recortes[k]; });
       if (!irmas.length) b.push({ codigo: 'ULTIMA_PARTE', recorteId: recorteId, origem: r.origemRecorteId });
@@ -681,6 +685,7 @@
     var a = al.antes;
     var recortes = dados.recortes || [];
     if (!Array.isArray(recortes) || recortes.length === 0) return erro('PROPOSTA_SEM_RECORTE');
+    if (recortes.length > MAX.lote) return erro('PROPOSTA_RECORTES_DEMAIS', { limite: MAX.lote });
     for (var i = 0; i < recortes.length; i++) if (!a.recortes[recortes[i]] || a.recortes[recortes[i]].situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recortes[i] });
     if (dados.alternativa === 'pendente') {
       var p = dados.pendencia || {};
@@ -692,7 +697,7 @@
     var id = analiseId + '~' + versao;
     var prop = { id: id, analiseId: analiseId, versao: versao, alternativa: dados.alternativa, recortes: recortes.slice(), justificativa: dados.justificativa,
       criterios: clone(dados.criterios || {}), pendencia: dados.alternativa === 'pendente' ? clone(dados.pendencia) : null,
-      situacao: dados.alternativa === 'pendente' ? 'pendente' : 'proposta', registradaEm: ctx.agora, registradaPor: autor(ctx), revisao: 1 };
+      situacao: dados.alternativa === 'pendente' ? 'pendente' : 'proposta', registradaEm: ctx.agora, registradaPor: autor(ctx), revisao: 1, indexada: true };
     al.depois.propostaVigente = versao;
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois), { entidade: 'proposta', id: id, antes: null, depois: prop, revisaoAnterior: null }],
       eventos: [evento('proposta.registrada', analiseId, ctx, { versao: versao, alternativa: prop.alternativa, situacao: prop.situacao })] };

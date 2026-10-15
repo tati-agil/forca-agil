@@ -109,9 +109,9 @@ async function main() {
   await pode('adicionar entrega (revisão 2)', up(ARQ, wE1));
   await nega('gravação sobre a revisão velha (concorrência): recusada', up(ARQ, wVelha));
   await nega('sem o evento de auditoria: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })), (w) => { Object.keys(w).filter((k) => k.indexOf(NOS.auditoria) === 0).forEach((k) => delete w[k]); })));
-  await nega('horário do cliente: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })), (w) => { w[NOS.analises + '/anC'].atualizadoEm = 1791713600000; })));
-  await nega('trocar o escopo: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })), (w) => { w[NOS.analises + '/anC'].tipoEscopo = 'capacidade'; })));
-  await nega('trocar quem criou: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })), (w) => { w[NOS.analises + '/anC'].criadaPor = { id: 'outra' }; })));
+  await nega('horário do cliente: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })), (w) => { w[NOS.analises + '/anC/atualizadoEm'] = 1791713600000; })));
+  await nega('trocar o escopo: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })), (w) => { w[NOS.analises + '/anC/tipoEscopo'] = 'capacidade'; })));
+  await nega('trocar quem criou: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })), (w) => { w[NOS.analises + '/anC/criadaPor'] = { id: 'outra' }; })));
   await nega('autoria de outra pessoa: recusada', up(ARQ, await op(SUPER, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e2' })))));
   await nega('apagar a análise: recusado', db(ARQ).ref(NOS.analises + '/anC').remove());
   const evento0 = (await ler(NOS.analises + '/anC')).auditoriaId;
@@ -135,7 +135,7 @@ async function main() {
   await nega('recorte ligado sem o índice: recusado', up(ARQ, await criarAtuacao(ARQ, 'objR1', 'r1', 'anC', (w) => { delete w[NOS.porObjeto + '/objR1']; })));
   await pode('atuação + recorte ligado + índice, numa gravação', up(ARQ, await criarAtuacao(ARQ, 'objR1')));
   anota('o objeto é uma atuação normal da Porta 2 (ativa, revisão 1) e o índice aponta a origem', (await ler('objetos-organizacionais/objR1/situacao')) === 'ativo' && (await ler(NOS.porObjeto + '/objR1/recorteId')) === 'r1');
-  await nega('trocar a atuação de um recorte avaliado: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e9' })), (w) => { w[NOS.analises + '/anC'].recortes.r1.objetoId = 'outroObj'; })));
+  await nega('trocar a atuação de um recorte avaliado: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e9' })), (w) => { w[NOS.analises + '/anC/recortes/r1/objetoId'] = 'outroObj'; })));
   await nega('reescrever o índice de origem: recusado', db(ARQ).ref(NOS.porObjeto + '/objR1').set({ analiseId: 'anC', recorteId: 'r9' }));
   await nega('apagar o índice de origem: recusado', db(ARQ).ref(NOS.porObjeto + '/objR1').remove());
 
@@ -147,14 +147,14 @@ async function main() {
   await pode('registrar uma descrição que precisa separar ("Sim")', up(ARQ, await op(ARQ, (est, c) => N.definirRecorte(est, 'anC', { descricao: 'Gerir o orçamento e atender fornecedores', separacao: { valor: 'sim' } }, Object.assign(c, { novoId: 'r3' })))));
   await pode('separar em duas partes informadas pela pessoa, numa gravação', up(ARQ, await op(ARQ, (est, c) => N.desdobrarResponsabilidade(est, 'anC', 'r3', { partes: [{ descricao: 'Gerir o planejamento e execução orçamentária', separacao: { valor: 'nao' } }, { descricao: 'Atender fornecedores', separacao: { valor: 'nao-sei' } }] }, Object.assign(c, { novosIds: ['r3a', 'r3b'] })))));
   anota('a original fica desdobrada, com o vínculo às partes; cada parte guarda a origem', (await ler(NOS.analises + '/anC/recortes/r3/situacao')) === 'desdobrado' && (await ler(NOS.analises + '/anC/recortes/r3a/origemRecorteId')) === 'r3' && (await ler(NOS.analises + '/anC/recortes/r3/descricao')) === 'Gerir o orçamento e atender fornecedores');
-  await nega('trocar a atuação da responsabilidade sem entregas: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e8' })), (w) => { w[NOS.analises + '/anC'].recortes.r2.objetoId = 'outroObj'; })));
+  await nega('trocar a atuação da responsabilidade sem entregas: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e8' })), (w) => { w[NOS.analises + '/anC/recortes/r2/objetoId'] = 'outroObj'; })));
 
   console.log('\n== F. Proposta de composição ==');
   const propor = (e, dados, mexer) => op(e, (est, c) => N.registrarProposta(est, 'anC', Object.assign({ alternativa: 'manter-consciente', recortes: ['r1'], justificativa: 'Sem ganho em separar' }, dados || {}), c), mexer);
   await nega('Avaliação NÃO propõe', up(AVAL, await propor(AVAL)));
   await nega('alternativa "reclassificar" (fora da lista) gravada à força: recusada', up(ARQ, await propor(ARQ, {}, (w) => { w[NOS.propostas + '/anC/v1'].alternativa = 'reclassificar'; })));
-  await nega('proposta sem a análise apontar a versão: recusada', up(ARQ, await propor(ARQ, {}, (w) => { delete w[NOS.analises + '/anC'].propostaVigente; })));
-  await nega('pular versão (v2 sem v1): recusado', up(ARQ, await propor(ARQ, {}, (w) => { const p = w[NOS.propostas + '/anC/v1']; delete w[NOS.propostas + '/anC/v1']; p.versao = 2; w[NOS.propostas + '/anC/v2'] = p; w[NOS.analises + '/anC'].propostaVigente = 2; })));
+  await nega('proposta sem a análise apontar a versão: recusada', up(ARQ, await propor(ARQ, {}, (w) => { delete w[NOS.analises + '/anC/propostaVigente']; })));
+  await nega('pular versão (v2 sem v1): recusado', up(ARQ, await propor(ARQ, {}, (w) => { const p = w[NOS.propostas + '/anC/v1']; delete w[NOS.propostas + '/anC/v1']; p.versao = 2; w[NOS.propostas + '/anC/v2'] = p; w[NOS.analises + '/anC/propostaVigente'] = 2; })));
   await nega('pendente sem a pendência: recusado', up(ARQ, await propor(ARQ, { alternativa: 'pendente', pendencia: { falta: 'a', proximaAcao: 'b', quemDecide: 'c' } }, (w) => { delete w[NOS.propostas + '/anC/v1'].pendencia; })));
   await pode('proposta v1 (Avaliação + Configuração)', up(ARQ, await propor(ARQ)));
   await nega('reescrever a proposta v1: recusado', db(ARQ).ref(NOS.propostas + '/anC/v1/justificativa').set('outra'));

@@ -21,6 +21,10 @@
       aprovação registrada: recusada até para o admin geral; id não renasce; marcador DESLIGADO: ninguém exclui.
    G. Responsabilidade só de texto sai da análise (evento 'recorte.excluido'); o núcleo recusa a que tem atuação
       cadastrada ou está numa proposta.
+   H. ADVERSARIAL — gravações diretas contra as regras, sem o núcleo: remover responsabilidade com cadastro (ou só o
+      objetoId), remover a citada em proposta, regravar a análise inteira ou a lista inteira, apagar índice de origem ou
+      citação, proposta fora do índice: tudo recusado. Exclusões legítimas continuam; revisão, auditoria e índices
+      consistentes. Análise com proposta anterior ao índice: nenhuma responsabilidade sai.
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -227,6 +231,82 @@ async function main() {
   const wDesl = await excluirAnalise(ARQ, 'anDesl');
   await semear((a) => a.ref(NOS.config + '/habilitacao').set('DESLIGADO'));
   await nega('marcador DESLIGADO: ninguém exclui análise', up(SUPER, wDesl));
+
+  console.log('\n== H. Integridade das responsabilidades contra gravação DIRETA (sem o núcleo da aplicação) ==');
+  await semear((a) => a.ref(NOS.config + '/habilitacao').set('LIBERADO_PARA_PERFIS_AUTORIZADOS'));
+  await up(ARQ, await criarAnalise(ARQ, 'anAdv'));
+  for (const [rid, d] of [['rX', 'Sintética X — com cadastro'], ['rY', 'Sintética Y — citada na proposta'], ['rZ', 'Sintética Z — só texto'], ['rW', 'Sintética W — só texto']]) {
+    await up(ARQ, await op(ARQ, (est, c) => N.definirRecorte(est, 'anAdv', { descricao: d, separacao: { valor: 'nao' } }, Object.assign(c, { novoId: rid }))));
+  }
+  const assocX = N.associarAtuacao(await estado(), 'anAdv', 'rX', 'objX', ctxDe(ARQ));
+  await up(ARQ, F.payloadCriarAtuacao({ objetoPayload: O.payloadCriacao({ id: 'objX', audId: chave('oa'), dados: DADOS, usuario: usuario(ARQ), agora: TS }), associacao: assocX, analiseId: 'anAdv', recorteId: 'rX', objetoId: 'objX', audId: chave('ev'), usuario: usuario(ARQ), agora: TS }));
+  await pode('(preparo) proposta v1 citando Y', up(ARQ, await op(ARQ, (est, c) => N.registrarProposta(est, 'anAdv', { alternativa: 'manter-consciente', recortes: ['rY'], justificativa: 'Sintética' }, c))));
+  anota('(preparo) a proposta grava o índice da citação e a marca "indexada"', (await ler(F.NOS.citacoes + '/anAdv/rY')) === true && (await ler(NOS.propostas + '/anAdv/v1/indexada')) === true);
+  /* uma gravação legítima (nova entrega: revisão + 1 e evento de auditoria corretos), à qual o ataque acrescenta algo */
+  const legitima = async (e) => op(e || ARQ, (est, c) => N.adicionarEntrega(est, 'anAdv', { descricao: 'Entrega sintética' }, Object.assign(c, { novoId: chave('e') })));
+  const AA = NOS.analises + '/anAdv';
+  await pode('controle: a gravação legítima, sozinha, é aceita (as recusas abaixo são pelo ataque, não pela base)', up(ARQ, await legitima()));
+  await nega('remover a responsabilidade COM cadastro (gravação direta, revisão e auditoria corretas): recusado', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rX']: null })));
+  await nega('remover só o objetoId da responsabilidade com cadastro: recusado', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rX/objetoId']: null })));
+  await nega('regravar a responsabilidade com cadastro sem o objetoId: recusado', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rX']: { id: 'rX', descricao: 'x', nome: 'x', situacao: 'ativo', versao: 2 } })));
+  await nega('remover a responsabilidade citada em proposta registrada: recusado', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rY']: null })));
+  await nega('admin geral também não remove a citada em proposta: recusado', up(SUPER, Object.assign(await legitima(SUPER), { [AA + '/recortes/rY']: null })));
+  /* contornar regravando a análise inteira (sem X e sem Y), com revisão + 1 e evento de auditoria */
+  const inteira = async (semRecortes) => {
+    const atual = await ler(AA), ev = chave('ev'), nova = js(atual);
+    semRecortes.forEach((r) => { delete nova.recortes[r]; });
+    nova.revisao = atual.revisao + 1; nova.atualizadoEm = TS; nova.auditoriaId = ev; nova.atualizadoPor = { uid: emailKey(ARQ), email: ARQ };
+    return { [AA]: nova, [NOS.auditoria + '/anAdv/' + ev]: { tipo: 'analise.ajustada', operacaoId: 'op', em: TS, por: { uid: emailKey(ARQ), email: ARQ }, detalhe: {} } };
+  };
+  await nega('contornar regravando a ANÁLISE INTEIRA sem a responsabilidade com cadastro: recusado', up(ARQ, await inteira(['rX'])));
+  await nega('contornar regravando a análise inteira sem a citada em proposta: recusado', up(ARQ, await inteira(['rY'])));
+  await nega('regravar a análise inteira mesmo sem tirar nada: recusado (depois de criada, só por campo)', up(ARQ, await inteira([])));
+  const recs = js(await ler(AA + '/recortes')); delete recs.rX;
+  await nega('contornar regravando a LISTA inteira de responsabilidades: recusado', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes']: recs })));
+  await nega('apagar o índice de origem junto: recusado', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rX']: null, [NOS.porObjeto + '/objX']: null })));
+  await nega('apagar a citação no índice: recusado', db(SUPER).ref(F.NOS.citacoes + '/anAdv/rY').remove());
+  await nega('apagar a citação e a responsabilidade na mesma gravação: recusado', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rY']: null, [F.NOS.citacoes + '/anAdv/rY']: null })));
+  await nega('criar citação solta (sem proposta nova): recusado', db(ARQ).ref(F.NOS.citacoes + '/anAdv/rZ').set(true));
+  const propor2 = async (dados, mexer) => op(ARQ, (est, c) => N.registrarProposta(est, 'anAdv', Object.assign({ alternativa: 'manter-consciente', recortes: ['rY', 'rZ'], justificativa: 'Sintética v2' }, dados || {}), c), mexer);
+  await nega('proposta citando responsabilidade FORA do índice: recusada', up(ARQ, await propor2({}, (w) => { delete w[F.NOS.citacoes + '/anAdv/rZ']; })));
+  await nega('proposta sem a marca "indexada": recusada', up(ARQ, await propor2({}, (w) => { delete w[NOS.propostas + '/anAdv/v2'].indexada; })));
+  await nega('proposta citando responsabilidade inexistente: recusada', up(ARQ, await propor2({}, (w) => { w[NOS.propostas + '/anAdv/v2'].recortes = ['rY', 'naoExiste']; w[F.NOS.citacoes + '/anAdv/naoExiste'] = true; })));
+  await nega('proposta com posição fora do formato de lista: recusada', up(ARQ, await propor2({}, (w) => { w[NOS.propostas + '/anAdv/v2'].recortes = { a: 'rY' }; })));
+  await nega('citar e remover a mesma responsabilidade na mesma gravação: recusado', up(ARQ, await propor2({}, (w) => { w[AA + '/recortes/rZ'] = null; })));
+  let doNucleo = N.excluirRecorte(await estado(), 'anAdv', 'rY', { motivo: 'x' }, ctxDe(ARQ));
+  anota('o núcleo recusa do mesmo jeito (citada)', doNucleo.erros[0].codigo === 'RECORTE_EM_PROPOSTA');
+  doNucleo = N.excluirRecorte(await estado(), 'anAdv', 'rX', { motivo: 'x' }, ctxDe(ARQ));
+  anota('o núcleo recusa do mesmo jeito (com cadastro)', doNucleo.erros[0].codigo === 'RECORTE_COM_CADASTRO');
+
+  console.log('\n== H2. Exclusões legítimas continuam funcionando, e o histórico fica consistente ==');
+  const antesH = { rev: await ler(AA + '/revisao'), aud: Object.keys(await ler(NOS.auditoria + '/anAdv')).length };
+  await nega('perfil Avaliação não exclui a responsabilidade só de texto', up(AVAL, await op(AVAL, (est, c) => N.excluirRecorte(est, 'anAdv', 'rZ', { motivo: 'Engano' }, c))));
+  await pode('Avaliação + Configuração exclui a responsabilidade só de texto (pelo núcleo, gravação por campo)', up(ARQ, await op(ARQ, (est, c) => N.excluirRecorte(est, 'anAdv', 'rZ', { motivo: 'Registrada por engano' }, c))));
+  const depoisH = await ler(AA);
+  anota('revisão + 1 e um evento novo na auditoria (nada reescrito)', depoisH.revisao === antesH.rev + 1 && Object.keys(await ler(NOS.auditoria + '/anAdv')).length === antesH.aud + 1 &&
+    (await ler(NOS.auditoria + '/anAdv/' + depoisH.auditoriaId + '/tipo')) === 'recorte.excluido');
+  anota('a responsabilidade saiu; X (com cadastro) e Y (citada) continuam', !depoisH.recortes.rZ && depoisH.recortes.rX.objetoId === 'objX' && !!depoisH.recortes.rY);
+  anota('índice de origem, cadastro, proposta e citação intactos', (await ler(NOS.porObjeto + '/objX/recorteId')) === 'rX' && (await ler('objetos-organizacionais/objX/situacao')) === 'ativo' &&
+    !!(await ler(NOS.propostas + '/anAdv/v1')) && (await ler(F.NOS.citacoes + '/anAdv/rY')) === true);
+  await pode('proposta v2 legítima (cita Y de novo e W) com o índice', up(ARQ, await propor2({ recortes: ['rY', 'rW'] })));
+  anota('citações de Y e W no índice', (await ler(F.NOS.citacoes + '/anAdv/rW')) === true && (await ler(F.NOS.citacoes + '/anAdv/rY')) === true);
+  await nega('W, agora citada, não sai', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rW']: null })));
+  await pode('o cadastro de X sai pelo procedimento próprio (exclusão comum, sem Posicionamento)', up(ARQ, await excluir('objX', ARQ)));
+  anota('a origem continua imutável: recorte X ainda aponta objX e o índice de origem ficou', (await ler(AA + '/recortes/rX/objetoId')) === 'objX' && (await ler(NOS.porObjeto + '/objX/recorteId')) === 'rX' && !!(await ler(EXC + '/objX')));
+  await nega('mesmo com o cadastro excluído, X não sai da análise', up(ARQ, Object.assign(await legitima(), { [AA + '/recortes/rX']: null })));
+
+  console.log('\n== H3. Análise com proposta ANTERIOR ao índice (sem "indexada"): nenhuma responsabilidade sai ==');
+  await up(ARQ, await criarAnalise(ARQ, 'anLeg'));
+  await up(ARQ, await op(ARQ, (est, c) => N.definirRecorte(est, 'anLeg', { descricao: 'Sintética L — só texto', separacao: { valor: 'nao' } }, Object.assign(c, { novoId: 'rL' }))));
+  await up(ARQ, await op(ARQ, (est, c) => N.definirRecorte(est, 'anLeg', { descricao: 'Sintética M — só texto', separacao: { valor: 'nao' } }, Object.assign(c, { novoId: 'rM' }))));
+  /* proposta antiga semeada como estava gravada antes do índice (sem "indexada" e sem citações) */
+  await semear(async (a) => {
+    await a.ref(NOS.propostas + '/anLeg/v1').set({ id: 'anLeg~1', analiseId: 'anLeg', versao: 1, alternativa: 'manter-consciente', recortes: ['rM'], justificativa: 'Antiga', situacao: 'proposta', registradaEm: 1, registradaPor: { id: 'x' } });
+    await a.ref(NOS.analises + '/anLeg/propostaVigente').set(1);
+  });
+  anota('o núcleo explica (proposta anterior ao controle de citações)', N.excluirRecorte(await estado(), 'anLeg', 'rL', { motivo: 'x' }, ctxDe(ARQ)).erros.some((x) => x.codigo === 'ANALISE_COM_PROPOSTA_ANTERIOR'));
+  const legL = await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anLeg', { descricao: 'x' }, Object.assign(c, { novoId: chave('e') })));
+  await nega('tirar uma responsabilidade não citada de análise com proposta antiga: recusado (o banco não consegue provar)', up(ARQ, Object.assign(legL, { [NOS.analises + '/anLeg/recortes/rL']: null })));
 
   await env.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

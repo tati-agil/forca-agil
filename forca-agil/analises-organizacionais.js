@@ -195,6 +195,8 @@
     JUSTIFICATIVA_DO_RECORTE_OBRIGATORIA: 'Explique por que esta responsabilidade é distinta das outras.', JUSTIFICATIVA_OBRIGATORIA: 'A justificativa é obrigatória.',    MOTIVO_OBRIGATORIO: 'O motivo é obrigatório.',
     RECORTE_COM_CADASTRO: 'Esta responsabilidade já tem cadastro na Porta 2: exclua o cadastro pela ficha dele (a ligação com a análise é preservada).',
     RECORTE_EM_PROPOSTA: 'Esta responsabilidade está citada numa proposta de composição registrada (imutável): ela não pode ser excluída. Use Descartar.',
+    ANALISE_COM_PROPOSTA_ANTERIOR: 'Esta análise tem proposta registrada antes do controle de citações: o banco não consegue provar quais responsabilidades ela cita, por isso nenhuma pode ser excluída. Use Descartar.',
+    PROPOSTA_RECORTES_DEMAIS: 'Uma proposta cita no máximo 100 responsabilidades.',
     ULTIMA_PARTE: 'É a última parte de uma responsabilidade separada: exclua a responsabilidade original (com as partes) em vez desta parte.',
     ANALISE_COM_APROVACAO: 'Esta análise tem aprovação registrada (referência a ato externo): ela não pode ser excluída.',
     RECORTE_SEM_ENTREGA: 'Escolha ao menos uma entrega.', ENTREGA_SEM_DESCRICAO: 'Descreva a entrega.', EVIDENCIA_SEM_TEXTO: 'Escreva a evidência.', TIPO_ESCOPO_INVALIDO: 'Escolha o que você vai analisar.',

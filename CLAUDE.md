@@ -149,3 +149,29 @@ permissões, auditoria nem experiência do usuário.
 - **Comunicação**: checkpoints curtos ao fim de cada etapa relevante (concluído, testes, commit, pendências, próximo
   passo); não repita explicações longas; peça decisão só diante de impedimento real ou mudança relevante de escopo; se
   uma abordagem falhar duas vezes, pare, diagnostique a causa e avalie a alternativa mais simples.
+
+### Critério de encerramento — evitar ciclos intermináveis
+
+Uma PR é concluída quando o escopo aprovado está implementado, os critérios de aceite estão atendidos e os testes
+exigidos passam. Revisão não é ciclo interminável de refinamento.
+
+1. **Só impede o merge** problema comprovado e relevante: falha de segurança, autorização ou integridade dos dados;
+   risco real de perda ou corrupção de dados, histórico ou auditoria; defeito funcional reproduzido que comprometa os
+   critérios de aceite; violação de contrato arquitetural ou de regra de governança aprovada; falha nos testes
+   obrigatórios do commit candidato. Todo bloqueador precisa de evidência objetiva, impacto identificado e correção
+   proporcional; suspeita não confirmada é investigada antes de virar bloqueador.
+2. **Não impede o merge**: melhorias estéticas ou editoriais não essenciais, funcionalidades fora do escopo,
+   otimizações especulativas, preferências de implementação sem defeito comprovado, problemas antigos não introduzidos
+   pela PR que não comprometam a entrega, a segurança ou a integridade. Esses itens vão para o backlog, sem gerar
+   implementação automática.
+3. **Em cada rodada de revisão**: corrigir só bloqueadores reais e o necessário para os critérios de aceite; não ampliar
+   escopo sem autorização; não reabrir decisões aprovadas sem fato novo relevante; não pedir revisões completas depois
+   de cada pequeno ajuste; testes direcionados durante as correções e CI completo no commit final; encerrar a rodada
+   quando os critérios estiverem satisfeitos. Se a correção exigir mudança arquitetural maior ou decisão de governança
+   ainda não aprovada, interromper essa mudança e apresentar objetivamente a decisão necessária — não seguir por
+   iniciativa própria.
+4. **Pronta (Definition of Done)**: escopo aprovado implementado; critérios de aceite demonstrados; nenhum bloqueador
+   real conhecido; permissões, contratos, históricos e auditoria preservados; testes obrigatórios do commit final
+   aprovados; melhorias opcionais separadas das pendências impeditivas. Nesse momento, parar de desenvolver e
+   apresentar a PR como pronta para a decisão da dona do repositório. Abrir PR não requer autorização; merge e deploy
+   dependem de aprovação explícita.

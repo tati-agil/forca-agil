@@ -1,7 +1,8 @@
-/* Monta as regras dos 8 nós da ANÁLISE ORGANIZACIONAL (Porta 2) em database.rules.json:
+/* Monta as regras dos 9 nós da ANÁLISE ORGANIZACIONAL (Porta 2) em database.rules.json:
  *   analises-organizacionais, analises-organizacionais-auditoria, analises-propostas, analises-aprovacoes,
  *   analises-por-objeto, analises-organizacionais-config, analises-organizacionais-config-auditoria,
- *   analises-organizacionais-excluidas (registro mínimo de cada exclusão).
+ *   analises-organizacionais-excluidas (registro mínimo de cada exclusão),
+ *   analises-recortes-em-proposta (cada responsabilidade citada numa proposta registrada).
  *
  * O que as regras garantem (provado no emulador por teste-rules-analises-organizacionais.js):
  *   - MARCADOR DE HOMOLOGAÇÃO (analises-organizacionais-config/habilitacao; ausente = DESLIGADO) vale nas OPERAÇÕES DE
@@ -21,9 +22,15 @@
  *     sem proposta. Excepcional (só admin geral): com responsabilidades ou propostas — as atuações cadastradas, o índice
  *     de origem, as propostas e a auditoria ficam (nada em cascata). Com aprovação registrada: recusada sempre (o ato
  *     externo continua apontando para a análise). O id excluído não renasce.
+ *   - GRAVAÇÃO POR CAMPO: depois de criada, a análise só se grava campo a campo (cada responsabilidade no seu caminho);
+ *     a análise inteira só se grava ao nascer ou ao sair com o registro mínimo. Assim o banco confere CADA responsabilidade
+ *     que sai: com cadastro (objetoId) nunca sai, e o objetoId nunca muda nem some; citada numa proposta registrada
+ *     (índice analises-recortes-em-proposta, completo por construção: cada posição da lista da proposta exige a entrada)
+ *     nunca sai; numa análise com proposta anterior a este índice (sem `indexada` na v1), nenhuma responsabilidade sai.
+ *     A revisão + 1 e o evento de auditoria continuam conferidos na análise a cada gravação (o .validate dela roda).
  * O nó das atuações (objetos-organizacionais) não muda: a atuação criada a partir de um recorte passa pelas regras dele.
  *
- *   node .github/scripts/montar-regras-analises-organizacionais.js --gravar   (reescreve os 8 nós)
+ *   node .github/scripts/montar-regras-analises-organizacionais.js --gravar   (reescreve os 9 nós)
  *   node .github/scripts/montar-regras-analises-organizacionais.js            (só confere; sai com erro se divergir)
  * Depois de --gravar: node .github/scripts/regras-compactas.js --gravar database.rules.min.json */
 'use strict';
@@ -35,6 +42,7 @@ const ADM = "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.e
 const TIPO = "root.child('fa-avaliacao-autorizados').child(" + K + ").child('tipo').val()";
 const AN = 'analises-organizacionais', AUD = 'analises-organizacionais-auditoria', PROP = 'analises-propostas', APROV = 'analises-aprovacoes';
 const IDX = 'analises-por-objeto', CFG = 'analises-organizacionais-config', CFG_AUD = 'analises-organizacionais-config-auditoria', EXC = 'analises-organizacionais-excluidas';
+const CIT = 'analises-recortes-em-proposta';
 const OBJ = 'objetos-organizacionais';
 const HAB = "root.child('" + CFG + "').child('habilitacao').val()";
 const SO_GERAL = HAB + " === 'SOMENTE_ADMIN_GERAL'", LIBERADO = HAB + " === 'LIBERADO_PARA_PERFIS_AUTORIZADOS'";
@@ -54,10 +62,22 @@ const autoria = (campo) => ({ '.validate': "newData.child('uid').val() === auth.
 const autoriaId = { '.validate': "newData.child('id').val() === auth.uid" };
 const PV = "newData.child('propostaVigente').val()", PV_ANT = "data.child('propostaVigente').val()";
 
+/* depois de criada: só campo a campo, e só enquanto aberta (descartada é final) */
+const CAMPO_W = GRAVAR + " && root.child('" + AN + "').child($id).child('situacao').val() === 'aberta'";
+const comW = (regra) => Object.assign({ '.write': CAMPO_W }, regra || {});
+/* raiz NOVA vista de analises-organizacionais/$id/recortes/$r */
+const RAIZ_R = 'newData.parent().parent().parent().parent()';
+/* uma responsabilidade só sai da análise sem cadastro, sem citação em proposta registrada e sem proposta antiga não indexada */
+const SAI_RECORTE = and([
+  "!data.child('objetoId').exists()",
+  '!' + RAIZ_R + ".child('" + CIT + "').child($id).child($r).exists()",
+  "(!root.child('" + PROP + "').child($id).exists() || root.child('" + PROP + "').child($id).child('v1').child('indexada').val() === true)"
+]);
 const blocoAnalise = {
   '.read': LER,
   $id: {
-    '.write': GRAVAR + " && (newData.exists() ? (!data.exists() || data.child('situacao').val() === 'aberta') : (data.exists() && newData.parent().parent().child('" + EXC + "').child($id).exists() && !root.child('" + EXC + "').child($id).exists()))",
+    /* a análise inteira: só nasce (gravação nova) ou sai com o registro mínimo; o resto é por campo */
+    '.write': GRAVAR + " && (newData.exists() ? !data.exists() : (data.exists() && newData.parent().parent().child('" + EXC + "').child($id).exists() && !root.child('" + EXC + "').child($id).exists()))",
     '.validate': and([
       '$id.matches(' + ID + ')',
       "!root.child('" + EXC + "').child($id).exists()",
@@ -84,16 +104,21 @@ const blocoAnalise = {
         "!newData.child('propostaVigente').exists()"
       ]) + '))'
     ]),
-    nome: texto(200),
-    tipoEscopo: { '.validate': umDe('newData.val()', ESCOPOS) },
-    situacao: { '.validate': umDe('newData.val()', ['aberta', 'descartada']) },
-    revisao: { '.validate': 'newData.isNumber()' },
-    propostaVigente: { '.validate': 'newData.isNumber() && newData.val() >= 1' },
-    atualizadoPor: autoria(),
-    criadaPor: { '.validate': "newData.hasChildren(['id'])" },
-    descarte: { '.validate': "newData.hasChildren(['motivo']) && newData.child('motivo').isString() && newData.child('motivo').val().length <= 500" },
+    nome: comW(texto(200)),
+    tipoEscopo: comW({ '.validate': umDe('newData.val()', ESCOPOS) }),
+    situacao: comW({ '.validate': umDe('newData.val()', ['aberta', 'descartada']) }),
+    revisao: comW({ '.validate': 'newData.isNumber()' }),
+    propostaVigente: comW({ '.validate': 'newData.isNumber() && newData.val() >= 1' }),
+    atualizadoPor: comW(autoria()),
+    criadaPor: comW({ '.validate': "newData.hasChildren(['id'])" }),
+    descarte: comW({ '.validate': "newData.hasChildren(['motivo']) && newData.child('motivo').isString() && newData.child('motivo').val().length <= 500" }),
+    $campo: comW(),
+    /* sem .write em recortes: a lista inteira nunca se regrava; cada responsabilidade no seu caminho */
     recortes: {
       $r: {
+        '.write': CAMPO_W + ' && (newData.exists() || (' + SAI_RECORTE + '))',
+        /* o cadastro ligado nunca muda nem some (regravar a responsabilidade sem ele é recusado) */
+        '.validate': "!data.child('objetoId').exists() || newData.child('objetoId').val() === data.child('objetoId').val()",
         /* a atuação ligada a um recorte nunca muda e só existe com o índice de origem desta análise */
         objetoId: { '.validate': and([
           'newData.isString()',
@@ -139,8 +164,13 @@ const blocoPropostas = {
         umDe("newData.child('alternativa').val()", ALTERNATIVAS),
         "(newData.child('alternativa').val() === 'pendente') === (newData.child('situacao').val() === 'pendente')",
         umDe("newData.child('situacao').val()", ['proposta', 'pendente']),
-        "(newData.child('situacao').val() === 'pendente') === newData.child('pendencia').exists()"
+        "(newData.child('situacao').val() === 'pendente') === newData.child('pendencia').exists()",
+        /* proposta registrada com o índice das responsabilidades citadas (as anteriores a ele não têm a marca) */
+        "newData.child('indexada').val() === true"
       ]),
+      indexada: { '.validate': 'newData.val() === true' },
+      /* cada posição da lista: uma responsabilidade da análise, já no índice de citações (na mesma gravação ou antes) */
+      recortes: { $i: { '.validate': "$i.matches(/^[0-9]{1,2}$/) && newData.isString() && newData.parent().parent().parent().parent().parent().child('" + CIT + "').child($id).child(newData.val()).val() === true && newData.parent().parent().parent().parent().parent().child('" + AN + "').child($id).child('recortes').child(newData.val()).exists()" } },
       versao: { '.validate': 'newData.isNumber() && newData.val() >= 1' },
       justificativa: texto(2000),
       registradaPor: autoriaId,
@@ -224,6 +254,20 @@ const blocoConfigAuditoria = {
   }
 };
 
+/* analises-recortes-em-proposta/$id/$r = true: a responsabilidade foi citada numa proposta registrada. Nasce só com uma
+   proposta nova na mesma gravação; nunca muda nem sai (regravar true é inócuo) */
+const RAIZ_CIT = 'newData.parent().parent().parent()';
+const VIG_NOVA = RAIZ_CIT + ".child('" + AN + "').child($id).child('propostaVigente').val()";
+const blocoCitacoes = {
+  '.read': LER,
+  $id: {
+    $r: {
+      '.write': GRAVAR + ' && newData.val() === true',
+      '.validate': and(['newData.val() === true', RAIZ_CIT + ".child('" + PROP + "').child($id).child('v' + " + VIG_NOVA + ').exists()', "!root.child('" + PROP + "').child($id).child('v' + " + VIG_NOVA + ').exists()'])
+    }
+  }
+};
+
 /* registro mínimo de cada exclusão: escrito uma vez, imutável; a análise sai na MESMA gravação */
 const AN_ANTES = "root.child('" + AN + "').child($id)", RAIZ_EXC = 'newData.parent().parent()';
 const blocoExcluidas = {
@@ -255,7 +299,7 @@ const blocoExcluidas = {
   }
 };
 
-const BLOCOS = { [AN]: blocoAnalise, [AUD]: blocoAuditoria, [PROP]: blocoPropostas, [APROV]: blocoAprovacoes, [IDX]: blocoPorObjeto, [CFG]: blocoConfig, [CFG_AUD]: blocoConfigAuditoria, [EXC]: blocoExcluidas };
+const BLOCOS = { [AN]: blocoAnalise, [AUD]: blocoAuditoria, [PROP]: blocoPropostas, [APROV]: blocoAprovacoes, [IDX]: blocoPorObjeto, [CFG]: blocoConfig, [CFG_AUD]: blocoConfigAuditoria, [EXC]: blocoExcluidas, [CIT]: blocoCitacoes };
 module.exports = { BLOCOS, NOS: Object.keys(BLOCOS) };
 
 if (require.main === module) {
@@ -263,7 +307,7 @@ if (require.main === module) {
   const regras = JSON.parse(s).rules;
   const divergentes = Object.keys(BLOCOS).filter((n) => JSON.stringify(regras[n]) !== JSON.stringify(BLOCOS[n]));
   if (process.argv.indexOf('--gravar') === -1) {
-    console.log(divergentes.length ? 'DIVERGEM de database.rules.json: ' + divergentes.join(', ') : 'os 8 nós publicados são os montados');
+    console.log(divergentes.length ? 'DIVERGEM de database.rules.json: ' + divergentes.join(', ') : 'os 9 nós publicados são os montados');
     process.exit(divergentes.length ? 1 : 0);
   }
   const ind = (o) => JSON.stringify(o, null, 2).split('\n').map((l, k) => (k === 0 ? l : '    ' + l)).join('\n');
