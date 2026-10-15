@@ -424,6 +424,14 @@ aplicar(N.associarAtuacao(estado, 'an-gecon', 'g7', 'obj-g7', ctx()), 'avaliar g
 aplicar(N.informarNucleosAtuais(estado, 'an-gecon', 'g7', { nucleos: [] }, ctx()), 'corrigir para não informado');
 afirma(analise('an-gecon').recortes.g7.objetoId === 'obj-g7' && analise('an-gecon').recortes.g7.fatos.execucao.length === 0, 'núcleos se corrigem depois da avaliação, sem mexer nela ("Não informado" = lista vazia)');
 afirma(N.exercidasPelaEstrutura(estado, 'nucleo-qualquer').length === 0, 'nada vira vínculo nem estrutura oficial');
+/* Estrutura Organizacional Atual: a área e quem executa hoje apontam unidades do cadastro (referência descritiva) */
+aplicar(N.criarAnalise(estado, { nome: 'GECON — Gerência de Contabilidade e Controladoria', tipoEscopo: 'estrutura', unidadeAtualId: 'ua-gecon' }, ctx('an-ua')), 'análise com unidade');
+afirma(analise('an-ua').unidadeAtualId === 'ua-gecon' && eventos.slice(-1)[0].detalhe.unidadeAtualId === 'ua-gecon', 'a área escolhida na Estrutura Atual fica na análise e no histórico');
+aplicar(N.registrarResponsabilidadesEmLote(estado, 'an-ua', { descricoes: ['Gerir o processo contábil.', 'Gerir o cumprimento de obrigações legais no âmbito contábil e tributário.'] }, Object.assign(ctx(), { novosIds: ['ua1', 'ua2'] })), 'lote ua');
+aplicar(N.informarNucleosAtuais(estado, 'an-ua', 'ua2', { nucleos: [{ unidadeAtualId: 'ua-conta' }, { unidadeAtualId: 'ua-nutri' }, { texto: 'Assessoria externa' }] }, ctx()), 'núcleos da Estrutura Atual');
+const exUA = analise('an-ua').recortes.ua2.fatos.execucao;
+afirma(exUA.length === 3 && exUA[0].unidadeAtualId === 'ua-conta' && !exUA[0].estruturaId && exUA[2].texto === 'Assessoria externa', 'várias unidades da Estrutura Atual (e texto livre) na mesma responsabilidade');
+afirma(temErro(N.informarNucleosAtuais(estado, 'an-ua', 'ua2', { nucleos: [{ unidadeAtualId: 'ua-conta' }, { unidadeAtualId: 'ua-conta' }] }, ctx()), 'NUCLEO_REPETIDO'), 'a mesma unidade duas vezes: recusada');
 afirma(temErro(N.revisarResponsabilidade(estado, 'an-gecon', 'g7', { descricao: 'Outra coisa' }, ctx()), 'RECORTE_JA_AVALIADO_DEFINA_OUTRO'), 'avaliada não se edita: corrigir é revisão pelo O1–O9 (reavaliar)');
 /* registro individual direto (Caminho A e "Adicionar uma"): sem resposta = contrato direto, pronta */
 aplicar(N.definirRecorte(estado, 'an-gecon', { descricao: 'Gerir a conformidade fiscal' }, ctx('g10')), 'individual direto');

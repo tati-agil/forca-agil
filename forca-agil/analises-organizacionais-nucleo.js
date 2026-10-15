@@ -172,7 +172,7 @@
   /* ---------- fatos descritivos (N2/N4) ---------- */
   function validarFato(f, exigeAlvo) {
     if (!f || !dentro(f.carater, CARATER) || !texto(f.fonte, MAX.texto)) return false;
-    if (exigeAlvo && !texto(f.estruturaId, MAX.chave) && !texto(f.texto, MAX.texto)) return false;
+    if (exigeAlvo && !texto(f.unidadeAtualId, MAX.chave) && !texto(f.estruturaId, MAX.chave) && !texto(f.texto, MAX.texto)) return false;
     return true;
   }
 
@@ -183,16 +183,18 @@
     if (!texto(dados.nome, MAX.nome)) return erro('NOME_OBRIGATORIO');
     if (!dentro(dados.tipoEscopo, TIPOS_ESCOPO)) return erro('TIPO_ESCOPO_INVALIDO');
     if (!textoOpcional(dados.descricao, MAX.texto)) return erro('DESCRICAO_INVALIDA');
+    /* a área escolhida na Estrutura Organizacional Atual (opcional; referência descritiva — nunca vínculo formal) */
+    if (dados.unidadeAtualId !== undefined && dados.unidadeAtualId !== null && !texto(dados.unidadeAtualId, MAX.chave)) return erro('UNIDADE_ATUAL_INVALIDA');
     var cap = validarCapacidades(dados.capacidades, ref); if (cap) return erro(cap);
     if (lerAnalise(estado, ctx.novoId)) return erro('ID_JA_USADO');
     var a = {
       id: ctx.novoId, nome: dados.nome.trim(), tipoEscopo: dados.tipoEscopo, descricao: dados.descricao || null,
-      estruturaReferidaId: dados.estruturaReferidaId || null, objetoAmploId: dados.objetoAmploId || null,
+      estruturaReferidaId: dados.estruturaReferidaId || null, objetoAmploId: dados.objetoAmploId || null, unidadeAtualId: dados.unidadeAtualId || null,
       capacidades: clone(dados.capacidades || []), respostas: {}, entregas: {}, comparacoes: {}, recortes: {}, referencias: {},
       situacao: 'aberta', revisao: 1, criadaEm: ctx.agora, criadaPor: autor(ctx)
     };
     return { ok: true, mudancas: [{ entidade: 'analise', id: a.id, antes: null, depois: a, revisaoAnterior: null }],
-      eventos: [evento('analise.criada', a.id, ctx, { tipoEscopo: a.tipoEscopo })] };
+      eventos: [evento('analise.criada', a.id, ctx, a.unidadeAtualId ? { tipoEscopo: a.tipoEscopo, unidadeAtualId: a.unidadeAtualId } : { tipoEscopo: a.tipoEscopo })] };
   }
 
   /* resposta a uma pergunta da matriz (análise ou entrega); o histórico guarda antes e depois */
@@ -460,14 +462,15 @@
   /* "Qual núcleo ou quais núcleos exercem esta responsabilidade atualmente?" — opcional, um ou vários, corrigível a
      qualquer momento (também depois do O1–O9: não influencia a classificação). Fica em fatos.execucao — a mesma
      informação descritiva de "quem executa hoje", com caráter "declarado", fonte e data —, nunca vínculo formal nem
-     estrutura nova: o núcleo do cadastro do ADMIN vai por estruturaId; o que não está no cadastro, por texto */
+     estrutura nova: a unidade da Estrutura Organizacional Atual vai por unidadeAtualId; o núcleo do cadastro de
+     Estruturas do Mapa, por estruturaId (registros anteriores); o que não está em cadastro nenhum, por texto */
   function informarNucleosAtuais(estado, analiseId, recorteId, dados, ctx) {
     var c = validarCtx(ctx); if (c) return erro(c);
     dados = dados || {};
     var lista = Array.isArray(dados.nucleos) ? dados.nucleos : [], vistos = {};
     for (var i = 0; i < lista.length; i++) {
-      var x = lista[i] || {}, chave = x.estruturaId ? 'e:' + x.estruturaId : 't:' + String(x.texto || '').trim().toLowerCase();
-      if (!texto(x.estruturaId, MAX.chave) && !texto(x.texto, MAX.nome)) return erro('NUCLEO_INVALIDO', { indice: i });
+      var x = lista[i] || {}, chave = x.unidadeAtualId ? 'u:' + x.unidadeAtualId : x.estruturaId ? 'e:' + x.estruturaId : 't:' + String(x.texto || '').trim().toLowerCase();
+      if (!texto(x.unidadeAtualId, MAX.chave) && !texto(x.estruturaId, MAX.chave) && !texto(x.texto, MAX.nome)) return erro('NUCLEO_INVALIDO', { indice: i });
       if (vistos[chave]) return erro('NUCLEO_REPETIDO', { indice: i });
       vistos[chave] = true;
     }
@@ -477,7 +480,7 @@
     if (!r || r.situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recorteId });
     var fonte = dados.fonte && dados.fonte.trim() ? dados.fonte.trim() : 'Declaração registrada na análise organizacional';
     var antesF = r.fatos ? clone(r.fatos.execucao) : [];
-    var exec = lista.map(function (x) { var f = { carater: 'declarado', fonte: fonte, informadoEm: ctx.agora, informadoPor: autor(ctx) }; if (x.estruturaId) f.estruturaId = x.estruturaId; else f.texto = String(x.texto).trim(); return f; });
+    var exec = lista.map(function (x) { var f = { carater: 'declarado', fonte: fonte, informadoEm: ctx.agora, informadoPor: autor(ctx) }; if (x.unidadeAtualId) f.unidadeAtualId = x.unidadeAtualId; else if (x.estruturaId) f.estruturaId = x.estruturaId; else f.texto = String(x.texto).trim(); return f; });
     r.fatos = { execucao: exec, responsavelFormal: r.fatos && r.fatos.responsavelFormal ? r.fatos.responsavelFormal : null };
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('nucleos.informados', analiseId, ctx, { recorteId: recorteId, antes: antesF, depois: clone(exec) })] };
   }

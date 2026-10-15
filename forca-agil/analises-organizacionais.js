@@ -262,8 +262,11 @@
       });
       Object.keys(c.valores).forEach(function (id) { var el = document.getElementById(id); if (el && wrap.contains(el) && !el.disabled) el.value = c.valores[id]; });
     }
+    var ouvindoEA = false;
     function render() {
       if (wrap.hidden) return;
+      /* a Estrutura Organizacional Atual pode chegar depois: redesenha quando ela mudar */
+      if (!ouvindoEA && EA() && EA().aoMudar) { ouvindoEA = true; EA().aoMudar(function () { if (!wrap.hidden && !st.gravando) render(); }); }
       /* o que a pessoa abriu ou fechou continua assim depois de redesenhar (lido da página: o evento toggle pode chegar depois) */
       [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos'], ['anComposicaoSecao', 'composicao'], ['anDetalhesResp', 'detalhesResp'], ['anObjeto', 'objeto'], ['anRefMais', 'refMais'], ['anNovaAvancado', 'novaAvancado'], ['anRegistrar', 'adicionar']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
       var digitado = st.limparCampos ? { valores: {}, marcas: [] } : capturarCampos(); st.limparCampos = false;
@@ -307,14 +310,22 @@
       if (desc) h += '<p class="an-nota">' + desc + ' análise' + (desc === 1 ? '' : 's') + ' descartada' + (desc === 1 ? '' : 's') + ' (mantidas no histórico).</p>';
       return h;
     }
+    function unidadesListadas() { var us = unidadesAtuais(); return us && us.length ? us : null; }
+    function campoUnidadeNova(f) {
+      var us = unidadesListadas(); if (!us) return '';
+      return '<div class="avp-field"><label for="anUnidadeAtual">Qual área você deseja analisar?</label><select id="anUnidadeAtual" aria-describedby="anUnidadeAtualAjuda"><option value="">— escolha na Estrutura Organizacional Atual —</option>' +
+        us.map(function (x) { return '<option value="' + esc(x.id) + '"' + (f.unidadeAtualId === x.id ? ' selected' : '') + '>' + '— '.repeat(x.profundidade) + esc(EA().rotulo(x.id)) + '</option>'; }).join('') + '</select>' +
+        '<p class="an-ajuda" id="anUnidadeAtualAjuda">Unidades cadastradas em ADMIN › Avaliação e Mapa › Estrutura Organizacional Atual. Não está lá? Digite o nome abaixo.</p></div>';
+    }
     function renderNova() {
       var f = st.form && st.form.tipo === 'nova' ? st.form : { tipo: 'nova' };
       var atuacoes = Object.keys(D.objetos || {}).filter(function (k) { return D.objetos[k].situacao === 'ativo'; }).sort(function (x, y) { return String(D.objetos[x].nome).localeCompare(D.objetos[y].nome); });
       /* abrir uma análise pede só o nome da área; tipo, descrição, capacidades e responsabilidade prévia ficam em
          "Opções avançadas" (o tipo começa como "estrutura que já existe") */
-      return voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<h2 class="an-titulo">Analisar uma área</h2>' +
+      return voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<h2 class="an-titulo">' + (unidadesListadas() ? 'Analisar uma área' : 'Qual área você deseja analisar?') + '</h2>' +
         '<form class="avp-form-card an-form" id="anFormNova" novalidate>' +
-        '<div class="avp-field"><label for="anNome">Nome da área</label><input id="anNome" maxlength="200" value="' + esc(f.nome || '') + '" placeholder="Ex.: GECON — Gerência de Contabilidade e Controladoria"></div>' +
+        campoUnidadeNova(f) +
+        '<div class="avp-field"><label for="anNome">' + (unidadesListadas() ? 'Nome da área <span class="an-opc">(preenchido pela unidade escolhida; ou digite, se ela não estiver no cadastro)</span>' : 'Nome da área') + '</label><input id="anNome" maxlength="200" value="' + esc(f.nome || '') + '" placeholder="Ex.: GECON — Gerência de Contabilidade e Controladoria"></div>' +
         (st.erro ? '<p class="avp-error-msg" id="anErro" role="alert">' + esc(st.erro) + '</p>' : '') +
         '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anCriarBtn"' + (st.gravando ? ' disabled' : '') + '>' + (st.gravando ? 'Gravando…' : 'Continuar para as responsabilidades') + '</button></div>' +
         '<details class="an-conceitos" id="anNovaAvancado"' + (st.abertos.novaAvancado ? ' open' : '') + '><summary>Opções avançadas (opcional)</summary>' +
@@ -353,7 +364,20 @@
     function normalizado(t) { return String(t || '').trim().replace(/\s+/g, ' ').toLowerCase(); }
     function emOrdem(a) { return function (x, y) { var rx = a.recortes[x], ry = a.recortes[y]; return (rx.criadoEm || 0) - (ry.criadoEm || 0) || (rx.ordem || 0) - (ry.ordem || 0); }; }
     function nucleosDe(r) { return r.fatos && Array.isArray(r.fatos.execucao) ? r.fatos.execucao : []; }
-    function rotuloNucleo(f) { return f.estruturaId ? nomeEstrutura(f.estruturaId) : f.texto; }
+    function EA() { return window.faEstruturaAtualAdmin; }
+    function rotuloUnidade(id) { var t = EA() && EA().rotulo(id); return t || 'Unidade ' + id; }
+    function rotuloNucleo(f) { return f.unidadeAtualId ? rotuloUnidade(f.unidadeAtualId) : f.estruturaId ? nomeEstrutura(f.estruturaId) : f.texto; }
+    function chaveNucleo(f) { return f.unidadeAtualId ? 'u:' + f.unidadeAtualId : f.estruturaId ? 'e:' + f.estruturaId : 't:' + normalizado(f.texto); }
+    /* unidades ativas da Estrutura Atual (lista em árvore) — undefined = lendo; null = indisponível */
+    function unidadesAtuais() { return EA() ? EA().unidadesAtivas() : null; }
+    function unidadesMapa(lista) { var m = {}; (lista || []).forEach(function (x) { m[x.id] = x.unidade; }); return m; }
+    /* sugestão (nunca aplicada sozinha) de qual unidade um texto antigo descreve: mesma sigla ou mesmo nome */
+    function unidadeParecida(texto0, us) {
+      var t = normalizado(texto0); if (!t || !us) return null;
+      for (var i = 0; i < us.length; i++) { var u = us[i].unidade, s = normalizado(u.sigla), n = normalizado(u.nome);
+        if (t === n || t === normalizado(EA().rotulo(us[i].id)) || (s && (t === s || t.indexOf(s + ' ') === 0 || t.indexOf(s + ' —') === 0 || t.indexOf(s + ' -') === 0))) return us[i].id; }
+      return null;
+    }
     /* o tipo arquitetural recomendado (resultado do O1–O9) — nunca "nova estrutura" */
     function tipoRecomendado(p) {
       if (p.estado !== 'concluido') return 'A determinar pelo O1–O9';
@@ -466,6 +490,7 @@
       var px = proximaAcao(a, ativos, rs, gravar);
       var h = voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') +
         '<h2 class="an-titulo" id="anTitulo">' + esc(a.nome) + '</h2>' +
+        (a.unidadeAtualId ? '<p class="an-nota" id="anUnidadeAtualInfo">Área na Estrutura Organizacional Atual: <strong>' + esc(rotuloUnidade(a.unidadeAtualId)) + '</strong></p>' : '') +
         (a.situacao === 'descartada' ? '<p class="avp-error-msg" id="anDescartada">Análise descartada: ' + esc(a.descarte && a.descarte.motivo) + '. Nada foi apagado.</p>' : '') +
         '<div class="an-proxima" id="anProximaAcao" role="status"><p><strong>Próximo passo:</strong> ' + esc(px.t) + '</p>' + botaoProxima(px) + '</div>' +
         (st.flash ? '<p class="avp-flash-success" id="anFlash" role="status">' + esc(st.flash) + '</p>' : '') +
@@ -588,14 +613,27 @@
     }
     /* núcleos atuais: um ou vários, do cadastro do ADMIN ou só descritos — informação declarada, nunca vínculo */
     function renderFormNucleos(r, k) {
-      var atuais = nucleosDe(r), ids = {}, textos = [];
-      atuais.forEach(function (f) { if (f.estruturaId) ids[f.estruturaId] = true; else textos.push(f.texto); });
+      var atuais = nucleosDe(r), ids = {}, uas = {}, textos = [];
+      atuais.forEach(function (f) { if (f.unidadeAtualId) uas[f.unidadeAtualId] = true; else if (f.estruturaId) ids[f.estruturaId] = true; else textos.push(f.texto); });
+      var a0 = estado().analises[st.id] || {}, todas = unidadesAtuais();
+      /* com a área escolhida, as unidades dela (subordinadas em qualquer nível) aparecem primeiro; as outras ficam recolhidas */
+      var daArea = todas && a0.unidadeAtualId ? todas.filter(function (x) { return x.id !== a0.unidadeAtualId && window.faEstruturaAtualNucleo.ancestrais({ unidades: unidadesMapa(todas) }, x.id).indexOf(a0.unidadeAtualId) !== -1; }) : todas;
+      var outras = todas && daArea !== todas ? todas.filter(function (x) { return daArea.indexOf(x) === -1; }) : [];
+      var caixa = function (x) { return '<label class="an-opcao"><input type="checkbox" name="anNucUA" value="' + esc(x.id) + '"' + (uas[x.id] ? ' checked' : '') + '><span>' + esc(EA().rotulo(x.id)) + '</span></label>'; };
+      var blocoUA = todas === undefined ? '<p class="an-nota" id="anNucUALendo">Lendo a Estrutura Organizacional Atual…</p>' : !todas || !todas.length ? '' :
+        '<fieldset class="an-opcoes" id="anNucUAGrupo"><legend>Unidades da Estrutura Organizacional Atual' + (a0.unidadeAtualId ? ' — ' + esc(rotuloUnidade(a0.unidadeAtualId)) : '') + '</legend>' + (daArea.length ? daArea.map(caixa).join('') : '<p class="an-nota">Nenhuma subordinada cadastrada.</p>') + '</fieldset>' +
+        (outras.length ? '<details class="an-conceitos" id="anNucUAOutras"' + (outras.some(function (x) { return uas[x.id]; }) ? ' open' : '') + '><summary>Outras unidades</summary><div class="an-opcoes">' + outras.map(caixa).join('') + '</div></details>' : '');
+      var sugeridas = textos.map(function (t, i) { var u = unidadeParecida(t, todas); return u && !uas[u] ? { i: i, t: t, u: u } : null; }).filter(Boolean);
+      var blocoRel = sugeridas.length ? '<fieldset class="an-opcoes" id="anNucRelGrupo"><legend>Relacionar registros anteriores à Estrutura Atual <span class="an-opc">(só se você confirmar)</span></legend>' + sugeridas.map(function (s) {
+        return '<label class="an-opcao"><input type="checkbox" name="anNucRel" value="' + esc(s.t) + '" data-unidade="' + esc(s.u) + '"><span>"' + esc(s.t) + '" é a unidade <strong>' + esc(EA().rotulo(s.u)) + '</strong></span></label>'; }).join('') +
+        '<p class="an-nota">Nada é relacionado pelo nome sem a sua confirmação. Marcado, o texto passa a apontar a unidade (o anterior fica no histórico).</p></fieldset>' : '';
       var ests = D.estruturas ? Object.keys(D.estruturas).filter(function (x) { return D.estruturas[x].situacao === 'ativa'; }).sort(function (x, y) { return String(D.estruturas[x].nome).localeCompare(D.estruturas[y].nome); }) : [];
       return '<form class="an-form an-linha-form" id="anFormNucleos" data-recorte="' + esc(k) + '"><h4>Qual núcleo ou quais núcleos executam esta responsabilidade hoje?</h4>' +
         '<p class="an-nota">Opcional. Informe só o que se sabe — nada é associado pelo nome. É informação declarada: não cria estrutura, não cria vínculo formal e não muda o Mapa nem o O1–O9.</p>' +
+        blocoUA + blocoRel +
         (ests.length ? '<fieldset class="an-opcoes"><legend>Cadastrados em ADMIN › Avaliação e Mapa › Estruturas Organizacionais</legend>' + ests.map(function (x) { return '<label class="an-opcao"><input type="checkbox" name="anNucEst" value="' + esc(x) + '"' + (ids[x] ? ' checked' : '') + '><span>' + esc(D.estruturas[x].nome) + '</span></label>'; }).join('') + '</fieldset>'
-          : '<p class="an-nota" id="anNucSemCadastro">' + (D.estruturas === undefined ? 'Lendo o cadastro de Estruturas Organizacionais…' : 'O cadastro de Estruturas Organizacionais não está disponível agora (ou não tem estruturas ativas).') + '</p>') +
-        '<div class="avp-field"><label for="anNucOutros">Núcleos que não estão no cadastro do ADMIN <span class="an-opc">(um por linha)</span></label><textarea id="anNucOutros" rows="3" maxlength="2000" placeholder="Ex.: CONTA — Núcleo de Contabilidade">' + esc(textos.join('\n')) + '</textarea></div>' +
+          : '') +
+        '<div class="avp-field"><label for="anNucOutros">Núcleos que não estão em nenhum cadastro <span class="an-opc">(um por linha)</span></label><textarea id="anNucOutros" rows="3" maxlength="2000" placeholder="Ex.: CONTA — Núcleo de Contabilidade">' + esc(textos.join('\n')) + '</textarea></div>' +
         '<div class="avp-field"><label for="anNucFonte">Fonte <span class="an-opc">(opcional)</span></label><input id="anNucFonte" maxlength="2000" placeholder="Ex.: regimento da gerência"></div>' +
         '<p class="an-nota">Deixe tudo em branco para "Não informado". O histórico guarda o que havia antes.</p>' +
         '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anGravarNucleos">Gravar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
@@ -683,13 +721,13 @@
         var nucs = nucleosDe(a.recortes[k]);
         if (!nucs.length) { sem.push(i); return; }
         nucs.forEach(function (f) {
-          var g = f.estruturaId ? 'e:' + f.estruturaId : 't:' + normalizado(f.texto);
-          if (!grupos[g]) { grupos[g] = { rotulo: rotuloNucleo(f), oficial: !!f.estruturaId, itens: [] }; ordemG.push(g); }
+          var g = chaveNucleo(f);
+          if (!grupos[g]) { grupos[g] = { rotulo: rotuloNucleo(f), origem: f.unidadeAtualId ? 'Estrutura Organizacional Atual' : f.estruturaId ? 'cadastrado em Estruturas Organizacionais' : 'não cadastrado — informação descritiva', itens: [] }; ordemG.push(g); }
           grupos[g].itens.push(i);
         });
       });
       var item = function (i, g) {
-        var k = ativos[i], r = a.recortes[k], p = sfs[i].p, outros = nucleosDe(r).filter(function (f) { return (f.estruturaId ? 'e:' + f.estruturaId : 't:' + normalizado(f.texto)) !== g; });
+        var k = ativos[i], r = a.recortes[k], p = sfs[i].p, outros = nucleosDe(r).filter(function (f) { return chaveNucleo(f) !== g; });
         return '<li data-comp-resp="' + esc(k) + '"><span class="an-comp-linha"><span>' + esc(textoResp(r)) + '</span> <span class="an-det">— ' + esc(tipoRecomendado(p)) + '</span>' + (outros.length ? ' <span class="an-chip an-chip--neu">compartilhada com ' + outros.map(function (f) { return esc(rotuloNucleo(f)); }).join(', ') + '</span>' : '') + '</span>' +
           '<details class="an-quatro-det"><summary>Detalhes</summary><dl class="an-quatro"><div><dt>Núcleo(s) que executam hoje (declarado)</dt><dd>' + (nucleosDe(r).length ? nucleosDe(r).map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informado') + '</dd></div>' +
           '<div><dt>Tipo arquitetural recomendado</dt><dd>' + esc(tipoRecomendado(p)) + '</dd></div>' +
@@ -698,7 +736,7 @@
       };
       h += '<h4>Por núcleo que executa hoje (declarado)</h4><div class="an-comp" id="anComposicaoAtual">' + ordemG.map(function (g) {
         var G = grupos[g], av = G.itens.filter(function (i) { return sfs[i].p.estado === 'concluido'; }).length;
-        return '<div class="an-comp-grupo" data-nucleo="' + esc(G.rotulo) + '"><p><strong>' + esc(G.rotulo) + '</strong> <span class="an-det">' + (G.oficial ? 'cadastrado no ADMIN' : 'não cadastrado no ADMIN — informação descritiva') + ' · ' + G.itens.length + ' responsabilidade' + (G.itens.length === 1 ? '' : 's') + ', ' + av + ' avaliada' + (av === 1 ? '' : 's') + '</span></p><ul>' + G.itens.map(function (i) { return item(i, g); }).join('') + '</ul></div>';
+        return '<div class="an-comp-grupo" data-nucleo="' + esc(G.rotulo) + '"><p><strong>' + esc(G.rotulo) + '</strong> <span class="an-det">' + esc(G.origem) + ' · ' + G.itens.length + ' responsabilidade' + (G.itens.length === 1 ? '' : 's') + ', ' + av + ' avaliada' + (av === 1 ? '' : 's') + '</span></p><ul>' + G.itens.map(function (i) { return item(i, g); }).join('') + '</ul></div>';
       }).join('') + (sem.length ? '<div class="an-comp-grupo" id="anComposicaoSemNucleo"><p><strong>Sem núcleo informado</strong> <span class="an-det">' + sem.length + ' responsabilidade' + (sem.length === 1 ? '' : 's') + '</span></p><ul>' + sem.map(function (i) { return item(i, null); }).join('') + '</ul></div>' : '') + '</div>' +
         '<p class="an-nota">Um núcleo pode executar várias responsabilidades com tipos recomendados diferentes. Isso não significa dividir o núcleo, criar estruturas nem mudar ninguém de lugar: é insumo para a análise, não decisão.</p>';
       h += '<h4>Proposta de composição e referência à aprovação</h4>' + (ps.avaliadas > 0 || a.propostaVigente ? renderComposicao(est, a, ativos, sfs, acc) : '<p class="an-nota" id="anComposicaoIndisponivel">A proposta fica disponível quando houver ao menos uma responsabilidade avaliada pelo O1–O9. Não é necessária para concluir as avaliações.</p>');
@@ -984,9 +1022,10 @@
       if (form.id === 'anFormNova') {
         var caps = val('anCapacidades').split(';').map(function (x) { return x.trim(); }).filter(Boolean).map(function (r, i) { return { tipo: 'texto', chave: slug(r, i + 1), rotulo: r }; });
         var amplo = marcado('anTemAtuacao') === 'sim' ? val('anObjetoAmplo') : '';
-        st.form = { tipo: 'nova', tipoEscopo: marcado('anEscopo'), nome: val('anNome'), descricao: val('anDescricao'), capacidades: val('anCapacidades'), objetoAmploId: amplo };
+        var uaSel = val('anUnidadeAtual') || '', nomeN = val('anNome').trim() || (uaSel && EA() ? EA().rotulo(uaSel) || '' : '');
+        st.form = { tipo: 'nova', tipoEscopo: marcado('anEscopo'), nome: nomeN, descricao: val('anDescricao'), capacidades: val('anCapacidades'), objetoAmploId: amplo, unidadeAtualId: uaSel };
         if (marcado('anTemAtuacao') === 'sim' && !amplo) { st.erro = 'Escolha a responsabilidade que esta análise aprofunda (ou responda "Não").'; render(); return; }
-        var dados = { nome: val('anNome'), tipoEscopo: marcado('anEscopo'), descricao: val('anDescricao') || undefined, capacidades: caps, objetoAmploId: amplo || undefined };
+        var dados = { nome: nomeN, tipoEscopo: marcado('anEscopo'), descricao: val('anDescricao') || undefined, capacidades: caps, objetoAmploId: amplo || undefined, unidadeAtualId: uaSel || undefined };
         executar(function (est, c) { return N().criarAnalise(est, dados, c); }, 'Análise aberta.', function (r) { st.form = null; ir(r.novoId); });
       } else if (form.id === 'anFormResponder') {
         var q = form.getAttribute('data-q'), ent = form.getAttribute('data-entrega') || undefined, v = marcado('anResposta');
@@ -1036,8 +1075,11 @@
           render(); var l = document.getElementById('anResponsabilidades'); if (l) l.scrollIntoView({ block: 'start' });
         });
       } else if (form.id === 'anFormNucleos') {
-        var kn = form.getAttribute('data-recorte'), nucs = marcados('anNucEst').map(function (x) { return { estruturaId: x }; })
-          .concat(val('anNucOutros').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(Boolean).map(function (t) { return { texto: t }; }));
+        /* texto antigo relacionado a uma unidade (confirmado pela pessoa) sai da lista de textos e entra como unidade */
+        var rel = Array.prototype.map.call(wrap.querySelectorAll('input[name="anNucRel"]:checked'), function (e) { return { t: normalizado(e.value), u: e.getAttribute('data-unidade') }; });
+        var uaN = marcados('anNucUA'); rel.forEach(function (x) { if (uaN.indexOf(x.u) === -1) uaN.push(x.u); });
+        var kn = form.getAttribute('data-recorte'), nucs = uaN.map(function (x) { return { unidadeAtualId: x }; }).concat(marcados('anNucEst').map(function (x) { return { estruturaId: x }; }))
+          .concat(val('anNucOutros').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(function (t) { return t && !rel.some(function (x) { return x.t === normalizado(t); }); }).map(function (t) { return { texto: t }; }));
         var dn = { nucleos: nucs }; if (val('anNucFonte').trim()) dn.fonte = val('anNucFonte');
         executar(function (est, c) { return N().informarNucleosAtuais(est, id, kn, dn, c); }, nucs.length ? 'Núcleos atuais registrados (informação declarada; não é vínculo formal).' : 'Núcleos atuais: não informado.');
       } else if (form.id === 'anFormSeparar') {
@@ -1053,8 +1095,8 @@
         var rAtual = (estado().analises[id] || { recortes: {} }).recortes[rk];
         if (ee || et) { var fx = { carater: val('anExecCarater'), fonte: val('anExecFonte') }; if (ee) fx.estruturaId = ee; else fx.texto = et; exec.push(fx); }
         /* os outros núcleos atuais continuam (este formulário acrescenta ou atualiza um) */
-        nucleosDe(rAtual || {}).forEach(function (f0) { var mesmo = exec.some(function (x) { return x.estruturaId ? x.estruturaId === f0.estruturaId : !f0.estruturaId && normalizado(x.texto) === normalizado(f0.texto); }); if (!mesmo) exec.push({ estruturaId: f0.estruturaId, texto: f0.texto, carater: f0.carater, fonte: f0.fonte }); });
-        exec = exec.map(function (x) { var y = { carater: x.carater, fonte: x.fonte }; if (x.estruturaId) y.estruturaId = x.estruturaId; else y.texto = x.texto; return y; });
+        nucleosDe(rAtual || {}).forEach(function (f0) { var mesmo = exec.some(function (x) { return x.estruturaId ? x.estruturaId === f0.estruturaId : !f0.estruturaId && !f0.unidadeAtualId && normalizado(x.texto) === normalizado(f0.texto); }); if (!mesmo) exec.push({ unidadeAtualId: f0.unidadeAtualId, estruturaId: f0.estruturaId, texto: f0.texto, carater: f0.carater, fonte: f0.fonte }); });
+        exec = exec.map(function (x) { var y = { carater: x.carater, fonte: x.fonte }; if (x.unidadeAtualId) y.unidadeAtualId = x.unidadeAtualId; else if (x.estruturaId) y.estruturaId = x.estruturaId; else y.texto = x.texto; return y; });
         var rf = { certeza: val('anRespCerteza'), carater: val('anRespCarater'), fonte: val('anRespFonte') };
         if (rf.certeza !== 'nao-definido') { if (val('anRespEstr')) rf.estruturaId = val('anRespEstr'); else if (val('anRespEstrTexto')) rf.texto = val('anRespEstrTexto'); }
         executar(function (est, c) { return N().registrarFatos(est, id, rk, { execucao: exec, responsavelFormal: rf }, c); }, 'Informação registrada (descritiva, não é vínculo).');
@@ -1131,6 +1173,7 @@
       var t = ev.target, dep = null, liga = false, dica = null;
       if (t.name === 'anResposta' && t.closest('#anFormResponder[data-q="F2b"]')) { dep = document.getElementById('anEstruturaCadastrada'); dica = document.getElementById('anEstruturaCadastradaDica'); liga = t.value === 'cadastrada'; }
       else if (t.name === 'anLoteInc') { sincronizarLote(); var bl = document.getElementById('anLoteRegistrar'); if (bl) bl.textContent = rotuloLote(st.form.previa.filter(function (x) { return x.incluir; }).length); return; }
+      else if (t.id === 'anUnidadeAtual') { var nm = document.getElementById('anNome'); if (nm && t.value && EA()) nm.value = EA().rotulo(t.value) || nm.value; return; }
       else if (t.name === 'anTemAtuacao') { dep = document.getElementById('anObjetoAmplo'); dica = document.getElementById('anObjetoAmploDica'); liga = t.value === 'sim'; }
       if (!dep) return;
       dep.disabled = !liga; dep.required = liga; if (!liga) dep.value = '';
