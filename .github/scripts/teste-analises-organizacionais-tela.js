@@ -84,6 +84,8 @@ async function responderPendentes(page, mapa, limite) {
   for (let i = 0; i < (limite || 80); i++) {
     const info = await page.evaluate(() => {
       const p = document.getElementById('anPergunta'); if (!p) return null;
+      /* a pergunta pode estar dentro de um bloco recolhido ("Mais sobre a área"): abre */
+      for (let d = p.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
       const fr = document.getElementById('anFormResponder'), fc = document.getElementById('anFormComparar');
       return { q: fr ? fr.getAttribute('data-q') : fc ? 'F10' : (document.getElementById('anSemEntregas') ? 'F3' : null),
         entrega: (p.querySelector('.an-sobre strong') || {}).textContent || null,
@@ -111,8 +113,10 @@ async function responderPendentes(page, mapa, limite) {
   throw new Error('perguntas demais');
 }
 async function adicionarEntregas(page, descricoes) {
-  /* entregas ficam no detalhamento opcional ("Detalhar responsabilidade") */
-  if (!(await page.evaluate(() => { const d = document.getElementById('anDetalhar'); return !!(d && d.open); }))) await page.click('#anDetalhar > summary');
+  /* o detalhamento por entregas é ajuda: abre por "Preciso de ajuda para separar" (ou já está aberto, com entregas) */
+  if (!(await page.evaluate(() => !!document.getElementById('anDetalhar')))) await page.click('#anAjudaSeparar');
+  await page.waitForSelector('#anDetalhar');
+  if (!(await page.evaluate(() => document.getElementById('anDetalhar').open))) await page.click('#anDetalhar > summary');
   await page.waitForSelector('#anEntregaDesc', { state: 'visible' });
   for (const d of descricoes) {
     const n = await page.evaluate(() => document.querySelectorAll('.an-entrega').length);
@@ -165,6 +169,7 @@ const analiseAtual = (page) => page.evaluate(() => decodeURIComponent(/an=([^&]*
 async function abrirAnaliseNova(page, nome, escopo, extra) {
   await ir(page, '#avaliacoes?an=nova');
   await page.waitForSelector('#anFormNova');
+  await page.evaluate(() => { document.getElementById('anNovaAvancado').open = true; }); /* o tipo fica em "Opções avançadas" */
   await page.check('#anFormNova input[value="' + escopo + '"]');
   await page.fill('#anNome', nome);
   if (extra && extra.capacidades) await page.fill('#anCapacidades', extra.capacidades);
@@ -204,7 +209,7 @@ async function jornadaB(browser) {
   const id = await abrirAnaliseNova(page, 'Núcleo de Arquitetura de TI', 'estrutura');
   afirma(/Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && /não deve ser confundido com o cadastro de Responsabilidades Organizacionais/.test(await texto(page, '#anPerguntaAjuda')), 'uma pergunta por vez, com a explicação (F2b: cadastro de Estruturas do ADMIN ≠ Responsabilidades da Porta 2)');
   await responderPendentes(page, mapaB);
-  afirma(/Informe as responsabilidades da área/.test(await texto(page, '#anProximaAcao')) && await existe(page, '#anDetalhar #anSemEntregas'), 'sem nada registrado: a próxima ação pede a primeira responsabilidade; entregas ficam no detalhamento opcional (com "Não consigo identificar entregas")');
+  afirma(/Informe as responsabilidades da área/.test(await texto(page, '#anProximaAcao')) && !(await existe(page, '#anDetalhar')) && await existe(page, '#anAjudaSeparar'), 'sem nada registrado: a próxima ação pede as responsabilidades; entregas só como ajuda ("Preciso de ajuda para separar")');
   await adicionarEntregas(page, Object.keys(B));
   mapaB.justificar = false;
   const r1 = await responderPendentes(page, mapaB);
@@ -374,6 +379,7 @@ async function jornadaC(browser, db, objPol) {
   const id = await abrirAnaliseNova(page, 'Segurança de TI', 'capacidade', { capacidades: 'Proteger informações e ambientes' });
   afirma(/Capacidades \(só referência\)Proteger informações e ambientes/.test(await texto(page, '#anObjeto')), 'capacidade registrada só como referência');
   await responderPendentes(page, (info) => (info.q === 'F2c' ? { valor: 'listadas' } : null));
+  await page.evaluate(() => { document.getElementById('anRefMais').open = true; });
   await page.selectOption('#anReferenciaSel', objPol);
   await page.click('#anReferenciarBtn');
   await page.waitForSelector('#anReferencias');

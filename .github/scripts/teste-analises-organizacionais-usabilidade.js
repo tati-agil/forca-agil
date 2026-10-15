@@ -96,6 +96,7 @@ async function responderF2b(page, valor, estrutura) {
 }
 async function abrirAnalise(page, nome, escopo, descricao) {
   await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anFormNova');
+  if (escopo || descricao) await page.evaluate(() => { document.getElementById('anNovaAvancado').open = true; });
   if (escopo) await page.check('#anFormNova input[value="' + escopo + '"]');
   await page.fill('#anNome', nome);
   if (descricao) await page.fill('#anDescricao', descricao);
@@ -116,7 +117,10 @@ async function clicarEsperar(page, sel, fn, arg) { await page.click(sel); await 
 /* "Definir delimitação" abre a pergunta só daquela linha; a resposta é um clique */
 async function responderSep(page, k, v, fn) { await page.click('#anDelimitar_' + k); await page.waitForSelector('#anPainelDelim_' + k); await clicarEsperar(page, '#anSep' + { nao: 'Nao_', sim: 'Sim_', 'nao-sei': 'NaoSei_' }[v] + k, fn, k); }
 async function abrirDetalhar(page) {
-  if (!(await page.evaluate(() => { const d = document.getElementById('anDetalhar'); return !!(d && d.open); }))) await page.click('#anDetalhar > summary');
+  /* o detalhamento por entregas é ajuda: abre por "Preciso de ajuda para separar" (ou já está aberto, com entregas) */
+  if (!(await page.evaluate(() => !!document.getElementById('anDetalhar')))) await page.click('#anAjudaSeparar');
+  await page.waitForSelector('#anDetalhar');
+  if (!(await page.evaluate(() => document.getElementById('anDetalhar').open))) await page.click('#anDetalhar > summary');
   await page.waitForSelector('#anEntregaDesc', { state: 'visible' });
 }
 async function adicionarEntrega(page, desc) {
@@ -207,7 +211,9 @@ async function governanca(browser) {
   await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anFormNova');
   afirma(await prop(page, 'input[name="anTemAtuacao"][value="nao"]', 'checked') && /Você quer aprofundar uma responsabilidade organizacional já registrada na Porta 2\?/.test(await texto(page, '#anAprofunda legend')) && await prop(page, '#anFormNova input[value="estrutura"]', 'checked'), 'nova análise: responsabilidade prévia opcional ("Não"); escopo já marcado');
   const id = await abrirAnalise(page, 'TESTE — Núcleo de Governança de TI', null);
-  await page.waitForSelector('#anFormResponder[data-q="F2b"]');
+  await page.waitForSelector('#anFormResponder[data-q="F2b"]', { state: 'attached' });
+  afirma(!(await prop(page, '#anObjeto', 'open')), 'a pergunta do cadastro no ADMIN fica fora da jornada principal (em "Mais sobre a área", recolhido)');
+  await page.click('#anObjeto > summary'); await page.waitForSelector('#anFormResponder[data-q="F2b"]');
   afirma(/Pergunta opcional/.test(await texto(page, '#anPergunta')) && /Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && await prop(page, '#anEstruturaCadastrada', 'disabled'), 'F2b: opcional, com o campo dependente desabilitado');
   await page.focus('#anFormResponder input[name="anResposta"][value="cadastrada"]');
   await page.keyboard.press('Space');
@@ -230,7 +236,11 @@ async function gecon(browser) {
   console.log('\n== G. GECON: dez atribuições coladas, lista única, núcleos, composição ==');
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { hab: LIB });
   await page.waitForSelector('#anNovaBtn', { timeout: 20000 });
-  const id = await abrirAnalise(page, 'Gerência de Contabilidade e Controladoria — GECON', 'estrutura');
+  await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anFormNova');
+  const visiveis = await page.$$eval('#anFormNova input, #anFormNova textarea, #anFormNova select', (l) => l.filter((x) => x.offsetParent && !x.closest('details:not([open])')).map((x) => x.id));
+  afirma(visiveis.join() === 'anNome' && /Continuar para as responsabilidades/.test(await texto(page, '#anCriarBtn')) && !(await prop(page, '#anNovaAvancado', 'open')), 'abrir a análise pede só o nome da área (tipo, descrição, capacidades em "Opções avançadas")', visiveis);
+  const id = await abrirAnalise(page, 'Gerência de Contabilidade e Controladoria — GECON', null);
+  afirma((await analiseDoBanco(page, id)).tipoEscopo === 'estrutura' && !(await existe(page, '#anDetalhar')) && !(await prop(page, '#anObjeto', 'open')), 'GECON aberta só com o nome: sem entregas, escopo ou cadastro no ADMIN à vista');
   await page.waitForSelector('#anFormResponsabilidade');
   afirma(/Informe as responsabilidades da área/.test(await texto(page, '#anProximaAcao')) && /Nenhuma responsabilidade informada ainda/.test(await texto(page, '#anRespVazio')), 'vazia: a próxima ação pede as responsabilidades');
   await page.click('#anAbrirLote'); await page.waitForSelector('#anLoteTexto');
@@ -355,7 +365,10 @@ async function detalhamento(browser) {
   const id = await abrirAnalise(page, 'TESTE — Conjunto', 'conjunto');
   afirma(!(await registrarResp(page, 'Gerir a contabilidade gerencial.', 'nao-sei')), 'uma responsabilidade "Não sei"');
   const k0 = await linhaDe(page, 'Gerir a contabilidade gerencial.');
-  afirma(!(await prop(page, '#anDetalhar', 'open')), 'o detalhamento começa fechado (opcional)');
+  afirma(!(await existe(page, '#anDetalhar')), 'o detalhamento por entregas não aparece até pedir ajuda');
+  await page.click('#anDelimitar_' + k0); await page.waitForSelector('#anAjudaSeparar_' + k0);
+  await page.click('#anAjudaSeparar_' + k0); await page.waitForSelector('#anDetalhar[open]');
+  afirma(/Ajuda para separar/.test(await texto(page, '#anDetalhar > summary')) && !(await prop(page, '#anConceitos', 'open')), '"Preciso de ajuda para separar" (na pergunta da linha) abre a ajuda, com as explicações recolhidas');
   await adicionarEntrega(page, 'Relatórios gerenciais mensais');
   const ke = await page.evaluate(() => document.querySelector('.an-entrega[data-entrega]').getAttribute('data-entrega'));
   await page.click('#anExcluirEntrega_' + ke); await page.click('#anConfirmarExcluirEntrega');
@@ -374,7 +387,7 @@ async function detalhamento(browser) {
 async function legado(browser) {
   console.log('\n== L. Registros anteriores ==');
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=an-legado', { db: comLegado(sementeAnalise(LIB)) });
-  await page.waitForSelector('#anObjetoF2b', { timeout: 20000 });
+  await page.waitForSelector('#anObjetoF2b', { timeout: 20000, state: 'attached' });
   afirma(/É informal/.test(await texto(page, '#anObjetoF2b')) && !/Núcleo de Governança/.test(await texto(page, '#avaliacoesAnalise')), 'F2b incoerente: a estrutura não aparece');
   afirma((await situacaoDe(page, 'rl1')) === 'Pronta para avaliar' && await existe(page, '#anCriarAtuacao_rl1') && await prop(page, '#anDetalhar', 'open'), 'responsabilidade delimitada pelas entregas: na lista, pronta para avaliar; o detalhamento abre com as entregas');
   let a = (await banco(page))['analises-organizacionais']['an-legado'];
@@ -397,7 +410,7 @@ async function perfis(browser) {
   afirma(await larguraOk(page) && !(await estouro(page)).length, '375: entrada sem rolagem lateral nem corte');
   await page.click('#poNovaAtuacaoBtn'); await page.waitForSelector('input[name="poSeparar"]');
   afirma(await larguraOk(page) && !(await estouro(page)).length, '375: cadastro simples do Caminho A sem corte');
-  await abrirAnalise(page, 'Gerência de Contabilidade e Controladoria — GECON', 'estrutura');
+  await abrirAnalise(page, 'Gerência de Contabilidade e Controladoria — GECON', null);
   await page.click('#anAbrirLote'); await page.fill('#anLoteTexto', GECON.join('\n')); await page.click('#anLotePrevia'); await page.waitForSelector('#anLoteLista');
   afirma(await larguraOk(page) && !(await estouro(page)).length, '375: prévia do lote sem corte');
   await page.click('#anLoteRegistrar');
