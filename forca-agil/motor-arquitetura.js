@@ -883,7 +883,7 @@
      Jornada). Por isso: só liga com sessão; se a escuta for cancelada, fica livre para ligar de novo; e a troca de
      sessão (login, saída, outra pessoa) religa a escuta. */
   var refConfig = null, cbConfig = null;
-  function temSessao() { var A = window.faAuth; return !A || !A.getSession || !!A.getSession(); }
+  function temSessao() { var A = typeof window !== 'undefined' ? window.faAuth : null; return !A || !A.getSession || !!A.getSession(); }
   function garantirSync() {
     if (carregado || !temSessao()) return;
     carregado = true;
@@ -901,8 +901,11 @@
     carregado = false; refConfig = null; cbConfig = null;
     if (listeners.length) garantirSync();
   }
-  ['fa-auth-ready', 'fa-avaliacao-ready'].forEach(function (ev) { window.addEventListener(ev, function () { if (listeners.length && !carregado) garantirSync(); }); });
-  window.addEventListener('fa-auth-change', religarSync);
+  /* só no navegador (o mesmo arquivo roda em testes e na fronteira, sem eventos de sessão) */
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    ['fa-auth-ready', 'fa-avaliacao-ready'].forEach(function (ev) { window.addEventListener(ev, function () { if (listeners.length && !carregado) garantirSync(); }); });
+    window.addEventListener('fa-auth-change', religarSync);
+  }
   function onMudanca(cb) { listeners.push(cb); garantirSync(); }
   /* true só depois da PRIMEIRA leitura de motor-arquitetura-config chegar.
      Antes disso versaoAtual() devolve 1 por falta de dado, não porque a

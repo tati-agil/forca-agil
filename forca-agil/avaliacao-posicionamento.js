@@ -58,7 +58,7 @@
   var MAX_OBS = 2000, MAX_MOTIVO = 500, MAX_JUSTIFICATIVA = 2000, TEMPO_GRAVACAO = 12000;
   var NIVEIS = { N1: ['O1', 'O2', 'O3'], N2: ['O4', 'O5'], N3: ['O6', 'O7', 'O8', 'O9'] };
   var ORDEM_NIVEIS = ['N1', 'N2', 'N3'];
-  var TITULO_NIVEL = { N1: 'Nível 1 — tipo de responsabilidade', N2: 'Nível 2 — Linha confirmada', N3: 'Nível 3 — ramo Plataforma' };
+  var TITULO_NIVEL = { N1: 'Nível 1 — tipo de responsabilidade', N2: 'Nível 2 — perguntas do ramo Linha', N3: 'Nível 3 — perguntas do ramo Plataforma' };
   var TIPO_TEXTO = { INCOERENCIA: 'incoerência nas respostas', CONFLITO: 'conflito de posicionamento', RECORTE: 'recorte do objeto', EVIDENCIA_INSUFICIENTE: 'evidência insuficiente' };
   var PAPEL = { O1: 'LINHA', O2: 'AREA_ESPECIALIZADA', O3: 'COE', O4: 'ESTRATEGIA_CLIENTES', O5: 'NEGOCIOS',
     O6: 'PLATAFORMA_CANAIS', O7: 'PLATAFORMA_HABILITADORA_NEGOCIOS', O8: 'PLATAFORMA_HABILITADORA_TECNOLOGIA', O9: 'PLATAFORMA_CORPORATIVA' };
@@ -606,7 +606,7 @@
     /* D2: o bloco Estrutura responsável aparece ou some conforme a habilitação operacional (lida depois do login) */
     window.addEventListener('fa-estruturas-habilitacao', function () { if (aberto() && state.atual) render(); });
     /* a Análise Organizacional chega depois (marcador e dados): só redesenha telas de consulta, nunca um formulário em edição */
-    if (window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.aoMudar) window.faAnalisesOrganizacionais.aoMudar(function () { if (aberto() && (state.tela === 'atuacoes' || state.tela === 'resultado' || (state.tela === 'form-atuacao' && !state.objetoEditando && modoFormA !== simplesCaminhoA()))) render(); });
+    if (window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.aoMudar) window.faAnalisesOrganizacionais.aoMudar(function () { if (aberto() && (state.tela === 'atuacoes' || state.tela === 'todas' || state.tela === 'resultado' || (state.tela === 'form-atuacao' && !state.objetoEditando && modoFormA !== simplesCaminhoA()))) render(); });
     function mostrarPainel() {
       var v = vizinho(); if (v) v.hidden = true;
       var sq = document.getElementById('avaliacoesSquad'); if (sq) sq.hidden = true;
@@ -649,6 +649,7 @@
       if (state.tela === 'escolher' || state.tela === 'sem-permissao') return '#avaliacoes?po=escolher' + (state.itemEscolhido ? '&item=' + encodeURIComponent(state.itemEscolhido) : '');
       /* Porta 2: a lista das atuações (e a escolhida), o cadastro e a edição */
       if (state.tela === 'atuacoes') return '#avaliacoes?po=atuacoes' + (state.itemEscolhido ? '&item=' + encodeURIComponent(state.itemEscolhido) : '');
+      if (state.tela === 'todas') return '#avaliacoes?po=todas';
       if (state.tela === 'form-atuacao') return state.objetoEditando ? '#avaliacoes?po=editar-atuacao&item=' + encodeURIComponent(state.objetoEditando) : '#avaliacoes?po=nova-atuacao';
       if (state.tela === 'carregando') return state.pendente ? '#avaliacoes?po=' + encodeURIComponent(state.pendente) : null;
       if (state.chave) return '#avaliacoes?po=' + encodeURIComponent(state.chave);
@@ -690,6 +691,7 @@
           var mesma = state.tela === 'atuacoes' && state.itemEscolhido === (item || null), fl = mesma ? state.flash : null;
           limparAtual(); state.flash = fl; if (!mesma) state.hipotese = null; state.itemEscolhido = item || null; state.tela = 'atuacoes';
         }
+        else if (po === 'todas') { limparAtual(); state.tela = 'todas'; }
         else if (po === 'nova-atuacao' || po === 'editar-atuacao') {
           limparAtual(); var ed = po === 'editar-atuacao' ? (item || null) : null;
           if (state.objetoEditando !== ed || state.tela !== 'form-atuacao') state.formAtuacao = null;
@@ -763,6 +765,7 @@
       if (state.tela === 'lista') h = renderLista();
       else if (state.tela === 'escolher') h = renderEscolher();
       else if (state.tela === 'atuacoes') h = renderAtuacoes();
+      else if (state.tela === 'todas') h = renderTodas();
       else if (state.tela === 'form-atuacao') h = renderFormAtuacao();
       else if (state.tela === 'sem-permissao') h = '<div id="poSemPermissao" class="avp-form-card"><p>Iniciar uma avaliação de Posicionamento Organizacional é do perfil <strong>Avaliação + Configuração</strong> (e da administração geral). Com o seu acesso, você consulta as avaliações já feitas.</p></div>' + rodapeVoltar();
       else if (state.tela === 'checklist') h = renderChecklist();
@@ -777,7 +780,11 @@
       if (foco) { var el = byId(foco.id); if (el && !el.disabled) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) { /* select e search sem seleção */ } } }
       sincronizarEndereco();
     }
-    function rodapeVoltar() { return '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poVoltarLista">← Voltar para a lista de posicionamentos</button></div>'; }
+    /* voltar com destino claro: uma responsabilidade (Porta 2) volta às responsabilidades; um item da Porta 1, à lista de posicionamentos */
+    function rodapeVoltar() {
+      var p2 = state.atual && ehPorta2(state.atual);
+      return '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poVoltarLista" data-destino="' + (p2 ? 'todas' : 'lista') + '">← ' + (p2 ? 'Voltar às responsabilidades' : 'Voltar para a lista de posicionamentos') + '</button></div>';
+    }
     function badge(status) {
       var t = { rascunho: 'Rascunho', concluido: 'Concluída', descartado: 'Descartada' }[status] || status;
       return '<span class="avp-badge po-badge po-badge--' + esc(status) + '">' + esc(t) + '</span>';
@@ -935,7 +942,12 @@
     function respostaDe(q) { return state.atual && state.atual.respostas && state.atual.respostas[q]; }
     function renderChecklist() {
       var a = state.atual, edita = podeEscrever(), versao = a.questionnaireContentVersion, vm = versaoMotorDo(a);
-      var h = '<div class="avp-form-card" id="poChecklist"><h3>' + esc(a.itemNome) + ' ' + badge(a.status) + '</h3>' +
+      /* onde estou / o que falta: o progresso vem do caminho do próprio motor (perguntasDoCaminho) — nada é recalculado aqui */
+      var sResp = simples(a).respostas, noCaminho = caminho(a), respondidas = noCaminho.filter(function (q) { return !!sResp[q]; }).length, fz = falta(a);
+      var h = '<div class="avp-form-card" id="poChecklist"><p class="po-sobretitulo">Posicionamento Organizacional</p><h3>' + esc(a.itemNome) + ' ' + badge(a.status) + '</h3>' +
+        '<div class="an-proxima" id="poProgresso" role="status"><p><strong>Situação:</strong> ' + (a.status === 'rascunho' ? 'em andamento' : esc(a.status)) + ' · <strong>Perguntas respondidas:</strong> <span id="poProgressoContagem">' + respondidas + ' de ' + noCaminho.length + '</span>' +
+        ' <span class="avp-ficha-meta">(as perguntas seguintes aparecem conforme as respostas)</span></p>' +
+        '<p id="poProgressoProximo"><strong>Próximo passo:</strong> ' + (fz ? esc(fz.texto) + '.' : 'tudo respondido — conclua a avaliação.') + '</p></div>' +
         '<p class="avp-intro">Responda considerando a responsabilidade organizacional associada a este objeto. As perguntas de cada nível aparecem conforme o caminho.</p>' +
         (ehPorta2(a) ? objetoHtml(a) : '');
       /* versão de motor sem a redação publicada que ela exige: nada de texto de outra versão nem de fábrica — trava */
@@ -1151,13 +1163,14 @@
       if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (state.erroObj) return h + '<p class="avp-error-msg" id="poAtuacoesErro">Não foi possível ler as responsabilidades organizacionais agora.</p></div>';
       if (!state.carregou.obj || !tudoCarregado()) return h + '<p class="loading-msg">Carregando…</p></div>';
-      if (state.itemEscolhido) return h + renderAtuacao(state.itemEscolhido) + '</div>' + rodapeVoltar();
+      if (state.itemEscolhido) return h + renderAtuacao(state.itemEscolhido) + '</div>';
       /* as duas ações, sem cartões repetidos: "Nova responsabilidade" (Caminho A) e "Analisar uma área" (Caminho B,
          quando a Análise Organizacional estiver disponível para o perfil) */
       var direto = podeEscrever() ? '<button type="button" class="btn btn--primary" id="poNovaAtuacaoBtn">Nova responsabilidade</button>' : '';
       var AO = window.faAnalisesOrganizacionais, entrada = AO && AO.entradaAtuacoesHtml ? AO.entradaAtuacoesHtml(direto) : '';
       if (entrada) h += entrada; else if (direto) h += '<div class="avp-actions-bar">' + direto + '</div>';
-      h += '<h4 class="po-subtitulo" id="poRegistradasTitulo">Responsabilidades registradas</h4>';
+      h += '<h4 class="po-subtitulo" id="poRegistradasTitulo">Responsabilidades registradas</h4>' +
+        '<p class="po-todas-link"><a class="btn btn--sm" id="poVerTodasBtn" href="#avaliacoes?po=todas">Ver todas as responsabilidades (também as das análises de área)</a></p>';
       var lista = objetosOrdenados();
       if (!lista.length) h += '<p class="admin-empty" id="poSemAtuacoes">Nenhuma responsabilidade organizacional cadastrada.</p>';
       h += '<ul class="po-itens" id="poListaAtuacoes">' + lista.map(function (o) {
@@ -1169,9 +1182,80 @@
       }).join('') + '</ul>';
       return h + '</div>';
     }
+
+    /* "Ver todas as responsabilidades": as do Caminho A e as das análises de área, numa lista só — cada uma aparece uma
+       vez (a da análise já registrada na Porta 2 é a própria responsabilidade, com acesso à origem). Só leitura: a
+       situação vem dos registros que já existem (vigente, rascunho, decisão); nada é recalculado nem gravado */
+    var SIT_TODAS = { pronta: 'Pronta para avaliar', andamento: 'Em avaliação', avaliada: 'Avaliada', avalidar: 'A validar', pendente: 'Registro anterior pendente' };
+    function linhasTodas() {
+      var AO = window.faAnalisesOrganizacionais, ras = AO && AO.responsabilidadesDasAnalises ? AO.responsabilidadesDasAnalises() : null, porObj = {};
+      (ras || []).forEach(function (r) { if (r.objetoId) porObj[r.objetoId] = r; });
+      var out = [];
+      objetosOrdenados().forEach(function (o) {
+        if (o.situacao !== 'ativo') return;
+        var orig = porObj[o._id], sp = posicionamentoDoItem(o._id), l = { descricao: (O() && O().registroSimplificado(o)) ? o.descricao : o.nome, area: orig ? orig.analiseNome : null, analiseId: orig ? orig.analiseId : null, nucleos: orig ? orig.nucleos : [] };
+        if (!sp) { l.sit = 'pronta'; l.href = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(o._id); l.acao = 'Avaliar'; }
+        else if (sp.tipo === 'rascunho') { l.sit = 'andamento'; l.href = '#avaliacoes?po=' + encodeURIComponent(sp.key); l.acao = 'Continuar'; }
+        else {
+          var reg = state.registros[sp.key] || {}, ra = reg.resultadoAutomatico || {}, dec = state.decisoes[sp.key];
+          l.sit = ra.codigoResultado === 'A_VALIDAR' && !dec ? 'avalidar' : 'avaliada'; l.href = '#avaliacoes?po=' + encodeURIComponent(sp.key); l.acao = 'Ver resultado';
+          l.tipo = rotuloResultado(ra); l.decisao = dec ? spanNome(dec.codigoFinal) : null;
+        }
+        out.push(l);
+      });
+      (ras || []).forEach(function (r) {
+        if (r.objetoId) return;
+        out.push({ descricao: r.descricao, area: r.analiseNome, analiseId: r.analiseId, nucleos: r.nucleos, sit: r.pronta ? 'pronta' : 'pendente', href: '#avaliacoes?an=' + encodeURIComponent(r.analiseId), acao: 'Abrir análise da área' });
+      });
+      return { linhas: out.sort(function (x, y) { return String(x.descricao).localeCompare(String(y.descricao), 'pt-BR'); }), comAnalises: ras !== null };
+    }
+    function renderTodas() {
+      var h = '<div class="avp-form-card" id="poTodas"><p class="po-sobretitulo">Responsabilidades Organizacionais</p><h3>Todas as responsabilidades</h3>' +
+        '<p class="avp-intro">As registradas uma a uma e as das análises de área, numa lista só. Encontre uma responsabilidade e continue de onde parou.</p>';
+      if (state.erroObj) return h + '<p class="avp-error-msg" id="poTodasErro">Não foi possível ler as responsabilidades organizacionais agora.</p></div>';
+      if (!state.carregou.obj || !tudoCarregado()) return h + '<p class="loading-msg">Carregando…</p></div>';
+      var t = linhasTodas(), L = t.linhas, n = {};
+      L.forEach(function (l) { n[l.sit] = (n[l.sit] || 0) + 1; });
+      var areas = {}; L.forEach(function (l) { if (l.analiseId) areas[l.analiseId] = l.area; });
+      h += '<p class="an-resumo" id="poTodasResumo">' + L.length + ' responsabilidade' + (L.length === 1 ? '' : 's') + (L.length ? ' — ' + ['pronta', 'andamento', 'avaliada', 'avalidar', 'pendente'].filter(function (k) { return n[k]; }).map(function (k) { return n[k] + ' ' + SIT_TODAS[k].toLowerCase(); }).join(' · ') : '') + '.</p>';
+      if (!t.comAnalises) h += '<p class="avp-ficha-meta" id="poTodasSemAnalises">As responsabilidades das análises de área não estão disponíveis para o seu perfil agora; aparecem as registradas na Porta 2.</p>';
+      h += '<div class="po-todas-filtros"><div class="avp-field"><label for="poTodasBusca">Buscar pela descrição</label><input type="search" id="poTodasBusca" placeholder="Digite parte do texto" autocomplete="off"></div>' +
+        '<div class="avp-field"><label for="poTodasArea">Área</label><select id="poTodasArea"><option value="">Todas</option><option value="-">Registradas individualmente</option>' +
+        Object.keys(areas).sort(function (x, y) { return String(areas[x]).localeCompare(String(areas[y]), 'pt-BR'); }).map(function (k) { return '<option value="' + esc(k) + '">' + esc(areas[k]) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="avp-field"><label for="poTodasSituacao">Situação</label><select id="poTodasSituacao"><option value="">Todas</option>' + Object.keys(SIT_TODAS).filter(function (k) { return n[k]; }).map(function (k) { return '<option value="' + k + '">' + SIT_TODAS[k] + '</option>'; }).join('') + '</select></div></div>';
+      if (!L.length) return h + '<p class="admin-empty" id="poTodasVazia">Nenhuma responsabilidade registrada ainda.</p></div>';
+      h += '<ul class="po-todas" id="poTodasLista">' + L.map(function (l) {
+        return '<li class="po-todas-item" data-situacao="' + l.sit + '" data-area="' + esc(l.analiseId || '-') + '" data-busca="' + esc(String(l.descricao).toLowerCase()) + '">' +
+          '<div class="po-todas-texto"><strong>' + esc(l.descricao) + '</strong>' +
+          '<span class="po-todas-meta">' + (l.area ? 'Área: <a href="#avaliacoes?an=' + encodeURIComponent(l.analiseId) + '">' + esc(l.area) + '</a>' : 'Registrada individualmente') + '</span>' +
+          (l.nucleos && l.nucleos.length ? '<span class="po-todas-meta">Quem executa hoje: ' + esc(l.nucleos.join('; ')) + '</span>' : '') +
+          (l.tipo ? '<span class="po-todas-meta">Tipo recomendado: ' + l.tipo + '</span>' : '') +
+          (l.decisao ? '<span class="po-todas-meta">Decisão final: ' + l.decisao + '</span>' : '') + '</div>' +
+          '<div class="po-todas-acao"><span class="an-chip an-chip--' + ({ pronta: 'neu', andamento: 'atual', avaliada: 'ok', avalidar: 'av', pendente: 'pend' })[l.sit] + '">' + SIT_TODAS[l.sit] + '</span>' +
+          '<a class="btn btn--sm' + (l.sit === 'pronta' || l.sit === 'andamento' ? ' btn--primary' : '') + '" href="' + l.href + '">' + esc(l.acao) + '</a></div></li>';
+      }).join('') + '</ul><p class="admin-empty" id="poTodasNenhuma" hidden>Nenhuma responsabilidade com esses filtros.</p>';
+      return h + '</div>';
+    }
+    /* o resumo para a tela Trabalhos de avaliação: as mesmas linhas da lista consolidada e os rascunhos do O1–O9 */
+    function resumoTrabalhos() {
+      if (state.erroObj || state.erroLeitura) return { erro: true };
+      if (!state.carregou.obj || !tudoCarregado()) return null;
+      var L = linhasTodas().linhas, n = {};
+      L.forEach(function (l) { n[l.sit] = (n[l.sit] || 0) + 1; });
+      var rascunhos = Object.keys(state.reservas || {}).map(function (it) { var k = state.reservas[it], r = state.registros[k]; return r && r.status === 'rascunho' ? { key: k, nome: r.itemNome, porta2: ehPorta2(r) } : null; }).filter(Boolean);
+      return { responsabilidades: { total: L.length, por: n }, rascunhos: rascunhos };
+    }
+    function filtrarTodas() {
+      var b = byId('poTodasBusca'), ar = byId('poTodasArea'), si = byId('poTodasSituacao'), termo = b ? b.value.trim().toLowerCase() : '', vis = 0;
+      Array.prototype.forEach.call(document.querySelectorAll('#poTodasLista .po-todas-item'), function (li) {
+        var ok = (!termo || li.getAttribute('data-busca').indexOf(termo) !== -1) && (!ar || !ar.value || li.getAttribute('data-area') === ar.value) && (!si || !si.value || li.getAttribute('data-situacao') === si.value);
+        li.hidden = !ok; if (ok) vis++;
+      });
+      var nada = byId('poTodasNenhuma'); if (nada) nada.hidden = vis > 0;
+    }
     function renderAtuacao(id) {
       var ob = (state.objetos || {})[id];
-      if (!ob) return '<p class="avp-error-msg" id="poAtuacaoAusente">Responsabilidade organizacional não encontrada.</p><button type="button" class="btn btn--sm" id="poOutraAtuacao">Ver todas as responsabilidades</button>';
+      if (!ob) return '<p class="avp-error-msg" id="poAtuacaoAusente">Responsabilidade organizacional não encontrada.</p><button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
       var h = '<div class="po-item-escolhido" id="poAtuacaoSelecionada">' + objetoDadosHtml(ob, null) + analiseHtml(id), sp = posicionamentoDoItem(id);
       if (sp) h += '<p class="po-item-situacao">' + (sp.tipo === 'vigente' ? 'Posicionamento concluído' : 'Rascunho em andamento') + '</p>' +
         '<button type="button" class="btn btn--sm po-item-abrir" data-key="' + esc(sp.key) + '">' + (sp.tipo === 'vigente' ? 'Abrir o Posicionamento' : 'Continuar o Posicionamento') + '</button>';
@@ -1187,7 +1271,7 @@
       }
       if (podeEscrever() && ob.situacao === 'ativo') h += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poEditarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (O() && O().registroSimplificado(ob) ? 'Editar responsabilidade' : 'Editar dados') + '</button>' +
         '<button type="button" class="btn btn--sm btn--danger" id="poEncerrarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-encerramento' ? 'ENCERRANDO…' : 'Encerrar responsabilidade') + '</button></div>';
-      return h + '</div><button type="button" class="btn btn--sm" id="poOutraAtuacao">Ver todas as responsabilidades</button>';
+      return h + '</div><button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
     }
     /* referência informativa: itens com Avaliação de Produto/Serviço (fora da Lixeira); os que já têm Posicionamento
        (vigente ou rascunho) ou outra responsabilidade ativa aparecem desabilitados, com o motivo — o banco recusa do mesmo jeito */
@@ -1227,6 +1311,18 @@
       };
       modoFormA = !ed && simplesCaminhoA();
       if (modoFormA) return renderFormSimples(f);
+      /* edição de um registro de uma descrição só: um campo, como no cadastro (sem cópias da mesma informação) */
+      if (ed && O().registroSimplificado(ed)) {
+        var longa = (f.descricao || '').trim().length > O().LIMITES.nome;
+        var hs = '<div class="avp-form-card" id="poFormAtuacao" data-modo="simples"><h3>Editar responsabilidade</h3>' +
+          '<div class="avp-field"><label for="poAtuacao_descricao">Descrição da responsabilidade *</label><textarea id="poAtuacao_descricao" class="avp-observacao" rows="3" maxlength="2000">' + esc(f.descricao || '') + '</textarea></div>' +
+          (longa ? '<div class="avp-field"><label for="poAtuacao_nome">Nome curto *</label><input type="text" id="poAtuacao_nome" maxlength="200" value="' + esc(f.nome || '') + '"><p class="avp-ficha-meta">A descrição passa de 200 caracteres: o cadastro precisa de um nome curto.</p></div>' : '') +
+          '<p class="avp-ficha-meta" id="poAtuacaoRefFixa">Referência informativa a uma Avaliação de Produto/Serviço: ' + esc(ed.referenciaItemId || 'nenhuma') + ' (fixada no cadastro).</p>' +
+          '<p class="avp-ficha-meta">A versão anterior fica no histórico.' + (posicionamentoDoItem(state.objetoEditando) ? ' A avaliação O1–O9 já feita não muda: para revê-la, faça uma reavaliação.' : '') + '</p>';
+        if (f.erros && f.erros.length) hs += '<div class="avp-error-msg" id="poAtuacaoErros" role="alert"><ul>' + f.erros.map(function (e) { return '<li>' + esc(textoErroAtuacao(e)) + '</li>'; }).join('') + '</ul></div>';
+        return hs + '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="poSalvarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-alteracao' ? 'SALVANDO…' : 'Salvar alterações') + '</button>' +
+          '<button type="button" class="btn btn--sm" id="poCancelarAtuacaoBtn">Cancelar</button></div></div>';
+      }
       var h = '<div class="avp-form-card" id="poFormAtuacao"><h3>' + (ed ? 'Editar responsabilidade organizacional' : 'Nova responsabilidade organizacional') + '</h3>' +
         '<p class="avp-intro">O que você deseja posicionar na organização? Descreva a responsabilidade organizacional — o trabalho pelo qual se responde; não é preciso que seja um produto ou serviço.</p>' +
         campo('nome', 200, false, true) + campo('descricao', 2000, true, true) + campo('finalidade', 2000, true, true) + campo('contexto', 2000, true, false);
@@ -1257,6 +1353,7 @@
           '<p class="avp-ficha-meta" id="poNomeAjuda">O cadastro aceita nomes de até 200 caracteres e a descrição tem mais que isso. Pode ser um trecho do texto; a descrição completa é guardada como está.</p></div>' : '') +
         /* referência informativa (opcional, recolhida): só consulta, não participa do cálculo */
         '<details class="po-mais" id="poMaisInfo"' + (f.ref ? ' open' : '') + '><summary>Referência a uma Avaliação de Produto/Serviço (opcional)</summary>' +
+        '<div class="avp-field"><label for="poAtuacaoRefBusca">Buscar o item pelo nome</label><input type="search" id="poAtuacaoRefBusca" placeholder="Digite parte do nome" autocomplete="off"></div>' +
         '<div class="avp-field"><label for="poAtuacaoRef">Referência informativa a uma Avaliação de Produto/Serviço</label>' +
         '<select id="poAtuacaoRef" class="avp-select"><option value="">Nenhuma</option>' + opcoesReferencia().map(function (o) {
           return '<option value="' + esc(o.id) + '"' + (o.motivo ? ' disabled' : '') + (f.ref === o.id ? ' selected' : '') + '>' + esc(o.nome) + (o.motivo ? ' — ' + esc(o.motivo) : '') + '</option>';
@@ -1279,7 +1376,7 @@
       state.salvando = 'atuacao-criacao'; render();
       gravar(payload, function () {
         state.salvando = null; state.formAtuacao = null; state.objetoEditando = null; state.itemEscolhido = id; state.hipotese = null; state.tela = 'atuacoes';
-        state.flash = '✓ Responsabilidade registrada. Para começar o O1–O9, registre a hipótese inicial e clique em "Iniciar o Posicionamento".'; render();
+        state.flash = '✓ Responsabilidade registrada.'; render();
       }, function () {
         state.salvando = null; render();
         aviso('Não foi possível registrar a responsabilidade. Se escolheu uma referência, confira se o item não ganhou um Posicionamento ou outra responsabilidade.');
@@ -1292,8 +1389,10 @@
       if (!f || !u || !O()) return;
       if (!ed && simplesCaminhoA()) { salvarSimples(f, u); return; }
       var id = ed || novaChave(O().NODE), audId = novaChave(O().AUD + '/' + id), payload;
+      /* registro de uma descrição só: a edição troca a descrição e o cadastro recebe o mesmo texto, como na criação */
+      var dadosEd = ed && O().registroSimplificado(atual) ? O().dadosEdicaoSimplificada(atual, f.descricao, f.nome) : f;
       try {
-        payload = ed ? O().payloadAlteracao({ id: id, atual: atual, audId: audId, dados: f, usuario: u, agora: S().agoraServidor() })
+        payload = ed ? O().payloadAlteracao({ id: id, atual: atual, audId: audId, dados: dadosEd, usuario: u, agora: S().agoraServidor() })
           : O().payloadCriacao({ id: id, audId: audId, dados: f, referenciaItemId: f.ref || undefined, usuario: u, agora: S().agoraServidor() });
       } catch (e) { f.erros = e.erros || [{ codigo: 'ERRO' }]; render(); return; }
       f.erros = null;
@@ -1372,11 +1471,11 @@
         porta2 ? ['Responsabilidade cadastrada', 'ok', ''] : ['Avaliação P1–P16', 'ok', ''],
         a.status === 'concluido' ? ['Posicionamento O1–O9', 'ok', 'Concluído'] : a.status === 'descartado' ? ['Posicionamento O1–O9', 'na', 'Descartado'] : ['Posicionamento O1–O9', 'atual', 'Em andamento'],
         a.status !== 'concluido' ? ['Decisão final', 'futuro', ''] : !state.carregou.dec ? ['Decisão final', 'carregando', 'Carregando…'] : dec ? ['Decisão final', 'ok', 'Registrada']
-          : firme ? ['Decisão final', 'opcional', 'Opcional: a recomendação firme vale'] : ['Decisão final', 'analise', 'A validar: requer análise']
+          : firme ? ['Decisão final', 'opcional', 'Opcional: a recomendação firme vale'] : ['Decisão final', 'analise', 'Próximo passo: registrar (a recomendação foi A validar)']
       ];
       if (a.status === 'concluido' && sit === 'vigente') et.push(['Estrutura e vínculo', 'futuro', 'Veja "Estrutura responsável" abaixo']);
       var sim = { ok: '✓', atual: '●', futuro: '○', na: '—', analise: '⚖', opcional: '◇', carregando: '…' };
-      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada de Avaliação e Posicionamento"><a class="po-jornada-voltar" id="poVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' +
+      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada de Avaliação e Posicionamento"><a class="po-jornada-voltar" id="poVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Voltar à lista de jornadas</a>' +
         '<ol class="mf-trilha mf-trilha--compacta">' + et.map(function (e) {
           return '<li class="mf-etapa mf-etapa--' + e[1] + '" data-estado="' + e[1] + '"><span class="mf-etapa-simbolo" aria-hidden="true">' + sim[e[1]] + '</span><span class="mf-etapa-texto"><span class="mf-etapa-rotulo">' + esc(e[0]) + '</span>' +
             (e[2] ? '<span class="mf-etapa-detalhe">' + esc(e[2]) + '</span>' : '') + '</span></li>';
@@ -1393,7 +1492,15 @@
     }
     function renderResultado() {
       var a = state.atual, key = state.chave, ra = resultadoLido(a.resultadoAutomatico), sit = situacaoDe(key, a);
-      var h = '<div class="avp-form-card" id="poResultado"><h3>' + esc(a.itemNome) + ' · v' + esc(a.versao || 1) + ' ' + (state.carregou.vig ? badgeSituacao(sit) : badge(a.status)) + '</h3>';
+      var h = '<div class="avp-form-card" id="poResultado"><p class="po-sobretitulo">Posicionamento Organizacional · resultado</p><h3>' + esc(a.itemNome) + ' · v' + esc(a.versao || 1) + ' ' + (state.carregou.vig ? badgeSituacao(sit) : badge(a.status)) + '</h3>';
+      /* concluída é concluída, mesmo quando a recomendação é "A validar": o que falta, nesse caso, é a decisão humana */
+      if (a.status === 'concluido') {
+        var raS = a.resultadoAutomatico || {}, decS = state.decisoes[key];
+        h += '<p class="po-situacao-avaliacao" id="poSituacaoAvaliacao"><strong>Avaliação concluída.</strong> ' +
+          (decS ? 'Há decisão final registrada (veja abaixo, separada da recomendação automática).'
+            : raS.codigoResultado === 'A_VALIDAR' ? 'A recomendação automática foi "A validar": o motor não encontrou elementos suficientes para um tipo firme. Próximo passo: registrar a decisão final.'
+            : 'A recomendação automática é firme; a decisão final é opcional.') + '</p>';
+      }
       /* veio de uma análise de área: o próximo passo é voltar à lista dela e avaliar a próxima */
       var AOv = window.faAnalisesOrganizacionais, volta = ehPorta2(a) && a.status === 'concluido' && AOv && AOv.voltarAreaHtml ? AOv.voltarAreaHtml(a.itemId) : '';
       if (volta) h += '<div class="an-proxima" id="poVoltarArea"><p><strong>Próximo passo:</strong> avalie as outras responsabilidades da área.</p><div class="an-acoes">' + volta + '</div></div>';
@@ -1412,7 +1519,7 @@
       var impB = sit === 'vigente' ? baseReprocessadaComImpacto(a, state.produtos) : null;
       if (impB) h += '<p class="avp-decisao-aviso po-base-revisao" id="poBaseRevisao" role="status"><strong>Precisa de revisão.</strong> ' + esc(textoBaseRevisao(impB)) +
         ' O Posicionamento continua vigente e nada foi alterado automaticamente; reavalie, se for o caso.</p>';
-      h += '<section class="po-bloco" id="poBlocoRecomendacao"><h4 class="po-bloco-titulo">Recomendação automática</h4>';
+      h += '<section class="po-bloco" id="poBlocoRecomendacao"><h4 class="po-bloco-titulo">Recomendação automática (O1–O9)</h4>';
       if (ra.codigoResultado === 'A_VALIDAR') {
         h += '<p class="po-recomendado" id="poRecomendado">Posicionamento organizacional recomendado: A validar — ' + esc(TIPO_TEXTO[ra.tipoAValidar] || ra.tipoAValidar || '') + '</p>';
         if (ra.papeisDetectados.length) h += '<p id="poPapeis">Papéis identificados: ' + ra.papeisDetectados.map(spanNome).join(', ') + '</p>';
@@ -1431,7 +1538,7 @@
       h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + '</p><p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
       h += renderRespostasLidas(a) + '</section>';
       h += hipoteseResultadoHtml(a, ra);
-      h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final</h4>' + renderDecisao(a, key, sit) + '</section>';
+      h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final (registrada por uma pessoa)</h4>' + renderDecisao(a, key, sit) + '</section>';
       /* M3 do Mapa: a estrutura responsável do item — só na versão vigente; quem lê e grava é o módulo de Estruturas
          (faEstruturasAdmin.montarResponsavel, ligado em bind), que só existe com a operação habilitada (marcador presente) */
       if (sit === 'vigente' && state.carregou.dec && blocoResponsavelDisponivel()) h += '<section class="po-bloco" id="poBlocoResponsavel"><h4 class="po-bloco-titulo">Estrutura responsável</h4><div id="poResponsavel"></div></section>';
@@ -1538,7 +1645,7 @@
     /* ===================== AÇÕES ===================== */
     function bind() {
       var v = byId('poVoltar'); if (v) v.addEventListener('click', sairParaAvaliacoes);
-      var vl = byId('poVoltarLista'); if (vl) vl.addEventListener('click', function () { if (confirmarSaida()) { limparAtual(); state.tela = 'lista'; render(); } });
+      var vl = byId('poVoltarLista'); if (vl) vl.addEventListener('click', function () { if (confirmarSaida()) { var dst = vl.getAttribute('data-destino') === 'todas' ? 'todas' : 'lista'; limparAtual(); state.tela = dst; render(); } });
       var novo = byId('poNovoBtn'); if (novo) novo.addEventListener('click', function () { state.itemEscolhido = null; state.busca = ''; state.hipotese = null; state.tela = 'escolher'; render(); });
       ['poAtuacoesBtn', 'poIrAtuacoes'].forEach(function (bid) { var b = byId(bid); if (b) b.addEventListener('click', function () { state.itemEscolhido = null; state.hipotese = null; state.flash = null; state.tela = 'atuacoes'; render(); }); });
       var nab = byId('poNovaAtuacaoBtn'); if (nab) nab.addEventListener('click', function () { state.objetoEditando = null; state.formAtuacao = null; state.flash = null; state.tela = 'form-atuacao'; render(); });
@@ -1549,7 +1656,16 @@
       var eab = byId('poEditarAtuacaoBtn'); if (eab) eab.addEventListener('click', function () { state.objetoEditando = state.itemEscolhido; state.formAtuacao = null; state.flash = null; state.tela = 'form-atuacao'; render(); });
       var encb = byId('poEncerrarAtuacaoBtn'); if (encb) encb.addEventListener('click', pedirEncerramentoAtuacao);
       ['nome', 'descricao', 'finalidade', 'contexto'].forEach(function (c) { var el = byId('poAtuacao_' + c); if (el) el.addEventListener('input', function () { if (state.formAtuacao) state.formAtuacao[c] = el.value; }); });
+      ['poTodasBusca', 'poTodasArea', 'poTodasSituacao'].forEach(function (fid) { var el = byId(fid); if (el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', filtrarTodas); });
       var rsel = byId('poAtuacaoRef'); if (rsel) rsel.addEventListener('change', function () { if (state.formAtuacao) state.formAtuacao.ref = rsel.value; });
+      /* busca da referência: filtra a lista pelo nome (reconstrói as opções — funciona no celular), sem perder a escolhida */
+      var rbus = byId('poAtuacaoRefBusca');
+      if (rbus && rsel) rbus.addEventListener('input', function () {
+        var termo = rbus.value.trim().toLowerCase(), atual = rsel.value;
+        rsel.innerHTML = '<option value="">Nenhuma</option>' + opcoesReferencia().filter(function (o) { return !termo || String(o.nome).toLowerCase().indexOf(termo) !== -1 || o.id === atual; }).map(function (o) {
+          return '<option value="' + esc(o.id) + '"' + (o.motivo ? ' disabled' : '') + (atual === o.id ? ' selected' : '') + '>' + esc(o.nome) + (o.motivo ? ' — ' + esc(o.motivo) : '') + '</option>';
+        }).join('');
+      });
       var sab = byId('poSalvarAtuacaoBtn'); if (sab) sab.addEventListener('click', salvarAtuacao);
       var cab = byId('poCancelarAtuacaoBtn'); if (cab) cab.addEventListener('click', function () { var ed = state.objetoEditando; state.formAtuacao = null; state.objetoEditando = null; state.itemEscolhido = ed || null; state.tela = 'atuacoes'; render(); });
       wrap.querySelectorAll('.po-abrir, .po-item-abrir').forEach(function (b) { b.addEventListener('click', function () { irParaChave(b.dataset.key); }); });
@@ -2059,6 +2175,8 @@
       ouvintes.push(S().ouvir(caminho, cb, erro));
     }
     function aoChegar(qual) {
+      /* a tela Trabalhos de avaliação (avaliacao-produto.js) redesenha os números quando os dados chegam */
+      try { window.dispatchEvent(new CustomEvent('fa-posicionamento-dados')); } catch (e) { /* sem CustomEvent: só não avisa */ }
       if (qual === 'av' && state.atual && state.chave) {
         var rec = state.registros[state.chave];
         if (rec && (rec.revisao || 0) !== state.revisaoBase && rec.revisao !== state.revisaoEmGravacao) {
@@ -2130,7 +2248,8 @@
       abrirLista: function () { aplicarEndereco('lista'); },
       aplicarEndereco: aplicarEndereco,
       fechar: function () { fecharPainel(); },
-      aberto: aberto
+      aberto: aberto,
+      resumoTrabalhos: resumoTrabalhos
     };
     var inicial = poDoEndereco();
     if (inicial.po) aplicarEndereco(inicial.po, inicial.item);

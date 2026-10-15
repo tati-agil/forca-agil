@@ -283,7 +283,8 @@
         if (acao && !acao.consulta && acao.rotulo && !ctx.podeEscrever) acao = { tipo: acao.tipo, rotulo: null, texto: 'Próxima etapa: ' + proxima.rotulo + ' (somente consulta no seu perfil).' };
       }
     }
-    return { etapas: et, acao: acao, completa: completa, analise: et.some(function (e) { return e.estado === 'analise'; }), encerrada: encerrada,
+    /* o que completou a jornada: a decisão final (mesmo com recomendação automática A validar) ou a recomendação firme — mais o vínculo */
+    return { etapas: et, acao: acao, completa: completa, completaPor: completa ? (ef.origem === 'decisao' ? 'decisao' : 'recomendacao') : null, analise: et.some(function (e) { return e.estado === 'analise'; }), encerrada: encerrada,
       disponivel: !!(acao && acao.opcional),
       carregando: et.some(function (e) { return e.estado === 'carregando'; }) };
   }
@@ -351,7 +352,7 @@
       if (!meu && !identidadeOriginal) return;
       var t = !meu ? identidadeOriginal : modo === 'mapa'
         ? { eyebrow: 'Mapa da Floresta', h1: 'Mapa da Floresta', p: fonte === 'cadastro' ? 'As estruturas organizacionais concretas cadastradas: Linhas, Centros de Excelência e Áreas Especializadas.' : 'Demonstração com exemplos fictícios: as estruturas organizacionais e os produtos e serviços sob a responsabilidade de cada uma.' }
-        : { eyebrow: 'Mapa da Floresta', h1: 'Jornada de Avaliação e Posicionamento', p: 'Cada item de Produto/Serviço e cada atuação organizacional: o que já foi feito e o que ainda pode ser feito até a estrutura responsável no Mapa da Floresta.' };
+        : { eyebrow: 'Mapa da Floresta', h1: 'Jornada de Avaliação e Posicionamento', p: 'Cada item de Produto/Serviço e cada responsabilidade organizacional: o que já foi feito e o que ainda pode ser feito até a estrutura responsável no Mapa da Floresta.' };
       if (eyebrow) eyebrow.textContent = t.eyebrow;
       if (h1) h1.textContent = t.h1;
       if (p) p.textContent = t.p;
@@ -639,10 +640,10 @@
       }).join('') + '</ol>';
     }
     function acaoHtml(j) {
-      if (j.encerrada) return '<p class="mf-proxima mf-proxima--encerrada">Atuação encerrada: não recebe nova avaliação nem novo vínculo.</p>';
+      if (j.encerrada) return '<p class="mf-proxima mf-proxima--encerrada">Responsabilidade encerrada: não recebe nova avaliação nem novo vínculo.</p>';
       if (j.carregando) return '<p class="mf-proxima loading-msg" role="status">Carregando…</p>';
       var a = j.acao;
-      if (j.completa) return '<div class="mf-proxima mf-proxima--completa"><span class="mf-completa">✓ Jornada completa</span>' + (a && a.href ? ' <a class="btn btn--sm mf-acao" href="' + esc(a.href) + '"' + (a.rotuloAcessivel ? ' aria-label="' + esc(a.rotuloAcessivel) + '"' : '') + '>' + esc(a.rotulo) + '</a>' : '') + '</div>';
+      if (j.completa) return '<div class="mf-proxima mf-proxima--completa"><span class="mf-completa">✓ Jornada completa</span> <span class="mf-completa-por">' + (j.completaPor === 'decisao' ? 'pela decisão final e o vínculo registrados' : 'pela recomendação firme e o vínculo registrado') + '</span>' + (a && a.href ? ' <a class="btn btn--sm mf-acao" href="' + esc(a.href) + '"' + (a.rotuloAcessivel ? ' aria-label="' + esc(a.rotuloAcessivel) + '"' : '') + '>' + esc(a.rotulo) + '</a>' : '') + '</div>';
       if (!a) return '';
       if (!a.rotulo) return '<p class="mf-proxima' + (a.opcional ? ' mf-proxima--disponivel' : '') + '">' + esc(a.texto) + '</p>';
       if (a.opcional) return '<div class="mf-proxima mf-proxima--disponivel"><span class="mf-proxima-rotulo">Disponível (opcional)</span> <a class="btn btn--sm mf-acao" data-acao="' + esc(a.tipo) + '" href="' + esc(a.href || '#avaliacoes') + '">' + esc(a.rotulo) + '</a></div>';
@@ -660,7 +661,7 @@
       var j = jornadas[x.itemId]; if (!j) return '';
       if (j.representadoPor) {
         var jd = j.jornadaDela, rb = x.resultadoBase, res = rb ? (rb.decisao || rb.automatico) : null;
-        return '<div class="mf-representado" id="mfRepresentado-' + esc(x.itemId) + '"><p><strong>Representado pela atuação “' + esc(j.representadoPor.nome) + '” (Porta 2 — atuação organizacional).</strong> ' +
+        return '<div class="mf-representado" id="mfRepresentado-' + esc(x.itemId) + '"><p><strong>Representado pela responsabilidade “' + esc(j.representadoPor.nome) + '” (Porta 2 — responsabilidade organizacional).</strong> ' +
           (jd.completa ? 'A jornada dela está completa.' : jd.encerrada ? 'Ela está encerrada.' : 'Acompanhe a jornada na atuação.') + '</p>' +
           (res ? '<p class="mf-resultado-p1">Resultado da Avaliação de Produto/Serviço (P1–P16): ' + esc(ROTULO_RESULTADO_P1[res] || res) +
             ' — análise de Produto/Serviço; não é pendência do Posicionamento da atuação.</p>' : '') +
@@ -671,7 +672,7 @@
     function situacaoCurta(x) {
       var j = jornadas[x.itemId];
       if (!j) return C.ROTULO_CURTO[x.situacao] || '';
-      if (j.representadoPor) return 'Representado pela atuação “' + j.representadoPor.nome + '”';
+      if (j.representadoPor) return 'Representado pela responsabilidade “' + j.representadoPor.nome + '”';
       if (j.delimitada) return 'Delimitada em ' + j.delimitada.responsabilidades + ' responsabilidade' + (j.delimitada.responsabilidades === 1 ? '' : 's');
       if (j.encerrada) return 'Encerrada';
       if (j.carregando) return 'Carregando…';
@@ -691,7 +692,7 @@
       return h;
     }
     function renderLinha(x) {
-      var j = jornadas[x.itemId], tipo = x.origem === ORIGEM_PORTA2 ? 'Atuação organizacional' : 'Produto/Serviço';
+      var j = jornadas[x.itemId], tipo = x.origem === ORIGEM_PORTA2 ? 'Responsabilidade organizacional' : 'Produto/Serviço';
       return '<li class="mf-item mf-linha" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '"' + (j && j.representadoPor ? ' data-representado="1"' : '') + '>' +
         '<a class="mf-linha-abrir" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(x.itemId) + '"><span class="mf-linha-texto"><span class="mf-linha-nome">' + esc(x.nome) + '</span>' +
         '<span class="mf-linha-tipo">' + tipo + (x.objeto && x.objeto.situacao === 'encerrado' ? ' · encerrada' : '') + '</span>' +
@@ -702,7 +703,7 @@
       var N = window.faAvaliacaoPosicionamentoNucleo, jx = jornadas[x.itemId], repr = !!(jx && jx.representadoPor);
       var h = '<li class="mf-item mf-item--detalhe" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '"' + (repr ? ' data-representado="1"' : '') + '>' +
         '<div class="mf-item-topo"><span class="mf-item-nome">' + esc(x.nome) + '</span>' +
-        (x.origem === ORIGEM_PORTA2 ? '<span class="avp-badge mf-badge-porta2">Atuação organizacional</span>' : '') +
+        (x.origem === ORIGEM_PORTA2 ? '<span class="avp-badge mf-badge-porta2">Responsabilidade organizacional</span>' : '') +
         (x.objeto && x.objeto.situacao === 'encerrado' ? '<span class="avp-badge mf-badge-encerrado">Encerrada</span>' : '') +
         (repr ? '<span class="avp-badge mf-badge mf-badge--representado">Representado por atuação</span>' : '<span class="avp-badge mf-badge mf-badge--' + esc(x.situacao) + '">' + esc(C.ROTULO_SITUACAO[x.situacao] || x.situacao) + '</span>') +
         '</div>' + analiseOrganizacionalHtml(x) + jornadaHtml(x) + (repr ? '' : faltaHtml(x)) + (repr ? '</li>' : '') + '<dl class="mf-detalhes">';
@@ -724,8 +725,8 @@
       } else h += '<dt>Situação</dt><dd>Verificando a versão do motor da Avaliação de Produto/Serviço…</dd>';
       if (x.alertaBase) h += '<dt>Atenção</dt><dd class="mf-alerta" data-alerta="' + esc(x.alertaBase) + '">' + esc(ROTULO_ALERTA[x.alertaBase] || ((N.ROTULO_GATE && N.ROTULO_GATE[x.alertaBase]) || x.alertaBase)) + '</dd>';
       if (x.baseRevisao) h += '<dt>Precisa de revisão</dt><dd class="mf-base-revisao">' + esc(N.textoBaseRevisao(x.baseRevisao)) + ' Nada foi alterado automaticamente.</dd>';
-      if (x.origem === ORIGEM_PORTA2) h += '<dt>Porta</dt><dd class="mf-porta2">Porta 2 — atuação organizacional posicionada diretamente, sem Avaliação de Produto/Serviço.</dd>';
-      if (x.objetoReferente) h += '<dt>Atuação organizacional</dt><dd class="mf-objeto-referente" data-objeto="' + esc(x.objetoReferente.id) + '">Este item é referência informativa da atuação “' + esc(x.objetoReferente.nome) + '” (Porta 2).</dd>';
+      if (x.origem === ORIGEM_PORTA2) h += '<dt>Porta</dt><dd class="mf-porta2">Porta 2 — responsabilidade organizacional posicionada diretamente, sem Avaliação de Produto/Serviço.</dd>';
+      if (x.objetoReferente) h += '<dt>Responsabilidade organizacional</dt><dd class="mf-objeto-referente" data-objeto="' + esc(x.objetoReferente.id) + '">Este item é referência informativa da responsabilidade “' + esc(x.objetoReferente.nome) + '” (Porta 2).</dd>';
       h += vinculoDoItemHtml(x);
       h += '</dl><div class="mf-item-acoes">';
       if (x.posicionamento) h += '<a class="btn btn--sm mf-abrir-po" href="#avaliacoes?po=' + encodeURIComponent(x.posicionamento.avaliacaoId) + '">Abrir Posicionamento</a>';

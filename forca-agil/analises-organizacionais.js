@@ -1261,11 +1261,30 @@
     ligarConfig();
     if (D.hab === undefined || !autorizacaoResolvida()) return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">Verificando a disponibilidade…</p>';
     var a = acesso();
-    if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=nova" id="avpInicioAnalise">Analisar uma área</a></div>';
+    if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=nova" id="avpInicioAnalise">Analisar área</a></div>';
     if (a.ler) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=lista" id="avpInicioAnalise">Ver as análises de áreas</a><p class="avp-inicio-perfil">Abrir uma análise é do perfil Avaliação + Configuração.</p></div>';
     return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">' + (D.hab === 'DESLIGADO' ? 'Em preparação: ainda não disponível.' : 'Ainda não disponível para o seu perfil.') + '</p>';
   }
   /* ficha do Posicionamento de uma atuação nascida de uma análise */
+  /* a lista consolidada da Porta 2 (avaliacao-posicionamento.js, "Ver todas as responsabilidades"): as
+     responsabilidades registradas nas análises, com a área de origem e quem executa hoje — só leitura, sem regra nova
+     (a prontidão é a do núcleo). null quando a Análise Organizacional não está disponível para a pessoa */
+  function responsabilidadesDasAnalises() {
+    if (!pronto()) return null;
+    var est = estado(), out = [], EAx = window.faEstruturaAtualAdmin;
+    Object.keys(est.analises).forEach(function (aid) {
+      var a = est.analises[aid]; if (a.situacao === 'descartada') return;
+      Object.keys(a.recortes).forEach(function (k) {
+        var r = a.recortes[k]; if (r.situacao !== 'ativo') return;
+        var nucs = (r.fatos && Array.isArray(r.fatos.execucao) ? r.fatos.execucao : []).map(function (f) {
+          return f.unidadeAtualId ? ((EAx && EAx.rotulo(f.unidadeAtualId)) || f.unidadeAtualId) : f.estruturaId ? (((D.estruturas || {})[f.estruturaId] || {}).nome || f.estruturaId) : f.texto;
+        });
+        out.push({ analiseId: aid, analiseNome: a.nome, recorteId: k, descricao: typeof r.descricao === 'string' ? r.descricao : r.nome, objetoId: r.objetoId || null,
+          nucleos: nucs, pronta: !r.objetoId && N().prontaParaO1O9(a, k).pronta });
+      });
+    });
+    return out;
+  }
   function origemDe(objetoId) {
     if (!pronto()) return null;
     var o = (D.porObjeto || {})[objetoId]; if (!o) return null;
@@ -1337,7 +1356,7 @@
     var api = montar();
     if (api) Object.keys(api).forEach(function (k) { window.faAnalisesOrganizacionais[k] = api[k]; });
   };
-  window.faAnalisesOrganizacionais = { entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
+  window.faAnalisesOrganizacionais = { entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, responsabilidadesDasAnalises: responsabilidadesDasAnalises, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
     exercidasHtml: exercidasHtml, montarHabilitacao: montarHabilitacao, acesso: acesso, aoMudar: function (f) { aoMudarFns.push(f); }, ligar: function () { ligarConfig(); ligarDados(); } };
   if (/^#avaliacoes\?(.*&)?an=/.test(location.hash || '')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.faInitAnalisesOrganizacionais); else window.faInitAnalisesOrganizacionais(); }
 })();
