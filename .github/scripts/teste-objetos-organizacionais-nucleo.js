@@ -114,5 +114,16 @@ const MR = require('./montar-regras-objetos-organizacionais.js');
 const publicadas = JSON.parse(fs.readFileSync(path.join(RAIZ, 'database.rules.json'), 'utf8')).rules;
 afirma(MR.NOS.every((n) => JSON.stringify(publicadas[n]) === JSON.stringify(MR.BLOCOS[n])), 'os 3 nós de database.rules.json são os montados (' + MR.NOS.join(', ') + ')');
 
+console.log('Cadastro simplificado (uma descrição, nada inferido)');
+const s1 = O.dadosSimplificados({ texto: 'Gerir o planejamento e execução orçamentária.' });
+afirma(s1.nome === 'Gerir o planejamento e execução orçamentária.' && s1.descricao === s1.nome && s1.finalidade === s1.nome && O.validarDados(s1).length === 0, 'o texto literal preenche nome, descrição e finalidade — e passa na validação do cadastro');
+afirma(/o nome e a finalidade repetem a descrição informada pela pessoa; nada foi inferido/.test(s1.contexto), 'o contexto declara quais campos repetem a descrição', s1.contexto);
+const longo = 'x'.repeat(250);
+const s2 = O.dadosSimplificados({ texto: longo });
+afirma(s2.nome === '' && O.validarDados(s2).some((e) => e.campo === 'nome'), 'descrição acima do limite do nome: sem nome curto, o cadastro recusa (nada é cortado em silêncio)');
+const s3 = O.dadosSimplificados({ texto: longo, nomeCurto: 'Gerir o orçamento', finalidade: 'Orçamento executado conforme o planejado', contexto: 'Da análise X.' });
+afirma(s3.nome === 'Gerir o orçamento' && s3.finalidade === 'Orçamento executado conforme o planejado' && s3.contexto === 'Da análise X.' && O.validarDados(s3).length === 0, 'nome curto e finalidade declarados pela pessoa: nenhuma nota de repetição');
+afirma(Object.isFrozen(O) && typeof O.dadosSimplificados === 'function', 'API congelada, com dadosSimplificados');
+
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);

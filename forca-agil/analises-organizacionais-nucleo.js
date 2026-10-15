@@ -55,7 +55,10 @@
   /* "esta estrutura" só existe quando o escopo é uma estrutura, uma responsabilidade ou uma atuação */
   var ESCOPOS_COM_ESTRUTURA_PROPRIA = ['estrutura', 'responsabilidade', 'atuacao-informal'];
   var CATEGORIAS = ['completa', 'diagnostico-concluido-pendente', 'funcionalidade-futura'];
-  var MAX = { nome: 200, texto: 2000, motivo: 500, chave: 80 };
+  var MAX = { nome: 200, texto: 2000, motivo: 500, chave: 80, lote: 100 };
+  /* "Essa descrição reúne trabalhos diferentes que precisam ser avaliados separadamente?" — nao (não precisa separar:
+     pronta para o O1–O9) | sim (precisa separar: a pessoa informa as partes) | nao-sei (pendente) */
+  var SEPARACAO = ['nao', 'sim', 'nao-sei'];
   /* marcador de homologação (aprovado): ausente = DESLIGADO. As regras do banco aplicam o MESMO mapa — a tela só o
      espelha para não oferecer o que o banco recusaria (a autorização nunca depende de esconder botão) */
   var HABILITACAO = ['DESLIGADO', 'SOMENTE_ADMIN_GERAL', 'LIBERADO_PARA_PERFIS_AUTORIZADOS'];
@@ -333,19 +336,137 @@
     }
     return null;
   }
+  /* Responsabilidade Organizacional (o "recorte"), no modelo simples: a pessoa informa a DESCRIÇÃO — pode ser o texto
+     literal de uma atribuição da área — e responde "Essa descrição reúne trabalhos diferentes que precisam ser avaliados
+     separadamente?" (separacao: nao | sim | nao-sei). Nada é reescrito nem inferido: `nome` repete a descrição (campo
+     técnico usado pelas listas) e não há resultado, finalidade nem entregas obrigatórios. Qualquer resposta é salva; só
+     "nao" (não precisa separar) deixa avaliar pelo O1–O9 (prontaParaO1O9). A resposta é uma confirmação da pessoa, não
+     prova: o O1–O9 continua podendo indicar situações a validar. Sem `separacao` (registros anteriores e o caminho
+     antigo) vale a regra de antes: nome, resultado, justificativa e entregas comparadas */
+  function validarSeparacao(d) { return d && typeof d === 'object' && dentro(d.valor, SEPARACAO) && textoOpcional(d.observacao, MAX.texto); }
+  function registroSeparacao(d, ctx) { var x = { valor: d.valor, em: ctx.agora, por: autor(ctx) }; if (d.observacao && d.observacao.trim()) x.observacao = d.observacao.trim(); return x; }
+  function proximaOrdem(a) { var m = -1; Object.keys(a.recortes).forEach(function (k) { var o = a.recortes[k].ordem; if (typeof o === 'number' && o > m) m = o; }); return Math.max(m + 1, Object.keys(a.recortes).length); }
+  function novaResponsabilidade(id, descricao, separacao, ctx, extra) {
+    var r = { id: id, descricao: descricao.trim(), nome: descricao.trim(), resultado: null, justificativa: null, entregas: [], capacidades: [], objetoId: null, fatos: null,
+      separacao: separacao ? registroSeparacao(separacao, ctx) : null, situacao: 'ativo', versao: 1, criadoEm: ctx.agora, criadoPor: autor(ctx) };
+    if (extra) Object.keys(extra).forEach(function (k) { r[k] = extra[k]; });
+    return r;
+  }
+  /* modelo simples = tem a descrição informada pela pessoa (os registros anteriores não têm) */
+  function modeloSimples(r) { return !!r && typeof r.descricao === 'string'; }
   function definirRecorte(estado, analiseId, dados, ctx, ref) {
     var c = validarCtx(ctx, true); if (c) return erro(c);
     dados = dados || {};
-    if (!texto(dados.nome, MAX.nome)) return erro('NOME_OBRIGATORIO');
-    if (!texto(dados.resultado, MAX.texto)) return erro('RESULTADO_OBRIGATORIO');
-    if (!texto(dados.justificativa, MAX.texto)) return erro('JUSTIFICATIVA_DO_RECORTE_OBRIGATORIA');
+    var simples = dados.descricao !== undefined && dados.descricao !== null;
+    var sep = dados.separacao !== undefined && dados.separacao !== null;
+    if (simples) {
+      if (!texto(dados.descricao, MAX.texto)) return erro('DESCRICAO_OBRIGATORIA');
+      if (sep && !validarSeparacao(dados.separacao)) return erro('SEPARACAO_INVALIDA');
+    } else {
+      if (!texto(dados.nome, MAX.nome)) return erro('NOME_OBRIGATORIO');
+      if (!texto(dados.resultado, MAX.texto)) return erro('RESULTADO_OBRIGATORIO');
+      if (!texto(dados.justificativa, MAX.texto)) return erro('JUSTIFICATIVA_DO_RECORTE_OBRIGATORIA');
+    }
     var cap = validarCapacidades(dados.capacidades, ref); if (cap) return erro(cap);
     var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
     if (al.depois.recortes[ctx.novoId]) return erro('ID_JA_USADO');
-    var inv = validarEntregasDoRecorte(al.depois, dados.entregas, ctx.novoId); if (inv) return inv;
-    al.depois.recortes[ctx.novoId] = { id: ctx.novoId, nome: dados.nome.trim(), resultado: dados.resultado.trim(), justificativa: dados.justificativa.trim(),
-      entregas: dados.entregas.slice(), capacidades: clone(dados.capacidades || []), objetoId: null, fatos: null, situacao: 'ativo', versao: 1, criadoEm: ctx.agora, criadoPor: autor(ctx) };
-    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.definido', analiseId, ctx, { recorteId: ctx.novoId, entregas: dados.entregas.slice() })] };
+    var ents = Array.isArray(dados.entregas) ? dados.entregas : [];
+    if (!simples || ents.length) { var inv = validarEntregasDoRecorte(al.depois, ents, ctx.novoId); if (inv) return inv; }
+    var r;
+    if (simples) { r = novaResponsabilidade(ctx.novoId, dados.descricao, sep ? dados.separacao : null, ctx, { ordem: proximaOrdem(al.depois) }); r.entregas = ents.slice(); r.capacidades = clone(dados.capacidades || []); }
+    else r = { id: ctx.novoId, nome: dados.nome.trim(), resultado: dados.resultado.trim(), justificativa: dados.justificativa.trim(),
+      entregas: ents.slice(), capacidades: clone(dados.capacidades || []), objetoId: null, fatos: null, situacao: 'ativo', versao: 1, criadoEm: ctx.agora, criadoPor: autor(ctx) };
+    al.depois.recortes[ctx.novoId] = r;
+    var det = { recorteId: ctx.novoId, entregas: ents.slice() }; if (simples) { det.descricao = r.descricao; det.separacao = r.separacao ? r.separacao.valor : null; }
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.definido', analiseId, ctx, det)] };
+  }
+  /* revisar uma responsabilidade ainda não avaliada: a descrição e a resposta sobre separar, explicitamente, com antes e
+     depois no histórico (é assim que "Não sei" vira "Não" — nunca por outro caminho, nem pelo detalhamento) */
+  function revisarResponsabilidade(estado, analiseId, recorteId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    if (!texto(dados.descricao, MAX.texto)) return erro('DESCRICAO_OBRIGATORIA');
+    if (!validarSeparacao(dados.separacao)) return erro('SEPARACAO_INVALIDA');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var r = al.depois.recortes[recorteId];
+    if (!r || r.situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recorteId });
+    if (r.objetoId) return erro('RECORTE_JA_AVALIADO_DEFINA_OUTRO', { recorteId: recorteId, objetoId: r.objetoId });
+    var antesR = clone(r);
+    r.descricao = dados.descricao.trim(); r.nome = r.descricao; r.separacao = registroSeparacao(dados.separacao, ctx);
+    r.versao = (antesR.versao || 1) + 1;
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.revisado', analiseId, ctx, { recorteId: recorteId,
+      antes: { descricao: typeof antesR.descricao === 'string' ? antesR.descricao : antesR.nome, separacao: antesR.separacao ? antesR.separacao.valor : null },
+      depois: { descricao: r.descricao, separacao: r.separacao.valor, observacao: r.separacao.observacao || null } })] };
+  }
+  /* separar ("Sim, precisa separar"): a pessoa informa as partes — duas ou mais, cada uma com a sua resposta. A original
+     fica como "desdobrada", com o vínculo às partes, e nunca é avaliada como responsabilidade agregada; cada parte guarda
+     a origem. Nada é inventado: os textos são os da pessoa. ctx.novosIds traz um identificador por parte */
+  function desdobrarResponsabilidade(estado, analiseId, recorteId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    var partes = Array.isArray(dados.partes) ? dados.partes : [];
+    if (partes.length < 2) return erro('PARTES_INSUFICIENTES');
+    for (var p = 0; p < partes.length; p++) {
+      if (!partes[p] || !texto(partes[p].descricao, MAX.texto)) return erro('DESCRICAO_OBRIGATORIA', { parte: p });
+      if (!validarSeparacao(partes[p].separacao)) return erro('SEPARACAO_INVALIDA', { parte: p });
+    }
+    var ids = Array.isArray(ctx.novosIds) ? ctx.novosIds : [];
+    if (ids.length !== partes.length || ids.some(function (x) { return !texto(x, MAX.chave); })) return erro('CTX_IDS_AUSENTES');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var r = al.depois.recortes[recorteId];
+    if (!r || r.situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recorteId });
+    if (r.objetoId) return erro('RECORTE_JA_AVALIADO_DEFINA_OUTRO', { recorteId: recorteId, objetoId: r.objetoId });
+    if (!r.separacao || r.separacao.valor !== 'sim') return erro('SEPARAR_SO_COM_SIM');
+    if (ids.some(function (x) { return al.depois.recortes[x]; })) return erro('ID_JA_USADO');
+    var base = proximaOrdem(al.depois);
+    ids.forEach(function (id, n) { al.depois.recortes[id] = novaResponsabilidade(id, partes[n].descricao, partes[n].separacao, ctx, { origemRecorteId: recorteId, ordem: base + n }); });
+    r.situacao = 'desdobrado'; r.desdobramento = { partes: ids.slice(), em: ctx.agora, por: autor(ctx) };
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.desdobrado', analiseId, ctx, { recorteId: recorteId,
+      partes: ids.map(function (id, n) { return { id: id, descricao: al.depois.recortes[id].descricao, separacao: partes[n].separacao.valor }; }) })] };
+  }
+  /* várias responsabilidades de uma vez (uma por linha, coladas pela pessoa): numa ÚNICA gravação — ou entram todas,
+     ou nenhuma (sem importação parcial nem duplicada por repetição do envio, que é recusada pela revisão). Os textos
+     são gravados como vieram (só sem espaços nas pontas), na ordem informada, sem resposta sobre separar: cada uma
+     começa "pendente de delimitação". Nada é dividido, juntado nem associado a núcleo */
+  function registrarResponsabilidadesEmLote(estado, analiseId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    var lista = Array.isArray(dados.descricoes) ? dados.descricoes : [];
+    if (!lista.length) return erro('LOTE_VAZIO');
+    if (lista.length > MAX.lote) return erro('LOTE_GRANDE_DEMAIS', { maximo: MAX.lote });
+    for (var i = 0; i < lista.length; i++) if (!texto(lista[i], MAX.texto)) return erro('DESCRICAO_OBRIGATORIA', { indice: i });
+    var ids = Array.isArray(ctx.novosIds) ? ctx.novosIds : [];
+    if (ids.length !== lista.length || ids.some(function (x) { return !texto(x, MAX.chave); })) return erro('CTX_IDS_AUSENTES');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    if (ids.some(function (x) { return al.depois.recortes[x]; })) return erro('ID_JA_USADO');
+    var base = proximaOrdem(al.depois);
+    ids.forEach(function (id, n) { al.depois.recortes[id] = novaResponsabilidade(id, lista[n], null, ctx, { ordem: base + n }); });
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recortes.registrados-em-lote', analiseId, ctx, { quantidade: ids.length,
+      recortes: ids.map(function (id) { return { id: id, descricao: al.depois.recortes[id].descricao }; }) })] };
+  }
+  /* "Qual núcleo ou quais núcleos exercem esta responsabilidade atualmente?" — opcional, um ou vários, corrigível a
+     qualquer momento (também depois do O1–O9: não influencia a classificação). Fica em fatos.execucao — a mesma
+     informação descritiva de "quem executa hoje", com caráter "declarado", fonte e data —, nunca vínculo formal nem
+     estrutura nova: o núcleo do cadastro do ADMIN vai por estruturaId; o que não está no cadastro, por texto */
+  function informarNucleosAtuais(estado, analiseId, recorteId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    var lista = Array.isArray(dados.nucleos) ? dados.nucleos : [], vistos = {};
+    for (var i = 0; i < lista.length; i++) {
+      var x = lista[i] || {}, chave = x.estruturaId ? 'e:' + x.estruturaId : 't:' + String(x.texto || '').trim().toLowerCase();
+      if (!texto(x.estruturaId, MAX.chave) && !texto(x.texto, MAX.nome)) return erro('NUCLEO_INVALIDO', { indice: i });
+      if (vistos[chave]) return erro('NUCLEO_REPETIDO', { indice: i });
+      vistos[chave] = true;
+    }
+    if (!textoOpcional(dados.fonte, MAX.texto)) return erro('FONTE_INVALIDA');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var r = al.depois.recortes[recorteId];
+    if (!r || r.situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recorteId });
+    var fonte = dados.fonte && dados.fonte.trim() ? dados.fonte.trim() : 'Declaração registrada na análise organizacional';
+    var antesF = r.fatos ? clone(r.fatos.execucao) : [];
+    var exec = lista.map(function (x) { var f = { carater: 'declarado', fonte: fonte, informadoEm: ctx.agora, informadoPor: autor(ctx) }; if (x.estruturaId) f.estruturaId = x.estruturaId; else f.texto = String(x.texto).trim(); return f; });
+    r.fatos = { execucao: exec, responsavelFormal: r.fatos && r.fatos.responsavelFormal ? r.fatos.responsavelFormal : null };
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('nucleos.informados', analiseId, ctx, { recorteId: recorteId, antes: antesF, depois: clone(exec) })] };
   }
   /* rever a delimitação (M2 da revisão 3): nova versão do recorte, com motivo; o histórico guarda antes e depois.
      Se o recorte já foi avaliado (tem atuação), a revisão não mexe na classificação: o recorte novo é avaliado de novo */
@@ -535,13 +656,15 @@
     function q(id, motivo, extra) { var o = { pergunta: id, motivo: motivo }; if (extra) Object.keys(extra).forEach(function (k) { o[k] = extra[k]; }); lista.push(o); }
     if (a.situacao === 'descartada') return lista;
     if (a.tipoEscopo === 'responsabilidade') {
-      if (!r.F2a) { q('F2a', 'escopo-responsabilidade'); return lista; }
-      if (r.F2a.valor === 'sim') return lista; /* recorte único: segue direto para o O1–O9 (fluxo atual) */
+      if (!r.F2a) q('F2a', 'escopo-responsabilidade'); /* a F2a não esconde as outras perguntas (é opcional na tela) */
+      else if (r.F2a.valor === 'sim') return lista;
     }
     if (a.tipoEscopo === 'estrutura' && !r.F2b) q('F2b', 'escopo-estrutura');
     if (a.tipoEscopo === 'capacidade' && !r.F2c) q('F2c', 'escopo-capacidade');
     var ents = Object.keys(a.entregas).filter(function (k) { return a.entregas[k].situacao === 'ativa'; }).sort();
-    if (!ents.length && !(r.F3 && r.F3.valor === 'nenhuma')) q('F3', 'sem-entregas');
+    /* sem entregas: só pergunta por elas enquanto nenhuma responsabilidade foi registrada (entregas são opcionais) */
+    var temRecorte = Object.keys(a.recortes).some(function (k) { return a.recortes[k].situacao === 'ativo'; });
+    if (!ents.length && !temRecorte && !(r.F3 && r.F3.valor === 'nenhuma')) q('F3', 'sem-entregas');
     ents.forEach(function (k) {
       var x = a.entregas[k].respostas, f4 = x.F4 && x.F4.valor;
       if (!x.F4) q('F4', 'entrega-sem-forma', { entregaId: k });
@@ -582,13 +705,21 @@
       return !Object.keys(a.recortes).some(function (r2) { return a.recortes[r2].situacao === 'ativo' && a.recortes[r2].entregas.indexOf(k) !== -1; });
     }).sort();
     semRecorte.forEach(function (k) { l.push({ tipo: 'entrega-sem-recorte', entregaId: k }); });
+    Object.keys(a.recortes).sort().forEach(function (k) { var x = a.recortes[k]; if (x.situacao === 'ativo' && modeloSimples(x) && !x.objetoId && (!x.separacao || x.separacao.valor !== 'nao')) l.push({ tipo: 'separacao-pendente', recorteId: k, valor: x.separacao ? x.separacao.valor : null }); });
     return l;
   }
-  /* F15 (N5): delimitação suficiente — nome, resultado, entregas com forma, destinatário e evidência ou hipótese.
-     O responsável formal NÃO é exigido (conhecido, provável ou ainda não definido) */
+  /* F15 (N5): delimitação suficiente. No modelo simples: descrição e "não precisa separar" (entregas, evidência,
+     destinatário, resultado e finalidade não são pré-requisito). Sem ele (registros anteriores): nome, resultado e
+     entregas com forma, destinatário e evidência ou hipótese. O responsável formal NÃO é exigido (conhecido, provável ou ainda não definido) */
   function prontaParaO1O9(a, recorteId) {
     var r = a && a.recortes ? a.recortes[recorteId] : null, faltas = [];
     if (!r || r.situacao !== 'ativo') return { pronta: false, faltas: ['RECORTE_INEXISTENTE'] };
+    if (modeloSimples(r)) {
+      if (!texto(r.descricao, MAX.texto)) faltas.push('DESCRICAO');
+      if (!r.separacao) faltas.push('SEPARACAO_NAO_RESPONDIDA');
+      else if (r.separacao.valor !== 'nao') faltas.push('SEPARACAO_PENDENTE');
+      return { pronta: faltas.length === 0, faltas: faltas, separacao: r.separacao ? r.separacao.valor : null, hipotese: false };
+    }
     if (!texto(r.nome, MAX.nome)) faltas.push('NOME');
     if (!texto(r.resultado, MAX.texto)) faltas.push('RESULTADO');
     r.entregas.forEach(function (k) {
@@ -716,7 +847,7 @@
     registrarEvidenciaQualitativa: registrarEvidenciaQualitativa,
     criarAnalise: criarAnalise, responder: responder, adicionarEntrega: adicionarEntrega, editarEntrega: editarEntrega, descartarEntrega: descartarEntrega,
     compararEntregas: compararEntregas, cadastroReferido: cadastroReferido,
-    definirRecorte: definirRecorte, ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, registrarFatos: registrarFatos,
+    definirRecorte: definirRecorte, revisarResponsabilidade: revisarResponsabilidade, desdobrarResponsabilidade: desdobrarResponsabilidade, registrarResponsabilidadesEmLote: registrarResponsabilidadesEmLote, informarNucleosAtuais: informarNucleosAtuais, modeloSimples: modeloSimples, SEPARACAO: SEPARACAO.slice(), ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, registrarFatos: registrarFatos,
     associarAtuacao: associarAtuacao, referenciarResponsabilidade: referenciarResponsabilidade, descartarAnalise: descartarAnalise,
     registrarProposta: registrarProposta, registrarAprovacao: registrarAprovacao,
     interpretarComparacao: interpretarComparacao, sugestoesDeComparacao: sugestoesDeComparacao, proximasPerguntas: proximasPerguntas,

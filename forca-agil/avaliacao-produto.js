@@ -3427,13 +3427,13 @@
         '<p>Descubra se o item é um Produto/Serviço independente ou se faz parte de outra solução.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
         '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionar diretamente uma atuação organizacional</h4>' +
-        '<p>Para uma responsabilidade, atividade ou capacidade já delimitada como atuação, que não precisa passar pela avaliação de Produto/Serviço.</p>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionar diretamente uma responsabilidade organizacional</h4>' +
+        '<p>Para uma responsabilidade organizacional — o trabalho pelo qual se responde —, que não precisa passar pela avaliação de Produto/Serviço.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade.</p>' +
         '<p class="avp-inicio-sigla">Questionário O1–O9 · a hipótese inicial é obrigatória e não entra no cálculo</p>' +
         '<div id="avpInicioCaminhoBVaga">' + caminhoAssistidoHtml() + '</div>' +
-        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Começar o posicionamento de uma atuação')
-          : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As atuações já posicionadas aparecem na Jornada.</p>') +
+        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Começar o posicionamento de uma responsabilidade')
+          : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As responsabilidades já posicionadas aparecem na Jornada.</p>') +
         '</div></div>' +
         '<p class="avp-inicio-nota" id="avpInicioNota">Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +
         comoFuncionaHtml() + '</div>';

@@ -90,7 +90,7 @@ async function rodada(browser, viewport, rotulo) {
     'uma única ação principal: abrir a Jornada');
   afirma(/Avaliar Produto\/Serviço ou outra natureza/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se o item é um Produto\/Serviço independente ou se faz parte de outra solução\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
     (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' && /P1–P16/.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-sigla')) &&
-    /Posicionar diretamente uma atuação organizacional/.test(await texto(page, '#avpInicioCartaoAtuacao')) && /hipótese inicial é obrigatória e não entra no cálculo/.test(await texto(page, '#avpInicioCartaoAtuacao')),
+    /Posicionar diretamente uma responsabilidade organizacional/.test(await texto(page, '#avpInicioCartaoAtuacao')) && /hipótese inicial é obrigatória e não entra no cálculo/.test(await texto(page, '#avpInicioCartaoAtuacao')),
     'as duas portas explicadas em linguagem simples antes das siglas');
   afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Começar o posicionamento de uma atuação"');
   console.log('Caminhos e quem sustenta (I1)');

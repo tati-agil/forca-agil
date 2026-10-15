@@ -107,6 +107,9 @@ async function responderPendentes(page, mapa, limite) {
   throw new Error('perguntas demais');
 }
 async function adicionarEntregas(page, descricoes) {
+  /* entregas ficam no detalhamento opcional ("Detalhar responsabilidade") */
+  if (!(await page.evaluate(() => { const d = document.getElementById('anDetalhar'); return !!(d && d.open); }))) await page.click('#anDetalhar > summary');
+  await page.waitForSelector('#anEntregaDesc', { state: 'visible' });
   for (const d of descricoes) {
     const n = await page.evaluate(() => document.querySelectorAll('.an-entrega').length);
     await page.fill('#anEntregaDesc', d);
@@ -115,8 +118,9 @@ async function adicionarEntregas(page, descricoes) {
   }
 }
 async function delimitar(page, nome, resultado, justificativa, entregas) {
-  await page.evaluate((es) => { document.querySelectorAll('#anFormRecorte .an-opcao').forEach((l) => { const i = l.querySelector('input'); if (es.some((e) => l.textContent.trim() === e)) i.checked = true; }); }, entregas);
-  await page.fill('#anRecNome', nome); await page.fill('#anRecResultado', resultado); await page.fill('#anRecJust', justificativa);
+  await page.evaluate((es) => { document.querySelectorAll('#anFormRecorte .an-opcao').forEach((l) => { const i = l.querySelector('input'); i.checked = es.some((e) => l.textContent.trim() === e); }); }, entregas);
+  await page.fill('#anRecDesc', nome); /* modelo simples: a descrição; resultado e justificativa não são mais pedidos */
+  await page.check('#anFormRecorte input[name="anRecSep"][value="nao"]');
   await page.click('#anDefinirRecorteBtn');
   await esperar(page, (n) => Array.from(document.querySelectorAll('.an-recorte h4')).some((h) => h.textContent === n) || !!document.getElementById('anErro'), nome);
   return texto(page, '#anErro');
@@ -137,8 +141,7 @@ async function registrarFatos(page, nome, f) {
 async function criarAtuacao(page, nome) {
   const k = await recorteId(page, nome);
   await page.click('#anCriarAtuacao_' + k);
-  await page.waitForSelector('#anFormAtuacao');
-  await page.click('#anConfirmarAtuacao');
+  /* descrição até 200 caracteres: registra direto, sem formulário */
   await esperar(page, () => /po=atuacoes&item=/.test(location.hash));
   return page.evaluate(() => decodeURIComponent(/item=([^&]*)/.exec(location.hash)[1]));
 }
@@ -195,9 +198,9 @@ async function jornadaB(browser) {
   afirma(escopos.length === 6 && escopos.every((t) => /Ex\.:/.test(t)), 'etapa 1: seis escopos, cada um com exemplo contrastante', escopos.length);
   afirma(!/Área Especializada|Centro de Excelência|CoE|Plataforma/.test(await texto(page, '#anFormNova')), 'nenhum tipo organizacional oferecido antes do O1–O9');
   const id = await abrirAnaliseNova(page, 'Núcleo de Arquitetura de TI', 'estrutura');
-  afirma(/Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && /não deve ser confundido com o cadastro de Atuações/.test(await texto(page, '#anPerguntaAjuda')), 'uma pergunta por vez, com a explicação (F2b: cadastro de Estruturas do ADMIN ≠ Atuações)');
+  afirma(/Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && /não deve ser confundido com o cadastro de Responsabilidades Organizacionais/.test(await texto(page, '#anPerguntaAjuda')), 'uma pergunta por vez, com a explicação (F2b: cadastro de Estruturas do ADMIN ≠ Responsabilidades da Porta 2)');
   await responderPendentes(page, mapaB);
-  afirma(/Registre a primeira entrega/.test(await texto(page, '#anProximaAcao')) && await existe(page, '#anSemEntregas'), 'sem entregas: a próxima ação pede a primeira entrega (F3), com "Não consigo identificar entregas"');
+  afirma(/Informe as responsabilidades da área/.test(await texto(page, '#anProximaAcao')) && await existe(page, '#anDetalhar #anSemEntregas'), 'sem nada registrado: a próxima ação pede a primeira responsabilidade; entregas ficam no detalhamento opcional (com "Não consigo identificar entregas")');
   await adicionarEntregas(page, Object.keys(B));
   mapaB.justificar = false;
   const r1 = await responderPendentes(page, mapaB);
@@ -211,7 +214,7 @@ async function jornadaB(browser) {
   afirma(!(await delimitar(page, 'Evolução da disciplina de arquitetura', 'Maturidade arquitetural das equipes', 'Desenvolve competência nas outras equipes', ['Padrões, guias e decisões de referência', 'Mentoria e trilhas para as equipes'])), 'delimitar R2 (padrões e mentoria, integradas)');
   await registrarFatos(page, 'Pareceres e validações de arquitetura', { exec: 'nucleo-arq', execCarater: 'confirmado', fonte: 'Regimento interno', certeza: 'conhecido', resp: 'nucleo-arq', respCarater: 'confirmado' });
   await registrarFatos(page, 'Evolução da disciplina de arquitetura', { exec: 'nucleo-arq', execCarater: 'declarado', fonte: 'Entrevista com a coordenação', certeza: 'nao-definido', respCarater: 'declarado' });
-  afirma(/ainda não definido/.test(await texto(page, '#anRecortes')) && /Avaliar com O1–O9/.test(await texto(page, '#anRecortes')), 'N5: responsável "ainda não definido" não impede o O1–O9');
+  afirma(/ainda não definido/.test(await texto(page, '#anRecortes')) && (await page.$$('[id^="anCriarAtuacao_"]')).length > 0, 'N5: responsável "ainda não definido" não impede o O1–O9');
   /* R1: atuação criada e O1–O9 respondido na tela de sempre */
   const objR1 = await criarAtuacao(page, 'Pareceres e validações de arquitetura');
   await page.waitForSelector('#anOrigem');
@@ -310,7 +313,7 @@ async function jornadaA(browser, db) {
   /* antes de comparar: tentar juntar políticas de SI e diretrizes contratuais */
   await responderPendentes(page, (info) => (info.q === 'F10' ? null : mapaA(info)));
   const sinais = await texto(page, '#anPergunta');
-  afirma(/3 perguntas pendentes/.test(await texto(page, '#anPendencias2')) && /mesmo destinatário/.test(sinais) && /Parecer não basta/.test(sinais) && /nada é juntado sem a sua conclusão/.test(sinais), 'semelhança de superfície só SUGERE comparar (3 pares), com o porquê', sinais.slice(0, 200));
+  afirma(/3 perguntas do detalhamento/.test(await texto(page, '#anPendenciasDetalhe')) && /mesmo destinatário/.test(sinais) && /Parecer não basta/.test(sinais) && /nada é juntado sem a sua conclusão/.test(sinais), 'semelhança de superfície só SUGERE comparar (3 pares), com o porquê', sinais.slice(0, 200));
   const errJuntar = await delimitar(page, 'Políticas e diretrizes', 'Normas', 'Mesmo documento para os gestores', ['Políticas de Segurança da Informação', 'Diretrizes de gestão contratual']);
   afirma(/só podem ficar na mesma responsabilidade depois de comparadas/.test(errJuntar), 'REGRESSÃO: políticas de SI + diretrizes contratuais NÃO são juntadas sem comparação', errJuntar);
   await responderPendentes(page, mapaA);
@@ -318,7 +321,7 @@ async function jornadaA(browser, db) {
   afirma(/só podem ficar na mesma responsabilidade/.test(errDistintas), 'REGRESSÃO: concluídas como distintas, continuam separadas', errDistintas);
   for (const [n, es] of [['Estratégia e portfólio de TI', ['Plano de TI e priorização do portfólio']], ['Governança e conformidade de TI', ['Avaliações de conformidade e controles']],
     ['Gestão de contratos de TI', ['Acompanhamento e medição dos contratos de TI', 'Diretrizes de gestão contratual']], ['Políticas e padrões de Segurança da Informação', ['Políticas de Segurança da Informação']]]) {
-    afirma(!(await delimitar(page, n, 'Resultado de ' + n, 'Resultado e destinatário próprios', es)), 'delimitar: ' + n);
+    const errD = await delimitar(page, n, 'Resultado de ' + n, 'Resultado e destinatário próprios', es); afirma(!errD, 'delimitar: ' + n, errD);
   }
   afirma(/Hipótese sem evidência: Plano de TI/.test(await texto(page, '#anLacunas')), 'lacuna: a hipótese sem evidência fica listada (não bloqueia)');
   const objPol = await criarAtuacao(page, 'Políticas e padrões de Segurança da Informação');

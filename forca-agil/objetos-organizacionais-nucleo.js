@@ -141,11 +141,25 @@
   }
   function hipoteseValida(h) { return CODIGOS_HIPOTESE.indexOf(h) !== -1; }
 
+  /* cadastro simplificado da Porta 2: a pessoa informa UMA descrição (pode ser o texto literal de uma atribuição) e o
+     cadastro, que exige nome, descrição e finalidade, recebe esse mesmo texto — sem reescrever nem inferir nada. O nome só
+     é pedido à parte quando a descrição passa do limite do nome; a finalidade só é diferente se a pessoa a declarar. O
+     contexto diz, com todas as letras, quais campos repetem a descrição */
+  function dadosSimplificados(o) {
+    o = o || {};
+    var texto = String(o.texto || '').trim(), curto = String(o.nomeCurto || '').trim(), fin = String(o.finalidade || '').trim();
+    var nome = texto.length <= LIMITES.nome ? texto : curto, repete = [];
+    if (nome && nome === texto) repete.push('o nome');
+    if (!fin) repete.push('a finalidade');
+    var nota = repete.length ? 'Cadastro simplificado: ' + repete.join(' e ') + (repete.length > 1 ? ' repetem' : ' repete') + ' a descrição informada pela pessoa; nada foi inferido.' : '';
+    var ctx = String(o.contexto || '').trim();
+    return { nome: nome, descricao: texto, finalidade: fin || texto, contexto: [ctx, nota].filter(Boolean).join(' ') };
+  }
   var api = {
     NODE: NODE, AUD: AUD, IDX_REF: IDX_REF, ORIGEM: ORIGEM, NAO_SEI: NAO_SEI, CODIGOS_HIPOTESE: CODIGOS_HIPOTESE.slice(),
     LIMITES: LIMITES, CAMPOS: CAMPOS.slice(), OBRIGATORIOS: OBRIGATORIOS.slice(),
     normalizar: normalizar, validarDados: validarDados, payloadCriacao: payloadCriacao, payloadAlteracao: payloadAlteracao,
-    payloadEncerramento: payloadEncerramento, podeReceberAvaliacao: ativo, compararHipotese: compararHipotese, hipoteseValida: hipoteseValida
+    payloadEncerramento: payloadEncerramento, dadosSimplificados: dadosSimplificados, podeReceberAvaliacao: ativo, compararHipotese: compararHipotese, hipoteseValida: hipoteseValida
   };
   Object.freeze(api.CODIGOS_HIPOTESE); Object.freeze(api.CAMPOS); Object.freeze(api.OBRIGATORIOS); Object.freeze(api.LIMITES);
   Object.freeze(api);

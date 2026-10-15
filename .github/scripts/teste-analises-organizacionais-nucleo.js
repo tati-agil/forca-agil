@@ -63,7 +63,7 @@ const textoMatriz = JSON.stringify(N.MATRIZ);
 afirma(proibidos.every((p) => textoMatriz.indexOf(p) === -1), 'nenhuma pergunta ou resposta é um tipo organizacional');
 afirma(N.MATRIZ.every((q) => typeof q.porque === 'string' && q.porque.length > 0), 'toda linha diz por que existe (motivo do aprofundamento)');
 aplicar(N.criarAnalise(estado, { nome: 'Pareceres jurídicos', tipoEscopo: 'responsabilidade' }, ctx('an-unica')), 'criar análise de responsabilidade');
-afirma(N.proximasPerguntas(analise('an-unica')).map((p) => p.pergunta).join() === 'F2a', 'responsabilidade: primeiro confirma se o resultado é único (F2a)');
+afirma(N.proximasPerguntas(analise('an-unica')).map((p) => p.pergunta).join() === 'F2a,F3', 'responsabilidade: a F2a vem primeiro, sem esconder as outras perguntas (é opcional na tela)', N.proximasPerguntas(analise('an-unica')).map((p) => p.pergunta));
 afirma(temErro(N.responder(estado, 'an-unica', { pergunta: 'F2b', valor: { valor: 'informal' } }, ctx()), 'PERGUNTA_FORA_DO_CAMINHO'), 'pergunta fora do caminho do escopo é recusada');
 aplicar(N.responder(estado, 'an-unica', { pergunta: 'F2a', valor: 'sim' }, ctx()), 'F2a sim');
 afirma(N.proximasPerguntas(analise('an-unica')).length === 0, 'resultado único: segue direto para o O1–O9, sem perguntas a mais (fluxo atual)');
@@ -340,5 +340,85 @@ afirma(N.editarEntrega(estado, 'an-gov', 'eg1', { descricao: 'Ajuste de redaçã
 aplicar(N.associarAtuacao(estado, 'an-gov', 'rg1', 'obj-gov-1', ctx()), 'atuação');
 afirma(temErro(N.editarEntrega(estado, 'an-gov', 'eg1', { descricao: 'Outra coisa' }, ctx()), 'ENTREGA_EM_RESPONSABILIDADE_AVALIADA'), 'responsabilidade já com atuação: a entrega não muda (o O1–O9 foi feito sobre ela)');
 
+/* ---------------- L. Responsabilidade Organizacional no modelo simples (descrição + "precisa separar?") ---------------- */
+console.log('L. Responsabilidade: uma descrição, "precisa separar?", desdobrar, pendências');
+aplicar(N.criarAnalise(estado, { nome: 'TESTE — Gerência Contábil e Orçamentária', tipoEscopo: 'estrutura', descricao: 'Texto livre: nunca interpretado' }, ctx('an-res')), 'criar área');
+const SP = (valor, obs) => (obs ? { valor, observacao: obs } : { valor });
+afirma(temErro(N.definirRecorte(estado, 'an-res', { descricao: 'Gerir o processo contábil', separacao: { valor: 'talvez' } }, ctx('x1')), 'SEPARACAO_INVALIDA'), 'a resposta só aceita não, sim ou não sei');
+afirma(temErro(N.definirRecorte(estado, 'an-res', { descricao: ' ', separacao: SP('nao') }, ctx('x2')), 'DESCRICAO_OBRIGATORIA'), 'a descrição é o único texto obrigatório');
+afirma(temErro(N.definirRecorte(estado, 'an-res', { nome: 'x', resultado: 'y' }, ctx('x3')), 'JUSTIFICATIVA_DO_RECORTE_OBRIGATORIA'), 'sem a resposta sobre separar, o caminho antigo continua valendo');
+aplicar(N.definirRecorte(estado, 'an-res', { descricao: 'Gerir o processo contábil', separacao: SP('nao') }, ctx('rr1')), 'resp não separar');
+const rS1 = analise('an-res').recortes.rr1;
+afirma(rS1.descricao === 'Gerir o processo contábil' && rS1.nome === 'Gerir o processo contábil' && rS1.resultado === null && rS1.justificativa === null && rS1.entregas.length === 0, 'o texto literal é preservado; nenhum resultado, finalidade ou entrega inventados');
+afirma(rS1.separacao.valor === 'nao' && rS1.separacao.por.id === USUARIO.id && eventos.slice(-1)[0].detalhe.separacao === 'nao' && eventos.slice(-1)[0].detalhe.descricao === 'Gerir o processo contábil', 'a resposta e a descrição ficam no histórico, com autoria');
+afirma(N.prontaParaO1O9(analise('an-res'), 'rr1').pronta, '"Não precisa separar": pronta para o O1–O9');
+aplicar(N.definirRecorte(estado, 'an-res', { descricao: 'Gerir o planejamento e execução orçamentária e atender os fornecedores', separacao: SP('sim') }, ctx('rr2')), 'resp sim');
+aplicar(N.definirRecorte(estado, 'an-res', { descricao: 'Elaborar relatórios gerenciais', separacao: SP('nao-sei') }, ctx('rr3')), 'resp não sei');
+const ar = analise('an-res'), q2 = N.prontaParaO1O9(ar, 'rr2'), q3 = N.prontaParaO1O9(ar, 'rr3');
+afirma(!q2.pronta && !q3.pronta && q2.faltas.join() === 'SEPARACAO_PENDENTE' && q3.separacao === 'nao-sei', '"Sim" e "Não sei": salvas, mas não vão para o O1–O9');
+afirma(Object.keys(ar.recortes).length === 3 && !Object.keys(ar.entregas).length, 'várias responsabilidades na mesma análise, nenhuma entrega exigida');
+afirma(N.proximasPerguntas(ar).every((q) => q.pergunta === 'F2b'), 'com responsabilidade registrada, nada é perguntado sobre entregas (só a F2b, opcional)', N.proximasPerguntas(ar));
+afirma(N.lacunas(ar).filter((l) => l.tipo === 'separacao-pendente').map((l) => l.valor).sort().join() === 'nao-sei,sim', 'lacunas: as duas pendentes');
+aplicar(N.associarAtuacao(estado, 'an-res', 'rr1', 'obj-res-1', ctx()), 'avaliar rr1');
+afirma(analise('an-res').recortes.rr1.objetoId === 'obj-res-1' && temErro(N.associarAtuacao(estado, 'an-res', 'rr3', 'obj-res-3', ctx()), 'RECORTE_NAO_PRONTO'), 'uma pendente não bloqueia a outra: "Não" vai para o O1–O9, "Não sei" é recusada');
+/* separar: as partes são da pessoa; a original vira desdobrada, nunca avaliada */
+const dois = { partes: [{ descricao: 'Gerir o planejamento e execução orçamentária', separacao: SP('nao') }, { descricao: 'Atender os fornecedores', separacao: SP('nao-sei') }] };
+afirma(temErro(N.desdobrarResponsabilidade(estado, 'an-res', 'rr3', dois, Object.assign(ctx(), { novosIds: ['p1', 'p2'] })), 'SEPARAR_SO_COM_SIM'), 'só se separa o que a pessoa disse que precisa separar');
+afirma(temErro(N.desdobrarResponsabilidade(estado, 'an-res', 'rr2', { partes: [dois.partes[0]] }, Object.assign(ctx(), { novosIds: ['p1'] })), 'PARTES_INSUFICIENTES'), 'separar exige duas ou mais partes');
+afirma(temErro(N.desdobrarResponsabilidade(estado, 'an-res', 'rr2', dois, ctx()), 'CTX_IDS_AUSENTES'), 'o núcleo não gera identificadores');
+aplicar(N.desdobrarResponsabilidade(estado, 'an-res', 'rr2', dois, Object.assign(ctx(), { novosIds: ['rp1', 'rp2'] })), 'separar rr2');
+const ad = analise('an-res'), evD = eventos.slice(-1)[0];
+afirma(ad.recortes.rr2.situacao === 'desdobrado' && ad.recortes.rr2.desdobramento.partes.join() === 'rp1,rp2' && ad.recortes.rp1.origemRecorteId === 'rr2' && ad.recortes.rp2.origemRecorteId === 'rr2', 'a original fica desdobrada, com o vínculo às partes; cada parte guarda a origem');
+afirma(ad.recortes.rr2.descricao === 'Gerir o planejamento e execução orçamentária e atender os fornecedores' && ad.recortes.rp1.descricao === 'Gerir o planejamento e execução orçamentária', 'a descrição original é preservada; as partes têm os textos da pessoa');
+afirma(evD.tipo === 'recorte.desdobrado' && evD.detalhe.partes.length === 2 && evD.detalhe.partes[1].separacao === 'nao-sei', 'histórico do desdobramento, com as partes e as respostas');
+afirma(temErro(N.associarAtuacao(estado, 'an-res', 'rr2', 'obj-agr', ctx()), 'RECORTE_INEXISTENTE') && N.prontaParaO1O9(ad, 'rp1').pronta && !N.prontaParaO1O9(ad, 'rp2').pronta, 'a agregada não é avaliada; a parte "Não" está pronta, a "Não sei" fica pendente');
+/* revisar: única forma de mudar a resposta; o detalhamento não converte */
+aplicar(N.adicionarEntrega(estado, 'an-res', { descricao: 'Painel mensal' }, ctx('er1')), 'detalhar: entrega');
+afirma(analise('an-res').recortes.rr3.separacao.valor === 'nao-sei', 'detalhar com entregas não converte "Não sei" em "Não"');
+afirma(temErro(N.revisarResponsabilidade(estado, 'an-res', 'rr3', { descricao: 'x' }, ctx()), 'SEPARACAO_INVALIDA'), 'revisar exige a resposta explícita');
+aplicar(N.revisarResponsabilidade(estado, 'an-res', 'rr3', { descricao: 'Elaborar relatórios gerenciais', separacao: SP('nao', 'Conferido com a coordenação') }, ctx()), 'revisar rr3');
+const rv = eventos.slice(-1)[0], r3 = analise('an-res').recortes.rr3;
+afirma(rv.tipo === 'recorte.revisado' && rv.detalhe.antes.separacao === 'nao-sei' && rv.detalhe.depois.separacao === 'nao' && r3.separacao.observacao === 'Conferido com a coordenação' && r3.versao === 2 && N.prontaParaO1O9(analise('an-res'), 'rr3').pronta, 'revisar: "Não sei" → "Não" explícito, com antes e depois; agora pronta');
+afirma(temErro(N.revisarResponsabilidade(estado, 'an-res', 'rr1', { descricao: 'x', separacao: SP('sim') }, ctx()), 'RECORTE_JA_AVALIADO_DEFINA_OUTRO') &&
+  temErro(N.desdobrarResponsabilidade(estado, 'an-res', 'rr2', dois, Object.assign(ctx(), { novosIds: ['z1', 'z2'] })), 'RECORTE_INEXISTENTE'), 'avaliada não é revisada; desdobrada não é desdobrada de novo');
+/* entregas continuam opcionais; usadas, a regra de comparação continua */
+aplicar(N.adicionarEntrega(estado, 'an-res', { descricao: 'Outra entrega' }, ctx('er2')), 'detalhar: entrega 2');
+afirma(temErro(N.definirRecorte(estado, 'an-res', { descricao: 'Junta', separacao: SP('nao'), entregas: ['er1', 'er2'] }, ctx('rr5')), 'AGRUPAMENTO_SEM_COMPARACAO'), 'com entregas, juntar sem comparar continua recusado');
+afirma(N.definirRecorte(estado, 'an-res', { descricao: 'Painéis', separacao: SP('nao'), entregas: ['er1'] }, ctx('rr6')).ok, 'no modelo simples, a entrega pode ser associada sem estar descrita por completo');
+/* registros anteriores (sem a resposta sobre separar) seguem a regra antiga */
+const legadoR = Object.keys(analise('jornada-A').recortes).map((k) => analise('jornada-A').recortes[k]).find((x) => !x.separacao && x.situacao === 'ativo');
+afirma(!!legadoR && N.prontaParaO1O9(analise('jornada-A'), legadoR.id).separacao === undefined, 'registros anteriores continuam com a regra das entregas');
+
+/* ---------------- M. GECON: lote, núcleos atuais, resposta em aberto ---------------- */
+console.log('M. GECON: dez responsabilidades de uma vez, núcleos informados à mão');
+const GECON = ['Gerir a contabilidade gerencial.', 'Gerir o planejamento e execução orçamentária.', 'Gerir a modelagem, mensuração, análise e avaliação de desempenho e resultados econômicos.',
+  'Elaborar a projeção anual de resultados.', 'Gerir a movimentação financeira das contas bancárias.', 'Coordenar as informações para o fluxo de caixa de curto prazo.',
+  'Registrar e controlar as operações de investimentos mobiliários da carteira própria e de fundos de investimento.', 'Gerir o processo contábil.',
+  'Gerir o cumprimento de obrigações legais no âmbito contábil e tributário.', 'Gerir bens do ativo imobilizado e do ativo intangível.'];
+aplicar(N.criarAnalise(estado, { nome: 'Gerência de Contabilidade e Controladoria — GECON', tipoEscopo: 'estrutura' }, ctx('an-gecon')), 'criar GECON');
+const idsG = GECON.map((x, i) => 'g' + i);
+afirma(temErro(N.registrarResponsabilidadesEmLote(estado, 'an-gecon', { descricoes: GECON }, ctx()), 'CTX_IDS_AUSENTES') && temErro(N.registrarResponsabilidadesEmLote(estado, 'an-gecon', { descricoes: [] }, Object.assign(ctx(), { novosIds: [] })), 'LOTE_VAZIO'), 'lote: identificadores vêm de fora; lote vazio recusado');
+afirma(temErro(N.registrarResponsabilidadesEmLote(estado, 'an-gecon', { descricoes: GECON.concat([' ']) }, Object.assign(ctx(), { novosIds: idsG.concat(['gx']) })), 'DESCRICAO_OBRIGATORIA') && !Object.keys(analise('an-gecon').recortes).length, 'uma linha inválida recusa o lote inteiro (nada parcial)');
+aplicar(N.registrarResponsabilidadesEmLote(estado, 'an-gecon', { descricoes: GECON }, Object.assign(ctx(), { novosIds: idsG })), 'lote GECON');
+const ag = analise('an-gecon'), ordenadas = Object.keys(ag.recortes).sort((x, y) => ag.recortes[x].ordem - ag.recortes[y].ordem);
+afirma(ordenadas.length === 10 && ordenadas.every((k, i) => ag.recortes[k].descricao === GECON[i] && ag.recortes[k].ordem === i), 'as dez entram de uma vez, com o texto literal e na ordem informada');
+afirma(ordenadas.every((k) => ag.recortes[k].separacao === null && ag.recortes[k].fatos === null && ag.recortes[k].situacao === 'ativo'), 'nenhuma resposta, núcleo ou classificação presumidos: todas "pendentes de delimitação"');
+afirma(ordenadas.every((k) => N.prontaParaO1O9(ag, k).faltas.join() === 'SEPARACAO_NAO_RESPONDIDA') && eventos.slice(-1)[0].tipo === 'recortes.registrados-em-lote' && eventos.slice(-1)[0].detalhe.quantidade === 10, 'nenhuma vai sozinha para o O1–O9; um evento com as dez no histórico');
+afirma(N.lacunas(ag).filter((l) => l.tipo === 'separacao-pendente').length === 10, 'lacunas: as dez pendentes de delimitação');
+aplicar(N.revisarResponsabilidade(estado, 'an-gecon', 'g7', { descricao: GECON[7], separacao: { valor: 'nao' } }, ctx()), 'g7 não separar');
+afirma(N.prontaParaO1O9(analise('an-gecon'), 'g7').pronta && analise('an-gecon').recortes.g7.descricao === 'Gerir o processo contábil.', 'responder "Não" na lista: pronta, com o texto intacto');
+/* núcleos: só o que foi dito — CONTA no processo contábil, NUTRI nas obrigações tributárias */
+const NE = (texto) => ({ texto });
+afirma(temErro(N.informarNucleosAtuais(estado, 'an-gecon', 'g7', { nucleos: [NE('CONTA — Núcleo de Contabilidade'), NE('conta — núcleo de contabilidade')] }, ctx()), 'NUCLEO_REPETIDO'), 'o mesmo núcleo duas vezes: recusado');
+aplicar(N.informarNucleosAtuais(estado, 'an-gecon', 'g7', { nucleos: [NE('CONTA — Núcleo de Contabilidade')] }, ctx()), 'CONTA');
+aplicar(N.informarNucleosAtuais(estado, 'an-gecon', 'g8', { nucleos: [NE('NUTRI — Núcleo Tributário'), NE('CONTA — Núcleo de Contabilidade')] }, ctx()), 'g8 dois núcleos');
+const ag2 = analise('an-gecon');
+afirma(ag2.recortes.g7.fatos.execucao.length === 1 && ag2.recortes.g8.fatos.execucao.length === 2 && ag2.recortes.g7.fatos.execucao[0].carater === 'declarado' && !ag2.recortes.g7.fatos.execucao[0].estruturaId, 'vários núcleos por responsabilidade; o mesmo núcleo em várias; núcleo fora do ADMIN fica como texto, declarado');
+afirma(['g0', 'g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g9'].every((k) => !ag2.recortes[k].fatos), 'nenhuma associação inferida pelo nome do núcleo (ex.: investimentos não vão para "Backoffice")');
+afirma(eventos.slice(-1)[0].tipo === 'nucleos.informados' && eventos.slice(-1)[0].detalhe.antes.length === 0 && eventos.slice(-1)[0].detalhe.depois.length === 2, 'histórico dos núcleos, com antes e depois');
+aplicar(N.associarAtuacao(estado, 'an-gecon', 'g7', 'obj-g7', ctx()), 'avaliar g7');
+aplicar(N.informarNucleosAtuais(estado, 'an-gecon', 'g7', { nucleos: [] }, ctx()), 'corrigir para não informado');
+afirma(analise('an-gecon').recortes.g7.objetoId === 'obj-g7' && analise('an-gecon').recortes.g7.fatos.execucao.length === 0, 'núcleos se corrigem depois da avaliação, sem mexer nela ("Não informado" = lista vazia)');
+afirma(N.exercidasPelaEstrutura(estado, 'nucleo-qualquer').length === 0, 'nada vira vínculo nem estrutura oficial');
 console.log('\n' + total + ' verificações — ' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));
 process.exit(falhas ? 1 : 0);

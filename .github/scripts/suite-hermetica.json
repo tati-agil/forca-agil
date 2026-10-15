@@ -645,9 +645,9 @@
     },
     {
       "arquivo": ".github/scripts/teste-analises-organizacionais-usabilidade.js",
-      "nome": "Porta 2 · Análise Organizacional: usabilidade — dois caminhos, quatro passos, F2b condicional, entregas",
-      "duracao": 60,
-      "sobre": "Cenário hipotético TESTE — Núcleo de Governança de TI. Porta 2 com Caminho A (direto) e B (assistido) convergindo para o O1–O9; Início com Porta 1/Porta 2 e atalho do Caminho B só com o marcador liberado. Atuação prévia opcional (Não por padrão). F2b: pergunta e ajuda novas, estrutura só com Está cadastrada (habilitada, obrigatória; trocar desabilita e limpa; teclado), recusa no núcleo, Alterar com histórico, F5. Quatro passos com estado real, próxima ação, passos futuros com motivo e condição; conceitos hipotéticos; entregas com instrução, total, editar e excluir (fica no histórico); nenhuma responsabilidade presumida. Legado incoerente corrigido só na próxima gravação. Não consigo identificar entregas. Marcador desligado/só admin geral = Porta 2 de antes; consulta; 375 px."
+      "nome": "Porta 2 · Análise Organizacional: usabilidade — Responsabilidade Organizacional, lista única, lote, núcleos e composição (GECON)",
+      "duracao": 90,
+      "sobre": "Dois caminhos convergindo para o O1–O9; telas da Porta 2 com Responsabilidade organizacional; Início com Porta 1/Porta 2; marcador desligado = Porta 2 de antes. Caminho A: atribuição colada, Não → cadastro com o texto literal (o registro declara o que repete) e O1–O9; Sim → análise. F2b opcional e condicional. GECON: dez atribuições coladas, prévia, numeração só a pedido, duplicidade com confirmação, gravação única com texto e ordem; lista única com situação e ação; Não/Sim/Não sei na linha; separar em partes; núcleos informados à mão (vários, compartilhados, nenhum inferido); Avaliar → voltar à lista; Continuar e Ver resultado pelos estados reais; composição por núcleo sem duplicar avaliação; nada no Mapa; F5; histórico. Detalhamento opcional não converte a resposta; registros anteriores avaliáveis; consulta; 375 px sem corte."
     },
     {
       "arquivo": ".github/scripts/teste-analises-organizacionais-nucleo.js",
