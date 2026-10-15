@@ -139,7 +139,14 @@ async function entrada(browser) {
   const lista = (await texto(page, '#poAtuacoes h3')) + ' ' + (await texto(page, '#poAtuacoes .avp-intro'));
   afirma(/^Responsabilidades organizacionais/.test(lista.trim()) && !/[Aa]tuaç/.test(lista), 'listagem da Porta 2 em "Responsabilidades organizacionais"');
   await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicioCaminhoB');
-  afirma(/^Porta 1$/.test((await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')).trim()) && /^Porta 2/.test((await texto(page, '#avpInicioCartaoAtuacao .avp-inicio-caminho')).trim()) && (await page.getAttribute('#avpInicioAnalise', 'href')) === '#avaliacoes?an=nova', 'Início: Porta 1 e Porta 2, com o atalho do Caminho B');
+  afirma(/^Porta 1$/.test((await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')).trim()) && /^Porta 2/.test((await texto(page, '#avpInicioCartaoAtuacao .avp-inicio-caminho')).trim()) && (await page.getAttribute('#avpInicioAnalise', 'href')) === '#avaliacoes?an=nova', 'Início: Porta 1 e Porta 2, com o Caminho B');
+  const [ca, cb] = await page.evaluate(() => ['avpInicioAtuacao', 'avpInicioAnalise'].map((i) => { const e = document.getElementById(i); const r = e.getBoundingClientRect(); return { cls: e.className, txt: e.textContent.trim(), h: r.height, w: r.width }; }));
+  afirma(ca.cls === cb.cls && ca.txt === 'Avaliar uma responsabilidade' && cb.txt === 'Analisar uma área e suas responsabilidades' && Math.abs(ca.h - cb.h) < 2, 'Início: os dois caminhos com botões de mesmo peso', [ca, cb]);
+  await page.click('#avpInicioAnalise'); await page.waitForSelector('#anFormNova');
+  afirma(await page.evaluate(() => location.hash) === '#avaliacoes?an=nova', 'Caminho B abre a Análise Organizacional');
+  await page.goBack(); await page.waitForSelector('#avpInicioCartaoAtuacao');
+  await page.click('#avpInicioAtuacao'); await page.waitForSelector('input[name="poSeparar"]');
+  afirma(await page.evaluate(() => location.hash) === '#avaliacoes?po=nova-atuacao', 'Caminho A abre o cadastro simplificado da responsabilidade');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
   for (const [hab, rot] of [[null, 'DESLIGADO'], ['SOMENTE_ADMIN_GERAL', 'SOMENTE_ADMIN_GERAL (Avaliação + Configuração)']]) {
@@ -148,6 +155,9 @@ async function entrada(browser) {
     afirma(!(await existe(page, '#anEntradaAtuacoes')) && await existe(page, '.avp-actions-bar #poNovaAtuacaoBtn'), rot + ': Porta 2 como antes');
     await page.click('#poNovaAtuacaoBtn'); await page.waitForSelector('#poFormAtuacao');
     afirma(await existe(page, '#poAtuacao_finalidade') && !(await existe(page, 'input[name="poSeparar"]')), rot + ': o cadastro direto continua o de antes (sem a Análise Organizacional)');
+    await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicioCartaoAtuacao');
+    await esperar(page, () => !!document.getElementById('avpInicioCaminhoBEstado') && !/Verificando/.test(document.getElementById('avpInicioCaminhoBEstado').textContent));
+    afirma(!(await existe(page, '#avpInicioAnalise')) && /ainda não disponível/i.test(await texto(page, '#avpInicioCaminhoBEstado')) && await existe(page, '#avpInicioAtuacao'), rot + ': Início sem botão do Caminho B (orientação, nenhum acesso alternativo); Caminho A continua');
     await ctx.close();
   }
 }

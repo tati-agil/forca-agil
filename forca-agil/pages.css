@@ -3332,6 +3332,12 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-inicio-cartao { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; padding: 14px 16px; }
 .avp-inicio-cartao .avp-inicio-acao { margin-top: auto; align-self: flex-start; }
 .avp-inicio-sigla { font-size: .8rem; color: var(--ink-3); font-family: var(--font-mono); }
+/* Porta 2: os dois caminhos, empilhados e com o mesmo peso (sem cartões dentro do cartão) */
+.avp-inicio-opcoes { display: grid; gap: 0; margin-top: 4px; }
+.avp-inicio-opcao { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.avp-inicio-opcao p { margin: 0; }
+.avp-inicio-opcao-rotulo { font-weight: 700; color: var(--ink); }
+.avp-inicio-opcao .avp-inicio-acao { justify-self: start; margin-top: 2px; }
 .avp-inicio-perfil { margin-top: auto; font-size: .88rem; color: var(--ink-3); }
 .avp-inicio-nota { margin-top: 10px; font-size: .9rem; color: var(--ink-3); }
 .avp-inicio-abrir { font-size: 1.4rem; opacity: .6; }
@@ -3342,6 +3348,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 @media (max-width: 640px) {
   .avp-inicio-cartoes { grid-template-columns: 1fr; }
   .avp-inicio-acao, .avp-inicio-cartao .avp-inicio-acao { width: 100%; align-self: stretch; }
+  .avp-inicio-opcao .avp-inicio-acao { justify-self: stretch; }
 }
 
 

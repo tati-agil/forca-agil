@@ -3327,7 +3327,7 @@
        um com a sua finalidade. Não lê o banco: abre na hora, também no 4G. Cada destino é uma tela que já existe; ao
        abri-lo daqui, a entrada do histórico registra o Início como origem, e o "← Voltar" de lá volta para cá. */
     var DESTINOS_INICIO = {
-      avpInicioJornada: '#avaliacoes?mf=catalogo', avpInicioNatureza: '#avaliacoes?nova=1', avpInicioAtuacao: '#avaliacoes?po=atuacoes',
+      avpInicioJornada: '#avaliacoes?mf=catalogo', avpInicioNatureza: '#avaliacoes?nova=1', avpInicioAtuacao: '#avaliacoes?po=nova-atuacao',
       avpInicioRegNatureza: '#avaliacoes?av=lista', avpInicioRegPosicionamento: '#avaliacoes?po=lista', avpInicioRegSquad: '#avaliacoes?sq=lista',
       avpInicioRegMapa: '#avaliacoes?mf=mapa'
     };
@@ -3419,7 +3419,7 @@
       var h = '<div class="avp-inicio" id="avpInicio"><h2 class="avp-inicio-titulo">O que você precisa fazer?</h2>' +
         '<section class="avp-inicio-principal" id="avpInicioContinuar" aria-labelledby="avpInicioContinuarTitulo">' +
         '<h3 id="avpInicioContinuarTitulo">Continuar ou consultar um trabalho</h3>' +
-        '<p>Produtos, serviços e atuações organizacionais já registrados: o que já foi feito, o que ainda pode ser feito e a estrutura responsável.</p>' +
+        '<p>Produtos, serviços e responsabilidades organizacionais já registrados: o que já foi feito, o que ainda pode ser feito e a estrutura responsável.</p>' +
         link('avpInicioJornada', 'btn btn--primary avp-inicio-acao', 'Abrir a Jornada de Avaliação e Posicionamento →') + '</section>' +
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
         '<div class="avp-inicio-cartoes">' +
@@ -3427,15 +3427,19 @@
         '<p>Descubra se o item é um Produto/Serviço independente ou se faz parte de outra solução.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
         '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionar diretamente uma responsabilidade organizacional</h4>' +
-        '<p>Para uma responsabilidade organizacional — o trabalho pelo qual se responde —, que não precisa passar pela avaliação de Produto/Serviço.</p>' +
-        '<p class="avp-inicio-exemplo">Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade.</p>' +
-        '<p class="avp-inicio-sigla">Questionário O1–O9 · a hipótese inicial é obrigatória e não entra no cálculo</p>' +
-        '<div id="avpInicioCaminhoBVaga">' + caminhoAssistidoHtml() + '</div>' +
-        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Começar o posicionamento de uma responsabilidade')
-          : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Iniciar um posicionamento é do perfil Avaliação + Configuração. As responsabilidades já posicionadas aparecem na Jornada.</p>') +
-        '</div></div>' +
-        '<p class="avp-inicio-nota" id="avpInicioNota">Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +
+        /* Porta 2: dois caminhos com o mesmo peso, que terminam no mesmo O1–O9 — A (uma responsabilidade) e B (uma área) */
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionamento Organizacional</h4>' +
+        '<p class="avp-inicio-sigla">Questionário O1–O9 — o mesmo nos dois caminhos</p>' +
+        '<div class="avp-inicio-opcoes">' +
+        '<div class="avp-inicio-opcao" id="avpInicioOpcaoA"><p class="avp-inicio-opcao-rotulo">Caminho A · Avaliar uma responsabilidade</p>' +
+        '<p>Já sabe qual responsabilidade deseja avaliar? Informe sua descrição e siga para o O1–O9.</p>' +
+        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Avaliar uma responsabilidade')
+          : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Avaliar uma responsabilidade é do perfil Avaliação + Configuração. As já posicionadas aparecem na Jornada.</p>') + '</div>' +
+        '<div class="avp-inicio-opcao" id="avpInicioOpcaoB"><p class="avp-inicio-opcao-rotulo">Caminho B · Analisar uma área</p>' +
+        '<p>Quer analisar uma gerência, núcleo ou área que reúne várias responsabilidades? Registre-as e acompanhe cada avaliação individualmente.</p>' +
+        '<div id="avpInicioCaminhoBVaga">' + caminhoAssistidoHtml() + '</div></div>' +
+        '</div></div></div>' +
+        '<p class="avp-inicio-nota" id="avpInicioNota">As duas portas podem chegar ao Posicionamento; nenhuma é etapa da outra. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +
         comoFuncionaHtml() + '</div>';
       wrap.innerHTML = h;
       Array.prototype.forEach.call(wrap.querySelectorAll('[data-admin-destino]'), function (el) {
