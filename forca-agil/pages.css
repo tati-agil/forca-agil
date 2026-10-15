@@ -3687,6 +3687,7 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .po-apoio > summary { cursor: pointer; font-weight: 700; min-height: 32px; }
 .po-apoio h5 { margin: 12px 0 4px; font-size: .9rem; }
 .po-apoio-perguntas { margin: 6px 0; padding-left: 22px; display: grid; gap: 4px; }
+.po-apoio-citacao { margin: 6px 0; padding: 6px 12px; border-left: 3px solid var(--line-strong); color: var(--ink-2); overflow-wrap: anywhere; }
 .po-tipos-lista, .po-tipos-filhos { margin: 6px 0; padding-left: 18px; display: grid; gap: 6px; }
 .po-tipo .fa-classif-def { margin: 2px 0 0; font-size: .88rem; color: var(--ink-2); }
 .po-tipos .po-apoio { margin-top: 10px; }

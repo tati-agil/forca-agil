@@ -969,7 +969,7 @@
         '<p class="avp-ficha-meta">As respostas da versão anterior vieram preenchidas; perguntas cuja redação mudou precisam ser respondidas de novo.</p></div>';
       h += '<p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
       /* consulta aos tipos de estrutura (e ao apoio O7 × O9) desde o começo, sem responder nada */
-      h += tiposEstruturaHtml(edita && !state.naoConfirmada);
+      h += tiposEstruturaHtml(edita && !state.naoConfirmada, conteudo('O9', versao, vm).ajudaExtra);
       /* gravação não confirmada: as respostas ficam à vista, travadas até a resposta do servidor */
       var cam = caminho(a);
       ORDEM_NIVEIS.forEach(function (n) {
@@ -1125,7 +1125,8 @@
        Ajuda oficial (versionadas no ADMIN). Coerente com elas: a O7 não exige que o objeto seja previdenciário ou
        financeiro nem que a entrega chegue ao participante; ser indispensável não basta. Nada aqui responde pela pessoa,
        grava resposta ou cria estado novo; "Ainda não tenho informações suficientes" só salva o rascunho como está. */
-    function apoioO7O9Html(edita) {
+    /* ajudaO9: a Ajuda oficial da O9 na redação DESTA avaliação (versão do questionário), citada como está */
+    function apoioO7O9Html(edita, ajudaO9) {
       var aberto = !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
       return '<details class="po-apoio" id="poApoioO7O9"' + (aberto ? ' open' : '') + '><summary>Está em dúvida entre Habilitadora de Negócios (O7) e Gestão Corporativa (O9)?</summary>' +
         '<p class="avp-ficha-meta" id="poApoioNatureza">Orientações para investigar, não novos critérios oficiais: valem a pergunta e a Ajuda oficial de cada uma. Os exemplos são hipotéticos e não classificam nenhuma área da PREVI.</p>' +
@@ -1133,7 +1134,7 @@
         '<p><strong>O7 — Habilitadora de Negócios:</strong> desenvolver e fornecer capacidades, serviços ou soluções de negócio compartilhados, consumidos em escala por diferentes Linhas e times.</p>' +
         '<p><strong>O9 — Gestão Corporativa:</strong> oferecer serviços corporativos ao cliente interno, preferencialmente por soluções digitais e autosserviço padronizados, buscando escala e previsibilidade.</p>' +
         '<p id="poApoioNaoParticipante"><strong>A O7 não exige entrega direta ao participante.</strong> A Ajuda oficial da O7 diz que não é necessário que o objeto seja previdenciário ou financeiro. Por isso, "não chega ao participante" não decide, sozinho, entre O7 e O9.</p>' +
-        '<p id="poApoioAjudaOficial">A Ajuda oficial da O9 orienta a <em>observar onde termina a cadeia de valor e de quem são as regras</em>. As perguntas abaixo detalham o que verificar, sem substituí-la.</p>' +
+        (ajudaO9 ? '<div id="poApoioAjudaOficial"><p>A Ajuda oficial da O9, na redação desta avaliação, orienta:</p><blockquote class="po-apoio-citacao">' + esc(ajudaO9).replace(/\n/g, '<br>') + '</blockquote><p>Os pontos abaixo detalham o que verificar, sem substituí-la.</p></div>' : '') +
         '<h5>O que verificar</h5><ol class="po-apoio-perguntas" id="poApoioPerguntas">' +
         '<li><strong>Natureza da entrega:</strong> é uma capacidade, serviço ou solução de negócio, ou um serviço corporativo ao cliente interno?</li>' +
         '<li><strong>Quem consome e para quê:</strong> diferentes Linhas e times, para conduzir as suas soluções de negócio, ou a organização, para se administrar?</li>' +
@@ -1162,14 +1163,14 @@
     /* CONSULTA aos tipos de estrutura, disponível em qualquer ponto da avaliação: nomes e definições vigentes vêm da
        Taxonomia (faPosicionamentos, sem texto de fábrica); a estrutura Linha → especializações → Plataformas vem dos
        códigos do próprio motor. Só leitura: não mostra perguntas fora do caminho, não responde, não muda nada */
-    function tiposEstruturaHtml(edita) {
+    function tiposEstruturaHtml(edita, ajudaO9) {
       var aberto = !!state.tiposAberto || !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
       var item = function (c, filhos) { return '<li class="po-tipo" data-tipo="' + c + '"><strong>' + spanNome(c) + '</strong>' + (P() ? P().definicaoHtml(c, null, { comEstado: true }) : '') + (filhos ? '<ul class="po-tipos-filhos">' + filhos + '</ul>' : '') + '</li>'; };
       var plats = ['PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA', 'PLATAFORMA_CORPORATIVA'].map(function (c) { return item(c); }).join('');
       return '<details class="po-apoio po-tipos" id="poTiposEstrutura"' + (aberto ? ' open' : '') + '><summary>Entenda os tipos de estrutura antes de responder</summary>' +
         '<p class="avp-ficha-meta" id="poTiposNatureza">Consulta: nomes e definições vêm da Taxonomia oficial. Abrir esta consulta não muda respostas, hipótese nem resultado; as perguntas continuam na ordem do caminho.</p>' +
         '<ul class="po-tipos-lista" id="poTiposLista">' + item('AREA_ESPECIALIZADA') + item('COE') +
-        item('LINHA', item('NEGOCIOS') + item('ESTRATEGIA_CLIENTES') + item('PLATAFORMA', plats)) + '</ul>' + apoioO7O9Html(edita) + '</details>';
+        item('LINHA', item('NEGOCIOS') + item('ESTRATEGIA_CLIENTES') + item('PLATAFORMA', plats)) + '</ul>' + apoioO7O9Html(edita, ajudaO9) + '</details>';
     }
     /* O1–O5: o que verificar na responsabilidade concreta. Orientação para investigar, alinhada à pergunta e à Ajuda
        oficial (não é critério novo nem precedência); o nome da responsabilidade não decide */
