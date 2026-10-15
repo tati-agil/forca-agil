@@ -2878,6 +2878,7 @@
       else if (state.tela === 'admin-documentacao') renderDocumentacao();
       else if (state.tela === 'inicio') renderInicio();
       else if (state.tela === 'lista') renderLista();
+      else if (state.tela === 'trabalhos') { renderTrabalhos(); ouvirAnalisesNosTrabalhos(); }
       else if (state.tela === 'form-inicial') renderFormInicial();
       else if (state.tela === 'checklist') renderChecklist();
       else if (state.tela === 'resultado') renderResultado();
@@ -2984,6 +2985,7 @@
       if (p.sq) return { t: 'squad', sq: p.sq }; /* Adequação à Squad: o endereço é dela (avaliacao-squad.js) */
       if (p.mf) return { t: 'mapa', mf: p.mf }; /* Catálogo preparatório do Mapa da Floresta: o endereço é dele (mapa-floresta.js) */
       if (p.an) return { t: 'analise', an: p.an }; /* Análise Organizacional (Porta 2): o endereço é dela (analises-organizacionais.js) */
+      if (p.tr) return { t: 'trabalhos' };
       if (p.avp) return { t: 'avaliacao', key: p.avp };
       if (p.reavaliar) return { t: 'reavaliar', key: p.reavaliar };
       if (p.editar) return { t: 'editar', key: p.editar };
@@ -2995,6 +2997,7 @@
     function origemAtual() {
       if (state.tela === 'lista') return { t: 'lista' };
       if (state.tela === 'inicio') return { t: 'inicio' };
+      if (state.tela === 'trabalhos') return { t: 'trabalhos' };
       if (state.tela === 'resultado' && state.atual && state.atual._key) return { t: 'avaliacao', key: state.atual._key, v: state.atual.versao || 1 };
       return null;
     }
@@ -3180,6 +3183,14 @@
         fim();
         return;
       }
+      if (d.t === 'trabalhos') {
+        if (state.tela !== 'trabalhos' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+          state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
+          state.tela = 'trabalhos'; render();
+        }
+        fim();
+        return;
+      }
       if (d.t === 'lista') {
         /* 'carregando' também sai daqui: ele só existe enquanto a URL pede uma avaliação; se a URL
            deixou de pedir (a pessoa saiu e o endereço voltou ao início), esperar não leva a nada. */
@@ -3347,7 +3358,7 @@
     var DESTINOS_INICIO = {
       avpInicioJornada: '#avaliacoes?mf=catalogo', avpInicioNatureza: '#avaliacoes?nova=1', avpInicioAtuacao: '#avaliacoes?po=nova-atuacao',
       avpInicioRegNatureza: '#avaliacoes?av=lista', avpInicioRegPosicionamento: '#avaliacoes?po=lista', avpInicioRegSquad: '#avaliacoes?sq=lista',
-      avpInicioRegMapa: '#avaliacoes?mf=mapa'
+      avpInicioRegMapa: '#avaliacoes?mf=mapa', avpInicioTrabalhos: '#avaliacoes?tr=1'
     };
     var inicioOuveNomes = false;
     /* COMO O SISTEMA FUNCIONA — um bloco só: cada atividade numa linha, de um lado o que ela é (o link para a lista,
@@ -3382,7 +3393,7 @@
           '<p class="avp-como-usa"><span class="avp-como-rot">O ADMIN fornece:</span> ' + usa + '</p></li>';
       }
       var conector = function (id, texto) { return '<li class="avp-como-conector" id="' + id + '">' + texto + '</li>'; };
-      return '<section class="avp-como" id="avpInicioConsultar" aria-labelledby="avpComoTitulo"><h3 id="avpComoTitulo">Como o sistema funciona</h3>' +
+      return '<details class="avp-como" id="avpInicioConsultar"><summary id="avpComoTitulo">Entenda como as avaliações se conectam</summary>' +
         '<div class="avp-como-areas" id="avpComoAreas">' +
         '<p class="avp-como-area avp-como-area--aval" id="avpComoAreaAval"><span class="avp-como-area-nome">Avaliações</span> onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável.</p>' +
         '<p class="avp-como-area avp-como-area--adm" id="avpComoAreaAdm"><span class="avp-como-area-nome">ADMIN</span> onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho. Não é etapa da Jornada.</p></div>' +
@@ -3404,7 +3415,7 @@
           'o cadastro das estruturas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
           '. A ligação de cada item a uma estrutura é registrada em Avaliações, na ficha do Posicionamento — não no ADMIN. Uma Linha pode não ter Squads.') +
         '</ol>' +
-        (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') + '</section>';
+        (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') + '</details>';
     }
     /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço
        próprio, em faAbaAdmin): o ADMIN mostra "← Voltar ao Início de Avaliações" só nas entradas marcadas — quem entra no
@@ -3431,34 +3442,95 @@
       return AO.caminhoAssistidoInicioHtml();
     }
     function podeIniciarPosicionamento() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
+    /* TRABALHOS DE AVALIAÇÃO — encontrar um trabalho anterior sem lembrar em que módulo ele foi feito. Liga as listas
+       que já existem (nada é cadastrado nem duplicado): Produto/Serviço (os dados desta tela), responsabilidades (o
+       resumo do Posicionamento, que já lê os dados ao abrir Avaliações), análises de áreas (quando disponíveis para o
+       perfil) e a Jornada do Mapa (consulta). Os números são dos registros; sem dado, "…" ou o motivo — nunca inventado */
+    function resumoProdutos() {
+      if (!state.itensCarregados) return null;
+      var porItem = {};
+      state.itens.forEach(function (it) { if (it.excluido) return; var k = it.itemId || it._key, v = it.versao || 1; if (!porItem[k] || v > (porItem[k].versao || 1)) porItem[k] = it; });
+      var n = { andamento: [], concluidas: 0, avalidar: 0 };
+      Object.keys(porItem).forEach(function (k) {
+        var it = porItem[k];
+        if (it.status === 'rascunho') n.andamento.push(it);
+        else if (it.status === 'concluido') { n.concluidas++; if ((it.decisaoFinal || it.resultadoAutomatico) === 'a-validar') n.avalidar++; }
+      });
+      return n;
+    }
+    function renderTrabalhos() {
+      /* o Posicionamento pode não ter subido ainda (página iniciada antes de o script dele carregar): sobe aqui, como nos endereços ?po= */
+      if (!window.faAvaliacaoPosicionamento && window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
+      var POS = window.faAvaliacaoPosicionamento, AO = window.faAnalisesOrganizacionais, rp = resumoProdutos();
+      var rs = POS && POS.resumoTrabalhos ? POS.resumoTrabalhos() : null, ras = AO && AO.responsabilidadesDasAnalises ? AO.responsabilidadesDasAnalises() : null;
+      var acAO = AO && AO.acesso ? AO.acesso() : { ler: false };
+      var num = function (v) { return v === null || v === undefined ? '…' : String(v); };
+      var lin = function (rot, v, id) { return '<li><span class="avp-trab-num" id="' + id + '">' + num(v) + '</span> ' + rot + '</li>'; };
+      var h = '<div class="avp-trabalhos" id="avpTrabalhos"><button type="button" class="avp-voltar-link" id="avpTrabVoltar">← Voltar para Avaliações</button>' +
+        '<h2 class="avp-inicio-titulo">Trabalhos de avaliação</h2><p class="avp-intro">Encontre um trabalho anterior e continue de onde parou. Os registros são compartilhados com quem tem acesso à Avaliação.</p>';
+      /* continuar de onde parou: os rascunhos (P1–P16 e O1–O9), com link direto */
+      var pend = [];
+      (rp ? rp.andamento : []).forEach(function (it) { pend.push('<li><a href="#avaliacoes?avp=' + encodeURIComponent(it._key) + '">' + esc(it.nome || 'Item sem nome') + '</a> <span class="avp-ficha-meta">Produto/Serviço · em andamento</span></li>'); });
+      (rs && rs.rascunhos ? rs.rascunhos : []).forEach(function (r) { pend.push('<li><a href="#avaliacoes?po=' + encodeURIComponent(r.key) + '">' + esc(r.nome || 'Sem nome') + '</a> <span class="avp-ficha-meta">' + (r.porta2 ? 'Responsabilidade' : 'Posicionamento') + ' · avaliação O1–O9 em andamento</span></li>'); });
+      h += '<section class="avp-trab-secao" id="avpTrabContinuar"><h3>Continuar de onde parou</h3>' +
+        (rp === null || rs === null ? '<p class="loading-msg">Carregando…</p>' : rs && rs.erro ? '<p class="avp-error-msg">Não foi possível ler os Posicionamentos agora.</p>' : '') +
+        (pend.length ? '<ul class="avp-trab-pendentes" id="avpTrabPendentes">' + pend.join('') + '</ul>' : (rp !== null && rs !== null ? '<p class="avp-ficha-meta" id="avpTrabSemPendentes">Nenhuma avaliação em andamento.</p>' : '')) + '</section>';
+      var rr = rs && rs.responsabilidades ? rs.responsabilidades.por : null;
+      h += '<div class="avp-trab-grade">' +
+        '<section class="avp-trab-secao" id="avpTrabProdutos"><h3>Produtos/Serviços</h3><ul class="avp-trab-nums">' +
+          lin('em andamento', rp ? rp.andamento.length : null, 'avpTrabProdAndamento') + lin('concluídas', rp ? rp.concluidas : null, 'avpTrabProdConcluidas') + lin('com resultado A validar', rp ? rp.avalidar : null, 'avpTrabProdAValidar') + '</ul>' +
+          '<a class="btn btn--sm" id="avpTrabIrProdutos" href="#avaliacoes?av=lista">Ver avaliações de Produto/Serviço</a></section>' +
+        '<section class="avp-trab-secao" id="avpTrabResponsabilidades"><h3>Responsabilidades Organizacionais</h3>' +
+          (rs && rs.erro ? '<p class="avp-error-msg">Não foi possível ler as responsabilidades agora.</p>' : '<ul class="avp-trab-nums">' +
+          lin('prontas para avaliar', rr ? rr.pronta || 0 : null, 'avpTrabRespProntas') + lin('em avaliação', rr ? rr.andamento || 0 : null, 'avpTrabRespAndamento') +
+          lin('avaliadas', rr ? rr.avaliada || 0 : null, 'avpTrabRespAvaliadas') + lin('com resultado A validar (sem decisão final)', rr ? rr.avalidar || 0 : null, 'avpTrabRespAValidar') + '</ul>') +
+          '<a class="btn btn--sm" id="avpTrabIrResponsabilidades" href="#avaliacoes?po=todas">Ver todas as responsabilidades</a></section>' +
+        '<section class="avp-trab-secao" id="avpTrabAreas"><h3>Análises de áreas</h3>';
+      if (!acAO.ler) h += '<p class="avp-ficha-meta" id="avpTrabAreasIndisponivel">A análise de áreas não está disponível para o seu perfil agora.</p>';
+      else {
+        var areas = {}; (ras || []).forEach(function (r) { areas[r.analiseId] = true; });
+        h += '<ul class="avp-trab-nums">' + lin('áreas com responsabilidades registradas', ras ? Object.keys(areas).length : null, 'avpTrabAreasQtd') +
+          lin('responsabilidades de áreas ainda sem O1–O9', ras ? ras.filter(function (r) { return !r.objetoId && r.pronta; }).length : null, 'avpTrabAreasProntas') + '</ul>' +
+          '<a class="btn btn--sm" id="avpTrabIrAreas" href="#avaliacoes?an=lista">Ver análises de áreas</a>';
+      }
+      h += '</section>' +
+        '<section class="avp-trab-secao" id="avpTrabJornada"><h3>Jornadas e Mapa</h3><p class="avp-ficha-meta">Consulta da ligação entre os resultados das avaliações e as estruturas responsáveis. Não é onde se cadastra nem se avalia.</p>' +
+          '<a class="btn btn--sm" id="avpTrabIrJornada" href="#avaliacoes?mf=catalogo">Consultar a Jornada do Mapa</a></section></div></div>';
+      wrap.innerHTML = h;
+      var v = document.getElementById('avpTrabVoltar'); if (v) v.addEventListener('click', function () { irPara(hashInicio()); });
+    }
+    /* os números chegam depois (Posicionamento e análises): redesenha no lugar */
+    window.addEventListener('fa-posicionamento-dados', function () { if (state.tela === 'trabalhos' && !wrap.hidden) renderTrabalhos(); });
+    var trabOuveAO = false;
+    function ouvirAnalisesNosTrabalhos() { var AO = window.faAnalisesOrganizacionais; if (!trabOuveAO && AO && AO.aoMudar) { trabOuveAO = true; AO.aoMudar(function () { if (state.tela === 'trabalhos' && !wrap.hidden) renderTrabalhos(); }); } if (AO && AO.ligar) AO.ligar(); }
     function renderInicio() {
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
       var P = window.faPosicionamentos;
-      var h = '<div class="avp-inicio" id="avpInicio"><h2 class="avp-inicio-titulo">O que você precisa fazer?</h2>' +
+      /* Organizado pelo trabalho: continuar (Trabalhos de avaliação; a Jornada do Mapa é consulta, com nome próprio) e
+         começar — Produto/Serviço (Porta 1) ou responsabilidades (Porta 2: uma responsabilidade ou uma área, o mesmo
+         O1–O9). Sem botão amarelo: as ações de começar e continuar têm o mesmo peso. A explicação de como as avaliações
+         se ligam fica recolhida */
+      var h = '<div class="avp-inicio" id="avpInicio"><h2 class="avp-inicio-titulo">O que você deseja fazer?</h2>' +
         '<section class="avp-inicio-principal" id="avpInicioContinuar" aria-labelledby="avpInicioContinuarTitulo">' +
-        '<h3 id="avpInicioContinuarTitulo">Continuar ou consultar um trabalho</h3>' +
-        '<p>Produtos, serviços e responsabilidades organizacionais já registrados: o que já foi feito, o que ainda pode ser feito e a estrutura responsável.</p>' +
-        link('avpInicioJornada', 'btn btn--primary avp-inicio-acao', 'Abrir a Jornada de Avaliação e Posicionamento →') + '</section>' +
-        '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
-        '<div class="avp-inicio-cartoes">' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1</p><h4>Avaliar se é Produto/Serviço</h4>' +
-        '<p>Descubra se um item constitui um Produto/Serviço.</p>' +
-        '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
-        '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
-        /* Porta 2: dois caminhos com o mesmo peso, que terminam no mesmo O1–O9 — A (uma responsabilidade) e B (uma área) */
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionamento Organizacional</h4>' +
-        '<p>Descubra qual tipo arquitetural é recomendado para cada responsabilidade organizacional.</p>' +
-        '<p class="avp-inicio-sigla">Questionário O1–O9 — o mesmo nos dois caminhos</p>' +
-        '<div class="avp-inicio-opcoes">' +
-        '<div class="avp-inicio-opcao" id="avpInicioOpcaoA"><p class="avp-inicio-opcao-rotulo">Caminho A · Uma responsabilidade</p>' +
+        '<h3 id="avpInicioContinuarTitulo">Continuar um trabalho</h3>' +
+        '<p>Avaliações de Produto/Serviço, responsabilidades e análises de áreas já registradas: veja o andamento e continue de onde parou.</p>' +
+        '<div class="avp-inicio-continuar-acoes">' + link('avpInicioTrabalhos', 'btn avp-inicio-acao', 'Ver e continuar trabalhos') +
+        link('avpInicioJornada', 'avp-inicio-link-jornada', 'Consultar a Jornada do Mapa (ligação dos resultados às estruturas) →') + '</div></section>' +
+        '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho</h3>' +
+        '<div class="avp-inicio-cartoes avp-inicio-cartoes--tres">' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1 · P1–P16</p><h4>Avaliar um Produto/Serviço</h4>' +
+        '<p>Descubra se um item constitui um Produto/Serviço.</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
+        /* Porta 2: dois começos para o mesmo O1–O9 — uma responsabilidade ou uma área */
+        '<div class="avp-inicio-porta2" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · Posicionamento das responsabilidades · O1–O9</p><div class="avp-inicio-opcoes">' +
+        '<div class="avp-inicio-cartao avp-inicio-opcao" id="avpInicioOpcaoA"><h4>Avaliar uma responsabilidade</h4>' +
         '<p>Já sabe qual responsabilidade deseja avaliar?</p>' +
-        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Avaliar uma responsabilidade')
-          : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Avaliar uma responsabilidade é do perfil Avaliação + Configuração. As já posicionadas aparecem na Jornada.</p>') + '</div>' +
-        '<div class="avp-inicio-opcao" id="avpInicioOpcaoB"><p class="avp-inicio-opcao-rotulo">Caminho B · Uma área com várias responsabilidades</p>' +
-        '<p>Quer analisar uma gerência, núcleo ou área que reúne várias responsabilidades?</p>' +
+        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Avaliar responsabilidade')
+          : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Avaliar uma responsabilidade é do perfil Avaliação + Configuração. As já registradas aparecem em "Ver e continuar trabalhos".</p>') + '</div>' +
+        '<div class="avp-inicio-cartao avp-inicio-opcao" id="avpInicioOpcaoB"><h4>Analisar uma área</h4>' +
+        '<p>Cadastre e avalie as responsabilidades de uma gerência, núcleo ou outra área.</p>' +
         '<div id="avpInicioCaminhoBVaga">' + caminhoAssistidoHtml() + '</div></div>' +
         '</div></div></div>' +
-        '<p class="avp-inicio-nota" id="avpInicioNota">As duas portas podem chegar ao Posicionamento; nenhuma é etapa da outra. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +
+        '<p class="avp-inicio-nota" id="avpInicioNota">Produto/Serviço e responsabilidades são avaliações independentes: nenhuma é etapa da outra.</p></section>' +
         comoFuncionaHtml() + '</div>';
       wrap.innerHTML = h;
       Array.prototype.forEach.call(wrap.querySelectorAll('[data-admin-destino]'), function (el) {
@@ -9615,7 +9687,7 @@
       state.itens = arr;
       state.itensCarregados = true;
       state.erroCarga = null;
-      if (state.tela === 'lista') render();
+      if (state.tela === 'lista' || state.tela === 'trabalhos') render();
       sincronizarComHash(); /* resolve um #avaliacoes?avp=<key> pendente (F5, link direto) assim que os dados chegarem */
     }
     function aoFalharCarga(err) {

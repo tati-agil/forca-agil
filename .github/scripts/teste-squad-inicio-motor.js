@@ -39,7 +39,7 @@ async function abrir(browser, viewport) {
   /* A avaliação de Squad fica na área AVALIAÇÃO (o motor, no ADMIN › Avaliação e Mapa — ver abrirMotor). */
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
-  await page.waitForSelector('#avpInicioRegSquad', { timeout: 8000 });
+  await page.waitForSelector('#avpInicioRegSquad', { state: 'attached', timeout: 8000 });
   return { ctx, page, erros };
 }
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
@@ -50,7 +50,7 @@ const regrasHoje = (page) => page.evaluate(() => JSON.stringify({ v: window.faMo
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
-    await page.click('#avpInicioRegSquad');
+    await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegSquad');
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
 
     console.log('\n== Início: item já cadastrado × novo item ==');

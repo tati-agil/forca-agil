@@ -124,6 +124,13 @@ afirma(s2.nome === '' && O.validarDados(s2).some((e) => e.campo === 'nome'), 'de
 const s3 = O.dadosSimplificados({ texto: longo, nomeCurto: 'Gerir o orçamento', finalidade: 'Orçamento executado conforme o planejado', contexto: 'Da análise X.' });
 afirma(s3.nome === 'Gerir o orçamento' && s3.finalidade === 'Orçamento executado conforme o planejado' && s3.contexto === 'Da análise X.' && O.validarDados(s3).length === 0, 'nome curto e finalidade declarados pela pessoa: nenhuma nota de repetição');
 afirma(Object.isFrozen(O) && typeof O.dadosSimplificados === 'function', 'API congelada, com dadosSimplificados');
+/* registro de uma descrição só: leitura e edição simples, sem mudar o contrato (a nota gravada pelo sistema é o marcador) */
+const sd = O.dadosSimplificados({ texto: 'Gerir o processo contábil.', contexto: 'Da análise GECON.' });
+afirma(O.registroSimplificado(sd) && !O.registroSimplificado(s3) && !O.registroSimplificado({ nome: 'x', descricao: 'Cadastro simplificado: nada foi inferido.', finalidade: 'y', contexto: '' }), 'reconhece o registro simplificado só pela nota do sistema e finalidade = descrição');
+afirma(O.contextoVisivel(sd.contexto) === 'Da análise GECON.' && O.contextoVisivel(O.dadosSimplificados({ texto: 'abc' }).contexto) === '', 'a nota técnica não aparece como contexto (o contexto de negócio continua)');
+const ed = O.dadosEdicaoSimplificada(sd, 'Gerir o processo contábil da GECON.');
+afirma(ed.nome === 'Gerir o processo contábil da GECON.' && ed.descricao === ed.nome && ed.finalidade === ed.nome && ed.contexto === sd.contexto && O.validarDados(ed).length === 0, 'edição de um campo: a descrição nova nos campos exigidos; contexto (com a nota) intacto');
+afirma(O.dadosEdicaoSimplificada(sd, longo, 'Nome curto').nome === 'Nome curto' && O.validarDados(O.dadosEdicaoSimplificada(sd, longo, '')).length > 0, 'descrição longa: pede o nome curto (sem ele, recusa)');
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);

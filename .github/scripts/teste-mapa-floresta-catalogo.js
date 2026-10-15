@@ -16,6 +16,8 @@
  *   7. Perfis: "Avaliação" consulta; quem não tem acesso à Avaliação não vê o catálogo.
  *   8. Rede: leitura lenta mostra "Carregando…" (nunca catálogo vazio); leitura recusada mostra o erro e "Tentar de
  *      novo", que recupera quando a leitura volta; leitura que não chega avisa que está demorando (desktop).
+ *   8c. Avaliações aberta antes do login, Jornada depois do login pela navegação interna: os dados aparecem sem F5
+ *       (a escuta da configuração do motor recusada antes do login é religada); configuração que não chega: aviso.
  * Sem rolagem horizontal; sem erro de JS. FA_CAPTURAS=<pasta> grava capturas de tela (desktop e 375 px). */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -129,7 +131,7 @@ async function abrir(browser, viewport, hash, email, extraCfg) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html' + hash, { waitUntil: 'domcontentloaded' });
-  await esperarSessaoAssentada(page);
+  if (cfg.user) await esperarSessaoAssentada(page); /* sem sessão: o login acontece depois, no próprio teste */
   return { ctx, page, erros };
 }
 const banco = (page) => page.evaluate(() => JSON.stringify(window.__CFG.__dbReal));
@@ -410,9 +412,37 @@ async function demora(browser) {
   await ctx.close();
 }
 
+/* 8c. o defeito da homologação: Avaliações aberta ANTES do login (a leitura da configuração do motor de P1–P16 é
+   recusada e cancelada pelo banco), login pelo formulário, Jornada pela navegação interna — sem F5 os dados aparecem
+   (antes: itens presos em "Verificando…"). 8d. a configuração que nunca chega: aviso de demora e "Tentar de novo" */
+async function loginDepois(browser) {
+  console.log('[desktop] 8c. Jornada depois do login (sem recarregar a página)');
+  const PROTEGIDOS = ['motor-arquitetura-config', 'avaliacoes-produto', 'avaliacoes-posicionamento', 'posicionamento-', 'objetos-organizacionais', 'fa-avaliacao-autorizados', 'questionarios-config', 'taxonomia'];
+  const { ctx, page, erros } = await abrir(browser, DESKTOP, '#avaliacoes', ARQ, { user: null, exigeLogin: PROTEGIDOS });
+  await page.waitForSelector('#loginEmail', { state: 'visible', timeout: 15000 });
+  await page.waitForTimeout(400); /* tempo para as leituras sem sessão serem recusadas (e as escutas, canceladas) */
+  await page.fill('#loginEmail', ARQ); await page.fill('#loginPassword', '12345678');
+  await page.evaluate((v) => { const el = document.getElementById('loginEmail'); if (el.value !== v) el.value = v; }, ARQ);
+  await page.click('#loginForm button[type="submit"]');
+  await esperarCondicao(page, () => { const m = document.getElementById('authModal'); return !!m && m.hidden === true; }, null, { limite: 10000, descricao: 'o login fechar o modal' });
+  await page.waitForSelector('#avpInicioJornada', { timeout: 15000 });
+  await page.click('#avpInicioJornada');
+  await esperarCondicao(page, () => document.querySelectorAll('#mfItens .mf-item').length > 0 && !document.querySelector('#mfItens [data-situacao="verificando"]') && !/Verificando…|Carregando…/.test((document.getElementById('mfItens') || {}).textContent || ''),
+    null, { limite: 10000, descricao: 'os itens saírem de "Verificando…"/"Carregando…" sem recarregar a página' });
+  afirma(await page.evaluate(() => window.faMotorArquitetura.configCarregada()), '8c. depois do login, a configuração do motor de P1–P16 carrega e a Jornada mostra os dados sem F5');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  console.log('[desktop] 8d. configuração do motor que não chega');
+  const d = await abrir(browser, DESKTOP, '#avaliacoes?mf=catalogo', ARQ, { delays: { 'motor-arquitetura-config': 60000 } });
+  await d.page.waitForSelector('#mfDemora', { timeout: 16000 });
+  afirma(/demorando/.test(await texto(d.page, '#mfDemora')) && await d.page.locator('#mfTentarDeNovo').count() >= 1, '8d. sem a configuração do motor: "demorando", com "Tentar de novo" (nunca "Verificando…" sem aviso)');
+  await d.ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch();
   try {
+    await loginDepois(browser);
     for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) {
       await principal(browser, vp, r); await perfis(browser, vp, r); await rede(browser, vp, r);
     }

@@ -651,6 +651,12 @@
       "sobre": "Início (Porta 1/Porta 2, caminhos A/B de mesmo peso) e Responsabilidades Organizacionais (Nova responsabilidade / Analisar uma área, sem cartões repetidos, um só Voltar). Caminho A: um campo, Registrar e avaliar → cadastro com o texto literal e O1–O9, sem análise. F2b opcional. GECON escolhida na Estrutura Organizacional Atual: dez atribuições coladas (prévia, numeração a pedido, duplicidade com confirmação, edição), registro direto — prontas, sem pergunta sobre separar e sem 'não' inventado —, doze; editar o texto com versão; quem executa hoje pela Estrutura Atual (CONTA; CONTA + NUTRI); texto antigo só com confirmação; composição por unidade com as cinco distinções; Avaliar → O1–O9 → Voltar às responsabilidades da GECON; próximo passo contextual; lista de análises com contagens, próxima ação e homônimas; F5; histórico. Registros anteriores: pendentes continuam pendentes, resposta explícita, separar. Consulta; 375 px sem corte nem sobreposição do menu."
     },
     {
+      "arquivo": ".github/scripts/teste-trabalhos-avaliacao.js",
+      "nome": "Trabalhos de avaliação e todas as responsabilidades: continuar de onde parou, números reais, lista consolidada, resultado A validar",
+      "duracao": 40,
+      "sobre": "Início: Ver e continuar trabalhos leva aos Trabalhos de avaliação (a Jornada do Mapa é consulta). Números dos registros (Produto/Serviço, responsabilidades, áreas) e os rascunhos com link direto. Todas as responsabilidades: Caminho A e B numa lista só, sem duplicar a da área já registrada, com área e quem executa; a ainda sem O1–O9 também aparece; busca e filtros. Resultado A validar: Avaliação concluída e a decisão final separada da recomendação. Desktop e 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-estrutura-atual-tela.js",
       "nome": "Estrutura Organizacional Atual: tela do ADMIN (marcador, árvore, ficha, subordinadas, encerramento, histórico, perfis, 375 px)",
       "duracao": 40,

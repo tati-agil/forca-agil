@@ -155,11 +155,24 @@
     var ctx = String(o.contexto || '').trim();
     return { nome: nome, descricao: texto, finalidade: fin || texto, contexto: [ctx, nota].filter(Boolean).join(' ') };
   }
+  /* o registro do cadastro simplificado se reconhece pela própria nota que ele grava (texto fixo, escrito pelo sistema
+     na criação, nunca pela pessoa) e pela finalidade igual à descrição: assim a edição e a leitura ficam simples sem
+     mudar o contrato do nó. Registros com campos declarados um a um seguem com os quatro campos */
+  var NOTA_SIMPLIFICADO = /\s*Cadastro simplificado: [^.]*?nada foi inferido\.\s*/;
+  function registroSimplificado(ob) { return !!ob && NOTA_SIMPLIFICADO.test(String(ob.contexto || '')) && ob.finalidade === ob.descricao; }
+  /* o contexto de negócio, sem a nota técnica (que continua gravada, para auditoria e compatibilidade) */
+  function contextoVisivel(ctx) { return String(ctx || '').replace(NOTA_SIMPLIFICADO, ' ').trim(); }
+  /* edição de um registro simplificado: a pessoa altera UMA descrição; o cadastro recebe o mesmo texto nos campos
+     exigidos (como na criação) e o contexto fica como estava. Nome à parte só quando a descrição passa do limite */
+  function dadosEdicaoSimplificada(atual, texto, nomeCurto) {
+    var t = String(texto || '').trim(), curto = String(nomeCurto || '').trim();
+    return { nome: t.length <= LIMITES.nome ? t : curto, descricao: t, finalidade: t, contexto: (atual && atual.contexto) || '' };
+  }
   var api = {
     NODE: NODE, AUD: AUD, IDX_REF: IDX_REF, ORIGEM: ORIGEM, NAO_SEI: NAO_SEI, CODIGOS_HIPOTESE: CODIGOS_HIPOTESE.slice(),
     LIMITES: LIMITES, CAMPOS: CAMPOS.slice(), OBRIGATORIOS: OBRIGATORIOS.slice(),
     normalizar: normalizar, validarDados: validarDados, payloadCriacao: payloadCriacao, payloadAlteracao: payloadAlteracao,
-    payloadEncerramento: payloadEncerramento, dadosSimplificados: dadosSimplificados, podeReceberAvaliacao: ativo, compararHipotese: compararHipotese, hipoteseValida: hipoteseValida
+    payloadEncerramento: payloadEncerramento, dadosSimplificados: dadosSimplificados, registroSimplificado: registroSimplificado, contextoVisivel: contextoVisivel, dadosEdicaoSimplificada: dadosEdicaoSimplificada, podeReceberAvaliacao: ativo, compararHipotese: compararHipotese, hipoteseValida: hipoteseValida
   };
   Object.freeze(api.CODIGOS_HIPOTESE); Object.freeze(api.CAMPOS); Object.freeze(api.OBRIGATORIOS); Object.freeze(api.LIMITES);
   Object.freeze(api);

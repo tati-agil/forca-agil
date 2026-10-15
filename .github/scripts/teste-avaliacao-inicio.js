@@ -84,21 +84,24 @@ async function rodada(browser, viewport, rotulo) {
   await noInicio(page);
   console.log('Início');
   afirma(!/Carregando/.test(await texto(page, '#avpInicio')), 'o Início aparece inteiro sem esperar o banco (avaliações ainda não chegaram)');
-  afirma(/O que você precisa fazer\?/.test(await texto(page, '#avpInicio')) && await visivel(page, '#avpInicioContinuar') && await visivel(page, '#avpInicioComecar') && await visivel(page, '#avpInicioConsultar'),
-    'três blocos: continuar ou consultar, começar um trabalho novo, consultar registros completos');
-  afirma(await page.locator('#avpInicio .btn--primary').count() === 1 && /Jornada de Avaliação e Posicionamento/.test(await texto(page, '#avpInicio .btn--primary')),
-    'uma única ação principal: abrir a Jornada');
-  afirma(/Avaliar se é Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se um item constitui um Produto\/Serviço\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
-    (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' && /P1–P16/.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-sigla')) &&
-    /Caminho A · Uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Caminho B · Uma área com várias responsabilidades/.test(await texto(page, '#avpInicioOpcaoB')) && (await texto(page, '#avpInicioAtuacao')).trim() === 'Avaliar uma responsabilidade',
-    'as duas portas explicadas em linguagem simples antes das siglas');
-  afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Avaliar uma responsabilidade" (Caminho A)');
-  console.log('Caminhos e quem sustenta (I1)');
-  afirma(/^Porta 1$/i.test((await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')).trim()) && /Porta 2 · sem avaliação P1–P16/i.test(await texto(page, '#avpInicioCartaoAtuacao .avp-inicio-caminho')),
-    'cartões com o nome do caminho (Porta 1; Porta 2 · sem avaliação P1–P16)');
-  afirma(/Exemplos: Capec, Assessoria Previdenciária\./.test(await texto(page, '#avpInicioCartaoNatureza')) && /O1–O9 — o mesmo nos dois caminhos/.test(await texto(page, '#avpInicioCartaoAtuacao')),
-    'exemplos de uso de cada caminho (sem afirmar situação de nenhum registro)');
-  afirma(/As duas portas podem chegar ao Posicionamento; nenhuma é etapa da outra\./.test(await texto(page, '#avpInicioNota')), 'as duas portas não são etapas de um mesmo fluxo');
+  afirma(/O que você deseja fazer\?/.test(await texto(page, '#avpInicio')) && await visivel(page, '#avpInicioContinuar') && await visivel(page, '#avpInicioComecar') && await visivel(page, '#avpInicioConsultar'),
+    'continuar um trabalho, começar um trabalho e (recolhido) entender como as avaliações se conectam');
+  afirma(await page.locator('#avpInicio .btn--primary').count() === 0 && (await texto(page, '#avpInicioTrabalhos')).trim() === 'Ver e continuar trabalhos' && (await page.getAttribute('#avpInicioTrabalhos', 'href')) === '#avaliacoes?tr=1' &&
+    /Consultar a Jornada do Mapa/.test(await texto(page, '#avpInicioJornada')),
+    'continuar leva aos Trabalhos de avaliação; a Jornada do Mapa é consulta, com nome próprio; nenhum botão domina o Início');
+  afirma(/Avaliar um Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se um item constitui um Produto\/Serviço\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
+    (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' &&
+    /Avaliar uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Já sabe qual responsabilidade deseja avaliar\?/.test(await texto(page, '#avpInicioOpcaoA')) &&
+    /Analisar uma área/.test(await texto(page, '#avpInicioOpcaoB')) && /Cadastre e avalie as responsabilidades de uma gerência, núcleo ou outra área\./.test(await texto(page, '#avpInicioOpcaoB')) &&
+    (await texto(page, '#avpInicioAtuacao')).trim() === 'Avaliar responsabilidade',
+    'começar: três atividades em linguagem simples (Produto/Serviço, uma responsabilidade, uma área)');
+  afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Avaliar responsabilidade"');
+  console.log('Portas (sem terceira porta)');
+  afirma(/Porta 1 · P1–P16/i.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')) && /Porta 2 · Posicionamento das responsabilidades · O1–O9/i.test(await texto(page, '#avpInicioCartaoAtuacao > .avp-inicio-caminho')),
+    'Porta 1 e Porta 2 (as duas atividades de responsabilidade sob a mesma Porta 2 e o mesmo O1–O9)');
+  afirma(/independentes: nenhuma é etapa da outra/.test(await texto(page, '#avpInicioNota')), 'as duas portas não são etapas de um mesmo fluxo');
+  afirma(!(await page.evaluate(() => document.getElementById('avpInicioConsultar').open)) && /Entenda como as avaliações se conectam/.test(await texto(page, '#avpComoTitulo')), '"Entenda como as avaliações se conectam" começa recolhido');
+  await page.evaluate(() => { document.getElementById('avpInicioConsultar').open = true; });
   console.log('Como o sistema funciona');
   const como = await page.evaluate(() => {
     const t = (id) => (document.getElementById(id) || {}).textContent || '';
@@ -115,7 +118,7 @@ async function rodada(browser, viewport, rotulo) {
   });
   afirma(como.itens === 'avpComoNatureza,avpComoConectorPosicionamento,avpComoPosicionamento,avpComoSquad,avpComoConectorMapa,avpComoMapa',
     'um bloco: Produto/Serviço, Posicionamento (com a Squad como ramo), Mapa, ligados por conectores', como.itens);
-  afirma(/nenhuma é etapa obrigatória/.test(como.sub) && /O que você precisa fazer|Como o sistema funciona/.test(await texto(page, '#avpInicioConsultar')),
+  afirma(/nenhuma é etapa obrigatória/.test(como.sub) && /Entenda como as avaliações se conectam/.test(await texto(page, '#avpInicioConsultar')),
     'o bloco diz que uma atividade pode levar à outra, mas nenhuma é etapa obrigatória', como.sub);
   const areaAval = await texto(page, '#avpComoAreaAval'), areaAdm = await texto(page, '#avpComoAreaAdm');
   afirma(/^Avaliações/.test(areaAval.trim()) && /onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável/.test(areaAval),
@@ -194,8 +197,8 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector(linha('pJur'), { timeout: 10000 });
 
   console.log('Caso 2 — Jurídico');
-  afirma(/Representado pela atuação “Assessoramento jurídico”/.test(await texto(page, linha('pJur'))) && /Jornada completa/.test(await texto(page, linha('oJur'))),
-    'P1–P16 "representado pela atuação"; a atuação com a jornada completa — sem pendência inventada');
+  afirma(/Representado pela responsabilidade “Assessoramento jurídico”/.test(await texto(page, linha('pJur'))) && /Jornada completa/.test(await texto(page, linha('oJur'))),
+    'P1–P16 "representado pela responsabilidade"; a atuação com a jornada completa — sem pendência inventada');
   await abreItem(page, 'oJur');
   afirma(await page.locator(card('oJur') + ' .mf-abrir-squad').count() === 0, 'Área Especializada: sem Squad');
   await page.click('#mfVoltarLista');
@@ -243,7 +246,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(true, 'Voltar do navegador: Início');
 
   console.log('Caso 7 — avaliação antiga, exportar, Lixeira');
-  await page.click('#avpInicioRegNatureza');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegNatureza');
   await page.waitForSelector('#avpListaTitulo', { timeout: 10000 });
   await esperar(page, () => document.querySelectorAll('#avaliacoesPainel .avp-table tbody tr').length > 0, undefined, 15000);
   afirma(await hash(page) === '#avaliacoes?av=lista' && await visivel(page, '#avpBusca') && await visivel(page, '#avpExportarBtn') && await visivel(page, '#avpLixeiraBtn') && await visivel(page, '#avpNovoBtn'),
@@ -260,20 +263,20 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#avpVoltarInicio');
   await noInicio(page);
   afirma(true, '"← Início da Avaliação" da lista');
-  await page.click('#avpInicioRegPosicionamento');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegPosicionamento');
   await page.waitForSelector('#poLista', { timeout: 10000 });
   await esperar(page, () => !!document.getElementById('poExportarBtn'), undefined, 15000);
   afirma(await hash(page) === '#avaliacoes?po=lista', 'Posicionamentos: a lista com Exportar');
   await page.click('#poVoltar');
   await noInicio(page);
-  await page.click('#avpInicioRegSquad');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegSquad');
   await page.waitForSelector('#sqExportarBtn', { timeout: 15000 });
   afirma(await hash(page) === '#avaliacoes?sq=lista' && await visivel(page, '#sqNovaBtn'), 'Adequação à Squad: a lista com Exportar e "+ Nova avaliação de squad" (comportamento atual)');
   await page.goBack();
   await noInicio(page);
 
   console.log('Caso 8 — Mapa');
-  await page.click('#avpInicioRegMapa');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegMapa');
   await esperar(page, () => /[?&]mf=mapa/.test(location.hash) && !document.getElementById('avaliacoesMapa').hidden);
   afirma(!/fonte=demo/.test(await hash(page)), 'Mapa pelo Início: as estruturas cadastradas (a demonstração não é o padrão)', await hash(page));
   await page.goBack();
@@ -307,7 +310,7 @@ async function rodada(browser, viewport, rotulo) {
   /* o atalho só aparece quando o cadastro está habilitado (o marcador chega depois e o Início se redesenha): espera estabilizar */
   await esperar(page, () => !!document.getElementById('avpComoIrEstruturas'), undefined, 15000);
   await page.waitForTimeout(300);
-  await page.click('#avpComoIrEstruturas');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrEstruturas');
   await esperar(page, () => location.hash.indexOf('#admin?arq=estruturas') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra() && /Voltar ao Início de Avaliações/.test(await texto(page, '#adminVoltaInicio')), 'atalho Estruturas: abre ADMIN › Estruturas com "← Voltar ao Início de Avaliações"');
   const posVolta = await page.evaluate(() => {
@@ -332,7 +335,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#adminVoltaInicioLink');
   await noInicio(page);
   afirma(true, '"← Voltar ao Início de Avaliações" leva ao Início');
-  await page.click('#avpComoIrQuestionarios');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrQuestionarios');
   await esperar(page, () => location.hash.indexOf('#admin?arq=questionarios') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra(), 'atalho Questionários: abre ADMIN › Questionários com o retorno ao Início');
   await esperar(page, () => !!document.querySelector('#avpCfgCard-CLASSIFICACAO_ARQUITETURAL.avp-config-item-card--foco'), undefined, 15000);
@@ -364,7 +367,7 @@ async function rodada(browser, viewport, rotulo) {
   await esperar(page, () => !!document.getElementById('avpComoIrEstruturas'), undefined, 8000).catch(() => {});
   afirma(await page.locator('#avpComoIrTaxonomia').count() === 1 && await page.locator('#avpComoIrEstruturas').count() === 1 && await page.locator('#avpInicioConsultar a.avp-como-fonte').count() === 8,
     'admin geral: atalhos à Taxonomia e às áreas de Avaliação e Mapa');
-  await page.click('#avpComoIrTaxonomia');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrTaxonomia');
   const taxAtiva = () => page.evaluate(() => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); const v = document.getElementById('adminVoltaInicio'); return !!b && b.classList.contains('active') && !!v && !v.hidden; });
   await esperar(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); return !!b && b.classList.contains('active'); }, undefined, 15000);
   afirma(await taxAtiva() && await hash(page) === '#admin', 'atalho Taxonomia: abre a aba Taxonomia do ADMIN, com o retorno ao Início');
@@ -380,7 +383,7 @@ async function rodada(browser, viewport, rotulo) {
   await noInicio(page);
   afirma(true, 'Voltar do navegador: Início');
   await esperar(page, () => !!document.getElementById('avpComoIrTaxonomia2'), undefined, 8000);
-  await page.click('#avpComoIrTaxonomia2');
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrTaxonomia2');
   await esperar(page, () => { const b = document.querySelector('#adminPanelTaxonomia .tax-dominio--ativo'); return !!b && b.getAttribute('data-dominio') === 'organizacional'; }, undefined, 15000);
   afirma(await taxAtiva(), 'Taxonomia vinda da atividade O1–O9: abre no domínio organizacional, com o retorno');
   await page.click('#adminPanelTaxonomia .tax-dominio[data-dominio="arquitetural"]');

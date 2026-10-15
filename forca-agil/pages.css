@@ -3611,3 +3611,47 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .ea-no--encerrada .ea-no-botao { border-left-color: var(--line-strong); opacity: .8; }
 .ea-acoes { flex-wrap: wrap; }
 @media (max-width: 480px) { .ea-no { padding-left: calc(var(--ea-nivel, 0) * 10px); } }
+
+/* Responsabilidades Organizacionais — "Ver todas as responsabilidades" (avaliacao-posicionamento.js) */
+.po-sobretitulo { margin: 0 0 4px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.po-todas-filtros { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px 12px; align-items: end; }
+.po-todas { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.po-todas-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel-2); }
+.po-todas-texto { display: grid; gap: 2px; min-width: 0; }
+.po-todas-texto strong { overflow-wrap: anywhere; }
+.po-todas-meta { color: var(--ink-2); font-size: .88rem; overflow-wrap: anywhere; }
+.po-todas-acao { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.po-todas-link { margin: 0 0 8px; }
+.po-situacao-avaliacao { margin: 6px 0 10px; padding: 8px 12px; border-left: 3px solid var(--accent-2); background: var(--panel-2); border-radius: 6px; }
+.po-proximo-passo { margin-top: 10px; }
+@media (max-width: 640px) {
+  .po-todas-filtros { grid-template-columns: minmax(0, 1fr); }
+  .po-todas-item { grid-template-columns: minmax(0, 1fr); }
+  .po-todas-acao { justify-content: flex-start; }
+}
+
+/* Início organizado pelo trabalho: continuar × começar (três cartões do mesmo peso; os dois da Porta 2 agrupados) */
+.avp-inicio-continuar-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.avp-inicio-link-jornada { color: var(--ink-2); font-size: .92rem; text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
+.avp-inicio-cartoes--tres { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: stretch; }
+.avp-inicio-porta2 { display: grid; gap: 6px; min-width: 0; }
+.avp-inicio-porta2 .avp-inicio-opcoes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 0; }
+.avp-inicio-porta2 .avp-inicio-opcao { border-top: 1px solid var(--line-strong); padding: 14px 16px; }
+.avp-inicio-cartao > .avp-inicio-caminho { margin-bottom: 4px; }
+details.avp-como { margin-top: 8px; border: 1px solid var(--line-strong); border-radius: 12px; padding: 10px 14px; background: var(--panel); }
+details.avp-como > summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+details.avp-como[open] > summary { margin-bottom: 8px; }
+/* Trabalhos de avaliação */
+.avp-trabalhos { display: grid; gap: 14px; }
+.avp-trab-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.avp-trab-secao { background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.avp-trab-secao h3 { margin: 0; font-size: 1rem; }
+.avp-trab-nums { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.avp-trab-num { display: inline-block; min-width: 2ch; font-weight: 700; font-variant-numeric: tabular-nums; }
+.avp-trab-pendentes { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.avp-trab-pendentes a { overflow-wrap: anywhere; }
+.avp-trab-secao .btn { justify-self: start; min-height: 44px; }
+@media (max-width: 640px) {
+  .avp-inicio-cartoes--tres, .avp-inicio-porta2 .avp-inicio-opcoes, .avp-trab-grade { grid-template-columns: minmax(0, 1fr); }
+  .avp-trab-secao .btn { justify-self: stretch; }
+}

@@ -109,8 +109,8 @@ async function abrir(browser, viewport, motorConfig, extraCfg, onde) {
   }
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
-  await page.waitForSelector('#avpInicioRegSquad', { timeout: 8000 });
-  await page.click('#avpInicioRegSquad');
+  await page.waitForSelector('#avpInicioRegSquad', { state: 'attached', timeout: 8000 });
+  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegSquad');
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
   return { ctx, page, erros };
 }

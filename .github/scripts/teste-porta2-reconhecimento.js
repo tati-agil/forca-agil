@@ -162,14 +162,14 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector('#mfCatalogo .mf-item[data-item="oJur"]', { timeout: 15000 });
   /* lista simples: o detalhe de cada objeto abre ao clicar (#avaliacoes?mf=catalogo&item=<id>) */
   const item = async (id) => { await page.evaluate((i) => { location.hash = '#avaliacoes?mf=catalogo&item=' + i; }, id); await page.waitForSelector('#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]'); return texto(page, '#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]'); };
-  afirma(/Atuação organizacional/.test(await texto(page, '#mfCatalogo .mf-linha[data-item="oJur"]')), 'na lista simples, a atuação vem marcada como "Atuação organizacional"');
+  afirma(/Responsabilidade organizacional/.test(await texto(page, '#mfCatalogo .mf-linha[data-item="oJur"]')), 'na lista simples, a atuação vem marcada como "Atuação organizacional"');
   const tJ = await item('oJur');
-  afirma(/Atuação organizacional/.test(tJ) && /Tx AREA_ESPECIALIZADA/.test(tJ) && await page.locator('.mf-item[data-item="oJur"]').getAttribute('data-situacao') === 'firme', 'a atuação aparece, firme, com o posicionamento efetivo');
+  afirma(/Responsabilidade organizacional/.test(tJ) && /Tx AREA_ESPECIALIZADA/.test(tJ) && await page.locator('.mf-item[data-item="oJur"]').getAttribute('data-situacao') === 'firme', 'a atuação aparece, firme, com o posicionamento efetivo');
   afirma(await page.locator('.mf-item[data-item="oJur"] .mf-abrir-avp').count() === 0 && await page.locator('.mf-item[data-item="oJur"] .mf-abrir-po').count() === 1, 'sem link para Avaliação de Produto/Serviço; com link para o Posicionamento');
   afirma(/Encerrada/.test(await item('oEnc')) && /em andamento/.test(await item('oEnc')), 'atuação encerrada continua listada, marcada, com o rascunho em andamento');
   afirma(/em andamento/.test(await item('oAgi')) && await page.locator('.mf-item[data-item="oAgi"]').getAttribute('data-situacao') === 'sem-posicionamento', 'atuação com rascunho: sem Posicionamento, em andamento (nada de P1–P16)');
-  afirma(/Representado pela atuação “Assessoramento jurídico”/.test(await item('pJur')), 'o item P1–P16 referenciado mostra a referência (PR 4: representado pela atuação)');
-  afirma(!/Atuação organizacional (Porta 2)/.test(await item('pCapec')) && await page.locator('.mf-item[data-item="pCapec"] .mf-abrir-avp').count() === 1, 'a Porta 1 (Capec) continua igual');
+  afirma(/Representado pela responsabilidade “Assessoramento jurídico”/.test(await item('pJur')), 'o item P1–P16 referenciado mostra a referência (PR 4: representado pela atuação)');
+  afirma(!/Responsabilidade organizacional (Porta 2)/.test(await item('pCapec')) && await page.locator('.mf-item[data-item="pCapec"] .mf-abrir-avp').count() === 1, 'a Porta 1 (Capec) continua igual');
   afirma(await larguraOk(page), 'catálogo sem rolagem lateral');
   afirma(erros.length === 0, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
