@@ -102,65 +102,58 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/independentes: nenhuma é etapa da outra/.test(await texto(page, '#avpInicioNota')), 'as duas portas não são etapas de um mesmo fluxo');
   afirma(!(await page.evaluate(() => document.getElementById('avpInicioConsultar').open)) && /Entenda como as avaliações se conectam/.test(await texto(page, '#avpComoTitulo')), '"Entenda como as avaliações se conectam" começa recolhido');
   await page.evaluate(() => { document.getElementById('avpInicioConsultar').open = true; });
-  console.log('Como o sistema funciona');
+  console.log('Como o sistema funciona (duas perspectivas; motores e governança na segunda camada)');
+  afirma(!(await page.evaluate(() => document.getElementById('avpComoDetalhes').open)), 'segunda camada (questionários, motores, Taxonomia, governança) começa recolhida');
   const como = await page.evaluate(() => {
     const t = (id) => (document.getElementById(id) || {}).textContent || '';
     const r = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { t: b.top, b: b.bottom, l: b.left, r: b.right }; };
     return { itens: Array.prototype.map.call(document.querySelectorAll('#avpComoFunciona > li'), (li) => li.id).join(','),
       sub: t('avpComoSub'), nat: t('avpComoNatureza'), pos: t('avpComoPosicionamento'), sq: t('avpComoSquad'), mapa: t('avpComoMapa'),
-      conPos: t('avpComoConectorPosicionamento'), conMapa: t('avpComoConectorMapa'), rodape: !!document.getElementById('avpComoRodape'),
+      conectores: document.querySelectorAll('#avpInicioConsultar .avp-como-conector').length,
       ramoSquad: document.getElementById('avpComoSquad').classList.contains('avp-como-linha--ramo'),
       links: ['avpInicioRegNatureza', 'avpInicioRegPosicionamento', 'avpInicioRegSquad', 'avpInicioRegMapa'].map((i) => document.getElementById(i).getAttribute('href')).join(' '),
       alturas: ['avpInicioRegNatureza', 'avpInicioRegPosicionamento', 'avpInicioRegSquad', 'avpInicioRegMapa'].map((i) => document.getElementById(i).getBoundingClientRect().height),
-      fontes: Array.prototype.map.call(document.querySelectorAll('#avpInicioConsultar .avp-como-fonte'), (x) => x.tagName.toLowerCase() + ':' + x.getAttribute('data-area') + ':' + x.textContent.replace(/[◆●]/g, '').trim()).join(' | '),
-      marcas: Array.prototype.every.call(document.querySelectorAll('.avp-como-fonte'), (x) => /^[◆●]$/.test((x.querySelector('.avp-como-marca') || {}).textContent || '')),
-      squad: r('#avpComoSquad'), pos2: r('#avpComoPosicionamento'), mapa2: r('#avpComoMapa') };
+      admNaPrimeira: document.querySelectorAll('#avpComoAreas .avp-como-fonte').length,
+      aval: r('#avpComoAreaAval'), adm: r('#avpComoAreaAdm'), squad: r('#avpComoSquad'), pos2: r('#avpComoPosicionamento'), mapa2: r('#avpComoMapa') };
   });
-  afirma(como.itens === 'avpComoNatureza,avpComoConectorPosicionamento,avpComoPosicionamento,avpComoSquad,avpComoConectorMapa,avpComoMapa',
-    'um bloco: Produto/Serviço, Posicionamento (com a Squad como ramo), Mapa, ligados por conectores', como.itens);
-  afirma(/nenhuma é etapa obrigatória/.test(como.sub) && /Entenda como as avaliações se conectam/.test(await texto(page, '#avpInicioConsultar')),
-    'o bloco diz que uma atividade pode levar à outra, mas nenhuma é etapa obrigatória', como.sub);
+  afirma(como.itens === 'avpComoNatureza,avpComoPosicionamento,avpComoSquad,avpComoMapa' && como.conectores === 0,
+    'quem faz o trabalho: P1–P16, O1–O9, S1–S8 (opcional) e Mapa/vínculo (opcional), sem conectores nem linhas decorativas', como.itens);
+  afirma(/nenhuma é etapa obrigatória/.test(como.sub) && /direto ao O1–O9/.test(como.sub), 'nenhuma atividade é etapa obrigatória; responsabilidade vai direto ao O1–O9', como.sub);
   const areaAval = await texto(page, '#avpComoAreaAval'), areaAdm = await texto(page, '#avpComoAreaAdm');
-  afirma(/^Avaliações/.test(areaAval.trim()) && /onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável/.test(areaAval),
-    'legenda Avaliações: onde o trabalho acontece (avaliar, posicionar, Squad quando se aplica, vínculo à estrutura)', areaAval);
-  afirma(/^ADMIN/.test(areaAdm.trim()) && /onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho/.test(areaAdm) && /Não é etapa da Jornada/.test(areaAdm),
-    'legenda ADMIN: o que sustenta o trabalho; não é etapa da Jornada', areaAdm);
-  afirma(['avpComoNatureza', 'avpComoPosicionamento', 'avpComoSquad', 'avpComoMapa'].every((i) => (como[{ avpComoNatureza: 'nat', avpComoPosicionamento: 'pos', avpComoSquad: 'sq', avpComoMapa: 'mapa' }[i]] || '').indexOf('O ADMIN fornece:') !== -1),
-    'cada uma das quatro atividades diz o que o ADMIN fornece a ela');
-  afirma(await page.locator('.avp-como-cabecalho').count() === 0 && await page.locator('#avpInicioConsultar .avp-como-area').count() === 2, 'sem seção nova nem cabeçalho repetido: a legenda substitui o antigo cabeçalho das colunas');
-  const formas = await page.evaluate(() => {
-    const cs = (el) => getComputedStyle(el);
-    const ativ = document.getElementById('avpInicioRegNatureza'), adm = document.querySelector('a.avp-como-fonte');
-    const legAval = document.getElementById('avpComoAreaAval'), legAdm = document.getElementById('avpComoAreaAdm');
-    return { ativ: cs(ativ).borderLeftStyle + '/' + cs(ativ).borderTopStyle, adm: adm ? cs(adm).borderTopStyle : null, legAval: cs(legAval).borderLeftStyle + '/' + cs(legAval).borderTopStyle, legAdm: cs(legAdm).borderTopStyle };
-  });
-  afirma(formas.ativ === 'solid/none' && formas.legAval === 'solid/none' && formas.adm === 'dashed' && formas.legAdm === 'dashed',
-    'links de Avaliações (faixa sólida) × atalhos do ADMIN (etiqueta tracejada), iguais às duas legendas — diferença pela forma, não só pela cor', JSON.stringify(formas));
-  afirma(/Avaliação de Produto\/Serviço/.test(como.nat) && /Verifica se o item é um Produto\/Serviço · P1–P16/.test(como.nat) && /as perguntas em .*Questionários.*, as regras em .*Motores.* e os nomes das classificações na .*Taxonomia/.test(como.nat), 'P1–P16: função antes da sigla; o ADMIN fornece perguntas (Questionários), regras (Motores) e nomes das classificações (Taxonomia)', como.nat);
-  /* os nomes vêm da Taxonomia e chegam depois: até lá, os de fábrica ("Área Especializada", "Centro de Excelência") — os dois valem */
-  afirma(/Indica o tipo de estrutura que deve cuidar da responsabilidade: .*linha.*, .*(area_especializada|área especializada).* ou .*(coe|centro de excelência).* · O1–O9/i.test(como.pos) && /as perguntas em .*Questionários.* e os tipos de estrutura na .*Taxonomia.*; a regra é fixa no sistema\. Indica o tipo, mas não cria a estrutura/.test(como.pos), 'O1–O9: função antes da sigla; perguntas (Questionários) e tipos de estrutura (Taxonomia); regra fixa; indica o tipo, não cria estrutura', como.pos);
-  afirma(como.ramoSquad && /Opcional, só quando o tipo indicado é .*linha.*: avalia se o trabalho pode se organizar em Squads · S1–S8/i.test(como.sq) && /as perguntas em .*Questionários.* e as regras no .*Motor de Squad/.test(como.sq) && /Não cadastra Squad/.test(como.sq), 'Adequação à Squad: ramo lateral, opcional, só quando o tipo é Linha; perguntas (Questionários) e regras (Motor de Squad); não cadastra Squad', como.sq);
-  afirma(/o cadastro das estruturas em .*Estruturas/.test(como.mapa) && /A ligação de cada item a uma estrutura é registrada em Avaliações, na ficha do Posicionamento — não no ADMIN/.test(como.mapa) &&
-    /Mostra as estruturas registradas e o que está ligado a cada uma/.test(como.mapa) && /Uma Linha pode não ter Squads/.test(como.mapa),
-    'Mapa: estruturas cadastradas no ADMIN; vínculo registrado em Avaliações (ficha do Posicionamento), não no ADMIN', como.mapa);
-  afirma(como.conPos.indexOf('também começa direto por uma atuação (Porta 2)') !== -1 && /pode ser ligada a uma estrutura real/.test(como.conMapa) && !como.rodape,
-    'conectores (Porta 2 direto no Posicionamento; ligação possível a uma estrutura) e sem o rodapé repetido das áreas');
+  afirma(/^Avaliações\s*Quem faz o trabalho/.test(areaAval.trim()) && /onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável/i.test(areaAval),
+    'perspectiva 1 — Avaliações: quem faz o trabalho', areaAval.slice(0, 160));
+  afirma(/^ADMIN\s*Quem mantém as configurações/.test(areaAdm.trim()) && /questionários, os motores, os conceitos oficiais e o cadastro de estruturas/.test(areaAdm) && /Não é etapa da Jornada/.test(areaAdm),
+    'perspectiva 2 — ADMIN: quem mantém as configurações; não é etapa', areaAdm);
+  afirma(como.admNaPrimeira === 0, 'primeira camada simples: nenhum atalho de configuração misturado às atividades');
+  afirma(/Opcional/.test(como.sq) && /Só quando o tipo indicado é .*linha.*: avalia se o trabalho pode se organizar em Squads · S1–S8/i.test(como.sq) && /Não cadastra Squad/.test(como.sq), 'Squad: opcional, só para Linha, não cadastra Squad', como.sq);
+  afirma(/Opcional/.test(como.mapa) && /ficha do Posicionamento/.test(como.mapa) && /Uma Linha pode não ter Squads/.test(como.mapa), 'Mapa e vínculo: opcional, vínculo na ficha do Posicionamento', como.mapa);
+  afirma(/Verifica se o item é um Produto\/Serviço · P1–P16/.test(como.nat) && /· O1–O9/.test(como.pos), 'função antes da sigla (P1–P16, O1–O9)');
+  afirma(/Estrutura Organizacional Atual/.test(await texto(page, '#avpComoDuasEstruturas')) && /Estruturas Organizacionais do Mapa/.test(await texto(page, '#avpComoDuasEstruturas')), 'mantém a distinção Estrutura Atual × Estruturas do Mapa');
+  if (viewport.width >= 1000) afirma(como.adm.l > como.aval.r - 1 && Math.abs(como.adm.t - como.aval.t) < 4, 'desktop: as duas perspectivas lado a lado');
+  else afirma(como.adm.t >= como.aval.b - 1, '375 px: as perspectivas uma embaixo da outra');
+  afirma(como.squad.l > como.pos2.l && como.mapa2.t >= como.squad.b, 'Squad recuada sob o Posicionamento (opcional); o Mapa vem depois');
   afirma(como.links === '#avaliacoes?av=lista #avaliacoes?po=lista #avaliacoes?sq=lista #avaliacoes?mf=mapa', 'os quatro elementos levam às consultas de sempre', como.links);
   afirma(como.alturas.every((a) => a >= 44), 'áreas de toque das quatro atividades ≥ 44 px', como.alturas.join(','));
-  afirma(como.marcas, 'a área se lê pela forma (◆/●) e pelo texto, não só pela cor');
+  await page.evaluate(() => { document.getElementById('avpComoDetalhes').open = true; });
+  const det = await page.evaluate(() => {
+    const t = (id) => (document.getElementById(id) || {}).textContent || '';
+    return { nat: t('avpComoFornNatureza'), pos: t('avpComoFornPosicionamento'), sq: t('avpComoFornSquad'), mapa: t('avpComoFornMapa'), gov: t('avpComoGovernanca'),
+      marcas: Array.prototype.every.call(document.querySelectorAll('.avp-como-fonte'), (x) => /^[◆●]$/.test((x.querySelector('.avp-como-marca') || {}).textContent || '')) };
+  });
+  afirma(/as perguntas em .*Questionários.*, as regras em .*Motores.* e os nomes das classificações na .*Taxonomia/.test(det.nat), 'segunda camada: P1–P16 usa Questionários, Motores e Taxonomia', det.nat);
+  afirma(/as perguntas em .*Questionários.* e os tipos de estrutura na .*Taxonomia.*; a regra é fixa no sistema\. Indica o tipo, mas não cria a estrutura/.test(det.pos), 'segunda camada: O1–O9 — Questionários e Taxonomia; regra fixa; não cria estrutura', det.pos);
+  afirma(/Questionários.* e as regras no .*Motor de Squad/.test(det.sq) && /o cadastro das estruturas em .*Estruturas/.test(det.mapa) && /registrada em Avaliações, na ficha do Posicionamento — não no ADMIN/.test(det.mapa), 'segunda camada: Squad (Motor de Squad) e Mapa (Estruturas; vínculo em Avaliações)');
+  afirma(/versão e histórico/.test(det.gov) && /reavaliação/.test(det.gov), 'segunda camada: governança (versão, histórico, reavaliação)', det.gov);
+  afirma(det.marcas, 'a área se lê pela forma (◆/●) e pelo texto, não só pela cor');
   await esperar(page, () => !!document.getElementById('avpComoIrEstruturas'), undefined, 8000).catch(() => {});
   const fontesArq = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('#avpInicioConsultar .avp-como-fonte'), (x) => x.tagName.toLowerCase() + ':' + x.textContent.replace(/[◆●]/g, '').trim() + (x.getAttribute('href') ? '=' + x.getAttribute('href') : '')).join(' | '));
   afirma(fontesArq === 'a:Questionários=#admin?arq=questionarios&q=p1p16 | a:Motores=#admin?arq=motores | strong:Taxonomia | a:Questionários=#admin?arq=questionarios&q=o1o9 | strong:Taxonomia | a:Questionários=#admin?arq=questionarios&q=s1s8 | a:Motor de Squad=#admin?arq=motor-squad | a:Estruturas=#admin?arq=estruturas',
-    'Avaliação + Configuração: atalhos a Questionários (o cartão de cada atividade), Motores, Motor de Squad e Estruturas; Taxonomia sem link (só admin geral)', fontesArq);
+    'Avaliação + Configuração: atalhos a Questionários, Motores, Motor de Squad e Estruturas; Taxonomia sem link (só admin geral)', fontesArq);
   afirma(await page.locator('#avpInicio button').count() === 0, 'nenhum botão novo no Início');
-  if (viewport.width >= 1000) afirma(como.squad.l > como.pos2.l && como.squad.t >= como.pos2.b - 1 && como.mapa2.t >= como.squad.b, 'desktop: Squad recuada sob o Posicionamento; o Mapa vem depois');
-  else afirma(como.squad.l > como.pos2.l && como.mapa2.t >= como.squad.b, '375 px: Squad recuada sob o Posicionamento; o Mapa vem depois');
   await page.focus('#avpInicioRegNatureza');
   const ordem = [];
-  for (let i = 0; i < 12; i++) { ordem.push(await page.evaluate(() => document.activeElement.id)); await page.keyboard.press('Tab'); }
-  const atividades = ordem.filter((id) => /^avpInicioReg/.test(id));
-  afirma(atividades.join(',') === 'avpInicioRegNatureza,avpInicioRegPosicionamento,avpInicioRegSquad,avpInicioRegMapa' && ordem.indexOf('avpComoIrQuestionarios') === 1,
-    'teclado: Tab percorre cada atividade e, logo depois, os atalhos dela', ordem.join(','));
+  for (let i = 0; i < 6; i++) { ordem.push(await page.evaluate(() => document.activeElement.id)); await page.keyboard.press('Tab'); }
+  afirma(ordem.slice(0, 4).join(',') === 'avpInicioRegNatureza,avpInicioRegPosicionamento,avpInicioRegSquad,avpInicioRegMapa', 'teclado: Tab percorre as quatro atividades em ordem', ordem.join(','));
   afirma(await page.locator('#avpSquadBtn, #avpPosicionamentoBtn, #avpMapaFlorestaBtn').count() === 0, 'sem a antiga barra de atalhos soltos');
   afirma(await larguraOk(page), 'Início sem rolagem lateral');
   for (const id of ['avpInicioJornada', 'avpInicioNatureza', 'avpInicioAtuacao']) {
@@ -310,7 +303,7 @@ async function rodada(browser, viewport, rotulo) {
   /* o atalho só aparece quando o cadastro está habilitado (o marcador chega depois e o Início se redesenha): espera estabilizar */
   await esperar(page, () => !!document.getElementById('avpComoIrEstruturas'), undefined, 15000);
   await page.waitForTimeout(300);
-  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrEstruturas');
+  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrEstruturas');
   await esperar(page, () => location.hash.indexOf('#admin?arq=estruturas') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra() && /Voltar ao Início de Avaliações/.test(await texto(page, '#adminVoltaInicio')), 'atalho Estruturas: abre ADMIN › Estruturas com "← Voltar ao Início de Avaliações"');
   const posVolta = await page.evaluate(() => {
@@ -335,7 +328,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#adminVoltaInicioLink');
   await noInicio(page);
   afirma(true, '"← Voltar ao Início de Avaliações" leva ao Início');
-  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrQuestionarios');
+  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrQuestionarios');
   await esperar(page, () => location.hash.indexOf('#admin?arq=questionarios') === 0 && !!document.getElementById('adminVoltaInicio') && !document.getElementById('adminVoltaInicio').hidden && document.getElementById('adminVoltaInicio').offsetParent !== null, undefined, 15000); /* visível: a página do ADMIN já apareceu */
   afirma(await barra(), 'atalho Questionários: abre ADMIN › Questionários com o retorno ao Início');
   await esperar(page, () => !!document.querySelector('#avpCfgCard-CLASSIFICACAO_ARQUITETURAL.avp-config-item-card--foco'), undefined, 15000);
@@ -367,7 +360,7 @@ async function rodada(browser, viewport, rotulo) {
   await esperar(page, () => !!document.getElementById('avpComoIrEstruturas'), undefined, 8000).catch(() => {});
   afirma(await page.locator('#avpComoIrTaxonomia').count() === 1 && await page.locator('#avpComoIrEstruturas').count() === 1 && await page.locator('#avpInicioConsultar a.avp-como-fonte').count() === 8,
     'admin geral: atalhos à Taxonomia e às áreas de Avaliação e Mapa');
-  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrTaxonomia');
+  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrTaxonomia');
   const taxAtiva = () => page.evaluate(() => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); const v = document.getElementById('adminVoltaInicio'); return !!b && b.classList.contains('active') && !!v && !v.hidden; });
   await esperar(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); return !!b && b.classList.contains('active'); }, undefined, 15000);
   afirma(await taxAtiva() && await hash(page) === '#admin', 'atalho Taxonomia: abre a aba Taxonomia do ADMIN, com o retorno ao Início');
@@ -383,7 +376,7 @@ async function rodada(browser, viewport, rotulo) {
   await noInicio(page);
   afirma(true, 'Voltar do navegador: Início');
   await esperar(page, () => !!document.getElementById('avpComoIrTaxonomia2'), undefined, 8000);
-  await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpComoIrTaxonomia2');
+  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrTaxonomia2');
   await esperar(page, () => { const b = document.querySelector('#adminPanelTaxonomia .tax-dominio--ativo'); return !!b && b.getAttribute('data-dominio') === 'organizacional'; }, undefined, 15000);
   afirma(await taxAtiva(), 'Taxonomia vinda da atividade O1–O9: abre no domínio organizacional, com o retorno');
   await page.click('#adminPanelTaxonomia .tax-dominio[data-dominio="arquitetural"]');

@@ -80,8 +80,17 @@ const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent : ''; }, sel);
 const existe = (page, sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+const foto = async (page, nome) => { if (!process.env.FA_PRINTS) return; await page.screenshot({ path: path.join(process.env.FA_PRINTS, nome + '-' + page.viewportSize().width + '.png'), fullPage: true }); };
 const ir = (page, hash) => page.evaluate((h) => { location.hash = h; }, hash);
 const abrirMais = (page, k) => page.evaluate((x) => { const d = document.getElementById('anMais_' + x); if (d) d.open = true; }, k);
+/* clique num item de "Mais": a lista pode redesenhar (dados chegando) e fechar o menu — abre e tenta de novo */
+async function clicarNoMais(page, k, sel) {
+  for (let i = 0; i < 6; i++) {
+    await page.waitForSelector('#anMais_' + k, { state: 'attached' });
+    await abrirMais(page, k);
+    try { await page.click(sel, { timeout: 2000 }); return; } catch (e) { if (i === 5) throw e; }
+  }
+}
 
 async function jornada(browser, viewport, rotulo) {
   console.log('\n== ' + rotulo + ' ==');
@@ -94,6 +103,7 @@ async function jornada(browser, viewport, rotulo) {
   await page.waitForSelector('.po-modal #poMotivoExcluirAtuacao');
   afirma(await existe(page, '.po-modal #poExcSemDeps'), '1. a confirmação mostra o registro e que não há dependências');
   afirma(await larguraOk(page), '1. confirmação sem rolagem lateral');
+  await foto(page, 'exclusao-comum');
   await page.click('.po-modal .po-modal-sim');
   afirma(/motivo/i.test(await texto(page, '.po-modal .po-modal-erro')), '1. sem motivo, não grava (pede o motivo)');
   await page.fill('#poMotivoExcluirAtuacao', 'Cadastrada por engano (teste sintético)');
@@ -131,8 +141,7 @@ async function jornada(browser, viewport, rotulo) {
   /* 5/6. análises */
   await ir(page, '#avaliacoes?an=anCheia');
   await page.waitForSelector('#anMais_rA');
-  await abrirMais(page, 'rA');
-  await page.click('#anExcluirResp_rA');
+  await clicarNoMais(page, 'rA', '#anExcluirResp_rA');
   await page.waitForSelector('#anFormExcluirResp');
   afirma(/Descartar.*mantém/.test(await texto(page, '#anFormExcluirResp')), '6. a diferença entre Excluir e Descartar está explicada');
   afirma(await larguraOk(page), '6. formulário sem rolagem lateral');
@@ -142,8 +151,7 @@ async function jornada(browser, viewport, rotulo) {
   db = await banco(page);
   afirma(!db['analises-organizacionais'].anCheia.recortes.rA, '6. a responsabilidade só de texto saiu da análise (não ficou como descartada)');
   afirma(Object.values(db['analises-organizacionais-auditoria'].anCheia).some((e) => e.tipo === 'recorte.excluido' && e.detalhe.motivo === 'Registrada por engano (teste sintético)'), '6. evento "recorte.excluido" com o motivo');
-  await abrirMais(page, 'rB');
-  await page.click('#anExcluirResp_rB');
+  await clicarNoMais(page, 'rB', '#anExcluirResp_rB');
   await page.waitForSelector('#anExcluirRespBloqueio');
   afirma(/proposta de composição registrada/.test(await texto(page, '#anExcluirRespBloqueio')), '6. citada numa proposta: bloqueio explicado, sem gravar');
   await page.click('#anExcluirRespBloqueio [data-an="cancelar"]');
@@ -162,7 +170,7 @@ async function jornada(browser, viewport, rotulo) {
   await esperar(page, () => location.hash === '#avaliacoes?an=lista' && !!document.getElementById('anLista'));
   db = await banco(page);
   afirma(!db['analises-organizacionais'].anVazia && (db['analises-organizacionais-excluidas'] || {}).anVazia && db['analises-organizacionais-excluidas'].anVazia.nivel === 'comum', '5. análise vazia excluída (comum), com registro mínimo');
-  afirma(!(await existe(page, '#anLista [data-analise="anVazia"]')), '5. some da lista de análises');
+  afirma(await esperar(page, () => !document.querySelector('#anLista [data-analise="anVazia"]')).then(() => true, () => false), '5. some da lista de análises');
   afirma(!erros.length, 'sem erro de página (Avaliação + Configuração)', erros);
   await ctx.close();
 
@@ -173,6 +181,7 @@ async function jornada(browser, viewport, rotulo) {
   await page.waitForSelector('.po-modal #poExcConfirmo');
   afirma(/Posicionamento O1–O9 concluído/.test(await texto(page, '#poExcDeps')), '3. a confirmação excepcional mostra as dependências (Posicionamento)');
   afirma(await larguraOk(page), '3. confirmação excepcional sem rolagem lateral');
+  await foto(page, 'exclusao-excepcional');
   await page.fill('#poMotivoExcluirAtuacao', 'Duplicada, já avaliada (teste sintético)');
   await page.click('.po-modal .po-modal-sim');
   afirma(/confirmação/.test(await texto(page, '.po-modal .po-modal-erro')), '3. sem a marca explícita, não grava');
@@ -185,6 +194,7 @@ async function jornada(browser, viewport, rotulo) {
   await ir(page, '#avaliacoes?po=gA');
   await page.waitForSelector('#poObjetoExcluido');
   afirma(/Duplicada, já avaliada/.test(await texto(page, '#poObjetoExcluido')), '3. a ficha do Posicionamento mostra "Cadastro excluído" com o motivo');
+  await foto(page, 'cadastro-excluido-ficha');
   await ir(page, '#avaliacoes?po=lista');
   await page.waitForSelector('.po-linha[data-key="gA"]');
   afirma(await existe(page, '.po-linha[data-key="gA"] .po-badge-excluida'), '3. a lista do Posicionamento mostra o selo "Cadastro excluído"');

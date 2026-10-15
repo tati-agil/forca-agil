@@ -710,6 +710,7 @@
     function limparAtual() { state.atual = null; state.chave = null; state.sujo = false; state.conflito = false; state.flash = null; state.formDecisao = null; state.flashExportacao = null; state.menuExportarAberto = false; }
     function abrirChave(key) {
       var rec = state.registros[key];
+      if (key !== state.chave) { state.apoioSemInfo = false; state.apoioO7O9Aberto = false; } /* o apoio O7 × O9 é desta avaliação, não da próxima */
       limparAtual();
       if (!rec) { state.tela = 'nao-encontrada'; state.pendente = key; return; }
       state.chave = key;
@@ -979,7 +980,7 @@
           '<li>Um só SIM entre O6 e O9 → o tipo indicado por essa pergunta.</li>' +
           '<li>Dois SIM → o sistema pergunta se descrevem a mesma responsabilidade ou responsabilidades distintas; nos dois casos o resultado fica "A validar", para decisão de uma pessoa.</li>' +
           '<li>Nenhum SIM → "A validar" (evidência insuficiente).</li></ul>' +
-          '<p class="avp-ficha-meta" id="poComoNivelN3Evidencia">NÃO afirma que a característica não se aplica. Se você não tiver evidências suficientes para responder O7 ou O9, não marque NÃO só por insegurança: salve o rascunho e busque esclarecimentos antes de concluir. A Observação registra o contexto, mas não transforma uma resposta incerta em evidência. Dúvida entre O7 e O9? Veja a Ajuda da O9.</p></details>';
+          '<p class="avp-ficha-meta" id="poComoNivelN3Evidencia">NÃO afirma que a característica não se aplica. Se você não tiver evidências suficientes para responder O7 ou O9, não marque NÃO só por insegurança: salve o rascunho e busque esclarecimentos antes de concluir. A Observação registra o contexto, mas não transforma uma resposta incerta em evidência. Dúvida entre O7 e O9? Veja a Ajuda da O9 e o apoio abaixo.</p></details>' + apoioO7O9Html(edita && !state.naoConfirmada);
         qs.forEach(function (q) { h += renderPergunta(q, versao, edita && !state.naoConfirmada, vm); });
         if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita && !state.naoConfirmada, vm);
         var pn = predominanciaNecessaria(a, n);
@@ -1098,7 +1099,7 @@
       else if (sit === 'sem-hipotese') h += '<p id="poHipotese" data-comparacao="sem-hipotese">Hipótese inicial: Não sei / Quero descobrir. A recomendação é apresentada sem comparação.</p>';
       else {
         h += '<p id="poHipotese" data-comparacao="' + esc(sit) + '">Hipótese inicial: ' + spanNome(a.hipoteseInicial) + '</p>';
-        if (sit === 'confirmada') h += '<p class="po-hipotese-resultado" id="poHipoteseComparacao">Hipótese confirmada: a recomendação automática é a mesma.</p>';
+        if (sit === 'confirmada') h += '<p class="po-hipotese-resultado" id="poHipoteseComparacao">A recomendação coincide com sua hipótese inicial. Isso não prova a hipótese: a recomendação vem só das respostas.</p>';
         else if (sit === 'nao-confirmada') {
           var M0 = window.faMotorPosicionamento, regra = M0 && M0.REGRAS ? M0.REGRAS[ra.regra] : null;
           h += '<p class="po-hipotese-resultado" id="poHipoteseComparacao">Hipótese não confirmada: as respostas sustentam ' + spanNome(ra.codigoResultado) + (regra ? ' (regra do motor: ' + esc(regra) + ')' : '') + '.</p>';
@@ -1117,6 +1118,40 @@
     function textoGatePorta2(sit) {
       return { 'erro-objeto': 'Não foi possível ler a responsabilidade organizacional agora.', verificando: 'Verificando a responsabilidade organizacional…',
         'objeto-ausente': 'A responsabilidade organizacional não foi encontrada.', 'objeto-excluido': 'O cadastro desta responsabilidade foi excluído: ela não recebe nova avaliação. O que já foi registrado continua como histórico.', 'objeto-encerrado': 'A responsabilidade organizacional está encerrada: ela não recebe nova avaliação.' }[sit] || sit;
+    }
+    /* APOIO À DECISÃO O7 × O9 — antes de responder. São hipóteses de orientação, NÃO critérios oficiais: os critérios
+       são a pergunta e a Ajuda oficial (versionadas no ADMIN). Nada aqui responde pela pessoa, grava resposta ou cria
+       estado novo; "Ainda não tenho informações suficientes" só salva o rascunho como está e orienta o que buscar. */
+    function apoioO7O9Html(edita) {
+      var aberto = !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
+      return '<details class="po-apoio" id="poApoioO7O9"' + (aberto ? ' open' : '') + '><summary>Está em dúvida entre Habilitadora de Negócios (O7) e Gestão Corporativa (O9)?</summary>' +
+        '<p class="avp-ficha-meta" id="poApoioNatureza">Apoio para pensar antes de responder. São hipóteses de orientação, não novos critérios oficiais: valem a pergunta e a Ajuda oficial de cada uma. Os exemplos são hipotéticos e não descrevem a classificação de nenhuma área da PREVI.</p>' +
+        '<h5>A diferença, em poucas palavras</h5>' +
+        '<p><strong>O7 — Habilitadora de Negócios:</strong> oferece capacidades ou serviços de negócio que as Linhas usam para entregar valor previdenciário ou financeiro aos participantes. Faz parte da cadeia de valor dos produtos.</p>' +
+        '<p><strong>O9 — Gestão Corporativa:</strong> oferece serviços para administrar e controlar a própria organização, para o cliente interno, de forma padronizada.</p>' +
+        '<p id="poApoioAjudaOficial">A Ajuda oficial da O9 orienta: <em>observar onde termina a cadeia de valor e de quem são as regras</em>. As perguntas abaixo detalham essa orientação, sem substituí-la.</p>' +
+        '<h5>Perguntas para guiar a sua análise</h5><ol class="po-apoio-perguntas" id="poApoioPerguntas">' +
+        '<li>Qual é a entrega predominante desta responsabilidade?</li>' +
+        '<li>Ela ajuda a operar os produtos e serviços aos participantes, ou a administrar e controlar a organização?</li>' +
+        '<li>Quem consome o que ela entrega, e para quê?</li>' +
+        '<li>Onde o trabalho termina na cadeia de valor: chega ao participante por meio de uma Linha, ou fica dentro da organização?</li>' +
+        '<li>Quem estabelece as regras do trabalho: o negócio dos produtos, ou a administração, a regulação e o controle internos?</li>' +
+        '<li>Ser indispensável basta? Não: quase tudo é indispensável. Ser necessário para as Linhas não torna, por si só, uma responsabilidade O7.</li></ol>' +
+        '<h5>Exemplos hipotéticos para contrastar</h5><div class="table-scroll-wrap"><table class="admin-table po-apoio-tabela" id="poApoioExemplos"><thead><tr><th>Exemplo hipotético</th><th>Evidência que aproximaria de O7</th><th>Evidência que aproximaria de O9</th></tr></thead><tbody>' +
+        [['Contabilidade gerencial', 'Análises usadas pelas Linhas para operar ou precificar produtos', 'Informações para a gestão e o controle internos'],
+          ['Contabilização de eventos operacionais', 'Regras definidas pelos produtos, feitas para várias Linhas em escala', 'Registro contábil padrão de toda a organização'],
+          ['Gestão do processo contábil', 'Raramente: só se o processo fizer parte da entrega aos participantes', 'Administração e controle do processo, com regras corporativas e regulatórias'],
+          ['Gestão orçamentária', 'Raramente: o orçamento não chega ao participante', 'Planejamento e controle dos recursos da organização'],
+          ['Obrigações contábeis e tributárias', 'Raramente: cumprir obrigações não entrega valor aos participantes', 'Conformidade e controle da organização perante terceiros'],
+          ['Jurídico', 'Só se o serviço for uma capacidade de negócio usada em escala pelas Linhas', 'Serviço à própria organização (vale conferir antes se O2 já se aplica)'],
+          ['Gestão de Pessoas', 'Raramente', 'Serviço ao cliente interno, padronizado'],
+          ['Serviços de negócio compartilhados', 'Capacidade de negócio usada por várias Linhas para atender participantes', 'Só se, na verdade, servir à administração interna']
+        ].map(function (x) { return '<tr><td data-label="Exemplo hipotético">' + x[0] + '</td><td data-label="Aproximaria de O7">' + x[1] + '</td><td data-label="Aproximaria de O9">' + x[2] + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        '<h5>Quando as duas parecem se aplicar</h5><p>Responda SIM nas duas só se as duas forem verdadeiras. O sistema então pergunta se elas descrevem a mesma responsabilidade ou responsabilidades distintas, e o resultado fica "A validar", para decisão de uma pessoa. Se forem trabalhos distintos, considere separar a responsabilidade.</p>' +
+        '<h5>Se ainda estiver em dúvida, esclareça</h5><ul><li>quem consome a entrega e para quê;</li><li>quem define as regras e em qual documento elas estão;</li><li>se o resultado chega ao participante por uma Linha.</li></ul>' +
+        '<p class="avp-ficha-meta">Fontes possíveis: a gestão da área, normativos, regimento interno e a descrição dos produtos.</p>' +
+        (state.apoioSemInfo ? '<p class="avp-flash-success" id="poApoioSemInfoNota" role="status">' + (edita ? 'O rascunho fica salvo como está, sem nenhuma resposta nova. ' : '') + 'Busque as informações acima e volte para responder O7 e O9. Não marque NÃO só por insegurança.</p>'
+          : '<button type="button" class="btn btn--sm" id="poApoioSemInfo">Ainda não tenho informações suficientes</button>') + '</details>';
     }
     function objetoDadosHtml(ob, nomeRegistrado) {
       /* registro de uma descrição só (cadastro simplificado): mostra a responsabilidade uma vez — nome, descrição e
@@ -1802,6 +1837,12 @@
         t.addEventListener('input', function () { var d = state.atual.predominancias[t.dataset.nivel]; if (!d) return; if (t.value) d.observacao = t.value.slice(0, MAX_OBS); else delete d.observacao; state.sujo = true; });
       });
       var sal = byId('poSalvarBtn'); if (sal) sal.addEventListener('click', salvar);
+      var apo = byId('poApoioO7O9'); if (apo) apo.addEventListener('toggle', function () { state.apoioO7O9Aberto = apo.open; });
+      var semInfo = byId('poApoioSemInfo'); if (semInfo) semInfo.addEventListener('click', function () {
+        state.apoioSemInfo = true; state.apoioO7O9Aberto = true;
+        /* só salva o que já está no rascunho (sem resposta nova); sem permissão de gravar, só orienta */
+        if (podeEscrever() && state.atual && state.atual.status === 'rascunho' && !ocupado() && !state.conflito && state.sujo) salvar(); else render();
+      });
       var con = byId('poConcluirBtn'); if (con) con.addEventListener('click', concluir);
       var des = byId('poDescartarBtn'); if (des) des.addEventListener('click', pedirDescarte);
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);

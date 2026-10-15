@@ -158,7 +158,7 @@
   function nomeEstrutura(id) { var e = (D.estruturas || {})[id]; return e ? e.nome : id; }
 
   /* ===================== gravação ===================== */
-  function gravarOperacao(fn, aoTerminar, extra) {
+  function gravarOperacao(fn, aoTerminar, extra, aoConfirmarTarde) {
     var ident = S().identidade();
     if (!ident) { aoTerminar({ erro: 'Sessão não identificada. Entre de novo.' }); return; }
     var NOS = F().NOS;
@@ -170,9 +170,9 @@
     catch (e) { aoTerminar({ erro: (e && e.message) || 'Não foi possível montar a gravação.' }); return; }
     S().gravar(payload, PRAZO, function (err) {
       if (!err) { aoTerminar({ ok: true, novoId: ctx.novoId }); return; }
-      if (err === 'sem-resposta') { aoTerminar({ erro: 'O servidor não respondeu a tempo. A tela se atualiza sozinha quando a resposta chegar; confira antes de repetir.' }); return; }
+      if (err === 'sem-resposta') { aoTerminar({ semResposta: true, erro: 'O servidor ainda não confirmou a gravação (a conexão pode estar lenta). Não repita o clique: quando a confirmação chegar, a tela se atualiza e avisa. Se nada mudar em alguns minutos, recarregue a página e confira.' }); return; }
       aoTerminar({ erro: 'O banco recusou a gravação. Outra pessoa pode ter gravado antes, ou a habilitação mudou. A tela já mostra o estado atual.' });
-    });
+    }, aoConfirmarTarde);
   }
   var ERROS = {
     AGRUPAMENTO_SEM_COMPARACAO: 'Estas entregas só podem ficar na mesma responsabilidade depois de comparadas e concluídas como "a mesma" ou "precisam acontecer juntas".',
@@ -208,7 +208,7 @@
     var wrap = document.getElementById('avaliacoesAnalise');
     if (!wrap || wrap._anBound) return null;
     wrap._anBound = true;
-    var st = { tela: 'lista', id: null, flash: null, erro: null, gravando: false, form: null, abertos: {} };
+    var st = { tela: 'lista', id: null, flash: null, erro: null, gravando: false, form: null, abertos: {}, pendentes: {} };
 
     /* painel e identidade da página */
     var ident0 = null;
@@ -446,10 +446,15 @@
       var achar = function (acao) { for (var i = 0; i < ativos.length; i++) if (rs.sits[i].acao === acao) return i; return -1; };
       var i = achar('continuar');
       if (i >= 0) return { t: 'Continue o O1–O9 de "' + textoResp(a.recortes[ativos[i]]) + '".', rotulo: 'Continuar avaliação', href: '#avaliacoes?po=' + encodeURIComponent(rs.sits[i].avaliacaoId) };
-      i = achar('avaliar');
-      if (i >= 0) return { t: 'Avalie "' + textoResp(a.recortes[ativos[i]]) + '" pelo O1–O9.', rotulo: 'Avaliar próxima', avaliar: ativos[i] };
-      i = achar('iniciar');
-      if (i >= 0) return { t: 'Inicie o O1–O9 de "' + textoResp(a.recortes[ativos[i]]) + '".', rotulo: 'Avaliar próxima', href: '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(a.recortes[ativos[i]].objetoId) };
+      /* avaliar (ainda sem cadastro) e iniciar (cadastro já feito) têm a MESMA prioridade, na ordem da lista: a sugestão não
+         salta para a responsabilidade seguinte só porque a anterior acabou de ganhar o cadastro */
+      for (i = 0; i < ativos.length; i++) if (rs.sits[i].acao === 'avaliar' || rs.sits[i].acao === 'iniciar') break;
+      if (i < ativos.length) {
+        var rk0 = ativos[i], rr0 = a.recortes[rk0];
+        if (st.pendentes[rk0]) return { t: 'Aguardando a confirmação do servidor para "' + textoResp(rr0) + '". Não é preciso clicar de novo.' };
+        if (rs.sits[i].acao === 'avaliar') return { t: 'Avalie "' + textoResp(rr0) + '" pelo O1–O9.', rotulo: 'Avaliar próxima', avaliar: rk0 };
+        return { t: 'Inicie o O1–O9 de "' + textoResp(rr0) + '".', rotulo: 'Avaliar próxima', href: '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(rr0.objetoId) };
+      }
       i = achar('separar');
       if (i >= 0) return { t: 'Registro anterior: separe "' + textoResp(a.recortes[ativos[i]]) + '" nas partes que a compõem.', rotulo: 'Separar', alvo: 'anSeparar_' + ativos[i] };
       i = achar('revisar');
@@ -580,12 +585,13 @@
       var h = '<section class="avp-form-card an-secao" id="anResponsabilidades" aria-labelledby="anListaTitulo"><h3 id="anListaTitulo">' + esc(a.nome) + ' — Responsabilidades Organizacionais</h3>';
       if (!ativos.length && !desd.length) return h + '<p class="admin-empty" id="anRespVazio">Nenhuma responsabilidade informada ainda. Assim que registrar, cada uma aparece aqui pronta para avaliar.</p></section>';
       h += '<p class="an-resumo" id="anResumo">' + esc(textoResumo(ativos.length, rs.n)) + '</p>' +
-        '<details class="an-conceitos" id="anLegendaLista"><summary>O que significa cada coluna?</summary><p class="an-nota"><strong>Quem executa hoje</strong> é a informação declarada de quem faz o trabalho — não é vínculo nem responsabilidade formal. <strong>Tipo recomendado</strong> é o tipo arquitetural que o O1–O9 recomenda para a responsabilidade — não é uma nova estrutura e não cria, renomeia nem muda unidade nenhuma. O vínculo formal registrado e a proposta de composição (com a eventual aprovação) ficam na composição organizacional.</p></details>' +
+        '<details class="an-conceitos" id="anLegendaLista"><summary>O que significa cada coluna?</summary><p class="an-nota"><strong>Quem executa hoje</strong> é a informação declarada de quem faz o trabalho — não é vínculo nem responsabilidade formal. <strong>Tipo recomendado</strong> é o tipo arquitetural que o O1–O9 recomenda para a responsabilidade — não é uma nova estrutura e não cria, renomeia nem muda unidade nenhuma. O vínculo formal registrado e a proposta de composição (com a eventual aprovação) ficam na composição organizacional.</p><p class="an-nota" id="anLegendaAvaliada"><strong>Avaliada</strong> quer dizer que o O1–O9 da responsabilidade foi concluído. Não é decisão final, vínculo nem aprovação.</p></details>' +
         '<div class="an-tabela" role="table" aria-label="Responsabilidades e andamento"><div class="an-tab-cab" role="row"><span role="columnheader">Responsabilidade</span><span role="columnheader">Quem executa hoje</span><span role="columnheader">Tipo recomendado</span><span role="columnheader">Situação</span><span role="columnheader">Ação</span></div>';
       ativos.forEach(function (k, i) {
         var r = a.recortes[k], s = rs.sits[i], p = sfs[i].p, origem = r.origemRecorteId ? a.recortes[r.origemRecorteId] : null, nucs = nucleosDe(r), sep = r.separacao ? r.separacao.valor : null;
         var acao = '';
-        if (s.acao === 'avaliar') acao = gravar ? '<button type="button" class="btn btn--sm" data-an="avaliar" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar</button>' : '';
+        if (st.pendentes[k]) acao = '<span class="an-chip an-chip--atual" id="anPendente_' + esc(k) + '" role="status">' + (st.pendentes[k] === 'aguardando' ? 'Aguardando confirmação do servidor' : 'Gravando…') + '</span>';
+        else if (s.acao === 'avaliar') acao = gravar ? '<button type="button" class="btn btn--sm" data-an="avaliar" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar</button>' : '';
         else if (s.acao === 'iniciar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anAbrirPos_' + esc(k) + '">Avaliar</a>';
         else if (s.acao === 'continuar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Continuar</a>';
         else if (s.acao === 'ver') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Ver resultado</a>';
@@ -757,6 +763,7 @@
        avaliação só, mesmo compartilhada), e — separadas — a proposta e a decisão formal. Nada muda o Mapa nem estruturas */
     function renderComposicaoArea(est, a, ativos, sfs, acc, ps) {
       var h = '<details class="avp-form-card an-secao an-comp-secao" id="anComposicaoSecao"' + (st.abertos.composicao ? ' open' : '') + '><summary><span id="anComposicaoTitulo">Composição organizacional</span> <span class="an-chip an-chip--neu">Opcional</span></summary>' +
+        '<p class="an-nota" id="anComposicaoProposito"><strong>Para que serve:</strong> ver juntas as responsabilidades da área, agrupadas por quem as executa hoje, com o tipo recomendado de cada uma, para apoiar uma conversa sobre como organizá-las. O sistema não faz proposta automática, não atribui um tipo à área inteira e não distribui responsabilidades entre núcleos: isso é decisão de pessoas.</p>' +
         '<p class="an-nota">Quatro coisas diferentes, que não se confundem: <strong>núcleo(s) que executam hoje</strong> (informação declarada — não é vínculo nem responsabilidade formal; "Núcleo" e "Gerência" são níveis organizacionais, não tipos arquiteturais), <strong>tipo arquitetural recomendado</strong> (o resultado do O1–O9 de cada responsabilidade, como Área Especializada ou CoE — não da área nem do núcleo, e não é uma nova estrutura), <strong>estrutura com vínculo formal registrado</strong> (o vínculo da ficha do Posicionamento, quando existe — não é aprovação do desenho) e <strong>proposta de composição e aprovação</strong> (como as responsabilidades poderiam ser organizadas; aprovação só com a referência ao ato registrada). Nada aqui cria, renomeia, extingue ou transforma uma unidade, nem muda vínculos ou o Mapa da Floresta.</p>';
       if (!ativos.length) return h + '<p class="an-nota" id="anComposicaoVazia">Aparece quando houver responsabilidades na lista.</p></details>';
       var grupos = {}, ordemG = [], sem = [];
@@ -1033,7 +1040,21 @@
       st.erro = null; st.flash = flash || null; st.form = null; st.limparCampos = true;
       if (depois) depois(r); else render();
     }
-    function executar(fn, flash, depois, extra) { if (st.gravando) return; st.gravando = true; st.erro = null; render(); gravarOperacao(fn, function (r) { terminar(r, flash, depois); }, extra); }
+    /* marca: a responsabilidade cuja gravação está em curso (marcador na linha; clique repetido ignorado). Sem resposta no
+       prazo, a linha fica "Aguardando confirmação do servidor" até a resposta tardia chegar */
+    function executar(fn, flash, depois, extra, marca) {
+      if (st.gravando) return; st.gravando = true; st.erro = null; render();
+      gravarOperacao(fn, function (r) {
+        if (marca) { if (r.semResposta) st.pendentes[marca] = 'aguardando'; else if (r.erro) delete st.pendentes[marca]; }
+        terminar(r, flash, depois);
+      }, extra, function (err) {
+        if (!marca || !st.pendentes[marca]) return;
+        delete st.pendentes[marca];
+        if (err) st.erro = 'O banco recusou a gravação que estava aguardando confirmação. A tela já mostra o estado atual.';
+        else { st.erro = null; st.flash = 'O servidor confirmou a gravação.'; }
+        if (!wrap.hidden) render();
+      });
+    }
     function val(id) { var e = document.getElementById(id); return e ? e.value : ''; }
     function marcado(nome) { var e = wrap.querySelector('input[name="' + nome + '"]:checked'); return e ? e.value : null; }
     function marcados(nome) { return Array.prototype.map.call(wrap.querySelectorAll('input[name="' + nome + '"]:checked'), function (e) { return e.value; }); }
@@ -1052,12 +1073,14 @@
         /* registros anteriores: nome, resultado e entregas que a pessoa declarou na delimitação */
         dados = { nome: r.nome, descricao: (r.resultado + (r.entregas.length ? ' — entregas: ' + r.entregas.map(function (e) { return nomeEntrega(a, e); }).join('; ') : '')).slice(0, 2000), finalidade: r.resultado, contexto: 'Delimitada na análise organizacional "' + a.nome + '".' };
       }
+      if (st.gravando || st.pendentes[rk]) return; /* clique repetido: a gravação desta responsabilidade já está em curso */
       var objetoId = S().novaChave('objetos-organizacionais');
-      executar(function (est, c) { return N().associarAtuacao(est, id, rk, objetoId, c); }, 'Responsabilidade registrada na Porta 2. Responda o O1–O9.', function () { location.hash = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(objetoId); },
+      st.pendentes[rk] = 'gravando';
+      executar(function (est, c) { return N().associarAtuacao(est, id, rk, objetoId, c); }, 'Responsabilidade registrada na Porta 2. Responda o O1–O9.', function () { delete st.pendentes[rk]; location.hash = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(objetoId); },
         function (res, c, ident) {
           var objetoPayload = O.payloadCriacao({ id: objetoId, audId: S().novaChave('objetos-organizacionais-auditoria/' + objetoId), dados: dados, usuario: { uid: ident.uid, email: ident.email, name: (sessao() || {}).name }, agora: S().agoraServidor() });
           return F().payloadCriarAtuacao({ objetoPayload: objetoPayload, associacao: res, analiseId: id, recorteId: rk, objetoId: objetoId, audId: S().novaChave(F().NOS.auditoria), usuario: ident, agora: S().agoraServidor() });
-        });
+        }, rk);
     }
     wrap.addEventListener('submit', function (ev) {
       var form = ev.target; ev.preventDefault();
@@ -1333,6 +1356,30 @@
     });
     return out;
   }
+  /* por área (Trabalhos de avaliação): quantas responsabilidades ativas, quantas com O1–O9 concluído, em avaliação,
+     prontas para avaliar e pendentes de delimitação — lido do que está gravado, nada é calculado de novo nem gravado.
+     "Concluído" = há Posicionamento vigente (concluído) para o cadastro da responsabilidade */
+  function resumoPorArea() {
+    if (!pronto()) return null;
+    var est = estado(), out = [];
+    Object.keys(est.analises).forEach(function (aid) {
+      var a = est.analises[aid]; if (a.situacao === 'descartada') return;
+      var n = { total: 0, concluidas: 0, andamento: 0, prontas: 0, pendentes: 0 };
+      Object.keys(a.recortes).forEach(function (k) {
+        var r = a.recortes[k]; if (r.situacao !== 'ativo') return;
+        n.total++;
+        if (r.objetoId) {
+          if ((D.vigentes || {})[r.objetoId]) n.concluidas++;
+          else if ((D.rascunhos || {})[r.objetoId]) n.andamento++;
+          else if ((D.objetos || {})[r.objetoId]) n.prontas++;
+          else n.pendentes++;
+        } else if (N().prontaParaO1O9(a, k).pronta) n.prontas++;
+        else n.pendentes++;
+      });
+      out.push(Object.assign({ analiseId: aid, nome: a.nome, criadaEm: a.criadaEm || 0 }, n));
+    });
+    return out.sort(function (x, y) { return (y.criadaEm || 0) - (x.criadaEm || 0); });
+  }
   function origemDe(objetoId) {
     if (!pronto()) return null;
     var o = (D.porObjeto || {})[objetoId]; if (!o) return null;
@@ -1404,7 +1451,7 @@
     var api = montar();
     if (api) Object.keys(api).forEach(function (k) { window.faAnalisesOrganizacionais[k] = api[k]; });
   };
-  window.faAnalisesOrganizacionais = { entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, responsabilidadesDasAnalises: responsabilidadesDasAnalises, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
+  window.faAnalisesOrganizacionais = { resumoPorArea: resumoPorArea, entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, responsabilidadesDasAnalises: responsabilidadesDasAnalises, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
     exercidasHtml: exercidasHtml, montarHabilitacao: montarHabilitacao, acesso: acesso, aoMudar: function (f) { aoMudarFns.push(f); }, ligar: function () { ligarConfig(); ligarDados(); } };
   if (/^#avaliacoes\?(.*&)?an=/.test(location.hash || '')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.faInitAnalisesOrganizacionais); else window.faInitAnalisesOrganizacionais(); }
 })();
