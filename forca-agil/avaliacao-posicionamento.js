@@ -781,8 +781,11 @@
       sincronizarEndereco();
     }
     /* voltar com destino claro: uma responsabilidade (Porta 2) volta às responsabilidades; um item da Porta 1, à lista de posicionamentos */
+    function origemAreaDe(a) { var AO = window.faAnalisesOrganizacionais; return a && ehPorta2(a) && AO && AO.origemDe ? AO.origemDe(a.itemId) : null; }
     function rodapeVoltar() {
-      var p2 = state.atual && ehPorta2(state.atual);
+      var p2 = state.atual && ehPorta2(state.atual), oa = origemAreaDe(state.atual);
+      /* veio de uma análise de área: a volta é para a lista daquela área (no resultado concluído, o bloco do próximo passo já leva lá) */
+      if (oa) return state.tela === 'resultado' && state.atual.status === 'concluido' ? '' : '<div class="avp-actions-footer"><a class="btn btn--sm" id="poVoltarAreaRodape" href="#avaliacoes?an=' + encodeURIComponent(oa.analiseId) + '">← Voltar às responsabilidades de ' + esc(oa.nome) + '</a></div>';
       return '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poVoltarLista" data-destino="' + (p2 ? 'todas' : 'lista') + '">← ' + (p2 ? 'Voltar às responsabilidades' : 'Voltar para a lista de posicionamentos') + '</button></div>';
     }
     function badge(status) {
@@ -969,6 +972,13 @@
         var qs = NIVEIS[n].filter(function (q) { return cam.indexOf(q) !== -1; });
         if (!qs.length) return;
         h += '<section class="po-nivel" data-nivel="' + n + '"><h4 class="po-nivel-titulo">' + esc(TITULO_NIVEL[n]) + '</h4>';
+        /* como as respostas do nível levam ao resultado — a REGRA VIGENTE, explicada (não é critério novo); o critério de
+           cada pergunta está na Ajuda oficial dela (versionada no ADMIN), p.ex. a diferença entre O7 e O9 na Ajuda da O9 */
+        if (n === 'N3') h += '<details class="po-como-nivel" id="poComoNivelN3"><summary>Como as respostas deste nível levam ao resultado</summary><ul>' +
+          '<li>Um só SIM entre O6 e O9 → o tipo indicado por essa pergunta.</li>' +
+          '<li>Dois SIM → o sistema pergunta se descrevem a mesma responsabilidade ou responsabilidades distintas; nos dois casos o resultado fica "A validar", para decisão de uma pessoa.</li>' +
+          '<li>Nenhum SIM → "A validar" (evidência insuficiente).</li></ul>' +
+          '<p class="avp-ficha-meta">NÃO afirma que a característica não se aplica. Se faltar informação para afirmar uma resposta, registre a dúvida na Observação: ela fica no histórico e apoia a decisão final. Dúvida entre O7 e O9? Veja a Ajuda da O9.</p></details>';
         qs.forEach(function (q) { h += renderPergunta(q, versao, edita && !state.naoConfirmada, vm); });
         if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita && !state.naoConfirmada, vm);
         var pn = predominanciaNecessaria(a, n);
@@ -1476,7 +1486,8 @@
       ];
       if (a.status === 'concluido' && sit === 'vigente') et.push(['Estrutura e vínculo', 'futuro', 'Veja "Estrutura responsável" abaixo']);
       var sim = { ok: '✓', atual: '●', futuro: '○', na: '—', analise: '⚖', opcional: '◇', carregando: '…' };
-      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada de Avaliação e Posicionamento"><a class="po-jornada-voltar" id="poVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Voltar à lista de jornadas</a>' +
+      /* veio de uma análise de área: a volta é a da área (não concorre com a lista de jornadas) */
+      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada de Avaliação e Posicionamento">' + (origemAreaDe(a) ? '' : '<a class="po-jornada-voltar" id="poVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Voltar à lista de jornadas</a>') +
         '<ol class="mf-trilha mf-trilha--compacta">' + et.map(function (e) {
           return '<li class="mf-etapa mf-etapa--' + e[1] + '" data-estado="' + e[1] + '"><span class="mf-etapa-simbolo" aria-hidden="true">' + sim[e[1]] + '</span><span class="mf-etapa-texto"><span class="mf-etapa-rotulo">' + esc(e[0]) + '</span>' +
             (e[2] ? '<span class="mf-etapa-detalhe">' + esc(e[2]) + '</span>' : '') + '</span></li>';
@@ -1537,7 +1548,7 @@
         'Se esta responsabilidade também opera meios compartilhados de interação, considere isso na decisão final (divergência, com justificativa) ou recorte o objeto. A recomendação não muda por causa desta nota.</p>';
       h += '<p class="avp-intro">O1–O9 recomenda o tipo de estrutura que deve sustentar, de forma permanente, a responsabilidade associada ao objeto. A associação a uma estrutura organizacional concreta é uma etapa posterior.</p>';
       h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + '</p><p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
-      h += renderRespostasLidas(a) + '</section>';
+      h += explicacaoHtml(a) + renderRespostasLidas(a) + '</section>';
       h += hipoteseResultadoHtml(a, ra);
       h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final (registrada por uma pessoa)</h4>' + renderDecisao(a, key, sit) + '</section>';
       /* M3 do Mapa: a estrutura responsável do item — só na versão vigente; quem lê e grava é o módulo de Estruturas
@@ -1554,7 +1565,7 @@
          recomendação automática); abre o rascunho S do item se já houver um (nunca duplica) */
       var libS = sit === 'vigente' && podeLer() ? liberacaoSquad(a.itemId, dadosLiberacao()) : null;
       h += '<div class="avp-actions-footer po-ficha-acoes">' +
-        (libS && libS.situacao === 'liberado' ? '<button type="button" class="btn btn--primary" id="poAvaliarSquadBtn">Avaliar Adequação à Squad</button>' : '') +
+        (libS && libS.situacao === 'liberado' ? '<button type="button" class="btn" id="poAvaliarSquadBtn">Avaliar Adequação à Squad (opcional)</button>' : '') +
         (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (ocupado() || travaReav ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
         (atu ? '<button type="button" class="btn" id="poAtualizarMotorBtn"' + (ocupado() || travaReav ? ' disabled' : '') + '>Atualizar com motor atual (v' + esc(atu.de) + ' → v' + esc(atu.para) + ')</button>' : '') +
         '<button type="button" class="btn btn--sm" id="poGerarPdfBtn"' + (!prontoPdf || state.exportando ? ' disabled' : '') + '>' +
@@ -1594,7 +1605,7 @@
         '<textarea id="poJustificativaInput" class="avp-observacao" rows="3" maxlength="' + MAX_JUSTIFICATIVA + '"' + (salvando ? ' disabled' : '') + '>' + esc(f.justificativa) + '</textarea></div>' +
         '<p class="avp-error-msg" id="poDecisaoErro"' + (f.erro ? '' : ' hidden') + '>' + esc(f.erro || '') + '</p>' +
         '<p class="avp-ficha-meta">A decisão não pode ser alterada depois: para corrigir, faça uma reavaliação. Só os posicionamentos firmes podem ser escolhidos (não Linha, Plataforma nem "A validar").</p>' +
-        '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="poDecidirBtn"' + (ocupado() ? ' disabled' : '') + '>' + (ncDec ? 'AGUARDANDO CONFIRMAÇÃO' : salvando ? 'REGISTRANDO…' : 'Registrar decisão') + '</button></div></div>';
+        '<div class="avp-actions-footer"><button type="button" class="btn' + (auto === 'A_VALIDAR' ? ' btn--primary' : '') + '" id="poDecidirBtn"' + (ocupado() ? ' disabled' : '') + '>' + (ncDec ? 'AGUARDANDO CONFIRMAÇÃO' : salvando ? 'REGISTRANDO…' : 'Registrar decisão') + '</button></div></div>';
       return h;
     }
     function textoTipoPrevisto(auto, cod) {
@@ -1618,6 +1629,35 @@
           (r._key === key ? '<div class="avp-ficha-meta">(esta versão)</div>' : '<button type="button" class="btn btn--sm po-abrir" data-key="' + esc(r._key) + '">Abrir</button>') + '</li>';
       });
       return h + '</ul></details>';
+    }
+    /* "Como chegamos a esta recomendação": lê as respostas gravadas e o significado FIXO de cada pergunta (SINAIS do núcleo)
+       — explica o caminho que o motor percorreu, sem recalcular nada nem criar critério. A recomendação depende das
+       respostas: quando um nível teve um só SIM, a tela lembra o que aconteceria se outra característica também se
+       aplicasse (regra vigente: dois SIM no nível pedem o diagnóstico e levam a "A validar") */
+    function explicacaoHtml(a) {
+      if (a.status !== 'concluido' || !nucleo() || !nucleo().SINAIS) return '';
+      var SIN = nucleo().SINAIS, s = simples(a).respostas, ra = a.resultadoAutomatico || {}, itens = [], umSoSim = null;
+      var tit = function (q) { var r = a.respostas && a.respostas[q]; return r && r.tituloNaEpoca ? ' (' + esc(r.tituloNaEpoca) + ')' : ''; };
+      ORDEM_NIVEIS.forEach(function (n) {
+        var resp = NIVEIS[n].filter(function (q) { return s[q]; });
+        if (!resp.length) return;
+        var sims = resp.filter(function (q) { return s[q] === 'SIM'; });
+        var rot = { N1: 'Nível 1', N2: 'Nível 2 (ramo Linha)', N3: 'Nível 3 (ramo Plataforma)' }[n];
+        if (!sims.length) itens.push('<li><strong>' + rot + ':</strong> nenhuma resposta SIM (' + resp.join(', ') + ' = NÃO)' + (n === 'N2' ? ' — o caminho segue para o ramo Plataforma.' : '.') + '</li>');
+        else {
+          itens.push('<li><strong>' + rot + ':</strong> ' + sims.map(function (q) { return q + ' = SIM' + tit(q) + ' → indica ' + spanNome(SIN[q].papel); }).join('; ') +
+            (resp.length > sims.length ? '; as demais (' + resp.filter(function (q) { return s[q] !== 'SIM'; }).join(', ') + ') = NÃO' : '') + '.</li>');
+          if (sims.length === 1 && resp.length > 1) umSoSim = { nivel: rot, q: sims[0], outras: resp.filter(function (q) { return q !== sims[0]; }) };
+        }
+      });
+      if (!itens.length) return '';
+      var h = '<details class="po-explicacao" id="poExplicacao" open><summary>Como chegamos a esta recomendação</summary><ol class="po-explicacao-lista">' + itens.join('') +
+        '<li><strong>Resultado:</strong> ' + rotuloResultado(ra) + '.</li></ol>';
+      if (ra.codigoResultado && ra.codigoResultado !== 'A_VALIDAR' && umSoSim)
+        h += '<p class="avp-ficha-meta" id="poExplicacaoAtencao">A recomendação decorre das respostas registradas. No ' + esc(umSoSim.nivel) + ', só ' + umSoSim.q + ' recebeu SIM. ' +
+          'Se outra característica do mesmo nível (' + umSoSim.outras.join(', ') + ') também se aplicasse, a regra vigente pediria o diagnóstico e o resultado seria "A validar", para decisão de uma pessoa. ' +
+          'Se houver dúvida sobre essas respostas, registre a decisão final com justificativa ou faça uma reavaliação.</p>';
+      return h + '</details>';
     }
     function renderRespostasLidas(a) {
       var h = '<details class="avp-dados-item" id="poRespostas"><summary>Respostas</summary><ul class="po-respostas-lista">';

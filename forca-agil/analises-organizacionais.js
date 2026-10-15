@@ -558,9 +558,9 @@
       ativos.forEach(function (k, i) {
         var r = a.recortes[k], s = rs.sits[i], p = sfs[i].p, origem = r.origemRecorteId ? a.recortes[r.origemRecorteId] : null, nucs = nucleosDe(r), sep = r.separacao ? r.separacao.valor : null;
         var acao = '';
-        if (s.acao === 'avaliar') acao = gravar ? '<button type="button" class="btn btn--sm btn--primary" data-an="avaliar" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar</button>' : '';
-        else if (s.acao === 'iniciar') acao = '<a class="btn btn--sm btn--primary" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anAbrirPos_' + esc(k) + '">Avaliar</a>';
-        else if (s.acao === 'continuar') acao = '<a class="btn btn--sm btn--primary" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Continuar</a>';
+        if (s.acao === 'avaliar') acao = gravar ? '<button type="button" class="btn btn--sm" data-an="avaliar" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar</button>' : '';
+        else if (s.acao === 'iniciar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anAbrirPos_' + esc(k) + '">Avaliar</a>';
+        else if (s.acao === 'continuar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Continuar</a>';
         else if (s.acao === 'ver') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Ver resultado</a>';
         else if (gravar && s.acao === 'separar') acao = '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="separar" data-recorte="' + esc(k) + '" id="anSeparar_' + esc(k) + '">Separar</button>';
         else if (gravar && N().modeloSimples(r)) acao = '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="delimitar" data-recorte="' + esc(k) + '" id="anDelimitar_' + esc(k) + '">Definir delimitação</button>';
@@ -664,10 +664,10 @@
         '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anRegistrarRespBtn"' + (st.gravando ? ' disabled' : '') + '>Registrar responsabilidade</button>' +
         '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="lote" id="anAbrirLote">Colar várias de uma vez</button></div></form>'
         : renderLote(a, lote ? st.form : { tipo: 'lote' });
-      var aberto = !ativos.length || uma || lote || !!fr || !!st.flashLote || !!st.abertos.adicionar;
+      var aberto = !ativos.length || uma || lote || (!!st.abertos.adicionar && !fr && !st.flashLote);
       /* ajuda opcional (nunca condição para avaliar): o detalhamento por entregas, para quem não sabe quais são as responsabilidades */
       var ajuda = st.ajudaSeparar || entregasAtivas(a).length ? '' : '<p class="an-nota"><button type="button" class="btn btn--sm an-link" data-an="ajuda-separar" id="anAjudaSeparar">Não sabe quais são as responsabilidades? Detalhar com entregas (opcional)</button></p>';
-      return '<details class="avp-form-card an-secao an-comp-secao" id="anRegistrar"' + (aberto ? ' open' : '') + '><summary id="anRegistrarTitulo">' + (ativos.length ? 'Adicionar responsabilidades' : 'Quais responsabilidades a área tem?') + '</summary>' + flash + corpo + ajuda + '</details>';
+      return flash + '<details class="avp-form-card an-secao an-comp-secao" id="anRegistrar"' + (aberto ? ' open' : '') + '><summary id="anRegistrarTitulo">' + (ativos.length ? 'Adicionar responsabilidades' : 'Quais responsabilidades a área tem?') + '</summary>' + corpo + ajuda + '</details>';
     }
     /* lote: só separa por linha — nada de ponto e vírgula, numeração (a não ser que a pessoa peça), junção ou divisão */
     function linhasDoLote(texto, semNumeracao) {

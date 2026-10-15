@@ -966,7 +966,7 @@
     h += '</dl>';
     if (s.situacao === 'precisa-revisao') h += '<p class="avp-decisao-aviso po-resp-revisao" id="poRespRevisao" role="status"><strong>Precisa de revisão:</strong> ' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '. O vínculo continua registrado até alguém substituí-lo ou encerrá-lo.</p>';
     if (v && bloco.avisoBase) h += '<p class="avp-decisao-aviso po-resp-base" id="poRespBase" role="status"><strong>Aviso:</strong> ' + esc(bloco.avisoBase) + ' Isso não muda a situação do vínculo; confira o Posicionamento.</p>';
-    if (s.situacao === 'ausente') h += '<p class="est-intro" id="poRespAusente">Nenhuma estrutura responsável registrada. O posicionamento efetivo do item é ' + esc(nomeTipo(ef.codigo)) + ' (' + (ef.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + ').</p>';
+    if (s.situacao === 'ausente') h += '<p class="est-intro" id="poRespAusente">Nenhuma estrutura responsável registrada. O posicionamento efetivo do item é ' + esc(nomeTipo(ef.codigo)) + ' (' + (ef.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + '). Vincular uma estrutura é etapa separada e opcional: a avaliação já está concluída e não é preciso cadastrar uma estrutura nova para continuar.</p>';
     if (s.situacao === 'nao-aplicavel') h += '<p class="est-intro" id="poRespNaoAplicavel">O item não tem posicionamento efetivo firme (decisão final ou recomendação firme): ainda não cabe registrar a estrutura responsável.</p>';
     if (bloco.erros.length) h += '<div class="avp-error-msg est-erros" id="poRespErros" role="alert" tabindex="-1"><strong>Não foi salvo.</strong><ul>' + bloco.erros.map(function (e) { return '<li>' + esc(mensagemVinculo(e)) + '</li>'; }).join('') + '</ul></div>';
     if (!manter) return h;
@@ -977,7 +977,8 @@
     if (bloco.modo === 'vincular' || bloco.modo === 'substituir') {
       h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir a estrutura responsável') + '</h5>';
       if (!opcoes.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa do tipo ' + esc(nomeTipo(tipo)) + (v ? ' além da atual' : '') + ' está cadastrada. ' +
-        'O Posicionamento definiu o tipo, mas não cria a estrutura: ela é cadastrada em ADMIN › Avaliação e Mapa › Estruturas Organizacionais, e você volta para cá depois.</p>' +
+        'O Posicionamento definiu o tipo, mas não cria a estrutura. A recomendação continua válida sem estrutura vinculada, e não é preciso cadastrar uma estrutura para concluir esta avaliação nem para continuar a análise da área. ' +
+        'Se houver decisão organizacional de criar uma estrutura deste tipo, ela é cadastrada em ADMIN › Avaliação e Mapa › Estruturas Organizacionais, e você volta para cá depois.</p>' +
         (tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#admin?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
           (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura deste tipo</a></p>' : '');
       else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura (' + esc(nomeTipo(tipo)) + ') <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
@@ -993,7 +994,7 @@
         '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : 'Encerrar vínculo') + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
     }
     h += '<div class="avp-actions-footer po-resp-acoes">';
-    if (s.situacao === 'ausente') h += '<button type="button" class="btn btn--primary" id="poRespVincular">Vincular estrutura responsável</button>';
+    if (s.situacao === 'ausente') h += '<button type="button" class="btn" id="poRespVincular">Vincular estrutura responsável</button>';
     if (v && ef.codigo) h += '<button type="button" class="btn" id="poRespSubstituir">Substituir</button>';
     if (v) h += '<button type="button" class="btn" id="poRespEncerrar">Encerrar vínculo</button>';
     return h + '</div>';

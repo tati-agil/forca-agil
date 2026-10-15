@@ -277,9 +277,10 @@
         if (proxima.id === 'p1p16') acao = { tipo: 'p1p16', rotulo: 'Abrir a Avaliação de Produto/Serviço', href: h.p1p16 || null };
         else if (proxima.id === 'posicionamento') acao = { tipo: 'posicionamento', rotulo: x.rascunhoId ? 'Continuar o Posicionamento' : 'Iniciar o Posicionamento', href: h.posicionamento || null };
         else if (proxima.id === 'decisao') acao = { tipo: 'analise', rotulo: 'Analisar no Posicionamento', href: h.ficha || null, consulta: true };
-        else if (proxima.id === 'estrutura') acao = ctx.podeManterEstruturas ? { tipo: 'estrutura', rotulo: 'Cadastrar estrutura deste tipo', href: h.novaEstrutura || null }
-          : { tipo: 'estrutura', rotulo: null, texto: 'Falta cadastrar uma estrutura deste tipo (perfil Avaliação + Configuração).' };
-        else if (proxima.id === 'vinculo') acao = { tipo: 'vinculo', rotulo: proxima.estado === 'revisao' ? 'Revisar a estrutura responsável' : 'Vincular a estrutura responsável', href: h.vinculo || null };
+        else if (proxima.id === 'estrutura') acao = ctx.podeManterEstruturas ? { tipo: 'estrutura', rotulo: 'Cadastrar estrutura deste tipo', href: h.novaEstrutura || null, opcional: true }
+          : { tipo: 'estrutura', rotulo: null, opcional: true, texto: 'Avaliação concluída. Vincular a uma estrutura é etapa separada e opcional; cadastrar uma estrutura deste tipo é do perfil Avaliação + Configuração, quando houver decisão organizacional.' };
+        else if (proxima.id === 'vinculo') acao = proxima.estado === 'revisao' ? { tipo: 'vinculo', rotulo: 'Revisar a estrutura responsável', href: h.vinculo || null }
+          : { tipo: 'vinculo', rotulo: 'Vincular a estrutura responsável', href: h.vinculo || null, opcional: true };
         if (acao && !acao.consulta && acao.rotulo && !ctx.podeEscrever) acao = { tipo: acao.tipo, rotulo: null, texto: 'Próxima etapa: ' + proxima.rotulo + ' (somente consulta no seu perfil).' };
       }
     }
@@ -683,7 +684,7 @@
       if (j.carregando) return 'Carregando…';
       if (j.completa) return '✓ Jornada completa';
       if (j.analise) return 'Em análise (A validar)';
-      if (j.disponivel) return 'Posicionamento disponível (opcional)';
+      if (j.disponivel) return j.acao && (j.acao.tipo === 'estrutura' || j.acao.tipo === 'vinculo') ? 'Avaliação concluída · estrutura responsável: opcional' : 'Posicionamento disponível (opcional)';
       if (j.acao && j.acao.rotulo) return 'Próximo passo: ' + j.acao.rotulo;
       var prox = j.etapas.filter(function (e) { return e.estado === 'atual'; })[0];
       return prox ? 'Próximo passo: ' + prox.rotulo : (C.ROTULO_CURTO[x.situacao] || '');

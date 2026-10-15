@@ -3655,3 +3655,8 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
   .avp-inicio-cartoes--tres, .avp-inicio-porta2 .avp-inicio-opcoes, .avp-trab-grade { grid-template-columns: minmax(0, 1fr); }
   .avp-trab-secao .btn { justify-self: stretch; }
 }
+
+/* Posicionamento: "Como chegamos a esta recomendação" e "Como as respostas deste nível levam ao resultado" */
+.po-explicacao, .po-como-nivel { margin: 10px 0; padding: 10px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel-2); }
+.po-explicacao > summary, .po-como-nivel > summary { cursor: pointer; font-weight: 700; min-height: 32px; }
+.po-explicacao-lista, .po-como-nivel ul { margin: 8px 0; padding-left: 20px; display: grid; gap: 4px; overflow-wrap: anywhere; }
