@@ -139,6 +139,16 @@ async function main() {
   await nega('reescrever o índice de origem: recusado', db(ARQ).ref(NOS.porObjeto + '/objR1').set({ analiseId: 'anC', recorteId: 'r9' }));
   await nega('apagar o índice de origem: recusado', db(ARQ).ref(NOS.porObjeto + '/objR1').remove());
 
+  console.log('\n== E2. Responsabilidade só com a descrição ("precisa separar?"; regras e nós sem mudança) ==');
+  await pode('registrar "Gerir o processo contábil" sem entregas, com "Não sei"', up(ARQ, await op(ARQ, (est, c) => N.definirRecorte(est, 'anC', { descricao: 'Gerir o processo contábil', separacao: { valor: 'nao-sei' } }, Object.assign(c, { novoId: 'r2' })))));
+  await pode('revisar para "Não precisa separar", explicitamente', up(ARQ, await op(ARQ, (est, c) => N.revisarResponsabilidade(est, 'anC', 'r2', { descricao: 'Gerir o processo contábil', separacao: { valor: 'nao' } }, c))));
+  await pode('objeto da Porta 2 da responsabilidade + recorte ligado + índice, numa gravação', up(ARQ, await criarAtuacao(ARQ, 'objR2', 'r2')));
+  anota('a responsabilidade só com a descrição fica ligada ao objeto, com a resposta gravada', (await ler(NOS.porObjeto + '/objR2/recorteId')) === 'r2' && (await ler(NOS.analises + '/anC/recortes/r2/separacao/valor')) === 'nao' && (await ler(NOS.analises + '/anC/recortes/r2/descricao')) === 'Gerir o processo contábil' && !(await ler(NOS.analises + '/anC/recortes/r2/entregas')));
+  await pode('registrar uma descrição que precisa separar ("Sim")', up(ARQ, await op(ARQ, (est, c) => N.definirRecorte(est, 'anC', { descricao: 'Gerir o orçamento e atender fornecedores', separacao: { valor: 'sim' } }, Object.assign(c, { novoId: 'r3' })))));
+  await pode('separar em duas partes informadas pela pessoa, numa gravação', up(ARQ, await op(ARQ, (est, c) => N.desdobrarResponsabilidade(est, 'anC', 'r3', { partes: [{ descricao: 'Gerir o planejamento e execução orçamentária', separacao: { valor: 'nao' } }, { descricao: 'Atender fornecedores', separacao: { valor: 'nao-sei' } }] }, Object.assign(c, { novosIds: ['r3a', 'r3b'] })))));
+  anota('a original fica desdobrada, com o vínculo às partes; cada parte guarda a origem', (await ler(NOS.analises + '/anC/recortes/r3/situacao')) === 'desdobrado' && (await ler(NOS.analises + '/anC/recortes/r3a/origemRecorteId')) === 'r3' && (await ler(NOS.analises + '/anC/recortes/r3/descricao')) === 'Gerir o orçamento e atender fornecedores');
+  await nega('trocar a atuação da responsabilidade sem entregas: recusado', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, Object.assign(c, { novoId: 'e8' })), (w) => { w[NOS.analises + '/anC'].recortes.r2.objetoId = 'outroObj'; })));
+
   console.log('\n== F. Proposta de composição ==');
   const propor = (e, dados, mexer) => op(e, (est, c) => N.registrarProposta(est, 'anC', Object.assign({ alternativa: 'manter-consciente', recortes: ['r1'], justificativa: 'Sem ganho em separar' }, dados || {}), c), mexer);
   await nega('Avaliação NÃO propõe', up(AVAL, await propor(AVAL)));

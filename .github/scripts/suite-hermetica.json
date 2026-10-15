@@ -644,6 +644,12 @@
       "sobre": "Marcador de homologação (ausente = DESLIGADO, a Porta 2 fica como era; SOMENTE_ADMIN_GERAL; o admin geral muda no ADMIN com motivo e auditoria). Jornada B: uma pergunta por vez com o porquê, comparação pelos sete critérios, delimitação, fatos descritivos, atuação criada e O1–O9 respondido na tela do Posicionamento, situação formal, proposta pendente, ficha da estrutura, Jornada, histórico, Excel, F5. Jornada A: regressão políticas de SI × diretrizes contratuais (nunca juntadas sem comparação), aprovação como referência a ato externo só pelo admin geral. Jornada C: capacidade distribuída, referência sem trocar a origem, nenhuma estrutura Segurança. Perfil de consulta sem formulários; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-analises-organizacionais-usabilidade.js",
+      "nome": "Porta 2 · Análise Organizacional: usabilidade — Responsabilidade Organizacional, lista única, lote, núcleos e composição (GECON)",
+      "duracao": 90,
+      "sobre": "Dois caminhos convergindo para o O1–O9; telas da Porta 2 com Responsabilidade organizacional; Início com Porta 1/Porta 2; marcador desligado = Porta 2 de antes. Caminho A: atribuição colada, Não → cadastro com o texto literal (o registro declara o que repete) e O1–O9; Sim → análise. F2b opcional e condicional. GECON: dez atribuições coladas, prévia, numeração só a pedido, duplicidade com confirmação, gravação única com texto e ordem; lista única com situação e ação; Não/Sim/Não sei na linha; separar em partes; núcleos informados à mão (vários, compartilhados, nenhum inferido); Avaliar → voltar à lista; Continuar e Ver resultado pelos estados reais; composição por núcleo sem duplicar avaliação; nada no Mapa; F5; histórico. Detalhamento opcional não converte a resposta; registros anteriores avaliáveis; consulta; 375 px sem corte."
+    },
+    {
       "arquivo": ".github/scripts/teste-analises-organizacionais-nucleo.js",
       "nome": "Porta 2 · Análise Organizacional: núcleo puro, em memória (sem navegador, sem Firebase)",
       "duracao": 1,

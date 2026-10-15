@@ -112,7 +112,7 @@ async function rodada(browser, viewport, rotulo) {
 
   console.log('1. Lista do Posicionamento');
   await page.waitForSelector('#poLista .po-linha[data-key="gJ"]');
-  afirma(/Atuação organizacional/.test(await texto(page, '.po-linha[data-key="gJ"]')) && !/Atuação organizacional/.test(await texto(page, '.po-linha[data-key="gC"]')), 'a atuação vem marcada; a Porta 1 não');
+  afirma(/Responsabilidade organizacional/.test(await texto(page, '.po-linha[data-key="gJ"]')) && !/Responsabilidade organizacional/.test(await texto(page, '.po-linha[data-key="gC"]')), 'a responsabilidade da Porta 2 vem marcada ("Responsabilidade organizacional"); a Porta 1 não');
 
   console.log('2. Ficha da Porta 2');
   await ir(page, '#avaliacoes?po=gJ');
