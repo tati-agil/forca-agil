@@ -85,7 +85,7 @@
     F2a: { curta: 'Um só resultado e um só destinatário?' },
     F2b: { curta: 'No cadastro de Estruturas Organizacionais (ADMIN)',
       pergunta: 'Essa estrutura já está cadastrada no ADMIN para representação no Mapa da Floresta?',
-      ajuda: 'Consulte em ADMIN → Avaliação e Mapa → Estruturas Organizacionais. Esse cadastro registra estruturas concretas da organização e não deve ser confundido com o cadastro de Responsabilidades Organizacionais da Porta 2. Não é necessário cadastrar uma estrutura para continuar esta análise.',
+      ajuda: 'Consulte em ADMIN → Avaliações e Mapa → Estruturas Organizacionais. Esse cadastro registra estruturas concretas da organização e não deve ser confundido com o cadastro de Responsabilidades Organizacionais da Porta 2. Não é necessário cadastrar uma estrutura para continuar esta análise.',
       valores: { cadastrada: 'Existe no cadastro de Estruturas Organizacionais do ADMIN.', 'nao-cadastrada': 'É uma estrutura formal que ainda não consta naquele cadastro.', informal: 'É um agrupamento ou atuação sem formalização como estrutura organizacional.' } },
     F2c: { curta: 'Entregas da capacidade' }
   };
@@ -324,7 +324,7 @@
       var us = unidadesListadas(); if (!us) return '';
       return '<div class="avp-field"><label for="anUnidadeAtual">Qual área você deseja analisar?</label><select id="anUnidadeAtual" aria-describedby="anUnidadeAtualAjuda"><option value="">— escolha na Estrutura Organizacional Atual —</option>' +
         us.map(function (x) { return '<option value="' + esc(x.id) + '"' + (f.unidadeAtualId === x.id ? ' selected' : '') + '>' + '— '.repeat(x.profundidade) + esc(EA().rotulo(x.id)) + '</option>'; }).join('') + '</select>' +
-        '<p class="an-ajuda" id="anUnidadeAtualAjuda">Unidades cadastradas em ADMIN › Avaliação e Mapa › Estrutura Organizacional Atual. Não está lá? Digite o nome abaixo.</p></div>';
+        '<p class="an-ajuda" id="anUnidadeAtualAjuda">Unidades cadastradas em ADMIN › Avaliações e Mapa › Estrutura Organizacional Atual. Não está lá? Digite o nome abaixo.</p></div>';
     }
     function renderNova() {
       var f = st.form && st.form.tipo === 'nova' ? st.form : { tipo: 'nova' };
@@ -687,7 +687,7 @@
       return '<form class="an-form an-linha-form" id="anFormNucleos" data-recorte="' + esc(k) + '"><h4>Qual núcleo ou quais núcleos executam esta responsabilidade hoje?</h4>' +
         '<p class="an-nota">Opcional. Informe só o que se sabe — nada é associado pelo nome. É informação declarada: não cria estrutura, não cria vínculo formal e não muda o Mapa nem o O1–O9.</p>' +
         blocoUA + blocoRel +
-        (ests.length ? '<fieldset class="an-opcoes"><legend>Cadastrados em ADMIN › Avaliação e Mapa › Estruturas Organizacionais</legend>' + ests.map(function (x) { return '<label class="an-opcao"><input type="checkbox" name="anNucEst" value="' + esc(x) + '"' + (ids[x] ? ' checked' : '') + '><span>' + esc(D.estruturas[x].nome) + '</span></label>'; }).join('') + '</fieldset>'
+        (ests.length ? '<fieldset class="an-opcoes"><legend>Cadastrados em ADMIN › Avaliações e Mapa › Estruturas Organizacionais</legend>' + ests.map(function (x) { return '<label class="an-opcao"><input type="checkbox" name="anNucEst" value="' + esc(x) + '"' + (ids[x] ? ' checked' : '') + '><span>' + esc(D.estruturas[x].nome) + '</span></label>'; }).join('') + '</fieldset>'
           : '') +
         '<div class="avp-field"><label for="anNucOutros">Núcleos que não estão em nenhum cadastro <span class="an-opc">(um por linha)</span></label><textarea id="anNucOutros" rows="3" maxlength="2000" placeholder="Ex.: CONTA — Núcleo de Contabilidade">' + esc(textos.join('\n')) + '</textarea></div>' +
         '<div class="avp-field"><label for="anNucFonte">Fonte <span class="an-opc">(opcional)</span></label><input id="anNucFonte" maxlength="2000" placeholder="Ex.: regimento da gerência"></div>' +
@@ -1444,7 +1444,7 @@
       return '<li><a href="#avaliacoes?an=' + encodeURIComponent(x.analiseId) + '">' + esc(x.responsabilidade) + '</a> <span class="an-chip an-chip--' + (x.carater === 'hipotese' ? 'pend' : 'neu') + '">' + esc(CARATER[x.carater] || x.carater) + '</span> <span class="an-det">análise "' + esc(x.analiseNome) + '" · fonte: ' + esc(x.fonte) + ' · ' + esc(fmtData(x.informadoEm)) + '</span></li>';
     }).join('') + '</ul><p class="an-nota">Informação descritiva das análises: não é vínculo formal e não muda o Mapa.</p></section>';
   }
-  /* ADMIN › Avaliação e Mapa (só admin geral): o marcador de homologação, com motivo e histórico */
+  /* ADMIN › Avaliações e Mapa (só admin geral): o marcador de homologação, com motivo e histórico */
   function montarHabilitacao(el) {
     if (!el) return;
     ligarConfig();

@@ -227,7 +227,7 @@
       porque: 'Sem um posicionamento firme não há tipo de estrutura com que registrar o vínculo.', onde: 'Ficha do Posicionamento deste registro.', quem: QUEM_POSICIONA };
     if (e.id === 'estrutura') return { etapa: e.id, falta: 'Uma estrutura concreta ativa do tipo ' + (tipo || 'recomendado') + '.',
       porque: 'O Posicionamento definiu o tipo, mas não cria a estrutura; o vínculo só pode ser registrado com uma estrutura desse tipo.',
-      onde: 'ADMIN › Avaliação e Mapa › Estruturas Organizacionais (o tipo já vem escolhido; você confere antes de salvar). Depois, volte para este registro.', quem: QUEM_POSICIONA };
+      onde: 'ADMIN › Avaliações e Mapa › Estruturas Organizacionais (o tipo já vem escolhido; você confere antes de salvar). Depois, volte para este registro.', quem: QUEM_POSICIONA };
     if (e.id === 'vinculo') return { etapa: e.id, falta: e.estado === 'revisao' ? 'Revisar a estrutura responsável: o vínculo precisa de revisão.' : 'Registrar a estrutura responsável (o vínculo).',
       porque: 'A estrutura já existe, mas o Posicionamento sozinho não cria o vínculo; é o vínculo que leva este registro ao Mapa.', onde: 'Ficha do Posicionamento › Estrutura responsável.', quem: QUEM_POSICIONA };
     return null;

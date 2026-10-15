@@ -1,5 +1,5 @@
 /* ═════════════════════════════════════════════════════════════════
-   ESTRUTURA ORGANIZACIONAL ATUAL — tela do ADMIN › Avaliação e Mapa (#admin?arq=estrutura-atual) e a leitura que a
+   ESTRUTURA ORGANIZACIONAL ATUAL — tela do ADMIN › Avaliações e Mapa (#admin?arq=estrutura-atual) e a leitura que a
    Porta 2 usa para escolher a área e quem executa hoje (window.faEstruturaAtualAdmin).
    Só cadastro do que existe hoje: árvore, ficha com histórico, criar (também subordinada, pela ficha da superior),
    editar, mudar a unidade superior e encerrar (com motivo). Nada se apaga; nada daqui vira estrutura do Mapa, vínculo
@@ -107,7 +107,7 @@
       '<span class="an-chip an-chip--neu">' + esc(N().rotuloNivel(u)) + '</span>' + (u.situacao === 'encerrada' ? '<span class="an-chip an-chip--pend">Encerrada</span>' : '') + '</button></li>';
   }
   function renderLista() {
-    var h = cabecalho('Estrutura Organizacional Atual', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliação e Mapa'), 'sair') +
+    var h = cabecalho('Estrutura Organizacional Atual', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'sair') +
       '<p class="an-intro">As unidades como existem hoje — diretorias, gerências, núcleos — com a unidade superior. Serve para escolher a área analisada e quem executa cada responsabilidade na Porta 2. <strong>Não é a Estrutura Organizacional do Mapa</strong>: não tem tipo arquitetural nem vínculo formal.</p>' +
       marcadorHtml() + avisos();
     if (D.unidades === undefined) return h + '<p class="loading-msg" id="eaCarregando">Carregando…</p>';

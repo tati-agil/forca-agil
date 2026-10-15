@@ -96,7 +96,7 @@
       oque: 'Avaliação arquitetural de produtos e serviços e a Adequação à Squad (menu "Avaliação", endereço #avaliacoes).',
       quem: 'Admin geral e quem está em "Usuários autorizados" (perfil funcional): "Avaliação" avalia; "Avaliação + Configuração" também faz a curadoria e a decisão arquitetural final.',
       importante: [
-        'O acesso vem só da lista de Usuários autorizados (ADMIN › Avaliação e Mapa, gerida pelo admin geral) e vale na hora, sem recarregar.',
+        'O acesso vem só da lista de Usuários autorizados (ADMIN › Avaliações e Mapa, gerida pelo admin geral) e vale na hora, sem recarregar.',
         'O nome e a definição de cada classificação vêm da Taxonomia Arquitetural; o Manual não repete esses conceitos.',
         'As regras do banco aplicam o perfil: esconder botão não é a barreira.',
         'Texto novo de questionário não reescreve o passado: cada avaliação mostra a pergunta que foi respondida. Ao reavaliar, a pergunta cujo texto mudou pede SIM ou NÃO de novo.',
@@ -107,13 +107,13 @@
         'Liberar a Adequação à Squad, no resultado do Posicionamento, só quer dizer que as perguntas S1–S8 podem ser respondidas para o item: não cria nem associa Squad. É uma regra fixa, que não se configura: Linhas são formadas por Squads, Áreas Especializadas e CoEs não — por isso só os posicionamentos do ramo Linha liberam a Adequação à Squad.',
         'Na Adequação à Squad aparece o Posicionamento vigente do item: vale a decisão final, quando existe; senão, a recomendação automática. A ficha de um Posicionamento que libera tem o botão "Avaliar Adequação à Squad", que abre a Squad do item (ou o rascunho que já existir). Enquanto o Posicionamento não foi lido, a tela diz "Verificando…" — nunca libera nem bloqueia por suposição.',
         'Catálogo do Mapa da Floresta, no botão de mesmo nome da lista (os três perfis, só consulta): mostra as três categorias do Mapa — Linha com as suas especializações, Área Especializada e CoE — e cada objeto avaliado com o que falta para ele chegar ao Mapa: Avaliação de Produto/Serviço válida, Posicionamento concluído ou decisão final de um "A validar" (que não é exclusão). Vale a decisão final; sem ela, a recomendação automática firme. Ainda não é o Mapa visual, e as estruturas concretas e os responsáveis ainda não aparecem: essa informação está indisponível nesta versão (virá com o cadastro das estruturas), o que é diferente de não existir.',
-        'Exigência de Posicionamento (ADMIN › Avaliação e Mapa › Motor de Squad, só admin geral liga ou desliga, com motivo, e fica no histórico): desligada, a Squad só avisa; ligada, uma nova Adequação à Squad — inclusive de item que já tem uma concluída — só começa para item liberado, e o banco também confere. Rascunhos já existentes continuam e as avaliações concluídas não mudam. Cada avaliação S guarda, ao ser criada, de onde veio a liberação naquele momento.',
+        'Exigência de Posicionamento (ADMIN › Avaliações e Mapa › Motor de Squad, só admin geral liga ou desliga, com motivo, e fica no histórico): desligada, a Squad só avisa; ligada, uma nova Adequação à Squad — inclusive de item que já tem uma concluída — só começa para item liberado, e o banco também confere. Rascunhos já existentes continuam e as avaliações concluídas não mudam. Cada avaliação S guarda, ao ser criada, de onde veio a liberação naquele momento.',
       ],
       links: [{ texto: 'Abrir a Avaliação de Produto/Serviço', href: '#avaliacoes?av=lista' }, { texto: 'Ver os conceitos em ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
       fonte: ['auth.js (getAvaliacaoTipo) e nó fa-avaliacao-autorizados', 'database.rules.json', 'Conceitos: ADMIN › Taxonomia'],
       prova: ['teste-rules-perfis-avaliacao.js', 'teste-avaliacoes-acessos.js', 'teste-classificacoes-fonte-unica.js', 'teste-squad-endereco.js', 'teste-avaliacao-posicionamento.js', 'teste-rules-posicionamento.js', 'teste-regras-posicionamento-tabela.js', 'teste-posicionamento-decisao.js', 'teste-rules-posicionamento-decisao.js', 'teste-posicionamento-exportacoes.js', 'teste-posicionamento-exportacao-nucleo.js', 'teste-squad-liberacao.js', 'teste-rules-squad-liberacao.js', 'teste-mapa-floresta-catalogo.js'] },
 
-    { id: 'arquitetura', titulo: 'Avaliação e Mapa',
+    { id: 'arquitetura', titulo: 'Avaliações e Mapa',
       oque: 'Configuração da Avaliação de Produto/Serviço: questionários, motores, naturezas, Motor de Squad, Documentação e mapas (com o Mapa da Floresta) e Usuários autorizados.',
       quem: 'Admin geral e "Avaliação + Configuração" (que no ADMIN vê só esta aba). Usuários autorizados é só do admin geral.',
       importante: [
@@ -126,8 +126,8 @@
         'Motores › Motor de Posicionamento: a entrada em vigor de uma versão nova começa por uma proposta (com redação publicada, simulação e impacto calculados) e precisa de duas aprovações de pessoas diferentes de quem propôs, ao menos uma de admin geral; quem aprova reconhece o impacto calculado na hora. Se o impacto ou a redação mudarem, a proposta aparece desatualizada. Aprovar não põe nada em vigor.',
         'Fronteira confiável (servidor): "Validar redação no servidor" confere a redação publicada e registra a validação; "Conferir entrada em vigor no servidor" (só admin geral) recalcula tudo e mostra se a proposta aprovada está apta, sem mudar nada. Com uma proposta aprovada e apta, o botão "Ativar" só aparece quando o servidor informa que a ativação está habilitada (hoje está desligada no servidor); ativar põe a versão em vigor numa única gravação registrada e auditada, e voltar à v1 exige o mesmo rito (proposta e aprovação dupla). As avaliações existentes não mudam: só nascem na versão nova as avaliações novas, e uma antiga muda só por "Atualizar com motor atual". Se aparecer "Fronteira confiável indisponível", as funções ainda não foram implantadas: nada foi validado.',
       ],
-      links: [{ texto: 'Abrir ADMIN › Avaliação e Mapa', aba: 'adminPanelArquitetura' }],
-      fonte: ['ADMIN › Avaliação e Mapa (a própria tela)', 'database.rules.json'],
+      links: [{ texto: 'Abrir ADMIN › Avaliações e Mapa', aba: 'adminPanelArquitetura' }],
+      fonte: ['ADMIN › Avaliações e Mapa (a própria tela)', 'database.rules.json'],
       prova: ['teste-mapa-floresta.js', 'teste-arquitetura-documentacao.js', 'teste-motor-adicionar-condicao.js', 'teste-rules-perfis-avaliacao.js', 'teste-correcao-editorial-29-textos.js', 'teste-questionario-posicionamento.js', 'teste-rules-governanca-motor.js', 'teste-fronteira-posicionamento.js'] },
 
     { id: 'taxonomia', titulo: 'Taxonomia',

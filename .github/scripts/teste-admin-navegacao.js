@@ -71,12 +71,12 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(await grupo(3).locator('#anHabilitacaoAdmin').count() === 1, 'Análise Organizacional (Porta 2): a habilitação, só para o admin geral');
     afirma(await grupo(4).locator('#avpDocumentacaoBtn').count() === 1, 'Referências: Documentação e mapas');
     afirma(await grupo(5).locator('#avpUsuariosBtn').count() === 1, 'Acesso: Usuários autorizados');
-    afirma(await page.locator('#adminPanelArquitetura .avp-panel-titulo').innerText() === 'Núcleo de Avaliação, Taxonomia e Mapa da Floresta', 'o título da área é "Núcleo de Avaliação, Taxonomia e Mapa da Floresta"');
+    afirma(await page.locator('#adminPanelArquitetura .avp-panel-titulo').innerText() === 'Administração das Avaliações e do Mapa da Floresta', 'o título da área é "Administração das Avaliações e do Mapa da Floresta"');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 
     console.log('\n== Questionários ==');
     await page.click('#avpConfigQuestionariosBtn');
-    await conferirVoltar(page, '#avpConfigVoltar', 'Avaliação e Mapa', 'lista de questionários');
+    await conferirVoltar(page, '#avpConfigVoltar', 'Avaliações e Mapa', 'lista de questionários');
     await page.click('.avp-config-editar-btn >> nth=0');
     await page.waitForSelector('#avpCfgSalvarRascunhoBtn');
     await conferirVoltar(page, '#avpConfigVoltar', 'Questionários e versões', 'edição do questionário (topo)');
@@ -112,8 +112,8 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     console.log('\n== Motores ==');
     await page.click('#avpConfigMotoresBtn');
     await page.waitForSelector('#avpMotorArqEditarBtn');
-    await conferirVoltar(page, '#avpMotoresVoltarLista', 'Avaliação e Mapa', 'painel dos motores');
-    await conferirVoltar(page, '#avpMotoresVoltarRodape', 'Avaliação e Mapa', 'painel dos motores (rodapé)');
+    await conferirVoltar(page, '#avpMotoresVoltarLista', 'Avaliações e Mapa', 'painel dos motores');
+    await conferirVoltar(page, '#avpMotoresVoltarRodape', 'Avaliações e Mapa', 'painel dos motores (rodapé)');
     for (const [btn, nome] of [['#avpMotorArqVersoesBtn', 'versões'], ['#avpMotorArqAuditoriaBtn', 'histórico']]) {
       await page.click(btn);
       const rodape = nome === 'versões' ? '#avpMotorArqVoltarVersoesBtn' : '#avpMotorArqVoltarAuditoriaBtn';
@@ -161,8 +161,8 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     console.log('\n== Naturezas complementares ==');
     await page.click('#avpConfigNaturezasBtn');
     await page.waitForSelector('#avpNaturezasVoltar');
-    await conferirVoltar(page, '#avpNaturezasVoltar', 'Avaliação e Mapa', 'naturezas');
-    await conferirVoltar(page, '#avpNaturezasVoltarRodape', 'Avaliação e Mapa', 'naturezas (rodapé)');
+    await conferirVoltar(page, '#avpNaturezasVoltar', 'Avaliações e Mapa', 'naturezas');
+    await conferirVoltar(page, '#avpNaturezasVoltarRodape', 'Avaliações e Mapa', 'naturezas (rodapé)');
     await page.click('#avpNaturezaNova');
     await page.waitForSelector('#avpNaturezaNome');
     await page.fill('#avpNaturezaNome', 'Opção em edição');
@@ -178,9 +178,9 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     console.log('\n== Usuários autorizados ==');
     await page.click('#avpUsuariosBtn');
     await page.waitForSelector('#avpUsuariosVoltar');
-    await conferirVoltar(page, '#avpUsuariosVoltar', 'Avaliação e Mapa', 'usuários');
+    await conferirVoltar(page, '#avpUsuariosVoltar', 'Avaliações e Mapa', 'usuários');
     await page.waitForSelector('#avpUsuariosVoltarRodape');
-    await conferirVoltar(page, '#avpUsuariosVoltarRodape', 'Avaliação e Mapa', 'usuários (rodapé)');
+    await conferirVoltar(page, '#avpUsuariosVoltarRodape', 'Avaliações e Mapa', 'usuários (rodapé)');
     await page.fill('#avpUsuariosBusca', 'zz-busca-guardada');
     await page.click('#avpUsuariosVoltar');
     await page.waitForSelector('#avpConfigQuestionariosBtn');
@@ -206,7 +206,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.waitForSelector('#avpMotorSquadInicioBtn', { state: 'visible' });
     await page.click('#avpMotorSquadInicioBtn');
     await page.waitForSelector('#adminAvaliacaoSquad #sqMotorEditarRegrasBtn', { state: 'visible' });
-    await conferirVoltar(page, '#sqMotorVoltarLista', 'Avaliação e Mapa', 'painel do motor de squad aberto pela área Avaliação e Mapa');
+    await conferirVoltar(page, '#sqMotorVoltarLista', 'Avaliações e Mapa', 'painel do motor de squad aberto pela área Avaliações e Mapa');
     for (const [btn, rodape, nome] of [['#sqMotorVersoesBtn', '#sqMotorVoltarVersoesBtn', 'versões'], ['#sqMotorAuditoriaBtn', '#sqMotorVoltarAuditoriaBtn', 'histórico']]) {
       await page.click(btn);
       await page.waitForSelector(rodape);
@@ -273,7 +273,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await esperarSessaoAssentada(page);
     await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible', timeout: 10000 });
-    afirma(await hash() === '#admin?arq=motores' && await page.locator('#adminPanelArquitetura').evaluate((p) => p.classList.contains('active')), 'F5: continua em Configuração dos Motores, na aba Avaliação e Mapa');
+    afirma(await hash() === '#admin?arq=motores' && await page.locator('#adminPanelArquitetura').evaluate((p) => p.classList.contains('active')), 'F5: continua em Configuração dos Motores, na aba Avaliações e Mapa');
     await page.click('#avpMotoresVoltarLista');
     await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
     afirma(await hash() === '#admin?arq=inicio', 'o "← Voltar" da tela também acerta o endereço');

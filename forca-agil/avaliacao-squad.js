@@ -184,7 +184,7 @@
   /* Duas instâncias, uma por lugar (mesmo princípio dos dois modos de avaliacao-produto.js):
        'operacional' — #avaliacoes (aba AVALIAÇÃO): lista, nova avaliação, checklist, resultado e
          exportações. É onde quem tem acesso à Avaliação avalia Squad, sem precisar do ADMIN.
-       'admin' — ADMIN › Avaliação e Mapa: SÓ a Configuração do Motor de Squad (governança), aberta
+       'admin' — ADMIN › Avaliações e Mapa: SÓ a Configuração do Motor de Squad (governança), aberta
          pela tela inicial da Arquitetura ou por Configuração dos Motores, voltando para a origem.
      Cada instância tem o seu wrap, o seu estado e procura os próprios elementos SÓ dentro do
      wrap (byId) — os ids das telas se repetem entre as duas e nunca podem se cruzar. */
@@ -612,7 +612,7 @@
        uma segunda avaliação de squad em andamento para o MESMO itemId
        (item 8/12 do pedido: retomar nunca duplica). */
     var api = modo === 'admin' ? {
-      /* origem: { rotulo: 'Avaliação e Mapa' | 'Configuração dos Motores', voltar: fn } — o "← Voltar"
+      /* origem: { rotulo: 'Avaliações e Mapa' | 'Configuração dos Motores', voltar: fn } — o "← Voltar"
          do painel do motor leva de volta para quem abriu, nunca para uma lista que nem existe aqui. */
       abrirMotorConfig: function (origem) { origemMotor = origem || null; mostrarPainel(); abrirMotorConfig(); },
       fechar: function () { if (!wrap.hidden) { state.motorConfig = null; voltarParaArquitetura(); } },
@@ -1506,7 +1506,7 @@
     }
     function renderMotorConfig() {
       var c = state.motorConfig;
-      var destinoVoltar = c.sub === 'painel' ? ((origemMotor && origemMotor.rotulo) || 'Avaliação e Mapa')
+      var destinoVoltar = c.sub === 'painel' ? ((origemMotor && origemMotor.rotulo) || 'Avaliações e Mapa')
         : c.sub === 'simulacao' || c.sub === 'conflito-publicacao' ? 'Editar regras'
         : c.sub === 'comparar-alteracoes' ? 'o conflito de publicação'
         : 'Configuração do Motor de Squad';

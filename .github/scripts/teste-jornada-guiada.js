@@ -128,7 +128,7 @@ async function rodada(browser, viewport, rotulo) {
   const aPlat = await acao(page, 'pPlat');
   afirma((await etapas(page, 'pPlat')).indexOf('estrutura:atual') !== -1 && aPlat && aPlat.h === '#admin?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat', '7. firme sem estrutura do tipo: "Cadastrar estrutura deste tipo"', JSON.stringify(aPlat));
   const fPlat = await falta(page, 'pPlat');
-  afirma(fPlat && fPlat.etapa === 'estrutura' && /estrutura concreta ativa do tipo/.test(fPlat.t) && /não cria a estrutura/.test(fPlat.t) && /ADMIN › Avaliação e Mapa › Estruturas Organizacionais/.test(fPlat.t) &&
+  afirma(fPlat && fPlat.etapa === 'estrutura' && /estrutura concreta ativa do tipo/.test(fPlat.t) && /não cria a estrutura/.test(fPlat.t) && /ADMIN › Avaliações e Mapa › Estruturas Organizacionais/.test(fPlat.t) &&
     /Quem pode.*Avaliação \+ Configuração ou admin geral/.test(fPlat.t), 'I1: sem estrutura do tipo — o que falta, por quê, onde (ADMIN › Estruturas) e quem pode', fPlat && fPlat.t);
   await abre(page, 'oEnc');
   afirma(await falta(page, 'oEnc') === null, 'I1: atuação encerrada não mostra "o que falta"');
