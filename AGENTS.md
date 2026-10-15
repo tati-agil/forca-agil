@@ -1,7 +1,8 @@
 # AGENTS.md — instruções compartilhadas para assistentes de código
 
-Este arquivo vale para qualquer assistente: Claude Code, GitHub Copilot ou outro. **O detalhamento completo do
-projeto está em `CLAUDE.md`**, que continua sendo a referência; este arquivo não o repete.
+Este arquivo vale para qualquer assistente: Claude Code, GitHub Copilot ou outro. **O resumo do projeto e as regras
+de trabalho estão em `CLAUDE.md`**; o detalhamento por módulo, em `docs/arquitetura-detalhada.md`, e o dicionário do
+banco e a tabela de módulos, em `docs/referencia-tecnica.md` (consulte sob demanda). Este arquivo não os repete.
 
 ## O repositório
 
@@ -37,3 +38,6 @@ projeto está em `CLAUDE.md`**, que continua sendo a referência; este arquivo n
   (hoje o Firebase), horário do servidor, nenhuma gravação dupla; operação que grava nos dois bancos só é validada com o
   mesmo conjunto de cenários no núcleo, no emulador do Firebase e no PostgreSQL, comparados automaticamente.
 - **Branch de trabalho + PR.** O merge e o deploy são da dona do repositório.
+- **Execução eficiente** (detalhes em `CLAUDE.md`): investigar com buscas direcionadas, reutilizar o que existe,
+  editar em blocos coerentes, testes direcionados no desenvolvimento e validação completa no commit final da PR — sem
+  cortar testes de segurança, regressão, concorrência ou compatibilidade.

@@ -35,6 +35,14 @@ da Floresta que grave dados. É requisito obrigatório, não meta. *(Redação o
 - Objetos organizacionais da Porta 2 do Posicionamento (`objetos-organizacionais`, com auditoria e índice de referência)
   existem só no Firebase (horário do servidor, autoria do token, revisão por gravação, nada apagado); entram na
   reconciliação da migração futura, como os demais dados reais.
+- A **Estrutura Organizacional Atual** (`estrutura-atual-*`: unidades, índice de subordinadas ativas, histórico, marcador
+  próprio e sua auditoria) existe só no Firebase, atrás do marcador próprio (ausente = DESLIGADO; independe do marcador
+  da Análise Organizacional). Não tem executor PostgreSQL nem cenários versionados compartilhados: o que existe é o
+  núcleo em memória (`teste-estrutura-atual-nucleo.js`) e as regras no emulador (`teste-rules-estrutura-atual.js`), que
+  provam no banco a revisão + 1 e a hierarquia sem ciclo **conferida no estado depois da gravação** (inclusive duas
+  gravações simultâneas que juntas formariam um ciclo). Na migração, o PostgreSQL precisa da mesma garantia dentro da
+  transação (por exemplo, SERIALIZABLE com a verificação da cadeia de superiores) — requisito, ainda não implementado.
+  Os dados da GECON e dos núcleos usados nos testes são fictícios e nunca são gravados no banco oficial.
 
 ## Duas garantias diferentes
 
