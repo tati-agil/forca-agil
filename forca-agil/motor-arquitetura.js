@@ -878,17 +878,32 @@
   var carregado = false;
   var listeners = [];
 
+  /* A leitura de motor-arquitetura-config exige sessão. Uma escuta recusada é CANCELADA pelo Firebase e nunca volta
+     sozinha — ligada antes do login, deixava a configuração sem carregar até um F5 (itens presos em "Verificando…" na
+     Jornada). Por isso: só liga com sessão; se a escuta for cancelada, fica livre para ligar de novo; e a troca de
+     sessão (login, saída, outra pessoa) religa a escuta. */
+  var refConfig = null, cbConfig = null;
+  function temSessao() { var A = window.faAuth; return !A || !A.getSession || !!A.getSession(); }
   function garantirSync() {
-    if (carregado) return;
+    if (carregado || !temSessao()) return;
     carregado = true;
-    db().ref(NODE_CONFIG).on('value', function (snap) {
+    refConfig = db().ref(NODE_CONFIG);
+    cbConfig = function (snap) {
       cache = snap.val();
       configRecebida = true;
       memoEquivalencia = {};
       listeners.slice().forEach(function (cb) { cb(); });
-    });
+    };
+    refConfig.on('value', cbConfig, function () { carregado = false; refConfig = null; cbConfig = null; });
   }
-  function onMudanca(cb) { garantirSync(); listeners.push(cb); }
+  function religarSync() {
+    if (refConfig && cbConfig) { try { refConfig.off('value', cbConfig); } catch (e) { /* já cancelada */ } }
+    carregado = false; refConfig = null; cbConfig = null;
+    if (listeners.length) garantirSync();
+  }
+  ['fa-auth-ready', 'fa-avaliacao-ready'].forEach(function (ev) { window.addEventListener(ev, function () { if (listeners.length && !carregado) garantirSync(); }); });
+  window.addEventListener('fa-auth-change', religarSync);
+  function onMudanca(cb) { listeners.push(cb); garantirSync(); }
   /* true só depois da PRIMEIRA leitura de motor-arquitetura-config chegar.
      Antes disso versaoAtual() devolve 1 por falta de dado, não porque a
      versão vigente é 1 — nada que GRAVA uma versão (reconciliação) pode
@@ -1434,6 +1449,7 @@
     paresMarcados: paresMarcados,
     tipoDeAValidar: tipoDeAValidar,
     onMudanca: onMudanca,
+    religar: religarSync,
     versaoAtual: versaoAtual,
     regrasDaVersao: regrasDaVersao,
     textosAtuais: textosAtuais,

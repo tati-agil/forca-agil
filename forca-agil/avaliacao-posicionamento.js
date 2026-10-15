@@ -1096,10 +1096,20 @@
         'objeto-ausente': 'A responsabilidade organizacional não foi encontrada.', 'objeto-encerrado': 'A responsabilidade organizacional está encerrada: ela não recebe nova avaliação.' }[sit] || sit;
     }
     function objetoDadosHtml(ob, nomeRegistrado) {
-      var h = '<dl class="po-objeto-dados"><dt>Nome atual</dt><dd id="poObjetoNome">' + esc(ob.nome) + '</dd>';
-      if (nomeRegistrado && ob.nome !== nomeRegistrado) h += '<dt>Nome neste Posicionamento</dt><dd id="poObjetoNomeRegistrado">' + esc(nomeRegistrado) + '</dd>';
-      h += '<dt>Descrição</dt><dd>' + esc(ob.descricao) + '</dd><dt>Finalidade</dt><dd>' + esc(ob.finalidade) + '</dd>';
-      if (ob.contexto) h += '<dt>Contexto</dt><dd>' + esc(ob.contexto) + '</dd>';
+      /* registro de uma descrição só (cadastro simplificado): mostra a responsabilidade uma vez — nome, descrição e
+         finalidade repetem o mesmo texto; a nota técnica do contexto fica gravada, mas não aparece como contexto */
+      var simples = O() && O().registroSimplificado(ob), ctx = O() ? O().contextoVisivel(ob.contexto) : ob.contexto;
+      var h = '<dl class="po-objeto-dados">';
+      if (simples) {
+        h += '<dt>Responsabilidade</dt><dd id="poObjetoNome">' + esc(ob.descricao) + '</dd>';
+        if (ob.nome !== ob.descricao) h += '<dt>Nome curto</dt><dd id="poObjetoNomeCurto">' + esc(ob.nome) + '</dd>';
+        if (nomeRegistrado && ob.nome !== nomeRegistrado) h += '<dt>Nome neste Posicionamento</dt><dd id="poObjetoNomeRegistrado">' + esc(nomeRegistrado) + '</dd>';
+      } else {
+        h += '<dt>Nome atual</dt><dd id="poObjetoNome">' + esc(ob.nome) + '</dd>';
+        if (nomeRegistrado && ob.nome !== nomeRegistrado) h += '<dt>Nome neste Posicionamento</dt><dd id="poObjetoNomeRegistrado">' + esc(nomeRegistrado) + '</dd>';
+        h += '<dt>Descrição</dt><dd>' + esc(ob.descricao) + '</dd><dt>Finalidade</dt><dd>' + esc(ob.finalidade) + '</dd>';
+      }
+      if (ctx) h += '<dt>Contexto</dt><dd id="poObjetoContexto">' + esc(ctx) + '</dd>';
       if (ob.referenciaItemId) {
         var B0 = B(), base = B0 ? B0.baseDoItem(ob.referenciaItemId, state.produtos) : null, pr = base && base.chave ? state.produtos[base.chave] : null;
         h += '<dt>Referência informativa</dt><dd id="poObjetoReferencia">' + esc((pr && pr.nome) || ob.referenciaItemId) + ' (Avaliação de Produto/Serviço) — só para consulta: não participa do cálculo.</dd>';
@@ -1168,11 +1178,14 @@
       else if (ob.situacao === 'ativo' && podeEscrever()) {
         var vmv = versaoEmVigorLida();
         if (vmv === null) h += '<p class="loading-msg" id="poVerificandoMotor" role="status">' + (state.erroVigencia ? 'Não foi possível ler a versão do motor em vigor agora.' : 'Verificando a versão do motor…') + '</p>';
-        else h += hipoteseHtml('poHipoteseIniciar', state.hipotese) +
-          '<button type="button" class="btn btn--primary" id="poIniciarAtuacaoBtn"' + (ocupado() || !state.hipotese ? ' disabled' : '') + '>' + (state.salvando === 'criacao' ? 'INICIANDO…' : 'Iniciar o Posicionamento') + '</button>' +
+        /* o próximo passo, na mesma tela: a hipótese inicial (obrigatória, só percepção) e o início do O1–O9 */
+        else h += '<div class="an-proxima po-proximo-passo" id="poProximoPasso" role="status"><p><strong>Próximo passo:</strong> indique sua hipótese inicial para começar a avaliação O1–O9.</p>' +
+          '<p class="avp-ficha-meta">É só uma percepção inicial: não altera o resultado do motor e não é a decisão final. Se não tiver uma, escolha "Não sei / Quero descobrir".</p></div>' +
+          hipoteseHtml('poHipoteseIniciar', state.hipotese) +
+          '<button type="button" class="btn btn--primary" id="poIniciarAtuacaoBtn"' + (ocupado() || !state.hipotese ? ' disabled' : '') + '>' + (state.salvando === 'criacao' ? 'INICIANDO…' : 'Iniciar a avaliação O1–O9') + '</button>' +
           (state.hipotese ? '' : '<p class="avp-ficha-meta" id="poHipoteseFalta">Escolha a hipótese inicial para começar.</p>');
       }
-      if (podeEscrever() && ob.situacao === 'ativo') h += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poEditarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>Editar dados</button>' +
+      if (podeEscrever() && ob.situacao === 'ativo') h += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poEditarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (O() && O().registroSimplificado(ob) ? 'Editar responsabilidade' : 'Editar dados') + '</button>' +
         '<button type="button" class="btn btn--sm btn--danger" id="poEncerrarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-encerramento' ? 'ENCERRANDO…' : 'Encerrar responsabilidade') + '</button></div>';
       return h + '</div><button type="button" class="btn btn--sm" id="poOutraAtuacao">Ver todas as responsabilidades</button>';
     }

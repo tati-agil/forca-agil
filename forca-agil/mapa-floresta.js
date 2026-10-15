@@ -779,7 +779,7 @@
     function bind() {
       var v = byId('mfVoltar'); if (v) v.addEventListener('click', sairParaAvaliacoes);
       var im = byId('mfIrMapa'); if (im) im.addEventListener('click', function () { irPara('mapa'); });
-      var t = byId('mfTentarDeNovo'); if (t) t.addEventListener('click', function () { desligar(); ligar(); render(); });
+      var t = byId('mfTentarDeNovo'); if (t) t.addEventListener('click', function () { if (window.faMotorArquitetura && window.faMotorArquitetura.religar) window.faMotorArquitetura.religar(); desligar(); ligar(); render(); });
       var fs = byId('mfFiltroSituacao'); if (fs) fs.addEventListener('change', function () { state.filtros.situacao = fs.value; render(); });
       Array.prototype.forEach.call(wrap.querySelectorAll('input[name="mfPosic"]'), function (r) {
         r.addEventListener('change', function () { if (r.checked) { state.filtros.posicionamento = r.value; render(); } });
@@ -1116,7 +1116,7 @@
       }));
     }
     function aoChegar() {
-      if (state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined && state.objetos !== undefined) { clearTimeout(relogio); state.demorando = false; }
+      if (state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined && state.objetos !== undefined && !(window.faMotorArquitetura && !window.faMotorArquitetura.configCarregada())) { clearTimeout(relogio); state.demorando = false; }
       render();
     }
     function ligar() {
@@ -1124,10 +1124,11 @@
       ligado = true;
       state.erro = false; state.demorando = false;
       clearTimeout(relogio);
-      relogio = setTimeout(function () { if (state.produtos === undefined || state.registros === undefined || state.vigentes === undefined || state.decisoes === undefined || state.objetos === undefined) { state.demorando = true; render(); } }, TEMPO_DEMORA);
+      /* a configuração do motor de P1–P16 entra no prazo: sem ela os itens ficariam em "Verificando…" sem aviso */
+      relogio = setTimeout(function () { var motorFalta = window.faMotorArquitetura && !window.faMotorArquitetura.configCarregada(); if (motorFalta || state.produtos === undefined || state.registros === undefined || state.vigentes === undefined || state.decisoes === undefined || state.objetos === undefined) { state.demorando = true; render(); } }, TEMPO_DEMORA);
       ouvir(PROD, 'produtos'); ouvir(NODE, 'registros'); ouvir(VIG, 'vigentes'); ouvir(DEC, 'decisoes'); ouvir(OBJ, 'objetos');
       /* o gate precisa do motor de P1–P16 carregado (antes disso: "Verificando…", nunca "atual" nem "desatualizado") */
-      if (window.faMotorArquitetura && !ligar._motor) { ligar._motor = true; window.faMotorArquitetura.onMudanca(function () { render(); }); }
+      if (window.faMotorArquitetura && !ligar._motor) { ligar._motor = true; window.faMotorArquitetura.onMudanca(function () { aoChegar(); }); }
       ligarNomes();
     }
     function desligar() {
