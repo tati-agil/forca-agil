@@ -77,11 +77,11 @@ async function rodada(browser, viewport, rotulo) {
     'situação em linguagem clara; P1–P16 do Jurídico × atuação diferenciados, sem pendência inventada');
   afirma(!(await page.locator('#mfFiltrosAvancados').evaluate((d) => d.open)), 'filtros e contadores recolhidos por padrão');
   await page.click('#mfFiltrosAvancados > summary');
-  afirma(/Jornada completa: 4 · Com próxima ação: 2 · Em análise \(A validar\): 1 · Posicionamento disponível: 1 · Encerradas: 1/.test((await texto(page, '#mfResumo')).replace(/\s+/g, ' ')),
-    'resumo (recolhido): 4 completas, 2 com próxima ação, 1 em análise, 1 com Posicionamento disponível, 1 encerrada', await texto(page, '#mfResumo'));
+  afirma(/Jornada completa: 4 · Com próxima ação: 0 · Em análise \(A validar\): 1 · Avaliadas, estrutura responsável opcional: 2 · Posicionamento disponível: 1 · Encerradas: 1/.test((await texto(page, '#mfResumo')).replace(/\s+/g, ' ')),
+    'resumo (recolhido): 4 completas, 1 em análise, 2 avaliadas com estrutura responsável opcional (não contam como próxima ação), 1 com Posicionamento disponível, 1 encerrada', await texto(page, '#mfResumo'));
   await page.click('#mfSoAcao');
   const soAcao = await page.$$eval('#mfItens .mf-item', (ls) => ls.map((l) => l.dataset.item).sort().join(','));
-  afirma(soAcao === 'pPlat,pVal,pVinc', '"Só os que têm próxima ação": os 2 com próxima ação e o que está em análise (o disponível não entra)', soAcao);
+  afirma(soAcao === 'pVal', '"Só os que têm próxima ação": só o que está em análise (estrutura/vínculo opcionais e o Posicionamento disponível não entram)', soAcao);
   await page.click('#mfSoAcao');
   afirma(await larguraOk(page), 'lista sem rolagem lateral');
   const baixos = await page.$$eval('#mfItens .mf-linha-abrir, #mfSoAcao, #mfBusca', (els) => els.filter((e) => e.getBoundingClientRect().height < 44).length);
@@ -193,6 +193,16 @@ async function rodada(browser, viewport, rotulo) {
   const fConsulta = await falta(page, 'pPlat');
   afirma(fConsulta && /Quem pode.*Avaliação \+ Configuração ou admin geral/.test(fConsulta.t) && !(await page.$(card('pPlat') + ' .mf-acao')),
     'I1: perfil de consulta vê o que falta e quem pode, sem botão de gravar', fConsulta && fConsulta.t);
+  /* na consulta, o que é opcional continua opcional: vínculo/cadastro de estrutura nunca viram pendência obrigatória */
+  afirma(/Disponível \(opcional\)/.test(await texto(page, card('pPlat'))) && !/Próxima etapa/.test(await texto(page, card('pPlat'))), 'consulta: cadastrar estrutura aparece como "Disponível (opcional)", não como próxima etapa');
+  await page.evaluate(() => { location.hash = '#avaliacoes?mf=catalogo'; });
+  await page.waitForSelector('#mfFiltrosAvancados > summary', { state: 'visible' });
+  await page.click('#mfFiltrosAvancados > summary');
+  afirma(/Com próxima ação: 0 · Em análise \(A validar\): 1 · Avaliadas, estrutura responsável opcional: 2 · Posicionamento disponível: 1/.test((await texto(page, '#mfResumo')).replace(/\s+/g, ' ')),
+    'consulta: os contadores tratam vínculo/estrutura opcionais como opcionais (Com próxima ação: 0)', await texto(page, '#mfResumo'));
+  await page.click('#mfSoAcao');
+  const soAcaoConsulta = await page.$$eval('#mfItens .mf-item', (ls) => ls.map((l) => l.dataset.item).sort().join(','));
+  afirma(soAcaoConsulta === 'pVal', 'consulta: "Só os que têm próxima ação" mostra só o A validar (nenhum opcional como pendência)', soAcaoConsulta);
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', { delays: { 'estruturas-vinculos': 4000 } }));
   await page.waitForSelector(linha('pCapec'), { timeout: 15000 });
