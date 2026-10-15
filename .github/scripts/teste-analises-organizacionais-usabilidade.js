@@ -171,7 +171,7 @@ async function caminhoA(browser) {
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab: LIB });
   await page.waitForSelector('#poNovaAtuacaoBtn', { timeout: 20000 });
   await page.click('#poNovaAtuacaoBtn'); await page.waitForSelector('#poFormAtuacao');
-  const campos = await page.$$eval('#poFormAtuacao input, #poFormAtuacao textarea, #poFormAtuacao select', (l) => l.filter((x) => x.offsetParent).map((x) => x.id));
+  const campos = await page.$$eval('#poFormAtuacao input, #poFormAtuacao textarea, #poFormAtuacao select', (l) => l.filter((x) => x.offsetParent && !x.closest('details:not([open])')).map((x) => x.id));
   afirma(campos.join() === 'poAtuacao_descricao' && (await texto(page, '#poFormAtuacao h3')).trim() === 'Qual responsabilidade deseja avaliar?', 'um campo só: "Qual responsabilidade deseja avaliar?"', campos);
   afirma(!/separad|entrega|finalidade|núcleo/i.test(await texto(page, '#poFormAtuacao')) && (await texto(page, '#poSalvarAtuacaoBtn')).trim() === 'Registrar e avaliar', 'sem pergunta sobre separar, entregas, finalidade, tipo ou núcleo; ação "Registrar e avaliar"');
   await page.click('#poSalvarAtuacaoBtn'); await page.waitForSelector('#poAtuacaoErros');

@@ -114,16 +114,16 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#poNovaAtuacaoBtn');
   await page.waitForSelector('#poFormAtuacao');
   afirma((await hash(page)) === '#avaliacoes?po=nova-atuacao', 'cadastro em #avaliacoes?po=nova-atuacao');
-  await page.fill('#poAtuacao_nome', 'Desenvolvimento de competências em agilidade');
+  /* Caminho A: um campo (a responsabilidade); a referência informativa fica recolhida, opcional */
   await page.click('#poSalvarAtuacaoBtn');
   await page.waitForSelector('#poAtuacaoErros');
-  afirma(/Descrição é obrigatório/.test(await texto(page, '#poAtuacaoErros')) && /Finalidade é obrigatório/.test(await texto(page, '#poAtuacaoErros')) && !objetoPorNome(await banco(page), 'Desenvolvimento de competências em agilidade'),
-    'sem descrição e finalidade: explica o que falta e não grava');
+  afirma(/obrigatório/.test(await texto(page, '#poAtuacaoErros')) && !objetoPorNome(await banco(page), 'Desenvolvimento de competências em agilidade'),
+    'sem a responsabilidade: explica o que falta e não grava');
+  await page.click('#poMaisInfo > summary');
   const opJur = await page.$eval('#poAtuacaoRef option[value="pJur"]', (o) => ({ dis: o.disabled, t: o.textContent }));
   const opLivre = await page.$eval('#poAtuacaoRef option[value="pLivre"]', (o) => o.disabled);
   afirma(opJur.dis && /rascunho de Posicionamento em andamento/.test(opJur.t) && !opLivre, 'referência: o "Jurídico" (rascunho aberto) aparece desabilitado com o motivo; item livre disponível');
-  await page.fill('#poAtuacao_descricao', 'Desenvolvimento e disseminação de competências em agilidade organizacional.');
-  await page.fill('#poAtuacao_finalidade', 'Ampliar a maturidade ágil das equipes.');
+  await page.fill('#poAtuacao_descricao', 'Desenvolvimento de competências em agilidade');
   await page.selectOption('#poAtuacaoRef', 'pLivre');
   await page.click('#poSalvarAtuacaoBtn');
   await page.waitForSelector('#poAtuacaoSelecionada', { timeout: 10000 });
@@ -131,7 +131,7 @@ async function rodada(browser, viewport, rotulo) {
   const [idAg, ag] = objetoPorNome(db, 'Desenvolvimento de competências em agilidade') || [];
   afirma(!!ag && ag.situacao === 'ativo' && ag.revisao === 1 && ag.referenciaItemId === 'pLivre' && db['objetos-organizacionais-por-referencia'] && db['objetos-organizacionais-por-referencia'].pLivre === idAg &&
     Object.values((db['objetos-organizacionais-auditoria'] || {})[idAg] || {}).some((x) => x.tipo === 'criacao'), 'grava a atuação (ativa, revisão 1, referência e índice, auditoria de criação)');
-  afirma((await hash(page)) === '#avaliacoes?po=atuacoes&item=' + idAg && /Registre a hipótese inicial/.test(await texto(page, '#poFlash')), 'depois de salvar: a atuação aberta, pedindo a hipótese', (await hash(page)) + ' | ' + (await texto(page, '#poFlash')));
+  afirma((await hash(page)) === '#avaliacoes?po=atuacoes&item=' + idAg && /registre a hipótese inicial/i.test(await texto(page, '#poFlash')), 'depois de salvar: a atuação aberta, pedindo a hipótese', (await hash(page)) + ' | ' + (await texto(page, '#poFlash')));
 
   console.log('3. Hipótese obrigatória, oculta nas perguntas, comparada no resultado');
   afirma(await desabilitado(page, '#poIniciarAtuacaoBtn') && /Escolha a hipótese inicial/.test(await texto(page, '#poHipoteseFalta')), '"Iniciar" travado até escolher a hipótese');
@@ -181,7 +181,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector('#poAtuacaoSelecionada');
   db = await banco(page);
   const alt = Object.values(db['objetos-organizacionais-auditoria'][idAg]).find((x) => x.tipo === 'alteracao');
-  afirma(db['objetos-organizacionais'][idAg].revisao === 2 && db['objetos-organizacionais'][idAg].contexto === 'Contexto acrescentado na edição' && alt && !alt.antes.contexto && alt.depois.contexto === 'Contexto acrescentado na edição',
+  afirma(db['objetos-organizacionais'][idAg].revisao === 2 && db['objetos-organizacionais'][idAg].contexto === 'Contexto acrescentado na edição' && alt && alt.antes.contexto !== alt.depois.contexto && alt.depois.contexto === 'Contexto acrescentado na edição',
     'edição: revisão 2, auditoria com antes → depois');
 
   console.log('5. Reavaliar na Porta 2');

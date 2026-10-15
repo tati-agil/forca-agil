@@ -71,7 +71,6 @@ async function criar(page, d, botao) {
     afirma(/Desligada/.test(await texto(page, '#eaMarcadorValor')) && !(await existe(page, '#eaNovaBtn')) && /Não é a Estrutura Organizacional do Mapa/.test(await texto(page, '#adminEstruturaAtual')), 'DESLIGADO: só consulta, sem "Nova unidade"; separado das Estruturas do Mapa');
     await page.click('#eaMarcadorDet > summary'); await page.click('#eaMarcadorGravar');
     await page.waitForSelector('#eaErro'); afirma(/motivo/i.test(await texto(page, '#eaErro')), 'liberar exige motivo');
-    await page.click('#eaMarcadorDet > summary').catch(() => {});
     await page.evaluate(() => { document.getElementById('eaMarcadorDet').open = true; });
     await page.fill('#eaMarcadorMotivo', 'Homologação da GECON (teste)'); await page.click('#eaMarcadorGravar');
     await page.waitForSelector('#eaNovaBtn');

@@ -1241,7 +1241,13 @@
         '<textarea id="poAtuacao_descricao" class="avp-observacao" rows="3" maxlength="2000" aria-describedby="poDescAjuda" placeholder="Ex.: Gerir o planejamento e execução orçamentária.">' + esc(desc) + '</textarea>' +
         '<p class="avp-ficha-meta" id="poDescAjuda">Você pode copiar diretamente uma atribuição da área. Não precisa reformular o texto.</p></div>' +
         (f.precisaNome || longa ? '<div class="avp-field"><label for="poAtuacao_nome">Nome curto *</label><input type="text" id="poAtuacao_nome" maxlength="200" value="' + esc(f.nome || '') + '" aria-describedby="poNomeAjuda">' +
-          '<p class="avp-ficha-meta" id="poNomeAjuda">O cadastro aceita nomes de até 200 caracteres e a descrição tem mais que isso. Pode ser um trecho do texto; a descrição completa é guardada como está.</p></div>' : '');
+          '<p class="avp-ficha-meta" id="poNomeAjuda">O cadastro aceita nomes de até 200 caracteres e a descrição tem mais que isso. Pode ser um trecho do texto; a descrição completa é guardada como está.</p></div>' : '') +
+        /* referência informativa (opcional, recolhida): só consulta, não participa do cálculo */
+        '<details class="po-mais" id="poMaisInfo"' + (f.ref ? ' open' : '') + '><summary>Referência a uma Avaliação de Produto/Serviço (opcional)</summary>' +
+        '<div class="avp-field"><label for="poAtuacaoRef">Referência informativa a uma Avaliação de Produto/Serviço</label>' +
+        '<select id="poAtuacaoRef" class="avp-select"><option value="">Nenhuma</option>' + opcoesReferencia().map(function (o) {
+          return '<option value="' + esc(o.id) + '"' + (o.motivo ? ' disabled' : '') + (f.ref === o.id ? ' selected' : '') + '>' + esc(o.nome) + (o.motivo ? ' — ' + esc(o.motivo) : '') + '</option>';
+        }).join('') + '</select><p class="avp-ficha-meta">Só para consulta: não participa do cálculo.</p></div></details>';
       if (f.erros && f.erros.length) h += '<div class="avp-error-msg" id="poAtuacaoErros" role="alert"><ul>' + f.erros.map(function (e) { return '<li>' + esc(textoErroAtuacao(e)) + '</li>'; }).join('') + '</ul></div>';
       var rot = state.salvando === 'atuacao-criacao' ? 'SALVANDO…' : 'Registrar e avaliar';
       return h + '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="poSalvarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + rot + '</button>' +
@@ -1255,7 +1261,7 @@
       f.erros = null;
       var id = novaChave(O().NODE), audId = novaChave(O().AUD + '/' + id), payload;
       var dados = O().dadosSimplificados({ texto: desc, nomeCurto: f.nome });
-      try { payload = O().payloadCriacao({ id: id, audId: audId, dados: dados, usuario: u, agora: S().agoraServidor() }); }
+      try { payload = O().payloadCriacao({ id: id, audId: audId, dados: dados, referenciaItemId: f.ref || undefined, usuario: u, agora: S().agoraServidor() }); }
       catch (e) { f.erros = e.erros || [{ codigo: 'ERRO' }]; render(); return; }
       state.salvando = 'atuacao-criacao'; render();
       gravar(payload, function () {
@@ -1263,7 +1269,7 @@
         state.flash = '✓ Responsabilidade registrada. Para começar o O1–O9, registre a hipótese inicial e clique em "Iniciar o Posicionamento".'; render();
       }, function () {
         state.salvando = null; render();
-        aviso('Não foi possível registrar a responsabilidade. Tente de novo.');
+        aviso('Não foi possível registrar a responsabilidade. Se escolheu uma referência, confira se o item não ganhou um Posicionamento ou outra responsabilidade.');
       });
     }
     function usuarioObjeto() { var i = S().identidade(), s = sessaoAtual(); return i && s ? { uid: i.uid, email: i.email, name: s.name } : null; }
@@ -1531,7 +1537,6 @@
       var encb = byId('poEncerrarAtuacaoBtn'); if (encb) encb.addEventListener('click', pedirEncerramentoAtuacao);
       ['nome', 'descricao', 'finalidade', 'contexto'].forEach(function (c) { var el = byId('poAtuacao_' + c); if (el) el.addEventListener('input', function () { if (state.formAtuacao) state.formAtuacao[c] = el.value; }); });
       var rsel = byId('poAtuacaoRef'); if (rsel) rsel.addEventListener('change', function () { if (state.formAtuacao) state.formAtuacao.ref = rsel.value; });
-      Array.prototype.forEach.call(document.querySelectorAll('input[name="poSeparar"]'), function (el) { el.addEventListener('change', function () { if (state.formAtuacao) { state.formAtuacao.separar = el.value; var m = byId('poMaisInfo'); state.formAtuacao.maisAberto = !!(m && m.open); render(); var r = document.querySelector('input[name="poSeparar"][value="' + el.value + '"]'); if (r) r.focus(); } }); });
       var sab = byId('poSalvarAtuacaoBtn'); if (sab) sab.addEventListener('click', salvarAtuacao);
       var cab = byId('poCancelarAtuacaoBtn'); if (cab) cab.addEventListener('click', function () { var ed = state.objetoEditando; state.formAtuacao = null; state.objetoEditando = null; state.itemEscolhido = ed || null; state.tela = 'atuacoes'; render(); });
       wrap.querySelectorAll('.po-abrir, .po-item-abrir').forEach(function (b) { b.addEventListener('click', function () { irParaChave(b.dataset.key); }); });
