@@ -119,13 +119,14 @@ async function jornada(browser, viewport, rotulo) {
   await page.waitForSelector('#poHipoteseIniciar');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarAtuacaoBtn'); await page.waitForSelector('#poChecklist');
   for (const [q, v] of [['O1', 'SIM'], ['O2', 'NAO'], ['O3', 'NAO'], ['O4', 'NAO'], ['O5', 'NAO']]) { await page.click('.po-resp[data-q="' + q + '"][data-v="' + v + '"]'); await page.waitForTimeout(80); }
-  await page.waitForSelector('#poApoioO7O9');
+  await page.waitForSelector('#poApoioO7O9', { state: 'attached' });
   afirma(!(await page.evaluate(() => document.getElementById('poApoioO7O9').open)), 'P1. o apoio começa recolhido (não é questionário obrigatório)');
-  await page.click('#poApoioO7O9 > summary');
+  await page.click('#poAbrirApoioO7O9');
+  await esperar(page, () => { const d = document.getElementById('poApoioO7O9'); return !!d && d.open && document.getElementById('poTiposEstrutura').open; });
   const ap = await texto(page, '#poApoioO7O9');
-  afirma(/hipóteses de orientação, não novos critérios oficiais/.test(ap) && /hipotéticos e não descrevem a classificação de nenhuma área da PREVI/.test(ap), 'P1. declarado como orientação, com exemplos hipotéticos');
+  afirma(/Orientações para investigar, não novos critérios oficiais/.test(ap) && /hipotéticos e não classificam nenhuma área da PREVI/.test(ap), 'P1. declarado como orientação, com exemplos hipotéticos');
   afirma(/observar onde termina a cadeia de valor e de quem são as regras/.test(await texto(page, '#poApoioAjudaOficial')), 'P1. confrontado com a Ajuda oficial da O9');
-  afirma(await page.evaluate(() => document.querySelectorAll('#poApoioPerguntas li').length) === 6 && /indispensável/.test(await texto(page, '#poApoioPerguntas')), 'P1. seis perguntas de orientação (inclusive "ser indispensável basta?")');
+  afirma(await page.evaluate(() => document.querySelectorAll('#poApoioPerguntas li').length) === 6 && /indispensável/.test(await texto(page, '#poApoioIndispensavel')), 'P1. seis pontos a verificar e "ser indispensável não basta"');
   const ex = await texto(page, '#poApoioExemplos');
   afirma(['Contabilidade gerencial', 'Contabilização de eventos operacionais', 'Gestão do processo contábil', 'Gestão orçamentária', 'Obrigações contábeis e tributárias', 'Jurídico', 'Gestão de Pessoas', 'Serviços de negócio compartilhados'].every((x) => ex.indexOf(x) !== -1), 'P1. exemplos contrastantes (evidência para O7 × para O9)');
   afirma(/Quando as duas parecem se aplicar/.test(ap) && /esclareça/.test(ap), 'P1. quando as duas se aplicam e o que esclarecer');

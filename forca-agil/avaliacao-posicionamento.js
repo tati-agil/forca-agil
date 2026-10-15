@@ -561,7 +561,7 @@
     if (nao) nao.addEventListener('click', function () { fechar(); if (opcoes.aoNao) opcoes.aoNao(); });
     box.querySelector('.po-modal-sim').addEventListener('click', function () {
       var erro = opcoes.aoSim ? opcoes.aoSim(box) : null;
-      if (erro) { var e = box.querySelector('.po-modal-erro'); e.textContent = erro; e.hidden = false; return; }
+      if (erro) { var e = box.querySelector('.po-modal-erro'); e.textContent = erro; e.hidden = false; e.setAttribute('role', 'alert'); if (e.scrollIntoView) e.scrollIntoView({ block: 'nearest', behavior: 'instant' }); return; }
       fechar();
     });
     return { fechar: fechar, box: box };
@@ -710,7 +710,7 @@
     function limparAtual() { state.atual = null; state.chave = null; state.sujo = false; state.conflito = false; state.flash = null; state.formDecisao = null; state.flashExportacao = null; state.menuExportarAberto = false; }
     function abrirChave(key) {
       var rec = state.registros[key];
-      if (key !== state.chave) { state.apoioSemInfo = false; state.apoioO7O9Aberto = false; } /* o apoio O7 × O9 é desta avaliação, não da próxima */
+      if (key !== state.chave) { state.apoioSemInfo = false; state.apoioO7O9Aberto = false; state.tiposAberto = false; } /* o apoio O7 × O9 é desta avaliação, não da próxima */
       limparAtual();
       if (!rec) { state.tela = 'nao-encontrada'; state.pendente = key; return; }
       state.chave = key;
@@ -968,6 +968,8 @@
         ' continua vigente até esta ser concluída; descartar esta reavaliação não muda nada nela.</p><p><strong>Motivo:</strong> ' + esc(a.motivoReavaliacao) + '</p>' +
         '<p class="avp-ficha-meta">As respostas da versão anterior vieram preenchidas; perguntas cuja redação mudou precisam ser respondidas de novo.</p></div>';
       h += '<p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
+      /* consulta aos tipos de estrutura (e ao apoio O7 × O9) desde o começo, sem responder nada */
+      h += tiposEstruturaHtml(edita && !state.naoConfirmada);
       /* gravação não confirmada: as respostas ficam à vista, travadas até a resposta do servidor */
       var cam = caminho(a);
       ORDEM_NIVEIS.forEach(function (n) {
@@ -980,7 +982,7 @@
           '<li>Um só SIM entre O6 e O9 → o tipo indicado por essa pergunta.</li>' +
           '<li>Dois SIM → o sistema pergunta se descrevem a mesma responsabilidade ou responsabilidades distintas; nos dois casos o resultado fica "A validar", para decisão de uma pessoa.</li>' +
           '<li>Nenhum SIM → "A validar" (evidência insuficiente).</li></ul>' +
-          '<p class="avp-ficha-meta" id="poComoNivelN3Evidencia">NÃO afirma que a característica não se aplica. Se você não tiver evidências suficientes para responder O7 ou O9, não marque NÃO só por insegurança: salve o rascunho e busque esclarecimentos antes de concluir. A Observação registra o contexto, mas não transforma uma resposta incerta em evidência. Dúvida entre O7 e O9? Veja a Ajuda da O9 e o apoio abaixo.</p></details>' + apoioO7O9Html(edita && !state.naoConfirmada);
+          '<p class="avp-ficha-meta" id="poComoNivelN3Evidencia">NÃO afirma que a característica não se aplica. Se você não tiver evidências suficientes para responder O7 ou O9, não marque NÃO só por insegurança: salve o rascunho e busque esclarecimentos antes de concluir. A Observação registra o contexto, mas não transforma uma resposta incerta em evidência. Dúvida entre O7 e O9? Veja a Ajuda da O9 e o apoio O7 × O9.</p></details>' + '<button type="button" class="btn btn--sm" id="poAbrirApoioO7O9">Ver o apoio O7 × O9</button>';
         qs.forEach(function (q) { h += renderPergunta(q, versao, edita && !state.naoConfirmada, vm); });
         if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita && !state.naoConfirmada, vm);
         var pn = predominanciaNecessaria(a, n);
@@ -1012,7 +1014,7 @@
     function renderPergunta(q, versao, edita, vm) {
       var c = conteudo(q, versao, vm), r = respostaDe(q), v = r && r.resposta;
       var h = '<div class="avp-question po-pergunta" data-q="' + q + '"><div class="avp-question-head"><span class="avp-question-num">' + q + '</span>' +
-        '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' + avisoHeranca(q, null) + renderAjuda(c);
+        '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' + avisoHeranca(q, null) + renderAjuda(c) + comoInvestigarHtml(q);
       h += '<div class="avp-choice-group">' + ['SIM', 'NAO'].map(function (val) {
         return '<button type="button" class="avp-choice-btn avp-choice-btn--' + (val === 'SIM' ? 'sim' : 'nao') + ' po-resp' + (v === val ? ' active ativa' : '') + '" data-q="' + q + '" data-v="' + val + '"' + (edita ? '' : ' disabled') + '>' + (val === 'SIM' ? 'SIM' : 'NÃO') + '</button>';
       }).join('') + '</div>';
@@ -1119,39 +1121,78 @@
       return { 'erro-objeto': 'Não foi possível ler a responsabilidade organizacional agora.', verificando: 'Verificando a responsabilidade organizacional…',
         'objeto-ausente': 'A responsabilidade organizacional não foi encontrada.', 'objeto-excluido': 'O cadastro desta responsabilidade foi excluído: ela não recebe nova avaliação. O que já foi registrado continua como histórico.', 'objeto-encerrado': 'A responsabilidade organizacional está encerrada: ela não recebe nova avaliação.' }[sit] || sit;
     }
-    /* APOIO À DECISÃO O7 × O9 — antes de responder. São hipóteses de orientação, NÃO critérios oficiais: os critérios
-       são a pergunta e a Ajuda oficial (versionadas no ADMIN). Nada aqui responde pela pessoa, grava resposta ou cria
-       estado novo; "Ainda não tenho informações suficientes" só salva o rascunho como está e orienta o que buscar. */
+    /* APOIO À DECISÃO O7 × O9. São orientações para investigar, NÃO critérios oficiais: os critérios são a pergunta e a
+       Ajuda oficial (versionadas no ADMIN). Coerente com elas: a O7 não exige que o objeto seja previdenciário ou
+       financeiro nem que a entrega chegue ao participante; ser indispensável não basta. Nada aqui responde pela pessoa,
+       grava resposta ou cria estado novo; "Ainda não tenho informações suficientes" só salva o rascunho como está. */
     function apoioO7O9Html(edita) {
       var aberto = !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
       return '<details class="po-apoio" id="poApoioO7O9"' + (aberto ? ' open' : '') + '><summary>Está em dúvida entre Habilitadora de Negócios (O7) e Gestão Corporativa (O9)?</summary>' +
-        '<p class="avp-ficha-meta" id="poApoioNatureza">Apoio para pensar antes de responder. São hipóteses de orientação, não novos critérios oficiais: valem a pergunta e a Ajuda oficial de cada uma. Os exemplos são hipotéticos e não descrevem a classificação de nenhuma área da PREVI.</p>' +
-        '<h5>A diferença, em poucas palavras</h5>' +
-        '<p><strong>O7 — Habilitadora de Negócios:</strong> oferece capacidades ou serviços de negócio que as Linhas usam para entregar valor previdenciário ou financeiro aos participantes. Faz parte da cadeia de valor dos produtos.</p>' +
-        '<p><strong>O9 — Gestão Corporativa:</strong> oferece serviços para administrar e controlar a própria organização, para o cliente interno, de forma padronizada.</p>' +
-        '<p id="poApoioAjudaOficial">A Ajuda oficial da O9 orienta: <em>observar onde termina a cadeia de valor e de quem são as regras</em>. As perguntas abaixo detalham essa orientação, sem substituí-la.</p>' +
-        '<h5>Perguntas para guiar a sua análise</h5><ol class="po-apoio-perguntas" id="poApoioPerguntas">' +
-        '<li>Qual é a entrega predominante desta responsabilidade?</li>' +
-        '<li>Ela ajuda a operar os produtos e serviços aos participantes, ou a administrar e controlar a organização?</li>' +
-        '<li>Quem consome o que ela entrega, e para quê?</li>' +
-        '<li>Onde o trabalho termina na cadeia de valor: chega ao participante por meio de uma Linha, ou fica dentro da organização?</li>' +
-        '<li>Quem estabelece as regras do trabalho: o negócio dos produtos, ou a administração, a regulação e o controle internos?</li>' +
-        '<li>Ser indispensável basta? Não: quase tudo é indispensável. Ser necessário para as Linhas não torna, por si só, uma responsabilidade O7.</li></ol>' +
-        '<h5>Exemplos hipotéticos para contrastar</h5><div class="table-scroll-wrap"><table class="admin-table po-apoio-tabela" id="poApoioExemplos"><thead><tr><th>Exemplo hipotético</th><th>Evidência que aproximaria de O7</th><th>Evidência que aproximaria de O9</th></tr></thead><tbody>' +
-        [['Contabilidade gerencial', 'Análises usadas pelas Linhas para operar ou precificar produtos', 'Informações para a gestão e o controle internos'],
-          ['Contabilização de eventos operacionais', 'Regras definidas pelos produtos, feitas para várias Linhas em escala', 'Registro contábil padrão de toda a organização'],
-          ['Gestão do processo contábil', 'Raramente: só se o processo fizer parte da entrega aos participantes', 'Administração e controle do processo, com regras corporativas e regulatórias'],
-          ['Gestão orçamentária', 'Raramente: o orçamento não chega ao participante', 'Planejamento e controle dos recursos da organização'],
-          ['Obrigações contábeis e tributárias', 'Raramente: cumprir obrigações não entrega valor aos participantes', 'Conformidade e controle da organização perante terceiros'],
-          ['Jurídico', 'Só se o serviço for uma capacidade de negócio usada em escala pelas Linhas', 'Serviço à própria organização (vale conferir antes se O2 já se aplica)'],
-          ['Gestão de Pessoas', 'Raramente', 'Serviço ao cliente interno, padronizado'],
-          ['Serviços de negócio compartilhados', 'Capacidade de negócio usada por várias Linhas para atender participantes', 'Só se, na verdade, servir à administração interna']
+        '<p class="avp-ficha-meta" id="poApoioNatureza">Orientações para investigar, não novos critérios oficiais: valem a pergunta e a Ajuda oficial de cada uma. Os exemplos são hipotéticos e não classificam nenhuma área da PREVI.</p>' +
+        '<h5>O que cada pergunta descreve</h5>' +
+        '<p><strong>O7 — Habilitadora de Negócios:</strong> desenvolver e fornecer capacidades, serviços ou soluções de negócio compartilhados, consumidos em escala por diferentes Linhas e times.</p>' +
+        '<p><strong>O9 — Gestão Corporativa:</strong> oferecer serviços corporativos ao cliente interno, preferencialmente por soluções digitais e autosserviço padronizados, buscando escala e previsibilidade.</p>' +
+        '<p id="poApoioNaoParticipante"><strong>A O7 não exige entrega direta ao participante.</strong> A Ajuda oficial da O7 diz que não é necessário que o objeto seja previdenciário ou financeiro. Por isso, "não chega ao participante" não decide, sozinho, entre O7 e O9.</p>' +
+        '<p id="poApoioAjudaOficial">A Ajuda oficial da O9 orienta a <em>observar onde termina a cadeia de valor e de quem são as regras</em>. As perguntas abaixo detalham o que verificar, sem substituí-la.</p>' +
+        '<h5>O que verificar</h5><ol class="po-apoio-perguntas" id="poApoioPerguntas">' +
+        '<li><strong>Natureza da entrega:</strong> é uma capacidade, serviço ou solução de negócio, ou um serviço corporativo ao cliente interno?</li>' +
+        '<li><strong>Quem consome e para quê:</strong> diferentes Linhas e times, para conduzir as suas soluções de negócio, ou a organização, para se administrar?</li>' +
+        '<li><strong>Operação ou administração:</strong> a responsabilidade integra a operação e a entrega de soluções de negócio, ou atende principalmente à administração e ao controle corporativo?</li>' +
+        '<li><strong>Quem define as regras:</strong> o negócio das soluções que a consomem, ou a administração, a regulação e o controle corporativos?</li>' +
+        '<li><strong>Cadeia de valor:</strong> em que ponto a entrega participa — sustentando soluções de negócio das Linhas, ou o funcionamento interno da organização?</li>' +
+        '<li><strong>Uma ou várias:</strong> o nome reúne trabalhos de naturezas diferentes? Se sim, talvez sejam responsabilidades distintas.</li></ol>' +
+        '<p id="poApoioIndispensavel">Ser indispensável às Linhas não é evidência suficiente para O7: quase tudo é indispensável.</p>' +
+        '<h5>Exemplos hipotéticos: que evidência aproximaria de cada uma</h5><div class="table-scroll-wrap"><table class="admin-table po-apoio-tabela" id="poApoioExemplos"><thead><tr><th>Exemplo hipotético</th><th>Evidência que aproximaria de O7</th><th>Evidência que aproximaria de O9</th></tr></thead><tbody>' +
+        [['Contabilidade gerencial', 'Análises oferecidas como serviço compartilhado, consumidas em escala por diferentes Linhas para conduzir as suas soluções', 'Informações para a administração e o controle da organização como um todo'],
+          ['Contabilização de eventos operacionais', 'Capacidade compartilhada que diferentes Linhas usam para processar os eventos das suas soluções, com regras vindas do negócio', 'Serviço contábil padronizado prestado à organização, com regras corporativas e regulatórias'],
+          ['Gestão do processo contábil', 'O processo é oferecido como capacidade de negócio consumida por diferentes Linhas e times', 'O processo serve ao fechamento, à administração e ao controle da própria organização'],
+          ['Gestão orçamentária', 'O serviço é usado pelas Linhas, em escala, como parte da gestão das suas soluções de negócio', 'Planejamento e controle dos recursos da organização'],
+          ['Obrigações contábeis e tributárias', 'O serviço é consumido pelas Linhas como parte da operação das suas soluções', 'Conformidade e controle da organização perante terceiros'],
+          ['Jurídico', 'Serviço jurídico padronizado, consumido em escala por diferentes Linhas como parte das suas soluções', 'Serviço jurídico prestado à própria organização (vale conferir antes se a O2 já se aplica)'],
+          ['Gestão de Pessoas', 'Capacidade de pessoas oferecida, em escala, como parte das soluções de negócio das Linhas', 'Serviço ao cliente interno, padronizado, de preferência por autosserviço'],
+          ['Serviços de negócio compartilhados', 'Capacidade de negócio consumida por diferentes Linhas e times', 'O serviço, na verdade, atende à administração interna']
         ].map(function (x) { return '<tr><td data-label="Exemplo hipotético">' + x[0] + '</td><td data-label="Aproximaria de O7">' + x[1] + '</td><td data-label="Aproximaria de O9">' + x[2] + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        '<p class="avp-ficha-meta">Os exemplos mostram evidências possíveis para cada lado; nenhum deles diz qual predomina. O nome da responsabilidade não decide.</p>' +
         '<h5>Quando as duas parecem se aplicar</h5><p>Responda SIM nas duas só se as duas forem verdadeiras. O sistema então pergunta se elas descrevem a mesma responsabilidade ou responsabilidades distintas, e o resultado fica "A validar", para decisão de uma pessoa. Se forem trabalhos distintos, considere separar a responsabilidade.</p>' +
-        '<h5>Se ainda estiver em dúvida, esclareça</h5><ul><li>quem consome a entrega e para quê;</li><li>quem define as regras e em qual documento elas estão;</li><li>se o resultado chega ao participante por uma Linha.</li></ul>' +
-        '<p class="avp-ficha-meta">Fontes possíveis: a gestão da área, normativos, regimento interno e a descrição dos produtos.</p>' +
-        (state.apoioSemInfo ? '<p class="avp-flash-success" id="poApoioSemInfoNota" role="status">' + (edita ? 'O rascunho fica salvo como está, sem nenhuma resposta nova. ' : '') + 'Busque as informações acima e volte para responder O7 e O9. Não marque NÃO só por insegurança.</p>'
+        '<h5>Se ainda estiver em dúvida, esclareça</h5><ul><li>quem consome a entrega e para quê;</li><li>quem define as regras e em qual documento elas estão;</li><li>se o nome reúne trabalhos de naturezas diferentes.</li></ul>' +
+        '<p class="avp-ficha-meta">Fontes possíveis: a gestão da área, normativos, regimento interno e a descrição das soluções atendidas.</p>' +
+        (state.apoioSemInfo ? '<p class="avp-flash-success" id="poApoioSemInfoNota" role="status">' + (edita ? 'O rascunho fica salvo como está, sem nenhuma resposta nova. ' : '') + 'Busque as informações acima e volte para responder. Não marque NÃO só por insegurança.</p>'
           : '<button type="button" class="btn btn--sm" id="poApoioSemInfo">Ainda não tenho informações suficientes</button>') + '</details>';
+    }
+    /* CONSULTA aos tipos de estrutura, disponível em qualquer ponto da avaliação: nomes e definições vigentes vêm da
+       Taxonomia (faPosicionamentos, sem texto de fábrica); a estrutura Linha → especializações → Plataformas vem dos
+       códigos do próprio motor. Só leitura: não mostra perguntas fora do caminho, não responde, não muda nada */
+    function tiposEstruturaHtml(edita) {
+      var aberto = !!state.tiposAberto || !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
+      var item = function (c, filhos) { return '<li class="po-tipo" data-tipo="' + c + '"><strong>' + spanNome(c) + '</strong>' + (P() ? P().definicaoHtml(c, null, { comEstado: true }) : '') + (filhos ? '<ul class="po-tipos-filhos">' + filhos + '</ul>' : '') + '</li>'; };
+      var plats = ['PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA', 'PLATAFORMA_CORPORATIVA'].map(function (c) { return item(c); }).join('');
+      return '<details class="po-apoio po-tipos" id="poTiposEstrutura"' + (aberto ? ' open' : '') + '><summary>Entenda os tipos de estrutura antes de responder</summary>' +
+        '<p class="avp-ficha-meta" id="poTiposNatureza">Consulta: nomes e definições vêm da Taxonomia oficial. Abrir esta consulta não muda respostas, hipótese nem resultado; as perguntas continuam na ordem do caminho.</p>' +
+        '<ul class="po-tipos-lista" id="poTiposLista">' + item('AREA_ESPECIALIZADA') + item('COE') +
+        item('LINHA', item('NEGOCIOS') + item('ESTRATEGIA_CLIENTES') + item('PLATAFORMA', plats)) + '</ul>' + apoioO7O9Html(edita) + '</details>';
+    }
+    /* O1–O5: o que verificar na responsabilidade concreta. Orientação para investigar, alinhada à pergunta e à Ajuda
+       oficial (não é critério novo nem precedência); o nome da responsabilidade não decide */
+    var INVESTIGAR = {
+      O1: ['Pelo que esta responsabilidade responde, continuamente: um propósito ou proposta de valor, com objetivos, entregas e resultados?',
+        'Ou o que ela entrega, na maior parte do tempo, são análises, pareceres e validações técnicas (isso é a O2), ou a evolução de padrões e práticas de uma disciplina (isso é a O3)?',
+        'Exemplo hipotético: "Gerir o processo contábil" pode responder por um resultado contínuo (fechamentos e demonstrações no prazo e com qualidade) ou consistir sobretudo em pareceres técnicos. Verifique o que predomina.'],
+      O2: ['A entrega principal é um julgamento técnico — análise, parecer, validação ou orientação — cuja qualidade esta estrutura assume?',
+        'Ou o conhecimento técnico é uma etapa de um serviço entregue continuamente ou padronizado em escala? Exigir conhecimento especializado, sozinho, não basta.',
+        'Quem pede a resposta e o que faz com ela?'],
+      O3: ['A responsabilidade cria e mantém padrões, métodos, práticas e competências de uma disciplina para toda a organização?',
+        'Ou executa os casos que exigem essa disciplina? Executar os casos não é evoluir a disciplina.',
+        'Há evidência de evolução transversal (guias, capacitação, maturidade) além da execução?'],
+      O4: ['O trabalho predominante é compreender públicos, necessidades, comportamentos e experiência, e organizá-los em segmentos?',
+        'Esse conhecimento orienta decisões, portfólio e atuação da organização, sem ser dedicado à entrega de uma solução específica?'],
+      O5: ['A responsabilidade é dedicada a um Produto/Serviço, a um conjunto coerente deles ou a um resultado de negócio específico para o cliente?',
+        'Ou disponibiliza uma capacidade, serviço ou meio compartilhado usado por diferentes Linhas?',
+        'Atender cliente externo, isoladamente, não basta; usar plataformas compartilhadas não transforma uma Linha de Negócios em Plataforma.']
+    };
+    function comoInvestigarHtml(q) {
+      var l = INVESTIGAR[q]; if (!l) return '';
+      return '<details class="po-investigar" id="poInvestigar_' + q + '"><summary>O que verificar para responder</summary><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
+        '<p class="avp-ficha-meta">Orientação para investigar; o critério é a pergunta e a Ajuda oficial.</p></details>';
     }
     function objetoDadosHtml(ob, nomeRegistrado) {
       /* registro de uma descrição só (cadastro simplificado): mostra a responsabilidade uma vez — nome, descrição e
@@ -1250,7 +1291,8 @@
       var out = [];
       objetosOrdenados().forEach(function (o) {
         if (o.situacao !== 'ativo') return;
-        var orig = porObj[o._id], sp = posicionamentoDoItem(o._id), l = { descricao: (O() && O().registroSimplificado(o)) ? o.descricao : o.nome, area: orig ? orig.analiseNome : null, analiseId: orig ? orig.analiseId : null, nucleos: orig ? orig.nucleos : [] };
+        var orig = porObj[o._id], sp = posicionamentoDoItem(o._id), oc = AO && AO.origemCompleta && ras !== null ? AO.origemCompleta(o._id) : { tipo: 'indisponivel' };
+        var l = { descricao: (O() && O().registroSimplificado(o)) ? o.descricao : o.nome, origem: oc.tipo, area: oc.nome || null, analiseId: oc.analiseId || null, nucleos: orig ? orig.nucleos : [] };
         if (!sp) { l.sit = 'pronta'; l.href = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(o._id); l.acao = 'Avaliar'; }
         else if (sp.tipo === 'rascunho') { l.sit = 'andamento'; l.href = '#avaliacoes?po=' + encodeURIComponent(sp.key); l.acao = 'Continuar'; }
         else {
@@ -1273,7 +1315,7 @@
       if (!state.carregou.obj || !tudoCarregado()) return h + '<p class="loading-msg">Carregando…</p></div>';
       var t = linhasTodas(), L = t.linhas, n = {};
       L.forEach(function (l) { n[l.sit] = (n[l.sit] || 0) + 1; });
-      var areas = {}; L.forEach(function (l) { if (l.analiseId) areas[l.analiseId] = l.area; });
+      var areas = {}; L.forEach(function (l) { if (l.analiseId && l.area) areas[l.analiseId] = l.area + (l.origem === 'excluida' ? ' (excluída)' : ''); });
       h += '<p class="an-resumo" id="poTodasResumo">' + L.length + ' responsabilidade' + (L.length === 1 ? '' : 's') + (L.length ? ' — ' + ['pronta', 'andamento', 'avaliada', 'avalidar', 'pendente'].filter(function (k) { return n[k]; }).map(function (k) { return n[k] + ' ' + (n[k] === 1 ? SIT_TODAS[k] : SIT_PLURAL[k]).toLowerCase(); }).join(' · ') : '') + '.</p>';
       if (!t.comAnalises) h += '<p class="avp-ficha-meta" id="poTodasSemAnalises">As responsabilidades das análises de área não estão disponíveis para o seu perfil agora; aparecem as registradas na Porta 2.</p>';
       h += '<div class="po-todas-filtros"><div class="avp-field"><label for="poTodasBusca">Buscar pela descrição</label><input type="text" inputmode="search" id="poTodasBusca" placeholder="Digite parte do texto" autocomplete="off"></div>' +
@@ -1282,9 +1324,10 @@
         '<div class="avp-field"><label for="poTodasSituacao">Situação</label><select id="poTodasSituacao"><option value="">Todas</option>' + Object.keys(SIT_TODAS).filter(function (k) { return n[k]; }).map(function (k) { return '<option value="' + k + '">' + SIT_TODAS[k] + '</option>'; }).join('') + '</select></div></div>';
       if (!L.length) return h + '<p class="admin-empty" id="poTodasVazia">Nenhuma responsabilidade registrada ainda.</p></div>';
       h += '<ul class="po-todas" id="poTodasLista">' + L.map(function (l) {
-        return '<li class="po-todas-item" data-situacao="' + l.sit + '" data-area="' + esc(l.analiseId || '-') + '" data-busca="' + esc(String(l.descricao).toLowerCase()) + '">' +
+        return '<li class="po-todas-item" data-situacao="' + l.sit + '" data-area="' + esc(l.analiseId || (l.origem === 'individual' ? '-' : '?')) + '" data-busca="' + esc(String(l.descricao).toLowerCase()) + '">' +
           '<div class="po-todas-texto"><strong>' + esc(l.descricao) + '</strong>' +
-          '<span class="po-todas-meta">' + (l.area ? 'Área: <a href="#avaliacoes?an=' + encodeURIComponent(l.analiseId) + '">' + esc(l.area) + '</a>' : 'Registrada individualmente') + '</span>' +
+          '<span class="po-todas-meta po-todas-origem" data-origem="' + esc(l.origem || 'analise') + '">' + (l.origem === 'excluida' ? 'Originada da análise ' + esc(l.area) + ' (excluída)' : l.area && l.origem !== 'indisponivel' ? 'Área: <a href="#avaliacoes?an=' + encodeURIComponent(l.analiseId) + '">' + esc(l.area) + '</a>'
+            : l.origem === 'individual' ? 'Registrada individualmente' : 'Origem não disponível agora') + '</span>' +
           (l.nucleos && l.nucleos.length ? '<span class="po-todas-meta">Quem executa hoje: ' + esc(l.nucleos.join('; ')) + '</span>' : '') +
           (l.tipo ? '<span class="po-todas-meta">Tipo recomendado: ' + l.tipo + '</span>' : '') +
           (l.decisao ? '<span class="po-todas-meta">Decisão final: ' + l.decisao + '</span>' : '') + '</div>' +
@@ -1516,9 +1559,10 @@
           '<label for="poMotivoExcluirAtuacao">Motivo da exclusão *</label><textarea id="poMotivoExcluirAtuacao" rows="3" maxlength="500"></textarea>' +
           (exc ? '<label class="avp-decisao-option"><input type="checkbox" id="poExcConfirmo"> Confirmo a exclusão excepcional: o cadastro sai e o Posicionamento já registrado fica só como histórico.</label>' : ''),
           { sim: exc ? 'Excluir (excepcional)' : 'Excluir cadastro', nao: 'Cancelar', aoSim: function (box) {
-            var m = String(box.querySelector('#poMotivoExcluirAtuacao').value || '').trim();
-            if (!m) return 'Informe o motivo da exclusão.';
-            if (exc && !box.querySelector('#poExcConfirmo').checked) return 'Marque a confirmação da exclusão excepcional.';
+            var campoM = box.querySelector('#poMotivoExcluirAtuacao'), campoC = box.querySelector('#poExcConfirmo'), m = String(campoM.value || '').trim();
+            [campoM, campoC].forEach(function (x) { if (x) { x.removeAttribute('aria-invalid'); (x.closest('label') || x).classList.remove('po-campo-pendente'); } });
+            if (!m) { campoM.setAttribute('aria-invalid', 'true'); campoM.classList.add('po-campo-pendente'); campoM.focus(); return 'Informe o motivo da exclusão para continuar.'; }
+            if (exc && !campoC.checked) { campoC.setAttribute('aria-invalid', 'true'); campoC.closest('label').classList.add('po-campo-pendente'); campoC.focus(); return 'Marque a confirmação da exclusão excepcional para continuar.'; }
             excluirAtuacao(id, ob, m, dep);
             return null;
           } });
@@ -1838,6 +1882,11 @@
       });
       var sal = byId('poSalvarBtn'); if (sal) sal.addEventListener('click', salvar);
       var apo = byId('poApoioO7O9'); if (apo) apo.addEventListener('toggle', function () { state.apoioO7O9Aberto = apo.open; });
+      var tip = byId('poTiposEstrutura'); if (tip) tip.addEventListener('toggle', function () { state.tiposAberto = tip.open; });
+      var irApo = byId('poAbrirApoioO7O9'); if (irApo) irApo.addEventListener('click', function () {
+        state.tiposAberto = true; state.apoioO7O9Aberto = true; render();
+        var alvo = byId('poApoioO7O9'); if (alvo) { alvo.scrollIntoView({ block: 'start', behavior: 'instant' }); var sm = alvo.querySelector('summary'); if (sm) sm.focus({ preventScroll: true }); }
+      });
       var semInfo = byId('poApoioSemInfo'); if (semInfo) semInfo.addEventListener('click', function () {
         state.apoioSemInfo = true; state.apoioO7O9Aberto = true;
         /* só salva o que já está no rascunho (sem resposta nova); sem permissão de gravar, só orienta */
