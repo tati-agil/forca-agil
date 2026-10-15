@@ -2687,6 +2687,8 @@
       if (sq && !sq.hidden) return 'motor-squad';
       var et = document.getElementById('adminEstruturas');
       if (et && !et.hidden) return 'estruturas';
+      var ea = document.getElementById('adminEstruturaAtual');
+      if (ea && !ea.hidden) return 'estrutura-atual';
       return AREAS_ADMIN[state.tela] || 'inicio';
     }
     function areaDoEndereco() {
@@ -2752,12 +2754,14 @@
       return !!((state.config && state.config.sujo) || (state.configMotores && state.configMotores.sujo) ||
         (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) ||
         (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()) ||
-        (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()));
+        (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()) ||
+        (window.faEstruturaAtualAdmin && window.faEstruturaAtualAdmin.temAlteracaoNaoSalva()));
     }
     function abrirAreaAdmin(area) {
       if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelArquitetura');
       if (window.faAvaliacaoSquadAdmin && area !== 'motor-squad') window.faAvaliacaoSquadAdmin.fechar();
       if (window.faEstruturasAdmin && area !== 'estruturas') window.faEstruturasAdmin.fechar();
+      if (window.faEstruturaAtualAdmin && area !== 'estrutura-atual') window.faEstruturaAtualAdmin.fechar();
       state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
       if (area === 'questionarios') abrirConfigQuestionarios();
       else if (area === 'motores') abrirConfigMotores();
@@ -2767,7 +2771,21 @@
       else if (area === 'motor-squad' && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; render(); abrirMotorSquadDoInicio(); }
       else if (area === 'estruturas' && estruturasDisponiveis()) { state.tela = 'admin-inicio'; render(); abrirEstruturasDoInicio(); }
       else if (area === 'estruturas' && habilitacaoEstruturasPendente()) { estruturasPendente = location.hash; state.tela = 'admin-inicio'; render(); } /* reaplicado quando o marcador chegar */
+      else if (area === 'estrutura-atual' && estruturaAtualDisponivel()) { state.tela = 'admin-inicio'; render(); abrirEstruturaAtualDoInicio(); }
+      else if (area === 'estrutura-atual' && !perfisResolvidos()) { estruturaAtualPendente = location.hash; state.tela = 'admin-inicio'; render(); } /* reaplicado quando o perfil chegar */
       else { state.tela = 'admin-inicio'; render(); }
+    }
+    /* Estrutura Organizacional Atual (estrutura-atual-tela.js): consultam os três perfis da Avaliação */
+    function estruturaAtualDisponivel() { return !!(window.faEstruturaAtualAdmin && window.faEstruturaAtualAdmin.disponivel()); }
+    function perfisResolvidos() { return !!(window.faAuth && (!window.faAuth.isAvaliacaoReady || window.faAuth.isAvaliacaoReady())); }
+    var estruturaAtualPendente = null;
+    window.addEventListener('fa-avaliacao-ready', function () {
+      if (estruturaAtualPendente && location.hash === estruturaAtualPendente && estruturaAtualDisponivel()) { estruturaAtualPendente = null; abrirEstruturaAtualDoInicio(); }
+    });
+    function abrirEstruturaAtualDoInicio() {
+      state.rolagemInicio = window.pageYOffset || 0;
+      window.faEstruturaAtualAdmin.abrir({ rotulo: ROTULO_ADMIN, voltar: function () { state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0); } });
+      sincronizarEnderecoAdmin();
     }
     /* Voltar/Avançar do navegador, link colado ou F5 com #admin?arq=<área>. */
     function aplicarEnderecoAdmin() {
@@ -3424,19 +3442,20 @@
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
         '<div class="avp-inicio-cartoes">' +
         '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1</p><h4>Avaliar se é Produto/Serviço</h4>' +
-        '<p>Verifique se o item constitui um Produto/Serviço independente. Caso não seja, a avaliação identifica sua natureza arquitetural ou indica a necessidade de validação.</p>' +
+        '<p>Descubra se um item constitui um Produto/Serviço.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
         '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
         /* Porta 2: dois caminhos com o mesmo peso, que terminam no mesmo O1–O9 — A (uma responsabilidade) e B (uma área) */
         '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionamento Organizacional</h4>' +
+        '<p>Descubra qual tipo arquitetural é recomendado para cada responsabilidade organizacional.</p>' +
         '<p class="avp-inicio-sigla">Questionário O1–O9 — o mesmo nos dois caminhos</p>' +
         '<div class="avp-inicio-opcoes">' +
-        '<div class="avp-inicio-opcao" id="avpInicioOpcaoA"><p class="avp-inicio-opcao-rotulo">Caminho A · Avaliar uma responsabilidade</p>' +
-        '<p>Já sabe qual responsabilidade deseja avaliar? Informe sua descrição e siga para o O1–O9.</p>' +
+        '<div class="avp-inicio-opcao" id="avpInicioOpcaoA"><p class="avp-inicio-opcao-rotulo">Caminho A · Uma responsabilidade</p>' +
+        '<p>Já sabe qual responsabilidade deseja avaliar?</p>' +
         (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Avaliar uma responsabilidade')
           : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Avaliar uma responsabilidade é do perfil Avaliação + Configuração. As já posicionadas aparecem na Jornada.</p>') + '</div>' +
-        '<div class="avp-inicio-opcao" id="avpInicioOpcaoB"><p class="avp-inicio-opcao-rotulo">Caminho B · Analisar uma área</p>' +
-        '<p>Quer analisar uma gerência, núcleo ou área que reúne várias responsabilidades? Registre-as e acompanhe cada avaliação individualmente.</p>' +
+        '<div class="avp-inicio-opcao" id="avpInicioOpcaoB"><p class="avp-inicio-opcao-rotulo">Caminho B · Uma área com várias responsabilidades</p>' +
+        '<p>Quer analisar uma gerência, núcleo ou área que reúne várias responsabilidades?</p>' +
         '<div id="avpInicioCaminhoBVaga">' + caminhoAssistidoHtml() + '</div></div>' +
         '</div></div></div>' +
         '<p class="avp-inicio-nota" id="avpInicioNota">As duas portas podem chegar ao Posicionamento; nenhuma é etapa da outra. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +
@@ -5026,6 +5045,11 @@
           cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'),
           'na etapa "Estrutura concreta" da Jornada, na estrutura responsável da ficha do Posicionamento e no Mapa da Floresta.');
       }
+      if (estruturaAtualDisponivel()) {
+        html += grupo('Estrutura organizacional atual', 'As unidades como existem hoje — diretorias, gerências, núcleos —, com a unidade superior. Não é a Estrutura Organizacional do Mapa: não tem tipo arquitetural nem vínculo formal.',
+          cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Árvore das unidades, ficha com histórico, subordinadas e encerramento com motivo.'),
+          'na Porta 2: para escolher a área analisada e quem executa cada responsabilidade hoje.');
+      }
       /* Análise Organizacional (Porta 2): o marcador de homologação — só admin geral (analises-organizacionais.js) */
       if (souAdminGeral() && window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao) {
         html += '<section class="avp-form-card avp-admin-inicio avp-admin-grupo" aria-label="Análise Organizacional"><h4>Análise Organizacional (Porta 2)</h4>' +
@@ -5046,6 +5070,8 @@
       if (squadBtn) squadBtn.addEventListener('click', abrirMotorSquadDoInicio);
       var estruturasBtn = document.getElementById('avpEstruturasBtn');
       if (estruturasBtn) estruturasBtn.addEventListener('click', abrirEstruturasDoInicio);
+      var estruturaAtualBtn = document.getElementById('avpEstruturaAtualBtn');
+      if (estruturaAtualBtn) estruturaAtualBtn.addEventListener('click', abrirEstruturaAtualDoInicio);
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
       document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);

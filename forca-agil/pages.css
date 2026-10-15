@@ -3449,7 +3449,8 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-item:hover, .an-item:focus-visible { border-color: var(--accent-2); outline: none; }
 .an-item-nome { font-weight: 700; overflow-wrap: anywhere; }
 .an-item-det { grid-column: 1; color: var(--ink-2); font-size: .88rem; }
-.an-item .an-chip { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.an-item .an-chip, .an-item-acao { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+.an-item-homonima { font-size: .82rem; }
 .an-chip { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: .76rem; font-weight: 700; white-space: nowrap; vertical-align: 1px; }
 .an-chip--ok { background: rgba(24,194,186,.14); color: var(--cyan-soft); border: 1px solid rgba(24,194,186,.45); }
 .an-chip--pend { background: rgba(245,197,24,.08); color: var(--gold-soft); border: 1px solid rgba(245,197,24,.4); }
@@ -3492,7 +3493,8 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-proposta p { margin: 0; overflow-wrap: anywhere; }
 .an-aprovacao { padding: 8px 10px; border-left: 3px solid var(--cyan); background: rgba(24,194,186,.06); border-radius: 0 8px 8px 0; }
 .an-eventos { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
-.an-entrada { margin: 8px 0 12px; padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: 10px; display: grid; gap: 8px; }
+.an-entrada { margin: 8px 0 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.po-subtitulo { margin: 16px 0 8px; font-size: 1rem; }
 .an-entrada p { margin: 0; color: var(--ink-2); }
 .an-origem { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--ink-2); font-size: .9rem; }
 .an-habilitacao { display: grid; gap: 8px; }
@@ -3592,6 +3594,20 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
   .an-objeto-dl > div, .an-conceitos-dl > div { grid-template-columns: minmax(0, 1fr); }
   .an-criterio { grid-template-columns: minmax(0, 1fr); }
   .an-item { grid-template-columns: minmax(0, 1fr); }
-  .an-item .an-chip { grid-column: 1; grid-row: auto; justify-self: start; }
+  .an-item .an-chip, .an-item-acao { grid-column: 1; grid-row: auto; justify-self: start; }
   .an-acoes .btn { flex: 1 1 100%; justify-content: center; text-align: center; }
 }
+
+/* Estrutura Organizacional Atual (ADMIN › Avaliação e Mapa) — estrutura-atual-tela.js */
+.ea-tela { display: grid; gap: 12px; min-width: 0; }
+#adminEstruturaAtual [id] { scroll-margin-top: 88px; }
+.ea-marcador { padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel-2); }
+.ea-marcador p { margin: 0; }
+.ea-arvore { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ea-no { padding-left: calc(var(--ea-nivel, 0) * 18px); min-width: 0; }
+.ea-no-botao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line-strong); border-left: 4px solid var(--accent-2); border-radius: 10px; background: var(--panel-2); color: var(--ink); text-align: left; font: inherit; cursor: pointer; }
+.ea-no-botao:hover, .ea-no-botao:focus-visible { border-color: var(--accent-2); outline: none; }
+.ea-no-nome { font-weight: 700; overflow-wrap: anywhere; flex: 1 1 12rem; min-width: 0; }
+.ea-no--encerrada .ea-no-botao { border-left-color: var(--line-strong); opacity: .8; }
+.ea-acoes { flex-wrap: wrap; }
+@media (max-width: 480px) { .ea-no { padding-left: calc(var(--ea-nivel, 0) * 10px); } }

@@ -23,7 +23,8 @@
     ".github/scripts/teste-confirmacao-gravacao.js": "confirmação de gravação (homologação 2026-10-13) contra um Firebase Emulator real e o SDK real (goOffline/goOnline) num contêiner Docker próprio, com Playwright: roda localmente, como a jornada; a parte sem navegador está em teste-estruturas-firebase-prazo.js e teste-servicos-posicionamento.js, na suíte",
     ".github/scripts/teste-rules-mapa-subagrupadores.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-objetos-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-analises-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-analises-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-estrutura-atual.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -645,9 +646,21 @@
     },
     {
       "arquivo": ".github/scripts/teste-analises-organizacionais-usabilidade.js",
-      "nome": "Porta 2 · Análise Organizacional: usabilidade — Responsabilidade Organizacional, lista única, lote, núcleos e composição (GECON)",
+      "nome": "Porta 2 · Análise Organizacional: usabilidade — registro direto, lote, lista única, Estrutura Atual e composição (GECON)",
       "duracao": 90,
-      "sobre": "Dois caminhos convergindo para o O1–O9; telas da Porta 2 com Responsabilidade organizacional; Início com Porta 1/Porta 2; marcador desligado = Porta 2 de antes. Caminho A: atribuição colada, Não → cadastro com o texto literal (o registro declara o que repete) e O1–O9; Sim → análise. F2b opcional e condicional. GECON: dez atribuições coladas, prévia, numeração só a pedido, duplicidade com confirmação, gravação única com texto e ordem; lista única com situação e ação; Não/Sim/Não sei na linha; separar em partes; núcleos informados à mão (vários, compartilhados, nenhum inferido); Avaliar → voltar à lista; Continuar e Ver resultado pelos estados reais; composição por núcleo sem duplicar avaliação; nada no Mapa; F5; histórico. Detalhamento opcional não converte a resposta; registros anteriores avaliáveis; consulta; 375 px sem corte."
+      "sobre": "Início (Porta 1/Porta 2, caminhos A/B de mesmo peso) e Responsabilidades Organizacionais (Nova responsabilidade / Analisar uma área, sem cartões repetidos, um só Voltar). Caminho A: um campo, Registrar e avaliar → cadastro com o texto literal e O1–O9, sem análise. F2b opcional. GECON escolhida na Estrutura Organizacional Atual: dez atribuições coladas (prévia, numeração a pedido, duplicidade com confirmação, edição), registro direto — prontas, sem pergunta sobre separar e sem 'não' inventado —, doze; editar o texto com versão; quem executa hoje pela Estrutura Atual (CONTA; CONTA + NUTRI); texto antigo só com confirmação; composição por unidade com as cinco distinções; Avaliar → O1–O9 → Voltar às responsabilidades da GECON; próximo passo contextual; lista de análises com contagens, próxima ação e homônimas; F5; histórico. Registros anteriores: pendentes continuam pendentes, resposta explícita, separar. Consulta; 375 px sem corte nem sobreposição do menu."
+    },
+    {
+      "arquivo": ".github/scripts/teste-estrutura-atual-tela.js",
+      "nome": "Estrutura Organizacional Atual: tela do ADMIN (marcador, árvore, ficha, subordinadas, encerramento, histórico, perfis, 375 px)",
+      "duracao": 40,
+      "sobre": "Marcador ausente = DESLIGADO (só consulta); só o admin geral libera, com motivo e auditoria, sem tocar o marcador da Análise Organizacional. GECON e os quatro núcleos criados pela ficha da superior; árvore em ordem; edição com revisão; alterar superior sem oferecer a própria nem as subordinadas; encerrar com subordinada ativa bloqueado; encerrar com motivo (fora do índice, nada apagado); histórico; encerradas sob demanda; F5. Avaliação + Configuração mantém com o marcador liberado; Avaliação lê pela Porta 2; DESLIGADO = consulta. 375 px sem corte."
+    },
+    {
+      "arquivo": ".github/scripts/teste-estrutura-atual-nucleo.js",
+      "nome": "Estrutura Organizacional Atual: núcleo puro, em memória (sem navegador, sem Firebase)",
+      "duracao": 1,
+      "sobre": "Validação (nome, nível do domínio com Outro + texto, vigência), criação com superior, payload atômico unidade + índice + histórico com horário do servidor, hierarquia sem ciclo (ela mesma, subordinada, três níveis) e profundidade limitada (o mesmo limite das regras), edição com antes/depois, encerramento com motivo e sem subordinadas ativas, encerrada final, árvore e marcador próprio."
     },
     {
       "arquivo": ".github/scripts/teste-analises-organizacionais-nucleo.js",
