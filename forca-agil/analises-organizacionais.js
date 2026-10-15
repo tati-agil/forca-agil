@@ -1173,10 +1173,14 @@
     });
   }
   /* Início de Avaliações, no cartão da Porta 2: o atalho para o Caminho B (só quando o marcador libera a leitura) */
+  /* a ação do Caminho B segue a situação real do marcador e do perfil: nunca um botão que não funciona */
   function caminhoAssistidoInicioHtml() {
     ligarConfig();
-    var a = acesso(); if (!a.ler) return '';
-    return '<p class="avp-inicio-exemplo" id="avpInicioCaminhoB">Ainda não sabe qual responsabilidade avaliar? <a href="#avaliacoes?an=' + (a.gravar ? 'nova' : 'lista') + '" id="avpInicioAnalise">' + (a.gravar ? 'Comece por uma Análise Organizacional' : 'Veja as análises organizacionais') + '</a> (Caminho B, assistido).</p>';
+    if (D.hab === undefined || !autorizacaoResolvida()) return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">Verificando a disponibilidade…</p>';
+    var a = acesso();
+    if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=nova" id="avpInicioAnalise">Analisar uma área e suas responsabilidades</a></div>';
+    if (a.ler) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=lista" id="avpInicioAnalise">Ver as análises de áreas</a><p class="avp-inicio-perfil">Abrir uma análise é do perfil Avaliação + Configuração.</p></div>';
+    return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">' + (D.hab === 'DESLIGADO' ? 'Em preparação: ainda não disponível.' : 'Ainda não disponível para o seu perfil.') + '</p>';
   }
   /* ficha do Posicionamento de uma atuação nascida de uma análise */
   function origemDe(objetoId) {

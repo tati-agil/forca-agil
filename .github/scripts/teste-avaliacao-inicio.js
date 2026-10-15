@@ -90,15 +90,15 @@ async function rodada(browser, viewport, rotulo) {
     'uma única ação principal: abrir a Jornada');
   afirma(/Avaliar Produto\/Serviço ou outra natureza/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se o item é um Produto\/Serviço independente ou se faz parte de outra solução\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
     (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' && /P1–P16/.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-sigla')) &&
-    /Posicionar diretamente uma responsabilidade organizacional/.test(await texto(page, '#avpInicioCartaoAtuacao')) && /hipótese inicial é obrigatória e não entra no cálculo/.test(await texto(page, '#avpInicioCartaoAtuacao')),
+    /Caminho A · Avaliar uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Caminho B · Analisar uma área/.test(await texto(page, '#avpInicioOpcaoB')) && (await texto(page, '#avpInicioAtuacao')).trim() === 'Avaliar uma responsabilidade',
     'as duas portas explicadas em linguagem simples antes das siglas');
-  afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Começar o posicionamento de uma atuação"');
+  afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Avaliar uma responsabilidade" (Caminho A)');
   console.log('Caminhos e quem sustenta (I1)');
   afirma(/^Porta 1$/i.test((await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')).trim()) && /Porta 2 · sem avaliação P1–P16/i.test(await texto(page, '#avpInicioCartaoAtuacao .avp-inicio-caminho')),
     'cartões com o nome do caminho (Porta 1; Porta 2 · sem avaliação P1–P16)');
-  afirma(/Exemplos: Capec, Assessoria Previdenciária\./.test(await texto(page, '#avpInicioCartaoNatureza')) && /Exemplos: assessoramento jurídico, desenvolvimento de competências em agilidade\./.test(await texto(page, '#avpInicioCartaoAtuacao')),
+  afirma(/Exemplos: Capec, Assessoria Previdenciária\./.test(await texto(page, '#avpInicioCartaoNatureza')) && /O1–O9 — o mesmo nos dois caminhos/.test(await texto(page, '#avpInicioCartaoAtuacao')),
     'exemplos de uso de cada caminho (sem afirmar situação de nenhum registro)');
-  afirma(/Os dois caminhos podem chegar ao Posicionamento; nenhum é etapa do outro\./.test(await texto(page, '#avpInicioNota')), 'os dois caminhos não são etapas de um mesmo fluxo');
+  afirma(/As duas portas podem chegar ao Posicionamento; nenhuma é etapa da outra\./.test(await texto(page, '#avpInicioNota')), 'as duas portas não são etapas de um mesmo fluxo');
   console.log('Como o sistema funciona');
   const como = await page.evaluate(() => {
     const t = (id) => (document.getElementById(id) || {}).textContent || '';
@@ -234,10 +234,10 @@ async function rodada(browser, viewport, rotulo) {
   await noInicio(page);
   afirma(true, '"← Voltar para o Início da Avaliação"');
 
-  console.log('Caso 4 — atuação organizacional sem P1–P16');
+  console.log('Caso 4 — responsabilidade organizacional sem P1–P16 (Caminho A)');
   await page.click('#avpInicioAtuacao');
-  await page.waitForSelector('#poNovaAtuacaoBtn', { timeout: 10000 });
-  afirma(await hash(page) === '#avaliacoes?po=atuacoes' && /Porta 2/.test(await texto(page, '#avaliacoesPosicionamento')), 'lista das atuações (Porta 2) com "+ Nova atuação organizacional"', await hash(page));
+  await page.waitForSelector('#poFormAtuacao', { timeout: 10000 });
+  afirma(await hash(page) === '#avaliacoes?po=nova-atuacao' && /Nova responsabilidade organizacional/.test(await texto(page, '#poFormAtuacao')), 'Caminho A abre direto o cadastro da responsabilidade (Porta 2)', await hash(page));
   await page.goBack();
   await noInicio(page);
   afirma(true, 'Voltar do navegador: Início');
