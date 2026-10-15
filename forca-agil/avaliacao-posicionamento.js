@@ -1136,17 +1136,18 @@
     }
     function posicionamentoDoItem(id) { var vig = state.vigentes[id], res = state.reservas[id]; return vig ? { tipo: 'vigente', key: vig } : res ? { tipo: 'rascunho', key: res } : null; }
     function renderAtuacoes() {
-      var h = '<div class="avp-form-card" id="poAtuacoes"><h3>Responsabilidades organizacionais</h3>' +
-        '<p class="avp-intro">Porta 2: posicione diretamente uma responsabilidade organizacional, sem passar pela Avaliação de Produto/Serviço (P1–P16). ' +
-        'Produtos e serviços seguem a Porta 1 (Avaliação de Produto/Serviço). O tipo organizacional não é presumido pelo nome: ele sai do Posicionamento.</p>';
+      var h = '<div class="avp-form-card" id="poAtuacoes"><h3>Responsabilidades Organizacionais</h3>' +
+        '<p class="avp-intro">Avalie e acompanhe o posicionamento arquitetural das responsabilidades pelo O1–O9.</p>';
       if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
-      if (state.erroObj) return h + '<p class="avp-error-msg" id="poAtuacoesErro">Não foi possível ler as responsabilidades organizacionais agora.</p></div>' + rodapeVoltar();
+      if (state.erroObj) return h + '<p class="avp-error-msg" id="poAtuacoesErro">Não foi possível ler as responsabilidades organizacionais agora.</p></div>';
       if (!state.carregou.obj || !tudoCarregado()) return h + '<p class="loading-msg">Carregando…</p></div>';
       if (state.itemEscolhido) return h + renderAtuacao(state.itemEscolhido) + '</div>' + rodapeVoltar();
-      /* com a Análise Organizacional liberada, o botão de sempre vai para o cartão "Caminho A · Direto" */
-      var direto = podeEscrever() ? '<button type="button" class="btn btn--primary" id="poNovaAtuacaoBtn">+ Nova responsabilidade organizacional</button>' : '';
+      /* as duas ações, sem cartões repetidos: "Nova responsabilidade" (Caminho A) e "Analisar uma área" (Caminho B,
+         quando a Análise Organizacional estiver disponível para o perfil) */
+      var direto = podeEscrever() ? '<button type="button" class="btn btn--primary" id="poNovaAtuacaoBtn">Nova responsabilidade</button>' : '';
       var AO = window.faAnalisesOrganizacionais, entrada = AO && AO.entradaAtuacoesHtml ? AO.entradaAtuacoesHtml(direto) : '';
       if (entrada) h += entrada; else if (direto) h += '<div class="avp-actions-bar">' + direto + '</div>';
+      h += '<h4 class="po-subtitulo" id="poRegistradasTitulo">Responsabilidades registradas</h4>';
       var lista = objetosOrdenados();
       if (!lista.length) h += '<p class="admin-empty" id="poSemAtuacoes">Nenhuma responsabilidade organizacional cadastrada.</p>';
       h += '<ul class="po-itens" id="poListaAtuacoes">' + lista.map(function (o) {
@@ -1156,7 +1157,7 @@
           '<span class="po-item-situacao">' + (sp ? (sp.tipo === 'vigente' ? 'Posicionamento concluído' : 'Rascunho em andamento') : 'Sem Posicionamento') + '</span> ' +
           '<button type="button" class="btn btn--sm po-atuacao-abrir">Abrir</button></li>';
       }).join('') + '</ul>';
-      return h + '</div>' + rodapeVoltar();
+      return h + '</div>';
     }
     function renderAtuacao(id) {
       var ob = (state.objetos || {})[id];
@@ -1194,7 +1195,6 @@
       if (e.codigo === 'OBRIGATORIO') return (ROTULO_CAMPO_ATUACAO[e.campo] || e.campo) + ' é obrigatório.';
       if (e.codigo === 'TAMANHO') return (ROTULO_CAMPO_ATUACAO[e.campo] || e.campo) + ': até ' + e.limite + ' caracteres.';
       if (e.codigo === 'SEM_ALTERACAO') return 'Nada mudou: altere algum campo antes de salvar.';
-      if (e.codigo === 'SEPARAR') return 'Responda se a descrição reúne trabalhos diferentes que precisam ser avaliados separadamente.';
       if (e.codigo === 'NOME_CURTO') return 'A descrição passa de 200 caracteres: informe um nome curto para o cadastro (pode ser um trecho do texto).';
       if (e.codigo === 'OBJETO_ENCERRADO') return 'A responsabilidade está encerrada e não pode ser alterada.';
       return 'Confira os dados.';
@@ -1228,66 +1228,42 @@
         '<button type="button" class="btn btn--sm" id="poCancelarAtuacaoBtn">Cancelar</button></div></div>';
       return h;
     }
-    /* Caminho A simplificado (com a Análise Organizacional liberada para quem grava): UMA descrição — pode ser o texto
-       literal de uma atribuição — e "Essa descrição reúne trabalhos diferentes que precisam ser avaliados separadamente?".
-       "Não" registra e segue para o O1–O9; "Sim" e "Não sei" levam a responsabilidade para uma análise (Caminho B), onde
-       se separa ou se volta depois. O cadastro recebe o texto como foi escrito (dadosSimplificados): nada é inferido */
-    var SEP_A = { nao: ['Não', 'Não, pode ser avaliada como está. Segue para o O1–O9.'], sim: ['Sim', 'Precisa separar: junta trabalhos diferentes. Ela vai para uma Análise Organizacional, onde você informa as partes; a descrição original fica guardada.'],
-      'nao-sei': ['Não sei', 'Fica salva como pendente numa Análise Organizacional, para você voltar depois. Não vai para o O1–O9.'] };
-    var modoFormA = null; /* o modo em que o formulário de criação foi desenhado (o marcador pode chegar depois de um F5) */
-    function simplesCaminhoA() { var A = window.faAnalisesOrganizacionais; return !!(A && A.acesso && A.acesso().gravar); }
+    /* Caminho A: UM campo — "Qual responsabilidade deseja avaliar?" (pode ser o texto literal de uma atribuição). Sem
+       pergunta sobre separar, entregas, finalidade, tipo ou núcleo: "Registrar e avaliar" grava o cadastro com o texto
+       como foi escrito (dadosSimplificados — nada é inferido) e abre o O1–O9 da responsabilidade. O nome curto só é
+       pedido quando a descrição passa do limite do cadastro */
+    var modoFormA = null; /* o modo em que o formulário de criação foi desenhado */
+    function simplesCaminhoA() { return true; }
     function renderFormSimples(f) {
       var desc = f.descricao || '', longa = desc.trim().length > O().LIMITES.nome;
-      var h = '<div class="avp-form-card" id="poFormAtuacao"><h3>Nova responsabilidade organizacional</h3>' +
-        '<div class="avp-field"><label for="poAtuacao_descricao">Qual responsabilidade você deseja avaliar? Descreva a responsabilidade *</label>' +
+      var h = '<div class="avp-form-card" id="poFormAtuacao"><h3>Qual responsabilidade deseja avaliar?</h3>' +
+        '<div class="avp-field"><label for="poAtuacao_descricao">Responsabilidade *</label>' +
         '<textarea id="poAtuacao_descricao" class="avp-observacao" rows="3" maxlength="2000" aria-describedby="poDescAjuda" placeholder="Ex.: Gerir o planejamento e execução orçamentária.">' + esc(desc) + '</textarea>' +
         '<p class="avp-ficha-meta" id="poDescAjuda">Você pode copiar diretamente uma atribuição da área. Não precisa reformular o texto.</p></div>' +
         (f.precisaNome || longa ? '<div class="avp-field"><label for="poAtuacao_nome">Nome curto *</label><input type="text" id="poAtuacao_nome" maxlength="200" value="' + esc(f.nome || '') + '" aria-describedby="poNomeAjuda">' +
-          '<p class="avp-ficha-meta" id="poNomeAjuda">O cadastro aceita nomes de até 200 caracteres e a descrição tem mais que isso. Pode ser um trecho do texto; a descrição completa é guardada como está.</p></div>' : '') +
-        '<fieldset class="an-opcoes" id="poSepararGrupo"><legend>Essa descrição reúne trabalhos diferentes que precisam ser avaliados separadamente? *</legend>' +
-        Object.keys(SEP_A).map(function (v) { return '<label class="an-opcao"><input type="radio" name="poSeparar" value="' + v + '"' + (f.separar === v ? ' checked' : '') + '><span><strong>' + SEP_A[v][0] + '</strong><span class="an-exemplo">' + esc(SEP_A[v][1]) + '</span></span></label>'; }).join('') + '</fieldset>' +
-        '<p class="avp-ficha-meta">A sua resposta é uma confirmação, não uma prova: o O1–O9 continua podendo indicar algo a validar.</p>' +
-        '<details class="po-mais" id="poMaisInfo"' + (f.maisAberto ? ' open' : '') + '><summary>Mais informações (opcional)</summary>' +
-        '<div class="avp-field"><label for="poAtuacao_finalidade">Finalidade (opcional — se não informar, o cadastro repete a descrição)</label><textarea id="poAtuacao_finalidade" class="avp-observacao" rows="2" maxlength="2000">' + esc(f.finalidade || '') + '</textarea></div>' +
-        '<div class="avp-field"><label for="poAtuacao_contexto">Contexto (opcional)</label><textarea id="poAtuacao_contexto" class="avp-observacao" rows="2" maxlength="2000">' + esc(f.contexto || '') + '</textarea></div>' +
-        '<div class="avp-field"><label for="poAtuacaoRef">Referência informativa a uma Avaliação de Produto/Serviço (opcional)</label>' +
-        '<select id="poAtuacaoRef" class="avp-select"><option value="">Nenhuma</option>' + opcoesReferencia().map(function (o) {
-          return '<option value="' + esc(o.id) + '"' + (o.motivo ? ' disabled' : '') + (f.ref === o.id ? ' selected' : '') + '>' + esc(o.nome) + (o.motivo ? ' — ' + esc(o.motivo) : '') + '</option>';
-        }).join('') + '</select></div></details>';
+          '<p class="avp-ficha-meta" id="poNomeAjuda">O cadastro aceita nomes de até 200 caracteres e a descrição tem mais que isso. Pode ser um trecho do texto; a descrição completa é guardada como está.</p></div>' : '');
       if (f.erros && f.erros.length) h += '<div class="avp-error-msg" id="poAtuacaoErros" role="alert"><ul>' + f.erros.map(function (e) { return '<li>' + esc(textoErroAtuacao(e)) + '</li>'; }).join('') + '</ul></div>';
-      var rot = state.salvando === 'atuacao-criacao' ? 'SALVANDO…' : f.separar === 'nao' ? 'Registrar e seguir para o O1–O9' : f.separar ? 'Registrar numa Análise Organizacional' : 'Registrar';
+      var rot = state.salvando === 'atuacao-criacao' ? 'SALVANDO…' : 'Registrar e avaliar';
       return h + '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="poSalvarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + rot + '</button>' +
         '<button type="button" class="btn btn--sm" id="poCancelarAtuacaoBtn">Cancelar</button></div></div>';
     }
     function salvarSimples(f, u) {
       var desc = (f.descricao || '').trim(), erros = [], longa = desc.length > O().LIMITES.nome;
       if (!desc) erros.push({ campo: 'descricao', codigo: 'OBRIGATORIO' });
-      if (!f.separar) erros.push({ codigo: 'SEPARAR' });
       if (longa && !(f.nome || '').trim()) { f.precisaNome = true; erros.push({ codigo: 'NOME_CURTO' }); }
       if (erros.length) { f.erros = erros; render(); return; }
       f.erros = null;
-      if (f.separar !== 'nao') {
-        state.salvando = 'atuacao-criacao'; render();
-        window.faAnalisesOrganizacionais.registrarResponsabilidadeAvulsa({ nomeAnalise: longa ? f.nome.trim() : desc, descricao: desc, separacao: f.separar }, function (r) {
-          state.salvando = null;
-          if (r.ok || r.analiseId) { state.formAtuacao = null; state.tela = 'atuacoes'; }
-          if (r.ok) { location.hash = '#avaliacoes?an=' + encodeURIComponent(r.analiseId); return; }
-          render(); aviso(r.erro || 'Não foi possível registrar.');
-          if (r.analiseId) location.hash = '#avaliacoes?an=' + encodeURIComponent(r.analiseId);
-        });
-        return;
-      }
       var id = novaChave(O().NODE), audId = novaChave(O().AUD + '/' + id), payload;
-      var dados = O().dadosSimplificados({ texto: desc, nomeCurto: f.nome, finalidade: f.finalidade, contexto: f.contexto });
-      try { payload = O().payloadCriacao({ id: id, audId: audId, dados: dados, referenciaItemId: f.ref || undefined, usuario: u, agora: S().agoraServidor() }); }
+      var dados = O().dadosSimplificados({ texto: desc, nomeCurto: f.nome });
+      try { payload = O().payloadCriacao({ id: id, audId: audId, dados: dados, usuario: u, agora: S().agoraServidor() }); }
       catch (e) { f.erros = e.erros || [{ codigo: 'ERRO' }]; render(); return; }
       state.salvando = 'atuacao-criacao'; render();
       gravar(payload, function () {
         state.salvando = null; state.formAtuacao = null; state.objetoEditando = null; state.itemEscolhido = id; state.hipotese = null; state.tela = 'atuacoes';
-        state.flash = '✓ Responsabilidade registrada. Registre a hipótese inicial e inicie o O1–O9.'; render();
+        state.flash = '✓ Responsabilidade registrada. Para começar o O1–O9, registre a hipótese inicial e clique em "Iniciar o Posicionamento".'; render();
       }, function () {
         state.salvando = null; render();
-        aviso('Não foi possível registrar a responsabilidade. Se escolheu uma referência, confira se o item não ganhou um Posicionamento ou outra responsabilidade.');
+        aviso('Não foi possível registrar a responsabilidade. Tente de novo.');
       });
     }
     function usuarioObjeto() { var i = S().identidade(), s = sessaoAtual(); return i && s ? { uid: i.uid, email: i.email, name: s.name } : null; }
@@ -1399,6 +1375,9 @@
     function renderResultado() {
       var a = state.atual, key = state.chave, ra = resultadoLido(a.resultadoAutomatico), sit = situacaoDe(key, a);
       var h = '<div class="avp-form-card" id="poResultado"><h3>' + esc(a.itemNome) + ' · v' + esc(a.versao || 1) + ' ' + (state.carregou.vig ? badgeSituacao(sit) : badge(a.status)) + '</h3>';
+      /* veio de uma análise de área: o próximo passo é voltar à lista dela e avaliar a próxima */
+      var AOv = window.faAnalisesOrganizacionais, volta = ehPorta2(a) && a.status === 'concluido' && AOv && AOv.voltarAreaHtml ? AOv.voltarAreaHtml(a.itemId) : '';
+      if (volta) h += '<div class="an-proxima" id="poVoltarArea"><p><strong>Próximo passo:</strong> avalie as outras responsabilidades da área.</p><div class="an-acoes">' + volta + '</div></div>';
       if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (state.carregou.vig && sit === 'historica') {
         var vg = state.vigentes[a.itemId], vgr = vg && state.registros[vg];

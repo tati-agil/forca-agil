@@ -402,11 +402,15 @@ afirma(temErro(N.registrarResponsabilidadesEmLote(estado, 'an-gecon', { descrico
 aplicar(N.registrarResponsabilidadesEmLote(estado, 'an-gecon', { descricoes: GECON }, Object.assign(ctx(), { novosIds: idsG })), 'lote GECON');
 const ag = analise('an-gecon'), ordenadas = Object.keys(ag.recortes).sort((x, y) => ag.recortes[x].ordem - ag.recortes[y].ordem);
 afirma(ordenadas.length === 10 && ordenadas.every((k, i) => ag.recortes[k].descricao === GECON[i] && ag.recortes[k].ordem === i), 'as dez entram de uma vez, com o texto literal e na ordem informada');
-afirma(ordenadas.every((k) => ag.recortes[k].separacao === null && ag.recortes[k].fatos === null && ag.recortes[k].situacao === 'ativo'), 'nenhuma resposta, núcleo ou classificação presumidos: todas "pendentes de delimitação"');
-afirma(ordenadas.every((k) => N.prontaParaO1O9(ag, k).faltas.join() === 'SEPARACAO_NAO_RESPONDIDA') && eventos.slice(-1)[0].tipo === 'recortes.registrados-em-lote' && eventos.slice(-1)[0].detalhe.quantidade === 10, 'nenhuma vai sozinha para o O1–O9; um evento com as dez no histórico');
-afirma(N.lacunas(ag).filter((l) => l.tipo === 'separacao-pendente').length === 10, 'lacunas: as dez pendentes de delimitação');
-aplicar(N.revisarResponsabilidade(estado, 'an-gecon', 'g7', { descricao: GECON[7], separacao: { valor: 'nao' } }, ctx()), 'g7 não separar');
-afirma(N.prontaParaO1O9(analise('an-gecon'), 'g7').pronta && analise('an-gecon').recortes.g7.descricao === 'Gerir o processo contábil.', 'responder "Não" na lista: pronta, com o texto intacto');
+afirma(ordenadas.every((k) => ag.recortes[k].separacao === null && ag.recortes[k].fatos === null && ag.recortes[k].situacao === 'ativo'), 'nenhuma resposta "não" inventada, nenhum núcleo ou classificação presumidos (separacao continua nula)');
+afirma(ordenadas.every((k) => ag.recortes[k].contrato === N.CONTRATO_DIRETO && N.registroDireto(ag.recortes[k])) && eventos.slice(-1)[0].detalhe.contrato === 'registro-direto', 'registro direto: contrato explícito e persistente em cada registro e no histórico');
+afirma(ordenadas.every((k) => N.prontaParaO1O9(ag, k).pronta && N.prontaParaO1O9(ag, k).contrato === 'registro-direto') && eventos.slice(-1)[0].tipo === 'recortes.registrados-em-lote' && eventos.slice(-1)[0].detalhe.quantidade === 10, 'as dez ficam prontas para o O1–O9 já no registro; um evento com as dez no histórico');
+afirma(N.lacunas(ag).filter((l) => l.tipo === 'separacao-pendente').length === 0, 'lacunas: nenhuma "pendente de delimitação" no registro direto');
+afirma(temErro(N.revisarResponsabilidade(estado, 'an-gecon', 'g7', { descricao: GECON[7], separacao: { valor: 'nao' } }, ctx()), 'SEPARACAO_NAO_SE_APLICA'), 'registro direto não recebe resposta sobre separar (nem pela revisão)');
+aplicar(N.revisarResponsabilidade(estado, 'an-gecon', 'g7', { descricao: 'Gerir o processo contábil' }, ctx()), 'g7 editar texto');
+const evRev = eventos.slice(-1)[0];
+afirma(analise('an-gecon').recortes.g7.descricao === 'Gerir o processo contábil' && analise('an-gecon').recortes.g7.versao === 2 && evRev.detalhe.antes.descricao === GECON[7] && evRev.detalhe.depois.contrato === 'registro-direto' && N.prontaParaO1O9(analise('an-gecon'), 'g7').pronta, 'editar a descrição antes de avaliar: versão + 1, antes e depois no histórico, continua pronta');
+aplicar(N.revisarResponsabilidade(estado, 'an-gecon', 'g7', { descricao: GECON[7] }, ctx()), 'g7 voltar texto');
 /* núcleos: só o que foi dito — CONTA no processo contábil, NUTRI nas obrigações tributárias */
 const NE = (texto) => ({ texto });
 afirma(temErro(N.informarNucleosAtuais(estado, 'an-gecon', 'g7', { nucleos: [NE('CONTA — Núcleo de Contabilidade'), NE('conta — núcleo de contabilidade')] }, ctx()), 'NUCLEO_REPETIDO'), 'o mesmo núcleo duas vezes: recusado');
@@ -420,5 +424,22 @@ aplicar(N.associarAtuacao(estado, 'an-gecon', 'g7', 'obj-g7', ctx()), 'avaliar g
 aplicar(N.informarNucleosAtuais(estado, 'an-gecon', 'g7', { nucleos: [] }, ctx()), 'corrigir para não informado');
 afirma(analise('an-gecon').recortes.g7.objetoId === 'obj-g7' && analise('an-gecon').recortes.g7.fatos.execucao.length === 0, 'núcleos se corrigem depois da avaliação, sem mexer nela ("Não informado" = lista vazia)');
 afirma(N.exercidasPelaEstrutura(estado, 'nucleo-qualquer').length === 0, 'nada vira vínculo nem estrutura oficial');
+afirma(temErro(N.revisarResponsabilidade(estado, 'an-gecon', 'g7', { descricao: 'Outra coisa' }, ctx()), 'RECORTE_JA_AVALIADO_DEFINA_OUTRO'), 'avaliada não se edita: corrigir é revisão pelo O1–O9 (reavaliar)');
+/* registro individual direto (Caminho A e "Adicionar uma"): sem resposta = contrato direto, pronta */
+aplicar(N.definirRecorte(estado, 'an-gecon', { descricao: 'Gerir a conformidade fiscal' }, ctx('g10')), 'individual direto');
+afirma(analise('an-gecon').recortes.g10.contrato === 'registro-direto' && N.prontaParaO1O9(analise('an-gecon'), 'g10').pronta && eventos.slice(-1)[0].detalhe.contrato === 'registro-direto', 'registro individual sem a pergunta: contrato direto, pronta para o O1–O9');
+
+console.log('N. Registros anteriores: regras preservadas, nenhuma conversão silenciosa');
+/* registro anterior em lote (sem contrato e sem resposta): continua pendente — nenhum "não" é presumido */
+const estN = JSON.parse(JSON.stringify(analise('an-gecon')));
+estN.recortes.leg1 = { id: 'leg1', descricao: 'Atribuição registrada antes', nome: 'Atribuição registrada antes', resultado: null, justificativa: null, entregas: [], capacidades: [], objetoId: null, fatos: null, separacao: null, situacao: 'ativo', versao: 1, ordem: 50 };
+estN.recortes.leg2 = Object.assign({}, estN.recortes.leg1, { id: 'leg2', separacao: { valor: 'nao-sei', em: 1, por: USUARIO } });
+estN.recortes.leg3 = Object.assign({}, estN.recortes.leg1, { id: 'leg3', separacao: { valor: 'sim', em: 1, por: USUARIO } });
+afirma(N.prontaParaO1O9(estN, 'leg1').faltas.join() === 'SEPARACAO_NAO_RESPONDIDA' && N.prontaParaO1O9(estN, 'leg2').faltas.join() === 'SEPARACAO_PENDENTE' && !N.registroDireto(estN.recortes.leg1), 'anterior sem resposta / "Não sei": continuam pendentes (regra antiga)');
+afirma(N.lacunas(estN).filter((l) => l.tipo === 'separacao-pendente').map((l) => l.recorteId).sort().join() === 'leg1,leg2,leg3', 'as lacunas antigas continuam aparecendo só para os registros anteriores');
+estado.analises['an-legN'] = Object.assign(estN, { id: 'an-legN' });
+afirma(temErro(N.revisarResponsabilidade(estado, 'an-legN', 'leg2', { descricao: 'x' }, ctx()), 'SEPARACAO_INVALIDA'), 'anterior: revisar continua exigindo a resposta explícita (sem conversão silenciosa)');
+const desd = N.desdobrarResponsabilidade(estado, 'an-legN', 'leg3', { partes: [{ descricao: 'Parte um' }, { descricao: 'Parte dois' }] }, Object.assign(ctx(), { novosIds: ['lp1', 'lp2'] }));
+afirma(desd.ok && desd.mudancas[0].depois.recortes.lp1.contrato === 'registro-direto' && N.prontaParaO1O9(desd.mudancas[0].depois, 'lp2').pronta && desd.mudancas[0].depois.recortes.leg3.situacao === 'desdobrado', 'separar um anterior "Sim": as partes entram como registro direto; a original fica desdobrada');
 console.log('\n' + total + ' verificações — ' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));
 process.exit(falhas ? 1 : 0);

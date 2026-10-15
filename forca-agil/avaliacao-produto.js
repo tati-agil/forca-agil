@@ -3424,19 +3424,20 @@
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
         '<div class="avp-inicio-cartoes">' +
         '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1</p><h4>Avaliar se é Produto/Serviço</h4>' +
-        '<p>Verifique se o item constitui um Produto/Serviço independente. Caso não seja, a avaliação identifica sua natureza arquitetural ou indica a necessidade de validação.</p>' +
+        '<p>Descubra se um item constitui um Produto/Serviço.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
         '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
         /* Porta 2: dois caminhos com o mesmo peso, que terminam no mesmo O1–O9 — A (uma responsabilidade) e B (uma área) */
         '<div class="avp-inicio-cartao" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · sem avaliação P1–P16</p><h4>Posicionamento Organizacional</h4>' +
+        '<p>Descubra qual tipo arquitetural é recomendado para cada responsabilidade organizacional.</p>' +
         '<p class="avp-inicio-sigla">Questionário O1–O9 — o mesmo nos dois caminhos</p>' +
         '<div class="avp-inicio-opcoes">' +
-        '<div class="avp-inicio-opcao" id="avpInicioOpcaoA"><p class="avp-inicio-opcao-rotulo">Caminho A · Avaliar uma responsabilidade</p>' +
-        '<p>Já sabe qual responsabilidade deseja avaliar? Informe sua descrição e siga para o O1–O9.</p>' +
+        '<div class="avp-inicio-opcao" id="avpInicioOpcaoA"><p class="avp-inicio-opcao-rotulo">Caminho A · Uma responsabilidade</p>' +
+        '<p>Já sabe qual responsabilidade deseja avaliar?</p>' +
         (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Avaliar uma responsabilidade')
           : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Avaliar uma responsabilidade é do perfil Avaliação + Configuração. As já posicionadas aparecem na Jornada.</p>') + '</div>' +
-        '<div class="avp-inicio-opcao" id="avpInicioOpcaoB"><p class="avp-inicio-opcao-rotulo">Caminho B · Analisar uma área</p>' +
-        '<p>Quer analisar uma gerência, núcleo ou área que reúne várias responsabilidades? Registre-as e acompanhe cada avaliação individualmente.</p>' +
+        '<div class="avp-inicio-opcao" id="avpInicioOpcaoB"><p class="avp-inicio-opcao-rotulo">Caminho B · Uma área com várias responsabilidades</p>' +
+        '<p>Quer analisar uma gerência, núcleo ou área que reúne várias responsabilidades?</p>' +
         '<div id="avpInicioCaminhoBVaga">' + caminhoAssistidoHtml() + '</div></div>' +
         '</div></div></div>' +
         '<p class="avp-inicio-nota" id="avpInicioNota">As duas portas podem chegar ao Posicionamento; nenhuma é etapa da outra. Um produto ou serviço já avaliado começa o Posicionamento pela Jornada, no próprio item.</p></section>' +

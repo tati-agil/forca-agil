@@ -59,6 +59,9 @@
   /* "Essa descrição reúne trabalhos diferentes que precisam ser avaliados separadamente?" — nao (não precisa separar:
      pronta para o O1–O9) | sim (precisa separar: a pessoa informa as partes) | nao-sei (pendente) */
   var SEPARACAO = ['nao', 'sim', 'nao-sei'];
+  /* contrato persistente do registro direto: a responsabilidade nasce já individualizada pela pessoa (sem pergunta sobre
+     separar). Gravado no próprio registro, nunca deduzido; os registros anteriores (sem ele) seguem a regra de antes */
+  var CONTRATO_DIRETO = 'registro-direto';
   /* marcador de homologação (aprovado): ausente = DESLIGADO. As regras do banco aplicam o MESMO mapa — a tela só o
      espelha para não oferecer o que o banco recusaria (a autorização nunca depende de esconder botão) */
   var HABILITACAO = ['DESLIGADO', 'SOMENTE_ADMIN_GERAL', 'LIBERADO_PARA_PERFIS_AUTORIZADOS'];
@@ -349,11 +352,14 @@
   function novaResponsabilidade(id, descricao, separacao, ctx, extra) {
     var r = { id: id, descricao: descricao.trim(), nome: descricao.trim(), resultado: null, justificativa: null, entregas: [], capacidades: [], objetoId: null, fatos: null,
       separacao: separacao ? registroSeparacao(separacao, ctx) : null, situacao: 'ativo', versao: 1, criadoEm: ctx.agora, criadoPor: autor(ctx) };
+    /* sem resposta sobre separar = registro direto (contrato explícito; nenhuma resposta "não" é inventada) */
+    if (!separacao) r.contrato = CONTRATO_DIRETO;
     if (extra) Object.keys(extra).forEach(function (k) { r[k] = extra[k]; });
     return r;
   }
   /* modelo simples = tem a descrição informada pela pessoa (os registros anteriores não têm) */
   function modeloSimples(r) { return !!r && typeof r.descricao === 'string'; }
+  function registroDireto(r) { return modeloSimples(r) && r.contrato === CONTRATO_DIRETO; }
   function definirRecorte(estado, analiseId, dados, ctx, ref) {
     var c = validarCtx(ctx, true); if (c) return erro(c);
     dados = dados || {};
@@ -377,7 +383,7 @@
     else r = { id: ctx.novoId, nome: dados.nome.trim(), resultado: dados.resultado.trim(), justificativa: dados.justificativa.trim(),
       entregas: ents.slice(), capacidades: clone(dados.capacidades || []), objetoId: null, fatos: null, situacao: 'ativo', versao: 1, criadoEm: ctx.agora, criadoPor: autor(ctx) };
     al.depois.recortes[ctx.novoId] = r;
-    var det = { recorteId: ctx.novoId, entregas: ents.slice() }; if (simples) { det.descricao = r.descricao; det.separacao = r.separacao ? r.separacao.valor : null; }
+    var det = { recorteId: ctx.novoId, entregas: ents.slice() }; if (simples) { det.descricao = r.descricao; det.separacao = r.separacao ? r.separacao.valor : null; if (r.contrato) det.contrato = r.contrato; }
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.definido', analiseId, ctx, det)] };
   }
   /* revisar uma responsabilidade ainda não avaliada: a descrição e a resposta sobre separar, explicitamente, com antes e
@@ -386,17 +392,23 @@
     var c = validarCtx(ctx); if (c) return erro(c);
     dados = dados || {};
     if (!texto(dados.descricao, MAX.texto)) return erro('DESCRICAO_OBRIGATORIA');
-    if (!validarSeparacao(dados.separacao)) return erro('SEPARACAO_INVALIDA');
     var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
     var r = al.depois.recortes[recorteId];
     if (!r || r.situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recorteId });
     if (r.objetoId) return erro('RECORTE_JA_AVALIADO_DEFINA_OUTRO', { recorteId: recorteId, objetoId: r.objetoId });
+    /* registro direto: corrige só a descrição (não existe pergunta sobre separar); registro anterior: descrição e resposta */
+    var direto = registroDireto(r);
+    if (direto && dados.separacao !== undefined && dados.separacao !== null) return erro('SEPARACAO_NAO_SE_APLICA');
+    if (!direto && !validarSeparacao(dados.separacao)) return erro('SEPARACAO_INVALIDA');
     var antesR = clone(r);
-    r.descricao = dados.descricao.trim(); r.nome = r.descricao; r.separacao = registroSeparacao(dados.separacao, ctx);
+    r.descricao = dados.descricao.trim(); r.nome = r.descricao;
+    if (!direto) r.separacao = registroSeparacao(dados.separacao, ctx);
     r.versao = (antesR.versao || 1) + 1;
+    var depois = { descricao: r.descricao };
+    if (direto) depois.contrato = CONTRATO_DIRETO; else { depois.separacao = r.separacao.valor; depois.observacao = r.separacao.observacao || null; }
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.revisado', analiseId, ctx, { recorteId: recorteId,
       antes: { descricao: typeof antesR.descricao === 'string' ? antesR.descricao : antesR.nome, separacao: antesR.separacao ? antesR.separacao.valor : null },
-      depois: { descricao: r.descricao, separacao: r.separacao.valor, observacao: r.separacao.observacao || null } })] };
+      depois: depois })] };
   }
   /* separar ("Sim, precisa separar"): a pessoa informa as partes — duas ou mais, cada uma com a sua resposta. A original
      fica como "desdobrada", com o vínculo às partes, e nunca é avaliada como responsabilidade agregada; cada parte guarda
@@ -408,7 +420,7 @@
     if (partes.length < 2) return erro('PARTES_INSUFICIENTES');
     for (var p = 0; p < partes.length; p++) {
       if (!partes[p] || !texto(partes[p].descricao, MAX.texto)) return erro('DESCRICAO_OBRIGATORIA', { parte: p });
-      if (!validarSeparacao(partes[p].separacao)) return erro('SEPARACAO_INVALIDA', { parte: p });
+      if (partes[p].separacao !== undefined && partes[p].separacao !== null && !validarSeparacao(partes[p].separacao)) return erro('SEPARACAO_INVALIDA', { parte: p });
     }
     var ids = Array.isArray(ctx.novosIds) ? ctx.novosIds : [];
     if (ids.length !== partes.length || ids.some(function (x) { return !texto(x, MAX.chave); })) return erro('CTX_IDS_AUSENTES');
@@ -419,15 +431,16 @@
     if (!r.separacao || r.separacao.valor !== 'sim') return erro('SEPARAR_SO_COM_SIM');
     if (ids.some(function (x) { return al.depois.recortes[x]; })) return erro('ID_JA_USADO');
     var base = proximaOrdem(al.depois);
-    ids.forEach(function (id, n) { al.depois.recortes[id] = novaResponsabilidade(id, partes[n].descricao, partes[n].separacao, ctx, { origemRecorteId: recorteId, ordem: base + n }); });
+    ids.forEach(function (id, n) { al.depois.recortes[id] = novaResponsabilidade(id, partes[n].descricao, partes[n].separacao || null, ctx, { origemRecorteId: recorteId, ordem: base + n }); });
     r.situacao = 'desdobrado'; r.desdobramento = { partes: ids.slice(), em: ctx.agora, por: autor(ctx) };
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.desdobrado', analiseId, ctx, { recorteId: recorteId,
-      partes: ids.map(function (id, n) { return { id: id, descricao: al.depois.recortes[id].descricao, separacao: partes[n].separacao.valor }; }) })] };
+      partes: ids.map(function (id, n) { return { id: id, descricao: al.depois.recortes[id].descricao, separacao: partes[n].separacao ? partes[n].separacao.valor : null }; }) })] };
   }
   /* várias responsabilidades de uma vez (uma por linha, coladas pela pessoa): numa ÚNICA gravação — ou entram todas,
      ou nenhuma (sem importação parcial nem duplicada por repetição do envio, que é recusada pela revisão). Os textos
-     são gravados como vieram (só sem espaços nas pontas), na ordem informada, sem resposta sobre separar: cada uma
-     começa "pendente de delimitação". Nada é dividido, juntado nem associado a núcleo */
+     são gravados como vieram (só sem espaços nas pontas), na ordem informada, como registro direto (contrato
+     persistente): cada uma já informada individualmente pela pessoa e pronta para o O1–O9. Nada é dividido, juntado
+     nem associado a núcleo */
   function registrarResponsabilidadesEmLote(estado, analiseId, dados, ctx) {
     var c = validarCtx(ctx); if (c) return erro(c);
     dados = dados || {};
@@ -442,7 +455,7 @@
     var base = proximaOrdem(al.depois);
     ids.forEach(function (id, n) { al.depois.recortes[id] = novaResponsabilidade(id, lista[n], null, ctx, { ordem: base + n }); });
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recortes.registrados-em-lote', analiseId, ctx, { quantidade: ids.length,
-      recortes: ids.map(function (id) { return { id: id, descricao: al.depois.recortes[id].descricao }; }) })] };
+      contrato: CONTRATO_DIRETO, recortes: ids.map(function (id) { return { id: id, descricao: al.depois.recortes[id].descricao }; }) })] };
   }
   /* "Qual núcleo ou quais núcleos exercem esta responsabilidade atualmente?" — opcional, um ou vários, corrigível a
      qualquer momento (também depois do O1–O9: não influencia a classificação). Fica em fatos.execucao — a mesma
@@ -705,7 +718,7 @@
       return !Object.keys(a.recortes).some(function (r2) { return a.recortes[r2].situacao === 'ativo' && a.recortes[r2].entregas.indexOf(k) !== -1; });
     }).sort();
     semRecorte.forEach(function (k) { l.push({ tipo: 'entrega-sem-recorte', entregaId: k }); });
-    Object.keys(a.recortes).sort().forEach(function (k) { var x = a.recortes[k]; if (x.situacao === 'ativo' && modeloSimples(x) && !x.objetoId && (!x.separacao || x.separacao.valor !== 'nao')) l.push({ tipo: 'separacao-pendente', recorteId: k, valor: x.separacao ? x.separacao.valor : null }); });
+    Object.keys(a.recortes).sort().forEach(function (k) { var x = a.recortes[k]; if (x.situacao === 'ativo' && modeloSimples(x) && !registroDireto(x) && !x.objetoId && (!x.separacao || x.separacao.valor !== 'nao')) l.push({ tipo: 'separacao-pendente', recorteId: k, valor: x.separacao ? x.separacao.valor : null }); });
     return l;
   }
   /* F15 (N5): delimitação suficiente. No modelo simples: descrição e "não precisa separar" (entregas, evidência,
@@ -714,6 +727,10 @@
   function prontaParaO1O9(a, recorteId) {
     var r = a && a.recortes ? a.recortes[recorteId] : null, faltas = [];
     if (!r || r.situacao !== 'ativo') return { pronta: false, faltas: ['RECORTE_INEXISTENTE'] };
+    if (registroDireto(r)) {
+      if (!texto(r.descricao, MAX.texto)) faltas.push('DESCRICAO');
+      return { pronta: faltas.length === 0, faltas: faltas, separacao: null, contrato: CONTRATO_DIRETO, hipotese: false };
+    }
     if (modeloSimples(r)) {
       if (!texto(r.descricao, MAX.texto)) faltas.push('DESCRICAO');
       if (!r.separacao) faltas.push('SEPARACAO_NAO_RESPONDIDA');
@@ -847,7 +864,7 @@
     registrarEvidenciaQualitativa: registrarEvidenciaQualitativa,
     criarAnalise: criarAnalise, responder: responder, adicionarEntrega: adicionarEntrega, editarEntrega: editarEntrega, descartarEntrega: descartarEntrega,
     compararEntregas: compararEntregas, cadastroReferido: cadastroReferido,
-    definirRecorte: definirRecorte, revisarResponsabilidade: revisarResponsabilidade, desdobrarResponsabilidade: desdobrarResponsabilidade, registrarResponsabilidadesEmLote: registrarResponsabilidadesEmLote, informarNucleosAtuais: informarNucleosAtuais, modeloSimples: modeloSimples, SEPARACAO: SEPARACAO.slice(), ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, registrarFatos: registrarFatos,
+    definirRecorte: definirRecorte, revisarResponsabilidade: revisarResponsabilidade, desdobrarResponsabilidade: desdobrarResponsabilidade, registrarResponsabilidadesEmLote: registrarResponsabilidadesEmLote, informarNucleosAtuais: informarNucleosAtuais, modeloSimples: modeloSimples, registroDireto: registroDireto, CONTRATO_DIRETO: CONTRATO_DIRETO, SEPARACAO: SEPARACAO.slice(), ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, registrarFatos: registrarFatos,
     associarAtuacao: associarAtuacao, referenciarResponsabilidade: referenciarResponsabilidade, descartarAnalise: descartarAnalise,
     registrarProposta: registrarProposta, registrarAprovacao: registrarAprovacao,
     interpretarComparacao: interpretarComparacao, sugestoesDeComparacao: sugestoesDeComparacao, proximasPerguntas: proximasPerguntas,
