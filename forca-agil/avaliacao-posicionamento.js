@@ -50,7 +50,7 @@
   var VIGENCIA = 'posicionamento-motor-vigencia'; /* H3-b: a versão do motor em vigor (só a fronteira confiável grava) */
   var AUD = 'posicionamento-auditoria', PROD = 'avaliacoes-produto', DEC = 'posicionamento-decisoes';
   var QCOD = 'POSICIONAMENTO_ORGANIZACIONAL', DIAG = 'DIAG_CONFLITO_RECORTE';
-  var OBJ = 'objetos-organizacionais', ORIGEM_PORTA2 = 'objeto-organizacional', NAO_SEI = 'NAO_SEI';
+  var OBJ = 'objetos-organizacionais', OBJ_EXC = 'objetos-organizacionais-excluidos', ORIGEM_PORTA2 = 'objeto-organizacional', NAO_SEI = 'NAO_SEI';
   /* as opções da hipótese inicial, na ordem do Mapa da Floresta (as Linhas, depois CoE e Área Especializada) */
   var ORDEM_HIPOTESE = ['NEGOCIOS', 'ESTRATEGIA_CLIENTES', 'PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA',
     'PLATAFORMA_CORPORATIVA', 'COE', 'AREA_ESPECIALIZADA', NAO_SEI];
@@ -710,6 +710,7 @@
     function limparAtual() { state.atual = null; state.chave = null; state.sujo = false; state.conflito = false; state.flash = null; state.formDecisao = null; state.flashExportacao = null; state.menuExportarAberto = false; }
     function abrirChave(key) {
       var rec = state.registros[key];
+      if (key !== state.chave) { state.apoioSemInfo = false; state.apoioO7O9Aberto = false; } /* o apoio O7 × O9 é desta avaliação, não da próxima */
       limparAtual();
       if (!rec) { state.tela = 'nao-encontrada'; state.pendente = key; return; }
       state.chave = key;
@@ -881,7 +882,8 @@
           lista.forEach(function (r) {
             var acao = r.status === 'rascunho' && podeEscrever() ? 'Continuar' : 'Abrir';
             h += '<tr class="po-linha" data-key="' + esc(r._key) + '" data-situacao="' + esc(r._sit) + '"><td data-label="Item">' + esc(r.itemNome) +
-              (ehPorta2(r) ? ' <span class="avp-badge po-badge-porta2">Responsabilidade organizacional</span>' : '') + '</td>' +
+              (ehPorta2(r) ? ' <span class="avp-badge po-badge-porta2">Responsabilidade organizacional</span>' : '') +
+              (ehPorta2(r) && !(state.objetos || {})[r.itemId] && excluidoDe(r.itemId) ? ' <span class="avp-badge po-badge-excluida">Cadastro excluído</span>' : '') + '</td>' +
               '<td data-label="Versão">v' + esc(r.versao || 1) + '</td><td data-label="Motor e redação" class="po-versoes-usadas">' + textoVersoes(r) + '</td><td data-label="Situação">' + badgeSituacao(r._sit) + '</td>' +
               '<td data-label="Recomendação automática">' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</td>' +
               '<td data-label="Decisão final" class="po-col-decisao">' + textoDecisao(r._key, r) + '</td>' +
@@ -978,7 +980,7 @@
           '<li>Um só SIM entre O6 e O9 → o tipo indicado por essa pergunta.</li>' +
           '<li>Dois SIM → o sistema pergunta se descrevem a mesma responsabilidade ou responsabilidades distintas; nos dois casos o resultado fica "A validar", para decisão de uma pessoa.</li>' +
           '<li>Nenhum SIM → "A validar" (evidência insuficiente).</li></ul>' +
-          '<p class="avp-ficha-meta" id="poComoNivelN3Evidencia">NÃO afirma que a característica não se aplica. Se você não tiver evidências suficientes para responder O7 ou O9, não marque NÃO só por insegurança: salve o rascunho e busque esclarecimentos antes de concluir. A Observação registra o contexto, mas não transforma uma resposta incerta em evidência. Dúvida entre O7 e O9? Veja a Ajuda da O9.</p></details>';
+          '<p class="avp-ficha-meta" id="poComoNivelN3Evidencia">NÃO afirma que a característica não se aplica. Se você não tiver evidências suficientes para responder O7 ou O9, não marque NÃO só por insegurança: salve o rascunho e busque esclarecimentos antes de concluir. A Observação registra o contexto, mas não transforma uma resposta incerta em evidência. Dúvida entre O7 e O9? Veja a Ajuda da O9 e o apoio abaixo.</p></details>' + apoioO7O9Html(edita && !state.naoConfirmada);
         qs.forEach(function (q) { h += renderPergunta(q, versao, edita && !state.naoConfirmada, vm); });
         if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita && !state.naoConfirmada, vm);
         var pn = predominanciaNecessaria(a, n);
@@ -1097,7 +1099,7 @@
       else if (sit === 'sem-hipotese') h += '<p id="poHipotese" data-comparacao="sem-hipotese">Hipótese inicial: Não sei / Quero descobrir. A recomendação é apresentada sem comparação.</p>';
       else {
         h += '<p id="poHipotese" data-comparacao="' + esc(sit) + '">Hipótese inicial: ' + spanNome(a.hipoteseInicial) + '</p>';
-        if (sit === 'confirmada') h += '<p class="po-hipotese-resultado" id="poHipoteseComparacao">Hipótese confirmada: a recomendação automática é a mesma.</p>';
+        if (sit === 'confirmada') h += '<p class="po-hipotese-resultado" id="poHipoteseComparacao">A recomendação coincide com sua hipótese inicial. Isso não prova a hipótese: a recomendação vem só das respostas.</p>';
         else if (sit === 'nao-confirmada') {
           var M0 = window.faMotorPosicionamento, regra = M0 && M0.REGRAS ? M0.REGRAS[ra.regra] : null;
           h += '<p class="po-hipotese-resultado" id="poHipoteseComparacao">Hipótese não confirmada: as respostas sustentam ' + spanNome(ra.codigoResultado) + (regra ? ' (regra do motor: ' + esc(regra) + ')' : '') + '.</p>';
@@ -1109,13 +1111,47 @@
     /* o item de uma reavaliação: Porta 1 = o gate P1–P16; Porta 2 = a atuação ativa (com o nome ATUAL dela) */
     function itemPorta2(id) {
       var ob = (state.objetos || {})[id];
-      var sit = state.erroObj ? 'erro-objeto' : !state.carregou.obj ? 'verificando' : !ob ? 'objeto-ausente' : ob.situacao !== 'ativo' ? 'objeto-encerrado' : 'atual';
+      var sit = state.erroObj ? 'erro-objeto' : !state.carregou.obj ? 'verificando' : !ob ? (excluidoDe(id) ? 'objeto-excluido' : 'objeto-ausente') : ob.situacao !== 'ativo' ? 'objeto-encerrado' : 'atual';
       return { itemId: id, nome: ob ? ob.nome : id, gate: { libera: sit === 'atual', situacao: sit }, avaliacaoArquiteturalId: null };
     }
     function itemDaReavaliacao(a) { return ehPorta2(a) ? itemPorta2(a.itemId) : itemDoGate(a.itemId); }
     function textoGatePorta2(sit) {
       return { 'erro-objeto': 'Não foi possível ler a responsabilidade organizacional agora.', verificando: 'Verificando a responsabilidade organizacional…',
-        'objeto-ausente': 'A responsabilidade organizacional não foi encontrada.', 'objeto-encerrado': 'A responsabilidade organizacional está encerrada: ela não recebe nova avaliação.' }[sit] || sit;
+        'objeto-ausente': 'A responsabilidade organizacional não foi encontrada.', 'objeto-excluido': 'O cadastro desta responsabilidade foi excluído: ela não recebe nova avaliação. O que já foi registrado continua como histórico.', 'objeto-encerrado': 'A responsabilidade organizacional está encerrada: ela não recebe nova avaliação.' }[sit] || sit;
+    }
+    /* APOIO À DECISÃO O7 × O9 — antes de responder. São hipóteses de orientação, NÃO critérios oficiais: os critérios
+       são a pergunta e a Ajuda oficial (versionadas no ADMIN). Nada aqui responde pela pessoa, grava resposta ou cria
+       estado novo; "Ainda não tenho informações suficientes" só salva o rascunho como está e orienta o que buscar. */
+    function apoioO7O9Html(edita) {
+      var aberto = !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
+      return '<details class="po-apoio" id="poApoioO7O9"' + (aberto ? ' open' : '') + '><summary>Está em dúvida entre Habilitadora de Negócios (O7) e Gestão Corporativa (O9)?</summary>' +
+        '<p class="avp-ficha-meta" id="poApoioNatureza">Apoio para pensar antes de responder. São hipóteses de orientação, não novos critérios oficiais: valem a pergunta e a Ajuda oficial de cada uma. Os exemplos são hipotéticos e não descrevem a classificação de nenhuma área da PREVI.</p>' +
+        '<h5>A diferença, em poucas palavras</h5>' +
+        '<p><strong>O7 — Habilitadora de Negócios:</strong> oferece capacidades ou serviços de negócio que as Linhas usam para entregar valor previdenciário ou financeiro aos participantes. Faz parte da cadeia de valor dos produtos.</p>' +
+        '<p><strong>O9 — Gestão Corporativa:</strong> oferece serviços para administrar e controlar a própria organização, para o cliente interno, de forma padronizada.</p>' +
+        '<p id="poApoioAjudaOficial">A Ajuda oficial da O9 orienta: <em>observar onde termina a cadeia de valor e de quem são as regras</em>. As perguntas abaixo detalham essa orientação, sem substituí-la.</p>' +
+        '<h5>Perguntas para guiar a sua análise</h5><ol class="po-apoio-perguntas" id="poApoioPerguntas">' +
+        '<li>Qual é a entrega predominante desta responsabilidade?</li>' +
+        '<li>Ela ajuda a operar os produtos e serviços aos participantes, ou a administrar e controlar a organização?</li>' +
+        '<li>Quem consome o que ela entrega, e para quê?</li>' +
+        '<li>Onde o trabalho termina na cadeia de valor: chega ao participante por meio de uma Linha, ou fica dentro da organização?</li>' +
+        '<li>Quem estabelece as regras do trabalho: o negócio dos produtos, ou a administração, a regulação e o controle internos?</li>' +
+        '<li>Ser indispensável basta? Não: quase tudo é indispensável. Ser necessário para as Linhas não torna, por si só, uma responsabilidade O7.</li></ol>' +
+        '<h5>Exemplos hipotéticos para contrastar</h5><div class="table-scroll-wrap"><table class="admin-table po-apoio-tabela" id="poApoioExemplos"><thead><tr><th>Exemplo hipotético</th><th>Evidência que aproximaria de O7</th><th>Evidência que aproximaria de O9</th></tr></thead><tbody>' +
+        [['Contabilidade gerencial', 'Análises usadas pelas Linhas para operar ou precificar produtos', 'Informações para a gestão e o controle internos'],
+          ['Contabilização de eventos operacionais', 'Regras definidas pelos produtos, feitas para várias Linhas em escala', 'Registro contábil padrão de toda a organização'],
+          ['Gestão do processo contábil', 'Raramente: só se o processo fizer parte da entrega aos participantes', 'Administração e controle do processo, com regras corporativas e regulatórias'],
+          ['Gestão orçamentária', 'Raramente: o orçamento não chega ao participante', 'Planejamento e controle dos recursos da organização'],
+          ['Obrigações contábeis e tributárias', 'Raramente: cumprir obrigações não entrega valor aos participantes', 'Conformidade e controle da organização perante terceiros'],
+          ['Jurídico', 'Só se o serviço for uma capacidade de negócio usada em escala pelas Linhas', 'Serviço à própria organização (vale conferir antes se O2 já se aplica)'],
+          ['Gestão de Pessoas', 'Raramente', 'Serviço ao cliente interno, padronizado'],
+          ['Serviços de negócio compartilhados', 'Capacidade de negócio usada por várias Linhas para atender participantes', 'Só se, na verdade, servir à administração interna']
+        ].map(function (x) { return '<tr><td data-label="Exemplo hipotético">' + x[0] + '</td><td data-label="Aproximaria de O7">' + x[1] + '</td><td data-label="Aproximaria de O9">' + x[2] + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        '<h5>Quando as duas parecem se aplicar</h5><p>Responda SIM nas duas só se as duas forem verdadeiras. O sistema então pergunta se elas descrevem a mesma responsabilidade ou responsabilidades distintas, e o resultado fica "A validar", para decisão de uma pessoa. Se forem trabalhos distintos, considere separar a responsabilidade.</p>' +
+        '<h5>Se ainda estiver em dúvida, esclareça</h5><ul><li>quem consome a entrega e para quê;</li><li>quem define as regras e em qual documento elas estão;</li><li>se o resultado chega ao participante por uma Linha.</li></ul>' +
+        '<p class="avp-ficha-meta">Fontes possíveis: a gestão da área, normativos, regimento interno e a descrição dos produtos.</p>' +
+        (state.apoioSemInfo ? '<p class="avp-flash-success" id="poApoioSemInfoNota" role="status">' + (edita ? 'O rascunho fica salvo como está, sem nenhuma resposta nova. ' : '') + 'Busque as informações acima e volte para responder O7 e O9. Não marque NÃO só por insegurança.</p>'
+          : '<button type="button" class="btn btn--sm" id="poApoioSemInfo">Ainda não tenho informações suficientes</button>') + '</details>';
     }
     function objetoDadosHtml(ob, nomeRegistrado) {
       /* registro de uma descrição só (cadastro simplificado): mostra a responsabilidade uma vez — nome, descrição e
@@ -1147,8 +1183,18 @@
       if (state.erroObj) return h + '<p class="avp-error-msg" id="poObjetoErro">Não foi possível ler a responsabilidade organizacional agora.</p></section>';
       if (!state.carregou.obj) return h + '<p class="loading-msg" id="poObjetoCarregando">Carregando…</p></section>';
       var ob = (state.objetos || {})[a.itemId];
+      if (!ob && excluidoDe(a.itemId)) return h + excluidoHtml(a.itemId) + '</section>';
       if (!ob) return h + '<p class="avp-error-msg" id="poObjetoAusente">Responsabilidade organizacional não encontrada.</p></section>';
       return h + objetoDadosHtml(ob, a.itemNome) + analiseHtml(a.itemId) + '</section>';
+    }
+    /* cadastro EXCLUÍDO: o registro mínimo diz o que era, quem excluiu, quando e por quê; o que foi avaliado continua */
+    function excluidoDe(id) { return (state.objExcluidos || {})[id] || null; }
+    function excluidoHtml(id) {
+      var x = excluidoDe(id);
+      return '<div class="po-excluido" id="poObjetoExcluido" role="status"><p><strong>Cadastro excluído</strong> em ' + esc(fmtData(x.excluidoEm)) + (x.excluidoPor && x.excluidoPor.email ? ' por ' + esc(x.excluidoPor.email) : '') +
+        (x.nivel === 'excepcional' ? ' (exclusão excepcional)' : '') + '.</p>' +
+        '<dl class="po-objeto-dados"><dt>Responsabilidade</dt><dd>' + esc(x.descricao || x.nome) + '</dd><dt>Motivo da exclusão</dt><dd id="poObjetoExcluidoMotivo">' + esc(x.motivo) + '</dd></dl>' +
+        '<p class="avp-ficha-meta">As avaliações, decisões e trilhas de auditoria que já existiam continuam guardadas como histórico. Esta responsabilidade não recebe nova avaliação nem novo vínculo.</p></div>';
     }
     /* Análise Organizacional (analises-organizacionais.js): só aparece quando o marcador de homologação libera a leitura
        — a responsabilidade nascida de um recorte mostra a análise de origem; a responsabilidade ampla delimitada vira agrupador (D6) */
@@ -1266,6 +1312,7 @@
     }
     function renderAtuacao(id) {
       var ob = (state.objetos || {})[id];
+      if (!ob && excluidoDe(id)) return excluidoHtml(id) + '<button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
       if (!ob) return '<p class="avp-error-msg" id="poAtuacaoAusente">Responsabilidade organizacional não encontrada.</p><button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
       var h = '<div class="po-item-escolhido" id="poAtuacaoSelecionada">' + objetoDadosHtml(ob, null) + analiseHtml(id), sp = posicionamentoDoItem(id);
       if (sp) h += '<p class="po-item-situacao">' + (sp.tipo === 'vigente' ? 'Posicionamento concluído' : 'Rascunho em andamento') + '</p>' +
@@ -1280,8 +1327,10 @@
           '<button type="button" class="btn btn--primary" id="poIniciarAtuacaoBtn"' + (ocupado() || !state.hipotese ? ' disabled' : '') + '>' + (state.salvando === 'criacao' ? 'INICIANDO…' : 'Iniciar a avaliação O1–O9') + '</button>' +
           (state.hipotese ? '' : '<p class="avp-ficha-meta" id="poHipoteseFalta">Escolha a hipótese inicial para começar.</p>');
       }
-      if (podeEscrever() && ob.situacao === 'ativo') h += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poEditarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (O() && O().registroSimplificado(ob) ? 'Editar responsabilidade' : 'Editar dados') + '</button>' +
-        '<button type="button" class="btn btn--sm btn--danger" id="poEncerrarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-encerramento' ? 'ENCERRANDO…' : 'Encerrar responsabilidade') + '</button></div>';
+      if (podeEscrever()) h += '<div class="avp-actions-footer po-acoes-cadastro">' + (ob.situacao === 'ativo' ? '<button type="button" class="btn btn--sm" id="poEditarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (O() && O().registroSimplificado(ob) ? 'Editar responsabilidade' : 'Editar dados') + '</button>' +
+        '<button type="button" class="btn btn--sm" id="poEncerrarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-encerramento' ? 'ENCERRANDO…' : 'Encerrar responsabilidade') + '</button>' : '') +
+        '<button type="button" class="btn btn--sm btn--danger" id="poExcluirAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-exclusao' ? 'EXCLUINDO…' : 'Excluir cadastro') + '</button></div>' +
+        '<p class="avp-ficha-meta" id="poEncerrarExcluirAjuda">' + (ob.situacao === 'ativo' ? '<strong>Encerrar</strong> mantém o cadastro como encerrado (a responsabilidade existiu e deixou de existir). ' : '') + '<strong>Excluir</strong> é para o que foi cadastrado por engano: o cadastro sai; ficam só o motivo e o histórico das avaliações.</p>';
       return h + '</div><button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
     }
     /* referência informativa: itens com Avaliação de Produto/Serviço (fora da Lixeira); os que já têm Posicionamento
@@ -1432,6 +1481,58 @@
             encerrarAtuacao(id, ob, m);
             return null;
           } });
+      });
+    }
+    /* EXCLUSÃO (contrato em dois níveis): comum (sem Posicionamento concluído) ou excepcional (já avaliado: só o admin
+       geral, com confirmação explícita). Rascunho aberto ou estrutura responsável ativa bloqueiam. O banco confere tudo
+       de novo na gravação — a leitura daqui é só para explicar antes. */
+    function ehAdminGeral() { var A = window.faAuth, s = A && A.getSession && A.getSession(); return !!(A && A.isAdmin && s && A.isAdmin(s.email)); }
+    var TEXTO_BLOQUEIO_EXC = { RASCUNHO_ABERTO: 'há um rascunho de Posicionamento em andamento — conclua-o ou descarte-o antes', VINCULO_ATIVO: 'há estrutura responsável ativa — encerre o vínculo na ficha do Posicionamento antes' };
+    function pedirExclusaoAtuacao() {
+      if (!podeEscrever() || ocupado()) return;
+      var id = state.itemEscolhido, ob = (state.objetos || {})[id];
+      if (!ob || !O()) return;
+      state.salvando = 'atuacao-verificando'; render();
+      var ler = function (c) { return S().lerUmaVez(c).then(function (v) { return { v: v }; }, function () { return { erro: true }; }); };
+      Promise.all([ler('estruturas-vinculos/ativo-por-objeto/' + id), ler(RES + '/' + id), ler(VIG + '/' + id)]).then(function (r) {
+        state.salvando = null; render();
+        if (r[0].erro || r[1].erro || r[2].erro) { aviso('Não foi possível verificar as dependências desta responsabilidade agora. Nada foi excluído: tente de novo.'); return; }
+        var dep = { vinculoAtivo: !!r[0].v, rascunho: !!r[1].v, vigente: !!r[2].v }, n = O().nivelExclusao(dep);
+        var origem = window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.origemDe ? window.faAnalisesOrganizacionais.origemDe(id) : null;
+        if (n.nivel === 'bloqueada') { aviso('Esta responsabilidade não pode ser excluída agora: ' + n.motivos.map(function (m) { return TEXTO_BLOQUEIO_EXC[m] || m; }).join('; ') + '.'); return; }
+        if (n.nivel === 'excepcional' && !ehAdminGeral()) {
+          aviso('Esta responsabilidade já tem Posicionamento concluído. Excluir um registro já avaliado é uma exclusão excepcional, feita só pelo administrador geral. Se ela deixou de existir, use "Encerrar responsabilidade".'); return;
+        }
+        var deps = [];
+        if (dep.vigente) { var reg = state.registros[r[2].v] || {}, ra = reg.resultadoAutomatico || {}, dec = state.decisoes[r[2].v]; deps.push('Posicionamento O1–O9 concluído' + (ra.codigoResultado ? ' (recomendação: ' + esc(nomeAtual(ra.codigoResultado)) + ')' : '') + (dec ? ', com decisão final: ' + esc(nomeAtual(dec.codigoFinal)) : '') + ' — continua guardado como histórico'); }
+        if (origem) deps.push('Registrada na análise da área ' + esc(origem.nome || '') + ' — a ligação com a análise continua, indicando "cadastro excluído"');
+        if (ob.referenciaItemId) deps.push('Referência informativa a uma Avaliação de Produto/Serviço — é liberada');
+        var exc = n.nivel === 'excepcional';
+        modal('<h4>' + (exc ? 'Exclusão excepcional de registro já avaliado' : 'Excluir este cadastro?') + '</h4>' +
+          '<p class="po-exc-registro"><strong>' + esc(O().registroSimplificado(ob) ? ob.descricao : ob.nome) + '</strong></p>' +
+          '<p>O cadastro sai de verdade (não fica como encerrado). Fica um registro mínimo com o nome, o motivo, quem excluiu e quando, para explicar o histórico.</p>' +
+          (deps.length ? '<p><strong>Dependências:</strong></p><ul class="po-exc-deps" id="poExcDeps">' + deps.map(function (d) { return '<li>' + d + '</li>'; }).join('') + '</ul>' : '<p id="poExcSemDeps">Não há avaliações nem vínculos ligados a este cadastro.</p>') +
+          '<p class="avp-ficha-meta">Se a responsabilidade existiu e deixou de existir, prefira Encerrar.</p>' +
+          '<label for="poMotivoExcluirAtuacao">Motivo da exclusão *</label><textarea id="poMotivoExcluirAtuacao" rows="3" maxlength="500"></textarea>' +
+          (exc ? '<label class="avp-decisao-option"><input type="checkbox" id="poExcConfirmo"> Confirmo a exclusão excepcional: o cadastro sai e o Posicionamento já registrado fica só como histórico.</label>' : ''),
+          { sim: exc ? 'Excluir (excepcional)' : 'Excluir cadastro', nao: 'Cancelar', aoSim: function (box) {
+            var m = String(box.querySelector('#poMotivoExcluirAtuacao').value || '').trim();
+            if (!m) return 'Informe o motivo da exclusão.';
+            if (exc && !box.querySelector('#poExcConfirmo').checked) return 'Marque a confirmação da exclusão excepcional.';
+            excluirAtuacao(id, ob, m, dep);
+            return null;
+          } });
+      });
+    }
+    function excluirAtuacao(id, ob, motivo, dep) {
+      var u = usuarioObjeto(); if (!u || !O()) return;
+      var payload;
+      try { payload = O().payloadExclusao({ id: id, atual: ob, audId: novaChave(O().AUD + '/' + id), motivo: motivo, dep: dep, usuario: u, agora: S().agoraServidor() }); }
+      catch (e) { aviso('Não foi possível excluir: confira o motivo.'); return; }
+      state.salvando = 'atuacao-exclusao'; render();
+      gravar(payload, function () { state.salvando = null; state.itemEscolhido = null; state.flash = '✓ Cadastro excluído. O motivo e o histórico das avaliações ficaram registrados.'; render(); }, function () {
+        state.salvando = null; render();
+        aviso('O banco recusou a exclusão. A situação pode ter mudado desde a verificação (um rascunho iniciado, uma estrutura responsável ligada ou um Posicionamento concluído): abra a responsabilidade de novo e confira.');
       });
     }
     function encerrarAtuacao(id, ob, motivo) {
@@ -1696,6 +1797,7 @@
       var ia = byId('poIniciarAtuacaoBtn'); if (ia) ia.addEventListener('click', iniciarAtuacao);
       var eab = byId('poEditarAtuacaoBtn'); if (eab) eab.addEventListener('click', function () { state.objetoEditando = state.itemEscolhido; state.formAtuacao = null; state.flash = null; state.tela = 'form-atuacao'; render(); });
       var encb = byId('poEncerrarAtuacaoBtn'); if (encb) encb.addEventListener('click', pedirEncerramentoAtuacao);
+      var excb = byId('poExcluirAtuacaoBtn'); if (excb) excb.addEventListener('click', pedirExclusaoAtuacao);
       ['nome', 'descricao', 'finalidade', 'contexto'].forEach(function (c) { var el = byId('poAtuacao_' + c); if (el) el.addEventListener('input', function () { if (state.formAtuacao) state.formAtuacao[c] = el.value; }); });
       ['poTodasBusca', 'poTodasArea', 'poTodasSituacao'].forEach(function (fid) { var el = byId(fid); if (el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', filtrarTodas); });
       var rsel = byId('poAtuacaoRef'); if (rsel) rsel.addEventListener('change', function () { if (state.formAtuacao) state.formAtuacao.ref = rsel.value; });
@@ -1735,6 +1837,12 @@
         t.addEventListener('input', function () { var d = state.atual.predominancias[t.dataset.nivel]; if (!d) return; if (t.value) d.observacao = t.value.slice(0, MAX_OBS); else delete d.observacao; state.sujo = true; });
       });
       var sal = byId('poSalvarBtn'); if (sal) sal.addEventListener('click', salvar);
+      var apo = byId('poApoioO7O9'); if (apo) apo.addEventListener('toggle', function () { state.apoioO7O9Aberto = apo.open; });
+      var semInfo = byId('poApoioSemInfo'); if (semInfo) semInfo.addEventListener('click', function () {
+        state.apoioSemInfo = true; state.apoioO7O9Aberto = true;
+        /* só salva o que já está no rascunho (sem resposta nova); sem permissão de gravar, só orienta */
+        if (podeEscrever() && state.atual && state.atual.status === 'rascunho' && !ocupado() && !state.conflito && state.sujo) salvar(); else render();
+      });
       var con = byId('poConcluirBtn'); if (con) con.addEventListener('click', concluir);
       var des = byId('poDescartarBtn'); if (des) des.addEventListener('click', pedirDescarte);
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);
@@ -2243,6 +2351,8 @@
       ouvir(DEC, 'dec', function (v) { state.decisoes = v; state.erroDec = false; });
       /* Porta 2: os objetos organizacionais (identidade do item sem P1–P16) */
       ouvir(OBJ, 'obj', function (v) { state.objetos = v; state.erroObj = false; });
+      /* registros mínimos das responsabilidades EXCLUÍDAS: explicam a que cadastro pertencem os Posicionamentos que ficam */
+      ouvir(OBJ_EXC, 'objexc', function (v) { state.objExcluidos = v; });
       /* H3-b: a versão do motor EM VIGOR vem do banco (sem registro = 1); enquanto não chega, nada nasce */
       ouvir(VIGENCIA, 'vigm', function (v) { state.vigenciaMotor = v; state.erroVigencia = false; });
       /* o gate precisa do motor de Produto/Serviço carregado: este onMudanca liga a leitura (garantirSync) e redesenha

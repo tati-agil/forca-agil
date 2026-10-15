@@ -113,6 +113,7 @@
     ouvir(NOS.analises, 'analises'); ouvir(NOS.propostas, 'propostas'); ouvir(NOS.aprovacoes, 'aprovacoes'); ouvir(NOS.porObjeto, 'porObjeto');
     ouvir('objetos-organizacionais', 'objetos'); ouvir('posicionamento-vigente-por-item', 'vigentes'); ouvir('avaliacoes-posicionamento', 'avaliacoes');
     ouvir('posicionamento-decisoes', 'decisoes'); ouvir('posicionamento-rascunho-por-item', 'rascunhos');
+    ouvintes.dados.push(S().ouvir('objetos-organizacionais-excluidos', function (v) { D.objExcluidos = v || {}; avisar(); }, function () { D.objExcluidos = {}; }));
     ouvintes.dados.push(S().ouvir('.info/serverTimeOffset', function (v) { D.offset = typeof v === 'number' ? v : 0; }, function () {}));
     /* estruturas e vínculos (só leitura, para a situação formal): "ainda não sei" ≠ "não tem" */
     var E = window.faEstruturasFirebase, EA = window.faEstruturasAdmin;
@@ -157,7 +158,7 @@
   function nomeEstrutura(id) { var e = (D.estruturas || {})[id]; return e ? e.nome : id; }
 
   /* ===================== gravação ===================== */
-  function gravarOperacao(fn, aoTerminar, extra) {
+  function gravarOperacao(fn, aoTerminar, extra, aoConfirmarTarde) {
     var ident = S().identidade();
     if (!ident) { aoTerminar({ erro: 'Sessão não identificada. Entre de novo.' }); return; }
     var NOS = F().NOS;
@@ -169,9 +170,9 @@
     catch (e) { aoTerminar({ erro: (e && e.message) || 'Não foi possível montar a gravação.' }); return; }
     S().gravar(payload, PRAZO, function (err) {
       if (!err) { aoTerminar({ ok: true, novoId: ctx.novoId }); return; }
-      if (err === 'sem-resposta') { aoTerminar({ erro: 'O servidor não respondeu a tempo. A tela se atualiza sozinha quando a resposta chegar; confira antes de repetir.' }); return; }
+      if (err === 'sem-resposta') { aoTerminar({ semResposta: true, erro: 'O servidor ainda não confirmou a gravação (a conexão pode estar lenta). Não repita o clique: quando a confirmação chegar, a tela se atualiza e avisa. Se nada mudar em alguns minutos, recarregue a página e confira.' }); return; }
       aoTerminar({ erro: 'O banco recusou a gravação. Outra pessoa pode ter gravado antes, ou a habilitação mudou. A tela já mostra o estado atual.' });
-    });
+    }, aoConfirmarTarde);
   }
   var ERROS = {
     AGRUPAMENTO_SEM_COMPARACAO: 'Estas entregas só podem ficar na mesma responsabilidade depois de comparadas e concluídas como "a mesma" ou "precisam acontecer juntas".',
@@ -191,7 +192,13 @@
     ESTRUTURA_INCOMPATIVEL_COM_RESPOSTA: 'Só a resposta "Está cadastrada" aponta uma estrutura do cadastro.', SEPARACAO_INVALIDA: 'Responda se a descrição reúne trabalhos diferentes que precisam ser avaliados separadamente (Não, Sim ou Não sei).', LOTE_VAZIO: 'Marque ao menos um item com texto.', LOTE_GRANDE_DEMAIS: 'Registre no máximo 100 por vez.', NUCLEO_INVALIDO: 'Cada núcleo precisa de um nome (até 200 caracteres).', NUCLEO_REPETIDO: 'O mesmo núcleo foi informado duas vezes.', FONTE_INVALIDA: 'A fonte é longa demais.', DESCRICAO_OBRIGATORIA: 'Descreva a responsabilidade (pode copiar a atribuição como está).', PARTES_INSUFICIENTES: 'Informe ao menos duas partes.', SEPARAR_SO_COM_SIM: 'Só se separa uma responsabilidade marcada como "precisa separar".', NOME_CURTO_OBRIGATORIO: 'Informe um nome curto (até 200 caracteres).', JUSTIFICATIVA_INVALIDA: 'A justificativa é longa demais.', ENTREGA_EM_RESPONSABILIDADE: 'Esta entrega está numa responsabilidade delimitada: tire-a de lá antes (descarte ou reveja a responsabilidade).',
     ENTREGA_EM_RESPONSABILIDADE_AVALIADA: 'Esta entrega está numa responsabilidade já avaliada pelo O1–O9: o texto não muda. Para rever, descarte a responsabilidade e delimite de novo.', ENTREGA_DESCARTADA: 'Esta entrega já foi excluída.', ENTREGA_INEXISTENTE: 'Entrega não encontrada.',
     CERTEZA_RESPONSAVEL_INVALIDA: 'Diga se o responsável é conhecido, provável ou ainda não definido.', NOME_OBRIGATORIO: 'O nome é obrigatório.', RESULTADO_OBRIGATORIO: 'O resultado é obrigatório.',
-    JUSTIFICATIVA_DO_RECORTE_OBRIGATORIA: 'Explique por que esta responsabilidade é distinta das outras.', JUSTIFICATIVA_OBRIGATORIA: 'A justificativa é obrigatória.', MOTIVO_OBRIGATORIO: 'O motivo é obrigatório.',
+    JUSTIFICATIVA_DO_RECORTE_OBRIGATORIA: 'Explique por que esta responsabilidade é distinta das outras.', JUSTIFICATIVA_OBRIGATORIA: 'A justificativa é obrigatória.',    MOTIVO_OBRIGATORIO: 'O motivo é obrigatório.',
+    RECORTE_COM_CADASTRO: 'Esta responsabilidade já tem cadastro na Porta 2: exclua o cadastro pela ficha dele (a ligação com a análise é preservada).',
+    RECORTE_EM_PROPOSTA: 'Esta responsabilidade está citada numa proposta de composição registrada (imutável): ela não pode ser excluída. Use Descartar.',
+    ANALISE_COM_PROPOSTA_ANTERIOR: 'Esta análise tem proposta registrada antes do controle de citações: o banco não consegue provar quais responsabilidades ela cita, por isso nenhuma pode ser excluída. Use Descartar.',
+    PROPOSTA_RECORTES_DEMAIS: 'Uma proposta cita no máximo 100 responsabilidades.',
+    ULTIMA_PARTE: 'É a última parte de uma responsabilidade separada: exclua a responsabilidade original (com as partes) em vez desta parte.',
+    ANALISE_COM_APROVACAO: 'Esta análise tem aprovação registrada (referência a ato externo): ela não pode ser excluída.',
     RECORTE_SEM_ENTREGA: 'Escolha ao menos uma entrega.', ENTREGA_SEM_DESCRICAO: 'Descreva a entrega.', EVIDENCIA_SEM_TEXTO: 'Escreva a evidência.', TIPO_ESCOPO_INVALIDO: 'Escolha o que você vai analisar.',
     AUTORIDADE_OBRIGATORIA: 'Informe a autoridade que aprovou.', REFERENCIA_DO_ATO_OBRIGATORIA: 'Informe a referência do ato (ata, documento).', DATA_DO_ATO_INVALIDA: 'Informe a data do ato.', OBJETO_APROVADO_OBRIGATORIO: 'Diga o que foi aprovado.',
     ATUACAO_JA_TEM_ORIGEM: 'Esta responsabilidade já nasceu de outra análise.', ATUACAO_INVALIDA: 'Escolha a responsabilidade.', REFERENCIA_REPETIDA: 'Esta responsabilidade já está referenciada aqui.', REFERENCIA_A_PROPRIA_ORIGEM: 'Esta responsabilidade nasceu nesta análise.', RESPOSTA_INVALIDA: 'Escolha uma das respostas.', PROPOSTA_SEM_RECORTE: 'Escolha ao menos uma responsabilidade.'
@@ -203,7 +210,7 @@
     var wrap = document.getElementById('avaliacoesAnalise');
     if (!wrap || wrap._anBound) return null;
     wrap._anBound = true;
-    var st = { tela: 'lista', id: null, flash: null, erro: null, gravando: false, form: null, abertos: {} };
+    var st = { tela: 'lista', id: null, flash: null, erro: null, gravando: false, form: null, abertos: {}, pendentes: {} };
 
     /* painel e identidade da página */
     var ident0 = null;
@@ -441,10 +448,15 @@
       var achar = function (acao) { for (var i = 0; i < ativos.length; i++) if (rs.sits[i].acao === acao) return i; return -1; };
       var i = achar('continuar');
       if (i >= 0) return { t: 'Continue o O1–O9 de "' + textoResp(a.recortes[ativos[i]]) + '".', rotulo: 'Continuar avaliação', href: '#avaliacoes?po=' + encodeURIComponent(rs.sits[i].avaliacaoId) };
-      i = achar('avaliar');
-      if (i >= 0) return { t: 'Avalie "' + textoResp(a.recortes[ativos[i]]) + '" pelo O1–O9.', rotulo: 'Avaliar próxima', avaliar: ativos[i] };
-      i = achar('iniciar');
-      if (i >= 0) return { t: 'Inicie o O1–O9 de "' + textoResp(a.recortes[ativos[i]]) + '".', rotulo: 'Avaliar próxima', href: '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(a.recortes[ativos[i]].objetoId) };
+      /* avaliar (ainda sem cadastro) e iniciar (cadastro já feito) têm a MESMA prioridade, na ordem da lista: a sugestão não
+         salta para a responsabilidade seguinte só porque a anterior acabou de ganhar o cadastro */
+      for (i = 0; i < ativos.length; i++) if (rs.sits[i].acao === 'avaliar' || rs.sits[i].acao === 'iniciar') break;
+      if (i < ativos.length) {
+        var rk0 = ativos[i], rr0 = a.recortes[rk0];
+        if (st.pendentes[rk0]) return { t: 'Aguardando a confirmação do servidor para "' + textoResp(rr0) + '". Não é preciso clicar de novo.' };
+        if (rs.sits[i].acao === 'avaliar') return { t: 'Avalie "' + textoResp(rr0) + '" pelo O1–O9.', rotulo: 'Avaliar próxima', avaliar: rk0 };
+        return { t: 'Inicie o O1–O9 de "' + textoResp(rr0) + '".', rotulo: 'Avaliar próxima', href: '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(rr0.objetoId) };
+      }
       i = achar('separar');
       if (i >= 0) return { t: 'Registro anterior: separe "' + textoResp(a.recortes[ativos[i]]) + '" nas partes que a compõem.', rotulo: 'Separar', alvo: 'anSeparar_' + ativos[i] };
       i = achar('revisar');
@@ -517,8 +529,30 @@
       if (lac.length) h += '<section class="avp-form-card an-secao" id="anLacunas"><h3>Lacunas (não impedem continuar)</h3><ul>' + lac.map(function (l) { return '<li>' + esc(textoLacuna(a, l)) + '</li>'; }).join('') + '</ul></section>';
       h += renderHistorico(a);
       h += '<div class="avp-actions-footer an-rodape"><button type="button" class="btn btn--sm" id="anExportarBtn" data-an="exportar">📊 Exportar Excel</button>' +
-        (gravar ? '<button type="button" class="btn btn--sm btn--danger" data-an="abrir-form" data-form="descartar" id="anDescartarBtn">Descartar a análise</button>' : '') + '</div>';
+        (gravar ? '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="descartar" id="anDescartarBtn">Descartar a análise</button>' : '') +
+        (acc.gravar ? '<button type="button" class="btn btn--sm btn--danger" data-an="abrir-form" data-form="excluir-analise" id="anExcluirBtn">Excluir a análise</button>' : '') + '</div>';
+      if (st.form && st.form.tipo === 'excluir-analise') h += renderExcluirAnalise(est, a);
       if (st.form && st.form.tipo === 'descartar') h += '<form class="avp-form-card an-form" id="anFormDescartar"><div class="avp-field"><label for="anMotivoDescarte">Motivo do descarte</label><textarea id="anMotivoDescarte" maxlength="500" rows="2"></textarea></div><p class="an-nota">Nada é apagado: a análise fica no histórico como descartada.</p><div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarDescarte">Descartar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+      return h;
+    }
+    /* EXCLUSÃO da análise (contrato em dois níveis): comum = vazia; excepcional = com conteúdo, só admin geral, com
+       confirmação explícita e as dependências à vista (nada sai em cascata); com aprovação registrada, nunca */
+    function ehAdminGeral() { var A = window.faAuth, s = A && A.getSession && A.getSession(); return !!(A && A.isAdmin && s && A.isAdmin(s.email)); }
+    function renderExcluirAnalise(est, a) {
+      var n = N().nivelExclusaoAnalise(est, a.id), h = '<form class="avp-form-card an-form" id="anFormExcluir" data-nivel="' + n.nivel + '"><h3>' + (n.nivel === 'excepcional' ? 'Exclusão excepcional da análise' : 'Excluir a análise?') + '</h3>';
+      if (n.nivel === 'bloqueada') return h + '<p class="avp-error-msg" id="anExcluirBloqueio">' + esc(mensagemErro({ codigo: n.motivos[0] })) + '</p><div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="cancelar">Fechar</button></div></form>';
+      if (n.nivel === 'excepcional' && !ehAdminGeral()) return h + '<p class="an-nota" id="anExcluirSoAdmin">Esta análise já tem conteúdo (responsabilidades, proposta ou referências). Excluí-la é uma exclusão excepcional, feita só pelo administrador geral. Se ela não serve mais, use "Descartar a análise".</p><div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="cancelar">Fechar</button></div></form>';
+      var rs = a.recortes || {}, ks = Object.keys(rs), comCad = ks.filter(function (k) { return rs[k].objetoId; });
+      var props = Object.keys(est.propostas || {}).filter(function (k) { return est.propostas[k].analiseId === a.id; }).length;
+      h += '<p class="an-nota">A análise sai de verdade (não fica como descartada). Fica um registro mínimo com o nome, o motivo, quem excluiu e quando.</p>';
+      if (n.nivel === 'excepcional') h += '<p><strong>Dependências:</strong></p><ul class="an-exc-deps" id="anExcluirDeps">' +
+        (ks.length ? '<li>' + ks.length + ' responsabilidade' + (ks.length === 1 ? '' : 's') + ' registrada' + (ks.length === 1 ? '' : 's') + ' nesta análise — saem com ela</li>' : '') +
+        (comCad.length ? '<li>' + comCad.length + ' com cadastro na Porta 2 — os cadastros e as avaliações deles CONTINUAM (não são excluídos em cascata); a ligação com a análise passa a indicar "análise excluída"</li>' : '') +
+        (props ? '<li>' + props + ' proposta' + (props === 1 ? '' : 's') + ' de composição — continua' + (props === 1 ? '' : 'm') + ' guardada' + (props === 1 ? '' : 's') + ' como histórico</li>' : '') +
+        (Object.keys(a.referencias || {}).length ? '<li>Referências a responsabilidades de outras análises — as de origem não mudam</li>' : '') + '</ul>';
+      h += '<div class="avp-field"><label for="anMotivoExcluir">Motivo da exclusão *</label><textarea id="anMotivoExcluir" maxlength="500" rows="2"></textarea></div>' +
+        (n.nivel === 'excepcional' ? '<label class="avp-decisao-option"><input type="checkbox" id="anExcluirConfirmo"> Confirmo a exclusão excepcional desta análise, com as dependências acima.</label>' : '') +
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarExcluir">' + (n.nivel === 'excepcional' ? 'Excluir (excepcional)' : 'Excluir a análise') + '</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
       return h;
     }
     /* a área ou o trabalho analisado (contexto). O texto livre é só apoio: nada é interpretado */
@@ -553,12 +587,13 @@
       var h = '<section class="avp-form-card an-secao" id="anResponsabilidades" aria-labelledby="anListaTitulo"><h3 id="anListaTitulo">' + esc(a.nome) + ' — Responsabilidades Organizacionais</h3>';
       if (!ativos.length && !desd.length) return h + '<p class="admin-empty" id="anRespVazio">Nenhuma responsabilidade informada ainda. Assim que registrar, cada uma aparece aqui pronta para avaliar.</p></section>';
       h += '<p class="an-resumo" id="anResumo">' + esc(textoResumo(ativos.length, rs.n)) + '</p>' +
-        '<details class="an-conceitos" id="anLegendaLista"><summary>O que significa cada coluna?</summary><p class="an-nota"><strong>Quem executa hoje</strong> é a informação declarada de quem faz o trabalho — não é vínculo nem responsabilidade formal. <strong>Tipo recomendado</strong> é o tipo arquitetural que o O1–O9 recomenda para a responsabilidade — não é uma nova estrutura e não cria, renomeia nem muda unidade nenhuma. O vínculo formal registrado e a proposta de composição (com a eventual aprovação) ficam na composição organizacional.</p></details>' +
+        '<details class="an-conceitos" id="anLegendaLista"><summary>O que significa cada coluna?</summary><p class="an-nota"><strong>Quem executa hoje</strong> é a informação declarada de quem faz o trabalho — não é vínculo nem responsabilidade formal. <strong>Tipo recomendado</strong> é o tipo arquitetural que o O1–O9 recomenda para a responsabilidade — não é uma nova estrutura e não cria, renomeia nem muda unidade nenhuma. O vínculo formal registrado e a proposta de composição (com a eventual aprovação) ficam na composição organizacional.</p><p class="an-nota" id="anLegendaAvaliada"><strong>Avaliada</strong> quer dizer que o O1–O9 da responsabilidade foi concluído. Não é decisão final, vínculo nem aprovação.</p></details>' +
         '<div class="an-tabela" role="table" aria-label="Responsabilidades e andamento"><div class="an-tab-cab" role="row"><span role="columnheader">Responsabilidade</span><span role="columnheader">Quem executa hoje</span><span role="columnheader">Tipo recomendado</span><span role="columnheader">Situação</span><span role="columnheader">Ação</span></div>';
       ativos.forEach(function (k, i) {
         var r = a.recortes[k], s = rs.sits[i], p = sfs[i].p, origem = r.origemRecorteId ? a.recortes[r.origemRecorteId] : null, nucs = nucleosDe(r), sep = r.separacao ? r.separacao.valor : null;
         var acao = '';
-        if (s.acao === 'avaliar') acao = gravar ? '<button type="button" class="btn btn--sm" data-an="avaliar" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar</button>' : '';
+        if (st.pendentes[k]) acao = '<span class="an-chip an-chip--atual" id="anPendente_' + esc(k) + '" role="status">' + (st.pendentes[k] === 'aguardando' ? 'Aguardando confirmação do servidor' : 'Gravando…') + '</span>';
+        else if (s.acao === 'avaliar') acao = gravar ? '<button type="button" class="btn btn--sm" data-an="avaliar" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar</button>' : '';
         else if (s.acao === 'iniciar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anAbrirPos_' + esc(k) + '">Avaliar</a>';
         else if (s.acao === 'continuar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Continuar</a>';
         else if (s.acao === 'ver') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Ver resultado</a>';
@@ -569,9 +604,12 @@
         if (gravar) acao += '<details class="an-mais" id="anMais_' + esc(k) + '"' + (st.abertos.mais === k ? ' open' : '') + '><summary>Mais</summary><div class="an-mais-itens">' +
           '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="nucleos" data-recorte="' + esc(k) + '" id="anNucleos_' + esc(k) + '">' + (nucs.length ? 'Alterar quem executa hoje' : 'Informar quem executa hoje') + '</button>' +
           (!r.objetoId && (s.acao !== 'revisar' || N().modeloSimples(r)) ? '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="revisar" data-recorte="' + esc(k) + '" id="anRevisar_' + esc(k) + '">' + (N().registroDireto(r) ? 'Editar o texto' : 'Revisar o texto') + '</button>' : '') +
-          (!r.objetoId ? '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="descartar-recorte" data-recorte="' + esc(k) + '" id="anDescartarResp_' + esc(k) + '">Descartar</button>' : '') + '</div></details>';
+          (!r.objetoId ? '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="descartar-recorte" data-recorte="' + esc(k) + '" id="anDescartarResp_' + esc(k) + '">Descartar</button>' +
+            '<button type="button" class="btn btn--sm an-link an-link--perigo" data-an="abrir-form" data-form="excluir-recorte" data-recorte="' + esc(k) + '" id="anExcluirResp_' + esc(k) + '">Excluir</button>'
+            : (D.objetos || {})[r.objetoId] ? '<a class="btn btn--sm an-link an-link--perigo" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anExcluirCadastro_' + esc(k) + '">Excluir o cadastro…</a>' : '') + '</div></details>';
         h += '<div class="an-linha an-resp" role="row" data-resp="' + esc(k) + '" data-situacao="' + s.c + '">' +
           '<div class="an-cel an-cel--resp" role="cell"><strong>' + esc(textoResp(r)) + '</strong>' + (origem ? '<span class="an-det">Parte de: "' + esc(textoResp(origem)) + '"</span>' : '') +
+          (r.objetoId && !(D.objetos || {})[r.objetoId] && (D.objExcluidos || {})[r.objetoId] ? '<span class="an-det an-det--excluido" id="anCadastroExcluido_' + esc(k) + '">Cadastro excluído em ' + esc(fmtData(D.objExcluidos[r.objetoId].excluidoEm)) + ': ' + esc(D.objExcluidos[r.objetoId].motivo) + '. O que foi avaliado continua no histórico.</span>' : '') +
 '</div>' +
           '<div class="an-cel" role="cell" data-rotulo="Quem executa hoje"><span id="anNucleosTexto_' + esc(k) + '">' + (nucs.length ? nucs.map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informado') + '</span></div>' +
           '<div class="an-cel" role="cell" data-rotulo="Tipo recomendado"><span id="anTipo_' + esc(k) + '">' + esc(tipoRecomendado(p)) + '</span></div>' +
@@ -584,7 +622,8 @@
         var r = a.recortes[k], partes = ((r.desdobramento || {}).partes || []).map(function (q) { return a.recortes[q] ? textoResp(a.recortes[q]) : q; });
         return '<div class="an-linha an-resp--desdobrada" role="row" data-desdobrada="' + esc(k) + '"><div class="an-cel an-cel--resp" role="cell"><strong>' + esc(textoResp(r)) + '</strong>' +
           '<span class="an-det">Descrição original, preservada. Separada em: ' + partes.map(function (q) { return '"' + esc(q) + '"'; }).join('; ') + '. Não é avaliada como um todo.</span></div>' +
-          '<div class="an-cel" role="cell" data-rotulo="Quem executa hoje">—</div><div class="an-cel" role="cell" data-rotulo="Tipo recomendado">—</div><div class="an-cel" role="cell" data-rotulo="Situação"><span class="an-chip an-chip--neu">Separada em ' + partes.length + ' partes</span></div><div class="an-cel" role="cell"></div></div>';
+          '<div class="an-cel" role="cell" data-rotulo="Quem executa hoje">—</div><div class="an-cel" role="cell" data-rotulo="Tipo recomendado">—</div><div class="an-cel" role="cell" data-rotulo="Situação"><span class="an-chip an-chip--neu">Separada em ' + partes.length + ' partes</span></div>' +
+          '<div class="an-cel an-cel--acao" role="cell">' + (gravar ? '<button type="button" class="btn btn--sm an-link an-link--perigo" data-an="abrir-form" data-form="excluir-recorte" data-recorte="' + esc(k) + '" id="anExcluirResp_' + esc(k) + '">Excluir</button>' : '') + '</div>' + renderFormsLinha(a, r, k) + '</div>';
       }).join('');
       return h + '</div></section>';
     }
@@ -608,6 +647,16 @@
       if (t === 'separar') return renderFormSeparar(r, k);
       if (t === 'nucleos') return renderFormNucleos(r, k);
       if (t === 'atuacao') return renderFormRecorte(a, r, k);
+      if (t === 'excluir-recorte') {
+        var bl = N().bloqueiosExclusaoRecorte(estado(), a, k);
+        if (bl.length) return '<div class="an-form an-linha-form" id="anExcluirRespBloqueio"><p class="avp-error-msg">' + esc(mensagemErro(bl[0])) + '</p><div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="cancelar">Fechar</button></div></div>';
+        var partesX = r.situacao === 'desdobrado' && r.desdobramento ? (r.desdobramento.partes || []).filter(function (q) { return a.recortes[q]; }) : [];
+        return '<form class="an-form an-linha-form" data-form="excluir-recorte" data-recorte="' + esc(k) + '" id="anFormExcluirResp"><h4>Excluir esta responsabilidade?</h4>' +
+          '<p class="an-nota"><strong>Excluir</strong> é para o que foi registrado por engano: a responsabilidade sai da análise (não fica como descartada). O histórico da análise guarda o texto excluído, quem excluiu, quando e o motivo. <strong>Descartar</strong> a mantém na análise como descartada.</p>' +
+          (partesX.length ? '<p class="an-nota" id="anExcluirPartes">Saem junto as partes: ' + partesX.map(function (q) { return '"' + esc(textoResp(a.recortes[q])) + '"'; }).join('; ') + '.</p>' : '') +
+          '<div class="avp-field"><label for="anMotivoExcluirRec">Motivo da exclusão *</label><input id="anMotivoExcluirRec" maxlength="500"></div>' +
+          '<div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarExcluirResp">Excluir a responsabilidade</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+      }
       if (t === 'descartar-recorte') return '<form class="an-form an-linha-form" data-form="descartar-recorte" data-recorte="' + esc(k) + '"><div class="avp-field"><label for="anMotivoRec">Motivo</label><input id="anMotivoRec" maxlength="500"></div><p class="an-nota">Nada é apagado: a responsabilidade fica no histórico como descartada.</p><div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarDescarteResp">Descartar a responsabilidade</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
       return '';
     }
@@ -716,6 +765,7 @@
        avaliação só, mesmo compartilhada), e — separadas — a proposta e a decisão formal. Nada muda o Mapa nem estruturas */
     function renderComposicaoArea(est, a, ativos, sfs, acc, ps) {
       var h = '<details class="avp-form-card an-secao an-comp-secao" id="anComposicaoSecao"' + (st.abertos.composicao ? ' open' : '') + '><summary><span id="anComposicaoTitulo">Composição organizacional</span> <span class="an-chip an-chip--neu">Opcional</span></summary>' +
+        '<p class="an-nota" id="anComposicaoProposito"><strong>Para que serve:</strong> ver juntas as responsabilidades da área, agrupadas por quem as executa hoje, com o tipo recomendado de cada uma, para apoiar uma conversa sobre como organizá-las. O sistema não faz proposta automática, não atribui um tipo à área inteira e não distribui responsabilidades entre núcleos: isso é decisão de pessoas.</p>' +
         '<p class="an-nota">Quatro coisas diferentes, que não se confundem: <strong>núcleo(s) que executam hoje</strong> (informação declarada — não é vínculo nem responsabilidade formal; "Núcleo" e "Gerência" são níveis organizacionais, não tipos arquiteturais), <strong>tipo arquitetural recomendado</strong> (o resultado do O1–O9 de cada responsabilidade, como Área Especializada ou CoE — não da área nem do núcleo, e não é uma nova estrutura), <strong>estrutura com vínculo formal registrado</strong> (o vínculo da ficha do Posicionamento, quando existe — não é aprovação do desenho) e <strong>proposta de composição e aprovação</strong> (como as responsabilidades poderiam ser organizadas; aprovação só com a referência ao ato registrada). Nada aqui cria, renomeia, extingue ou transforma uma unidade, nem muda vínculos ou o Mapa da Floresta.</p>';
       if (!ativos.length) return h + '<p class="an-nota" id="anComposicaoVazia">Aparece quando houver responsabilidades na lista.</p></details>';
       var grupos = {}, ordemG = [], sem = [];
@@ -992,7 +1042,21 @@
       st.erro = null; st.flash = flash || null; st.form = null; st.limparCampos = true;
       if (depois) depois(r); else render();
     }
-    function executar(fn, flash, depois, extra) { if (st.gravando) return; st.gravando = true; st.erro = null; render(); gravarOperacao(fn, function (r) { terminar(r, flash, depois); }, extra); }
+    /* marca: a responsabilidade cuja gravação está em curso (marcador na linha; clique repetido ignorado). Sem resposta no
+       prazo, a linha fica "Aguardando confirmação do servidor" até a resposta tardia chegar */
+    function executar(fn, flash, depois, extra, marca) {
+      if (st.gravando) return; st.gravando = true; st.erro = null; render();
+      gravarOperacao(fn, function (r) {
+        if (marca) { if (r.semResposta) st.pendentes[marca] = 'aguardando'; else if (r.erro) delete st.pendentes[marca]; }
+        terminar(r, flash, depois);
+      }, extra, function (err) {
+        if (!marca || !st.pendentes[marca]) return;
+        delete st.pendentes[marca];
+        if (err) st.erro = 'O banco recusou a gravação que estava aguardando confirmação. A tela já mostra o estado atual.';
+        else { st.erro = null; st.flash = 'O servidor confirmou a gravação.'; }
+        if (!wrap.hidden) render();
+      });
+    }
     function val(id) { var e = document.getElementById(id); return e ? e.value : ''; }
     function marcado(nome) { var e = wrap.querySelector('input[name="' + nome + '"]:checked'); return e ? e.value : null; }
     function marcados(nome) { return Array.prototype.map.call(wrap.querySelectorAll('input[name="' + nome + '"]:checked'), function (e) { return e.value; }); }
@@ -1011,12 +1075,14 @@
         /* registros anteriores: nome, resultado e entregas que a pessoa declarou na delimitação */
         dados = { nome: r.nome, descricao: (r.resultado + (r.entregas.length ? ' — entregas: ' + r.entregas.map(function (e) { return nomeEntrega(a, e); }).join('; ') : '')).slice(0, 2000), finalidade: r.resultado, contexto: 'Delimitada na análise organizacional "' + a.nome + '".' };
       }
+      if (st.gravando || st.pendentes[rk]) return; /* clique repetido: a gravação desta responsabilidade já está em curso */
       var objetoId = S().novaChave('objetos-organizacionais');
-      executar(function (est, c) { return N().associarAtuacao(est, id, rk, objetoId, c); }, 'Responsabilidade registrada na Porta 2. Responda o O1–O9.', function () { location.hash = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(objetoId); },
+      st.pendentes[rk] = 'gravando';
+      executar(function (est, c) { return N().associarAtuacao(est, id, rk, objetoId, c); }, 'Responsabilidade registrada na Porta 2. Responda o O1–O9.', function () { delete st.pendentes[rk]; location.hash = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(objetoId); },
         function (res, c, ident) {
           var objetoPayload = O.payloadCriacao({ id: objetoId, audId: S().novaChave('objetos-organizacionais-auditoria/' + objetoId), dados: dados, usuario: { uid: ident.uid, email: ident.email, name: (sessao() || {}).name }, agora: S().agoraServidor() });
           return F().payloadCriarAtuacao({ objetoPayload: objetoPayload, associacao: res, analiseId: id, recorteId: rk, objetoId: objetoId, audId: S().novaChave(F().NOS.auditoria), usuario: ident, agora: S().agoraServidor() });
-        });
+        }, rk);
     }
     wrap.addEventListener('submit', function (ev) {
       var form = ev.target; ev.preventDefault();
@@ -1119,6 +1185,13 @@
         var versao = Number(form.getAttribute('data-versao')), data = val('anApData'), ms = data ? Date.parse(data + 'T12:00:00Z') : NaN;
         var da = { autoridade: val('anApAutoridade'), referencia: val('anApReferencia'), dataDoAto: isNaN(ms) ? null : ms, objetoAprovado: val('anApObjeto') };
         executar(function (est, c) { return N().registrarAprovacao(est, id, versao, da, c); }, 'Referência ao ato de aprovação registrada.');
+      } else if (form.getAttribute('data-form') === 'excluir-recorte') {
+        var rk5 = form.getAttribute('data-recorte'), mx = val('anMotivoExcluirRec');
+        executar(function (est, c) { return N().excluirRecorte(est, id, rk5, { motivo: mx }, c); }, 'Responsabilidade excluída. O texto e o motivo ficaram no histórico da análise.');
+      } else if (form.id === 'anFormExcluir') {
+        var mxa = val('anMotivoExcluir'), rev = (estado().analises[id] || {}).revisao;
+        if (form.getAttribute('data-nivel') === 'excepcional' && !(document.getElementById('anExcluirConfirmo') || {}).checked) { st.erro = 'Marque a confirmação da exclusão excepcional.'; render(); return; }
+        executar(function (est, c) { return N().excluirAnalise(est, id, { motivo: mxa, revisaoEsperada: rev }, c); }, 'Análise excluída. O registro mínimo e o histórico foram preservados.', function () { location.hash = '#avaliacoes?an=lista'; });
       } else if (form.id === 'anFormDescartar') {
         var md = val('anMotivoDescarte');
         executar(function (est, c) { return N().descartarAnalise(est, id, { motivo: md }, c); }, 'Análise descartada. Nada foi apagado.');
@@ -1285,6 +1358,30 @@
     });
     return out;
   }
+  /* por área (Trabalhos de avaliação): quantas responsabilidades ativas, quantas com O1–O9 concluído, em avaliação,
+     prontas para avaliar e pendentes de delimitação — lido do que está gravado, nada é calculado de novo nem gravado.
+     "Concluído" = há Posicionamento vigente (concluído) para o cadastro da responsabilidade */
+  function resumoPorArea() {
+    if (!pronto()) return null;
+    var est = estado(), out = [];
+    Object.keys(est.analises).forEach(function (aid) {
+      var a = est.analises[aid]; if (a.situacao === 'descartada') return;
+      var n = { total: 0, concluidas: 0, andamento: 0, prontas: 0, pendentes: 0 };
+      Object.keys(a.recortes).forEach(function (k) {
+        var r = a.recortes[k]; if (r.situacao !== 'ativo') return;
+        n.total++;
+        if (r.objetoId) {
+          if ((D.vigentes || {})[r.objetoId]) n.concluidas++;
+          else if ((D.rascunhos || {})[r.objetoId]) n.andamento++;
+          else if ((D.objetos || {})[r.objetoId]) n.prontas++;
+          else n.pendentes++;
+        } else if (N().prontaParaO1O9(a, k).pronta) n.prontas++;
+        else n.pendentes++;
+      });
+      out.push(Object.assign({ analiseId: aid, nome: a.nome, criadaEm: a.criadaEm || 0 }, n));
+    });
+    return out.sort(function (x, y) { return (y.criadaEm || 0) - (x.criadaEm || 0); });
+  }
   function origemDe(objetoId) {
     if (!pronto()) return null;
     var o = (D.porObjeto || {})[objetoId]; if (!o) return null;
@@ -1356,7 +1453,7 @@
     var api = montar();
     if (api) Object.keys(api).forEach(function (k) { window.faAnalisesOrganizacionais[k] = api[k]; });
   };
-  window.faAnalisesOrganizacionais = { entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, responsabilidadesDasAnalises: responsabilidadesDasAnalises, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
+  window.faAnalisesOrganizacionais = { resumoPorArea: resumoPorArea, entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, responsabilidadesDasAnalises: responsabilidadesDasAnalises, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
     exercidasHtml: exercidasHtml, montarHabilitacao: montarHabilitacao, acesso: acesso, aoMudar: function (f) { aoMudarFns.push(f); }, ligar: function () { ligarConfig(); ligarDados(); } };
   if (/^#avaliacoes\?(.*&)?an=/.test(location.hash || '')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.faInitAnalisesOrganizacionais); else window.faInitAnalisesOrganizacionais(); }
 })();

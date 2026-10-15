@@ -16,6 +16,10 @@
      analises-aprovacoes/<id>/v<n>                      referência a ato externo de aprovação (admin geral)
      analises-por-objeto/<objetoId>                     origem única de cada atuação criada por uma análise
      analises-organizacionais-config                    marcador de homologação (admin geral) + auditoria própria
+     analises-organizacionais-excluidas/<id>            registro mínimo de cada análise excluída (a análise sai na mesma gravação)
+     analises-recortes-em-proposta/<id>/<recorte>       true: a responsabilidade foi citada numa proposta registrada
+   Gravação POR CAMPO: depois de criada, a análise vai para o banco campo a campo e cada responsabilidade no seu caminho
+   (as regras recusam regravar a análise inteira) — é assim que o banco confere cada responsabilidade que sai.
    O nó das atuações (objetos-organizacionais) NÃO muda: uma atuação criada a partir de um recorte usa o mesmo payload
    de objetos-organizacionais-nucleo.js, na MESMA gravação que liga o recorte e o índice de origem.
    ============================================================ */
@@ -24,7 +28,7 @@
   var NOS = Object.freeze({
     analises: 'analises-organizacionais', auditoria: 'analises-organizacionais-auditoria', propostas: 'analises-propostas',
     aprovacoes: 'analises-aprovacoes', porObjeto: 'analises-por-objeto', config: 'analises-organizacionais-config',
-    configAuditoria: 'analises-organizacionais-config-auditoria'
+    configAuditoria: 'analises-organizacionais-config-auditoria', excluidas: 'analises-organizacionais-excluidas', citacoes: 'analises-recortes-em-proposta'
   });
   var ID = /^[A-Za-z0-9_-]{1,60}$/;
   function clone(o) { return o === undefined ? undefined : JSON.parse(JSON.stringify(o)); }
@@ -45,6 +49,23 @@
   }
   function exigirId(x, nome) { if (typeof x !== 'string' || !ID.test(x)) throw new Error('análise organizacional: ' + nome + ' inválido'); }
   function chaveProposta(versao) { return 'v' + versao; }
+  /* valor como o banco o guarda (null = some); igualdade estável (ordem de chaves) */
+  function noBanco(v) { var x = semVazios(clone(v)); if (x === undefined || x === null) return null; if (typeof x === 'object' && !Array.isArray(x) && !Object.keys(x).length) return null; if (Array.isArray(x) && !x.length) return null; return x; }
+  function estavel(v) { if (v && typeof v === 'object') { if (Array.isArray(v)) return '[' + v.map(estavel).join(',') + ']'; return '{' + Object.keys(v).sort().map(function (k) { return JSON.stringify(k) + ':' + estavel(v[k]); }).join(',') + '}'; } return JSON.stringify(v); }
+  /* análise já existente: só os campos que mudaram, cada responsabilidade no seu caminho */
+  function porCampo(p, base, antes, depois) {
+    var ks = {}; Object.keys(antes || {}).concat(Object.keys(depois || {})).forEach(function (k) { ks[k] = true; });
+    Object.keys(ks).forEach(function (k) {
+      if (k === 'recortes') {
+        var ra = (antes && antes.recortes) || {}, rd = (depois && depois.recortes) || {}, rs = {};
+        Object.keys(ra).concat(Object.keys(rd)).forEach(function (r) { rs[r] = true; });
+        Object.keys(rs).forEach(function (r) { var va = noBanco(ra[r]), vd = noBanco(rd[r]); if (estavel(va) !== estavel(vd)) p[base + '/recortes/' + r] = vd; });
+        return;
+      }
+      var a = noBanco(antes ? antes[k] : undefined), d = noBanco(depois ? depois[k] : undefined);
+      if (estavel(a) !== estavel(d)) p[base + '/' + k] = d;
+    });
+  }
 
   /* resultado do núcleo → multipath. o: { audId, usuario: { uid, email }, agora (marca do servidor) }
      Cada operação do núcleo produz exatamente UM evento: ele vai para a auditoria com a mesma chave que a análise aponta
@@ -59,15 +80,23 @@
         analiseId = m.id;
         if (m.antes === null) { d.criadaEm = o.agora; d.criadaPor = { id: por.uid, email: por.email }; }
         d.atualizadoEm = o.agora; d.atualizadoPor = por; d.auditoriaId = o.audId;
-        p[NOS.analises + '/' + m.id] = semVazios(d);
+        if (m.antes === null) p[NOS.analises + '/' + m.id] = semVazios(d);
+        else porCampo(p, NOS.analises + '/' + m.id, m.antes, d);
       } else if (m.entidade === 'proposta') {
         analiseId = d.analiseId;
-        d.registradaEm = o.agora; d.registradaPor = { id: por.uid, email: por.email };
+        d.registradaEm = o.agora; d.registradaPor = { id: por.uid, email: por.email }; d.indexada = true;
         p[NOS.propostas + '/' + d.analiseId + '/' + chaveProposta(d.versao)] = semVazios(d);
+        /* o índice das citações, na mesma gravação: o banco recusa uma proposta que cite responsabilidade fora dele */
+        (d.recortes || []).forEach(function (r) { p[NOS.citacoes + '/' + d.analiseId + '/' + r] = true; });
       } else if (m.entidade === 'aprovacao') {
         analiseId = d.analiseId;
         d.registradoEm = o.agora; d.registradoPor = { id: por.uid, email: por.email }; d.auditoriaId = o.audId;
         p[NOS.aprovacoes + '/' + d.analiseId + '/' + chaveProposta(d.versaoProposta)] = semVazios(d);
+      } else if (m.entidade === 'exclusao-analise') {
+        analiseId = m.id;
+        p[NOS.analises + '/' + m.id] = null;
+        d.excluidaEm = o.agora; d.excluidaPor = por; d.auditoriaId = o.audId;
+        p[NOS.excluidas + '/' + m.id] = semVazios(d);
       } else throw new Error('análise organizacional: entidade desconhecida ' + m.entidade);
     });
     var ev = (resultado.eventos || [])[0];

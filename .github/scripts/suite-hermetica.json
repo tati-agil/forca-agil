@@ -23,6 +23,7 @@
     ".github/scripts/teste-confirmacao-gravacao.js": "confirmação de gravação (homologação 2026-10-13) contra um Firebase Emulator real e o SDK real (goOffline/goOnline) num contêiner Docker próprio, com Playwright: roda localmente, como a jornada; a parte sem navegador está em teste-estruturas-firebase-prazo.js e teste-servicos-posicionamento.js, na suíte",
     ".github/scripts/teste-rules-mapa-subagrupadores.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-objetos-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-exclusao-cadastros.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-analises-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-estrutura-atual.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
@@ -643,6 +644,18 @@
       "nome": "Porta 2 · Análise Organizacional: a jornada na tela — marcador, jornadas A/B/C, perfis, 375 px",
       "duracao": 120,
       "sobre": "Marcador de homologação (ausente = DESLIGADO, a Porta 2 fica como era; SOMENTE_ADMIN_GERAL; o admin geral muda no ADMIN com motivo e auditoria). Jornada B: uma pergunta por vez com o porquê, comparação pelos sete critérios, delimitação, fatos descritivos, atuação criada e O1–O9 respondido na tela do Posicionamento, situação formal, proposta pendente, ficha da estrutura, Jornada, histórico, Excel, F5. Jornada A: regressão políticas de SI × diretrizes contratuais (nunca juntadas sem comparação), aprovação como referência a ato externo só pelo admin geral. Jornada C: capacidade distribuída, referência sem trocar a origem, nenhuma estrutura Segurança. Perfil de consulta sem formulários; 375 px sem rolagem lateral."
+    },
+    {
+      "arquivo": ".github/scripts/teste-refinamento-decisao.js",
+      "nome": "Refinamento integrado: apoio O7 × O9, hipótese que coincide, Trabalhos com análises de área, próxima ação estável e gravação lenta, desktop e 375 px",
+      "duracao": 75,
+      "sobre": "Apoio O7 × O9 recolhido, declarado como orientação (não critério oficial), confrontado com a Ajuda oficial da O9, com perguntas, exemplos hipotéticos, quando as duas se aplicam e o que esclarecer; \"Ainda não tenho informações suficientes\" só salva o rascunho como está (sem resposta nova, sem terceira resposta, sem estado novo). \"A recomendação coincide com sua hipótese inicial\". Trabalhos: análise de área com responsabilidades por avaliar em \"Continuar de onde parou\" sem rascunho. Próxima ação na ordem da lista (não salta). Gravação lenta: \"Gravando…\", clique repetido ignorado, \"Aguardando confirmação do servidor\" com mensagem clara, confirmação tardia avisada, um só cadastro. Legenda Avaliada = O1–O9 concluído; propósito da Composição; nome longo sem rolagem lateral."
+    },
+    {
+      "arquivo": ".github/scripts/teste-exclusao-cadastros-tela.js",
+      "nome": "Exclusão de cadastros na tela (dois níveis): responsabilidades da Porta 2 e Análises Organizacionais, desktop e 375 px",
+      "duracao": 60,
+      "sobre": "Encerrar e Excluir lado a lado, com a diferença explicada; exclusão comum com motivo (o cadastro sai, ficam registro mínimo e evento); já avaliada: só o admin geral, com dependências à vista e confirmação explícita, e a ficha e a lista do Posicionamento mostram \"Cadastro excluído\" sem perder a avaliação; bloqueios por estrutura responsável ativa e rascunho aberto; responsabilidade só de texto sai da análise, citada em proposta é bloqueada, com cadastro leva à ficha dele; análise vazia excluída; análise com conteúdo só pelo admin geral; perfil de consulta sem botões; 375 px sem rolagem lateral."
     },
     {
       "arquivo": ".github/scripts/teste-analises-organizacionais-usabilidade.js",

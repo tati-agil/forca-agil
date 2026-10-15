@@ -3388,34 +3388,38 @@
       function trab(id, titulo, detalhe) {
         return link(id, 'avp-como-link', '<span class="avp-como-titulo">' + titulo + '</span><span class="avp-como-detalhe">' + detalhe + '</span><span class="avp-inicio-abrir" aria-hidden="true">›</span>');
       }
-      function linha(id, linkTrab, usa, extra) {
-        return '<li class="avp-como-linha' + (extra || '') + '" id="' + id + '"><div class="avp-como-trab">' + linkTrab + '</div>' +
-          '<p class="avp-como-usa"><span class="avp-como-rot">O ADMIN fornece:</span> ' + usa + '</p></li>';
+      /* primeira camada: quem faz o trabalho (as atividades, em linguagem simples); sem linhas nem conectores decorativos */
+      function passo(id, rotulo, linkTrab, extra) {
+        return '<li class="avp-como-passo' + (extra || '') + '" id="' + id + '"><span class="avp-como-etapa">' + rotulo + '</span>' + linkTrab + '</li>';
       }
-      var conector = function (id, texto) { return '<li class="avp-como-conector" id="' + id + '">' + texto + '</li>'; };
+      /* segunda camada: o que o ADMIN fornece a cada atividade (questionários, motores, Taxonomia, estruturas) */
+      function fornece(id, titulo, usa) { return '<li class="avp-como-fornece-item" id="' + id + '"><strong>' + titulo + ':</strong> <span class="avp-como-usa">' + usa + '</span></li>'; }
       return '<details class="avp-como" id="avpInicioConsultar"><summary id="avpComoTitulo">Entenda como as avaliações se conectam</summary>' +
-        '<div class="avp-como-areas" id="avpComoAreas">' +
-        '<p class="avp-como-area avp-como-area--aval" id="avpComoAreaAval"><span class="avp-como-area-nome">Avaliações</span> onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável.</p>' +
-        '<p class="avp-como-area avp-como-area--adm" id="avpComoAreaAdm"><span class="avp-como-area-nome">ADMIN</span> onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho. Não é etapa da Jornada.</p></div>' +
-        '<p class="avp-como-sub" id="avpComoDuasEstruturas"><strong>Duas coisas diferentes:</strong> a Estrutura Organizacional Atual registra como a organização está estruturada hoje (gerências, núcleos) e serve para dizer quem executa cada responsabilidade; as Estruturas Organizacionais do Mapa são estruturas com tipo arquitetural, às quais uma responsabilidade pode ser vinculada formalmente, na ficha do Posicionamento. Cadastrar uma unidade atual não a classifica arquiteturalmente.</p>' +
-        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
+        '<div class="avp-como-perspectivas" id="avpComoAreas">' +
+        '<section class="avp-como-persp avp-como-area avp-como-area--aval" id="avpComoAreaAval" aria-labelledby="avpComoAvalTitulo"><h4 class="avp-como-persp-titulo" id="avpComoAvalTitulo"><span class="avp-como-area-nome">Avaliações</span> Quem faz o trabalho</h4>' +
+        '<p class="avp-como-persp-texto">Onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável.</p>' +
+        '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Uma pode levar à outra, mas nenhuma é etapa obrigatória: quem começa por uma responsabilidade vai direto ao O1–O9.</p>' +
         '<ol class="avp-como-lista" id="avpComoFunciona">' +
-        linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Avaliação de Produto/Serviço', 'Verifica se o item é um Produto/Serviço · P1–P16'),
-          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=p1p16', null, 'avpComoIrQuestionarios', arq, 'adm') + ', as regras em ' +
+        passo('avpComoNatureza', 'Produto/Serviço', trab('avpInicioRegNatureza', 'Avaliação de Produto/Serviço', 'Verifica se o item é um Produto/Serviço · P1–P16')) +
+        passo('avpComoPosicionamento', 'Responsabilidade', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Indica o tipo de estrutura que deve cuidar da responsabilidade: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + ' · O1–O9')) +
+        passo('avpComoSquad', 'Opcional', trab('avpInicioRegSquad', 'Adequação à Squad', 'Só quando o tipo indicado é ' + ramo('LINHA') + ': avalia se o trabalho pode se organizar em Squads · S1–S8. Não cadastra Squad.'), ' avp-como-linha--ramo') +
+        passo('avpComoMapa', 'Opcional', trab('avpInicioRegMapa', 'Mapa da Floresta e vínculo', 'Mostra as estruturas registradas e o que está ligado a cada uma. A ligação é registrada na ficha do Posicionamento. Uma Linha pode não ter Squads.')) +
+        '</ol></section>' +
+        '<section class="avp-como-persp avp-como-area avp-como-area--adm" id="avpComoAreaAdm" aria-labelledby="avpComoAdmTitulo"><h4 class="avp-como-persp-titulo" id="avpComoAdmTitulo"><span class="avp-como-area-nome">ADMIN</span> Quem mantém as configurações</h4>' +
+        '<p class="avp-como-persp-texto">Onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho. Não é etapa da Jornada: ninguém precisa passar por ele para avaliar.</p></section></div>' +
+        '<p class="avp-como-sub" id="avpComoDuasEstruturas"><strong>Duas coisas diferentes:</strong> a Estrutura Organizacional Atual registra como a organização está estruturada hoje (gerências, núcleos) e serve para dizer quem executa cada responsabilidade; as Estruturas Organizacionais do Mapa são estruturas com tipo arquitetural, às quais uma responsabilidade pode ser vinculada formalmente, na ficha do Posicionamento. Cadastrar uma unidade atual não a classifica arquiteturalmente.</p>' +
+        '<details class="avp-como-detalhes" id="avpComoDetalhes"><summary id="avpComoDetalhesTitulo">Detalhes: questionários, motores, Taxonomia e governança</summary>' +
+        '<p class="avp-como-sub"><span class="avp-como-rot">O ADMIN fornece</span> a cada atividade:</p><ul class="avp-como-fornece" id="avpComoFornece">' +
+        fornece('avpComoFornNatureza', 'Avaliação de Produto/Serviço', 'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=p1p16', null, 'avpComoIrQuestionarios', arq, 'adm') + ', as regras em ' +
           fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + ' e os nomes das classificações na ' +
           fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax', 'arquitetural') + '.') +
-        conector('avpComoConectorPosicionamento', 'pode seguir para o Posicionamento, que também começa direto por uma atuação (Porta 2)') +
-        linha('avpComoPosicionamento', trab('avpInicioRegPosicionamento', 'Posicionamento organizacional', 'Indica o tipo de estrutura que deve cuidar da responsabilidade: ' + ramo('LINHA') + ', ' + ramo('AREA_ESPECIALIZADA') + ' ou ' + ramo('COE') + ' · O1–O9'),
-          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=o1o9', null, 'avpComoIrQuestionarios2', arq, 'adm') + ' e os tipos de estrutura na ' +
+        fornece('avpComoFornPosicionamento', 'Posicionamento organizacional', 'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=o1o9', null, 'avpComoIrQuestionarios2', arq, 'adm') + ' e os tipos de estrutura na ' +
           fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia2', geral, 'tax', 'organizacional') + '; a regra é fixa no sistema. Indica o tipo, mas não cria a estrutura.') +
-        linha('avpComoSquad', trab('avpInicioRegSquad', 'Adequação à Squad', 'Opcional, só quando o tipo indicado é ' + ramo('LINHA') + ': avalia se o trabalho pode se organizar em Squads · S1–S8'),
-          'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=s1s8', null, 'avpComoIrQuestionarios3', arq, 'adm') + ' e as regras no ' +
-          fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '. Não cadastra Squad.', ' avp-como-linha--ramo') +
-        conector('avpComoConectorMapa', 'a responsabilidade pode ser ligada a uma estrutura real') +
-        linha('avpComoMapa', trab('avpInicioRegMapa', 'Mapa da Floresta', 'Mostra as estruturas registradas e o que está ligado a cada uma'),
-          'o cadastro das estruturas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
-          '. A ligação de cada item a uma estrutura é registrada em Avaliações, na ficha do Posicionamento — não no ADMIN. Uma Linha pode não ter Squads.') +
-        '</ol>' +
+        fornece('avpComoFornSquad', 'Adequação à Squad', 'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=s1s8', null, 'avpComoIrQuestionarios3', arq, 'adm') + ' e as regras no ' +
+          fonte('Motor de Squad', '#admin?arq=motor-squad', null, 'avpComoIrMotorSquad', arq, 'adm') + '.') +
+        fornece('avpComoFornMapa', 'Mapa da Floresta', 'o cadastro das estruturas em ' + fonte('Estruturas', '#admin?arq=estruturas', null, 'avpComoIrEstruturas', cadastro, 'adm') +
+          '. A ligação de cada item a uma estrutura é registrada em Avaliações, na ficha do Posicionamento — não no ADMIN.') + '</ul>' +
+        '<p class="avp-como-sub" id="avpComoGovernanca"><strong>Governança:</strong> perguntas, regras e nomes mudam só no ADMIN, por quem tem esse perfil, com versão e histórico. Uma avaliação já concluída não muda sozinha: para rever, faz-se uma reavaliação.</p></details>' +
         (P ? P.avisoHtml(['LINHA', 'AREA_ESPECIALIZADA', 'COE'], 'avpRelAvisoNomes') : '') + '</details>';
     }
     /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço
@@ -3473,9 +3477,25 @@
       var pend = [];
       (rp ? rp.andamento : []).forEach(function (it) { pend.push('<li><a href="#avaliacoes?avp=' + encodeURIComponent(it._key) + '">' + esc(it.nome || 'Item sem nome') + '</a> <span class="avp-ficha-meta">Produto/Serviço · em andamento</span></li>'); });
       (rs && rs.rascunhos ? rs.rascunhos : []).forEach(function (r) { pend.push('<li><a href="#avaliacoes?po=' + encodeURIComponent(r.key) + '">' + esc(r.nome || 'Sem nome') + '</a> <span class="avp-ficha-meta">' + (r.porta2 ? 'Responsabilidade' : 'Posicionamento') + ' · avaliação O1–O9 em andamento</span></li>'); });
+      /* análises de área com responsabilidades ainda por avaliar: aparecem mesmo sem rascunho aberto (o trabalho continua
+         na análise, não num rascunho). "com O1–O9 concluído" = Posicionamento concluído; nada aqui é proposta nem tipo da área */
+      var porArea = acAO.ler && AO && AO.resumoPorArea ? AO.resumoPorArea() : null, areasPend = [];
+      (porArea || []).forEach(function (x) {
+        if (!(x.prontas + x.andamento + x.pendentes)) return;
+        var partes = [x.total + ' cadastrada' + (x.total === 1 ? '' : 's')];
+        if (x.concluidas) partes.push(x.concluidas + ' com O1–O9 concluído');
+        if (x.andamento) partes.push(x.andamento + ' em avaliação');
+        if (x.prontas) partes.push(x.prontas + ' pronta' + (x.prontas === 1 ? '' : 's') + ' para avaliar');
+        if (x.pendentes) partes.push(x.pendentes + ' pendente' + (x.pendentes === 1 ? '' : 's') + ' de delimitação');
+        areasPend.push('<li class="avp-trab-area" data-analise="' + esc(x.analiseId) + '"><span class="avp-trab-area-texto"><strong>' + esc(x.nome) + '</strong> <span class="avp-ficha-meta">Análise de área · ' + partes.join(' · ') + '</span></span>' +
+          '<a class="btn btn--sm" href="#avaliacoes?an=' + encodeURIComponent(x.analiseId) + '" id="avpTrabArea_' + esc(x.analiseId) + '">Continuar análise</a></li>');
+      });
+      var carregando = rp === null || rs === null || (acAO.ler && porArea === null);
       h += '<section class="avp-trab-secao" id="avpTrabContinuar"><h3>Continuar de onde parou</h3>' +
-        (rp === null || rs === null ? '<p class="loading-msg">Carregando…</p>' : rs && rs.erro ? '<p class="avp-error-msg">Não foi possível ler os Posicionamentos agora.</p>' : '') +
-        (pend.length ? '<ul class="avp-trab-pendentes" id="avpTrabPendentes">' + pend.join('') + '</ul>' : (rp !== null && rs !== null ? '<p class="avp-ficha-meta" id="avpTrabSemPendentes">Nenhuma avaliação em andamento.</p>' : '')) + '</section>';
+        (carregando ? '<p class="loading-msg">Carregando…</p>' : rs && rs.erro ? '<p class="avp-error-msg">Não foi possível ler os Posicionamentos agora.</p>' : '') +
+        (pend.length ? '<ul class="avp-trab-pendentes" id="avpTrabPendentes">' + pend.join('') + '</ul>' : '') +
+        (areasPend.length ? '<ul class="avp-trab-pendentes avp-trab-areas" id="avpTrabAreasPendentes">' + areasPend.join('') + '</ul>' : '') +
+        (!pend.length && !areasPend.length && !carregando ? '<p class="avp-ficha-meta" id="avpTrabSemPendentes">Nenhum trabalho em andamento: nenhum rascunho aberto e nenhuma análise de área com responsabilidades por avaliar.</p>' : '') + '</section>';
       var rr = rs && rs.responsabilidades ? rs.responsabilidades.por : null;
       h += '<div class="avp-trab-grade">' +
         '<section class="avp-trab-secao" id="avpTrabProdutos"><h3>Produtos/Serviços</h3><ul class="avp-trab-nums">' +
@@ -3484,7 +3504,7 @@
         '<section class="avp-trab-secao" id="avpTrabResponsabilidades"><h3>Responsabilidades Organizacionais</h3>' +
           (rs && rs.erro ? '<p class="avp-error-msg">Não foi possível ler as responsabilidades agora.</p>' : '<ul class="avp-trab-nums">' +
           lin('prontas para avaliar', rr ? rr.pronta || 0 : null, 'avpTrabRespProntas') + lin('em avaliação', rr ? rr.andamento || 0 : null, 'avpTrabRespAndamento') +
-          lin('avaliadas', rr ? rr.avaliada || 0 : null, 'avpTrabRespAvaliadas') + lin('com resultado A validar (sem decisão final)', rr ? rr.avalidar || 0 : null, 'avpTrabRespAValidar') + '</ul>') +
+          lin('avaliadas (O1–O9 concluído)', rr ? rr.avaliada || 0 : null, 'avpTrabRespAvaliadas') + lin('com resultado A validar (sem decisão final)', rr ? rr.avalidar || 0 : null, 'avpTrabRespAValidar') + '</ul>') +
           '<a class="btn btn--sm" id="avpTrabIrResponsabilidades" href="#avaliacoes?po=todas">Ver todas as responsabilidades</a></section>' +
         '<section class="avp-trab-secao" id="avpTrabAreas"><h3>Análises de áreas</h3>';
       if (!acAO.ler) h += '<p class="avp-ficha-meta" id="avpTrabAreasIndisponivel">A análise de áreas não está disponível para o seu perfil agora.</p>';

@@ -513,6 +513,79 @@
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.descartado', analiseId, ctx, { recorteId: recorteId, motivo: dados.motivo })] };
   }
 
+  /* EXCLUSÃO de uma responsabilidade cadastrada por engano (contrato em dois níveis, nível comum): ela sai da análise de
+     verdade — não é "descartar", que a mantém no histórico como descartada. Só o que é texto desta análise: com atuação
+     cadastrada (objetoId), o cadastro é excluído pela ficha dele (a ligação e o índice de origem são imutáveis); citada
+     numa proposta registrada (imutável), não sai. Separada em partes: sai junto com as partes (mostradas na confirmação),
+     desde que nenhuma tenha atuação nem esteja numa proposta; uma parte sai sozinha enquanto a original tiver outra. O
+     evento guarda a descrição excluída. */
+  function bloqueiosExclusaoRecorte(estado, a, recorteId) {
+    var r = a && a.recortes ? a.recortes[recorteId] : null;
+    if (!r) return [{ codigo: 'RECORTE_INEXISTENTE', recorteId: recorteId }];
+    var ids = [recorteId].concat(r.situacao === 'desdobrado' && r.desdobramento ? r.desdobramento.partes || [] : []), b = [];
+    ids.forEach(function (k) {
+      var x = a.recortes[k]; if (!x) return;
+      if (x.objetoId) b.push({ codigo: 'RECORTE_COM_CADASTRO', recorteId: k, objetoId: x.objetoId });
+      Object.keys((estado && estado.propostas) || {}).forEach(function (pk) {
+        var p = estado.propostas[pk];
+        if (p.analiseId === a.id && (p.recortes || []).indexOf(k) !== -1) b.push({ codigo: 'RECORTE_EM_PROPOSTA', recorteId: k, versao: p.versao });
+      });
+    });
+    /* proposta anterior ao índice de citações (sem `indexada` na v1): o banco não consegue provar o que ela cita — nenhuma
+       responsabilidade desta análise sai (as regras recusam do mesmo jeito) */
+    var v1 = (estado && estado.propostas || {})[a.id + '~1'];
+    if (v1 && v1.indexada !== true) b.push({ codigo: 'ANALISE_COM_PROPOSTA_ANTERIOR', recorteId: recorteId });
+    if (r.origemRecorteId && a.recortes[r.origemRecorteId] && a.recortes[r.origemRecorteId].desdobramento) {
+      var irmas = (a.recortes[r.origemRecorteId].desdobramento.partes || []).filter(function (k) { return k !== recorteId && a.recortes[k]; });
+      if (!irmas.length) b.push({ codigo: 'ULTIMA_PARTE', recorteId: recorteId, origem: r.origemRecorteId });
+    }
+    return b;
+  }
+  function excluirRecorte(estado, analiseId, recorteId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    if (!texto(dados.motivo, MAX.motivo)) return erro('MOTIVO_OBRIGATORIO');
+    var al = abrirAlteracao(estado, analiseId, dados); if (al.erro) return al.erro;
+    var b = bloqueiosExclusaoRecorte(estado, al.antes, recorteId);
+    if (b.length) return { ok: false, erros: b };
+    var r = al.depois.recortes[recorteId], saem = [recorteId].concat(r.situacao === 'desdobrado' && r.desdobramento ? r.desdobramento.partes || [] : []);
+    var excluidas = saem.filter(function (k) { return al.depois.recortes[k]; }).map(function (k) { var x = al.depois.recortes[k]; return { id: k, descricao: typeof x.descricao === 'string' ? x.descricao : x.nome, situacao: x.situacao }; });
+    saem.forEach(function (k) { delete al.depois.recortes[k]; });
+    var orig = r.origemRecorteId && al.depois.recortes[r.origemRecorteId];
+    if (orig && orig.desdobramento) orig.desdobramento.partes = (orig.desdobramento.partes || []).filter(function (k) { return k !== recorteId; });
+    return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois)], eventos: [evento('recorte.excluido', analiseId, ctx, { recorteId: recorteId, motivo: dados.motivo.trim(), excluidas: excluidas })] };
+  }
+  /* EXCLUSÃO da análise (contrato em dois níveis): 'comum' = vazia (sem responsabilidades, sem proposta, sem referências);
+     'excepcional' (só admin geral) = com conteúdo — as atuações cadastradas, o índice de origem, as propostas e a
+     auditoria continuam gravados, explicados pelo registro mínimo; 'bloqueada' = com aprovação registrada (ato externo). */
+  function nivelExclusaoAnalise(estado, analiseId) {
+    var a = lerAnalise(estado, analiseId);
+    if (!a) return { nivel: 'bloqueada', motivos: ['ANALISE_INEXISTENTE'] };
+    var aprov = Object.keys((estado && estado.aprovacoes) || {}).some(function (k) { return estado.aprovacoes[k].analiseId === analiseId; });
+    if (aprov) return { nivel: 'bloqueada', motivos: ['ANALISE_COM_APROVACAO'] };
+    var m = [];
+    if (Object.keys(a.recortes || {}).length) m.push('COM_RESPONSABILIDADES');
+    if (a.propostaVigente) m.push('COM_PROPOSTA');
+    if (Object.keys(a.referencias || {}).length) m.push('COM_REFERENCIAS');
+    return m.length ? { nivel: 'excepcional', motivos: m } : { nivel: 'comum', motivos: [] };
+  }
+  function excluirAnalise(estado, analiseId, dados, ctx) {
+    var c = validarCtx(ctx); if (c) return erro(c);
+    dados = dados || {};
+    if (!texto(dados.motivo, MAX.motivo)) return erro('MOTIVO_OBRIGATORIO');
+    var a = lerAnalise(estado, analiseId);
+    if (!a) return erro('ANALISE_INEXISTENTE', { analiseId: analiseId });
+    if (dados.revisaoEsperada !== undefined && dados.revisaoEsperada !== a.revisao) return erro('REVISAO_DESATUALIZADA', { atual: a.revisao });
+    var n = nivelExclusaoAnalise(estado, analiseId);
+    if (n.nivel === 'bloqueada') return erro(n.motivos[0], { analiseId: analiseId });
+    var rs = a.recortes || {}, comCadastro = Object.keys(rs).filter(function (k) { return !!rs[k].objetoId; }).length;
+    var props = Object.keys((estado && estado.propostas) || {}).filter(function (k) { return estado.propostas[k].analiseId === analiseId; }).length;
+    var reg = { nome: a.nome, motivo: dados.motivo.trim(), nivel: n.nivel, revisao: a.revisao, situacaoAnterior: a.situacao === 'descartada' ? 'descartada' : 'aberta',
+      contagens: { responsabilidades: Object.keys(rs).length, comCadastro: comCadastro, propostas: props } };
+    return { ok: true, nivel: n.nivel, mudancas: [{ entidade: 'exclusao-analise', id: analiseId, antes: clone(a), depois: reg, revisaoAnterior: a.revisao }],
+      eventos: [evento('analise.excluida', analiseId, ctx, { motivo: reg.motivo, nivel: n.nivel, contagens: reg.contagens })] };
+  }
+
   /* N2: quem executa e quem responde formalmente — fatos descritivos da análise, com caráter, fonte e data */
   function registrarFatos(estado, analiseId, recorteId, dados, ctx) {
     var c = validarCtx(ctx); if (c) return erro(c);
@@ -612,6 +685,7 @@
     var a = al.antes;
     var recortes = dados.recortes || [];
     if (!Array.isArray(recortes) || recortes.length === 0) return erro('PROPOSTA_SEM_RECORTE');
+    if (recortes.length > MAX.lote) return erro('PROPOSTA_RECORTES_DEMAIS', { limite: MAX.lote });
     for (var i = 0; i < recortes.length; i++) if (!a.recortes[recortes[i]] || a.recortes[recortes[i]].situacao !== 'ativo') return erro('RECORTE_INEXISTENTE', { recorteId: recortes[i] });
     if (dados.alternativa === 'pendente') {
       var p = dados.pendencia || {};
@@ -623,7 +697,7 @@
     var id = analiseId + '~' + versao;
     var prop = { id: id, analiseId: analiseId, versao: versao, alternativa: dados.alternativa, recortes: recortes.slice(), justificativa: dados.justificativa,
       criterios: clone(dados.criterios || {}), pendencia: dados.alternativa === 'pendente' ? clone(dados.pendencia) : null,
-      situacao: dados.alternativa === 'pendente' ? 'pendente' : 'proposta', registradaEm: ctx.agora, registradaPor: autor(ctx), revisao: 1 };
+      situacao: dados.alternativa === 'pendente' ? 'pendente' : 'proposta', registradaEm: ctx.agora, registradaPor: autor(ctx), revisao: 1, indexada: true };
     al.depois.propostaVigente = versao;
     return { ok: true, mudancas: [mudancaAnalise(al.antes, al.depois), { entidade: 'proposta', id: id, antes: null, depois: prop, revisaoAnterior: null }],
       eventos: [evento('proposta.registrada', analiseId, ctx, { versao: versao, alternativa: prop.alternativa, situacao: prop.situacao })] };
@@ -844,7 +918,7 @@
     return (eventos || []).filter(function (e) { return !analiseId || e.analiseId === analiseId; })
       .slice().sort(function (x, y) { return instante(x.em) - instante(y.em); });
   }
-  var COLECAO_DA = { analise: 'analises', proposta: 'propostas', aprovacao: 'aprovacoes' };
+  var COLECAO_DA = { analise: 'analises', proposta: 'propostas', aprovacao: 'aprovacoes', 'exclusao-analise': 'analises' };
   function aplicar(estado, mudancas) {
     var novo = clone(estado || {}) || {};
     for (var i = 0; i < (mudancas || []).length; i++) {
@@ -853,6 +927,7 @@
       if (!novo[col]) novo[col] = {};
       var atual = novo[col][m.id];
       if (m.antes === null ? !!atual : (!atual || atual.revisao !== m.revisaoAnterior)) return { ok: false, erro: 'CONFLITO_DE_REVISAO', id: m.id };
+      if (m.entidade === 'exclusao-analise') { delete novo[col][m.id]; if (!novo.excluidas) novo.excluidas = {}; novo.excluidas[m.id] = clone(m.depois); continue; }
       novo[col][m.id] = clone(m.depois);
     }
     return { ok: true, estado: novo };
@@ -867,7 +942,7 @@
     registrarEvidenciaQualitativa: registrarEvidenciaQualitativa,
     criarAnalise: criarAnalise, responder: responder, adicionarEntrega: adicionarEntrega, editarEntrega: editarEntrega, descartarEntrega: descartarEntrega,
     compararEntregas: compararEntregas, cadastroReferido: cadastroReferido,
-    definirRecorte: definirRecorte, revisarResponsabilidade: revisarResponsabilidade, desdobrarResponsabilidade: desdobrarResponsabilidade, registrarResponsabilidadesEmLote: registrarResponsabilidadesEmLote, informarNucleosAtuais: informarNucleosAtuais, modeloSimples: modeloSimples, registroDireto: registroDireto, CONTRATO_DIRETO: CONTRATO_DIRETO, SEPARACAO: SEPARACAO.slice(), ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, registrarFatos: registrarFatos,
+    definirRecorte: definirRecorte, revisarResponsabilidade: revisarResponsabilidade, desdobrarResponsabilidade: desdobrarResponsabilidade, registrarResponsabilidadesEmLote: registrarResponsabilidadesEmLote, informarNucleosAtuais: informarNucleosAtuais, modeloSimples: modeloSimples, registroDireto: registroDireto, CONTRATO_DIRETO: CONTRATO_DIRETO, SEPARACAO: SEPARACAO.slice(), ajustarRecorte: ajustarRecorte, descartarRecorte: descartarRecorte, excluirRecorte: excluirRecorte, bloqueiosExclusaoRecorte: bloqueiosExclusaoRecorte, excluirAnalise: excluirAnalise, nivelExclusaoAnalise: nivelExclusaoAnalise, registrarFatos: registrarFatos,
     associarAtuacao: associarAtuacao, referenciarResponsabilidade: referenciarResponsabilidade, descartarAnalise: descartarAnalise,
     registrarProposta: registrarProposta, registrarAprovacao: registrarAprovacao,
     interpretarComparacao: interpretarComparacao, sugestoesDeComparacao: sugestoesDeComparacao, proximasPerguntas: proximasPerguntas,

@@ -41,3 +41,5 @@ banco e a tabela de módulos, em `docs/referencia-tecnica.md` (consulte sob dema
 - **Execução eficiente** (detalhes em `CLAUDE.md`): investigar com buscas direcionadas, reutilizar o que existe,
   editar em blocos coerentes, testes direcionados no desenvolvimento e validação completa no commit final da PR — sem
   cortar testes de segurança, regressão, concorrência ou compatibilidade.
+- **Critério de encerramento de PR** (política permanente em `CLAUDE.md`): só bloqueador real e comprovado impede o
+  merge; o resto vai para o backlog; com o Definition of Done cumprido, parar e apresentar a PR para decisão.
