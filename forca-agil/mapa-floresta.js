@@ -626,16 +626,16 @@
     }
     function temProximaAcao(x) { var j = jornadas[x.itemId]; return !!(j && !j.representadoPor && !j.delimitada && !j.completa && !j.encerrada && !j.carregando && j.acao && j.acao.tipo !== 'mapa' && !j.acao.opcional); }
     function resumoJornadaHtml(itens) {
-      var n = { completa: 0, acao: 0, analise: 0, encerrada: 0, disponivel: 0, delimitada: 0 }, carregando = false;
+      var n = { completa: 0, acao: 0, analise: 0, encerrada: 0, disponivel: 0, delimitada: 0, avaliada: 0 }, carregando = false;
       itens.forEach(function (x) {
         var j = jornadas[x.itemId]; if (!j || j.representadoPor) return;
         if (j.delimitada) { n.delimitada++; return; }
         if (j.carregando) carregando = true;
-        if (j.encerrada) n.encerrada++; else if (j.completa) n.completa++; else if (j.analise) n.analise++; else if (temProximaAcao(x)) n.acao++; else if (j.disponivel) n.disponivel++;
+        if (j.encerrada) n.encerrada++; else if (j.completa) n.completa++; else if (j.analise) n.analise++; else if (temProximaAcao(x)) n.acao++; else if (j.disponivel && j.acao && (j.acao.tipo === 'estrutura' || j.acao.tipo === 'vinculo')) n.avaliada++; else if (j.disponivel) n.disponivel++;
       });
       if (carregando) return '<p class="mf-resumo loading-msg" id="mfResumo" role="status">Carregando a situação das estruturas…</p>';
       return '<p class="mf-resumo" id="mfResumo">Jornada completa: <strong>' + n.completa + '</strong> · Com próxima ação: <strong>' + n.acao + '</strong> · Em análise (A validar): <strong>' + n.analise +
-        '</strong> · Posicionamento disponível: <strong>' + n.disponivel + '</strong> · Encerradas: <strong>' + n.encerrada + '</strong>' +
+        '</strong> · Avaliadas, estrutura responsável opcional: <strong>' + n.avaliada + '</strong> · Posicionamento disponível: <strong>' + n.disponivel + '</strong> · Encerradas: <strong>' + n.encerrada + '</strong>' +
         (n.delimitada ? ' · Delimitadas em responsabilidades: <strong>' + n.delimitada + '</strong>' : '') + '</p>';
     }
     var SIMBOLO_ETAPA = { ok: '✓', atual: '●', futuro: '○', na: '—', revisao: '⚠', analise: '⚖', opcional: '◇', disponivel: '◇', carregando: '…' };

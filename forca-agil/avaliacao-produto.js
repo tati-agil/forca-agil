@@ -3397,6 +3397,7 @@
         '<div class="avp-como-areas" id="avpComoAreas">' +
         '<p class="avp-como-area avp-como-area--aval" id="avpComoAreaAval"><span class="avp-como-area-nome">Avaliações</span> onde o trabalho acontece: avaliar, posicionar, analisar a Adequação à Squad quando se aplica e registrar o vínculo à estrutura responsável.</p>' +
         '<p class="avp-como-area avp-como-area--adm" id="avpComoAreaAdm"><span class="avp-como-area-nome">ADMIN</span> onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho. Não é etapa da Jornada.</p></div>' +
+        '<p class="avp-como-sub" id="avpComoDuasEstruturas"><strong>Duas coisas diferentes:</strong> a Estrutura Organizacional Atual registra como a organização está estruturada hoje (gerências, núcleos) e serve para dizer quem executa cada responsabilidade; as Estruturas Organizacionais do Mapa são estruturas com tipo arquitetural, às quais uma responsabilidade pode ser vinculada formalmente, na ficha do Posicionamento. Cadastrar uma unidade atual não a classifica arquiteturalmente.</p>' +
         '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
         '<ol class="avp-como-lista" id="avpComoFunciona">' +
         linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Avaliação de Produto/Serviço', 'Verifica se o item é um Produto/Serviço · P1–P16'),

@@ -651,6 +651,12 @@
       "sobre": "Início (Porta 1/Porta 2, caminhos A/B de mesmo peso) e Responsabilidades Organizacionais (Nova responsabilidade / Analisar uma área, sem cartões repetidos, um só Voltar). Caminho A: um campo, Registrar e avaliar → cadastro com o texto literal e O1–O9, sem análise. F2b opcional. GECON escolhida na Estrutura Organizacional Atual: dez atribuições coladas (prévia, numeração a pedido, duplicidade com confirmação, edição), registro direto — prontas, sem pergunta sobre separar e sem 'não' inventado —, doze; editar o texto com versão; quem executa hoje pela Estrutura Atual (CONTA; CONTA + NUTRI); texto antigo só com confirmação; composição por unidade com as cinco distinções; Avaliar → O1–O9 → Voltar às responsabilidades da GECON; próximo passo contextual; lista de análises com contagens, próxima ação e homônimas; F5; histórico. Registros anteriores: pendentes continuam pendentes, resposta explícita, separar. Consulta; 375 px sem corte nem sobreposição do menu."
     },
     {
+      "arquivo": ".github/scripts/teste-decisao-arquitetural.js",
+      "nome": "Decisão arquitetural: jornada de uma área (GECON fictícia) do lote ao resultado — uma ação principal, explicação da recomendação, estrutura opcional",
+      "duracao": 45,
+      "sobre": "Depois do lote, a lista e a próxima ação primeiro (uma só ação principal). Rascunho do O1–O9 salvo volta à área e retoma de onde parou. Nível 3 explica como as respostas levam ao resultado (regra vigente) e aponta a Ajuda oficial O7 × O9; O7 e O9 SIM pedem o diagnóstico. Resultado firme: Avaliação concluída, uma só ação principal (voltar à área), 'Como chegamos a esta recomendação' com o aviso do único SIM no nível. Estrutura responsável: vincular sem destaque, etapa separada e opcional; na Jornada, 'Avaliação concluída · estrutura responsável: opcional'. 1 avaliada e 9 prontas; nenhuma estrutura nem vínculo criado. Desktop e 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-trabalhos-avaliacao.js",
       "nome": "Trabalhos de avaliação e todas as responsabilidades: continuar de onde parou, números reais, lista consolidada, resultado A validar",
       "duracao": 40,

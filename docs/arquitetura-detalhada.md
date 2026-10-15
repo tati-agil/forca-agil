@@ -82,3 +82,9 @@ The hermetic test suite (fake Firebase, no secrets, no network — `.github/scri
   o progresso pelo caminho do próprio motor; o resultado diz "Avaliação concluída" também com A validar e separa a
   recomendação da decisão por pessoa. `motor-arquitetura.js` só liga a escuta da configuração com sessão e a religa se
   for cancelada ou se a sessão mudar (a Jornada ficava em "Verificando…" até F5 quando Avaliações abria antes do login).
+- **Decisão arquitetural (O1–O9 × estrutura)**: o resultado tem uma só ação principal (com origem na análise: voltar à
+  área; "Registrar decisão" só é principal quando a recomendação é A validar); "Como chegamos a esta recomendação" lê as
+  respostas gravadas e o significado fixo das perguntas (`faMotorPosicionamentoNucleo.SINAIS`), sem recalcular; o nível
+  3 do questionário explica a regra vigente (um SIM → o tipo; dois SIM → diagnóstico e A validar; nenhum → A validar).
+  Vincular/cadastrar estrutura é etapa separada e OPCIONAL depois do O1–O9 (sem botão principal; na Jornada, "Avaliação
+  concluída · estrutura responsável: opcional", fora de "Com próxima ação"). Motor, regras e textos oficiais intactos.
