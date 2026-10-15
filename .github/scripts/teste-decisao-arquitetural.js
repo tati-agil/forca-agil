@@ -63,6 +63,9 @@ async function jornada(browser, viewport, rot) {
   afirma(/Perguntas respondidas: 3 de/.test(await texto(page, '#poProgresso')), 'retoma de onde parou (3 respostas guardadas)', await texto(page, '#poProgresso'));
   for (const [q, v] of [['O4', 'NAO'], ['O5', 'NAO']]) { await page.click('.po-resp[data-q="' + q + '"][data-v="' + v + '"]'); await page.waitForTimeout(80); }
   afirma(await page.$('#poComoNivelN3') !== null && /Dois SIM/.test(await texto(page, '#poComoNivelN3')) && /Ajuda da O9/.test(await texto(page, '#poComoNivelN3')), 'nível 3: como as respostas levam ao resultado (regra vigente) e onde está a Ajuda oficial O7 × O9');
+  const ev = await texto(page, '#poComoNivelN3Evidencia');
+  afirma(/não marque NÃO só por insegurança/.test(ev) && /salve o rascunho e busque esclarecimentos antes de concluir/.test(ev) && /não transforma uma resposta incerta em evidência/.test(ev),
+    'sem evidência para O7/O9: não marcar NÃO por insegurança; salvar o rascunho e esclarecer antes de concluir; Observação não é evidência', ev);
   console.log('5. O7 e O9 SIM: a regra pede o diagnóstico');
   for (const [q, v] of [['O6', 'NAO'], ['O7', 'SIM'], ['O8', 'NAO'], ['O9', 'SIM']]) { await page.click('.po-resp[data-q="' + q + '"][data-v="' + v + '"]'); await page.waitForTimeout(80); }
   afirma(/diagnóstico do Nível 3/.test(await texto(page, '#poConcluirBtn')) && await page.$('.po-diag') !== null, 'O7 e O9 SIM: o sistema pede o diagnóstico (sem precedência silenciosa); o resultado seria "A validar"');
@@ -74,6 +77,9 @@ async function jornada(browser, viewport, rot) {
   afirma(/Avaliação concluída/.test(await texto(page, '#poSituacaoAvaliacao')) && /PLATAFORMA_CORPORATIVA/.test(await texto(page, '#poRecomendado')), 'recomendação firme: "Avaliação concluída" (decisão final opcional)');
   const e = await texto(page, '#poExplicacao');
   afirma(/O1 = SIM.*LINHA/.test(e) && /O4, O5 = NÃO/.test(e) && /O9 = SIM.*PLATAFORMA_CORPORATIVA/.test(e) && /seria "A validar"/.test(await texto(page, '#poExplicacaoAtencao')), 'como chegamos: O1 → Linha; O4/O5 NÃO → Plataforma; só O9 → Gestão Corporativa; e o aviso do único SIM no nível', e);
+  const at = await texto(page, '#poExplicacaoAtencao');
+  afirma(/reavaliação fundamentada/.test(at) && /não serve para compensar respostas dadas sem evidência/.test(at) && !/registre a decisão final/.test(at),
+    'dúvida sobre respostas registradas: a orientação é a reavaliação fundamentada; a decisão final não compensa respostas sem evidência', at);
   await page.waitForTimeout(800);
   const p3 = await principais(page, '#avaliacoesPosicionamento');
   afirma(p3.length === 1 && /Voltar às responsabilidades da GECON/i.test(p3[0]), 'uma só ação principal: continuar a análise da GECON (decisão, vínculo e Squad são opcionais)', p3);

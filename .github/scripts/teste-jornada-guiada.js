@@ -193,6 +193,16 @@ async function rodada(browser, viewport, rotulo) {
   const fConsulta = await falta(page, 'pPlat');
   afirma(fConsulta && /Quem pode.*Avaliação \+ Configuração ou admin geral/.test(fConsulta.t) && !(await page.$(card('pPlat') + ' .mf-acao')),
     'I1: perfil de consulta vê o que falta e quem pode, sem botão de gravar', fConsulta && fConsulta.t);
+  /* na consulta, o que é opcional continua opcional: vínculo/cadastro de estrutura nunca viram pendência obrigatória */
+  afirma(/Disponível \(opcional\)/.test(await texto(page, card('pPlat'))) && !/Próxima etapa/.test(await texto(page, card('pPlat'))), 'consulta: cadastrar estrutura aparece como "Disponível (opcional)", não como próxima etapa');
+  await page.evaluate(() => { location.hash = '#avaliacoes?mf=catalogo'; });
+  await page.waitForSelector('#mfFiltrosAvancados > summary', { state: 'visible' });
+  await page.click('#mfFiltrosAvancados > summary');
+  afirma(/Com próxima ação: 0 · Em análise \(A validar\): 1 · Avaliadas, estrutura responsável opcional: 2 · Posicionamento disponível: 1/.test((await texto(page, '#mfResumo')).replace(/\s+/g, ' ')),
+    'consulta: os contadores tratam vínculo/estrutura opcionais como opcionais (Com próxima ação: 0)', await texto(page, '#mfResumo'));
+  await page.click('#mfSoAcao');
+  const soAcaoConsulta = await page.$$eval('#mfItens .mf-item', (ls) => ls.map((l) => l.dataset.item).sort().join(','));
+  afirma(soAcaoConsulta === 'pVal', 'consulta: "Só os que têm próxima ação" mostra só o A validar (nenhum opcional como pendência)', soAcaoConsulta);
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', { delays: { 'estruturas-vinculos': 4000 } }));
   await page.waitForSelector(linha('pCapec'), { timeout: 15000 });

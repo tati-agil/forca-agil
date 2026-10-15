@@ -278,10 +278,13 @@
         else if (proxima.id === 'posicionamento') acao = { tipo: 'posicionamento', rotulo: x.rascunhoId ? 'Continuar o Posicionamento' : 'Iniciar o Posicionamento', href: h.posicionamento || null };
         else if (proxima.id === 'decisao') acao = { tipo: 'analise', rotulo: 'Analisar no Posicionamento', href: h.ficha || null, consulta: true };
         else if (proxima.id === 'estrutura') acao = ctx.podeManterEstruturas ? { tipo: 'estrutura', rotulo: 'Cadastrar estrutura deste tipo', href: h.novaEstrutura || null, opcional: true }
-          : { tipo: 'estrutura', rotulo: null, opcional: true, texto: 'Avaliação concluída. Vincular a uma estrutura é etapa separada e opcional; cadastrar uma estrutura deste tipo é do perfil Avaliação + Configuração, quando houver decisão organizacional.' };
+          : { tipo: 'estrutura', rotulo: null, opcional: true, texto: 'Disponível (opcional): estrutura responsável — etapa separada da avaliação; cadastrar uma estrutura deste tipo é do perfil Avaliação + Configuração, quando houver decisão organizacional (somente consulta no seu perfil).' };
         else if (proxima.id === 'vinculo') acao = proxima.estado === 'revisao' ? { tipo: 'vinculo', rotulo: 'Revisar a estrutura responsável', href: h.vinculo || null }
           : { tipo: 'vinculo', rotulo: 'Vincular a estrutura responsável', href: h.vinculo || null, opcional: true };
-        if (acao && !acao.consulta && acao.rotulo && !ctx.podeEscrever) acao = { tipo: acao.tipo, rotulo: null, texto: 'Próxima etapa: ' + proxima.rotulo + ' (somente consulta no seu perfil).' };
+        /* perfil de consulta: a ação vira texto, mas o que é opcional continua opcional (nunca vira pendência obrigatória) */
+        if (acao && !acao.consulta && acao.rotulo && !ctx.podeEscrever) acao = acao.opcional
+          ? { tipo: acao.tipo, rotulo: null, opcional: true, texto: 'Disponível (opcional): ' + proxima.rotulo.toLowerCase() + ' — etapa separada da avaliação (somente consulta no seu perfil).' }
+          : { tipo: acao.tipo, rotulo: null, texto: 'Próxima etapa: ' + proxima.rotulo + ' (somente consulta no seu perfil).' };
       }
     }
     /* o que completou a jornada: a decisão final (mesmo com recomendação automática A validar) ou a recomendação firme — mais o vínculo */

@@ -978,7 +978,7 @@
           '<li>Um só SIM entre O6 e O9 → o tipo indicado por essa pergunta.</li>' +
           '<li>Dois SIM → o sistema pergunta se descrevem a mesma responsabilidade ou responsabilidades distintas; nos dois casos o resultado fica "A validar", para decisão de uma pessoa.</li>' +
           '<li>Nenhum SIM → "A validar" (evidência insuficiente).</li></ul>' +
-          '<p class="avp-ficha-meta">NÃO afirma que a característica não se aplica. Se faltar informação para afirmar uma resposta, registre a dúvida na Observação: ela fica no histórico e apoia a decisão final. Dúvida entre O7 e O9? Veja a Ajuda da O9.</p></details>';
+          '<p class="avp-ficha-meta" id="poComoNivelN3Evidencia">NÃO afirma que a característica não se aplica. Se você não tiver evidências suficientes para responder O7 ou O9, não marque NÃO só por insegurança: salve o rascunho e busque esclarecimentos antes de concluir. A Observação registra o contexto, mas não transforma uma resposta incerta em evidência. Dúvida entre O7 e O9? Veja a Ajuda da O9.</p></details>';
         qs.forEach(function (q) { h += renderPergunta(q, versao, edita && !state.naoConfirmada, vm); });
         if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita && !state.naoConfirmada, vm);
         var pn = predominanciaNecessaria(a, n);
@@ -1656,7 +1656,7 @@
       if (ra.codigoResultado && ra.codigoResultado !== 'A_VALIDAR' && umSoSim)
         h += '<p class="avp-ficha-meta" id="poExplicacaoAtencao">A recomendação decorre das respostas registradas. No ' + esc(umSoSim.nivel) + ', só ' + umSoSim.q + ' recebeu SIM. ' +
           'Se outra característica do mesmo nível (' + umSoSim.outras.join(', ') + ') também se aplicasse, a regra vigente pediria o diagnóstico e o resultado seria "A validar", para decisão de uma pessoa. ' +
-          'Se houver dúvida sobre essas respostas, registre a decisão final com justificativa ou faça uma reavaliação.</p>';
+          'Se houver dúvida sobre respostas já registradas, o caminho é a reavaliação fundamentada, com as evidências esclarecidas. A decisão final não serve para compensar respostas dadas sem evidência.</p>';
       return h + '</details>';
     }
     function renderRespostasLidas(a) {
