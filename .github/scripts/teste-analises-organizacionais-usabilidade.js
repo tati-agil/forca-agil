@@ -113,6 +113,8 @@ async function registrarResp(page, desc, sep) {
 const linhaDe = (page, desc) => page.evaluate((d) => { const l = Array.from(document.querySelectorAll('.an-linha[data-resp]')).find((x) => x.querySelector('.an-cel--resp strong').textContent === d); return l ? l.getAttribute('data-resp') : null; }, desc);
 const situacaoDe = async (page, k) => (await texto(page, '#anSituacao_' + k)).trim();
 async function clicarEsperar(page, sel, fn, arg) { await page.click(sel); await esperar(page, fn, arg); }
+/* "Definir delimitação" abre a pergunta só daquela linha; a resposta é um clique */
+async function responderSep(page, k, v, fn) { await page.click('#anDelimitar_' + k); await page.waitForSelector('#anPainelDelim_' + k); await clicarEsperar(page, '#anSep' + { nao: 'Nao_', sim: 'Sim_', 'nao-sei': 'NaoSei_' }[v] + k, fn, k); }
 async function abrirDetalhar(page) {
   if (!(await page.evaluate(() => { const d = document.getElementById('anDetalhar'); return !!(d && d.open); }))) await page.click('#anDetalhar > summary');
   await page.waitForSelector('#anEntregaDesc', { state: 'visible' });
@@ -226,15 +228,22 @@ async function gecon(browser) {
   const colado = GECON.map((t, i) => (i + 1) + '. ' + t).join('\n') + '\n\n8. Gerir o processo contábil.\n';
   await page.fill('#anLoteTexto', colado);
   await page.click('#anLotePrevia'); await page.waitForSelector('#anLoteLista');
-  let itens = await page.$$eval('#anLoteLista textarea', (l) => l.map((x) => x.value));
+  let itens = await page.$$eval('#anLoteLista [id^="anLoteTxt_"]', (l) => l.map((x) => x.textContent));
   afirma(itens.length === 11 && itens[0] === '1. Gerir a contabilidade gerencial.', 'prévia: linhas vazias ignoradas; sem pedir, a numeração fica como colada', itens[0]);
   await page.click('#anLoteVoltar'); await page.waitForSelector('#anLoteTexto');
   afirma((await prop(page, '#anLoteTexto', 'value')) === colado, 'voltar ao texto não perde o que foi colado');
   await page.check('#anLoteNumeracao'); await page.click('#anLotePrevia'); await page.waitForSelector('#anLoteLista');
-  itens = await page.$$eval('#anLoteLista textarea', (l) => l.map((x) => x.value));
+  itens = await page.$$eval('#anLoteLista [id^="anLoteTxt_"]', (l) => l.map((x) => x.textContent));
   afirma(itens.slice(0, 10).every((t, i) => t === GECON[i]), 'a pedido, só a numeração sai: os dez textos literais, na ordem', itens);
   afirma(await existe(page, '#anLoteDup_10') && !(await prop(page, '#anLoteInc_10', 'checked')) && /Repetida nesta lista/.test(await texto(page, '#anLoteDup_10')), 'duplicidade evidente marcada e desmarcada, pedindo confirmação (nada excluído em silêncio)');
+  afirma(!(await existe(page, '#anLoteLista textarea')) && (await texto(page, '#anLoteRegistrar')).trim() === 'Registrar 10 responsabilidades', 'prévia compacta (texto editável sob demanda) e botão com a contagem');
+  await page.uncheck('#anLoteInc_0');
+  afirma((await texto(page, '#anLoteRegistrar')).trim() === 'Registrar 9 responsabilidades', 'a contagem acompanha a seleção');
+  await page.check('#anLoteInc_0');
+  await page.click('#anLoteEditar_3'); await page.waitForSelector('#anLoteItem_3');
   await page.fill('#anLoteItem_3', GECON[3] + ' ');
+  await page.click('#anLoteEditar_3'); await page.waitForSelector('#anLoteTxt_3');
+  afirma((await texto(page, '#anLoteTxt_3')) === GECON[3] + ' ' && (await prop(page, '#anLoteInc_0', 'checked')), 'editar um item na prévia, sem perder a seleção');
   await page.click('#anLoteRegistrar');
   await esperar(page, () => document.querySelectorAll('.an-linha[data-resp]').length === 10 && !!document.getElementById('anLoteFeedback'));
   let a = await analiseDoBanco(page, id);
@@ -245,11 +254,15 @@ async function gecon(browser) {
   afirma(ordemTela.join('|') === GECON.join('|'), 'lista única com as dez, na ordem informada');
   afirma(/10 responsabilidades — 10 pendentes de delimitação\./.test(await texto(page, '#anResumo')), 'resumo calculado dos estados reais', await texto(page, '#anResumo'));
   const k = (i) => ks[i];
-  afirma((await situacaoDe(page, k(0))) === 'Pendente de delimitação' && await existe(page, '#anSepNao_' + k(0)) && await existe(page, '#anRevisar_' + k(0)), 'pendente: responder ali mesmo ou Revisar');
+  afirma((await situacaoDe(page, k(0))) === 'Pendente de delimitação' && /Definir delimitação/.test(await texto(page, '#anDelimitar_' + k(0))) && !(await existe(page, '[id^="anSepNao_"]')) && !(await existe(page, '.an-linha-extra')), 'pendente: só "Definir delimitação" na linha — a pergunta não se repete nas dez');
+  afirma(!(await prop(page, '#anComposicaoSecao', 'open')), 'composição organizacional começa recolhida (opcional)');
+  await page.click('#anDelimitar_' + k(0)); await page.waitForSelector('#anPainelDelim_' + k(0));
+  afirma(/Não, pode ser avaliada como está/.test(await texto(page, '#anSepNao_' + k(0))) && /várias atividades sem precisar ser separada/.test(await texto(page, '#anPainelDelim_' + k(0))) && (await page.$$('[id^="anPainelDelim_"]')).length === 1, 'a pergunta abre só naquela linha, com "Não, pode ser avaliada como está"');
+  await page.click('#anPainelDelim_' + k(0) + ' [data-an="cancelar"]'); await esperar(page, () => !document.querySelector('[id^="anPainelDelim_"]'));
   /* responder na lista */
-  for (const i of [0, 1, 7, 8]) await clicarEsperar(page, '#anSepNao_' + k(i), (kk) => !!document.getElementById('anCriarAtuacao_' + kk), k(i));
-  await clicarEsperar(page, '#anSepNaoSei_' + k(2), (kk) => /não sei/.test((document.querySelector('.an-linha[data-resp="' + kk + '"]') || {}).textContent || ''), k(2));
-  await clicarEsperar(page, '#anSepSim_' + k(6), (kk) => !!document.getElementById('anSeparar_' + kk), k(6));
+  for (const i of [0, 1, 7, 8]) await responderSep(page, k(i), 'nao', (kk) => !!document.getElementById('anCriarAtuacao_' + kk));
+  await responderSep(page, k(2), 'nao-sei', (kk) => /não sei/.test((document.querySelector('.an-linha[data-resp="' + kk + '"]') || {}).textContent || ''));
+  await responderSep(page, k(6), 'sim', (kk) => !!document.getElementById('anSeparar_' + kk));
   afirma((await situacaoDe(page, k(0))) === 'Pronta para avaliar' && /Avaliar/.test(await texto(page, '#anCriarAtuacao_' + k(0))), '"Não precisa separar": pronta, com "Avaliar"');
   afirma((await situacaoDe(page, k(2))) === 'Pendente de delimitação' && (await situacaoDe(page, k(6))) === 'Pendente de delimitação' && /Precisa separar/.test(await texto(page, '.an-linha[data-resp="' + k(6) + '"]')), '"Não sei" e "Sim" continuam pendentes de delimitação (não se confundem com "A validar")');
   afirma(/10 responsabilidades — 4 prontas para avaliar e 6 pendentes de delimitação\./.test(await texto(page, '#anResumo')), 'resumo atualizado', await texto(page, '#anResumo'));
@@ -382,6 +395,12 @@ async function perfis(browser) {
   await page.click('#anNucleos_' + k0); await page.waitForSelector('#anFormNucleos');
   const corte = await estouro(page);
   afirma(await larguraOk(page) && !corte.length, '375: lista das dez (cartões empilhados) e o formulário de núcleos sem corte', corte);
+  await page.fill('#anNucOutros', 'NUTRI — Núcleo Tributário\nCONTA — Núcleo de Contabilidade'); await page.click('#anGravarNucleos');
+  await esperar(page, (kk) => /NUTRI/.test((document.getElementById('anNucleosTexto_' + kk) || {}).textContent || ''), k0);
+  await page.evaluate(() => { const d = document.getElementById('anComposicaoSecao'); d.open = true; d.querySelectorAll('.an-quatro-det').forEach((x) => { x.open = true; }); });
+  await page.waitForTimeout(300);
+  const corteC = await estouro(page);
+  afirma(await larguraOk(page) && !corteC.length, '375: composição aberta, com detalhes e responsabilidade compartilhada, sem corte', corteC);
   const alturas = await page.$$eval('#avaliacoesAnalise .btn:not(.an-link), #avaliacoesAnalise .an-opcao', (ls) => ls.filter((l) => l.offsetParent).map((l) => l.getBoundingClientRect().height));
   afirma(alturas.every((h) => h >= 40), '375: alvos de toque com pelo menos 40 px', Math.min.apply(null, alturas));
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));

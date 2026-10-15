@@ -3526,6 +3526,25 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-caminho p { margin: 0; overflow-wrap: anywhere; }
 /* lista única das responsabilidades: grade no computador, cartões empilhados no celular (sem tabela cortada) */
 .an-resumo { margin: 0 0 8px; font-weight: 600; color: var(--ink-2); }
+/* a barra de navegação é fixa: o que a tela leva até a vista não fica escondido embaixo dela */
+#avaliacoesAnalise [id] { scroll-margin-top: 88px; }
+.an-mais { flex-basis: 100%; }
+.an-mais > summary { cursor: pointer; color: var(--ink-3); font-size: .85rem; min-height: 32px; display: inline-flex; align-items: center; }
+.an-mais-itens { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.an-delim .an-acoes .btn { white-space: normal; }
+.an-lote-linha { display: flex; gap: 8px; align-items: flex-start; }
+.an-lote-linha input[type="checkbox"] { margin-top: 4px; flex: none; accent-color: var(--accent); width: 20px; height: 20px; }
+.an-lote-texto { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; cursor: pointer; }
+.an-lote-linha textarea { flex: 1 1 auto; min-width: 0; }
+.an-lote-linha .btn { flex: none; min-width: 0; padding: 2px 6px; letter-spacing: 0; font-size: .78rem; }
+.an-lote-texto { overflow-wrap: break-word; word-break: normal; }
+.an-comp-grupo li { min-width: 0; overflow-wrap: break-word; }
+.an-comp-grupo .an-chip { white-space: normal; }
+.an-quatro dt, .an-quatro dd { overflow-wrap: break-word; }
+.an-lote-dup { display: block; margin-left: 28px; }
+.an-comp-secao > summary { cursor: pointer; min-height: 44px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-weight: 700; font-size: 1.05rem; }
+.an-comp-linha { display: inline; overflow-wrap: anywhere; }
+.an-quatro-det > summary { cursor: pointer; color: var(--ink-3); font-size: .82rem; min-height: 28px; display: inline-flex; align-items: center; }
 .an-tabela { display: grid; gap: 6px; min-width: 0; }
 .an-tab-cab, .an-linha { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1.1fr) minmax(8.5rem, auto); gap: 4px 12px; align-items: start; }
 .an-cel .an-chip { white-space: normal; }
@@ -3545,10 +3564,10 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-linha-form { grid-column: 1 / -1; }
 .an-link { background: transparent; border-color: transparent; text-decoration: underline; }
 .an-resp--desdobrada { opacity: .85; border-style: dashed; }
-.an-lote { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
-.an-lote-item { display: grid; gap: 4px; }
+.an-lote { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.an-lote-item { display: grid; gap: 2px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .an-lote-item textarea { width: 100%; }
-.an-lote-item--dup { border-left: 3px solid var(--gold-soft); padding-left: 8px; }
+.an-lote-item--dup { border-left: 2px dashed var(--line-strong); padding-left: 8px; }
 .an-comp { display: grid; gap: 8px; }
 .an-comp-grupo { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); min-width: 0; }
 .an-comp-grupo p { margin: 0 0 4px; overflow-wrap: anywhere; }

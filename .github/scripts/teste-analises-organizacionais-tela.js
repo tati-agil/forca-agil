@@ -73,6 +73,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 const ir = async (page, hash) => { await page.evaluate((h) => { location.hash = h; }, hash); };
 const gravar = (page, w) => page.evaluate((x) => new Promise((ok, falha) => window.firebase.database().ref().update(x, (e) => (e ? falha(String(e)) : ok()))), w);
 const CRIT = ['finalidade', 'resultado', 'objeto', 'limitesAutonomia', 'riscos', 'obrigacaoResponder', 'governancaEspecializacao'];
+/* a composição organizacional começa recolhida (opcional) */
+const abrirComposicao = (page) => page.evaluate(() => { const d = document.getElementById('anComposicaoSecao'); if (d && !d.open) d.open = true; });
 const assinaturaPergunta = () => { const p = document.getElementById('anPergunta'); return p ? p.textContent.slice(0, 400) : 'nenhuma'; };
 
 /* responde as perguntas pendentes, uma por vez, pela interface; mapa(info) devolve a resposta */
@@ -244,7 +246,7 @@ async function jornadaB(browser) {
   afirma(/Rever a delimitação/.test(alt) && /Propor uma estrutura/.test(alt) && !/reclassific/i.test(alt), 'alternativas com consequência; nenhuma reclassifica', alt.slice(0, 200));
   afirma(/2 de 2/.test(await texto(page, '#anEstadoClassificacao')) && /1 com pendência/.test(await texto(page, '#anEstadoDiagnostico')), 'estados separados: classificação 2 de 2; diagnóstico com 1 pendência');
   /* proposta pendente; Avaliação + Configuração não registra aprovação */
-  await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
+  await abrirComposicao(page); await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
   await page.check('input[name="anAlternativa"][value="pendente"]');
   await page.fill('#anPropJust', 'Sem demanda que justifique outra estrutura; falta definir quem responde pela disciplina.');
   await page.fill('#anPendFalta', 'Quem responde pela evolução da disciplina'); await page.fill('#anPendAcao', 'Levar ao comitê de TI'); await page.fill('#anPendQuem', 'Diretoria de TI');
@@ -334,7 +336,7 @@ async function jornadaA(browser, db) {
   await page.click('#anAprofundar_' + kPol + ' button[type="submit"]');
   await esperar(page, (k) => /revisão anual/.test((document.querySelector('#anAprofundar_' + k + ' .an-evidencias') || {}).textContent || ''), kPol);
   afirma((await banco(page))['avaliacoes-posicionamento']['pos-' + objPol].resultadoAutomatico.codigoResultado === 'A_VALIDAR', 'D7: a evidência não muda a recomendação automática');
-  await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
+  await abrirComposicao(page); await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
   await page.check('input[name="anAlternativa"][value="manter-consciente"]');
   await page.fill('#anPropJust', 'Equipe integrada; separar não traria ganho demonstrado.');
   await page.click('#anRegistrarProposta');
@@ -347,8 +349,8 @@ async function jornadaA(browser, db) {
   await ctx.close();
   /* admin geral registra a referência ao ato externo */
   ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=' + id, { db, email: ADM }));
-  await page.waitForSelector('#anAbrirAprovacao', { timeout: 20000 });
-  await page.click('#anAbrirAprovacao'); await page.waitForSelector('#anFormAprovacao');
+  await page.waitForSelector('#anComposicaoSecao', { timeout: 20000 }); await abrirComposicao(page); await page.waitForSelector('#anAbrirAprovacao', { timeout: 20000 });
+  await abrirComposicao(page); await page.click('#anAbrirAprovacao'); await page.waitForSelector('#anFormAprovacao');
   afirma(/Registrar não significa que você aprovou/.test(await texto(page, '#anFormAprovacao')), 'o formulário diz que registrar não é aprovar');
   await page.fill('#anApAutoridade', 'Diretoria Executiva'); await page.fill('#anApReferencia', 'Ata 12/2026, item 3'); await page.fill('#anApData', '2026-10-10');
   await page.click('#anRegistrarAprovacao');
@@ -453,7 +455,7 @@ async function celular(browser, db, idB) {
   afirma(await larguraOk(page), '375: nova análise sem rolagem lateral');
   await ir(page, '#avaliacoes?an=' + idB); await page.waitForSelector('#anTitulo');
   afirma(await larguraOk(page), '375: análise sem rolagem lateral');
-  await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
+  await abrirComposicao(page); await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
   afirma(await larguraOk(page), '375: formulário de proposta sem rolagem lateral');
   const k = await recorteId(page, 'Evolução da disciplina de arquitetura');
   await page.click('.an-recorte[data-recorte="' + k + '"] button[data-form="fatos"]'); await page.waitForSelector('#anFormFatos');

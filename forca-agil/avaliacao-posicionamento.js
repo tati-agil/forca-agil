@@ -1232,7 +1232,7 @@
        literal de uma atribuição — e "Essa descrição reúne trabalhos diferentes que precisam ser avaliados separadamente?".
        "Não" registra e segue para o O1–O9; "Sim" e "Não sei" levam a responsabilidade para uma análise (Caminho B), onde
        se separa ou se volta depois. O cadastro recebe o texto como foi escrito (dadosSimplificados): nada é inferido */
-    var SEP_A = { nao: ['Não', 'Não precisa separar: é um trabalho só. Segue para o O1–O9.'], sim: ['Sim', 'Precisa separar: junta trabalhos diferentes. Ela vai para uma Análise Organizacional, onde você informa as partes; a descrição original fica guardada.'],
+    var SEP_A = { nao: ['Não', 'Não, pode ser avaliada como está. Segue para o O1–O9.'], sim: ['Sim', 'Precisa separar: junta trabalhos diferentes. Ela vai para uma Análise Organizacional, onde você informa as partes; a descrição original fica guardada.'],
       'nao-sei': ['Não sei', 'Fica salva como pendente numa Análise Organizacional, para você voltar depois. Não vai para o O1–O9.'] };
     var modoFormA = null; /* o modo em que o formulário de criação foi desenhado (o marcador pode chegar depois de um F5) */
     function simplesCaminhoA() { var A = window.faAnalisesOrganizacionais; return !!(A && A.acesso && A.acesso().gravar); }

@@ -265,7 +265,7 @@
     function render() {
       if (wrap.hidden) return;
       /* o que a pessoa abriu ou fechou continua assim depois de redesenhar (lido da página: o evento toggle pode chegar depois) */
-      [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
+      [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos'], ['anComposicaoSecao', 'composicao']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
       var digitado = st.limparCampos ? { valores: {}, marcas: [] } : capturarCampos(); st.limparCampos = false;
       var a = acesso(), h;
       if (!autorizacaoResolvida() || D.hab === undefined) h = '<p class="loading-msg" id="anCarregando">Carregando…</p>';
@@ -326,7 +326,7 @@
     /* "Essa descrição reúne trabalhos diferentes que precisam ser avaliados separadamente?" — atenção: aqui "Não" é
        que NÃO precisa separar (pronta para o O1–O9) */
     var SEP = {
-      nao: ['Não', 'Não precisa separar: é um trabalho só. Pode seguir para o O1–O9.'],
+      nao: ['Não', 'Não, pode ser avaliada como está. Uma responsabilidade pode reunir várias atividades sem precisar ser separada.'],
       sim: ['Sim', 'Precisa separar: junta trabalhos diferentes. Você informa as partes; a descrição original fica guardada.'],
       'nao-sei': ['Não sei', 'Fica pendente para você voltar depois. Não vai para o O1–O9 e não impede as outras.']
     };
@@ -401,7 +401,7 @@
       if (!gravar) return { t: 'Você está consultando: pode ler tudo, mas gravar é do perfil Avaliação + Configuração.' };
       if (!ativos.length) return { t: 'Informe as responsabilidades da área — uma por vez ou várias de uma vez. Pode copiar as atribuições, sem reformular.', alvo: 'anRespDesc' };
       var ordem = [['avaliar', function (r) { return 'Avalie "' + textoResp(r) + '" pelo O1–O9.'; }, 'anCriarAtuacao_'], ['continuar', function (r) { return 'Continue o O1–O9 de "' + textoResp(r) + '".'; }, 'anAbrirPos_'],
-        ['iniciar', function (r) { return 'Inicie o O1–O9 de "' + textoResp(r) + '".'; }, 'anAbrirPos_'], ['revisar', function (r) { return '"' + textoResp(r) + '" está pendente de delimitação: responda se precisa separar.'; }, 'anSepNao_'],
+        ['iniciar', function (r) { return 'Inicie o O1–O9 de "' + textoResp(r) + '".'; }, 'anAbrirPos_'], ['revisar', function (r) { return '"' + textoResp(r) + '" está pendente de delimitação: use "Definir delimitação".'; }, 'anDelimitar_'],
         ['separar', function (r) { return 'Separe "' + textoResp(r) + '" nas partes que a compõem.'; }, 'anSeparar_']];
       for (var o = 0; o < ordem.length; o++) for (var i = 0; i < ativos.length; i++) if (rs.sits[i].acao === ordem[o][0]) {
         var r = a.recortes[ativos[i]], alvo = ordem[o][2] + ativos[i];
@@ -498,7 +498,12 @@
         else if (s.acao === 'continuar') acao = '<a class="btn btn--sm btn--primary" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Continuar</a>';
         else if (s.acao === 'ver') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Ver resultado</a>';
         else if (gravar && s.acao === 'separar') acao = '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="separar" data-recorte="' + esc(k) + '" id="anSeparar_' + esc(k) + '">Separar</button>';
+        else if (gravar && N().modeloSimples(r)) acao = '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="delimitar" data-recorte="' + esc(k) + '" id="anDelimitar_' + esc(k) + '">Definir delimitação</button>';
         else if (gravar) acao = '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="revisar" data-recorte="' + esc(k) + '" id="anRevisar_' + esc(k) + '">Revisar</button>';
+        /* ações secundárias recolhidas, para a linha mostrar só a principal */
+        if (gravar && !r.objetoId) acao += '<details class="an-mais" id="anMais_' + esc(k) + '"><summary>Mais</summary><div class="an-mais-itens">' +
+          (s.acao !== 'revisar' || N().modeloSimples(r) ? '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="revisar" data-recorte="' + esc(k) + '" id="anRevisar_' + esc(k) + '">Revisar o texto</button>' : '') +
+          '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="descartar-recorte" data-recorte="' + esc(k) + '" id="anDescartarResp_' + esc(k) + '">Descartar</button></div></details>';
         h += '<div class="an-linha an-resp" role="row" data-resp="' + esc(k) + '" data-situacao="' + s.c + '">' +
           '<div class="an-cel an-cel--resp" role="cell"><strong>' + esc(textoResp(r)) + '</strong>' + (origem ? '<span class="an-det">Parte de: "' + esc(textoResp(origem)) + '"</span>' : '') +
 '</div>' +
@@ -508,13 +513,6 @@
           '<div class="an-cel" role="cell" data-rotulo="Situação"><span class="an-chip an-chip--' + SITUACAO[s.c][1] + '" id="anSituacao_' + esc(k) + '">' + SITUACAO[s.c][0] + '</span>' +
             (s.c === 'pendente' && sep === 'sim' ? '<span class="an-det">Precisa separar</span>' : s.c === 'pendente' && sep === 'nao-sei' ? '<span class="an-det">Respondido: não sei</span>' : '') + '</div>' +
           '<div class="an-cel an-cel--acao" role="cell" data-rotulo="Ação">' + acao + '</div>';
-        /* pendente sem resposta (ou "não sei"): responder ali mesmo, num clique, sem abrir outro cadastro */
-        if (gravar && !r.objetoId && N().modeloSimples(r) && (!sep || sep === 'nao-sei')) h += '<div class="an-linha-extra"><span class="an-det">' + esc(PERGUNTA_SEP) + '</span><div class="an-acoes">' +
-          '<button type="button" class="btn btn--sm" data-an="responder-sep" data-v="nao" data-recorte="' + esc(k) + '" id="anSepNao_' + esc(k) + '">Não precisa separar</button>' +
-          '<button type="button" class="btn btn--sm" data-an="responder-sep" data-v="sim" data-recorte="' + esc(k) + '" id="anSepSim_' + esc(k) + '">Precisa separar</button>' +
-          (sep !== 'nao-sei' ? '<button type="button" class="btn btn--sm" data-an="responder-sep" data-v="nao-sei" data-recorte="' + esc(k) + '" id="anSepNaoSei_' + esc(k) + '">Não sei</button>' : '') + '</div></div>';
-        if (gravar && !r.objetoId) h += '<div class="an-linha-extra an-linha-mais"><div class="an-acoes">' + (s.acao !== 'revisar' ? '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="revisar" data-recorte="' + esc(k) + '" id="anRevisar_' + esc(k) + '">Revisar</button>' : '') +
-          '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="descartar-recorte" data-recorte="' + esc(k) + '" id="anDescartarResp_' + esc(k) + '">Descartar</button></div></div>';
         h += renderFormsLinha(a, r, k) + '</div>';
       });
       h += desd.map(function (k) {
@@ -533,6 +531,13 @@
         radiosSeparacao('anRevSep', sep) +
         '<div class="avp-field"><label for="anRevObs">Observação <span class="an-opc">(opcional)</span></label><input id="anRevObs" maxlength="2000" value="' + esc(r.separacao && r.separacao.observacao || '') + '"></div>' +
         '<p class="an-nota">A versão anterior fica no histórico.</p><div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anGravarRevisao">Gravar a revisão</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+      /* a pergunta de delimitação, só quando a pessoa pede ("Definir delimitação") */
+      if (t === 'delimitar') return '<div class="an-form an-linha-form an-delim" id="anPainelDelim_' + esc(k) + '" role="group" aria-labelledby="anPerguntaDelim_' + esc(k) + '"><p id="anPerguntaDelim_' + esc(k) + '"><strong>' + esc(PERGUNTA_SEP) + '</strong></p>' +
+        '<p class="an-nota">Uma responsabilidade pode reunir várias atividades sem precisar ser separada.</p><div class="an-acoes">' +
+        '<button type="button" class="btn btn--sm btn--primary" data-an="responder-sep" data-v="nao" data-recorte="' + esc(k) + '" id="anSepNao_' + esc(k) + '">Não, pode ser avaliada como está</button>' +
+        '<button type="button" class="btn btn--sm" data-an="responder-sep" data-v="sim" data-recorte="' + esc(k) + '" id="anSepSim_' + esc(k) + '">Sim, precisa separar</button>' +
+        (sep !== 'nao-sei' ? '<button type="button" class="btn btn--sm" data-an="responder-sep" data-v="nao-sei" data-recorte="' + esc(k) + '" id="anSepNaoSei_' + esc(k) + '">Não sei</button>' : '') +
+        '<button type="button" class="btn btn--sm an-link" data-an="cancelar">Cancelar</button></div></div>';
       if (t === 'separar') return renderFormSeparar(r, k);
       if (t === 'nucleos') return renderFormNucleos(r, k);
       if (t === 'atuacao') return renderFormRecorte(a, r, k);
@@ -590,6 +595,11 @@
       Object.keys(a.recortes).forEach(function (k) { if (a.recortes[k].situacao === 'ativo') existentes[normalizado(textoResp(a.recortes[k]))] = true; });
       return itens.map(function (t) { var n = normalizado(t), dup = existentes[n] ? 'ja-existe' : vistos[n] ? 'repetida' : null; vistos[n] = true; return { texto: t, duplicada: dup, incluir: !dup }; });
     }
+    function rotuloLote(n) { return 'Registrar ' + n + ' responsabilidade' + (n === 1 ? '' : 's'); }
+    /* o que foi editado ou desmarcado na prévia volta para o estado antes de redesenhar ou gravar */
+    function sincronizarLote() {
+      ((st.form && st.form.previa) || []).forEach(function (x, i) { var t = document.getElementById('anLoteItem_' + i), c = document.getElementById('anLoteInc_' + i); if (t) x.texto = t.value; if (c) x.incluir = c.checked; });
+    }
     function renderLote(a) {
       var f = st.form;
       if (!f.previa) return '<form class="an-form" id="anFormLote" aria-labelledby="anLoteTitulo"><h3 id="anLoteTitulo">Adicionar várias responsabilidades</h3>' +
@@ -599,13 +609,16 @@
         '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" data-an="lote-previa" id="anLotePrevia">Ver a prévia</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
       var n = f.previa.filter(function (x) { return x.incluir; }).length;
       return '<form class="an-form" id="anFormLote" aria-labelledby="anLoteTitulo"><h3 id="anLoteTitulo">Prévia: ' + f.previa.length + ' linha' + (f.previa.length === 1 ? '' : 's') + '</h3>' +
-        '<p class="an-ajuda">Confira, corrija ou desmarque antes de registrar. Cada item começa "pendente de delimitação" — a pergunta sobre separar é respondida depois, na lista.</p><ol class="an-lote" id="anLoteLista">' +
+        '<p class="an-ajuda">Desmarque o que não quer registrar; use "Editar" para corrigir um texto. Cada item começa "pendente de delimitação".</p><ol class="an-lote" id="anLoteLista">' +
         f.previa.map(function (x, i) {
-          return '<li class="an-lote-item' + (x.duplicada ? ' an-lote-item--dup' : '') + '"><label class="an-opcao an-opcao--linha"><input type="checkbox" name="anLoteInc" value="' + i + '" id="anLoteInc_' + i + '"' + (x.incluir ? ' checked' : '') + '><span>Registrar o item ' + (i + 1) + '</span></label>' +
-            '<label class="sr-only" for="anLoteItem_' + i + '">Texto do item ' + (i + 1) + '</label><textarea id="anLoteItem_' + i + '" rows="2" maxlength="2000">' + esc(x.texto) + '</textarea>' +
-            (x.duplicada ? '<p class="an-chip an-chip--pend" id="anLoteDup_' + i + '">' + (x.duplicada === 'ja-existe' ? 'Igual a uma responsabilidade já registrada' : 'Repetida nesta lista') + ' — marque para registrar mesmo assim</p>' : '') + '</li>';
+          var ed = f.editando && f.editando[i];
+          return '<li class="an-lote-item' + (x.duplicada ? ' an-lote-item--dup' : '') + '"><div class="an-lote-linha"><input type="checkbox" name="anLoteInc" value="' + i + '" id="anLoteInc_' + i + '"' + (x.incluir ? ' checked' : '') + ' aria-labelledby="anLoteTxt_' + i + '">' +
+            (ed ? '<label class="sr-only" for="anLoteItem_' + i + '">Texto do item ' + (i + 1) + '</label><textarea id="anLoteItem_' + i + '" rows="2" maxlength="2000">' + esc(x.texto) + '</textarea><span class="sr-only" id="anLoteTxt_' + i + '">Item ' + (i + 1) + '</span>'
+              : '<label for="anLoteInc_' + i + '" class="an-lote-texto" id="anLoteTxt_' + i + '">' + esc(x.texto) + '</label>') +
+            '<button type="button" class="btn btn--sm an-link" data-an="lote-editar" data-i="' + i + '" id="anLoteEditar_' + i + '">' + (ed ? 'Pronto' : 'Editar') + '</button></div>' +
+            (x.duplicada ? '<span class="an-det an-lote-dup" id="anLoteDup_' + i + '">' + (x.duplicada === 'ja-existe' ? 'Igual a uma responsabilidade já registrada' : 'Repetida nesta lista') + ' — marque para registrar mesmo assim</span>' : '') + '</li>';
         }).join('') + '</ol>' +
-        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anLoteRegistrar"' + (st.gravando ? ' disabled' : '') + '>Registrar as responsabilidades marcadas (' + n + ')</button>' +
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anLoteRegistrar"' + (st.gravando ? ' disabled' : '') + '>' + rotuloLote(n) + '</button>' +
         '<button type="button" class="btn btn--sm" data-an="lote-voltar" id="anLoteVoltar">Voltar ao texto</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
     }
     /* detalhamento opcional: o motor de entregas e comparações de antes, para quem precisa de ajuda para delimitar.
@@ -620,9 +633,9 @@
        várias responsabilidades, uma responsabilidade em vários núcleos), o resultado O1–O9 de cada responsabilidade (uma
        avaliação só, mesmo compartilhada), e — separadas — a proposta e a decisão formal. Nada muda o Mapa nem estruturas */
     function renderComposicaoArea(est, a, ativos, sfs, acc, ps) {
-      var h = '<section class="avp-form-card an-passo an-passo--opcional" id="anComposicaoSecao" aria-labelledby="anComposicaoTitulo"><header class="an-passo-cab"><h3 id="anComposicaoTitulo">Composição organizacional</h3><span class="an-chip an-chip--neu">Depois, se quiser</span></header>' +
+      var h = '<details class="avp-form-card an-secao an-comp-secao" id="anComposicaoSecao"' + (st.abertos.composicao ? ' open' : '') + '><summary><span id="anComposicaoTitulo">Composição organizacional</span> <span class="an-chip an-chip--neu">Opcional</span></summary>' +
         '<p class="an-nota">Quatro coisas diferentes, que não se confundem: <strong>núcleo(s) que executam hoje</strong> (informação declarada — não é vínculo nem responsabilidade formal; "Núcleo" e "Gerência" são níveis organizacionais, não tipos arquiteturais), <strong>tipo arquitetural recomendado</strong> (o resultado do O1–O9 de cada responsabilidade, como Área Especializada ou CoE — não da área nem do núcleo, e não é uma nova estrutura), <strong>estrutura com vínculo formal registrado</strong> (o vínculo da ficha do Posicionamento, quando existe — não é aprovação do desenho) e <strong>proposta de composição e aprovação</strong> (como as responsabilidades poderiam ser organizadas; aprovação só com a referência ao ato registrada). Nada aqui cria, renomeia, extingue ou transforma uma unidade, nem muda vínculos ou o Mapa da Floresta.</p>';
-      if (!ativos.length) return h + '<p class="an-nota" id="anComposicaoVazia">Aparece quando houver responsabilidades na lista.</p></section>';
+      if (!ativos.length) return h + '<p class="an-nota" id="anComposicaoVazia">Aparece quando houver responsabilidades na lista.</p></details>';
       var grupos = {}, ordemG = [], sem = [];
       ativos.forEach(function (k, i) {
         var nucs = nucleosDe(a.recortes[k]);
@@ -635,11 +648,11 @@
       });
       var item = function (i, g) {
         var k = ativos[i], r = a.recortes[k], p = sfs[i].p, outros = nucleosDe(r).filter(function (f) { return (f.estruturaId ? 'e:' + f.estruturaId : 't:' + normalizado(f.texto)) !== g; });
-        return '<li data-comp-resp="' + esc(k) + '"><strong>' + esc(textoResp(r)) + '</strong>' + (outros.length ? ' <span class="an-chip an-chip--neu">compartilhada com ' + outros.map(function (f) { return esc(rotuloNucleo(f)); }).join(', ') + '</span>' : '') +
-          '<dl class="an-quatro"><div><dt>Núcleo(s) que executam hoje (declarado)</dt><dd>' + (nucleosDe(r).length ? nucleosDe(r).map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informado') + '</dd></div>' +
+        return '<li data-comp-resp="' + esc(k) + '"><span class="an-comp-linha"><span>' + esc(textoResp(r)) + '</span> <span class="an-det">— ' + esc(tipoRecomendado(p)) + '</span>' + (outros.length ? ' <span class="an-chip an-chip--neu">compartilhada com ' + outros.map(function (f) { return esc(rotuloNucleo(f)); }).join(', ') + '</span>' : '') + '</span>' +
+          '<details class="an-quatro-det"><summary>Detalhes</summary><dl class="an-quatro"><div><dt>Núcleo(s) que executam hoje (declarado)</dt><dd>' + (nucleosDe(r).length ? nucleosDe(r).map(function (f) { return esc(rotuloNucleo(f)); }).join('; ') : 'Não informado') + '</dd></div>' +
           '<div><dt>Tipo arquitetural recomendado</dt><dd>' + esc(tipoRecomendado(p)) + '</dd></div>' +
           '<div><dt>Estrutura com vínculo formal registrado</dt><dd>' + esc(vinculoFormalDe(r)) + '</dd></div>' +
-          '<div><dt>Proposta de composição e aprovação</dt><dd>' + esc(propostaDe(est, a, k)) + '</dd></div></dl></li>';
+          '<div><dt>Proposta de composição e aprovação</dt><dd>' + esc(propostaDe(est, a, k)) + '</dd></div></dl></details></li>';
       };
       h += '<h4>Por núcleo que executa hoje (declarado)</h4><div class="an-comp" id="anComposicaoAtual">' + ordemG.map(function (g) {
         var G = grupos[g], av = G.itens.filter(function (i) { return sfs[i].p.estado === 'concluido'; }).length;
@@ -647,7 +660,7 @@
       }).join('') + (sem.length ? '<div class="an-comp-grupo" id="anComposicaoSemNucleo"><p><strong>Sem núcleo informado</strong> <span class="an-det">' + sem.length + ' responsabilidade' + (sem.length === 1 ? '' : 's') + '</span></p><ul>' + sem.map(function (i) { return item(i, null); }).join('') + '</ul></div>' : '') + '</div>' +
         '<p class="an-nota">Um núcleo pode executar várias responsabilidades com tipos recomendados diferentes. Isso não significa dividir o núcleo, criar estruturas nem mudar ninguém de lugar: é insumo para a análise, não decisão.</p>';
       h += '<h4>Proposta de composição e referência à aprovação</h4>' + (ps.avaliadas > 0 || a.propostaVigente ? renderComposicao(est, a, ativos, sfs, acc) : '<p class="an-nota" id="anComposicaoIndisponivel">A proposta fica disponível quando houver ao menos uma responsabilidade avaliada pelo O1–O9. Não é necessária para concluir as avaliações.</p>');
-      return h + '</section>';
+      return h + '</details>';
     }
     function nomeEntrega(a, id) { var e = a.entregas[id]; return e ? e.descricao : id; }
     function textoLacuna(a, l) {
@@ -971,7 +984,8 @@
         if (val('anRevObs').trim()) drv.separacao.observacao = val('anRevObs');
         executar(function (est, c) { return N().revisarResponsabilidade(est, id, krv, drv, c); }, 'Responsabilidade revisada (a versão anterior fica no histórico).');
       } else if (form.id === 'anFormLote') {
-        var itensL = (st.form && st.form.previa || []).map(function (x, n) { var cb = document.getElementById('anLoteInc_' + n); return { texto: val('anLoteItem_' + n).trim(), incluir: !!(cb && cb.checked) }; });
+        sincronizarLote();
+        var itensL = (st.form && st.form.previa || []).map(function (x) { return { texto: String(x.texto || '').trim(), incluir: !!x.incluir }; });
         var selL = itensL.filter(function (x) { return x.incluir && x.texto; }).map(function (x) { return x.texto; });
         var idsL = selL.map(function () { return S().novaChave(F().NOS.analises); });
         executar(function (est, c) { return N().registrarResponsabilidadesEmLote(est, id, { descricoes: selL }, Object.assign(c, { novosIds: idsL })); }, null, function () {
@@ -1044,10 +1058,15 @@
         st.erro = null; st.form.previa = marcarDuplicadas(estado().analises[st.id], linhas); st.limparCampos = true; render();
         var p0 = document.getElementById('anLoteLista'); if (p0) p0.scrollIntoView({ block: 'start' });
       }
-      else if (acao === 'lote-voltar') { st.form.previa = null; st.limparCampos = true; render(); }
+      else if (acao === 'lote-voltar') { sincronizarLote(); st.form.previa = null; st.limparCampos = true; render(); }
+      else if (acao === 'lote-editar') {
+        var ie = Number(b.getAttribute('data-i')); sincronizarLote(); st.form.editando = st.form.editando || {}; st.form.editando[ie] = !st.form.editando[ie]; st.limparCampos = true; render();
+        var ce = document.getElementById(st.form.editando[ie] ? 'anLoteItem_' + ie : 'anLoteEditar_' + ie); if (ce) ce.focus();
+      }
       else if (acao === 'mais-parte') { st.form.valores = lerPartes(); st.form.partes = Math.max(2, st.form.partes || 2) + 1; render(); var np = document.getElementById('anParteDesc' + (st.form.partes - 1)); if (np) np.focus(); }
       else if (acao === 'ir-para') {
         var alvo = document.getElementById(b.getAttribute('data-alvo')); if (!alvo) return;
+        if (alvo.tagName === 'DETAILS') { alvo.open = true; st.abertos.composicao = alvo.id === 'anComposicaoSecao' ? true : st.abertos.composicao; }
         alvo.scrollIntoView({ block: 'center' });
         var foco = /^(INPUT|SELECT|TEXTAREA|BUTTON|A)$/.test(alvo.tagName) ? alvo : alvo.querySelector('input:not([disabled]), textarea, select:not([disabled]), button');
         if (!foco) { alvo.setAttribute('tabindex', '-1'); foco = alvo; }
@@ -1061,6 +1080,7 @@
     wrap.addEventListener('change', function (ev) {
       var t = ev.target, dep = null, liga = false, dica = null;
       if (t.name === 'anResposta' && t.closest('#anFormResponder[data-q="F2b"]')) { dep = document.getElementById('anEstruturaCadastrada'); dica = document.getElementById('anEstruturaCadastradaDica'); liga = t.value === 'cadastrada'; }
+      else if (t.name === 'anLoteInc') { sincronizarLote(); var bl = document.getElementById('anLoteRegistrar'); if (bl) bl.textContent = rotuloLote(st.form.previa.filter(function (x) { return x.incluir; }).length); return; }
       else if (t.name === 'anTemAtuacao') { dep = document.getElementById('anObjetoAmplo'); dica = document.getElementById('anObjetoAmploDica'); liga = t.value === 'sim'; }
       if (!dep) return;
       dep.disabled = !liga; dep.required = liga; if (!liga) dep.value = '';
