@@ -265,7 +265,7 @@
     function render() {
       if (wrap.hidden) return;
       /* o que a pessoa abriu ou fechou continua assim depois de redesenhar (lido da página: o evento toggle pode chegar depois) */
-      [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos'], ['anComposicaoSecao', 'composicao']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
+      [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos'], ['anComposicaoSecao', 'composicao'], ['anDetalhesResp', 'detalhesResp']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
       var digitado = st.limparCampos ? { valores: {}, marcas: [] } : capturarCampos(); st.limparCampos = false;
       var a = acesso(), h;
       if (!autorizacaoResolvida() || D.hab === undefined) h = '<p class="loading-msg" id="anCarregando">Carregando…</p>';
@@ -443,7 +443,15 @@
       h += renderListaResp(a, ativos, sfs, rs, gravar);
       h += renderRegistrar(a, ativos, gravar);
       h += '<section class="avp-form-card an-secao" id="anApoio" aria-label="Apoio para delimitar">' + renderDetalhar(a, ativos, ps, gravar, detalharAberto, card && card.onde === 'detalhe' ? card.html : '') + renderReferencias(a, gravar) + '</section>';
-      if (ativos.length) h += '<section class="avp-form-card an-secao" id="anDetalhesResp" aria-labelledby="anDetalhesRespTitulo"><h3 id="anDetalhesRespTitulo">Detalhes de cada responsabilidade</h3>' + renderRecortes(a, ativos, sfs, gravar) + '</section>';
+      /* detalhes de cada responsabilidade (quem executa e quem responde, situação formal, alternativas, "A validar"):
+         recolhidos por padrão para não repetir a lista; abrem sozinhos quando uma ação leva até eles */
+      if (ativos.length) {
+        var nAV = sfs.filter(function (x) { return x.p.estado === 'concluido' && x.p.aValidar; }).length;
+        var abrirDet = st.abertos.detalhesResp || !!(st.form && st.form.tipo === 'fatos');
+        h += '<details class="avp-form-card an-secao an-comp-secao" id="anDetalhesResp"' + (abrirDet ? ' open' : '') + '><summary><span id="anDetalhesRespTitulo">Detalhes e análise complementar (opcional)</span>' +
+          (nAV ? ' <span class="an-chip an-chip--av" id="anDetalhesAValidar">' + nAV + ' a validar</span>' : '') + '</summary>' +
+          '<p class="an-nota">Para cada responsabilidade: quem executa e quem responde formalmente, situação formal, alternativas e o aprofundamento dos casos "A validar".</p>' + renderRecortes(a, ativos, sfs, gravar) + '</details>';
+      }
       h += renderComposicaoArea(est, a, ativos, sfs, acc, ps);
       h += '<dl class="an-estados" id="anEstados">' +
         '<div><dt>Avaliadas pelo O1–O9</dt><dd id="anEstadoClassificacao">' + classificadas + ' de ' + ativos.length + ' responsabilidade' + (ativos.length === 1 ? '' : 's') + '</dd></div>' +
@@ -1066,7 +1074,9 @@
       else if (acao === 'mais-parte') { st.form.valores = lerPartes(); st.form.partes = Math.max(2, st.form.partes || 2) + 1; render(); var np = document.getElementById('anParteDesc' + (st.form.partes - 1)); if (np) np.focus(); }
       else if (acao === 'ir-para') {
         var alvo = document.getElementById(b.getAttribute('data-alvo')); if (!alvo) return;
-        if (alvo.tagName === 'DETAILS') { alvo.open = true; st.abertos.composicao = alvo.id === 'anComposicaoSecao' ? true : st.abertos.composicao; }
+        if (alvo.tagName === 'DETAILS') alvo.open = true;
+        /* um alvo dentro de blocos recolhidos: abre os blocos (e lembra disso no próximo redesenho) */
+        for (var dd = alvo.parentElement && alvo.parentElement.closest('details'); dd; dd = dd.parentElement && dd.parentElement.closest('details')) dd.open = true;
         alvo.scrollIntoView({ block: 'center' });
         var foco = /^(INPUT|SELECT|TEXTAREA|BUTTON|A)$/.test(alvo.tagName) ? alvo : alvo.querySelector('input:not([disabled]), textarea, select:not([disabled]), button');
         if (!foco) { alvo.setAttribute('tabindex', '-1'); foco = alvo; }

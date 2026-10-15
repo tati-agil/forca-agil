@@ -74,6 +74,8 @@ const ir = async (page, hash) => { await page.evaluate((h) => { location.hash = 
 const gravar = (page, w) => page.evaluate((x) => new Promise((ok, falha) => window.firebase.database().ref().update(x, (e) => (e ? falha(String(e)) : ok()))), w);
 const CRIT = ['finalidade', 'resultado', 'objeto', 'limitesAutonomia', 'riscos', 'obrigacaoResponder', 'governancaEspecializacao'];
 /* a composição organizacional começa recolhida (opcional) */
+/* "Detalhes e análise complementar" também começa recolhido */
+const abrirDetalhes = (page) => page.evaluate(() => { const d = document.getElementById('anDetalhesResp'); if (d && !d.open) d.open = true; });
 const abrirComposicao = (page) => page.evaluate(() => { const d = document.getElementById('anComposicaoSecao'); if (d && !d.open) d.open = true; });
 const assinaturaPergunta = () => { const p = document.getElementById('anPergunta'); return p ? p.textContent.slice(0, 400) : 'nenhuma'; };
 
@@ -130,7 +132,7 @@ async function delimitar(page, nome, resultado, justificativa, entregas) {
 const recorteId = (page, nome) => page.evaluate((n) => { const a = Array.from(document.querySelectorAll('.an-recorte')).find((x) => x.querySelector('h4').textContent === n); return a ? a.getAttribute('data-recorte') : null; }, nome);
 async function registrarFatos(page, nome, f) {
   const k = await recorteId(page, nome);
-  await page.click('.an-recorte[data-recorte="' + k + '"] button[data-form="fatos"]');
+  await abrirDetalhes(page); await page.click('.an-recorte[data-recorte="' + k + '"] button[data-form="fatos"]');
   await page.waitForSelector('#anFormFatos');
   if (f.exec) await page.selectOption('#anExecEstr', f.exec);
   await page.selectOption('#anExecCarater', f.execCarater); await page.fill('#anExecFonte', f.fonte);
@@ -329,8 +331,8 @@ async function jornadaA(browser, db) {
   const objPol = await criarAtuacao(page, 'Políticas e padrões de Segurança da Informação');
   await semearPosicionamento(page, objPol, 'A_VALIDAR', 'CONFLITO');
   await ir(page, '#avaliacoes?an=' + id);
-  const kPol = await (async () => { await page.waitForSelector('.an-recorte'); return recorteId(page, 'Políticas e padrões de Segurança da Informação'); })();
-  await page.waitForSelector('#anAprofundar_' + kPol);
+  const kPol = await (async () => { await page.waitForSelector('.an-recorte', { state: 'attached' }); return recorteId(page, 'Políticas e padrões de Segurança da Informação'); })();
+  await abrirDetalhes(page); await page.waitForSelector('#anAprofundar_' + kPol);
   afirma(/mesma responsabilidade/.test(await texto(page, '#anAprofundar_' + kPol)) && /recomendação automática não muda/.test(await texto(page, '#anAprofundar_' + kPol)), 'A validar (conflito): explicação e evidência qualitativa, sem escolher código');
   await page.fill('#anEv_' + kPol, 'O papel de parecer aparece nas exceções à política; o de padrão, na revisão anual.');
   await page.click('#anAprofundar_' + kPol + ' button[type="submit"]');
@@ -385,7 +387,7 @@ async function jornadaC(browser, db, objPol) {
   await semearPosicionamento(page, objOp, 'PLATAFORMA_HABILITADORA_TECNOLOGIA');
   await semearVinculo(page, objOp, 'nucleo-infra');
   await ir(page, '#avaliacoes?an=' + id);
-  await page.waitForSelector('.an-recorte');
+  await page.waitForSelector('.an-recorte', { state: 'attached' });
   const k = await recorteId(page, 'Operação dos controles técnicos de segurança');
   await esperar(page, (kk) => /Vínculo formal compatível/.test((document.getElementById('anSit_' + kk) || {}).textContent || ''), k);
   afirma(/Entrega ainda fora de qualquer responsabilidade: Resposta a incidentes/.test(await texto(page, '#anLacunas')), 'lacuna: resposta a incidentes ainda sem responsabilidade');
@@ -412,7 +414,7 @@ async function marcador(browser) {
   afirma(true, 'SOMENTE_ADMIN_GERAL: Avaliação + Configuração não vê');
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { hab: 'SOMENTE_ADMIN_GERAL', email: ADM }));
-  await page.waitForSelector('#anHomologacao');
+  await page.waitForSelector('#anHomologacao'); await page.waitForSelector('#anNovaBtn, #anListaVazia, #anLista', { timeout: 20000 }); /* o aviso aparece já no "Carregando…" */
   afirma(await existe(page, '#anNovaBtn'), 'SOMENTE_ADMIN_GERAL: o admin geral vê e grava, com aviso de homologação');
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#admin?arq=inicio', { email: ADM }));
@@ -458,7 +460,7 @@ async function celular(browser, db, idB) {
   await abrirComposicao(page); await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
   afirma(await larguraOk(page), '375: formulário de proposta sem rolagem lateral');
   const k = await recorteId(page, 'Evolução da disciplina de arquitetura');
-  await page.click('.an-recorte[data-recorte="' + k + '"] button[data-form="fatos"]'); await page.waitForSelector('#anFormFatos');
+  await abrirDetalhes(page); await page.click('.an-recorte[data-recorte="' + k + '"] button[data-form="fatos"]'); await page.waitForSelector('#anFormFatos');
   afirma(await larguraOk(page), '375: formulário de fatos sem rolagem lateral');
   const alturas = await page.$$eval('#avaliacoesAnalise .btn, #avaliacoesAnalise .an-opcao', (ls) => ls.filter((l) => l.offsetParent).map((l) => l.getBoundingClientRect().height));
   afirma(alturas.every((h) => h >= 40), '375: alvos de toque com pelo menos 40 px', Math.min.apply(null, alturas));

@@ -256,6 +256,7 @@ async function gecon(browser) {
   const k = (i) => ks[i];
   afirma((await situacaoDe(page, k(0))) === 'Pendente de delimitação' && /Definir delimitação/.test(await texto(page, '#anDelimitar_' + k(0))) && !(await existe(page, '[id^="anSepNao_"]')) && !(await existe(page, '.an-linha-extra')), 'pendente: só "Definir delimitação" na linha — a pergunta não se repete nas dez');
   afirma(!(await prop(page, '#anComposicaoSecao', 'open')), 'composição organizacional começa recolhida (opcional)');
+  afirma(!(await prop(page, '#anDetalhesResp', 'open')) && /^Detalhes e análise complementar \(opcional\)/.test((await texto(page, '#anDetalhesResp > summary')).trim()) && (await page.$$('#anDetalhesResp .an-recorte')).length === 10, '"Detalhes e análise complementar (opcional)" recolhido, sem repetir a lista à vista (o conteúdo continua lá)');
   await page.click('#anDelimitar_' + k(0)); await page.waitForSelector('#anPainelDelim_' + k(0));
   afirma(/Não, pode ser avaliada como está/.test(await texto(page, '#anSepNao_' + k(0))) && /várias atividades sem precisar ser separada/.test(await texto(page, '#anPainelDelim_' + k(0))) && (await page.$$('[id^="anPainelDelim_"]')).length === 1, 'a pergunta abre só naquela linha, com "Não, pode ser avaliada como está"');
   await page.click('#anPainelDelim_' + k(0) + ' [data-an="cancelar"]'); await esperar(page, () => !document.querySelector('[id^="anPainelDelim_"]'));
