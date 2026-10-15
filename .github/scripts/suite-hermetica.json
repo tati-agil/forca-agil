@@ -646,6 +646,12 @@
       "sobre": "Marcador de homologação (ausente = DESLIGADO, a Porta 2 fica como era; SOMENTE_ADMIN_GERAL; o admin geral muda no ADMIN com motivo e auditoria). Jornada B: uma pergunta por vez com o porquê, comparação pelos sete critérios, delimitação, fatos descritivos, atuação criada e O1–O9 respondido na tela do Posicionamento, situação formal, proposta pendente, ficha da estrutura, Jornada, histórico, Excel, F5. Jornada A: regressão políticas de SI × diretrizes contratuais (nunca juntadas sem comparação), aprovação como referência a ato externo só pelo admin geral. Jornada C: capacidade distribuída, referência sem trocar a origem, nenhuma estrutura Segurança. Perfil de consulta sem formulários; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-pos-homologacao.js",
+      "nome": "Pós-homologação da #375: ajuda O7 × O9 coerente, origem de análise excluída, consulta aos tipos antes de responder, confirmação de exclusão, desktop e 375 px",
+      "duracao": 60,
+      "sobre": "Apoio O7 × O9 sem \"Raramente\" e sem exigir entrega ao participante (coerente com a Ajuda oficial da O7), seis pontos a verificar, exemplos com evidências dos dois lados. Origem: análise ativa com link, análise excluída \"Originada da análise … (excluída)\" na lista, na ficha e na avaliação O1–O9, individual só quando comprovado, \"Origem não disponível agora\" sem leitura. Consulta \"Entenda os tipos de estrutura\" desde o O1, sem gravar nem mostrar pergunta fora do caminho. \"O que verificar para responder\" em O1–O5. Exclusão: mensagem junto do botão, campo destacado, nada excluído. Contraste dos links ≥ 4,5:1. Consequências da exclusão da análise só as aplicáveis."
+    },
+    {
       "arquivo": ".github/scripts/teste-refinamento-decisao.js",
       "nome": "Refinamento integrado: apoio O7 × O9, hipótese que coincide, Trabalhos com análises de área, próxima ação estável e gravação lenta, desktop e 375 px",
       "duracao": 75,

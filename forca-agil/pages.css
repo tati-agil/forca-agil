@@ -3374,7 +3374,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
    sólida à esquerda (legenda e atividades); ADMIN = contorno tracejado (legenda e atalhos). ◆ Taxonomia, ● Avaliação e
    Mapa — forma e texto; a cor só reforça. Ligações tracejadas = possibilidades, nunca etapas; a Squad é ramo lateral. */
 .avp-como { --como-adm: #7fd3c7; --como-tax: #b9a7f5; }
-.avp-como-perspectivas { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px 18px; margin: 0 0 10px; align-items: start; }
+.avp-como-perspectivas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 16px; margin: 0 0 8px; align-items: start; }
 .avp-como-persp-titulo { margin: 0 0 4px; font-size: 1rem; }
 .avp-inicio .avp-como-persp-texto { margin: 0 0 8px; }
 .avp-inicio .avp-como-area { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: .88rem; line-height: 1.5; color: var(--ink-2); overflow-wrap: anywhere; }
@@ -3383,11 +3383,11 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-como-area-nome { display: block; font-family: var(--font-mono); font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .avp-como-area--aval .avp-como-area-nome { color: var(--accent); }
 .avp-como-area--adm .avp-como-area-nome { color: var(--como-adm); }
-.avp-inicio .avp-como-sub { margin: 0 0 6px; font-size: .9rem; color: var(--ink-3); }
+.avp-inicio .avp-como-sub { margin: 0 0 6px; font-size: .92rem; color: var(--ink-2); }
 .avp-como-lista { list-style: none; margin: 0; padding: 0; }
-.avp-como-lista { display: grid; gap: 8px; }
+.avp-como-lista { display: grid; gap: 6px; }
 .avp-como-passo { display: grid; gap: 2px; }
-.avp-como-etapa { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+.avp-como-etapa { font-family: var(--font-mono); font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
 .avp-como-linha--ramo { margin-left: 16px; }
 .avp-como-detalhes { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
 .avp-como-detalhes > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
@@ -3398,7 +3398,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-como-link:hover { background: rgba(245, 197, 24, .10); }
 .avp-como-link:focus-visible { outline: 3px solid var(--accent, #2a6fdb); outline-offset: 2px; }
 .avp-como-titulo { font-weight: 600; grid-column: 1; }
-.avp-como-detalhe { grid-column: 1; font-size: .86rem; color: var(--ink-3); overflow-wrap: anywhere; }
+.avp-como-detalhe { grid-column: 1; font-size: .9rem; color: var(--ink-2); overflow-wrap: anywhere; }
 .avp-como-link .avp-inicio-abrir { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 1.3rem; opacity: .6; }
 .avp-inicio .avp-como-usa { margin: 0; padding: 4px 6px 0; font-size: .9rem; line-height: 1.9; overflow-wrap: anywhere; }
 .avp-como-rot { font-size: .74rem; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--como-adm); }
@@ -3504,7 +3504,11 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-entrada { margin: 8px 0 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .po-subtitulo { margin: 16px 0 8px; font-size: 1rem; }
 .an-entrada p { margin: 0; color: var(--ink-2); }
-.an-origem { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--ink-2); font-size: .9rem; }
+.an-origem { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--accent-2); color: var(--ink-2); font-size: .9rem; overflow-wrap: anywhere; }
+.an-origem--excluida { border-left-color: var(--ink-3); }
+/* 6. requisito pendente num formulário de exclusão: campo destacado, mensagem junto do botão */
+.an-campo-pendente, .po-campo-pendente { outline: 2px solid var(--red, #ff3b30); outline-offset: 2px; border-radius: 6px; }
+.an-erro-junto { margin: 6px 0; }
 .an-habilitacao { display: grid; gap: 8px; }
 .an-habilitacao p { margin: 0; }
 .an-exercidas ul { margin: 0 0 6px; padding-left: 18px; display: grid; gap: 4px; }
@@ -3631,6 +3635,10 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .po-todas-texto { display: grid; gap: 2px; min-width: 0; }
 .po-todas-texto strong { overflow-wrap: anywhere; }
 .po-todas-meta { color: var(--ink-2); font-size: .88rem; overflow-wrap: anywhere; }
+.an-origem a, .po-todas-meta a, .an-item-det a { color: var(--cyan-soft, #7af0e8); text-decoration: underline; text-underline-offset: 2px; }
+.an-origem a:visited, .po-todas-meta a:visited, .an-item-det a:visited { color: var(--cyan-soft, #7af0e8); }
+.an-origem a:hover, .po-todas-meta a:hover, .an-item-det a:hover { color: var(--ink); text-decoration-thickness: 2px; }
+.an-origem a:focus-visible, .po-todas-meta a:focus-visible, .an-item-det a:focus-visible { outline: 2px solid var(--cyan-soft, #7af0e8); outline-offset: 2px; border-radius: 2px; }
 .po-todas-acao { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
 .po-todas-link { margin: 0 0 8px; }
 .po-situacao-avaliacao { margin: 6px 0 10px; padding: 8px 12px; border-left: 3px solid var(--accent-2); background: var(--panel-2); border-radius: 6px; }
@@ -3679,6 +3687,12 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .po-apoio > summary { cursor: pointer; font-weight: 700; min-height: 32px; }
 .po-apoio h5 { margin: 12px 0 4px; font-size: .9rem; }
 .po-apoio-perguntas { margin: 6px 0; padding-left: 22px; display: grid; gap: 4px; }
+.po-tipos-lista, .po-tipos-filhos { margin: 6px 0; padding-left: 18px; display: grid; gap: 6px; }
+.po-tipo .fa-classif-def { margin: 2px 0 0; font-size: .88rem; color: var(--ink-2); }
+.po-tipos .po-apoio { margin-top: 10px; }
+.po-investigar { margin: 4px 0 8px; font-size: .9rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.po-investigar > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; font-weight: 600; }
+.po-investigar ul { margin: 4px 0; padding-left: 20px; display: grid; gap: 4px; }
 .po-apoio-tabela td, .po-apoio-tabela th { vertical-align: top; overflow-wrap: anywhere; }
 @media (max-width: 640px) {
   .po-apoio-tabela, .po-apoio-tabela tbody, .po-apoio-tabela tr, .po-apoio-tabela td { display: block; width: 100%; }
