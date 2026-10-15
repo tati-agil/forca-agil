@@ -3370,7 +3370,7 @@
         '<p class="avp-como-area avp-como-area--adm" id="avpComoAreaAdm"><span class="avp-como-area-nome">ADMIN</span> onde são mantidos os questionários, os motores, os conceitos oficiais e o cadastro de estruturas que sustentam esse trabalho. Não é etapa da Jornada.</p></div>' +
         '<p class="avp-como-sub" id="avpComoSub">Cada atividade abre a sua lista. Uma pode levar à outra, mas nenhuma é etapa obrigatória.</p>' +
         '<ol class="avp-como-lista" id="avpComoFunciona">' +
-        linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Produto/Serviço ou outra natureza', 'Descobre o que o item é · P1–P16'),
+        linha('avpComoNatureza', trab('avpInicioRegNatureza', 'Avaliação de Produto/Serviço', 'Verifica se o item é um Produto/Serviço · P1–P16'),
           'as perguntas em ' + fonte('Questionários', '#admin?arq=questionarios&q=p1p16', null, 'avpComoIrQuestionarios', arq, 'adm') + ', as regras em ' +
           fonte('Motores', '#admin?arq=motores', null, 'avpComoIrMotores', arq, 'adm') + ' e os nomes das classificações na ' +
           fonte('Taxonomia', '#admin', 'adminPanelTaxonomia', 'avpComoIrTaxonomia', geral, 'tax', 'arquitetural') + '.') +
@@ -3423,8 +3423,8 @@
         link('avpInicioJornada', 'btn btn--primary avp-inicio-acao', 'Abrir a Jornada de Avaliação e Posicionamento →') + '</section>' +
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho novo</h3>' +
         '<div class="avp-inicio-cartoes">' +
-        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1</p><h4>Avaliar Produto/Serviço ou outra natureza</h4>' +
-        '<p>Descubra se o item é um Produto/Serviço independente ou se faz parte de outra solução.</p>' +
+        '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1</p><h4>Avaliar se é Produto/Serviço</h4>' +
+        '<p>Verifique se o item constitui um Produto/Serviço independente. Caso não seja, a avaliação identifica sua natureza arquitetural ou indica a necessidade de validação.</p>' +
         '<p class="avp-inicio-exemplo">Exemplos: Capec, Assessoria Previdenciária.</p>' +
         '<p class="avp-inicio-sigla">Questionário P1–P16</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
         /* Porta 2: dois caminhos com o mesmo peso, que terminam no mesmo O1–O9 — A (uma responsabilidade) e B (uma área) */

@@ -265,7 +265,7 @@
     function render() {
       if (wrap.hidden) return;
       /* o que a pessoa abriu ou fechou continua assim depois de redesenhar (lido da página: o evento toggle pode chegar depois) */
-      [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos'], ['anComposicaoSecao', 'composicao'], ['anDetalhesResp', 'detalhesResp']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
+      [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos'], ['anComposicaoSecao', 'composicao'], ['anDetalhesResp', 'detalhesResp'], ['anObjeto', 'objeto'], ['anRefMais', 'refMais'], ['anNovaAvancado', 'novaAvancado']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
       var digitado = st.limparCampos ? { valores: {}, marcas: [] } : capturarCampos(); st.limparCampos = false;
       var a = acesso(), h;
       if (!autorizacaoResolvida() || D.hab === undefined) h = '<p class="loading-msg" id="anCarregando">Carregando…</p>';
@@ -301,13 +301,18 @@
     function renderNova() {
       var f = st.form && st.form.tipo === 'nova' ? st.form : { tipo: 'nova' };
       var atuacoes = Object.keys(D.objetos || {}).filter(function (k) { return D.objetos[k].situacao === 'ativo'; }).sort(function (x, y) { return String(D.objetos[x].nome).localeCompare(D.objetos[y].nome); });
-      return voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<h2 class="an-titulo">Abrir uma análise</h2>' +
+      /* abrir uma análise pede só o nome da área; tipo, descrição, capacidades e responsabilidade prévia ficam em
+         "Opções avançadas" (o tipo começa como "estrutura que já existe") */
+      return voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<h2 class="an-titulo">Analisar uma área</h2>' +
         '<form class="avp-form-card an-form" id="anFormNova" novalidate>' +
-        '<fieldset class="an-opcoes" id="anEscopo"><legend>1. O que você vai analisar?</legend>' + Object.keys(ESCOPO).map(function (k) {
+        '<div class="avp-field"><label for="anNome">Nome da área</label><input id="anNome" maxlength="200" value="' + esc(f.nome || '') + '" placeholder="Ex.: GECON — Gerência de Contabilidade e Controladoria"></div>' +
+        (st.erro ? '<p class="avp-error-msg" id="anErro" role="alert">' + esc(st.erro) + '</p>' : '') +
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anCriarBtn"' + (st.gravando ? ' disabled' : '') + '>' + (st.gravando ? 'Gravando…' : 'Continuar para as responsabilidades') + '</button></div>' +
+        '<details class="an-conceitos" id="anNovaAvancado"' + (st.abertos.novaAvancado ? ' open' : '') + '><summary>Opções avançadas (opcional)</summary>' +
+        '<fieldset class="an-opcoes" id="anEscopo"><legend>O que você vai analisar?</legend>' + Object.keys(ESCOPO).map(function (k) {
           return '<label class="an-opcao"><input type="radio" name="anEscopo" value="' + k + '"' + ((f.tipoEscopo || 'estrutura') === k ? ' checked' : '') + '><span><strong>' + esc(ESCOPO[k][0]) + '</strong><span class="an-exemplo">' + esc(ESCOPO[k][1]) + '</span></span></label>';
         }).join('') + '</fieldset>' +
         '<p class="an-porque">Por que perguntamos: um escopo amplo costuma reunir mais de uma responsabilidade. A análise não classifica nada — isso é papel do O1–O9, em cada responsabilidade.</p>' +
-        '<div class="avp-field"><label for="anNome">Nome</label><input id="anNome" maxlength="200" value="' + esc(f.nome || '') + '"></div>' +
         '<div class="avp-field"><label for="anDescricao">Descrição <span class="an-opc">(opcional)</span></label><textarea id="anDescricao" rows="2" maxlength="2000">' + esc(f.descricao || '') + '</textarea></div>' +
         '<div class="avp-field"><label for="anCapacidades">Capacidades relacionadas <span class="an-opc">(opcional, separadas por ponto e vírgula; só referência)</span></label><input id="anCapacidades" value="' + esc(f.capacidades || '') + '"></div>' +
         '<fieldset class="an-opcoes" id="anAprofunda" aria-describedby="anAprofundaAjuda"><legend>Você quer aprofundar uma responsabilidade organizacional já registrada na Porta 2?</legend>' +
@@ -316,9 +321,7 @@
           '<label class="an-opcao"><input type="radio" name="anTemAtuacao" value="sim"' + (f.objetoAmploId ? ' checked' : '') + (atuacoes.length ? '' : ' disabled') + '><span><strong>Sim — aprofundar uma responsabilidade já registrada</strong><span class="an-exemplo">' + (atuacoes.length ? 'Para uma responsabilidade ampla demais: ela continua como está e passa a aparecer como "delimitada em N responsabilidades".' : 'Ainda não há responsabilidade registrada na Porta 2.') + '</span></span></label>' +
           (atuacoes.length ? '<div class="avp-field an-dependente"><label for="anObjetoAmplo">Qual responsabilidade? <span class="an-opc" id="anObjetoAmploDica">' + (f.objetoAmploId ? '(obrigatória)' : '(só para "Sim")') + '</span></label><select id="anObjetoAmplo" aria-describedby="anObjetoAmploDica"' + (f.objetoAmploId ? '' : ' disabled') + '><option value="">—</option>' +
             atuacoes.map(function (k) { return '<option value="' + esc(k) + '"' + (f.objetoAmploId === k ? ' selected' : '') + '>' + esc(D.objetos[k].nome) + '</option>'; }).join('') + '</select></div>' : '') +
-          '<p class="an-nota">Isto se refere às Responsabilidades Organizacionais da Porta 2 (área Avaliação), e não às Estruturas Organizacionais cadastradas no ADMIN.</p></fieldset>' +
-        (st.erro ? '<p class="avp-error-msg" id="anErro" role="alert">' + esc(st.erro) + '</p>' : '') +
-        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anCriarBtn"' + (st.gravando ? ' disabled' : '') + '>' + (st.gravando ? 'Gravando…' : 'Abrir a análise') + '</button></div></form>';
+          '<p class="an-nota">Isto se refere às Responsabilidades Organizacionais da Porta 2 (área Avaliação), e não às Estruturas Organizacionais cadastradas no ADMIN.</p></fieldset></details></form>';
     }
 
     /* ---------- a área e as suas responsabilidades: registrar (uma ou várias) → lista única com o andamento de cada uma → O1–O9 ---------- */
@@ -423,7 +426,10 @@
       var decisao = !vig ? 'Sem proposta' : vig.situacao === 'pendente' ? 'Pendente (proposta v' + vig.versao + ')' : aprov ? 'Aprovação registrada (referência a ato externo)' : 'Proposta v' + vig.versao + ', sem aprovação registrada';
       var ents = entregasAtivas(a);
       var ps = { ents: ents, semEntregas: !!(a.respostas.F3 && a.respostas.F3.valor === 'nenhuma'), avaliadas: classificadas, detalhe: pend.filter(function (q) { return GRUPO[q.pergunta] >= 1 && q.pergunta !== 'F3'; }) };
-      var detalharAberto = st.abertos.detalhar !== undefined ? st.abertos.detalhar : ents.length > 0;
+      /* "Detalhar com entregas" fica fora da jornada principal: só aparece quando a pessoa pede ajuda para separar ou
+         quando a análise já usa entregas (registros anteriores) */
+      var mostrarAjuda = !!st.ajudaSeparar || ents.length > 0;
+      var detalharAberto = mostrarAjuda && (st.abertos.detalhar !== undefined ? st.abertos.detalhar : true);
       /* uma pergunta por vez: a do detalhamento (se aberto) ou a F2b, opcional; "Alterar" reabre uma resposta */
       var alterando = gravar && st.form && st.form.tipo === 'alterar-objeto' ? st.form.q : null;
       var f2b = pend.filter(function (q) { return q.pergunta === 'F2b'; });
@@ -442,7 +448,8 @@
       h += renderObjeto(a, gravar, card && card.onde === 'objeto' ? card.html : '');
       h += renderListaResp(a, ativos, sfs, rs, gravar);
       h += renderRegistrar(a, ativos, gravar);
-      h += '<section class="avp-form-card an-secao" id="anApoio" aria-label="Apoio para delimitar">' + renderDetalhar(a, ativos, ps, gravar, detalharAberto, card && card.onde === 'detalhe' ? card.html : '') + renderReferencias(a, gravar) + '</section>';
+      var apoio = (mostrarAjuda ? renderDetalhar(a, ativos, ps, gravar, detalharAberto, card && card.onde === 'detalhe' ? card.html : '') : '') + renderReferencias(a, gravar);
+      if (apoio) h += '<section class="avp-form-card an-secao" id="anApoio" aria-label="Ajuda para separar">' + apoio + '</section>';
       /* detalhes de cada responsabilidade (quem executa e quem responde, situação formal, alternativas, "A validar"):
          recolhidos por padrão para não repetir a lista; abrem sozinhos quando uma ação leva até eles */
       if (ativos.length) {
@@ -466,7 +473,7 @@
     }
     /* a área ou o trabalho analisado (contexto). O texto livre é só apoio: nada é interpretado */
     function renderObjeto(a, gravar, card) {
-      var amplo = a.objetoAmploId ? (D.objetos || {})[a.objetoAmploId] : null, h = '<section class="avp-form-card an-objeto" id="anObjeto" aria-label="Área ou trabalho analisado"><dl class="an-objeto-dl">' +
+      var amplo = a.objetoAmploId ? (D.objetos || {})[a.objetoAmploId] : null, h = '<details class="avp-form-card an-secao an-comp-secao an-objeto" id="anObjeto"' + (st.abertos.objeto || (st.form && st.form.tipo === 'alterar-objeto') ? ' open' : '') + '><summary>Mais sobre a área (opcional)</summary><dl class="an-objeto-dl">' +
         '<div><dt>Área ou trabalho</dt><dd id="anObjetoEscopo">' + esc(ESCOPO[a.tipoEscopo] ? ESCOPO[a.tipoEscopo][0] : a.tipoEscopo) + '</dd></div>' +
         (a.descricao ? '<div><dt>Descrição</dt><dd id="anObjetoDescricao">' + esc(a.descricao) + '</dd></div>' : '') +
         (a.capacidades.length ? '<div><dt>Capacidades (só referência)</dt><dd>' + a.capacidades.map(function (c) { return esc(c.rotulo); }).join(', ') + '</dd></div>' : '') +
@@ -477,7 +484,7 @@
         h += '<div><dt>' + esc(TEXTO_PERGUNTA[q] ? TEXTO_PERGUNTA[q].curta : q) + '</dt><dd id="anObjeto' + q + '">' + esc((ROT[q] || {})[r.valor] || r.valor) + (ref ? ': ' + esc(nomeEstrutura(ref)) : '') +
           (gravar && !card && q === 'F2b' ? ' <button type="button" class="btn btn--sm an-alterar" data-an="abrir-form" data-form="alterar-objeto" data-q="' + q + '" id="anAlterar' + q + '">Alterar</button>' : '') + '</dd></div>';
       });
-      return h + '</dl>' + (a.descricao ? '<p class="an-nota">A descrição é só apoio para você: o sistema não tira dela nenhuma responsabilidade nem classificação.</p>' : '') + card + '</section>';
+      return h + '</dl>' + (a.descricao ? '<p class="an-nota">A descrição é só apoio para você: o sistema não tira dela nenhuma responsabilidade nem classificação.</p>' : '') + card + '</details>';
     }
     function quandoSepararHtml() {
       return '<details class="an-conceitos" id="anQuandoSeparar"' + (st.abertos.quandoSeparar ? ' open' : '') + '><summary>Quando é preciso separar?</summary><ul class="an-fronteiras">' +
@@ -545,6 +552,7 @@
         '<button type="button" class="btn btn--sm btn--primary" data-an="responder-sep" data-v="nao" data-recorte="' + esc(k) + '" id="anSepNao_' + esc(k) + '">Não, pode ser avaliada como está</button>' +
         '<button type="button" class="btn btn--sm" data-an="responder-sep" data-v="sim" data-recorte="' + esc(k) + '" id="anSepSim_' + esc(k) + '">Sim, precisa separar</button>' +
         (sep !== 'nao-sei' ? '<button type="button" class="btn btn--sm" data-an="responder-sep" data-v="nao-sei" data-recorte="' + esc(k) + '" id="anSepNaoSei_' + esc(k) + '">Não sei</button>' : '') +
+        '<button type="button" class="btn btn--sm an-link" data-an="ajuda-separar" id="anAjudaSeparar_' + esc(k) + '">Preciso de ajuda para separar</button>' +
         '<button type="button" class="btn btn--sm an-link" data-an="cancelar">Cancelar</button></div></div>';
       if (t === 'separar') return renderFormSeparar(r, k);
       if (t === 'nucleos') return renderFormNucleos(r, k);
@@ -575,7 +583,7 @@
         h += '<fieldset class="an-parte" id="anParte' + i + '"><legend>Parte ' + (i + 1) + '</legend><div class="avp-field"><label for="anParteDesc' + i + '">Descreva a parte ' + (i + 1) + '</label><textarea id="anParteDesc' + i + '" rows="2" maxlength="2000">' + esc(x.descricao || '') + '</textarea></div>' +
           radiosSeparacao('anParteSep' + i, x.separacao || null) + '</fieldset>';
       }
-      return h + '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="mais-parte" id="anMaisParte">+ Outra parte</button><button type="submit" class="btn btn--primary" id="anConfirmarSeparar">Separar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+      return h + '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="mais-parte" id="anMaisParte">+ Outra parte</button>' + '<button type="button" class="btn btn--sm an-link" data-an="ajuda-separar" id="anAjudaSepararPartes">Preciso de ajuda para separar</button>' + '<button type="submit" class="btn btn--primary" id="anConfirmarSeparar">Separar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
     }
     /* registrar: uma por vez (descrição + a pergunta, que pode ficar para depois) ou várias de uma vez (colar a lista) */
     function renderRegistrar(a, ativos, gravar) {
@@ -590,7 +598,7 @@
       return h + '<form class="an-form" id="anFormResponsabilidade"><h3 id="anFormRespTitulo">Qual responsabilidade você deseja avaliar?</h3>' +
         '<div class="avp-field"><label for="anRespDesc">Descrição da responsabilidade</label><textarea id="anRespDesc" rows="2" maxlength="2000" aria-describedby="anRespAjuda" placeholder="Ex.: Gerir o planejamento e execução orçamentária."></textarea>' +
         '<p class="an-ajuda" id="anRespAjuda">Você pode copiar diretamente uma atribuição da área. Não precisa reformular o texto.</p></div>' +
-        radiosSeparacao('anRespSep', null, true) + quandoSepararHtml() +
+        radiosSeparacao('anRespSep', null, true) + quandoSepararHtml() + '<p class="an-nota">' + '<button type="button" class="btn btn--sm an-link" data-an="ajuda-separar" id="anAjudaSeparar">Preciso de ajuda para separar</button>' + '</p>' +
         '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anRegistrarRespBtn"' + (st.gravando ? ' disabled' : '') + '>Registrar responsabilidade</button>' +
         '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="lote" id="anAbrirLote">Adicionar várias responsabilidades</button></div></form></section>';
     }
@@ -633,7 +641,7 @@
        Ele nunca muda a resposta de nenhuma responsabilidade — isso só acontece na pessoa responder ou em "Revisar" */
     function renderDetalhar(a, ativos, ps, gravar, aberto, card) {
       if (!gravar && !ps.ents.length) return '';
-      return '<details class="an-detalhar" id="anDetalhar"' + (aberto ? ' open' : '') + '><summary>Detalhar com entregas (opcional) — para casos difíceis</summary>' +
+      return '<details class="an-detalhar" id="anDetalhar"' + (aberto ? ' open' : '') + '><summary>Ajuda para separar: detalhar com entregas (opcional)</summary>' +
         '<p class="an-nota">Registre o que é produzido e compare o que se parece. O detalhamento não muda a resposta de nenhuma responsabilidade: quem decide é você.</p>' +
         pendenciasHtml(a, ps.detalhe, !!card) + card + renderEntregas(a, ativos, ps, gravar) + renderDelimitacao(a, ativos, gravar) + '</details>';
     }
@@ -736,7 +744,7 @@
         '<p class="an-nota">Uma responsabilidade pode reunir várias entregas: nunca presuma que cada entrega é uma responsabilidade — compare as que se parecem. Um documento sozinho não prova a natureza organizacional; ele ilustra a entrega. Quem classifica é o O1–O9, no Passo 3.</p></details>';
     }
     function renderEntregas(a, ativos, ps, gravar) {
-      var ids = ps.ents, h = conceitosHtml(st.abertos.conceitos !== undefined ? st.abertos.conceitos : !ids.length) + '<div class="an-secao-entregas" id="anEntregas"><h4>Entregas registradas (' + ids.length + ')</h4>';
+      var ids = ps.ents, h = conceitosHtml(!!st.abertos.conceitos) + '<div class="an-secao-entregas" id="anEntregas"><h4>Entregas registradas (' + ids.length + ')</h4>';
       if (!ids.length) h += ps.semEntregas ? '<p class="an-nota" id="anSemEntregasRegistrado">Você registrou que não consegue identificar entregas. Isso fica como lacuna e não impede continuar; se identificar uma depois, registre aqui.</p>'
         : '<p class="admin-empty" id="anEntregasVazio">Nenhuma entrega registrada ainda. Comece pela primeira: o que se produz aqui para alguém?</p>';
       else h += '<ul class="an-entregas">' + ids.map(function (k) {
@@ -813,9 +821,9 @@
       }).join('') + '</ul></div>';
       if (!gravar) return h;
       var candidatas = Object.keys(D.porObjeto || {}).filter(function (o) { return D.porObjeto[o].analiseId !== a.id && !(a.referencias || {})[o] && (D.objetos || {})[o]; });
-      if (candidatas.length) h += '<form class="an-form an-form--inline" id="anFormReferencia"><div class="avp-field"><label for="anReferenciaSel">Referenciar uma responsabilidade já delimitada em outra análise</label><select id="anReferenciaSel"><option value="">—</option>' +
+      if (candidatas.length) h += '<details class="an-conceitos" id="anRefMais"' + (st.abertos.refMais ? ' open' : '') + '><summary>Referenciar uma responsabilidade de outra análise (opcional)</summary><form class="an-form an-form--inline" id="anFormReferencia"><div class="avp-field"><label for="anReferenciaSel">Referenciar uma responsabilidade já delimitada em outra análise</label><select id="anReferenciaSel"><option value="">—</option>' +
         candidatas.map(function (o) { return '<option value="' + esc(o) + '">' + esc(D.objetos[o].nome) + '</option>'; }).join('') + '</select></div>' +
-        '<p class="an-nota">Ela continua pertencendo à análise de origem; aqui só é citada (não é contada duas vezes).</p><div class="avp-actions-footer"><button type="submit" class="btn btn--sm" id="anReferenciarBtn">Referenciar</button></div></form>';
+        '<p class="an-nota">Ela continua pertencendo à análise de origem; aqui só é citada (não é contada duas vezes).</p><div class="avp-actions-footer"><button type="submit" class="btn btn--sm" id="anReferenciarBtn">Referenciar</button></div></form></details>';
       return h;
     }
     /* Passo 3: cada responsabilidade é registrada na Porta 2 (o objeto de sempre) e avaliada pelo O1–O9 de sempre */
@@ -1053,11 +1061,15 @@
         var f = st.form.tipo === 'alterar-objeto' ? wrap.querySelector('#anFormResponder input:checked, #anFormResponder input') : wrap.querySelector('form.an-form input, form.an-form textarea, form.an-form select'); if (f) f.focus();
       }
       else if (acao === 'avaliar') avaliarRecorte(b.getAttribute('data-recorte'), null);
+      else if (acao === 'ajuda-separar') {
+        st.ajudaSeparar = true; st.abertos.detalhar = true; render();
+        var dj = document.getElementById('anDetalhar'); if (dj) { dj.scrollIntoView({ block: 'start' }); var sj = dj.querySelector('summary'); if (sj) sj.focus({ preventScroll: true }); }
+      }
       else if (acao === 'responder-sep') {
         var kr = b.getAttribute('data-recorte'), vr = b.getAttribute('data-v'), ar = estado().analises[st.id], rr = ar && ar.recortes[kr], idr = st.id;
         if (!rr) return;
         executar(function (est, c) { return N().revisarResponsabilidade(est, idr, kr, { descricao: textoResp(rr), separacao: { valor: vr } }, c); },
-          vr === 'nao' ? 'Pronta para avaliar: "' + textoResp(rr) + '".' : vr === 'sim' ? 'Precisa separar: use "Separar" na lista.' : 'Registrado: não sei. Fica pendente, sem impedir as outras.');
+          vr === 'nao' ? 'Pronta para avaliar: "' + textoResp(rr) + '".' : vr === 'sim' ? 'Precisa separar: use "Separar" na lista.' : 'Registrado: não sei. Fica pendente, sem impedir as outras. Se precisar, use "Preciso de ajuda para separar".');
       }
       else if (acao === 'lote-previa') {
         var texL = val('anLoteTexto'), numL = !!(document.getElementById('anLoteNumeracao') || {}).checked, linhas = linhasDoLote(texL, numL);
