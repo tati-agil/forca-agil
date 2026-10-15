@@ -2687,6 +2687,8 @@
       if (sq && !sq.hidden) return 'motor-squad';
       var et = document.getElementById('adminEstruturas');
       if (et && !et.hidden) return 'estruturas';
+      var ea = document.getElementById('adminEstruturaAtual');
+      if (ea && !ea.hidden) return 'estrutura-atual';
       return AREAS_ADMIN[state.tela] || 'inicio';
     }
     function areaDoEndereco() {
@@ -2752,12 +2754,14 @@
       return !!((state.config && state.config.sujo) || (state.configMotores && state.configMotores.sujo) ||
         (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) ||
         (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()) ||
-        (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()));
+        (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()) ||
+        (window.faEstruturaAtualAdmin && window.faEstruturaAtualAdmin.temAlteracaoNaoSalva()));
     }
     function abrirAreaAdmin(area) {
       if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelArquitetura');
       if (window.faAvaliacaoSquadAdmin && area !== 'motor-squad') window.faAvaliacaoSquadAdmin.fechar();
       if (window.faEstruturasAdmin && area !== 'estruturas') window.faEstruturasAdmin.fechar();
+      if (window.faEstruturaAtualAdmin && area !== 'estrutura-atual') window.faEstruturaAtualAdmin.fechar();
       state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
       if (area === 'questionarios') abrirConfigQuestionarios();
       else if (area === 'motores') abrirConfigMotores();
@@ -2767,7 +2771,21 @@
       else if (area === 'motor-squad' && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; render(); abrirMotorSquadDoInicio(); }
       else if (area === 'estruturas' && estruturasDisponiveis()) { state.tela = 'admin-inicio'; render(); abrirEstruturasDoInicio(); }
       else if (area === 'estruturas' && habilitacaoEstruturasPendente()) { estruturasPendente = location.hash; state.tela = 'admin-inicio'; render(); } /* reaplicado quando o marcador chegar */
+      else if (area === 'estrutura-atual' && estruturaAtualDisponivel()) { state.tela = 'admin-inicio'; render(); abrirEstruturaAtualDoInicio(); }
+      else if (area === 'estrutura-atual' && !perfisResolvidos()) { estruturaAtualPendente = location.hash; state.tela = 'admin-inicio'; render(); } /* reaplicado quando o perfil chegar */
       else { state.tela = 'admin-inicio'; render(); }
+    }
+    /* Estrutura Organizacional Atual (estrutura-atual-tela.js): consultam os três perfis da Avaliação */
+    function estruturaAtualDisponivel() { return !!(window.faEstruturaAtualAdmin && window.faEstruturaAtualAdmin.disponivel()); }
+    function perfisResolvidos() { return !!(window.faAuth && (!window.faAuth.isAvaliacaoReady || window.faAuth.isAvaliacaoReady())); }
+    var estruturaAtualPendente = null;
+    window.addEventListener('fa-avaliacao-ready', function () {
+      if (estruturaAtualPendente && location.hash === estruturaAtualPendente && estruturaAtualDisponivel()) { estruturaAtualPendente = null; abrirEstruturaAtualDoInicio(); }
+    });
+    function abrirEstruturaAtualDoInicio() {
+      state.rolagemInicio = window.pageYOffset || 0;
+      window.faEstruturaAtualAdmin.abrir({ rotulo: ROTULO_ADMIN, voltar: function () { state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0); } });
+      sincronizarEnderecoAdmin();
     }
     /* Voltar/Avançar do navegador, link colado ou F5 com #admin?arq=<área>. */
     function aplicarEnderecoAdmin() {
@@ -5027,6 +5045,11 @@
           cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'),
           'na etapa "Estrutura concreta" da Jornada, na estrutura responsável da ficha do Posicionamento e no Mapa da Floresta.');
       }
+      if (estruturaAtualDisponivel()) {
+        html += grupo('Estrutura organizacional atual', 'As unidades como existem hoje — diretorias, gerências, núcleos —, com a unidade superior. Não é a Estrutura Organizacional do Mapa: não tem tipo arquitetural nem vínculo formal.',
+          cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Árvore das unidades, ficha com histórico, subordinadas e encerramento com motivo.'),
+          'na Porta 2: para escolher a área analisada e quem executa cada responsabilidade hoje.');
+      }
       /* Análise Organizacional (Porta 2): o marcador de homologação — só admin geral (analises-organizacionais.js) */
       if (souAdminGeral() && window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao) {
         html += '<section class="avp-form-card avp-admin-inicio avp-admin-grupo" aria-label="Análise Organizacional"><h4>Análise Organizacional (Porta 2)</h4>' +
@@ -5047,6 +5070,8 @@
       if (squadBtn) squadBtn.addEventListener('click', abrirMotorSquadDoInicio);
       var estruturasBtn = document.getElementById('avpEstruturasBtn');
       if (estruturasBtn) estruturasBtn.addEventListener('click', abrirEstruturasDoInicio);
+      var estruturaAtualBtn = document.getElementById('avpEstruturaAtualBtn');
+      if (estruturaAtualBtn) estruturaAtualBtn.addEventListener('click', abrirEstruturaAtualDoInicio);
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
       document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);
