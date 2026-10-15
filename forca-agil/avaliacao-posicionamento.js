@@ -1187,6 +1187,7 @@
        vez (a da análise já registrada na Porta 2 é a própria responsabilidade, com acesso à origem). Só leitura: a
        situação vem dos registros que já existem (vigente, rascunho, decisão); nada é recalculado nem gravado */
     var SIT_TODAS = { pronta: 'Pronta para avaliar', andamento: 'Em avaliação', avaliada: 'Avaliada', avalidar: 'A validar', pendente: 'Registro anterior pendente' };
+    var SIT_PLURAL = { pronta: 'Prontas para avaliar', andamento: 'Em avaliação', avaliada: 'Avaliadas', avalidar: 'A validar', pendente: 'Registros anteriores pendentes' };
     function linhasTodas() {
       var AO = window.faAnalisesOrganizacionais, ras = AO && AO.responsabilidadesDasAnalises ? AO.responsabilidadesDasAnalises() : null, porObj = {};
       (ras || []).forEach(function (r) { if (r.objetoId) porObj[r.objetoId] = r; });
@@ -1217,9 +1218,9 @@
       var t = linhasTodas(), L = t.linhas, n = {};
       L.forEach(function (l) { n[l.sit] = (n[l.sit] || 0) + 1; });
       var areas = {}; L.forEach(function (l) { if (l.analiseId) areas[l.analiseId] = l.area; });
-      h += '<p class="an-resumo" id="poTodasResumo">' + L.length + ' responsabilidade' + (L.length === 1 ? '' : 's') + (L.length ? ' — ' + ['pronta', 'andamento', 'avaliada', 'avalidar', 'pendente'].filter(function (k) { return n[k]; }).map(function (k) { return n[k] + ' ' + SIT_TODAS[k].toLowerCase(); }).join(' · ') : '') + '.</p>';
+      h += '<p class="an-resumo" id="poTodasResumo">' + L.length + ' responsabilidade' + (L.length === 1 ? '' : 's') + (L.length ? ' — ' + ['pronta', 'andamento', 'avaliada', 'avalidar', 'pendente'].filter(function (k) { return n[k]; }).map(function (k) { return n[k] + ' ' + (n[k] === 1 ? SIT_TODAS[k] : SIT_PLURAL[k]).toLowerCase(); }).join(' · ') : '') + '.</p>';
       if (!t.comAnalises) h += '<p class="avp-ficha-meta" id="poTodasSemAnalises">As responsabilidades das análises de área não estão disponíveis para o seu perfil agora; aparecem as registradas na Porta 2.</p>';
-      h += '<div class="po-todas-filtros"><div class="avp-field"><label for="poTodasBusca">Buscar pela descrição</label><input type="search" id="poTodasBusca" placeholder="Digite parte do texto" autocomplete="off"></div>' +
+      h += '<div class="po-todas-filtros"><div class="avp-field"><label for="poTodasBusca">Buscar pela descrição</label><input type="text" inputmode="search" id="poTodasBusca" placeholder="Digite parte do texto" autocomplete="off"></div>' +
         '<div class="avp-field"><label for="poTodasArea">Área</label><select id="poTodasArea"><option value="">Todas</option><option value="-">Registradas individualmente</option>' +
         Object.keys(areas).sort(function (x, y) { return String(areas[x]).localeCompare(String(areas[y]), 'pt-BR'); }).map(function (k) { return '<option value="' + esc(k) + '">' + esc(areas[k]) + '</option>'; }).join('') + '</select></div>' +
         '<div class="avp-field"><label for="poTodasSituacao">Situação</label><select id="poTodasSituacao"><option value="">Todas</option>' + Object.keys(SIT_TODAS).filter(function (k) { return n[k]; }).map(function (k) { return '<option value="' + k + '">' + SIT_TODAS[k] + '</option>'; }).join('') + '</select></div></div>';
@@ -1353,7 +1354,7 @@
           '<p class="avp-ficha-meta" id="poNomeAjuda">O cadastro aceita nomes de até 200 caracteres e a descrição tem mais que isso. Pode ser um trecho do texto; a descrição completa é guardada como está.</p></div>' : '') +
         /* referência informativa (opcional, recolhida): só consulta, não participa do cálculo */
         '<details class="po-mais" id="poMaisInfo"' + (f.ref ? ' open' : '') + '><summary>Referência a uma Avaliação de Produto/Serviço (opcional)</summary>' +
-        '<div class="avp-field"><label for="poAtuacaoRefBusca">Buscar o item pelo nome</label><input type="search" id="poAtuacaoRefBusca" placeholder="Digite parte do nome" autocomplete="off"></div>' +
+        '<div class="avp-field"><label for="poAtuacaoRefBusca">Buscar o item pelo nome</label><input type="text" inputmode="search" id="poAtuacaoRefBusca" placeholder="Digite parte do nome" autocomplete="off"></div>' +
         '<div class="avp-field"><label for="poAtuacaoRef">Referência informativa a uma Avaliação de Produto/Serviço</label>' +
         '<select id="poAtuacaoRef" class="avp-select"><option value="">Nenhuma</option>' + opcoesReferencia().map(function (o) {
           return '<option value="' + esc(o.id) + '"' + (o.motivo ? ' disabled' : '') + (f.ref === o.id ? ' selected' : '') + '>' + esc(o.nome) + (o.motivo ? ' — ' + esc(o.motivo) : '') + '</option>';

@@ -71,3 +71,14 @@ The hermetic test suite (fake Firebase, no secrets, no network — `.github/scri
 - **Estrutura Organizacional Atual** (`estrutura-atual-nucleo.js` → `estrutura-atual-tela.js`, carregados depois de
   `estruturas-tela.js`): nós `estrutura-atual-*`, marcador próprio, hierarquia sem ciclo conferida pelas regras no
   estado depois da gravação. Ver `docs/referencia-tecnica.md` e `teste-rules-estrutura-atual.js`.
+- **Refinamento de usabilidade (Início pelo trabalho)**: o Início de Avaliações separa "Continuar um trabalho"
+  (`#avaliacoes?tr=1`, Trabalhos de avaliação — rascunhos e números reais de Produto/Serviço, responsabilidades e áreas,
+  só leitura, sem nó novo; a Jornada do Mapa é consulta com nome próprio) de "Começar um trabalho" (Porta 1; Porta 2
+  com "uma responsabilidade" e "uma área", o mesmo O1–O9); "Entenda como as avaliações se conectam" fica recolhido.
+  `#avaliacoes?po=todas` reúne as responsabilidades do Caminho A e das análises (`faAnalisesOrganizacionais.
+  responsabilidadesDasAnalises()`, só leitura; a já registrada na Porta 2 aparece uma vez). Registro de uma descrição
+  só (`faObjetosOrganizacionaisNucleo.registroSimplificado`, reconhecido pela nota que o próprio sistema grava): leitura
+  e edição com um campo; a nota técnica fica gravada e não aparece como contexto — contrato do nó intacto. O1–O9 mostra
+  o progresso pelo caminho do próprio motor; o resultado diz "Avaliação concluída" também com A validar e separa a
+  recomendação da decisão por pessoa. `motor-arquitetura.js` só liga a escuta da configuração com sessão e a religa se
+  for cancelada ou se a sessão mudar (a Jornada ficava em "Verificando…" até F5 quando Avaliações abria antes do login).
