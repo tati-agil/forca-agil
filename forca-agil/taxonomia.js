@@ -2163,7 +2163,7 @@
     var el = raiz();
     if (!el) return;
     var dom = st.dominio, D = st.d[dom];
-    var html = '<div class="tax-raiz"><h3 class="avp-panel-titulo">Taxonomia</h3>';
+    var html = '<div class="tax-raiz"><h3 class="avp-panel-titulo">Taxonomia</h3><p class="adm-area-desc" id="taxDescricaoAba">Administração dos conceitos, definições e relações utilizados na arquitetura organizacional.</p>';
     html += '<p class="tax-aviso">A Taxonomia <strong>define</strong> os conceitos. A Avaliação <strong>aplica</strong> esses conceitos aos itens avaliados. Os dois domínios abaixo são independentes.</p>';
     if (st.pendente && st.pendente.semResposta) html += htmlPendencia(st.pendente);
     if (st.flash) html += '<p class="tax-flash' + (st.flash.erro ? ' tax-flash--erro' : '') + '" role="status" id="taxFlash">' + esc(st.flash.texto) + ' <button type="button" class="tax-flash-fechar" data-tax="fechar-flash" aria-label="Fechar">×</button></p>';

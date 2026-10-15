@@ -1249,7 +1249,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
     <div class="admin-hero">
       <span class="eyebrow" style="color:var(--gold)">Área Restrita</span>
       <h1>Painel Admin</h1>
-      <p>Área restrita. O admin geral acessa todas as abas; o perfil Avaliação + Configuração acessa somente a área Avaliação e Mapa (Núcleo de Avaliação, Taxonomia e Mapa da Floresta), conforme as suas permissões.</p>
+      <p>Área de administração do FORÇA ÁGIL. As abas disponíveis e as ações permitidas dependem do perfil de acesso.</p>
     </div>
 
     <div id="adminGuard" hidden>
@@ -1278,7 +1278,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
         <button class="admin-tab-btn" data-panel="adminPanelManual">Manual</button>
         <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
         <button class="admin-tab-btn" data-panel="adminPanelSorteios">Sorteios</button>
-        <button class="admin-tab-btn" data-panel="adminPanelArquitetura">Avaliação e Mapa</button>
+        <button class="admin-tab-btn" data-panel="adminPanelArquitetura">Avaliações e Mapa</button>
         <button class="admin-tab-btn" data-panel="adminPanelTaxonomia">Taxonomia</button>
       </div>
 
@@ -1355,7 +1355,10 @@ body.aguardando-auth>#bootStatus{z-index:900}
       </div>
 
       <div class="admin-tab-panel" id="adminPanelArquitetura">
-        <h3 class="avp-panel-titulo">Núcleo de Avaliação, Taxonomia e Mapa da Floresta</h3>
+        <h3 class="avp-panel-titulo">Administração das Avaliações e do Mapa da Floresta</h3>
+        <p class="adm-area-desc" id="admArqDescricao">Configurações e cadastros governados das avaliações e do Mapa da Floresta: questionários, motores, naturezas, estruturas e documentação.</p>
+        <!-- o atalho só aparece quando a aba Taxonomia está disponível para a pessoa (admin.js) -->
+        <p class="adm-area-desc" id="admArqRelacaoTaxonomia">As avaliações e o Mapa utilizam conceitos da Taxonomia. A manutenção desses conceitos é realizada na aba Taxonomia, conforme as permissões do usuário. <button type="button" class="adm-link-aba" id="admArqIrTaxonomia" hidden>Abrir a aba Taxonomia</button></p>
         <div id="adminAvaliacaoProduto">
           <p class="loading-msg">Carregando avaliações…</p>
         </div>

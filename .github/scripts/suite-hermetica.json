@@ -646,6 +646,12 @@
       "sobre": "Marcador de homologação (ausente = DESLIGADO, a Porta 2 fica como era; SOMENTE_ADMIN_GERAL; o admin geral muda no ADMIN com motivo e auditoria). Jornada B: uma pergunta por vez com o porquê, comparação pelos sete critérios, delimitação, fatos descritivos, atuação criada e O1–O9 respondido na tela do Posicionamento, situação formal, proposta pendente, ficha da estrutura, Jornada, histórico, Excel, F5. Jornada A: regressão políticas de SI × diretrizes contratuais (nunca juntadas sem comparação), aprovação como referência a ato externo só pelo admin geral. Jornada C: capacidade distribuída, referência sem trocar a origem, nenhuma estrutura Segurança. Perfil de consulta sem formulários; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-admin-nomenclatura.js",
+      "nome": "ADMIN: abas Avaliações e Mapa × Taxonomia — títulos, descrições, atalho só para quem tem a aba, desktop e 375 px",
+      "duracao": 40,
+      "sobre": "Descrição geral do Painel Admin sem citar perfis; abas Avaliações e Mapa e Taxonomia lado a lado; título Administração das Avaliações e do Mapa da Floresta com a descrição e a relação usar × manter com a Taxonomia; o atalho abre a aba Taxonomia (com a descrição dela) só para o admin geral; Avaliação + Configuração continua só com a área Avaliações e Mapa e sem atalho; F5 e Voltar/Avançar numa subtela."
+    },
+    {
       "arquivo": ".github/scripts/teste-correcao-orientacao-o7-o9.js",
       "nome": "Correção editorial \"Orientação para distinguir O7 e O9\": texto aprovado, aplicação pelo ADMIN e versões, desktop e 375 px",
       "duracao": 45,

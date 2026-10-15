@@ -1,5 +1,5 @@
 /* ============================================================
-   Força Ágil — Avaliação de Produto/Serviço (aba Avaliação e Mapa, admin)
+   Força Ágil — Avaliação de Produto/Serviço (aba Avaliações e Mapa, admin)
 
    Checklist arquitetural para decidir se um item da organização deve
    ser classificado como Produto/Serviço. Node do Firebase:
@@ -1557,7 +1557,7 @@
      forca-agil/ porque este projeto não tem build step/bundler/npm em
      produção (ver CLAUDE.md), e são carregadas SOB DEMANDA — nunca no
      carregamento inicial da página — para não pesar a experiência de quem
-     nunca usa a aba Avaliação e Mapa (a maioria: participantes na oficina, no
+     nunca usa a aba Avaliações e Mapa (a maioria: participantes na oficina, no
      celular, muitas vezes em rede lenta). */
   function carregarScript(src, jaDisponivel, cb) {
     if (jaDisponivel()) { cb(); return; }
@@ -2547,7 +2547,7 @@
        <tela pai>" explícito (nunca um rótulo genérico que pula níveis). Quem
        sai de uma tela de EDIÇÃO com alteração ainda não salva é avisado antes
        — c.sujo é ligado pelo próprio campo editado e desligado ao salvar. */
-    var ROTULO_ADMIN = 'Avaliação e Mapa';
+    var ROTULO_ADMIN = 'Avaliações e Mapa';
     function linkVoltar(id, destino) {
       return '<button type="button" class="avp-voltar-link" id="' + id + '">← Voltar para ' + esc(destino) + '</button>';
     }
@@ -2637,7 +2637,7 @@
         }
         state.telaRenderizada = state.tela;
       }
-      /* ADMIN › Avaliação e Mapa: entrar numa subtela (ou trocar de subtela) começa no topo dela — no
+      /* ADMIN › Avaliações e Mapa: entrar numa subtela (ou trocar de subtela) começa no topo dela — no
          celular a tela anterior podia estar rolada até o meio, e o "← Voltar" do topo ficava fora
          da tela; voltar ao início devolve a posição de onde a pessoa saiu. */
       if (modo === 'admin') {
@@ -2807,7 +2807,7 @@
     }
     function abrirMotorSquadDoInicio() {
       state.rolagemInicio = window.pageYOffset || 0;
-      window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Avaliação e Mapa', voltar: function () {
+      window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Avaliações e Mapa', voltar: function () {
         state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0);
       } });
       sincronizarEnderecoAdmin();
@@ -3378,7 +3378,7 @@
       var P = window.faPosicionamentos;
       function link(id, cls, texto) { return '<a class="' + cls + '" id="' + id + '" href="' + DESTINOS_INICIO[id] + '">' + texto + '</a>'; }
       function ramo(c) { return P ? P.spanNome(c, 'avp-como-ramo') : ({ LINHA: 'Linha', AREA_ESPECIALIZADA: 'Área Especializada', COE: 'Centro de Excelência' })[c]; }
-      /* nome de uma área do ADMIN: atalho para quem entra, negrito para quem não entra; ◆ Taxonomia, ● Avaliação e Mapa (forma e texto; a cor só reforça) */
+      /* nome de uma área do ADMIN: atalho para quem entra, negrito para quem não entra; ◆ Taxonomia, ● Avaliações e Mapa (forma e texto; a cor só reforça) */
       function fonte(texto, destino, aba, id, pode, area, dominio) {
         var marca = '<span class="avp-como-marca" aria-hidden="true">' + (area === 'tax' ? '◆' : '●') + '</span>';
         if (!pode) return '<strong class="avp-como-fonte avp-como-fonte--' + area + '" data-area="' + area + '">' + marca + texto + '</strong>';
@@ -5152,8 +5152,8 @@
       html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
         cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
       if (souAdminGeral()) {
-        html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na área Avaliação e Mapa do ADMIN.',
-          cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a área Avaliação e Mapa do ADMIN), com histórico.'));
+        html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na área Avaliações e Mapa do ADMIN.',
+          cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a área Avaliações e Mapa do ADMIN), com histórico.'));
       }
       wrap.innerHTML = html;
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
@@ -5173,7 +5173,7 @@
     }
 
     /* ===================== HISTÓRICO RECOLHIDO (padrão único) =====================
-       Toda trilha de alterações do ADMIN › Avaliação e Mapa usa este formato: fechada por padrão,
+       Toda trilha de alterações do ADMIN › Avaliações e Mapa usa este formato: fechada por padrão,
        com o tamanho no cabeçalho ("Histórico — N alterações"); aberta, uma linha por alteração
        com data, autor e tipo, e o conteúdo longo (valor anterior/novo) atrás de "Ver detalhes".
        Nada é apagado — é só a apresentação. linhas: [{ data, autor, tipo, resumo, anterior,
@@ -5691,13 +5691,13 @@
         renderAdminInicio();
         return;
       }
-      html += '<p class="avp-decisao-aviso">Quem não está nesta lista não tem acesso à Avaliação nem à área Avaliação e Mapa do ADMIN. Administradores gerais continuam com acesso total por serem administradores. ' +
+      html += '<p class="avp-decisao-aviso">Quem não está nesta lista não tem acesso à Avaliação nem à área Avaliações e Mapa do ADMIN. Administradores gerais continuam com acesso total por serem administradores. ' +
         'Os perfis antigos (Consulta, Avaliador e Gestor) não valem mais para nada.</p>';
       html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-aut-matriz"><thead><tr><th>O que a pessoa acessa</th>' +
         TIPOS_AUTORIZADO.map(function (t) { return '<th>' + esc(t.rotulo) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar, Adequação à Squad)</td><td>Sim</td><td>Sim</td></tr>' +
         '<tr><td data-label="Acesso">Curadoria e decisão arquitetural (especialização, papel estrutural, natureza complementar, decisão final)</td><td>Não</td><td>Sim</td></tr>' +
-        '<tr><td data-label="Acesso">ADMIN › Avaliação e Mapa (questionários, motores, naturezas, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">ADMIN › Avaliações e Mapa (questionários, motores, naturezas, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
         '<tr><td data-label="Acesso">Demais áreas do ADMIN</td><td>Não</td><td>Não</td></tr>' +
         '<tr><td data-label="Acesso">Gerenciar esta lista</td><td>Não</td><td>Não</td></tr></tbody></table></div>';
       if (u.carregando) {
@@ -5718,7 +5718,7 @@
         var chaveEu = chaveEmailAut(euSess.email);
         var avisoEu = u.avisos[chaveEu];
         html += '<div class="avp-aut-eu" id="avpAutEu"><p class="avp-decisao-aviso">Você entra em tudo por ser administradora geral, mas o seu acesso ainda não está <strong>registrado nesta lista</strong>. ' +
-          'A lista mostra quem foi autorizado explicitamente para a Avaliação e para a área Avaliação e Mapa do ADMIN.</p>' +
+          'A lista mostra quem foi autorizado explicitamente para a Avaliação e para a área Avaliações e Mapa do ADMIN.</p>' +
           '<button type="button" class="btn" id="avpAutAdicionarEuBtn"' + (u.salvando[chaveEu] ? ' disabled' : '') + '>Adicionar a mim como Avaliação + Configuração</button>' +
           '<span class="avp-usuario-aviso' + (avisoEu && avisoEu.erro ? ' avp-usuario-aviso--erro' : '') + '" id="avpAutEuAviso">' + (avisoEu ? esc(avisoEu.texto) : '') + '</span></div>';
       }
@@ -9821,7 +9821,7 @@
     sincronizarComHash(); /* tenta resolver um link direto já na carga inicial */
     if (modo === 'admin') {
       /* Endereço próprio por área da Arquitetura (ver sincronizarEnderecoAdmin): Voltar/Avançar do
-         navegador e link colado; a troca para a aba Avaliação e Mapa grava o endereço da área atual. */
+         navegador e link colado; a troca para a aba Avaliações e Mapa grava o endereço da área atual. */
       window.addEventListener('popstate', aplicarEnderecoAdmin);
       window.addEventListener('hashchange', aplicarEnderecoAdmin);
       politicaRolagemAdmin(); /* F5 / link direto numa área: a entrada atual já nasce 'manual' */

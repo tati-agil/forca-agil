@@ -157,6 +157,7 @@
     /* Quem entra aqui como admin geral na MESMA página em que antes esteve o admin restrito
        (sem recarregar) encontraria o cabeçalho do ADMIN ainda escondido por ele. */
     restaurarAdminCompleto();
+    atalhoTaxonomia(true);
     migrateNameCase();
     migrarEsperaPorOrigem();
     migrarEsperaEventoKey();
@@ -187,6 +188,13 @@
      módulos dele. O cartão "Usuários autorizados" não aparece (avaliacao-produto.js
      só o mostra para admin geral) e as regras do banco negam o resto. */
   var PAINEL_INICIAL_ADMIN = 'adminPanelInteresses'; /* o que o HTML abre ativo */
+  /* "Abrir a aba Taxonomia" (na área Avaliações e Mapa): só para quem tem a aba — nunca um atalho para área inacessível */
+  function atalhoTaxonomia(visivel) {
+    var b = document.getElementById('admArqIrTaxonomia'), aba = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+    if (!b) return;
+    b.hidden = !(visivel && aba && !aba.hidden);
+    if (!b._ligado) { b._ligado = true; b.addEventListener('click', function () { var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); if (t && !t.hidden) t.click(); }); }
+  }
   var _adminRestritoAplicado = false;
   /* Desfaz initAdminArquitetura: abas, barra e painéis de volta ao que o HTML entrega. Só age se o
      restrito de fato rodou antes nesta página — não mexe na aba que o admin geral estava vendo. */
@@ -207,6 +215,7 @@
 
   function initAdminArquitetura() {
     _adminRestritoAplicado = true;
+    atalhoTaxonomia(false);
     document.querySelectorAll('.admin-tab-btn').forEach(function (b) {
       var arq = b.dataset.panel === 'adminPanelArquitetura';
       b.hidden = !arq;
