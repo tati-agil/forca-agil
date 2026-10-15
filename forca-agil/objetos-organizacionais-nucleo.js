@@ -18,6 +18,14 @@
    objeto também não nasce se o item tiver Posicionamento vigente ou rascunho aberto (sem duplicidade). Encerrar o
    objeto libera o índice na mesma gravação.
 
+   Exclusão (contrato em dois níveis): excluir NÃO é encerrar — o cadastro sai de verdade, e fica só o registro mínimo
+   em objetos-organizacionais-excluidos/<id> (nome, descrição, motivo, nível, quem, quando), para que avaliações,
+   decisões e trilhas que continuam gravadas saibam a que cadastro pertenciam. Nada disso é apagado nem reescrito.
+   nivelExclusao() diz o que a situação exige: 'comum' (cadastro sem Posicionamento concluído),
+   'excepcional' (já avaliado: só o admin geral; a origem numa análise não pesa — o índice dela fica, explicado pelo
+   registro mínimo) ou 'bloqueada' (rascunho aberto ou estrutura
+   responsável ativa — encerre o vínculo / conclua ou descarte o rascunho antes). O banco confere tudo de novo.
+
    Hipótese inicial (CODIGOS_HIPOTESE): o que a pessoa acredita ser o posicionamento ANTES de responder — um dos 8
    posicionamentos firmes ou NAO_SEI. Fica no registro de Posicionamento (hipoteseInicial), nunca no motor: o motor
    não a recebe (a assinatura dele não tem esse parâmetro) e o banco confere que o resultado gravado é exatamente o do
@@ -38,6 +46,7 @@
   var NODE = 'objetos-organizacionais';
   var AUD = 'objetos-organizacionais-auditoria';
   var IDX_REF = 'objetos-organizacionais-por-referencia';
+  var EXC = 'objetos-organizacionais-excluidos';
   var ORIGEM = 'objeto-organizacional';
   var NAO_SEI = 'NAO_SEI';
   var CODIGOS_HIPOTESE = MOT.CODIGOS_FIRMES.concat([NAO_SEI]);
@@ -130,6 +139,41 @@
     return p;
   }
 
+  /* dep: { vigente, rascunho, vinculoAtivo, analise } (booleanos lidos pela tela) →
+     { nivel: 'comum' | 'excepcional' | 'bloqueada', motivos: [códigos] } */
+  function nivelExclusao(dep) {
+    dep = dep || {};
+    var bloq = [], exc = [];
+    if (dep.rascunho) bloq.push('RASCUNHO_ABERTO');
+    if (dep.vinculoAtivo) bloq.push('VINCULO_ATIVO');
+    if (bloq.length) return { nivel: 'bloqueada', motivos: bloq };
+    if (dep.vigente) exc.push('JA_AVALIADO');
+    return exc.length ? { nivel: 'excepcional', motivos: exc } : { nivel: 'comum', motivos: [] };
+  }
+  /* o: { id, atual, audId, motivo, dep, usuario, agora } — o cadastro sai; registro mínimo + auditoria 'exclusao' +
+     índice da referência, tudo na mesma gravação. Nunca toca avaliações, decisões, índices de vigência nem auditorias */
+  function payloadExclusao(o) {
+    exigirId(o.id, 'id'); exigirId(o.audId, 'audId');
+    if (!o.atual) falhar([{ codigo: 'OBJETO_INEXISTENTE' }]);
+    var motivo = texto(o.motivo);
+    if (!motivo) falhar([{ campo: 'motivo', codigo: 'OBRIGATORIO' }]);
+    if (motivo.length > LIMITES.motivo) falhar([{ campo: 'motivo', codigo: 'TAMANHO', limite: LIMITES.motivo }]);
+    var n = nivelExclusao(o.dep);
+    if (n.nivel === 'bloqueada') falhar(n.motivos.map(function (m) { return { codigo: m }; }));
+    var por = pessoa(o.usuario), dep = {};
+    ['vigente', 'analise'].forEach(function (k) { if (o.dep && o.dep[k]) dep[k] = true; });
+    var reg = { nome: o.atual.nome, motivo: motivo, nivel: n.nivel, situacaoAnterior: o.atual.situacao === 'encerrado' ? 'encerrado' : 'ativo', excluidoEm: o.agora, excluidoPor: por, auditoriaId: o.audId };
+    if (o.atual.descricao) reg.descricao = o.atual.descricao;
+    if (o.atual.referenciaItemId) reg.referenciaItemId = o.atual.referenciaItemId;
+    if (Object.keys(dep).length) reg.dependencias = dep;
+    var p = {};
+    p[NODE + '/' + o.id] = null;
+    p[EXC + '/' + o.id] = reg;
+    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'exclusao', revisao: (o.atual.revisao || 0) + 1, por: por, em: o.agora, motivo: motivo };
+    if (o.atual.referenciaItemId && o.atual.situacao === 'ativo') p[IDX_REF + '/' + o.atual.referenciaItemId] = null;
+    return p;
+  }
+
   /* Hipótese × recomendação AUTOMÁTICA (nunca a decisão humana): 'nao-registrada' (registro sem hipótese — os
      anteriores à Porta 2), 'sem-hipotese' (Não sei), 'a-validar' (o motor não firmou: nunca força a hipótese),
      'confirmada' ou 'nao-confirmada'. Puro; não recebe respostas — só compara dois códigos já existentes. */
@@ -169,7 +213,7 @@
     return { nome: t.length <= LIMITES.nome ? t : curto, descricao: t, finalidade: t, contexto: (atual && atual.contexto) || '' };
   }
   var api = {
-    NODE: NODE, AUD: AUD, IDX_REF: IDX_REF, ORIGEM: ORIGEM, NAO_SEI: NAO_SEI, CODIGOS_HIPOTESE: CODIGOS_HIPOTESE.slice(),
+    NODE: NODE, AUD: AUD, IDX_REF: IDX_REF, EXC: EXC, nivelExclusao: nivelExclusao, payloadExclusao: payloadExclusao, ORIGEM: ORIGEM, NAO_SEI: NAO_SEI, CODIGOS_HIPOTESE: CODIGOS_HIPOTESE.slice(),
     LIMITES: LIMITES, CAMPOS: CAMPOS.slice(), OBRIGATORIOS: OBRIGATORIOS.slice(),
     normalizar: normalizar, validarDados: validarDados, payloadCriacao: payloadCriacao, payloadAlteracao: payloadAlteracao,
     payloadEncerramento: payloadEncerramento, dadosSimplificados: dadosSimplificados, registroSimplificado: registroSimplificado, contextoVisivel: contextoVisivel, dadosEdicaoSimplificada: dadosEdicaoSimplificada, podeReceberAvaliacao: ativo, compararHipotese: compararHipotese, hipoteseValida: hipoteseValida

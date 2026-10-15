@@ -1,6 +1,7 @@
-/* Monta as regras dos 7 nós da ANÁLISE ORGANIZACIONAL (Porta 2) em database.rules.json:
+/* Monta as regras dos 8 nós da ANÁLISE ORGANIZACIONAL (Porta 2) em database.rules.json:
  *   analises-organizacionais, analises-organizacionais-auditoria, analises-propostas, analises-aprovacoes,
- *   analises-por-objeto, analises-organizacionais-config, analises-organizacionais-config-auditoria.
+ *   analises-por-objeto, analises-organizacionais-config, analises-organizacionais-config-auditoria,
+ *   analises-organizacionais-excluidas (registro mínimo de cada exclusão).
  *
  * O que as regras garantem (provado no emulador por teste-rules-analises-organizacionais.js):
  *   - MARCADOR DE HOMOLOGAÇÃO (analises-organizacionais-config/habilitacao; ausente = DESLIGADO) vale nas OPERAÇÕES DE
@@ -15,9 +16,14 @@
  *     aprovadas (nenhuma reclassifica); pendente exige a pendência;
  *   - aprovação: só o admin geral, referência a ATO EXTERNO (natureza fixa), só da proposta vigente e não pendente,
  *     uma por versão, imutável, com evento de auditoria na mesma gravação.
+ *   - EXCLUSÃO (contrato em dois níveis): a análise sai de verdade, numa gravação com o registro mínimo (nome, motivo,
+ *     nível, quem, quando) e o evento 'analise.excluida'. Comum (quem grava análises): sem nenhuma responsabilidade e
+ *     sem proposta. Excepcional (só admin geral): com responsabilidades ou propostas — as atuações cadastradas, o índice
+ *     de origem, as propostas e a auditoria ficam (nada em cascata). Com aprovação registrada: recusada sempre (o ato
+ *     externo continua apontando para a análise). O id excluído não renasce.
  * O nó das atuações (objetos-organizacionais) não muda: a atuação criada a partir de um recorte passa pelas regras dele.
  *
- *   node .github/scripts/montar-regras-analises-organizacionais.js --gravar   (reescreve os 7 nós)
+ *   node .github/scripts/montar-regras-analises-organizacionais.js --gravar   (reescreve os 8 nós)
  *   node .github/scripts/montar-regras-analises-organizacionais.js            (só confere; sai com erro se divergir)
  * Depois de --gravar: node .github/scripts/regras-compactas.js --gravar database.rules.min.json */
 'use strict';
@@ -28,7 +34,7 @@ const K = "auth.token.email.replace('@','_').replace('.','_')";
 const ADM = "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(" + K + ").exists()";
 const TIPO = "root.child('fa-avaliacao-autorizados').child(" + K + ").child('tipo').val()";
 const AN = 'analises-organizacionais', AUD = 'analises-organizacionais-auditoria', PROP = 'analises-propostas', APROV = 'analises-aprovacoes';
-const IDX = 'analises-por-objeto', CFG = 'analises-organizacionais-config', CFG_AUD = 'analises-organizacionais-config-auditoria';
+const IDX = 'analises-por-objeto', CFG = 'analises-organizacionais-config', CFG_AUD = 'analises-organizacionais-config-auditoria', EXC = 'analises-organizacionais-excluidas';
 const OBJ = 'objetos-organizacionais';
 const HAB = "root.child('" + CFG + "').child('habilitacao').val()";
 const SO_GERAL = HAB + " === 'SOMENTE_ADMIN_GERAL'", LIBERADO = HAB + " === 'LIBERADO_PARA_PERFIS_AUTORIZADOS'";
@@ -51,9 +57,10 @@ const PV = "newData.child('propostaVigente').val()", PV_ANT = "data.child('propo
 const blocoAnalise = {
   '.read': LER,
   $id: {
-    '.write': GRAVAR + " && newData.exists() && (!data.exists() || data.child('situacao').val() === 'aberta')",
+    '.write': GRAVAR + " && (newData.exists() ? (!data.exists() || data.child('situacao').val() === 'aberta') : (data.exists() && newData.parent().parent().child('" + EXC + "').child($id).exists() && !root.child('" + EXC + "').child($id).exists()))",
     '.validate': and([
       '$id.matches(' + ID + ')',
+      "!root.child('" + EXC + "').child($id).exists()",
       "newData.hasChildren(['id','nome','tipoEscopo','situacao','revisao','criadaEm','criadaPor','atualizadoEm','atualizadoPor','auditoriaId'])",
       "newData.child('id').val() === $id",
       "newData.child('atualizadoEm').val() === now",
@@ -111,7 +118,7 @@ const blocoAuditoria = {
         "newData.child('por').child('uid').val() === auth.uid",
         "newData.child('por').child('email').val() === auth.token.email",
         /* o evento pertence a uma gravação da análise (que aponta para ele) ou ao registro de uma aprovação */
-        "(newData.parent().parent().parent().child('" + AN + "').child($id).child('auditoriaId').val() === $evento || newData.child('tipo').val() === 'aprovacao.registrada')"
+        "(newData.parent().parent().parent().child('" + AN + "').child($id).child('auditoriaId').val() === $evento || newData.child('tipo').val() === 'aprovacao.registrada' || (newData.child('tipo').val() === 'analise.excluida' && newData.parent().parent().parent().child('" + EXC + "').child($id).child('auditoriaId').val() === $evento && !newData.parent().parent().parent().child('" + AN + "').child($id).exists()))"
       ])
     }
   }
@@ -217,7 +224,38 @@ const blocoConfigAuditoria = {
   }
 };
 
-const BLOCOS = { [AN]: blocoAnalise, [AUD]: blocoAuditoria, [PROP]: blocoPropostas, [APROV]: blocoAprovacoes, [IDX]: blocoPorObjeto, [CFG]: blocoConfig, [CFG_AUD]: blocoConfigAuditoria };
+/* registro mínimo de cada exclusão: escrito uma vez, imutável; a análise sai na MESMA gravação */
+const AN_ANTES = "root.child('" + AN + "').child($id)", RAIZ_EXC = 'newData.parent().parent()';
+const blocoExcluidas = {
+  '.read': LER,
+  $id: {
+    '.write': GRAVAR + ' && !data.exists() && newData.exists()',
+    '.validate': and([
+      '$id.matches(' + ID + ')',
+      "newData.hasChildren(['nome','motivo','nivel','revisao','excluidaEm','excluidaPor','auditoriaId'])",
+      /* a exclusão vale para a revisão que a pessoa viu e confirmou: qualquer gravação no meio a recusa */
+      "newData.child('revisao').val() === " + AN_ANTES + ".child('revisao').val()",
+      AN_ANTES + '.exists()', '!' + RAIZ_EXC + ".child('" + AN + "').child($id).exists()",
+      "newData.child('nome').val() === " + AN_ANTES + ".child('nome').val()",
+      "newData.child('excluidaEm').val() === now",
+      RAIZ_EXC + ".child('" + AUD + "').child($id).child(newData.child('auditoriaId').val()).child('tipo').val() === 'analise.excluida'",
+      "!root.child('" + AUD + "').child($id).child(newData.child('auditoriaId').val()).exists()",
+      /* aprovação registrada (ato externo) aponta para a análise: nunca se exclui */
+      "!root.child('" + APROV + "').child($id).exists() && !" + RAIZ_EXC + ".child('" + APROV + "').child($id).exists()",
+      /* comum: análise vazia (sem responsabilidades e sem proposta); excepcional: só o admin geral */
+      "(newData.child('nivel').val() === 'comum' ? (!" + AN_ANTES + ".child('recortes').exists() && !" + AN_ANTES + ".child('propostaVigente').exists() && !" + AN_ANTES + ".child('referencias').exists()) : (" + ADM + '))'
+    ]),
+    nome: texto(200), motivo: texto(500), revisao: { '.validate': 'newData.isNumber()' },
+    nivel: { '.validate': umDe('newData.val()', ['comum', 'excepcional']) },
+    situacaoAnterior: { '.validate': umDe('newData.val()', ['aberta', 'descartada']) },
+    contagens: { '.validate': 'newData.hasChildren()', $c: { '.validate': 'newData.isNumber() && newData.val() >= 0' } },
+    excluidaEm: { '.validate': 'newData.isNumber()' }, excluidaPor: autoria(),
+    auditoriaId: { '.validate': 'newData.isString() && newData.val().matches(' + ID + ')' },
+    $outro: { '.validate': false }
+  }
+};
+
+const BLOCOS = { [AN]: blocoAnalise, [AUD]: blocoAuditoria, [PROP]: blocoPropostas, [APROV]: blocoAprovacoes, [IDX]: blocoPorObjeto, [CFG]: blocoConfig, [CFG_AUD]: blocoConfigAuditoria, [EXC]: blocoExcluidas };
 module.exports = { BLOCOS, NOS: Object.keys(BLOCOS) };
 
 if (require.main === module) {
@@ -225,7 +263,7 @@ if (require.main === module) {
   const regras = JSON.parse(s).rules;
   const divergentes = Object.keys(BLOCOS).filter((n) => JSON.stringify(regras[n]) !== JSON.stringify(BLOCOS[n]));
   if (process.argv.indexOf('--gravar') === -1) {
-    console.log(divergentes.length ? 'DIVERGEM de database.rules.json: ' + divergentes.join(', ') : 'os 7 nós publicados são os montados');
+    console.log(divergentes.length ? 'DIVERGEM de database.rules.json: ' + divergentes.join(', ') : 'os 8 nós publicados são os montados');
     process.exit(divergentes.length ? 1 : 0);
   }
   const ind = (o) => JSON.stringify(o, null, 2).split('\n').map((l, k) => (k === 0 ? l : '    ' + l)).join('\n');

@@ -16,6 +16,7 @@
      analises-aprovacoes/<id>/v<n>                      referência a ato externo de aprovação (admin geral)
      analises-por-objeto/<objetoId>                     origem única de cada atuação criada por uma análise
      analises-organizacionais-config                    marcador de homologação (admin geral) + auditoria própria
+     analises-organizacionais-excluidas/<id>            registro mínimo de cada análise excluída (a análise sai na mesma gravação)
    O nó das atuações (objetos-organizacionais) NÃO muda: uma atuação criada a partir de um recorte usa o mesmo payload
    de objetos-organizacionais-nucleo.js, na MESMA gravação que liga o recorte e o índice de origem.
    ============================================================ */
@@ -24,7 +25,7 @@
   var NOS = Object.freeze({
     analises: 'analises-organizacionais', auditoria: 'analises-organizacionais-auditoria', propostas: 'analises-propostas',
     aprovacoes: 'analises-aprovacoes', porObjeto: 'analises-por-objeto', config: 'analises-organizacionais-config',
-    configAuditoria: 'analises-organizacionais-config-auditoria'
+    configAuditoria: 'analises-organizacionais-config-auditoria', excluidas: 'analises-organizacionais-excluidas'
   });
   var ID = /^[A-Za-z0-9_-]{1,60}$/;
   function clone(o) { return o === undefined ? undefined : JSON.parse(JSON.stringify(o)); }
@@ -68,6 +69,11 @@
         analiseId = d.analiseId;
         d.registradoEm = o.agora; d.registradoPor = { id: por.uid, email: por.email }; d.auditoriaId = o.audId;
         p[NOS.aprovacoes + '/' + d.analiseId + '/' + chaveProposta(d.versaoProposta)] = semVazios(d);
+      } else if (m.entidade === 'exclusao-analise') {
+        analiseId = m.id;
+        p[NOS.analises + '/' + m.id] = null;
+        d.excluidaEm = o.agora; d.excluidaPor = por; d.auditoriaId = o.audId;
+        p[NOS.excluidas + '/' + m.id] = semVazios(d);
       } else throw new Error('análise organizacional: entidade desconhecida ' + m.entidade);
     });
     var ev = (resultado.eventos || [])[0];

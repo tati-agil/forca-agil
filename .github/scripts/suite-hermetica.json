@@ -23,6 +23,7 @@
     ".github/scripts/teste-confirmacao-gravacao.js": "confirmação de gravação (homologação 2026-10-13) contra um Firebase Emulator real e o SDK real (goOffline/goOnline) num contêiner Docker próprio, com Playwright: roda localmente, como a jornada; a parte sem navegador está em teste-estruturas-firebase-prazo.js e teste-servicos-posicionamento.js, na suíte",
     ".github/scripts/teste-rules-mapa-subagrupadores.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-objetos-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-exclusao-cadastros.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-analises-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-estrutura-atual.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
