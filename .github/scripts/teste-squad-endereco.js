@@ -76,9 +76,9 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
     console.log('\n######## ' + nomeTela + ' ########');
     {
       const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes');
-      await page.waitForSelector('#avpInicioRegSquad', { timeout: 8000 });
+      await page.waitForSelector('#avpInicioRegSquad', { state: 'attached', timeout: 8000 });
       afirma(await titulo(page) === 'Avaliações', 'na lista de avaliações o título é o da página ("Avaliações")');
-      await page.click('#avpInicioRegSquad');
+      await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegSquad');
       await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 8000 });
       afirma(await hash(page) === '#avaliacoes?sq=lista', 'entrar na Squad dá endereço próprio: #avaliacoes?sq=lista (' + await hash(page) + ')');
       afirma(await titulo(page) === 'Adequação à Squad', 'o título da página passa a ser "Adequação à Squad" (' + await titulo(page) + ')');

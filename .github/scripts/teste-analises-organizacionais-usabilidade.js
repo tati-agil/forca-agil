@@ -141,11 +141,11 @@ async function entrada(browser) {
   afirma(!(await existe(page, '.an-caminho')) && (await texto(page, '#poRegistradasTitulo')).trim() === 'Responsabilidades registradas' && (await page.$$('#avaliacoesPosicionamento .avp-voltar-link, #avaliacoesPosicionamento #poVoltarLista')).length === 1, 'sem cartões repetidos; "Responsabilidades registradas"; um só "Voltar"');
   await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicioCaminhoB');
   const p1 = await texto(page, '#avpInicioCartaoNatureza'), p2 = await texto(page, '#avpInicioCartaoAtuacao');
-  afirma(/Avaliar se é Produto\/Serviço/.test(p1) && /Descubra se um item constitui um Produto\/Serviço\./.test(p1) && (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação', 'Início: Porta 1 com o texto aprovado');
-  afirma(/Posicionamento Organizacional/.test(p2) && /Descubra qual tipo arquitetural é recomendado para cada responsabilidade organizacional\./.test(p2) &&
-    /Caminho A · Uma responsabilidade/.test(p2) && /Já sabe qual responsabilidade deseja avaliar\?/.test(p2) && /Caminho B · Uma área com várias responsabilidades/.test(p2) && /Quer analisar uma gerência, núcleo ou área que reúne várias responsabilidades\?/.test(p2), 'Início: Porta 2 e os dois caminhos com o texto aprovado');
+  afirma(/Avaliar um Produto\/Serviço/.test(p1) && /Descubra se um item constitui um Produto\/Serviço\./.test(p1) && (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação', 'Início: Porta 1 com o texto aprovado');
+  afirma(/Porta 2 · Posicionamento das responsabilidades · O1–O9/i.test(p2) &&
+    /Avaliar uma responsabilidade/.test(p2) && /Já sabe qual responsabilidade deseja avaliar\?/.test(p2) && /Analisar uma área/.test(p2) && /Cadastre e avalie as responsabilidades de uma gerência, núcleo ou outra área\./.test(p2), 'Início: Porta 2 com as duas atividades (uma responsabilidade, uma área)');
   const [ca, cb] = await page.evaluate(() => ['avpInicioAtuacao', 'avpInicioAnalise'].map((i) => { const e = document.getElementById(i); const r = e.getBoundingClientRect(); return { cls: e.className, txt: e.textContent.trim(), h: r.height }; }));
-  afirma(ca.cls === cb.cls && ca.txt === 'Avaliar uma responsabilidade' && cb.txt === 'Analisar uma área' && Math.abs(ca.h - cb.h) < 2, 'Início: os dois caminhos com botões de mesmo peso', [ca, cb]);
+  afirma(ca.cls === cb.cls && ca.txt === 'Avaliar responsabilidade' && cb.txt === 'Analisar área' && Math.abs(ca.h - cb.h) < 2, 'Início: os dois caminhos com botões de mesmo peso', [ca, cb]);
   await page.click('#avpInicioAnalise'); await page.waitForSelector('#anFormNova');
   afirma(await page.evaluate(() => location.hash) === '#avaliacoes?an=nova', 'Caminho B abre "Analisar uma área"');
   await page.goBack(); await page.waitForSelector('#avpInicioCartaoAtuacao');
@@ -183,7 +183,7 @@ async function caminhoA(browser) {
   const objs = (await banco(page))['objetos-organizacionais'], novo = Object.keys(objs).find((k) => antes.indexOf(k) === -1), o = objs[novo];
   afirma(o.nome === 'Gerir o planejamento e execução orçamentária.' && o.descricao === o.nome && o.finalidade === o.nome && /nada foi inferido/.test(o.contexto), 'o texto, sem reescrita, preenche o cadastro (o registro diz que nada foi inferido)', o.contexto);
   await page.waitForSelector('#poIniciarAtuacaoBtn', { timeout: 20000 });
-  afirma(/Iniciar o Posicionamento/.test(await texto(page, '#poIniciarAtuacaoBtn')) && /hipótese inicial/.test(await texto(page, '#avaliacoesPosicionamento')), 'abre o O1–O9 da responsabilidade (hipótese inicial e "Iniciar o Posicionamento")');
+  afirma(/Iniciar a avaliação O1–O9/.test(await texto(page, '#poIniciarAtuacaoBtn')) && /indique sua hipótese inicial/.test(await texto(page, '#poProximoPasso')) && /hipótese inicial/.test(await texto(page, '#avaliacoesPosicionamento')), 'abre o O1–O9 da responsabilidade (hipótese inicial e "Iniciar o Posicionamento")');
   afirma(!Object.keys((await banco(page))['analises-organizacionais'] || {}).length, 'nenhuma análise criada: Caminho A não passa pela Análise Organizacional');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();

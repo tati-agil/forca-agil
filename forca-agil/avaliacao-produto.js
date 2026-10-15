@@ -3459,6 +3459,8 @@
       return n;
     }
     function renderTrabalhos() {
+      /* o Posicionamento pode não ter subido ainda (página iniciada antes de o script dele carregar): sobe aqui, como nos endereços ?po= */
+      if (!window.faAvaliacaoPosicionamento && window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
       var POS = window.faAvaliacaoPosicionamento, AO = window.faAnalisesOrganizacionais, rp = resumoProdutos();
       var rs = POS && POS.resumoTrabalhos ? POS.resumoTrabalhos() : null, ras = AO && AO.responsabilidadesDasAnalises ? AO.responsabilidadesDasAnalises() : null;
       var acAO = AO && AO.acesso ? AO.acesso() : { ler: false };

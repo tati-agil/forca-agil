@@ -131,7 +131,7 @@ async function rodada(browser, viewport, rotulo) {
   const [idAg, ag] = objetoPorNome(db, 'Desenvolvimento de competências em agilidade') || [];
   afirma(!!ag && ag.situacao === 'ativo' && ag.revisao === 1 && ag.referenciaItemId === 'pLivre' && db['objetos-organizacionais-por-referencia'] && db['objetos-organizacionais-por-referencia'].pLivre === idAg &&
     Object.values((db['objetos-organizacionais-auditoria'] || {})[idAg] || {}).some((x) => x.tipo === 'criacao'), 'grava a atuação (ativa, revisão 1, referência e índice, auditoria de criação)');
-  afirma((await hash(page)) === '#avaliacoes?po=atuacoes&item=' + idAg && /registre a hipótese inicial/i.test(await texto(page, '#poFlash')), 'depois de salvar: a atuação aberta, pedindo a hipótese', (await hash(page)) + ' | ' + (await texto(page, '#poFlash')));
+  afirma((await hash(page)) === '#avaliacoes?po=atuacoes&item=' + idAg && /Responsabilidade registrada/.test(await texto(page, '#poFlash')) && /indique sua hipótese inicial para começar a avaliação O1–O9/.test(await texto(page, '#poProximoPasso')), 'depois de salvar: a atuação aberta, pedindo a hipótese', (await hash(page)) + ' | ' + (await texto(page, '#poFlash')));
 
   console.log('3. Hipótese obrigatória, oculta nas perguntas, comparada no resultado');
   afirma(await desabilitado(page, '#poIniciarAtuacaoBtn') && /Escolha a hipótese inicial/.test(await texto(page, '#poHipoteseFalta')), '"Iniciar" travado até escolher a hipótese');
@@ -176,13 +176,18 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#poEditarAtuacaoBtn');
   await page.waitForSelector('#poFormAtuacao');
   afirma(/fixada no cadastro/.test(await texto(page, '#poAtuacaoRefFixa')) && !(await page.$('#poAtuacaoRef')), 'na edição, a referência é fixa');
-  await page.fill('#poAtuacao_contexto', 'Contexto acrescentado na edição');
+  /* registrada com uma descrição só: a edição tem um campo (sem nome, finalidade e contexto repetidos) */
+  const camposEd = await page.$$eval('#poFormAtuacao input, #poFormAtuacao textarea', (l) => l.filter((x) => x.offsetParent).map((x) => x.id));
+  afirma(camposEd.join() === 'poAtuacao_descricao' && /Editar responsabilidade/.test(await texto(page, '#poFormAtuacao h3')) && /Salvar alterações/i.test(await texto(page, '#poSalvarAtuacaoBtn')), 'edição simples: um campo, "Salvar alterações"', camposEd.join() + ' | ' + (await texto(page, '#poFormAtuacao h3')) + ' | ' + (await texto(page, '#poSalvarAtuacaoBtn')));
+  const ctxAntes = (await banco(page))['objetos-organizacionais'][idAg].contexto;
+  await page.fill('#poAtuacao_descricao', 'Desenvolvimento de competências em agilidade organizacional');
   await page.click('#poSalvarAtuacaoBtn');
   await page.waitForSelector('#poAtuacaoSelecionada');
   db = await banco(page);
-  const alt = Object.values(db['objetos-organizacionais-auditoria'][idAg]).find((x) => x.tipo === 'alteracao');
-  afirma(db['objetos-organizacionais'][idAg].revisao === 2 && db['objetos-organizacionais'][idAg].contexto === 'Contexto acrescentado na edição' && alt && alt.antes.contexto !== alt.depois.contexto && alt.depois.contexto === 'Contexto acrescentado na edição',
-    'edição: revisão 2, auditoria com antes → depois');
+  const alt = Object.values(db['objetos-organizacionais-auditoria'][idAg]).find((x) => x.tipo === 'alteracao'), oe = db['objetos-organizacionais'][idAg];
+  afirma(oe.revisao === 2 && oe.nome === 'Desenvolvimento de competências em agilidade organizacional' && oe.descricao === oe.nome && oe.finalidade === oe.nome && oe.contexto === ctxAntes && alt && alt.antes.descricao !== alt.depois.descricao,
+    'edição: revisão 2, a descrição nova nos campos exigidos, contexto intacto, auditoria com antes → depois');
+  afirma(!/Cadastro simplificado/.test(await texto(page, '#poAtuacaoSelecionada')), 'a nota técnica do cadastro não aparece como contexto (continua gravada)');
 
   console.log('5. Reavaliar na Porta 2');
   await page.click('.po-item-abrir');
@@ -198,7 +203,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector('#poChecklist #poReavaliacaoInfo', { timeout: 10000 });
   db = await banco(page);
   const v2 = Object.values(db['avaliacoes-posicionamento']).find((r) => r.itemId === idAg && r.versao === 2);
-  afirma(!!v2 && v2.origem === ORIGEM && v2.hipoteseInicial === 'NAO_SEI' && v2.itemNome === 'Desenvolvimento de competências em agilidade' && !('avaliacaoArquiteturalId' in v2),
+  afirma(!!v2 && v2.origem === ORIGEM && v2.hipoteseInicial === 'NAO_SEI' && v2.itemNome === 'Desenvolvimento de competências em agilidade organizacional' && !('avaliacaoArquiteturalId' in v2),
     'reavaliação: v2 da Porta 2, hipótese nova, nome atual, sem base P1–P16');
 
   console.log('6. Encerrar a atuação');

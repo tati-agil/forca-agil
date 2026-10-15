@@ -470,7 +470,12 @@
           h += '<p class="loading-msg" id="mfCarregando" role="status">Carregando…</p>';
           if (state.demorando) h += '<div class="mf-erro" id="mfDemora"><p class="avp-error-msg">A leitura está demorando mais que o normal. A tela continua esperando.</p>' +
             '<button type="button" class="btn btn--sm" id="mfTentarDeNovo">Tentar de novo</button></div>';
-        } else h += focoItem ? renderCatalogo(cat.itens) : renderCategorias(cat.itens) + renderCatalogo(cat.itens);
+        } else {
+          /* a lista está pronta, mas a configuração do motor de P1–P16 ainda não chegou (itens em "Verificando…"): o mesmo aviso, acima da lista */
+          if (state.demorando) h += '<div class="mf-erro" id="mfDemora"><p class="avp-error-msg">A leitura está demorando mais que o normal. A tela continua esperando.</p>' +
+            '<button type="button" class="btn btn--sm" id="mfTentarDeNovo">Tentar de novo</button></div>';
+          h += focoItem ? renderCatalogo(cat.itens) : renderCategorias(cat.itens) + renderCatalogo(cat.itens);
+        }
       }
       h += '</div>';
       wrap.innerHTML = h;

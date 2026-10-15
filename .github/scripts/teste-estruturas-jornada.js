@@ -861,7 +861,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const itemP2 = '#mfCatalogo .mf-item[data-item="obj-jur"]';
       await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemP2, { limite: 15000 });
       const tP2 = await texto(p, itemP2);
-      afirma(/Atuação organizacional/.test(tP2) && /Jurídico de Teste/.test(tP2) && !(await p.$(itemP2 + ' .mf-abrir-avp')), 'Catálogo: a atuação com a estrutura responsável, sem link para P1–P16', tP2.slice(0, 300));
+      afirma(/Responsabilidade organizacional/.test(tP2) && /Jurídico de Teste/.test(tP2) && !(await p.$(itemP2 + ' .mf-abrir-avp')), 'Catálogo: a atuação com a estrutura responsável, sem link para P1–P16', tP2.slice(0, 300));
       await ir(p, '#avaliacoes?mf=mapa&e=ae-p2');
       afirma(await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="obj-jur"]'), undefined, { limite: 15000 }) &&
         /Assessoramento jurídico/.test(await texto(p, '#mfmObjetos')) && /Produtos, serviços e atuações sob esta estrutura/.test(await texto(p, '#mfmDetalhe')), 'Mapa: a atuação aparece sob a estrutura responsável');

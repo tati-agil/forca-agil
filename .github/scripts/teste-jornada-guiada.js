@@ -71,9 +71,9 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Lista simples');
   afirma(await page.locator('#mfItens .mf-trilha').count() === 0 && await page.locator('#mfItens .mf-linha').count() === 10 && await page.locator('#mfBusca').isVisible(),
     'a lista mostra só nome, tipo e situação (nenhum detalhe aberto), com a busca à vista');
-  afirma(/Jornada completa/.test(await situacaoLinha(page, 'pCapec')) && /Representado pela atuação “Assessoramento jurídico”/.test(await situacaoLinha(page, 'pJur')) &&
+  afirma(/Jornada completa/.test(await situacaoLinha(page, 'pCapec')) && /Representado pela responsabilidade “Assessoramento jurídico”/.test(await situacaoLinha(page, 'pJur')) &&
     /Em análise \(A validar\)/.test(await situacaoLinha(page, 'pVal')) && /Posicionamento disponível \(opcional\)/.test(await situacaoLinha(page, 'pSem')) &&
-    /Encerrada/.test(await situacaoLinha(page, 'oEnc')) && /Atuação organizacional/.test(await texto(page, linha('oAgi') + ' .mf-linha-tipo')) && /Produto\/Serviço/.test(await texto(page, linha('pJur') + ' .mf-linha-tipo')),
+    /Encerrada/.test(await situacaoLinha(page, 'oEnc')) && /Responsabilidade organizacional/.test(await texto(page, linha('oAgi') + ' .mf-linha-tipo')) && /Produto\/Serviço/.test(await texto(page, linha('pJur') + ' .mf-linha-tipo')),
     'situação em linguagem clara; P1–P16 do Jurídico × atuação diferenciados, sem pendência inventada');
   afirma(!(await page.locator('#mfFiltrosAvancados').evaluate((d) => d.open)), 'filtros e contadores recolhidos por padrão');
   await page.click('#mfFiltrosAvancados > summary');
@@ -105,7 +105,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma((await etapas(page, 'pAssess')).indexOf('decisao:ok') !== -1 && /Jornada completa/.test(await texto(page, card('pAssess'))), '2. Assessoria Previdenciária: decisão registrada, completa');
   await abre(page, 'pJur');
   const tJur = await texto(page, card('pJur'));
-  afirma(/Representado pela atuação “Assessoramento jurídico”/.test(tJur) && /A validar — análise de Produto\/Serviço; não é pendência/.test(tJur) && !(await page.$(card('pJur') + ' .mf-trilha')) &&
+  afirma(/Representado pela responsabilidade “Assessoramento jurídico”/.test(tJur) && /A validar — análise de Produto\/Serviço; não é pendência/.test(tJur) && !(await page.$(card('pJur') + ' .mf-trilha')) &&
     (await acao(page, 'pJur')).h === '#avaliacoes?mf=catalogo&item=oJur', '3. Jurídico P1–P16: representado pela atuação; "A validar" explicado, sem pendência; leva à atuação');
   await abre(page, 'oJur');
   afirma((await etapas(page, 'oJur')) === 'atuacao:ok posicionamento:ok decisao:ok estrutura:ok vinculo:ok', '3. Jurídico (atuação): completa, sem etapa de Squad (Área Especializada)', await etapas(page, 'oJur'));
