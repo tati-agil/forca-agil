@@ -96,7 +96,7 @@
     var t = '<div class="ea-marcador" id="eaMarcador"><p><strong>Gravação:</strong> <span class="an-chip an-chip--' + (lib ? 'ok' : 'pend') + '" id="eaMarcadorValor">' + (lib ? 'Liberada' : 'Desligada') + '</span> ' +
       (lib ? (perfilManter() ? '' : '<span class="an-det">Manter o cadastro é do admin geral e do perfil Avaliação + Configuração.</span>') : '<span class="an-det">Cadastro só para consulta até a liberação pelo admin geral.</span>') + '</p>';
     if (adminGeral()) t += '<details class="an-conceitos" id="eaMarcadorDet"><summary>' + (lib ? 'Desligar a gravação' : 'Liberar a gravação') + '</summary><form class="an-form" id="eaFormMarcador" data-nova="' + (lib ? 'DESLIGADO' : 'LIBERADO') + '">' +
-      '<div class="avp-field"><label for="eaMarcadorMotivo">Motivo</label><input id="eaMarcadorMotivo" maxlength="500"></div><p class="an-nota">Fica no histórico do marcador. Independe da habilitação da Análise Organizacional.</p>' +
+      '<div class="avp-field"><label for="eaMarcadorMotivo">Motivo</label><input type="text" id="eaMarcadorMotivo" maxlength="500"></div><p class="an-nota">Fica no histórico do marcador. Independe da disponibilidade da Análise Organizacional (ADMIN › Acessos).</p>' +
       '<div class="avp-actions-footer"><button type="submit" class="btn btn--sm btn--primary" id="eaMarcadorGravar">' + (lib ? 'Desligar' : 'Liberar') + '</button></div></form></details>';
     return t + '</div>';
   }

@@ -1022,18 +1022,18 @@
        a procurar fica ao lado ("Que evidência devo procurar?"). */
     function renderAjuda(c) {
       var ajuda = c.textoAjuda || {}, partes = [];
-      if (ajuda.significado) partes.push('<p><strong>O que estamos investigando?</strong> ' + esc(ajuda.significado) + '</p>');
+      if (ajuda.significado) partes.push('<p><strong>O que esta pergunta quer descobrir?</strong> ' + esc(ajuda.significado) + '</p>');
       if (ajuda.quandoSim) partes.push('<p><strong>Quando SIM é defensável?</strong> ' + esc(ajuda.quandoSim) + '</p>');
       if (ajuda.quandoNao) partes.push('<p><strong>Quando NÃO é defensável?</strong> ' + esc(ajuda.quandoNao) + '</p>');
       if (ajuda.quandoMesma) partes.push('<p><strong>Quando "' + esc(c.rotuloMesma || 'mesma') + '":</strong> ' + esc(ajuda.quandoMesma) + '</p>');
       if (ajuda.quandoDistintas) partes.push('<p><strong>Quando "' + esc(c.rotuloDistintas || 'distintas') + '":</strong> ' + esc(ajuda.quandoDistintas) + '</p>');
-      if (c.ajudaExtra) partes.push('<p class="po-ajuda-extra"><strong>Para não confundir — o que não determina a resposta</strong><br>' + esc(c.ajudaExtra).replace(/\n/g, '<br>') + '</p>');
+      if (c.ajudaExtra) partes.push('<p class="po-ajuda-extra"><strong>Atenção — o que não determina a resposta, sozinho</strong><br>' + esc(c.ajudaExtra).replace(/\n/g, '<br>') + '</p>');
       return partes.length ? '<details class="avp-ajuda-det"><summary>Ajuda</summary>' + partes.join('') + '</details>' : '';
     }
     function renderPergunta(q, versao, edita, vm) {
       var c = conteudo(q, versao, vm), r = respostaDe(q), v = r && r.resposta;
       var h = '<div class="avp-question po-pergunta" data-q="' + q + '"><div class="avp-question-head"><span class="avp-question-num">' + q + '</span>' +
-        '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' + avisoHeranca(q, null) + renderAjuda(c) + comoInvestigarHtml(q);
+        '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' + avisoHeranca(q, null) + renderAjuda(c) + comoInvestigarHtml(q) + exemplosHtml(q);
       h += '<div class="avp-choice-group">' + ['SIM', 'NAO'].map(function (val) {
         return '<button type="button" class="avp-choice-btn avp-choice-btn--' + (val === 'SIM' ? 'sim' : 'nao') + ' po-resp' + (v === val ? ' active ativa' : '') + '" data-q="' + q + '" data-v="' + val + '"' + (edita ? '' : ' disabled') + '>' + (val === 'SIM' ? 'SIM' : 'NÃO') + '</button>';
       }).join('') + '</div>';
@@ -1210,7 +1210,8 @@
       O5: ['A responsabilidade é dedicada a um Produto/Serviço, a um conjunto coerente deles ou a um resultado de negócio específico para o cliente?',
         'Ela responde pela entrega e evolução desse Produto/Serviço (prioridades, resultado), ou participa dele com uma atividade própria, como definir regras ou parametrizações? Participar não é responder por ele.',
         'Ou disponibiliza uma capacidade, serviço ou meio compartilhado usado por diferentes Linhas?',
-        'Atender cliente externo, isoladamente, não basta; usar plataformas compartilhadas não transforma uma Linha de Negócios em Plataforma.'],
+        'Atender cliente externo, isoladamente, não basta; usar plataformas compartilhadas não transforma uma Linha de Negócios em Plataforma.',
+        'Atender clientes internos também não decide sozinho: existe um resultado próprio, para um público definido, pelo qual esta estrutura responde? Ou ela oferece a mesma atividade a várias áreas?'],
       O6: ['A responsabilidade é o meio de interação (o canal) ou o serviço que se acessa por ele?',
         'Ela busca uma experiência integrada e consistente para quem usa vários canais, clientes ou funcionários?'],
       O7: ['Quem consome a entrega: diferentes Linhas e times, para fazer as suas soluções funcionarem, ou a organização, para se administrar?',
@@ -1224,9 +1225,38 @@
     };
     function comoInvestigarHtml(q) {
       var l = INVESTIGAR[q]; if (!l) return '';
-      return '<details class="po-investigar" id="poInvestigar_' + q + '"><summary>Que evidência devo procurar?</summary><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
+      return '<details class="po-investigar" id="poInvestigar_' + q + '"><summary>O que observar? (evidências a procurar)</summary><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
         '<p class="avp-ficha-meta">Orientação para investigar; o critério é a pergunta e a Ajuda oficial.</p>' +
         '<p class="avp-ficha-meta po-investigar-sem-evidencia">Ainda sem evidência? Não responda agora: salve o rascunho e volte depois. Não marque NÃO só por insegurança.</p></details>';
+    }
+    /* O1–O9: EXEMPLOS ILUSTRATIVOS de SIM e de NÃO — situações descritas pelas características que a pergunta observa,
+       nunca uma área concreta nem uma equivalência automática "objeto X = tipo Y". Não são regra: o critério é a pergunta e
+       a Ajuda oficial da versão do questionário. Recolhidos (divulgação progressiva), ao lado do "O que observar?". */
+    var EXEMPLOS = {
+      O1: ['A responsabilidade responde, de forma contínua, pelo resultado de um conjunto de entregas — por exemplo, manter um benefício funcionando para quem o recebe, com metas acompanhadas e cobradas.',
+        'A responsabilidade produz, na maior parte do tempo, análises e pareceres que outras áreas usam para decidir; o resultado final é de quem decide.'],
+      O2: ['Outras áreas pedem uma análise ou um parecer técnico, e a estrutura responde pela correção técnica dessa resposta — por exemplo, avaliar se uma operação está de acordo com a regulação.',
+        'O conhecimento técnico é usado como etapa de uma entrega contínua e padronizada — por exemplo, processar pedidos recorrentes seguindo regras já definidas.'],
+      O3: ['A estrutura define o método que a organização inteira usa numa disciplina, mantém guias, capacita pessoas e acompanha a maturidade nas diferentes áreas.',
+        'A estrutura aplica o método da disciplina nos casos do dia a dia, sem responder por fazê-lo evoluir para os demais.'],
+      O4: ['A estrutura estuda os públicos, organiza segmentos e entrega recomendações que orientam o portfólio e as decisões da organização, sem responder por uma solução específica.',
+        'A estrutura conhece bem os seus clientes porque é responsável por entregar e evoluir um Produto/Serviço para eles.'],
+      O5: ['A estrutura decide as prioridades de um Produto/Serviço específico, acompanha o resultado dele para o público que o recebe — externo ou interno — e responde quando ele não entrega.',
+        'A estrutura presta a mesma atividade a vários Produtos/Serviços — por exemplo, define parametrizações ou registra operações para todos eles — sem responder pelo resultado de nenhum em particular, ainda que atenda clientes internos e chame essa atividade de "serviço".'],
+      O6: ['A estrutura mantém o meio pelo qual as pessoas interagem — por exemplo, um portal ou uma central de atendimento usado para acessar vários serviços — e cuida da experiência integrada nesse meio.',
+        'A estrutura responde pelo serviço oferecido pelo canal, e não pelo canal em si.'],
+      O7: ['Uma regra ou um cálculo de negócio mantido pela estrutura é usado, do mesmo jeito, por diferentes Produtos/Serviços e Linhas, que dependem dele para funcionar. Não precisa ser um sistema: é algo que a organização sabe fazer e oferece a várias soluções.',
+        'A entrega serve à administração da própria organização — por exemplo, consolidar informações de gestão interna (veja a O9) — ou é dedicada a uma só solução (veja a O5).'],
+      O8: ['A estrutura mantém e evolui uma ferramenta ou um serviço técnico — por exemplo, uma infraestrutura ou uma automação — que diferentes times usam para desenvolver e operar as suas soluções.',
+        'A estrutura usa sistemas intensamente ou define as regras configuradas neles, mas quem mantém e evolui a tecnologia é outra estrutura.'],
+      O9: ['A estrutura presta um serviço padronizado à administração da própria organização — por exemplo, relatórios de gestão interna com regras, formatos e prazos conhecidos —, com ou sem autosserviço.',
+        'A entrega é uma capacidade de negócio consumida pelas Linhas para sustentar as suas soluções (veja a O7), ou uma resposta técnica especializada cuja qualidade a estrutura assume (veja a O2).']
+    };
+    function exemplosHtml(q) {
+      var e = EXEMPLOS[q]; if (!e) return '';
+      return '<details class="po-exemplos" id="poExemplos_' + q + '"><summary>Exemplos de SIM e de NÃO</summary>' +
+        '<p><strong>Exemplo de SIM:</strong> ' + esc(e[0]) + '</p><p><strong>Exemplo de NÃO:</strong> ' + esc(e[1]) + '</p>' +
+        '<p class="avp-ficha-meta">Exemplos ilustrativos, não são regra: o critério é a pergunta e a Ajuda oficial.</p></details>';
     }
     function objetoDadosHtml(ob, nomeRegistrado) {
       /* registro de uma descrição só (cadastro simplificado): mostra a responsabilidade uma vez — nome, descrição e

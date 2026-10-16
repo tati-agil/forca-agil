@@ -1,6 +1,7 @@
 /* Navegação do Admin da Avaliação de Produto/Serviço (PR 3 do prompt consolidado):
- *   - tela inicial organizada em quatro grupos: Configuração das avaliações / Governança
- *     arquitetural / Referências / Acesso (só organização — os mesmos cartões de antes, mais a Documentação);
+ *   - tela inicial organizada em grupos: Questionários e versões / Motores de classificação (P1–P16, O1–O9, S1–S8 num
+ *     só lugar) / Naturezas complementares (com a finalidade: não entra em motor) / … / Referências / Acessos (Permissões
+ *     de usuários e Disponibilidade de funcionalidades, com a Análise Organizacional) — só organização, as mesmas telas;
  *   - TODA subtela tem um "← Voltar para <tela pai>" explícito, que sobe UM nível;
  *   - sair de uma tela de edição com alteração não salva pede confirmação
  *     (e não pede quando nada foi alterado).
@@ -59,18 +60,26 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
 
-    console.log('\n== Tela inicial: grupos (com "Referências" e, para o admin geral, a habilitação da Análise Organizacional) ==');
+    console.log('\n== Tela inicial: grupos (questionários, os três motores juntos, naturezas, Referências e Acessos) ==');
     const titulos = await page.locator('#adminAvaliacaoProduto .avp-admin-grupo > h4').allTextContents();
-    afirma(JSON.stringify(titulos) === JSON.stringify(['Configuração das avaliações', 'Governança arquitetural', 'Estrutura organizacional atual', 'Análise Organizacional (Porta 2)', 'Referências', 'Acesso']), 'grupos: ' + titulos.join(' | '));
+    afirma(JSON.stringify(titulos) === JSON.stringify(['Questionários e versões', 'Motores de classificação', 'Naturezas complementares', 'Estrutura organizacional atual', 'Referências', 'Acessos']), 'grupos: ' + titulos.join(' | '));
     const grupo = (n) => page.locator('#adminAvaliacaoProduto .avp-admin-grupo').nth(n);
-    afirma(await grupo(0).locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn').count() === 2, 'Configuração das avaliações: Questionários e Motores');
+    afirma(await grupo(0).locator('#avpConfigQuestionariosBtn').count() === 1 && await grupo(0).locator('.avp-admin-card').count() === 1, 'Questionários e versões: só os questionários');
+    afirma(JSON.stringify(await grupo(1).locator('.avp-admin-card strong').allTextContents()) === JSON.stringify(['Produto/Serviço (P1–P16)', 'Posicionamento Organizacional (O1–O9)', 'Adequação à gestão por Squad (S1–S8)']) &&
+      await grupo(1).locator('#avpConfigMotoresBtn, #avpMotorPosicionamentoInicioBtn, #avpMotorSquadInicioBtn').count() === 3, 'Motores de classificação: os três motores num só lugar');
+    afirma(await grupo(2).locator('#avpConfigNaturezasBtn').count() === 1 && /não entra em nenhum motor e não muda respostas nem resultados/.test(await grupo(2).innerText()) && /Não é tipo organizacional nem classificação/.test(await grupo(2).innerText()), 'Naturezas complementares: separada dos motores, dizendo o que é e que não muda resultados');
     afirma(await page.locator('#adminAvaliacaoProduto .avp-admin-grupo-uso').count() >= 2 && /configurar/.test(await page.locator('#avpAdminPapel').innerText()) &&
       /ADMIN › Taxonomia/.test(await page.locator('#avpAdminPapel').innerText()), 'I1: configuração × cadastro de estruturas × Taxonomia explicados, com "Onde aparece" em cada grupo');
-    afirma(await grupo(1).locator('#avpConfigNaturezasBtn, #avpMotorSquadInicioBtn').count() === 2, 'Governança arquitetural: Naturezas complementares e Motor de Squad (a avaliação de Squad fica na área Avaliação)');
-    afirma(await grupo(2).locator('#avpEstruturaAtualBtn').count() === 1, 'Estrutura organizacional atual: o cadastro das unidades de hoje (separado das Estruturas do Mapa)');
-    afirma(await grupo(3).locator('#anHabilitacaoAdmin').count() === 1, 'Análise Organizacional (Porta 2): a habilitação, só para o admin geral');
+    afirma(await grupo(3).locator('#avpEstruturaAtualBtn').count() === 1, 'Estrutura organizacional atual: o cadastro das unidades de hoje (separado das Estruturas do Mapa)');
     afirma(await grupo(4).locator('#avpDocumentacaoBtn').count() === 1, 'Referências: Documentação e mapas');
-    afirma(await grupo(5).locator('#avpUsuariosBtn').count() === 1, 'Acesso: Usuários autorizados');
+    afirma(await grupo(5).locator('#avpUsuariosBtn').count() === 1 && await grupo(5).locator('#anHabilitacaoAdmin').count() === 1 && await page.locator('#anHabilitacaoAdmin').count() === 1, 'Acessos: Usuários autorizados (permissões) e a Análise Organizacional (disponibilidade), uma vez só');
+    /* O1–O9: o atalho abre a MESMA área dos motores, já no cartão do Posicionamento; o Voltar dela volta ao início */
+    await page.click('#avpMotorPosicionamentoInicioBtn');
+    await page.waitForSelector('#avpMotorPosicionamento', { timeout: 8000 });
+    afirma(await page.evaluate(() => { const r = document.getElementById('avpMotorPosicionamento').getBoundingClientRect(); return r.top < window.innerHeight && r.bottom > 0; }), 'Posicionamento (O1–O9): abre a área dos motores no cartão dele, à vista');
+    await page.click('#avpMotoresVoltarLista');
+    await page.waitForSelector('#avpMotorPosicionamentoInicioBtn', { timeout: 8000 });
+    afirma(true, 'o Voltar da área dos motores volta ao início de Avaliações e Mapa');
     afirma(await page.locator('#adminPanelArquitetura .avp-panel-titulo').innerText() === 'Administração das Avaliações e do Mapa da Floresta', 'o título da área é "Administração das Avaliações e do Mapa da Floresta"');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 

@@ -721,6 +721,63 @@
           de: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em oferecer serviços corporativos ao cliente interno, preferencialmente por soluções digitais e autosserviço padronizados, buscando escala e previsibilidade?',
           para: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em oferecer serviços corporativos — destinados predominantemente à administração e ao controle da própria organização — ao cliente interno, de forma padronizada, buscando escala e previsibilidade (preferencialmente por soluções digitais e autosserviço, sem que isso seja condição)?' }
       ]
+    },
+    /* PROPOSTA editorial didática (exercício de avaliação da GECON), 2026-10-16 — AGUARDA a aprovação da responsável: nada é
+       publicado sozinho; só o botão "Aplicar" do cartão, no ADMIN, cria a nova versão. Completa as AJUDAS que ainda não
+       existiam (O2, O3, O4, O6: o que a pergunta quer descobrir, quando SIM e quando NÃO são defensáveis) e reforça a O5 —
+       a maior dificuldade da avaliação prática: Produto/Serviço dedicado × serviço compartilhado × capacidade, resultado
+       próprio, público, cliente interno. Vem DEPOIS de 'ajudas-o1-o9-homologacao': os textos dela também contam como
+       anteriores conhecidos, então esta se aplica com ou sem aquela já aplicada. Nenhuma pergunta, interpretação (SIM/NÃO)
+       ou regra do motor muda; O1, O7, O8 e O9 ficam com a proposta anterior. */
+    {
+      id: 'ajudas-o1-o9-didatica',
+      codigo: 'POSICIONAMENTO_ORGANIZACIONAL',
+      titulo: 'Ajudas didáticas de O2, O3, O4, O5 e O6',
+      descricao: 'Proposta para aprovação: O2, O3, O4 e O6 ganham "O que estamos investigando? / Quando SIM é defensável? / Quando NÃO é defensável?". ' +
+        'O5 explica Produto/Serviço dedicado (público definido e resultado próprio pelo qual alguém responde) × serviço compartilhado ou capacidade oferecida a várias áreas, e deixa claro que atender clientes internos ou chamar algo de "serviço" não basta. Só ajudas: nenhuma pergunta nem regra do motor muda.',
+      ajustes: [
+        { pergunta: 'O2', campo: 'textoAjuda.significado',
+          de: 'Identifica responsabilidade típica de Área Especializada.',
+          para: 'Investiga se a entrega principal da responsabilidade é uma resposta técnica especializada — uma análise, um parecer, uma validação ou uma orientação — cuja qualidade técnica ela assume, aplicando conhecimento técnico, normativo, regulatório ou metodológico.' },
+        { pergunta: 'O2', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'Quem pede recebe um julgamento técnico e o usa para decidir ou agir; a estrutura responde pela correção desse julgamento, mesmo quando ele é pedido com frequência.' },
+        { pergunta: 'O2', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O conhecimento técnico é uma etapa de uma entrega contínua, de um serviço padronizado em escala ou da evolução de uma disciplina (veja a O3). Exigir conhecimento especializado, sozinho, não leva a SIM.' },
+        { pergunta: 'O3', campo: 'textoAjuda.significado',
+          de: 'Identifica responsabilidade típica de Centro de Excelência (CoE).',
+          para: 'Investiga se a responsabilidade desenvolve, mantém e dissemina para toda a organização os padrões, métodos, práticas e competências de uma disciplina, fazendo-a evoluir de forma transversal.' },
+        { pergunta: 'O3', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'A estrutura define e atualiza o jeito de fazer da disciplina, capacita pessoas e acompanha a maturidade em diferentes áreas da organização.' },
+        { pergunta: 'O3', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'A estrutura executa os casos que exigem a disciplina, ou responde pela qualidade de pareceres técnicos (veja a O2), sem responder pela evolução da disciplina para os demais.' },
+        { pergunta: 'O4', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O trabalho principal é conhecer os públicos — necessidades, comportamentos, experiência —, organizá-los em segmentos e, com isso, orientar decisões, portfólio e atuação da organização.' },
+        { pergunta: 'O4', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O conhecimento sobre os públicos serve principalmente para entregar e evoluir um Produto/Serviço específico (veja a O5), ou a estrutura disponibiliza uma capacidade compartilhada.' },
+        { pergunta: 'O5', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se a responsabilidade é dedicada a um Produto/Serviço — ou a um conjunto coerente deles, ou a um resultado de negócio específico para o cliente —, respondendo pela entrega e pela evolução dele. Produto/Serviço dedicado: tem um público definido, que o recebe, e um resultado próprio, pelo qual esta estrutura responde. Serviço compartilhado ou capacidade: algo que a estrutura oferece a diferentes Produtos/Serviços e Linhas para que eles funcionem.' },
+        { pergunta: 'O5', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'A estrutura responde pela entrega e pela evolução do Produto/Serviço: decide as prioridades dele, acompanha o resultado dele para o público que o recebe e responde quando ele não entrega. O público pode ser externo ou interno.' },
+        { pergunta: 'O5', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'A estrutura oferece a mesma capacidade, serviço ou atividade a vários Produtos/Serviços e Linhas, ou participa de um Produto/Serviço com uma atividade própria (por exemplo, definir regras ou parametrizações), sem responder pelo resultado dele. ' +
+            'Exemplo ilustrativo: definir roteiros contábeis e parametrizações para um produto novo é participar do desenvolvimento dele, não responder pela entrega e evolução desse produto. ' +
+            'Participar do desenvolvimento ou da operação de um Produto/Serviço não significa, por si só, ser responsável pelo resultado próprio dele.' },
+        { pergunta: 'O5', campo: 'ajudaExtra',
+          de: 'Uma função ou canal exclusivo de determinada solução pode responder SIM. Atender cliente externo, isoladamente, não basta.\n' +
+            'Utilizar plataformas compartilhadas também não transforma uma Linha de Negócios em Plataforma.',
+          para: 'Uma função ou canal exclusivo de determinada solução pode responder SIM. Atender cliente externo, isoladamente, não basta.\n' +
+            'Utilizar plataformas compartilhadas também não transforma uma Linha de Negócios em Plataforma.\n' +
+            'Participar do desenvolvimento ou da operação de um Produto/Serviço, sozinho, também não basta: o que decide é a responsabilidade predominante.\n' +
+            'Atender clientes internos não significa, por si só, possuir um Produto/Serviço dedicado: pode ser um serviço compartilhado ou uma capacidade oferecida a várias áreas.\n' +
+            'Chamar uma atividade de "serviço" também não basta: o que importa é se existe um resultado próprio, para um público definido, pelo qual esta estrutura responde.\n' +
+            'Entregar um serviço é responder pelo resultado que o público recebe; disponibilizar uma capacidade é oferecer algo que outros usam para fazer as suas próprias entregas.' },
+        { pergunta: 'O6', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se a responsabilidade é o meio de interação — o canal — pelo qual clientes ou funcionários acessam diferentes serviços, cuidando para que a experiência seja integrada, contínua e consistente.' },
+        { pergunta: 'O6', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'A estrutura mantém e evolui o canal (presencial, telefônico ou digital) usado para acessar vários serviços e responde pela experiência de quem o usa.' },
+        { pergunta: 'O6', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'A estrutura é responsável pelo serviço que se acessa pelo canal, e não pelo canal em si; ou o canal é exclusivo de uma só solução (veja a O5).' }
+      ]
     }
   ];
   function correcaoPorId(id) { return CORRECOES_EDITORIAIS.filter(function (c) { return c.id === id; })[0] || null; }

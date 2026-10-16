@@ -79,7 +79,8 @@
     EVIDENCIA_INSUFICIENTE: ['Faltam respostas ou nenhum papel foi identificado.', 'Complete as respostas no Posicionamento ou registre a pendência com o que falta.'],
     INCOERENCIA: ['Uma resposta SIM ficou fora do caminho do questionário.', 'Confira as respostas no Posicionamento (reavaliação) ou volte à delimitação, se elas refletem responsabilidades diferentes.']
   };
-  var HAB = { DESLIGADO: 'Desligado', SOMENTE_ADMIN_GERAL: 'Somente admin geral (homologação)', LIBERADO_PARA_PERFIS_AUTORIZADOS: 'Liberado para os perfis autorizados' };
+  /* estados gravados no banco (códigos, inalterados) → rótulos mostrados em ADMIN › Acessos › Disponibilidade de funcionalidades */
+  var HAB = { DESLIGADO: 'Desativada', SOMENTE_ADMIN_GERAL: 'Ativada só para o admin geral (homologação)', LIBERADO_PARA_PERFIS_AUTORIZADOS: 'Ativada para os perfis autorizados' };
   /* textos de tela de algumas perguntas (a matriz F1–F17 do núcleo continua a fonte da pergunta e do porquê) */
   var TEXTO_PERGUNTA = {
     F2a: { curta: 'Um só resultado e um só destinatário?' },
@@ -1453,13 +1454,13 @@
       var p = perfil();
       if (!p.adminGeral) { el.innerHTML = ''; return; }
       var atual = D.hab === undefined ? null : D.hab, reg = D.habRegistro;
-      el.innerHTML = '<div class="an-habilitacao" id="anHabilitacao"><p><strong>Habilitação:</strong> <span id="anHabAtual">' + (atual ? esc(HAB[atual] || atual) : 'Carregando…') + '</span>' +
+      el.innerHTML = '<div class="an-habilitacao" id="anHabilitacao"><p><strong>Situação:</strong> <span id="anHabAtual">' + (atual ? esc(HAB[atual] || atual) : 'Carregando…') + '</span>' +
         (reg ? ' <span class="an-det">(' + esc(fmtData(reg.alteradoEm)) + ' · ' + esc((reg.alteradoPor || {}).email || '') + ' · ' + esc(reg.motivo) + ')</span>' : '') + '</p>' +
-        '<p class="an-nota">Desligado: nada da Análise Organizacional aparece e a Porta 2 continua igual. Somente admin geral: para homologar. Liberado: os perfis autorizados leem; Avaliação + Configuração e admin geral gravam. O banco aplica a mesma regra; desligar não apaga nada.</p>' +
+        '<p class="an-nota">Desativada: nada da Análise Organizacional aparece e a Porta 2 continua igual. Ativada só para o admin geral: para homologar. Ativada para os perfis autorizados: os perfis autorizados consultam; Avaliação + Configuração e admin geral registram. O banco aplica a mesma regra; desativar não apaga nenhum dado.</p>' +
         (ok ? '<p class="avp-flash-success" role="status">' + esc(ok) + '</p>' : '') + (erro ? '<p class="avp-error-msg" role="alert">' + esc(erro) + '</p>' : '') +
-        (formAberto ? '<form class="an-form" id="anFormHabilitacao"><fieldset class="an-opcoes"><legend>Novo estado</legend>' + Object.keys(HAB).map(function (k) { return '<label class="an-opcao"><input type="radio" name="anHab" value="' + k + '"' + (k === atual ? ' checked' : '') + '><span>' + esc(HAB[k]) + '</span></label>'; }).join('') + '</fieldset>' +
-          '<div class="avp-field"><label for="anHabMotivo">Motivo</label><input id="anHabMotivo" maxlength="500"></div><div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anHabSalvar"' + (gravando ? ' disabled' : '') + '>Salvar</button><button type="button" class="btn btn--sm" id="anHabCancelar">Cancelar</button></div></form>'
-          : '<button type="button" class="btn btn--sm" id="anHabAlterar">Alterar habilitação</button>') + '</div>';
+        (formAberto ? '<form class="an-form" id="anFormHabilitacao"><fieldset class="an-opcoes"><legend>Nova disponibilidade</legend>' + Object.keys(HAB).map(function (k) { return '<label class="an-opcao"><input type="radio" name="anHab" value="' + k + '"' + (k === atual ? ' checked' : '') + '><span>' + esc(HAB[k]) + '</span></label>'; }).join('') + '</fieldset>' +
+          '<div class="avp-field"><label for="anHabMotivo">Motivo</label><input type="text" id="anHabMotivo" maxlength="500"></div><div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anHabSalvar"' + (gravando ? ' disabled' : '') + '>Salvar</button><button type="button" class="btn btn--sm" id="anHabCancelar">Cancelar</button></div></form>'
+          : '<button type="button" class="btn btn--sm" id="anHabAlterar">Alterar disponibilidade</button>') + '</div>';
     }
     el.addEventListener('click', function (ev) {
       if (ev.target.id === 'anHabAlterar') { formAberto = true; ok = null; erro = null; desenhar(); }
@@ -1469,7 +1470,7 @@
       ev.preventDefault();
       var nova = (el.querySelector('input[name="anHab"]:checked') || {}).value, motivo = (document.getElementById('anHabMotivo') || {}).value || '';
       var ident = S().identidade();
-      if (!nova || !motivo.trim() || !ident) { erro = 'Escolha o novo estado e escreva o motivo.'; desenhar(); return; }
+      if (!nova || !motivo.trim() || !ident) { erro = 'Escolha a nova disponibilidade e escreva o motivo.'; desenhar(); return; }
       var payload;
       try { payload = F().payloadHabilitacao({ anterior: D.hab, nova: nova, motivo: motivo, audId: S().novaChave(F().NOS.configAuditoria), usuario: ident, agora: S().agoraServidor() }); }
       catch (e) { erro = e.message; desenhar(); return; }
@@ -1477,7 +1478,7 @@
       S().gravar(payload, PRAZO, function (err) {
         gravando = false;
         if (err) { erro = err === 'sem-resposta' ? 'O servidor não respondeu a tempo; confira antes de repetir.' : 'O banco recusou a alteração.'; desenhar(); return; }
-        formAberto = false; erro = null; ok = 'Habilitação alterada para: ' + (HAB[nova] || nova) + '.'; desenhar();
+        formAberto = false; erro = null; ok = 'Disponibilidade alterada para: ' + (HAB[nova] || nova) + '.'; desenhar();
       });
     });
     aoMudarFns.push(function () { if (document.body.contains(el) && !formAberto) desenhar(); });
