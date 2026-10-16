@@ -528,9 +528,9 @@
     },
     {
       "arquivo": ".github/scripts/teste-orientacao-o1-o9.js",
-      "nome": "Orientações O1–O9: ajudas no padrão, evidências, \"ainda não sei\" e propostas editoriais sem publicação automática (desktop e celular)",
+      "nome": "Orientações O1–O9: ajudas no padrão, o que observar, exemplos ilustrativos, \"ainda não sei\" e propostas editoriais sem publicação automática (desktop e celular)",
       "duracao": 60,
-      "sobre": "As propostas editoriais de O1, O5, O7, O8 e O9 (ajudas) e da redação da O9 só mexem nos campos previstos, partem do texto em vigor e só entram em vigor pelo botão Aplicar do ADMIN (uma versão por proposta); a Ajuda aparece no padrão \"O que estamos investigando? / Quando SIM / Quando NÃO / O que não determina\", com \"Que evidência devo procurar?\" para O1–O9; avaliação começada antes mantém a redação dela; aviso de que sem resposta não é NÃO e de que dá para salvar e voltar; só SIM e NÃO. Hermético."
+      "sobre": "As propostas editoriais (O1, O5, O7, O8, O9; redação da O9; e a didática de O2–O6, com a O5 explicando dedicado × compartilhado e cliente interno) só mexem nos campos previstos, partem do texto em vigor e só entram em vigor pelo botão Aplicar do ADMIN (uma versão por proposta; a didática se aplica também depois da anterior); a Ajuda aparece no padrão \"O que esta pergunta quer descobrir? / Quando SIM / Quando NÃO / Atenção — o que não determina\", com \"O que observar?\" e \"Exemplos de SIM e de NÃO\" (ilustrativos, não são regra) para O1–O9; avaliação começada antes mantém a redação dela; aviso de que sem resposta não é NÃO; só SIM e NÃO. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-governanca.js",
@@ -567,6 +567,12 @@
       "nome": "Navegação de ida e volta entre as telas (origem preservada; desktop e celular)",
       "duracao": 120,
       "sobre": "Cada tela aberta a partir de outra volta para ELA, com o rótulo da origem real e o retorno conferido: Posicionamento → Squad (nova e em andamento, com F5) → Posicionamento; Jornada → Posicionamento (Voltar/Avançar do navegador); ficha de Produto/Serviço → Posicionar → ficha; Trabalhos → Jornada → Trabalhos → Início sem ciclo; ADMIN › Avaliações e Mapa → Squad → ADMIN; Mapa → estrutura → objeto → a mesma estrutura; Jornada lista → item → lista sem empilhar; Mapa → cadastro/ficha de estrutura → Mapa; Mapa → Documentação → Mapa; lista de Posicionamentos → ficha → lista. Sem erro de JS, sem rolagem lateral, nada gravado. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-campos-busca-tema.js",
+      "nome": "Campos de formulário no tema escuro e ADMIN › Acessos (desktop e celular)",
+      "duracao": 60,
+      "sobre": "Regra-base dos controles de formulário das áreas escuras (ADMIN e Avaliação): o filtro da Avaliações Squad, a busca da Jornada do Mapa, o motivo do marcador e o formulário de unidade da Estrutura Organizacional Atual (campos sem type, data, select) com fundo escuro, texto e placeholder ≥ 4,5:1, foco visível, estados desabilitado e somente leitura, checkbox no padrão; os filtros continuam filtrando. ADMIN › Acessos: Permissões de usuários e Disponibilidade de funcionalidades, com a Análise Organizacional (Porta 2) uma vez só, rótulos Ativada/Desativada e Alterar disponibilidade; perfil restrito sem Acessos. Nada gravado. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",

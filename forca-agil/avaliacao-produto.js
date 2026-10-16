@@ -2847,7 +2847,10 @@
        para mostrar o topo de uma tela que já está à vista. */
     function rolarAdmin(alvo) {
       window.requestAnimationFrame(function () {
-        if (alvo === 'topo') {
+        if (typeof alvo === 'string' && alvo.charAt(0) === '#') { /* um elemento da tela (abaixo do menu fixo) */
+          var el = document.querySelector(alvo), nav = document.querySelector('.nav');
+          if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + (window.pageYOffset || 0) - (nav ? nav.offsetHeight : 0) - 12), left: 0, behavior: 'instant' });
+        } else if (alvo === 'topo') {
           var topo = Math.max(0, wrap.getBoundingClientRect().top + (window.pageYOffset || 0) - 90);
           if ((window.pageYOffset || 0) > topo) window.scrollTo({ top: topo, left: 0, behavior: 'instant' });
         } else {
@@ -5211,16 +5214,21 @@
       html += '<div class="avp-form-card avp-admin-inicio">';
       html += '<p class="avp-decisao-aviso" id="avpAdminPapel">Duas responsabilidades diferentes: <strong>configurar</strong> como as avaliações perguntam e classificam, e <strong>cadastrar as estruturas concretas</strong> que recebem as responsabilidades e aparecem no Mapa. Conceitos, definições e relações oficiais ficam em <strong>ADMIN › Taxonomia</strong> (admin geral). Consultar e realizar avaliações (inclusive as de Squad) é feito na área <strong>Avaliação</strong> do menu principal.</p>';
       html += '</div>';
-      html += grupo('Configuração das avaliações', 'O que as perguntas dizem e como as respostas viram uma classificação.',
-        cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Redação das perguntas e justificativas, com versões e auditoria.') +
-        cartao('avpConfigMotoresBtn', 'Configuração dos Motores', 'Regras que classificam os itens, com simulação e versões.'),
+      /* Três agrupamentos, só de organização (cada cartão leva à MESMA tela de antes): o que as perguntas dizem
+         (questionários), as regras que transformam respostas em resultado (os três motores, juntos) e uma configuração
+         auxiliar que não entra em motor nenhum (naturezas complementares — naturezas-config.js). */
+      html += grupo('Questionários e versões', 'O que as perguntas dizem: textos, ajudas, interpretações, versões e histórico dos questionários das avaliações.',
+        cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Redação das perguntas e justificativas, com versões e auditoria.'),
         'nas avaliações da área Avaliação (Produto/Serviço, Posicionamento e Adequação à Squad).');
-      /* A avaliação de Squad em si mora na área AVALIAÇÃO do menu (junto das demais avaliações);
-         aqui fica só a governança dela: o motor de squad. */
-      html += grupo('Governança arquitetural', 'Opções de descrição dos itens e as regras da adequação à gestão por squad.',
-        cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
-        (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Motor de Squad', 'Regras da adequação à gestão por squad (S1–S8), com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''),
-        'na descrição dos itens avaliados e na Adequação à Squad.');
+      /* os três motores num só lugar; a avaliação de Squad em si continua na área Avaliação */
+      html += grupo('Motores de classificação', 'As regras que transformam as respostas de cada avaliação num resultado. Cada motor tem as suas versões e o seu histórico; nenhum decide por pontuação.',
+        cartao('avpConfigMotoresBtn', 'Produto/Serviço (P1–P16)', 'Regras que classificam o item, com simulação, versões e histórico de alterações.') +
+        cartao('avpMotorPosicionamentoInicioBtn', 'Posicionamento Organizacional (O1–O9)', 'Versões do motor, prontidão, simulação e impacto — só consulta (a regra é fixa e a entrada em vigor é governada).') +
+        (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Adequação à gestão por Squad (S1–S8)', 'Regras da adequação à gestão por squad, com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''),
+        'na conclusão de cada avaliação da área Avaliação.');
+      html += grupo('Naturezas complementares', 'Lista de opções do campo opcional "Natureza complementar" da ficha da Avaliação de Produto/Serviço: uma descrição manual de que tipo de item é (por exemplo, um programa transversal). Não é tipo organizacional nem classificação: não entra em nenhum motor e não muda respostas nem resultados.',
+        cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções oferecidas no campo, com ativação, ordem e histórico.'),
+        'na ficha da Avaliação de Produto/Serviço (campo opcional, preenchido na curadoria).');
       if (estruturasDisponiveis()) {
         html += grupo('Cadastro de estruturas concretas', 'As estruturas reais — por exemplo, uma Linha de Negócios específica — que recebem responsabilidades. O tipo vem do Posicionamento; a estrutura é cadastrada aqui; o vínculo de cada item é registrado na ficha do Posicionamento.',
           cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'),
@@ -5231,21 +5239,30 @@
           cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Árvore das unidades, ficha com histórico, subordinadas e encerramento com motivo.'),
           'na Porta 2: para escolher a área analisada e quem executa cada responsabilidade hoje.');
       }
-      /* Análise Organizacional (Porta 2): o marcador de homologação — só admin geral (analises-organizacionais.js) */
-      if (souAdminGeral() && window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao) {
-        html += '<section class="avp-form-card avp-admin-inicio avp-admin-grupo" aria-label="Análise Organizacional"><h4>Análise Organizacional (Porta 2)</h4>' +
-          '<p class="avp-admin-grupo-desc">Jornada para descobrir e delimitar responsabilidades num escopo amplo. Começa desligada; a habilitação vale também no banco.</p>' +
-          '<p class="avp-admin-grupo-uso"><strong>Onde aparece:</strong> nas atuações organizacionais da área Avaliação (Porta 2).</p><div id="anHabilitacaoAdmin"></div></section>';
-      }
       html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
         cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
+      /* ACESSOS (só admin geral): duas seções distintas — quem pode usar (permissões) e o que está ativado (disponibilidade).
+         O controle da Análise Organizacional (Porta 2) mora aqui, uma vez só (analises-organizacionais.js: mesma lógica, mesmo
+         estado gravado, mesmo histórico; desativar não apaga dados). */
       if (souAdminGeral()) {
-        html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na área Avaliações e Mapa do ADMIN.',
-          cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a área Avaliações e Mapa do ADMIN), com histórico.'));
+        var temDisp = !!(window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao);
+        html += '<section class="avp-form-card avp-admin-inicio avp-admin-grupo avp-acessos" id="avpAdminAcessos" aria-labelledby="avpAdminAcessosTitulo"><h4 id="avpAdminAcessosTitulo">Acessos</h4>' +
+          '<p class="avp-admin-grupo-desc">Quem pode usar cada funcionalidade e quais funcionalidades estão ativadas. Só o administrador geral altera.</p>' +
+          '<h5 class="avp-acessos-secao" id="avpAcessosPermissoes">Permissões de usuários</h5>' +
+          '<div class="avp-admin-cards">' + cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a área Avaliações e Mapa do ADMIN), com histórico.') + '</div>' +
+          (temDisp ? '<h5 class="avp-acessos-secao" id="avpAcessosDisponibilidade">Disponibilidade de funcionalidades</h5>' +
+            '<div class="avp-disponibilidade" id="avpDispPorta2"><p class="avp-disp-nome"><strong>Análise Organizacional (Porta 2)</strong></p>' +
+            '<p class="avp-admin-grupo-desc">Jornada para descobrir e delimitar responsabilidades num escopo amplo. Onde aparece: nas atuações organizacionais da área Avaliação. Começa desativada; a disponibilidade vale também no banco.</p>' +
+            '<div id="anHabilitacaoAdmin"></div></div>' : '') + '</section>';
       }
       wrap.innerHTML = html;
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
+      /* Posicionamento (O1–O9): a mesma área dos motores, já no cartão dele */
+      document.getElementById('avpMotorPosicionamentoInicioBtn').addEventListener('click', function () {
+        abrirConfigMotores();
+        rolarAdmin('#avpMotorPosicionamento'); /* depois da subida ao topo da subtela, no mesmo quadro */
+      });
       document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
       var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
       if (squadBtn) squadBtn.addEventListener('click', abrirMotorSquadDoInicio);

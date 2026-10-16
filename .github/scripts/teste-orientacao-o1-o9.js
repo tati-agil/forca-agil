@@ -6,8 +6,12 @@
  *      está em vigor sem edição manual) e os campos criados não existem hoje. O conteúdo de fábrica não foi reescrito.
  *   B. (tela) nada é publicado sozinho: o questionário continua na versão em vigor até alguém clicar em "Aplicar" no
  *      ADMIN; os cartões mostram atual × proposto; aplicar cria UMA versão por proposta, com só os campos previstos.
- *   C. (tela) a pergunta mostra a Ajuda no padrão "O que estamos investigando? / Quando SIM é defensável? / Quando NÃO é
- *      defensável? / Para não confundir — o que não determina a resposta", recolhida, e "Que evidência devo procurar?" para O1–O9; avaliação
+ *   A2. a terceira PROPOSTA (didática) mexe só em ajudas (textoAjuda.* e ajudaExtra) de O2, O3, O4, O5 e O6, vem depois das
+ *      outras, parte do texto de fábrica e explica, na O5, cliente interno e "serviço" × Produto/Serviço dedicado; nada cita a
+ *      área homologada. Aplicada pelo ADMIN DEPOIS da anterior, cria UMA versão só com os campos previstos.
+ *   C. (tela) a pergunta mostra a Ajuda no padrão "O que esta pergunta quer descobrir? / Quando SIM é defensável? / Quando NÃO
+ *      é defensável? / Atenção — o que não determina a resposta, sozinho", recolhida, "O que observar?" e "Exemplos de SIM e de
+ *      NÃO" (ilustrativos, não são regra) para O1–O9; avaliação
  *      começada antes da aplicação continua com a redação dela; depois, com a nova (O5, O7, O8, O9) — e o apoio O7 × O9
  *      cita a pergunta da versão da avaliação e diz que autosserviço é forma, não condição.
  *   D. "Ainda não sei": o aviso explica que deixar sem resposta não é NÃO e que dá para salvar e voltar; só SIM e NÃO
@@ -26,7 +30,7 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.j
 const RAIZ = path.join(__dirname, '..', '..', 'forca-agil');
 const ADM = 'admin.geral@previ.com.br';
 const QCOD = 'POSICIONAMENTO_ORGANIZACIONAL';
-const AJ = 'ajudas-o1-o9-homologacao', RO9 = 'redacao-pergunta-o9';
+const AJ = 'ajudas-o1-o9-homologacao', RO9 = 'redacao-pergunta-o9', DID = 'ajudas-o1-o9-didatica';
 let falhas = 0, total = 0;
 function afirma(c, msg, det) { total++; console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det !== undefined ? ' → ' + (typeof det === 'string' ? det : JSON.stringify(det)) : '')); if (!c) falhas++; }
 
@@ -102,9 +106,9 @@ async function tela(browser, viewport, rotulo) {
   afirma(/Ainda não sabe responder\?/.test(await texto(page, '#poSemEvidencia')) && /não conta como NÃO/.test(await texto(page, '#poSemEvidencia')) && /SALVAR RASCUNHO/.test(await texto(page, '#poSemEvidencia')), 'D. o aviso: sem resposta não é NÃO; salvar o rascunho e voltar');
   afirma(await page.locator('.po-pergunta[data-q="O1"] .po-resp').count() === 2, 'D. só SIM e NÃO (nenhuma terceira resposta)');
   const ajO1 = await texto(page, '.po-pergunta[data-q="O1"] .avp-ajuda-det');
-  afirma(/O que estamos investigando\?/.test(ajO1) && /Quando SIM é defensável\?/.test(ajO1) && /Quando NÃO é defensável\?/.test(ajO1) && !(await page.evaluate(() => document.querySelector('.po-pergunta[data-q="O1"] .avp-ajuda-det').open)), 'C. Ajuda no padrão novo, recolhida');
+  afirma(/O que esta pergunta quer descobrir\?/.test(ajO1) && /Quando SIM é defensável\?/.test(ajO1) && /Quando NÃO é defensável\?/.test(ajO1) && !(await page.evaluate(() => document.querySelector('.po-pergunta[data-q="O1"] .avp-ajuda-det').open)), 'C. Ajuda no padrão novo, recolhida');
   afirma(/Identifica se a responsabilidade tem característica de Linha/.test(ajO1), 'B. antes de aplicar: a Ajuda continua a redação em vigor (nada publicado sozinho)');
-  afirma(/Que evidência devo procurar\?/.test(await texto(page, '#poInvestigar_O1 > summary')) && /Responder SIM não cria uma Linha/.test(await texto(page, '#poInvestigar_O1')) && /Não marque NÃO só por insegurança/.test(await texto(page, '#poInvestigar_O1')), 'C. "Que evidência devo procurar?" (O1), com o lembrete de não marcar NÃO por insegurança');
+  afirma(/O que observar\?/.test(await texto(page, '#poInvestigar_O1 > summary')) && /Responder SIM não cria uma Linha/.test(await texto(page, '#poInvestigar_O1')) && /Não marque NÃO só por insegurança/.test(await texto(page, '#poInvestigar_O1')), 'C. "O que observar?" (O1), com o lembrete de não marcar NÃO por insegurança');
   /* D. salvar com perguntas sem resposta */
   await page.click('.po-resp[data-q="O1"][data-v="SIM"]');
   await esperarCondicao(page, () => !!document.querySelector('.po-resp.ativa[data-q="O1"]'), null, { descricao: 'O1 marcada' });
@@ -145,17 +149,32 @@ async function tela(browser, viewport, rotulo) {
   q = db['questionarios-config'][QCOD];
   afirma(q.versaoPublicada === 4 && JSON.stringify(diferencas(Q, q.versoes[3].perguntas, q.versoes[4].perguntas)) === JSON.stringify(['O9.texto']), 'B. aplicar a redação da O9 cria a versão 4 só com o texto da O9', diferencas(Q, q.versoes[3].perguntas, q.versoes[4].perguntas));
 
+  /* A2 na tela: a proposta didática, aplicada DEPOIS da anterior (cujos textos contam como anteriores conhecidos) */
+  const cDid = await texto(page, '#avpCorrecao-' + DID);
+  afirma(/Correção editorial disponível/.test(cDid) && /15 ajustes/.test(cDid) && !/divergente/.test(cDid), 'A2. cartão da proposta didática: 15 ajustes pendentes, nada divergente, com a anterior já aplicada', cDid.slice(0, 200));
+  await aplicar(page, DID);
+  db = await banco(page);
+  q = db['questionarios-config'][QCOD];
+  afirma(q.versaoPublicada === 5 && JSON.stringify(diferencas(Q, q.versoes[4].perguntas, q.versoes[5].perguntas)) === JSON.stringify(['O2.textoAjuda.quandoNao', 'O2.textoAjuda.quandoSim', 'O2.textoAjuda.significado', 'O3.textoAjuda.quandoNao', 'O3.textoAjuda.quandoSim', 'O3.textoAjuda.significado', 'O4.textoAjuda.quandoNao', 'O4.textoAjuda.quandoSim', 'O5.ajudaExtra', 'O5.textoAjuda.quandoNao', 'O5.textoAjuda.quandoSim', 'O5.textoAjuda.significado', 'O6.textoAjuda.quandoNao', 'O6.textoAjuda.quandoSim', 'O6.textoAjuda.significado']), 'A2. aplicar a proposta didática cria a versão 5 só com as ajudas de O2–O6', diferencas(Q, q.versoes[4].perguntas, q.versoes[5].perguntas));
+  afirma(q.versoes[5].perguntas.every((x) => { const a = q.versoes[4].perguntas.find((y) => y.codigoEstavel === x.codigoEstavel); return a.texto === x.texto && a.justSim === x.justSim && a.justNao === x.justNao; }), 'A2. nenhuma pergunta nem interpretação (SIM/NÃO) mudou');
+
   /* C. avaliação começada depois: redação nova */
   await iniciar(page, 'oDepois');
   await ateN3(page);
   const aj = async (qq) => texto(page, '.po-pergunta[data-q="' + qq + '"] .avp-ajuda-det');
-  afirma(/Responder SIM não cria uma nova Linha/.test(await aj('O1')) && /Para não confundir — o que não determina a resposta/.test(await aj('O1')), 'C. O1: SIM não cria Linha; o que não determina');
-  afirma(/definir roteiros contábeis e parametrizações para um produto novo é participar do desenvolvimento dele/.test(await aj('O5')), 'C. O5: responder pelo Produto/Serviço × participar dele');
+  afirma(/Responder SIM não cria uma nova Linha/.test(await aj('O1')) && /Atenção — o que não determina a resposta/.test(await aj('O1')), 'C. O1: SIM não cria Linha; o que não determina');
+  afirma(/participa de um Produto\/Serviço com uma atividade própria/.test(await aj('O5')) && /Atender clientes internos não significa, por si só, possuir um Produto\/Serviço dedicado/.test(await aj('O5')) && /Chamar uma atividade de "serviço" também não basta/.test(await aj('O5')) && /disponibilizar uma capacidade é oferecer algo que outros usam/.test(await aj('O5')), 'C. O5: dedicado × compartilhado; cliente interno e "serviço" não bastam; entregar × disponibilizar capacidade');
+  afirma(/resposta técnica especializada/.test(await aj('O2')) && /Quando SIM é defensável\?/.test(await aj('O2')) && /desenvolve, mantém e dissemina/.test(await aj('O3')) && /Quando NÃO é defensável\?/.test(await aj('O3')), 'C. O2 e O3: Ajuda completa no padrão (antes, só uma frase)');
+  for (const qq of ['O1', 'O2', 'O3', 'O4', 'O5']) {
+    const ex = await page.evaluate((x) => { const d = document.getElementById('poExemplos_' + x); return d ? { aberto: d.open, t: d.textContent } : null; }, qq);
+    afirma(!!ex && !ex.aberto && /Exemplo de SIM:/.test(ex.t) && /Exemplo de NÃO:/.test(ex.t) && /não são regra/.test(ex.t), 'C. ' + qq + ': exemplos de SIM e de NÃO, recolhidos, ilustrativos (não são regra)');
+  }
   afirma(/Capacidade de negócio compartilhada:/.test(await aj('O7')) && /Não decidem sozinhos, porque O7 e O9 podem ter essas características/.test(await aj('O7')), 'C. O7: o que é capacidade/serviço compartilhado e o que não distingue O7 de O9');
   afirma(/usa tecnologia ou define regras para parametrizar um sistema/.test(await aj('O8')), 'C. O8: usar ou parametrizar × disponibilizar a capacidade tecnológica');
   afirma(/não uma condição para responder SIM/.test(await aj('O9')) && /tendem a O9 — Plataforma de Gestão Corporativa/.test(await aj('O9')), 'C. O9: autosserviço é forma preferencial; a Ajuda aprovada em 15/10 continua');
   afirma(/destinados predominantemente à administração e ao controle da própria organização/.test(await texto(page, '.po-pergunta[data-q="O9"] .avp-question-text')), 'C. O9: a pergunta na redação nova');
-  for (const qq of ['O6', 'O7', 'O8', 'O9']) afirma(/Que evidência devo procurar\?/.test(await texto(page, '#poInvestigar_' + qq + ' > summary')), 'C. ' + qq + ': "Que evidência devo procurar?"');
+  for (const qq of ['O6', 'O7', 'O8', 'O9']) afirma(/O que observar\?/.test(await texto(page, '#poInvestigar_' + qq + ' > summary')) && await page.locator('#poExemplos_' + qq).count() === 1, 'C. ' + qq + ': "O que observar?" e os exemplos');
+  afirma(/com ou sem autosserviço/.test(await page.evaluate(() => (document.getElementById('poExemplos_O9') || {}).textContent || '')), 'C. O9: o exemplo de SIM não exige autosserviço');
   const apoio = await page.evaluate(() => { const d = document.getElementById('poTiposEstrutura'); if (d) d.open = true; const a = document.getElementById('poApoioO7O9'); if (a) a.open = true; return { o9: (document.getElementById('poApoioTextoO9') || {}).textContent || '', auto: (document.getElementById('poApoioAutosservico') || {}).textContent || '' }; });
   afirma(/sem que isso seja condição/.test(apoio.o9) && /a ausência de autosserviço, sozinha, não leva a O9 = NÃO/.test(apoio.auto), 'C. apoio O7 × O9: cita a pergunta da versão da avaliação e diz que autosserviço é forma, não condição');
   await page.evaluate(() => document.querySelectorAll('.avp-ajuda-det, .po-investigar').forEach((d) => { d.open = true; }));
@@ -181,6 +200,13 @@ async function tela(browser, viewport, rotulo) {
   afirma(ro.ajustes.length === 1 && ro.ajustes[0].pergunta === 'O9' && ro.ajustes[0].campo === 'texto' && ro.ajustes[0].de === fab('O9').texto, 'A. redação: só o texto da O9, a partir do texto de fábrica');
   afirma(/preferencialmente por soluções digitais e autosserviço padronizados/.test(fab('O9').texto) && /Identifica se a responsabilidade tem característica de Linha/.test(fab('O1').textoAjuda.significado), 'A. o conteúdo de fábrica (versão 1) não foi reescrito');
   afirma(aj.ajustes.every((x) => !/GECON|PREVI/.test(x.para || '')), 'A. nenhum texto cita a área homologada nem induz o resultado');
+  const did = lista.find((x) => x.id === DID);
+  afirma(!!did && did.codigo === QCOD && lista.indexOf(did) > lista.indexOf(aj) && lista.indexOf(did) > lista.indexOf(ro), 'A2. a proposta didática existe e vem depois das outras');
+  afirma(did.ajustes.every((x) => ['O2', 'O3', 'O4', 'O5', 'O6'].includes(x.pergunta) && /^(textoAjuda\.(significado|quandoSim|quandoNao)|ajudaExtra)$/.test(x.campo)), 'A2. só textoAjuda.* e ajudaExtra de O2, O3, O4, O5 e O6');
+  afirma(did.ajustes.every((x) => (x.de === null ? lerCampo(fab(x.pergunta), x.campo) == null : lerCampo(fab(x.pergunta), x.campo) === x.de)), 'A2. todo "de" é o texto de fábrica; os campos criados não existem de fábrica');
+  afirma(did.ajustes.every((x) => !/GECON|PREVI|autosservi/i.test(x.para || '')), 'A2. nenhum texto cita a área homologada nem fala de autosserviço');
+  const extraO5 = did.ajustes.find((x) => x.pergunta === 'O5' && x.campo === 'ajudaExtra').para;
+  afirma(/Atender clientes internos não significa, por si só, possuir um Produto\/Serviço dedicado/.test(extraO5) && /Chamar uma atividade de "serviço" também não basta/.test(extraO5), 'A2. O5: cliente interno e o nome "serviço", sozinhos, não bastam');
   const browser = await chromium.launch();
   try {
     await tela(browser, { width: 1280, height: 900 }, 'Computador (1280 px)');

@@ -532,7 +532,7 @@
       if (state.flashExportacao) {
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '" id="sqExportStatus">' + esc(state.flashExportacao.texto) + '</p>';
       }
-      html += '<div class="avp-filters"><input type="text" id="sqFiltroTexto" placeholder="Filtrar por nome do item…" value="' + esc(state.filtroTexto) + '"></div>';
+      html += '<div class="avp-filters"><input type="search" class="avp-busca" id="sqFiltroTexto" autocomplete="off" aria-label="Filtrar por nome do item" placeholder="Filtrar por nome do item…" value="' + esc(state.filtroTexto) + '"></div>';
 
       if (!filtrados.length) {
         html += '<p class="admin-empty">' + (ativos.length ? 'Nenhuma avaliação de squad para esse filtro.' : 'Nenhuma avaliação de squad registrada ainda.') + '</p>';

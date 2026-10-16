@@ -424,13 +424,13 @@ async function marcador(browser) {
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#admin?arq=inicio', { email: ADM }));
   await page.waitForSelector('#anHabilitacao', { timeout: 20000 });
-  await esperar(page, () => /Desligado/.test((document.getElementById('anHabAtual') || {}).textContent || ''));
-  afirma(true, 'ADMIN › Avaliação e Mapa (admin geral): a habilitação aparece como Desligado');
+  await esperar(page, () => /Desativada/.test((document.getElementById('anHabAtual') || {}).textContent || ''));
+  afirma(!!(await page.$('#avpAdminAcessos #avpAcessosDisponibilidade ~ #avpDispPorta2 #anHabilitacao')), 'ADMIN › Avaliações e Mapa › Acessos › Disponibilidade de funcionalidades (admin geral): a Análise Organizacional aparece como Desativada');
   await page.click('#anHabAlterar');
   await page.check('input[name="anHab"][value="SOMENTE_ADMIN_GERAL"]');
   await page.fill('#anHabMotivo', 'Homologação da Análise Organizacional');
   await page.click('#anHabSalvar');
-  await esperar(page, () => /Somente admin geral/.test((document.getElementById('anHabAtual') || {}).textContent || ''));
+  await esperar(page, () => /Ativada só para o admin geral/.test((document.getElementById('anHabAtual') || {}).textContent || ''));
   const db = await banco(page), aud = Object.values(db['analises-organizacionais-config-auditoria'] || {})[0] || {};
   afirma(db[CFG].habilitacao === 'SOMENTE_ADMIN_GERAL' && aud.anterior === 'DESLIGADO' && aud.motivo === 'Homologação da Análise Organizacional', 'o admin geral liga a homologação, com motivo e auditoria (anterior: DESLIGADO)');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));

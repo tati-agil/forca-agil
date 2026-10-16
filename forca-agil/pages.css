@@ -3994,3 +3994,45 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 /* retorno à origem como botão (Estruturas aberta pelo Mapa): mesma aparência do link "← Voltar …" vizinho */
 button.est-voltar-jornada { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--cyan-soft); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left; margin: 0 0 8px; }
 button.est-voltar-jornada:focus-visible { outline: 3px solid var(--cyan-soft); outline-offset: 2px; }
+
+/* O1–O9: exemplos ilustrativos de SIM e de NÃO, recolhidos — mesmo padrão do "O que observar?" */
+.po-exemplos { margin: 4px 0 8px; font-size: .9rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.po-exemplos > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; font-weight: 600; }
+.po-exemplos p { margin: 4px 0; }
+
+/* Campos de busca/filtro fora do ADMIN no tema escuro: o padrão .avp-busca (lista de Produto/Serviço, filtro da Squad)
+   com placeholder legível e foco visível (os demais campos sem estilo próprio caem na regra-base abaixo). */
+.avp-busca::placeholder { color: var(--ink-3); opacity: 1; }
+.avp-busca:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+#adminContent input.avp-busca { display: block; flex: 1 1 260px; max-width: 460px; }
+
+/* ADMIN › Acessos: duas seções (Permissões de usuários / Disponibilidade de funcionalidades), sem cartão dentro de cartão */
+.avp-acessos-secao { margin: 16px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); font-size: .92rem; color: var(--ink); }
+.avp-acessos-secao:first-of-type { border-top: 0; padding-top: 0; }
+.avp-disponibilidade { padding: 4px 0 0; }
+.avp-disp-nome { margin: 0 0 2px; }
+
+/* =================================================================================================
+   CONTROLES DE FORMULÁRIO NO TEMA ESCURO — REGRA-BASE (a causa comum do "fundo branco").
+   O tema escuro dos campos dependia de seletores pontuais: no ADMIN, só input[type="text|email|search"] de #adminContent;
+   na área Avaliação, só campos com classe própria. Todo campo sem type (Nome, Sigla, Fonte), de data (Início da vigência),
+   select e textarea sem classe, e os campos fora desses seletores (filtro da Squad, busca da Jornada, motivos) caíam no
+   estilo do navegador: fundo branco. Esta base usa os MESMOS tokens do padrão do ADMIN e vale só nas duas áreas escuras com
+   formulários (ADMIN e Avaliação), fora dos painéis com tema próprio (Taxonomia, Mapa visual). Especificidade zero
+   (:where): qualquer estilo que já existe e está certo continua valendo; esta regra só preenche o que estava sem estilo.
+   Validações, obrigatoriedade, valores e comportamento não mudam (é só aparência). color-scheme escuro deixa os controles
+   nativos (calendário do campo de data, lista do select, barra de rolagem) no tema, dentro do que o navegador permite.
+   ================================================================================================= */
+:where(#adminContent, #page-avaliacoes) { color-scheme: dark; }
+:where(#adminContent, #page-avaliacoes) :where(input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="url"], input[type="tel"], input[type="number"], input[type="password"], input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"], select, textarea):where(:not(.tax-ui *, .mfm-painel *)) {
+  box-sizing: border-box; max-width: 100%; min-width: 0;
+  background: var(--space-1); border: 1px solid var(--line-strong); border-radius: 9px; color: var(--ink);
+  font-family: var(--font-body); font-size: .88rem; padding: 10px 12px;
+}
+:where(#adminContent, #page-avaliacoes) :where(select option):where(:not(.tax-ui *, .mfm-painel *)) { background: var(--panel); color: var(--ink); }
+:where(#adminContent, #page-avaliacoes) :where(input, textarea):where(:not(.tax-ui *, .mfm-painel *))::placeholder { color: var(--ink-3); opacity: 1; }
+:where(#adminContent, #page-avaliacoes) :where(input:focus, select:focus, textarea:focus):where(:not(.tax-ui *, .mfm-painel *)) { outline: none; border-color: var(--accent); }
+:where(#adminContent, #page-avaliacoes) :where(input:focus-visible, select:focus-visible, textarea:focus-visible):where(:not(.tax-ui *, .mfm-painel *)) { outline: 2px solid var(--accent); outline-offset: 1px; }
+:where(#adminContent, #page-avaliacoes) :where(input:disabled, select:disabled, textarea:disabled):where(:not(.tax-ui *, .mfm-painel *)) { opacity: .55; cursor: not-allowed; }
+:where(#adminContent, #page-avaliacoes) :where(input[readonly], textarea[readonly]):where(:not(.tax-ui *, .mfm-painel *)) { background: var(--panel-2); }
+:where(#adminContent, #page-avaliacoes) :where(input[type="checkbox"], input[type="radio"]):where(:not(.tax-ui *, .mfm-painel *)) { accent-color: var(--accent); }
