@@ -210,9 +210,9 @@ function criarFronteira(io, modulos) {
     /* Porta 2 (atuação organizacional, sem P1–P16): a fronteira ainda não a conclui — recusa explícita, nunca "base mudou" */
     if (reg.origem === 'objeto-organizacional') return { concluida: false, motivos: ['PORTA2_NAO_SUPORTADA'] };
     if (reg.revisao !== dados.revisao) return { concluida: false, motivos: ['REVISAO_DESATUALIZADA'] };
-    const [cfg, conceitos, fontes, produtos] = await Promise.all([io.ler('questionarios-config/' + CODIGO), io.ler('taxonomia/organizacional/conceitos'),
-      io.ler('taxonomia/organizacional/fontes'), io.ler('avaliacoes-produto')]);
-    const site = modulos.carregar({ 'questionarios-config': { [CODIGO]: cfg }, taxonomia: { organizacional: { conceitos: conceitos || {}, fontes: fontes || {} } } });
+    /* a definição oficial de cada conceito está no próprio conceito (conceitos/<c>/definicao — Taxonomia simplificada) */
+    const [cfg, conceitos, produtos] = await Promise.all([io.ler('questionarios-config/' + CODIGO), io.ler('taxonomia/organizacional/conceitos'), io.ler('avaliacoes-produto')]);
+    const site = modulos.carregar({ 'questionarios-config': { [CODIGO]: cfg }, taxonomia: { organizacional: { conceitos: conceitos || {} } } });
     const T = site.T;
     /* a base P1–P16 que VALE hoje para o item tem de ser a do rascunho (a "ponta" que as regras não conseguem ver) */
     const base = site.B && site.B.baseDoItem(reg.itemId, produtos || {});

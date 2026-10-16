@@ -807,16 +807,6 @@
         "padrao": "catch",
         "trecho": ".waitForFunction(() => document.querySelector('#taxPrevia') || document.querySelector('#taxImportErros'), { timeout: 8000 }).catch(() => {})"
       },
-      "abd8087d236cdb59": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.querySelector('#taxSecFontes .loading-msg') && !document.querySelector('#taxSecHistorico .loading-msg'), { "
-      },
-      "04dc43f5816322b7": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.querySelector('#taxSecFontes .loading-msg') && !document.querySelector('#taxSecHistorico .loading-msg'), { "
-      },
       "4a7ec4c6b4d0736e": {
         "n": 3,
         "padrao": "catch",
@@ -832,45 +822,15 @@
         "padrao": "catch",
         "trecho": ".waitForFunction(() => document.querySelector('.tax-item[data-codigo=\"componente\"]'), { timeout: 6000 }).catch(() => {})"
       },
-      "7829ce802328351f": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Significado v1 \\(BB\\) → Nova redação/.test((document.querySelector('#taxSecHistorico') || {}).innerText || ''), null"
-      },
-      "978bbf69895d062b": {
-        "n": 2,
-        "padrao": "catch",
-        "trecho": ".click('[data-tax=\"cancelar-confirmacao\"]').catch(() => {})"
-      },
-      "be91e39b1dd2f5bb": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForSelector('#taxFlash.tax-flash--erro', { timeout: 4000 }).catch(() => {})"
-      },
       "5878a197a88c8430": {
         "n": 1,
         "padrao": "catch",
         "trecho": ".waitForFunction(() => /NÃO consta/.test((document.querySelector('#taxPendente') || {}).innerText || ''), null, { timeout: 2500 }).catch(() "
       },
-      "47c17d2d4a5f0540": {
-        "n": 2,
-        "padrao": "catch",
-        "trecho": ".click('[data-tax=\"remover-vigencia\"]').catch(() => {})"
-      },
-      "3d3b7b5dc8b0a312": {
-        "n": 2,
-        "padrao": "catch",
-        "trecho": ".click('[data-tax=\"confirmar-remocao\"]').catch(() => {})"
-      },
       "da821122019c4376": {
         "n": 1,
         "padrao": "catch",
         "trecho": ".waitForSelector('#taxPendente', { state: 'detached', timeout: 6000 }).catch(() => {})"
-      },
-      "f18282f1dbc62dc2": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Nenhuma definição vigente/.test((document.querySelector('#taxVigenteBloco') || {}).innerText || ''), null, { timeout"
       },
       "1c6312872310f0c5": {
         "n": 1,

@@ -56,7 +56,7 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
         'fa-avaliacao-autorizados': { [k(ARQ.email)]: { tipo: 'avaliacao-arquitetura' }, [k(AVAL.email)]: { tipo: 'avaliacao' } },
         taxonomia: { organizacional: { conceitos: {} } }, 'posicionamento-classificacoes': {}, 'posicionamento-classificacoes-auditoria': { NEGOCIOS: { a1: { tipo: 'ligacao_registrada' } } },
         'estruturas-concretas-config': { gravacaoHabilitada: true } /* trava de produção ligada (como o emulador do ambiente de testes) */ };
-      Object.keys(ref.conceitos || {}).forEach((c) => { raiz.taxonomia.organizacional.conceitos[c] = { nome: 'Conceito ' + c, ordem: 1, ativo: ref.conceitos[c].ativo, situacaoDefinicao: 'registrada', camada: 'A' }; });
+      Object.keys(ref.conceitos || {}).forEach((c) => { raiz.taxonomia.organizacional.conceitos[c] = { nome: 'Conceito ' + c, ordem: 1, ativo: ref.conceitos[c].ativo, camada: 'A' }; });
       Object.keys(ref.ligacoes || {}).forEach((c) => {
         if (ref.ligacoes[c] !== c) throw new Error('no banco oficial a ligação canônica é sempre de MESMO código: ' + c);
         raiz['posicionamento-classificacoes'][c] = { registradoEm: '2026-10-01T12:00:00.000Z', registradoPor: ADM.email, auditoriaId: 'a1' };
@@ -456,7 +456,7 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
     await semear(ref);
     const m = {}, base = 'taxonomia/organizacional/';
     Object.keys(ref.camadas || {}).forEach((c) => {
-      m[base + 'conceitos/' + c] = { nome: (ref.conceitos[c] && ref.conceitos[c].nome) || 'Conceito ' + c, ordem: 1, ativo: !ref.conceitos[c] || ref.conceitos[c].ativo !== false, situacaoDefinicao: 'registrada', camada: ref.camadas[c] };
+      m[base + 'conceitos/' + c] = { nome: (ref.conceitos[c] && ref.conceitos[c].nome) || 'Conceito ' + c, ordem: 1, ativo: !ref.conceitos[c] || ref.conceitos[c].ativo !== false, camada: ref.camadas[c] };
     });
     (ref.relacoesConceituais || []).forEach((r) => {
       const v = { de: r.de, tipo: r.tipo, para: r.para, criadaEm: '2026-10-01T12:00:00.000Z', criadaPor: ADM.email, auditoriaId: 'a1' };

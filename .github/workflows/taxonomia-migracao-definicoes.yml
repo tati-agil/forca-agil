@@ -1,0 +1,57 @@
+name: Taxonomia — migração para a definição única versionada
+
+# SÓ disparo manual, nunca em push/PR: pode GRAVAR em produção (o nó taxonomia e
+# o arquivo taxonomia-arquivo-migracao). Por padrão roda em SIMULAÇÃO (mostra o
+# plano e as inconsistências, não grava nada). "executar" e "reverter" só gravam
+# com "Confirmar gravação" marcado, e sempre exportam o backup completo antes
+# (artefato do workflow). Ver .github/scripts/migracao-taxonomia-definicoes.js.
+on:
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'O que fazer'
+        required: true
+        type: choice
+        default: simular
+        options: [simular, exportar, executar, verificar, reverter]
+      confirmar:
+        description: 'Gravar de verdade (só vale para executar e reverter)'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  migracao:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar firebase-admin
+        run: |
+          mkdir -p /tmp/migracao-deps
+          cd /tmp/migracao-deps
+          npm init -y
+          npm install firebase-admin@12
+
+      - name: Migração da definição (simulação por padrão)
+        env:
+          NODE_PATH: /tmp/migracao-deps/node_modules
+          MODO: ${{ inputs.modo }}
+          CONFIRMAR: ${{ inputs.confirmar && 'sim' || 'nao' }}
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          node .github/scripts/migracao-taxonomia-definicoes.js
+
+      - name: Guardar o backup exportado
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taxonomia-backup
+          path: taxonomia-backup-*.json
+          if-no-files-found: ignore
+          retention-days: 90

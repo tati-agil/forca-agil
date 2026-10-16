@@ -9,11 +9,11 @@
    A Taxonomia DEFINE os conceitos; a Avaliação APLICA. Esta área não integra a Avaliação.
 
    Banco (database.rules.json, ramo `taxonomia`; só admin lê e escreve nesta 1ª versão):
-     taxonomia/<dominio>/conceitos/<codigo>        nome, ordem, ativo, situacaoDefinicao,
-                                                    definicaoVigenteFonteId, camada/pai (organizacional),
+     taxonomia/<dominio>/conceitos/<codigo>        nome, ordem, ativo, definicao (a ÚNICA vigente: texto, versao,
+                                                    publicadaEm, publicadaPor), camada/pai (organizacional),
                                                     criterios, observacoes, perguntaDiscriminadora,
                                                     notaDeAplicacao, atualizadoEm/Por
-     taxonomia/<dominio>/fontes/<codigo>/<fonteId> texto, contexto, situacao, tipoRedacao, rotulo
+     taxonomia/<dominio>/definicoes/<codigo>/v<n>  histórico imutável das publicações da definição
      taxonomia/organizacional/{atributos,perfis,relacoes}
      taxonomia/<dominio>/auditoria/<codigo|_catalogo>/<pushKey>   (só acréscimo)
      taxonomia/meta/cargaInicial                   gravada UMA vez (importação única)
@@ -44,18 +44,14 @@
        (tipo alteracao_camada); conceito com pai ou com FILHOS ATIVOS não troca — os filhos ativos são provados pelo banco
        com o índice reverso organizacional/filhos/<pai>/<filho> (só filho ativo e coerente com conceito.pai; inativar
        tira a entrada e reativar recoloca, na mesma gravação) e a marca meta/indiceFilhos;
-       sem a marca, a troca é recusada. Código, definição, fontes e relações não mudam.
+       sem a marca, a troca é recusada. Código, definição e relações não mudam.
 
-   INTEGRIDADE DA DEFINIÇÃO VIGENTE — equivalência garantida pelo BANCO (regras, provadas no
-   emulador em teste-rules-taxonomia.js):  fonte.situacao = "vigente"  ⇔  é a fonte apontada por
-   conceito.definicaoVigenteFonteId. Consequência: uma fonte só vira vigente NA MESMA gravação
-   multipath em que o conceito passa a apontar para ela; trocar a vigente rebaixa a anterior e
-   promove a nova juntas; deixar o conceito sem definição limpa o ponteiro e rebaixa a fonte juntas.
-   SEGUNDA BARREIRA, na aplicação (validarVigencia): antes de gravar, confere no estado PÓS-gravação
-   que haverá no máximo UMA fonte vigente e que ela é a apontada. A aplicação não é a única
-   proteção — o banco recusa o mesmo —, mas nunca depende só do banco.
-   Limite conhecido: o Firebase não conta; um estado legado com duas vigentes, criado FORA das
-   regras, não é detectado retroativamente (a aplicação o acusa ao abrir o conceito e recusa salvar).
+   DEFINIÇÃO OFICIAL — modelo simplificado (aprovado em 2026-10-15), igual nos dois domínios: cada conceito tem UMA
+   definição vigente (conceito.definicao), que evolui por versões. "Atualizar definição" publica a versão anterior + 1
+   numa gravação só (definição + histórico definicoes/<c>/v<n> + auditoria), montada por taxonomia-definicao.js; as
+   regras conferem a sequência (duas publicações concorrentes ou um clique repetido: só uma entra). Não há mais fontes,
+   situação de fonte, rótulo, tipo de redação nem promoção manual: o modelo antigo foi arquivado pela migração
+   (.github/scripts/migracao-taxonomia-definicoes.js) em taxonomia-arquivo-migracao, só para consulta do histórico.
 
    Ausência é ESTADO, nunca campo vazio: o perfil de cada atributo tem `estado`
    (registrado | não consta na fonte | não aplicável | ainda não definido | fonte não localizada);
@@ -78,13 +74,6 @@
   var CAMADA_ROTULO = { A: 'Tipo organizacional', B: 'Especialização', C: 'Subespecialização', trabalho: 'Organização do trabalho', auxiliar: 'Conceito auxiliar' };
   /* "Alterar camada" só troca entre estas duas: estruturas de posicionamento (A) × organização do trabalho. */
   var CAMADAS_TROCAVEIS = { A: 'trabalho', trabalho: 'A' };
-  var SIT_DEFINICAO = ['registrada', 'em revisão', 'ainda não registrada'];
-  var SIT_DEFINICAO_ROTULO = { 'registrada': 'Definição registrada', 'em revisão': 'Definição em revisão', 'ainda não registrada': 'Definição ainda não registrada' };
-  var SIT_FONTE = ['vigente', 'em validação', 'histórica/contextual', 'placeholder', 'não localizado'];
-  var SIT_FONTE_EDITAVEL = ['em validação', 'histórica/contextual', 'placeholder', 'não localizado'];
-  var SIT_FONTE_PROMOVIVEL = ['em validação', 'histórica/contextual'];
-  var CONTEXTOS = ['PREVI', 'BB', 'indefinido'];
-  var TIPOS_REDACAO = ['Conceito', 'Significado v1', 'Significado v2', 'proposta'];
   var ESTADOS = ['registrado', 'não consta na fonte', 'não aplicável', 'ainda não definido', 'fonte não localizada'];
   var PAPEIS = ['definidor', 'típico', 'observado'];
   var ORIGENS = ['fonte', 'inferência', 'decisão'];
@@ -102,9 +91,7 @@
   var ORIGEM_CLASSE = { 'fonte': 'fonte', 'inferência': 'inferencia', 'decisão': 'decisao' };
   var RE_CODIGO = /^[A-Za-z][A-Za-z0-9_-]{1,59}$/;
   var RE_ID = /^[A-Za-z0-9_-]{1,60}$/;
-  var FONTE_REBAIXADA = 'histórica/contextual';
   /* Motivos do arquivamento lógico (lista FECHADA — a mesma das regras do banco). */
-  var MOTIVOS_ARQ = ['duplicidade', 'redação superada', 'não representa o conceito', 'fonte inadequada', 'criada por engano', 'outro'];
 
   function db() { return firebase.database(); }
   function esc(s) {
@@ -212,9 +199,9 @@
 
   function carregarDetalhe(dom, codigo) {
     var D = st.d[dom];
-    var det = D.detalhe = { codigo: codigo, carregando: true, fontes: {}, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
+    var det = D.detalhe = { codigo: codigo, carregando: true, versoes: {}, arquivo: {}, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
     var org = dom === 'organizacional';
-    var pend = org ? 4 : 2;
+    var pend = org ? 5 : 3;
     function recebe(campo, r, transforma) {
       if (D.detalhe !== det) return;
       if (!r.ok) det.erros[campo] = r.negado ? 'sem-acesso' : 'erro';
@@ -222,7 +209,9 @@
       if (--pend === 0) { det.carregando = false; }
       render();
     }
-    lerNo(RAIZ + '/' + dom + '/fontes/' + codigo, function (r) { recebe('fontes', r); });
+    lerNo(RAIZ + '/' + dom + '/definicoes/' + codigo, function (r) { recebe('versoes', r); });
+    /* textos do modelo antigo (só existem depois da migração): sem eles, o histórico anterior mostra os rótulos da auditoria */
+    lerNo('taxonomia-arquivo-migracao/' + dom + '/fontes/' + codigo, function (r) { recebe('arquivo', r.ok ? r : { ok: true, valor: {} }); });
     lerNo(RAIZ + '/' + dom + '/auditoria/' + codigo, function (r) { recebe('auditoria', r); });
     if (org) {
       lerNo(RAIZ + '/' + dom + '/perfis/' + codigo, function (r) { recebe('perfis', r); });
@@ -235,21 +224,6 @@
       });
     }
     render();
-  }
-
-  /* ---------- SEGUNDA BARREIRA: no máximo UMA fonte vigente, e só a apontada ----------
-     Recebe o estado PÓS-gravação: `fontes` ({id: {situacao}}) e o ponteiro. Pura (sem banco). */
-  function validarVigencia(fontes, ponteiro) {
-    var vigentes = chaves(fontes).filter(function (id) { return fontes[id] && fontes[id].situacao === 'vigente'; });
-    if (vigentes.length > 1) return { ok: false, erro: 'Há mais de uma fonte vigente neste conceito (' + vigentes.length + '). Só pode haver uma.' };
-    if (ponteiro) {
-      if (!fontes[ponteiro]) return { ok: false, erro: 'A definição vigente aponta para uma fonte que não existe.' };
-      if (fontes[ponteiro].situacao !== 'vigente') return { ok: false, erro: 'A definição vigente aponta para uma fonte que não está vigente.' };
-      if (vigentes.length !== 1 || vigentes[0] !== ponteiro) return { ok: false, erro: 'A fonte vigente tem de ser exatamente a apontada pelo conceito.' };
-    } else if (vigentes.length) {
-      return { ok: false, erro: 'Há uma fonte vigente que o conceito não referencia como definição.' };
-    }
-    return { ok: true };
   }
 
   /* ---------- auditoria e gravação atômica ---------- */
@@ -353,7 +327,7 @@
   }
   function aposSalvar(dom, codigo, mensagem) {
     var D = st.d[dom];
-    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null;
+    D.edicao = null; D.atualizando = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null;
     st.flash = { erro: false, texto: mensagem };
     carregarDominio(dom);
     if (codigo) { D.selecionado = codigo; carregarDetalhe(dom, codigo); }
@@ -366,96 +340,16 @@
 
   /* ---------- operações (cada uma = UM update com dado + auditoria) ---------- */
   function conceitoAtual(dom, codigo) { return st.d[dom].conceitos[codigo] || {}; }
-  function fontesAtuais(dom) { var det = st.d[dom].detalhe; return (det && det.fontes) || {}; }
-  /* "em revisão" quando há ao menos um texto utilizável; "ainda não registrada" quando não há nenhum. */
-  function situacaoSemVigente(fontes) {
-    var util = chaves(fontes).some(function (id) { return !fontes[id].arquivada && SIT_FONTE_PROMOVIVEL.indexOf(fontes[id].situacao) !== -1; });
-    return util ? 'em revisão' : 'ainda não registrada';
+  /* ATUALIZAR DEFINIÇÃO — publica a nova versão numa gravação só (definição + histórico + auditoria). A tela confere
+     que a versão vigente não mudou desde que o fluxo foi aberto; o banco confere de novo (compare-and-set). */
+  function publicarDefinicao(dom, codigo) {
+    var D = st.d[dom], a = D.atualizando, c = conceitoAtual(dom, codigo), atual = c.definicao || null;
+    if (!a || st.salvando) return;
+    if ((atual ? atual.versao : 0) !== a.versaoBase) { a.etapa = 'editar'; a.erro = 'A definição foi alterada por outra pessoa enquanto você editava. Confira a definição atual antes de publicar.'; render(); return; }
+    var r = window.faTaxonomiaDefinicao.payloadPublicacao({ dom: dom, codigo: codigo, atual: atual, novoTexto: a.texto, motivo: a.motivo, email: emailAutor(), agora: agora(), audKey: novaChave(caminhoAud(dom, codigo)) });
+    if (!r.ok) { a.etapa = 'editar'; a.erro = r.erro; render(); return; }
+    gravar(r.caminhos, function () { aposSalvar(dom, codigo, 'Nova definição publicada (versão ' + r.versao + '). A anterior ficou preservada no histórico.'); });
   }
-  function checaVigencia(fontesPos, ponteiro) {
-    var v = validarVigencia(fontesPos, ponteiro);
-    if (!v.ok) { st.flash = { erro: true, texto: 'Não foi salvo: ' + v.erro }; render(); return false; }
-    return true;
-  }
-
-  function tornarVigente(dom, codigo, fonteId) {
-    var c = conceitoAtual(dom, codigo), fontes = fontesAtuais(dom), fonte = fontes[fonteId];
-    if (fonte && fonte.arquivada) {
-      st.flash = { erro: true, texto: 'Esta fonte está arquivada. Restaure-a antes de usá-la como definição.' }; render(); return;
-    }
-    if (!fonte || SIT_FONTE_PROMOVIVEL.indexOf(fonte.situacao) === -1) {
-      st.flash = { erro: true, texto: 'Só um texto "em validação" ou "histórico/contextual" pode ser tornado vigente. Placeholder e "não localizado" nunca viram definição.' }; render(); return;
-    }
-    var anterior = c.definicaoVigenteFonteId || null;
-    var pos = JSON.parse(JSON.stringify(fontes));
-    if (anterior && pos[anterior]) pos[anterior].situacao = FONTE_REBAIXADA;
-    pos[fonteId].situacao = 'vigente';
-    if (!checaVigencia(pos, fonteId)) return;
-    var base = RAIZ + '/' + dom, caminhos = {};
-    if (anterior && fontes[anterior]) caminhos[base + '/fontes/' + codigo + '/' + anterior + '/situacao'] = FONTE_REBAIXADA;
-    caminhos[base + '/fontes/' + codigo + '/' + fonteId + '/situacao'] = 'vigente';
-    caminhos[base + '/conceitos/' + codigo + '/definicaoVigenteFonteId'] = fonteId;
-    caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = 'registrada';
-    marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'definicao_vigente', 'definição vigente', anterior ? rotuloFonte(fontes[anterior], anterior) : null, rotuloFonte(fonte, fonteId), { fonteAnteriorId: anterior, fonteNovaId: fonteId });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Definição vigente atualizada.'); });
-  }
-  function removerVigencia(dom, codigo) {
-    var c = conceitoAtual(dom, codigo), fontes = fontesAtuais(dom), anterior = c.definicaoVigenteFonteId;
-    if (!anterior) return;
-    var pos = JSON.parse(JSON.stringify(fontes));
-    if (pos[anterior]) pos[anterior].situacao = FONTE_REBAIXADA;
-    if (!checaVigencia(pos, null)) return;
-    var base = RAIZ + '/' + dom, caminhos = {};
-    if (fontes[anterior]) caminhos[base + '/fontes/' + codigo + '/' + anterior + '/situacao'] = FONTE_REBAIXADA;
-    caminhos[base + '/conceitos/' + codigo + '/definicaoVigenteFonteId'] = null;
-    caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = situacaoSemVigente(pos);
-    marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'definicao_vigente', 'definição vigente', rotuloFonte(fontes[anterior], anterior), null, { fonteAnteriorId: anterior, fonteNovaId: null });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'O conceito ficou sem definição vigente.'); });
-  }
-  /* ---------- arquivamento lógico: nenhuma fonte é apagada; descarte é sempre arquivar (e dá para restaurar) ---------- */
-  function arquivarFonte(dom, codigo, id) {
-    var D = st.d[dom], a = D.arquivando, fontes = fontesAtuais(dom), f = fontes[id], c = conceitoAtual(dom, codigo);
-    if (!a || a.fonte !== id) return;
-    function recusa(msg) { a.erro = msg; render(); }
-    if (!f) return recusa('Não encontrei esta fonte. Recarregue a página.');
-    if (f.arquivada) return recusa('Esta fonte já está arquivada.');
-    if (f.situacao === 'vigente' || c.definicaoVigenteFonteId === id) return recusa('A definição vigente não pode ser arquivada. Remova a vigência ou escolha outra definição antes.');
-    if (MOTIVOS_ARQ.indexOf(a.motivo) === -1) return recusa('Escolha o motivo do arquivamento.');
-    var just = String(a.justificativa || '').trim();
-    if (a.motivo === 'outro' && !just) return recusa('Explique o motivo em "Justificativa": ela é obrigatória quando o motivo é "outro".');
-    if (just.length > 500) return recusa('A justificativa tem no máximo 500 caracteres.');
-    var base = RAIZ + '/' + dom, caminhos = {}, reg = { motivo: a.motivo, em: agora(), por: emailAutor() };
-    if (just) reg.justificativa = just;
-    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivada'] = true;
-    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivamento'] = reg;
-    /* sem vigente, arquivar a última fonte utilizável tira o conceito de "em revisão" */
-    if (!c.definicaoVigenteFonteId && SIT_DEFINICAO.indexOf(c.situacaoDefinicao) !== -1) {
-      var pos = JSON.parse(JSON.stringify(fontes)); pos[id].arquivada = true;
-      var sit = situacaoSemVigente(pos);
-      if (sit !== c.situacaoDefinicao) caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = sit;
-    }
-    marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'fonte_arquivada', 'fonte', rotuloFonte(f, id), 'arquivada: ' + a.motivo, { fonteId: id, motivo: a.motivo, justificativa: just || null });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Texto-fonte arquivado. Ele continua consultável em "Fontes arquivadas".'); });
-  }
-  function restaurarFonte(dom, codigo, id) {
-    var fontes = fontesAtuais(dom), f = fontes[id], c = conceitoAtual(dom, codigo);
-    if (!f || !f.arquivada) return;
-    var base = RAIZ + '/' + dom, caminhos = {};
-    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivada'] = null;
-    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivamento'] = null;
-    if (!c.definicaoVigenteFonteId && SIT_DEFINICAO.indexOf(c.situacaoDefinicao) !== -1) {
-      var pos = JSON.parse(JSON.stringify(fontes)); delete pos[id].arquivada;
-      var sit = situacaoSemVigente(pos);
-      if (sit !== c.situacaoDefinicao) caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = sit;
-    }
-    marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'fonte_restaurada', 'fonte', 'arquivada: ' + ((f.arquivamento && f.arquivamento.motivo) || '—'), rotuloFonte(f, id), { fonteId: id });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Texto-fonte restaurado: voltou para "Fontes disponíveis".'); });
-  }
-  function rotuloFonte(f, id) { return f ? ((f.rotulo || f.tipoRedacao || id) + ' (' + f.contexto + ')') : id; }
 
   function salvarConceito(dom, codigo) {
     var D = st.d[dom], v = D.edicao.valores, c = conceitoAtual(dom, codigo);
@@ -487,72 +381,6 @@
     marcaConceito(caminhos, dom, codigo);
     chaves(depois).forEach(function (k) { addAud(caminhos, dom, codigo, 'alteracao_conceito', k, antes[k], depois[k]); });
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito salvo.'); });
-  }
-
-  /* "Editar rótulo" da fonte VIGENTE: grava SÓ fontes/<conceito>/<id>/rotulo (+ atualizadoEm/Por do conceito e a
-     auditoria alteracao_fonte, rótulo anterior → novo). Texto, contexto, tipo de redação, situação e o ponteiro
-     definicaoVigenteFonteId não são enviados — as regras recusariam qualquer mudança neles de qualquer jeito. */
-  function salvarRotuloVigente(dom, codigo) {
-    var D = st.d[dom], e = D.edicao, fontes = fontesAtuais(dom), c = conceitoAtual(dom, codigo), id = e.chave, atual = fontes[id];
-    if (!atual || atual.arquivada || atual.situacao !== 'vigente' || c.definicaoVigenteFonteId !== id) { e.erro = 'Esta fonte não é mais a definição vigente. Recarregue a página.'; render(); return; }
-    var novo = String(e.valores.rotulo || '').trim(), antes = atual.rotulo || '';
-    if (novo.length > 120) { e.erro = 'O rótulo pode ter até 120 caracteres.'; render(); return; }
-    if (novo === antes) { e.erro = 'Nada foi alterado.'; render(); return; }
-    var caminhos = {};
-    caminhos[RAIZ + '/' + dom + '/fontes/' + codigo + '/' + id + '/rotulo'] = novo || null;
-    marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'alteracao_fonte', 'rótulo da fonte vigente', antes || '(sem rótulo)', novo || '(sem rótulo)', { fonteId: id, rotuloAnterior: antes || null, rotuloNovo: novo || null });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Rótulo da fonte vigente salvo. O texto e a definição vigente continuam iguais.'); });
-  }
-
-  var TEXTO_IMUTAVEL = 'O texto, o contexto e o tipo de redação de uma fonte já criada não podem ser alterados. Para corrigir o texto, crie um novo texto-fonte ("+ Adicionar texto-fonte" ou "Nova versão da definição") e arquive esta fonte com o motivo "redação superada".';
-  function salvarFonte(dom, codigo) {
-    var D = st.d[dom], e = D.edicao, v = e.valores, fontes = fontesAtuais(dom), c = conceitoAtual(dom, codigo);
-    var nova = e.tipo === 'novaFonte';
-    var id = nova ? null : e.chave;
-    var atual = nova ? null : fontes[id];
-    if (!nova && !atual) { e.erro = 'Não encontrei esta fonte. Recarregue a página.'; render(); return; }
-    if (atual && atual.arquivada) { e.erro = 'Esta fonte está arquivada e não pode ser editada. Restaure-a primeiro.'; render(); return; }
-    /* DEFESA EM PROFUNDIDADE (as regras do banco recusam o mesmo): fonte existente nunca muda de texto,
-       contexto nem tipo de redação. Comparação EXATA com o que está gravado (sem aparar espaços). */
-    if (atual && ['texto', 'contexto', 'tipoRedacao'].some(function (k) { return v[k] !== undefined && String(v[k]) !== String(atual[k]); })) {
-      e.erro = TEXTO_IMUTAVEL; st.flash = { erro: true, texto: 'Não foi salvo: ' + TEXTO_IMUTAVEL }; render(); return;
-    }
-    var texto = atual ? atual.texto : String(v.texto || '').trim();
-    if (!texto) { e.erro = 'O texto da fonte é obrigatório.'; render(); return; }
-    if (nova) id = db().ref(RAIZ + '/' + dom + '/fontes/' + codigo).push().key;
-    var ehVigente = !!(atual && atual.situacao === 'vigente');
-    var situacao = ehVigente ? 'vigente' : v.situacao;
-    if (!ehVigente && SIT_FONTE_EDITAVEL.indexOf(situacao) === -1) { e.erro = 'Escolha uma situação válida. Para tornar vigente use "Tornar vigente".'; render(); return; }
-    var dado = atual ? { texto: atual.texto, contexto: atual.contexto, situacao: situacao, tipoRedacao: atual.tipoRedacao } : { texto: texto, contexto: v.contexto, situacao: situacao, tipoRedacao: v.tipoRedacao };
-    var rotulo = String(v.rotulo || '').trim();
-    if (rotulo) dado.rotulo = rotulo;
-    var pos = JSON.parse(JSON.stringify(fontes));
-    pos[id] = dado;
-    if (!checaVigencia(pos, c.definicaoVigenteFonteId || null)) return;
-    var base = RAIZ + '/' + dom, caminhos = {};
-    if (nova) { dado.criadoEm = agora(); dado.criadoPor = emailAutor(); caminhos[base + '/fontes/' + codigo + '/' + id] = dado; }
-    else {
-      /* só o que pode mudar numa fonte existente: situação e rótulo (texto/contexto/tipo nunca são enviados) */
-      if (atual.situacao !== dado.situacao) caminhos[base + '/fontes/' + codigo + '/' + id + '/situacao'] = dado.situacao;
-      if ((atual.rotulo || null) !== (dado.rotulo || null)) caminhos[base + '/fontes/' + codigo + '/' + id + '/rotulo'] = dado.rotulo || null;
-      if (!chaves(caminhos).length) { e.erro = 'Nada foi alterado.'; render(); return; }
-    }
-    /* uma fonte nova utilizável tira o conceito de "ainda não registrada" */
-    if (!c.definicaoVigenteFonteId && SIT_DEFINICAO.indexOf(c.situacaoDefinicao) !== -1) {
-      var sit = situacaoSemVigente(pos);
-      if (sit !== c.situacaoDefinicao) caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = sit;
-    }
-    marcaConceito(caminhos, dom, codigo);
-    var baseVersao = nova && e.baseFonteId ? e.baseFonteId : null;
-    addAud(caminhos, dom, codigo, 'alteracao_fonte', baseVersao ? 'nova versão da definição' : (nova ? 'nova fonte' : 'fonte'), nova ? null : rotuloFonte(atual, id), rotuloFonte(dado, id), baseVersao ? { fonteId: id, fonteBaseId: baseVersao } : { fonteId: id });
-    gravar(caminhos, function () {
-      aposSalvar(dom, codigo, baseVersao
-        ? 'Nova versão salva como texto-fonte "em validação". A definição vigente NÃO mudou: para adotar a nova versão, use "Usar como vigente" nela.'
-        : (nova ? 'Texto-fonte adicionado.' : 'Fonte salva.'));
-      /* guia o próximo passo: o cartão da nova versão fica marcado, com o convite a "Usar como vigente" */
-      if (baseVersao) { st.d[dom].novaVersao = id; render(); }
-    });
   }
 
   function salvarPerfil(dom, codigo) {
@@ -652,7 +480,7 @@
       filhosAtivos: af.filhos.length ? af.filhos.join(', ') : null,
       relacoesAbertas: af.relacoes.length ? af.relacoes.map(function (rk) { return textoRelacao(dom, D.detalhe.relacoes[rk]); }).join(' | ') : null
     });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito inativado. Nada foi apagado: fontes, histórico e relações continuam registrados.'); });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito inativado. Nada foi apagado: definição, histórico e relações continuam registrados.'); });
   }
   function reativarConceito(dom, codigo) {
     var c = conceitoAtual(dom, codigo);
@@ -670,7 +498,7 @@
   }
 
   /* Camada: só "Tipo organizacional" (A) ⇄ "Organização do trabalho". Motivo obrigatório; o conceito guarda a
-     ÚLTIMA troca (camadaAlteracao) e o histórico guarda todas. Código, definição, fontes e relações não mudam. */
+     ÚLTIMA troca (camadaAlteracao) e o histórico guarda todas. Código, definição e relações não mudam. */
   /* Filhos ATIVOS: é o que o índice reverso guarda e o que as regras do banco conferem (filho inativo não bloqueia) */
   function filhosDe(dom, codigo) {
     var cs = st.d[dom].conceitos;
@@ -717,7 +545,7 @@
     caminhos[base + '/camadaAlteracao'] = { de: de, para: para, motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: k };
     marcaConceito(caminhos, dom, codigo);
     addAudEm(caminhos, dom, codigo, k, 'alteracao_camada', 'camada', CAMADA_ROTULO[de], CAMADA_ROTULO[para], { motivo: motivo, camadaDe: de, camadaPara: para });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Camada alterada para "' + CAMADA_ROTULO[para] + '". Código, definição, fontes e relações continuam como estavam.'); });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Camada alterada para "' + CAMADA_ROTULO[para] + '". Código, definição e relações continuam como estavam.'); });
   }
 
   /* Relações: a chave é de__tipo__para. Uma vez criada, só pode ser ENCERRADA. */
@@ -843,7 +671,7 @@
   /* "5 conceitos, 7 textos-fonte (1 com definição vigente), 4 atributos, 3 valores de perfil, 2 relações" —
      atributos/perfis/relações só aparecem quando existem (o domínio arquitetural não tem). */
   function textoContagem(r) {
-    var t = plural(r.conceitos || 0, 'conceito', 'conceitos') + ', ' + plural(r.fontes || 0, 'texto-fonte', 'textos-fonte') + ' (' + (r.vigentes || 0) + ' com definição vigente)';
+    var t = plural(r.conceitos || 0, 'conceito', 'conceitos') + ' (' + (r.vigentes || 0) + ' com definição vigente)';
     if (r.atributos) t += ', ' + plural(r.atributos, 'atributo', 'atributos');
     if (r.perfis) t += ', ' + plural(r.perfis, 'valor de perfil', 'valores de perfil');
     if (r.relacoes) t += ', ' + plural(r.relacoes, 'relação', 'relações');
@@ -851,10 +679,10 @@
   }
   /* Valida o arquivo e monta o update atômico. Genérico: nenhum conteúdo conceitual vive aqui. */
   function prepararImportacao(arq, conceitosExistentes) {
-    var erros = [], avisos = [], caminhos = {}, resumo = { conceitos: 0, fontes: 0, atributos: 0, perfis: 0, relacoes: 0, vigentes: 0 };
+    var erros = [], avisos = [], caminhos = {}, resumo = { conceitos: 0, atributos: 0, perfis: 0, relacoes: 0, vigentes: 0, naoImportados: 0 };
     /* contagem POR DOMÍNIO: cada linha de auditoria da carga registra a do próprio domínio (não o total geral) */
     var porDominio = {};
-    function conta(dom, campo) { resumo[campo]++; porDominio[dom] = porDominio[dom] || { conceitos: 0, fontes: 0, atributos: 0, perfis: 0, relacoes: 0, vigentes: 0 }; porDominio[dom][campo]++; }
+    function conta(dom, campo) { resumo[campo]++; porDominio[dom] = porDominio[dom] || { conceitos: 0, atributos: 0, perfis: 0, relacoes: 0, vigentes: 0 }; porDominio[dom][campo]++; }
     var agoraIso = agora(), email = emailAutor();
     if (!arq || typeof arq !== 'object' || !arq.dominios || typeof arq.dominios !== 'object') {
       return { erros: ['O arquivo não tem o formato esperado (objeto com "dominios").'], avisos: [], resumo: resumo, caminhos: {} };
@@ -875,34 +703,25 @@
         if (org && CAMADA_ROTULO[c.camada] === undefined) erros.push(onde + ': camada inválida (A, B, C, trabalho ou auxiliar).');
         if (!org && c.camada !== undefined) erros.push(onde + ': o domínio arquitetural não tem camada.');
         if (c.pai !== undefined && (!org || !cs[c.pai])) erros.push(onde + ': "pai" inexistente no arquivo.');
-        if (c.situacaoDefinicao !== undefined && SIT_DEFINICAO.indexOf(c.situacaoDefinicao) === -1) erros.push(onde + ': situação da definição inválida.');
         var fontes = (bloco.fontes && bloco.fontes[cod]) || [];
         if (!Array.isArray(fontes)) { erros.push(onde + ': "fontes" deve ser uma lista.'); fontes = []; }
-        var fontesPos = {}, ponteiro = null, ids = {};
-        fontes.forEach(function (f, i) {
-          var ond = onde + ' › fonte ' + (i + 1);
-          if (!f || typeof f.texto !== 'string' || !f.texto.trim()) { erros.push(ond + ': falta o texto.'); return; }
-          if (CONTEXTOS.indexOf(f.contexto) === -1) erros.push(ond + ': contexto inválido (PREVI, BB ou indefinido).');
-          if (SIT_FONTE.indexOf(f.situacao) === -1) erros.push(ond + ': situação inválida.');
-          if (TIPOS_REDACAO.indexOf(f.tipoRedacao) === -1) erros.push(ond + ': tipo de redação inválido.');
-          var id = f.id !== undefined ? String(f.id) : db().ref(base + '/fontes/' + cod).push().key;
-          if (!RE_ID.test(id) || ids[id]) { erros.push(ond + ': id inválido ou repetido.'); return; }
-          ids[id] = true;
-          fontesPos[id] = { situacao: f.situacao };
-          if (f.situacao === 'vigente') ponteiro = ponteiro === null ? id : ponteiro;
-          var dado = { texto: f.texto, contexto: f.contexto, situacao: f.situacao, tipoRedacao: f.tipoRedacao, criadoEm: agoraIso, criadoPor: email };
-          if (f.rotulo) dado.rotulo = String(f.rotulo);
-          caminhos[base + '/fontes/' + cod + '/' + id] = dado;
-          conta(dom, 'fontes');
-        });
-        /* A MESMA barreira da edição: no máximo uma vigente, e é a apontada */
-        var v = validarVigencia(fontesPos, ponteiro);
-        if (!v.ok) erros.push(onde + ': ' + v.erro);
-        if (ponteiro) conta(dom, 'vigentes');
+        /* a definição vigente: o texto "definicao" do conceito ou, no formato antigo do arquivo, a ÚNICA fonte "vigente";
+           os demais textos não entram (não eram definição) — só são contados na prévia */
+        var defTexto = typeof c.definicao === 'string' && c.definicao.trim() ? c.definicao.trim() : null;
+        var vigentesArq = fontes.filter(function (fx) { return fx && fx.situacao === 'vigente'; });
+        if (vigentesArq.length > 1) erros.push(onde + ': mais de uma fonte vigente — só uma pode ser a definição.');
+        else if (!defTexto && vigentesArq.length === 1) {
+          if (typeof vigentesArq[0].texto !== 'string' || !vigentesArq[0].texto.trim()) erros.push(onde + ': a fonte vigente não tem texto.');
+          else defTexto = vigentesArq[0].texto.trim();
+        }
+        fontes.forEach(function (fx) { if (!fx || fx.situacao !== 'vigente') resumo.naoImportados++; });
+        if (defTexto) conta(dom, 'vigentes');
         var dadoC = { nome: c.nome.trim(), ordem: typeof c.ordem === 'number' ? c.ordem : (chaves(cs).indexOf(cod) + 1), ativo: c.ativo !== false,
-          situacaoDefinicao: ponteiro ? 'registrada' : (c.situacaoDefinicao && c.situacaoDefinicao !== 'registrada' ? c.situacaoDefinicao : situacaoSemVigente(fontesPos)),
           atualizadoEm: agoraIso, atualizadoPor: email };
-        if (ponteiro) dadoC.definicaoVigenteFonteId = ponteiro;
+        if (defTexto) {
+          dadoC.definicao = { texto: defTexto, versao: 1, publicadaEm: agoraIso, publicadaPor: email };
+          caminhos[base + '/definicoes/' + cod + '/v1'] = { texto: defTexto, versao: 1, publicadaEm: agoraIso, publicadaPor: email, origem: 'carga-inicial' };
+        }
         /* conceito ATIVO com pai entra também no índice reverso filhos/<pai>/<filho> (as regras exigem, na mesma gravação) */
         if (org) { dadoC.camada = c.camada; if (c.pai) { dadoC.pai = c.pai; if (dadoC.ativo) caminhos[base + '/filhos/' + c.pai + '/' + cod] = true; } }
         ['observacoes', 'perguntaDiscriminadora', 'notaDeAplicacao'].forEach(function (k) { if (typeof c[k] === 'string' && c[k].trim() && (org || k === 'observacoes')) dadoC[k] = c[k]; });
@@ -914,7 +733,7 @@
         caminhos[base + '/conceitos/' + cod] = dadoC;
         conta(dom, 'conceitos');
       });
-      chaves(bloco.fontes || {}).forEach(function (cod) { if (!cs[cod]) erros.push(dom + ' › ' + cod + ': há fontes para um conceito que não está no arquivo.'); });
+      chaves(bloco.fontes || {}).forEach(function (cod) { if (!cs[cod]) erros.push(dom + ' › ' + cod + ': há textos para um conceito que não está no arquivo.'); });
       if (!org) {
         ['atributos', 'perfis', 'relacoes'].forEach(function (k) { if (bloco[k] !== undefined) erros.push('arquitetural: o domínio não tem "' + k + '".'); });
         return;
@@ -1019,8 +838,6 @@
   function raiz() { return st.raiz || (st.raiz = document.getElementById('adminTaxonomia')); }
 
   function selo(texto, classe) { return '<span class="tax-selo' + (classe ? ' ' + classe : '') + '">' + esc(texto) + '</span>'; }
-  function seloSituacaoDef(sit) { return selo(SIT_DEFINICAO_ROTULO[sit] || sit, 'tax-selo--def-' + String(sit).replace(/\s+/g, '-')); }
-  function seloSituacaoFonte(sit) { return selo(sit, 'tax-selo--fonte-' + String(sit).replace(/[^a-z]/gi, '')); }
 
   function ordenados(D) {
     return ordenaPor(chaves(D.conceitos).map(function (k) { return Object.assign({ _codigo: k }, D.conceitos[k]); }), 'ordem');
@@ -1031,7 +848,7 @@
       var ativo = D.selecionado === c._codigo;
       return '<button type="button" class="tax-item tax-item--n' + nivel + (ativo ? ' tax-item--ativo' : '') + (c.ativo === false ? ' tax-item--inativo' : '') + '" data-tax="selecionar" data-codigo="' + esc(c._codigo) + '">' +
         '<span class="tax-item-nome">' + esc(c.nome) + '</span>' +
-        '<span class="tax-item-selos">' + (c.camada ? selo(CAMADA_ROTULO[c.camada] || c.camada) : '') + seloSituacaoDef(c.situacaoDefinicao) + (c.ativo === false ? selo('desativado') : '') + '</span></button>';
+        '<span class="tax-item-selos">' + (c.camada ? selo(CAMADA_ROTULO[c.camada] || c.camada) : '') + (c.definicao ? '' : selo('sem definição', 'tax-selo--sem-def')) + (c.ativo === false ? selo('desativado') : '') + '</span></button>';
     }
     if (dom === 'organizacional') {
       var filhos = {};
@@ -1138,37 +955,6 @@
   function campoSelect(id, valor, opcoes, rotulos, vazio) {
     return '<select id="' + id + '" data-campo="' + id.replace(/^taxF_/, '') + '">' + (vazio ? '<option value="">' + esc(vazio) + '</option>' : '') + opcoes.map(function (o) { return '<option value="' + esc(o) + '"' + (o === valor ? ' selected' : '') + '>' + esc((rotulos && rotulos[o]) || o) + '</option>'; }).join('') + '</select>';
   }
-  /* Texto-fonte é IMUTÁVEL depois de criado (texto, contexto e tipo de redação — o banco também recusa):
-     - fonte NOVA (inclusive "Nova versão da definição", que nasce pré-preenchida com a anterior): todos os campos;
-     - fonte EXISTENTE: só rótulo e situação são editáveis; texto, contexto e tipo aparecem só para leitura.
-     Corrigir um texto = criar uma fonte nova e arquivar a antiga com o motivo "redação superada". */
-  function formFonte(dom, codigo, e) {
-    var v = e.valores, nova = e.tipo === 'novaFonte', atual = nova ? null : fontesAtuais(dom)[e.chave];
-    var vigente = !!(atual && atual.situacao === 'vigente');
-    var html = '<div class="tax-form" id="taxFormFonte"' + (e.baseFonteId ? ' data-nova-versao="' + esc(e.baseFonteId) + '"' : '') + '>';
-    if (nova && e.baseFonteId) {
-      var base = fontesAtuais(dom)[e.baseFonteId];
-      html += '<p class="tax-form-titulo" id="taxNovaVersaoTitulo"><strong>Nova versão da definição</strong></p>' +
-        '<p class="tax-ajuda" id="taxNovaVersaoAjuda">Começa com o texto da definição vigente atual' + (base ? ' (' + esc(rotuloFonte(base, e.baseFonteId)) + ')' : '') +
-        '. Salvar cria um NOVO texto-fonte "em validação"; o texto atual não muda e continua vigente até você usar "Usar como vigente" na nova versão.</p>';
-    }
-    html += '<label for="taxF_rotulo">Rótulo (opcional)</label><input type="text" id="taxF_rotulo" data-campo="rotulo" value="' + esc(v.rotulo) + '" maxlength="120">';
-    if (nova) {
-      html += '<label for="taxF_texto">Texto da fonte *</label><textarea id="taxF_texto" data-campo="texto" rows="6">' + esc(v.texto) + '</textarea>';
-      html += '<div class="tax-form-linha"><div><label for="taxF_contexto">Contexto</label>' + campoSelect('taxF_contexto', v.contexto, CONTEXTOS) + '</div>';
-      html += '<div><label for="taxF_tipoRedacao">Tipo de redação</label>' + campoSelect('taxF_tipoRedacao', v.tipoRedacao, TIPOS_REDACAO) + '</div>';
-    } else {
-      html += '<p class="tax-rotulo">Texto da fonte (não editável)</p><p class="tax-fonte-texto tax-somente-leitura" id="taxF_textoFixo">' + esc(atual ? atual.texto : v.texto) + '</p>';
-      html += '<dl class="tax-confirma-dados tax-meta"><dt>Contexto</dt><dd>' + esc(atual ? atual.contexto : v.contexto) + '</dd><dt>Tipo de redação</dt><dd>' + esc(atual ? atual.tipoRedacao : v.tipoRedacao) + '</dd></dl>';
-      html += '<p class="tax-ajuda" id="taxAjudaImutavel">O texto, o contexto e o tipo de redação de uma fonte não mudam depois de criada. Para corrigir o texto: use "+ Adicionar texto-fonte" com a redação certa e arquive esta fonte com o motivo "redação superada".</p>';
-      html += '<div class="tax-form-linha">';
-    }
-    html += '<div><label for="taxF_situacao">Situação</label>' + (vigente ? '<p class="tax-ajuda">Vigente. Para mudar, use "Remover vigência" ou torne outro texto vigente.</p>' : campoSelect('taxF_situacao', v.situacao, SIT_FONTE_EDITAVEL)) + '</div></div>';
-    if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
-    html += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button>' +
-      '<button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
-    return html;
-  }
   function htmlPendencia(p) {
     var texto;
     if (p.estado === 'nao-consta') texto = 'Conferi no servidor: a alteração ainda <strong>NÃO consta no banco</strong>. Ela pode ser aplicada se a conexão voltar; por isso novas gravações ficam bloqueadas até haver confirmação. Para descartá-la, recarregue a página.';
@@ -1226,15 +1012,14 @@
   }
 
   /* ---------- detalhe do conceito, NESTA ordem ----------
-     a) Identificação · b) Definição vigente (cartão em destaque, com "Nova versão da definição" à mão) e logo
-     depois as outras fontes · c) Critérios e pergunta discriminadora · d) Atributos / perfil · e) Relações
-     (saída e entrada) · f) Histórico (recolhido, por último). Tudo indexado pelo CÓDIGO do conceito. */
+     a) Identificação essencial · b) Definição oficial vigente, com "Atualizar definição" e o histórico dela (recolhido)
+     · c) Pergunta discriminadora · d) Atributos / perfil · e) Relações · f) Identificação do conceito (editar, inativar,
+     camada) · g) Histórico completo do conceito (recolhido, por último). Tudo indexado pelo CÓDIGO do conceito. */
   function renderIdentificacao(dom, codigo) {
     var D = st.d[dom], c = D.conceitos[codigo], e = D.edicao, ed = podeEditar(), org = dom === 'organizacional';
     var html = '<section class="tax-sec tax-sec--ident" id="taxSecIdent"><h4>Identificação</h4><div class="tax-ident">';
     html += '<p class="tax-ident-linha" id="taxCodigo"><span class="tax-ident-k">Código:</span> <code>' + esc(codigo) + '</code></p>';
-    html += '<p class="tax-ident-linha"><span class="tax-ident-k">Nome:</span> ' + esc(c.nome) + '</p>';
-    html += '<p class="tax-ident-linha" id="taxIdentSituacao"><span class="tax-ident-k">Situação:</span> ' + (c.ativo === false ? selo('desativado') : selo('ativo', 'tax-selo--ativo')) + seloSituacaoDef(c.situacaoDefinicao) + '</p>';
+    if (c.ativo === false) html += '<p class="tax-ident-linha" id="taxIdentSituacao"><span class="tax-ident-k">Situação:</span> ' + selo('desativado') + '</p>';
     if (org) html += '<p class="tax-ident-linha"><span class="tax-ident-k">Camada:</span> ' + (c.camada ? esc(CAMADA_ROTULO[c.camada] || c.camada) : '<span class="tax-ausencia">sem camada</span>') + '</p>';
     if (c.pai) {
       var pai = D.conceitos[c.pai];
@@ -1246,11 +1031,17 @@
     if (c.ativo === false && c.inativacao) html += '<p class="tax-ident-linha" id="taxIdentInativacao"><span class="tax-ident-k">Inativado:</span> ' + esc(fmtData(c.inativacao.em)) + ' por ' + esc(c.inativacao.por || '—') + ' — motivo: ' + esc(c.inativacao.motivo || '—') + '</p>';
     if (dom === 'organizacional' && codigoLigavel(dom, codigo) && estaLigado(codigo, dom)) html += '<p class="tax-ident-linha" id="taxIdentLigadoPos"><span class="tax-ident-k">Posicionamento:</span> ' + selo('ligado ao Posicionamento', 'tax-selo--ligado') + ' <span class="tax-ajuda">código de mesmo nome do motor de Posicionamento Organizacional; não pode ser inativado nem trocar de camada.</span></p>';
     if (dom === 'arquitetural' && estaLigado(codigo)) html += '<p class="tax-ident-linha" id="taxIdentLigado"><span class="tax-ident-k">Avaliação:</span> ' + selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">classificação de mesmo código do motor; não pode ser inativado.</span></p>';
-    if (c.atualizadoEm || c.atualizadoPor) html += '<p class="tax-ident-linha tax-ident-atualizado"><span class="tax-ident-k">Última atualização:</span> ' + esc(fmtData(c.atualizadoEm)) + (c.atualizadoPor ? ' por ' + esc(c.atualizadoPor) : '') + '</p>';
     html += '</div>';
+    return html + '</section>';
+  }
+  /* identificação editável (nome e dados cadastrais), inativar e camada: secundários, depois da definição */
+  function renderAcoesConceito(dom, codigo) {
+    var D = st.d[dom], c = D.conceitos[codigo], e = D.edicao, ed = podeEditar(), org = dom === 'organizacional';
+    if (!ed) return '';
+    var html = '<section class="tax-sec tax-sec--ident-acoes" id="taxSecIdentAcoes"><h4>Identificação do conceito</h4>';
     if (e && e.tipo === 'conceito' && e.chave === codigo) {
       var v = e.valores;
-      html += '<div class="tax-form" id="taxFormConceito"><p class="tax-form-titulo"><strong>Editar dados do conceito</strong></p><label for="taxF_nome">Nome *</label><input type="text" id="taxF_nome" data-campo="nome" value="' + esc(v.nome) + '" maxlength="120">';
+      html += '<div class="tax-form" id="taxFormConceito"><p class="tax-form-titulo"><strong>Editar identificação</strong></p><label for="taxF_nome">Nome *</label><input type="text" id="taxF_nome" data-campo="nome" value="' + esc(v.nome) + '" maxlength="120">';
       if (org) {
         html += '<label for="taxF_perguntaDiscriminadora">Pergunta discriminadora</label><textarea id="taxF_perguntaDiscriminadora" data-campo="perguntaDiscriminadora" rows="3">' + esc(v.perguntaDiscriminadora) + '</textarea>';
         html += '<label for="taxF_notaDeAplicacao">Nota de aplicação</label><textarea id="taxF_notaDeAplicacao" data-campo="notaDeAplicacao" rows="4">' + esc(v.notaDeAplicacao) + '</textarea>';
@@ -1260,11 +1051,11 @@
       if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
       html += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
     } else if (ed) {
-      html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito"><button type="button" class="btn btn--sm" data-tax="editar-conceito">Editar dados do conceito</button>' +
+      html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito"><button type="button" class="btn btn--sm" data-tax="editar-conceito">Editar identificação</button>' +
         (c.ativo === false ? '<button type="button" class="btn btn--sm" data-tax="reativar" id="taxReativarBtn"' + (st.salvando ? ' disabled' : '') + '>Reativar conceito</button>'
           : '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="inativar" id="taxInativarBtn">Inativar conceito</button>') +
         (org && CAMADAS_TROCAVEIS[c.camada] ? '<button type="button" class="btn btn--sm" data-tax="alterar-camada" id="taxCamadaBtn">Alterar camada</button>' : '') + '</div>' +
-        '<p class="tax-ajuda">A definição muda pelo cartão “Definição vigente”, logo abaixo.</p>';
+        '<p class="tax-ajuda">Nome, critérios e dados cadastrais. A definição muda por “Atualizar definição”, acima.</p>';
       if (D.inativando && D.inativando.codigo === codigo && c.ativo !== false) html += painelInativar(dom, codigo, c);
       if (D.camadaMudando && D.camadaMudando.codigo === codigo) html += painelCamada(dom, codigo, c);
     }
@@ -1285,7 +1076,7 @@
     if (bloq) return h + '<p class="tax-aviso-erro" role="alert" id="taxCamadaBloqueada">' + esc(bloq) + '</p>' +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="cancelar-camada">Fechar</button></div></div>';
     h += '<p><strong>Mover de "' + esc(CAMADA_ROTULO[c.camada]) + '" para "' + esc(CAMADA_ROTULO[para]) + '"?</strong></p>' +
-      '<p class="tax-ajuda" id="taxCamadaPrevia">Muda só a camada. O código <code>' + esc(codigo) + '</code>, o nome, a definição, as fontes, as relações e o histórico continuam como estão. A troca fica no histórico com o motivo e pode ser desfeita do mesmo jeito.</p>' +
+      '<p class="tax-ajuda" id="taxCamadaPrevia">Muda só a camada. O código <code>' + esc(codigo) + '</code>, o nome, a definição, as relações e o histórico continuam como estão. A troca fica no histórico com o motivo e pode ser desfeita do mesmo jeito.</p>' +
       '<label for="taxC_motivo">Motivo *</label><textarea id="taxC_motivo" data-cam="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
       (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm btn--primary" data-tax="confirmar-camada"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Alterar camada') + '</button>' +
@@ -1315,7 +1106,7 @@
         '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="cancelar-inativar">Fechar</button></div></div>';
     }
     var af = afetadosPor(dom, codigo), D = D_(dom);
-    h += '<p><strong>Inativar este conceito?</strong></p><p class="tax-ajuda">Nada é apagado: o conceito, as fontes, o histórico e as relações continuam registrados. A inativação fica no histórico com o motivo.</p>';
+    h += '<p><strong>Inativar este conceito?</strong></p><p class="tax-ajuda">Nada é apagado: o conceito, a definição, o histórico e as relações continuam registrados. A inativação fica no histórico com o motivo.</p>';
     if (dom === 'organizacional') {
       h += '<div id="taxInativarAfetados"><p class="tax-rotulo">Filhos ativos (' + af.filhos.length + ')</p>' + (af.filhos.length ? '<ul>' + af.filhos.map(function (k) { return '<li>' + esc(D.conceitos[k].nome) + ' <code>' + esc(k) + '</code></li>'; }).join('') + '</ul>' : '<p class="tax-ausencia">Nenhum.</p>');
       if (!af.pronto) h += '<p class="' + (af.erroRelacoes ? 'tax-aviso-erro' : 'loading-msg') + '">' + (af.erroRelacoes ? 'Não foi possível carregar as relações afetadas.' : 'Carregando relações afetadas…') + '</p>';
@@ -1331,203 +1122,61 @@
   }
   function D_(dom) { return st.d[dom]; }
 
-  /* b) Definição vigente (cartão em destaque) + as outras fontes (em validação, históricas, arquivadas).
-     Devolve { definicao, outras } — os dois blocos usam os mesmos cartões e painéis de confirmação. */
-  function blocosFontes(dom, codigo, det) {
-    var D = st.d[dom], c = D.conceitos[codigo], ed = podeEditar(), e = D.edicao;
-    var todas = ordenaPor(chaves(det.fontes).map(function (k) { return Object.assign({ _id: k }, det.fontes[k]); }), 'criadoEm');
-    var vigentes = todas.filter(function (f) { return f.situacao === 'vigente' && !f.arquivada; });
-    var arquivadas = todas.filter(function (f) { return f.arquivada; });
-    var disponiveis = todas.filter(function (f) { return f.situacao !== 'vigente' && !f.arquivada; });
-    /* Texto idêntico = igualdade EXATA (só espaços das pontas ignorados), entre fontes NÃO arquivadas.
-       Nada é fundido nem escondido; é só um sinal para a curadoria humana. */
-    var chaveTexto = function (f) { return String(f.texto || '').trim(); };
-    var porTexto = {};
-    todas.filter(function (f) { return !f.arquivada; }).forEach(function (f) { (porTexto[chaveTexto(f)] = porTexto[chaveTexto(f)] || []).push(f); });
-    var conf = D.confirmacao, arqForm = D.arquivando;
-    var nomeFonte = function (f) { return f.rotulo || f.tipoRedacao || f._id; };
-    var iguaisA = function (f) { return f.arquivada ? [] : (porTexto[chaveTexto(f)] || []).filter(function (o) { return o._id !== f._id; }); };
-
-    function detalhes(f) {
-      var vig = f.situacao === 'vigente' && !f.arquivada;
-      var h = '<div class="tax-detalhes">';
-      if (!vig) h += '<p class="tax-fonte-texto">' + esc(f.texto) + '</p>'; /* a vigente já mostra o texto integral no cartão */
-      h += '<dl class="tax-confirma-dados tax-meta"><dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao) + '</dd>' +
-        '<dt>Situação</dt><dd>' + esc(f.situacao) + '</dd>' +
-        '<dt>Criada por</dt><dd>' + esc(f.criadoPor || '—') + (f.criadoEm ? ' em ' + esc(fmtData(f.criadoEm)) : '') + '</dd>' +
-        '<dt>Identificador</dt><dd><code>' + esc(f._id) + '</code></dd>';
-      if (f.arquivada && f.arquivamento) h += '<dt>Arquivada por</dt><dd>' + esc(f.arquivamento.por || '—') + ' em ' + esc(fmtData(f.arquivamento.em)) + '</dd>';
-      h += '</dl>';
-      var iguais = iguaisA(f);
-      if (iguais.length) h += '<p class="tax-identico">Texto idêntico a: ' + iguais.map(function (o) { return esc(rotuloFonte(o, o._id)) + (o.situacao === 'vigente' ? ' (definição vigente)' : ''); }).join('; ') + '</p>';
-      /* Texto-fonte é imutável: a vigente não tem "Editar" — a mudança de redação é a "Nova versão da definição"
-         (botão no próprio cartão). As demais editam só rótulo e situação. */
-      if (vig && ed) h += '<p class="tax-ajuda">O texto vigente não é editado: “Nova versão da definição” cria outro texto-fonte “em validação”, e a definição só muda quando você usar “Usar como vigente” nele.</p>';
-      else if (ed && !f.arquivada) h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="editar-fonte" data-fonte="' + esc(f._id) + '">Editar</button></div>' +
-        '<p class="tax-ajuda tax-ajuda-corrigir">Editar muda só o rótulo e a situação. Texto errado? Adicione um novo texto-fonte com a redação certa e arquive este com o motivo "redação superada".</p>';
-      return h + '</div>';
-    }
-    function cabecalho(f, vigente) {
-      var h = '<header class="tax-fonte-cab">';
-      if (vigente) h += selo('DEFINIÇÃO OFICIAL', 'tax-selo--vigente') + ' ';
-      else if (f.arquivada) h += selo('ARQUIVADA', 'tax-selo--arquivada') + ' ';
-      h += '<strong class="tax-fonte-nome">' + esc(nomeFonte(f)) + '</strong> ' + selo(f.contexto, 'tax-selo--ctx');
-      if (!vigente) h += seloSituacaoFonte(f.situacao);
-      return h + '</header>';
-    }
-    /* abertura do cartão da vigente com o formulário de "Editar rótulo" (mesma moldura do cartão normal) */
-    function h0(f) { return '<article class="tax-fonte tax-fonte--vigente tax-fonte--aberta" data-fonte="' + esc(f._id) + '">' + cabecalho(f, true); }
-    /* "Editar rótulo" da fonte VIGENTE: só o rótulo é editável; texto, contexto, tipo de redação e vigência ficam
-       só para leitura e não são enviados — a fonte continua a mesma (mesmo id) e continua vigente. */
-    function formRotulo(f, e) {
-      return '<div class="tax-form" id="taxFormRotulo"><p class="tax-form-titulo"><strong>Editar rótulo da fonte vigente</strong></p>' +
-        '<p class="tax-ajuda" id="taxRotuloAviso">Somente o rótulo será alterado. O texto e a definição vigente permanecem iguais.</p>' +
-        '<label for="taxR_rotulo">Rótulo</label><input type="text" id="taxR_rotulo" data-campo="rotulo" value="' + esc(e.valores.rotulo) + '" maxlength="120">' +
-        '<p class="tax-rotulo">Texto da definição (não editável)</p><p class="tax-fonte-texto tax-somente-leitura">' + esc(f.texto) + '</p>' +
-        '<dl class="tax-confirma-dados tax-meta"><dt>Contexto</dt><dd>' + esc(f.contexto || '—') + '</dd><dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao || '—') + '</dd>' +
-        '<dt>Situação</dt><dd>vigente</dd><dt>Fonte (id)</dt><dd><code>' + esc(f._id) + '</code></dd></dl>' +
-        (e.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>' : '') +
-        '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR RÓTULO') + '</button>' +
-        '<button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
-    }
-    function cartao(f, tipo) { /* tipo: 'vigente' | 'disponivel' | 'arquivada' */
-      var vigente = tipo === 'vigente', aberta = D.expandida === f._id;
-      var editandoEste = e && e.tipo === 'fonte' && e.chave === f._id;
-      if (vigente && e && e.tipo === 'rotulo' && e.chave === f._id) return h0(f) + formRotulo(f, e) + '</article>';
-      var h = '<article class="tax-fonte tax-fonte--' + tipo + (aberta || editandoEste ? ' tax-fonte--aberta' : '') + '" data-fonte="' + esc(f._id) + '">';
-      h += cabecalho(f, vigente);
-      if (editandoEste) return h + formFonte(dom, codigo, e) + '</article>';
-      if (vigente) {
-        h += '<p class="tax-fonte-texto tax-definicao-texto">' + esc(f.texto) + '</p>' +
-          '<dl class="tax-dl tax-vig-meta"' + (f._id === c.definicaoVigenteFonteId ? ' id="taxVigenteMeta"' : '') + '><dt>Rótulo da fonte</dt><dd>' + esc(f.rotulo || '—') + '</dd>' +
-          '<dt>Contexto</dt><dd>' + esc(f.contexto || '—') + '</dd>' +
-          '<dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao || '—') + '</dd>' +
-          '<dt>Registrada por</dt><dd>' + esc(f.criadoPor || '—') + (f.criadoEm ? ' em ' + esc(fmtData(f.criadoEm)) : '') + '</dd>' +
-          '<dt>Fonte (id)</dt><dd><code>' + esc(f._id) + '</code></dd></dl>';
-      } else if (f.arquivada) {
-        var a = f.arquivamento || {};
-        h += '<p class="tax-arq-info">Motivo: <strong>' + esc(a.motivo || '—') + '</strong>' + (a.justificativa ? ' — ' + esc(a.justificativa) : '') + '<br><span class="tax-ajuda">Arquivada em ' + esc(fmtData(a.em)) + ' por ' + esc(a.por || '—') + '</span></p>';
-      } else {
-        if (D.novaVersao === f._id) h += '<p class="tax-dica" id="taxNovaVersaoCriada" role="note">Nova versão criada agora. A definição vigente ainda é a anterior: use “Usar como vigente” para adotar esta.</p>';
-        if (iguaisA(f).length) h += '<p class="tax-identico tax-identico--resumo">Texto idêntico ao de outra fonte</p>';
-        if (SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) === -1) h += '<p class="tax-ajuda">Não pode ser definição (' + esc(f.situacao) + ').</p>';
-      }
-      if (aberta) h += detalhes(f);
-      h += '<div class="tax-acoes tax-acoes--fonte">';
-      if (vigente) {
-        /* a ação de redação fica NO cartão da definição, em destaque (não escondida em "Ver detalhes") */
-        if (ed) h += '<button type="button" class="btn btn--sm tax-btn-destaque" data-tax="nova-versao" data-fonte="' + esc(f._id) + '">Nova versão da definição</button>' +
-          '<button type="button" class="btn btn--sm" data-tax="alterar-definicao">Alterar definição</button>' +
-          '<button type="button" class="btn btn--sm" data-tax="remover-vigencia" data-fonte="' + esc(f._id) + '">Remover vigência</button>' +
-          '<button type="button" class="btn btn--sm" data-tax="editar-rotulo" data-fonte="' + esc(f._id) + '" id="taxEditarRotuloBtn">Editar rótulo</button>';
-        h += '<button type="button" class="btn btn--sm" data-tax="ver" data-fonte="' + esc(f._id) + '" aria-expanded="' + (aberta ? 'true' : 'false') + '">' + (aberta ? 'Ocultar detalhes' : 'Ver detalhes') + '</button>';
-      } else {
-        h += '<button type="button" class="btn btn--sm" data-tax="ver" data-fonte="' + esc(f._id) + '" aria-expanded="' + (aberta ? 'true' : 'false') + '">' + (aberta ? 'Ocultar' : 'Ver') + '</button>';
-        if (ed && f.arquivada) h += '<button type="button" class="btn btn--sm" data-tax="restaurar" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>Restaurar</button>';
-        else if (ed) {
-          if (SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) !== -1) h += '<button type="button" class="btn btn--sm" data-tax="tornar-vigente" data-fonte="' + esc(f._id) + '">Usar como vigente</button>';
-          h += '<button type="button" class="btn btn--sm" data-tax="arquivar" data-fonte="' + esc(f._id) + '">Arquivar</button>';
-        }
-      }
-      h += '</div>';
-      if (ed) {
-        if (conf && conf.fonte === f._id && conf.acao === 'remover' && vigente) h += painelRemocao(f);
-        if (conf && conf.fonte === f._id && conf.acao === 'tornar' && tipo === 'disponivel') h += painelAnalise(f);
-        if (arqForm && arqForm.fonte === f._id && tipo === 'disponivel') h += painelArquivar(f);
-      }
-      return h + '</article>';
-    }
-    function dados(f) {
-      return '<dl class="tax-confirma-dados">' +
-        '<dt>Conceito</dt><dd>' + esc(c.nome) + '</dd>' +
-        '<dt>Texto-fonte</dt><dd>' + esc(nomeFonte(f)) + '</dd>' +
-        '<dt>Contexto</dt><dd>' + esc(f.contexto) + '</dd>' +
-        '<dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao) + '</dd>' +
-        '<dt>Situação atual</dt><dd>' + esc(f.situacao) + '</dd></dl>';
-    }
-    function painelAnalise(f) {
-      var atualV = c.definicaoVigenteFonteId && det.fontes[c.definicaoVigenteFonteId];
-      return '<div class="tax-confirma" role="alertdialog" aria-label="Análise para curadoria">' +
-        '<p><strong>Usar como definição vigente</strong></p>' +
-        '<p class="tax-confirma-aviso" role="note"><strong>Esta ação altera a definição oficial deste conceito.</strong>' +
-        (atualV ? ' O texto vigente atual (' + esc(rotuloFonte(atualV, c.definicaoVigenteFonteId)) + ') passa a "histórico/contextual".' : '') +
-        ' O texto-fonte em si não é alterado. A decisão fica registrada na auditoria.</p>' +
-        dados(f) +
-        '<p class="tax-confirma-rotulo">Texto integral</p><p class="tax-confirma-texto">' + esc(f.texto) + '</p>' +
-        '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-vigente" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Tornar esta fonte vigente') + '</button>' +
-        '<button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar / manter em revisão</button></div></div>';
-    }
-    function painelRemocao(f) {
-      return '<div class="tax-confirma" role="alertdialog" aria-label="Remover definição vigente">' +
-        '<p><strong>Remover a definição vigente?</strong></p>' +
-        '<p class="tax-confirma-aviso" role="note"><strong>Esta ação remove a definição oficial vigente deste conceito e o deixará novamente em revisão.</strong> O texto-fonte em si não é alterado e passa a "histórico/contextual". A decisão fica registrada na auditoria.</p>' +
-        '<dl class="tax-confirma-dados"><dt>Conceito</dt><dd>' + esc(c.nome) + '</dd><dt>Fonte vigente atual</dt><dd>' + esc(rotuloFonte(f, f._id)) + '</dd></dl>' +
-        '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-remocao" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Remover a definição vigente') + '</button>' +
-        '<button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar / manter a definição vigente</button></div></div>';
-    }
-    function painelArquivar(f) {
-      return '<div class="tax-confirma tax-arquivar" id="taxFormArquivar" role="group" aria-label="Arquivar texto-fonte">' +
-        '<p><strong>Arquivar este texto-fonte?</strong></p>' +
-        '<p class="tax-ajuda">O texto não é apagado: sai da lista de fontes disponíveis, fica consultável em “Fontes arquivadas” e pode ser restaurado. A decisão fica registrada na auditoria.</p>' +
-        '<label for="taxA_motivo">Motivo *</label><select id="taxA_motivo" data-arq="motivo"><option value="">— escolha —</option>' +
-        MOTIVOS_ARQ.map(function (m) { return '<option value="' + esc(m) + '"' + (arqForm.motivo === m ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('') + '</select>' +
-        '<label for="taxA_justificativa">Justificativa (obrigatória se o motivo for “outro”)</label><textarea id="taxA_justificativa" data-arq="justificativa" rows="3" maxlength="500">' + esc(arqForm.justificativa) + '</textarea>' +
-        (arqForm.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(arqForm.erro) + '</p>' : '') +
-        '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-arquivar" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Arquivar texto-fonte') + '</button>' +
-        '<button type="button" class="btn btn--sm" data-tax="cancelar-arquivar"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
-    }
-
-    var pronto = !det.carregando && !det.erros.fontes;
-    var erroFontes = det.erros.fontes ? '<p class="tax-aviso-erro">' + (det.erros.fontes === 'sem-acesso' ? 'Sem acesso aos textos-fonte.' : 'Não foi possível carregar os textos-fonte agora.') + '</p>' : '';
-
-    /* ----- b) Definição vigente ----- */
-    var def = '<section class="tax-sec tax-sec--definicao" id="taxSecDefinicao" aria-label="Definição vigente"><h4>Definição vigente</h4>';
-    def += '<p class="tax-situacao">' + seloSituacaoDef(c.situacaoDefinicao) + '</p>';
-    var v = validarVigencia(det.fontes, c.definicaoVigenteFonteId || null);
-    if (pronto && !v.ok) def += '<p class="tax-aviso-erro" role="alert" id="taxAvisoVigencia">Estado inconsistente: ' + esc(v.erro) + ' Salvar alterações das fontes fica bloqueado até corrigir.</p>';
-    def += erroFontes;
-    def += '<div class="tax-sub tax-bloco tax-bloco--vigente" id="taxVigenteBloco">';
-    var vig = c.definicaoVigenteFonteId;
-    if (vigentes.length) def += vigentes.map(function (f) { return cartao(f, 'vigente'); }).join('');
-    else if (!pronto && !det.erros.fontes) def += '<p class="loading-msg">Carregando a definição…</p>';
-    else if (!det.erros.fontes) {
-      if (vig) def += '<p class="tax-aviso-erro">A definição vigente aponta para uma fonte que não foi encontrada.</p>';
-      else if (c.situacaoDefinicao === 'em revisão') def += '<p class="tax-ausencia">Há textos recebidos, mas nenhum foi aprovado como definição vigente.</p>';
-      else def += '<p class="tax-ausencia">Definição ainda não registrada.</p>';
-      def += '<p class="tax-ausencia tax-sem-vigente">Nenhuma definição vigente. Nenhum dos textos abaixo vale como definição enquanto não for aprovado.</p>';
-    }
-    def += '</div>';
-    /* o formulário da nova versão abre AQUI, junto da definição de que ela parte */
-    if (ed && e && e.tipo === 'novaFonte' && e.baseFonteId) def += '<article class="tax-fonte tax-fonte--nova-versao">' + formFonte(dom, codigo, e) + '</article>';
-    def += '</section>';
-
-    /* ----- outras fontes (recolhível; aberta por padrão para a curadoria seguir à mão) ----- */
-    var nOutras = disponiveis.length + arquivadas.length;
-    var idOutras = idDet('outras', dom, codigo);
-    var out = '<section class="tax-sec tax-sec--outras" id="taxSecFontes"><details class="tax-recolhivel" id="taxOutrasFontes" data-det="' + esc(idOutras) + '"' + detAberto(idOutras, true) + '>' +
-      '<summary class="tax-recolhivel-cab">Outras fontes da definição — ' + (pronto ? nOutras : '…') + '</summary>';
-    out += '<p class="tax-ajuda">Em validação, históricas/contextuais e arquivadas. Nenhuma vale como definição enquanto não for usada como vigente.</p>';
-    if (det.erros.fontes) out += erroFontes;
-    else if (det.carregando && !chaves(det.fontes).length) out += '<p class="loading-msg">Carregando textos-fonte…</p>';
-    if (pronto && todas.length) out += '<p class="tax-resumo-fontes" id="taxResumoFontes">' + plural(disponiveis.length, 'fonte disponível', 'fontes disponíveis') + (arquivadas.length ? ' · ' + plural(arquivadas.length, 'fonte arquivada', 'fontes arquivadas') : '') + '</p>';
-    out += '<div class="tax-sub tax-bloco tax-bloco--disponiveis" id="taxFontesDisponiveis" tabindex="-1"><h5>Fontes disponíveis' + (pronto ? ' (' + disponiveis.length + ')' : '') + '</h5>';
-    if (D.dica && ed) out += '<p class="tax-dica" id="taxDicaAlterar" role="note">Escolha uma das fontes abaixo e use “Usar como vigente”. Nenhuma delas é recomendada: a escolha é sua.</p>';
-    if (!todas.length && pronto) out += '<p class="tax-ausencia">Nenhum texto-fonte registrado.</p>';
-    else if (pronto && !disponiveis.length) out += '<p class="tax-ausencia">Não há fontes disponíveis além da definição vigente.</p>';
-    disponiveis.forEach(function (f) { out += cartao(f, 'disponivel'); });
-    if (ed) {
-      if (e && e.tipo === 'novaFonte' && !e.baseFonteId) out += '<article class="tax-fonte">' + formFonte(dom, codigo, e) + '</article>';
-      else if (!(e && e.tipo === 'novaFonte')) out += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="nova-fonte">+ Adicionar texto-fonte</button></div>';
-    }
-    out += '</div>';
-    if (pronto && arquivadas.length) {
-      out += '<div class="tax-sub tax-bloco tax-bloco--arquivadas" id="taxFontesArquivadas"><h5><button type="button" class="tax-recolher" data-tax="alternar-arquivadas" aria-expanded="' + (D.arquivadasAbertas ? 'true' : 'false') + '">' +
-        (D.arquivadasAbertas ? '▾' : '▸') + ' Fontes arquivadas (' + arquivadas.length + ')</button></h5>';
-      if (D.arquivadasAbertas) arquivadas.forEach(function (f) { out += cartao(f, 'arquivada'); });
-      out += '</div>';
-    }
-    out += '</details></section>';
-    return { definicao: def, outras: out };
+  /* b) DEFINIÇÃO OFICIAL VIGENTE — um texto, a última atualização e UMA ação: "Atualizar definição" (editar → conferir →
+     publicar). Logo abaixo, o histórico das publicações, recolhido por padrão. Sem fontes, rótulos, tipos de redação nem
+     identificadores técnicos. */
+  function renderDefinicao(dom, codigo, det) {
+    var D = st.d[dom], c = D.conceitos[codigo] || {}, def = c.definicao || null, ed = podeEditar(), a = D.atualizando;
+    var h = '<section class="tax-sec tax-sec--definicao" id="taxSecDefinicao" aria-label="Definição oficial vigente"><h4>Definição oficial vigente</h4>';
+    if (def) h += '<p class="tax-definicao-texto" id="taxDefinicaoTexto">' + esc(def.texto) + '</p>' +
+      '<p class="tax-def-atualizacao" id="taxDefAtualizacao"><strong>Última atualização:</strong> ' + esc(fmtData(def.publicadaEm)) + (def.publicadaPor ? ' · ' + esc(def.publicadaPor) : '') + ' · versão ' + esc(def.versao) + '</p>';
+    else h += '<p class="tax-ausencia" id="taxSemDefinicao">Este conceito ainda não tem definição oficial vigente.</p>';
+    if (ed && !(a && a.codigo === codigo)) h += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="atualizar-definicao" id="taxAtualizarDefinicaoBtn"' + (st.salvando ? ' disabled' : '') + '>' + (def ? 'ATUALIZAR DEFINIÇÃO' : 'REGISTRAR DEFINIÇÃO') + '</button></div>';
+    if (ed && a && a.codigo === codigo) h += a.etapa === 'conferir' ? painelConferir(def, a) : painelEditarDefinicao(def, a);
+    h += renderHistoricoDefinicao(dom, codigo, det);
+    return h + '</section>';
+  }
+  function painelEditarDefinicao(def, a) {
+    return '<div class="tax-form" id="taxFormDefinicao" role="group" aria-label="Atualizar definição">' +
+      '<p class="tax-form-titulo"><strong>' + (def ? 'Atualizar definição' : 'Registrar definição') + '</strong> <span class="tax-ajuda">— passo 1 de 2: editar</span></p>' +
+      '<label for="taxDefNovo">' + (def ? 'Nova redação' : 'Texto da definição') + ' *</label><textarea id="taxDefNovo" data-def="texto" rows="6" maxlength="8000">' + esc(a.texto) + '</textarea>' +
+      '<label for="taxDefMotivo">Motivo da alteração (opcional)</label><textarea id="taxDefMotivo" data-def="motivo" rows="2" maxlength="500">' + esc(a.motivo) + '</textarea>' +
+      (a.erro ? '<p class="tax-aviso-erro" role="alert" id="taxDefErro">' + esc(a.erro) + '</p>' : '') +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="conferir-definicao" id="taxDefConferirBtn">CONTINUAR</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="cancelar-definicao" id="taxDefCancelarBtn">Cancelar</button></div></div>';
+  }
+  function painelConferir(def, a) {
+    return '<div class="tax-confirma" id="taxConferirDefinicao" role="group" aria-label="Conferir antes de publicar">' +
+      '<p><strong>Conferir antes de publicar</strong> <span class="tax-ajuda">— passo 2 de 2</span></p>' +
+      '<p class="tax-confirma-rotulo">Definição atual</p><p class="tax-confirma-texto" id="taxDefAtualConferir">' + (def ? esc(def.texto) : '<em>(nenhuma)</em>') + '</p>' +
+      '<p class="tax-confirma-rotulo">Nova definição proposta</p><p class="tax-confirma-texto" id="taxDefNovaConferir">' + esc(String(a.texto).trim()) + '</p>' +
+      (String(a.motivo || '').trim() ? '<p class="tax-confirma-rotulo">Motivo</p><p class="tax-confirma-texto" id="taxDefMotivoConferir">' + esc(String(a.motivo).trim()) + '</p>' : '') +
+      '<p class="tax-confirma-aviso" role="note">Ao publicar, a nova definição passa a ser a vigente' + (def ? ' e a atual fica preservada no histórico' : '') + '. Autoria e data são registradas automaticamente.</p>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="publicar-definicao" id="taxDefPublicarBtn"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'PUBLICANDO…' : 'PUBLICAR NOVA DEFINIÇÃO') + '</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="voltar-definicao"' + (st.salvando ? ' disabled' : '') + '>Voltar e editar</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="cancelar-definicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+  }
+  /* histórico da definição: as versões publicadas (com o texto anterior) e, quando houver, as trocas de definição do
+     modelo antigo (auditoria 'definicao_vigente'). Recolhido por padrão; a contagem vem só de registros reais */
+  function renderHistoricoDefinicao(dom, codigo, det) {
+    if (det.erros.versoes) return '<p class="tax-aviso-erro" id="taxHistDefErro">Histórico da definição indisponível agora.</p>';
+    if (det.carregando && !chaves(det.versoes).length) return '<p class="loading-msg">Carregando o histórico…</p>';
+    var H = window.faTaxonomiaDefinicao.historico(det.versoes, det.auditoria, det.arquivo), id = idDet('histdef', dom, codigo);
+    var h = '<details class="tax-recolhivel tax-hist" id="taxHistDefinicao" data-det="' + esc(id) + '"' + detAberto(id, false) + '><summary class="tax-recolhivel-cab">Histórico de alterações — ' + H.alteracoes + (H.alteracoes === 1 ? ' alteração' : ' alterações') + '</summary>';
+    if (!H.publicacoes.length && !H.legado.length) return h + '<p class="tax-ausencia">Nenhuma alteração registrada.</p></details>';
+    h += '<ol class="tax-hist-def" id="taxHistDefLista">' + H.publicacoes.map(function (p) {
+      return '<li class="tax-hist-def-item" data-versao="' + esc(p.versao) + '"><p class="tax-hist-def-cab"><strong>Versão ' + esc(p.versao) + '</strong> · ' + esc(fmtData(p.publicadaEm)) + ' · ' + esc(p.publicadaPor || '—') +
+        (p.origem === 'migracao' ? ' · <span class="tax-ajuda">definição vigente na simplificação da Taxonomia</span>' : p.origem === 'carga-inicial' ? ' · <span class="tax-ajuda">carga inicial</span>' : '') + '</p>' +
+        (p.textoAnterior !== null ? '<p class="tax-confirma-rotulo">Texto anterior</p><p class="tax-fonte-texto">' + esc(p.textoAnterior) + '</p>' : '') +
+        '<p class="tax-confirma-rotulo">' + (p.textoAnterior !== null ? 'Texto novo' : 'Texto') + '</p><p class="tax-fonte-texto">' + esc(p.texto) + '</p>' +
+        (p.motivo ? '<p class="tax-confirma-rotulo">Motivo</p><p class="tax-fonte-texto">' + esc(p.motivo) + '</p>' : '') + '</li>';
+    }).join('') + '</ol>';
+    if (H.legado.length) h += '<p class="tax-confirma-rotulo" id="taxHistDefLegadoTitulo">Antes da simplificação da Taxonomia</p><ul class="tax-hist-def" id="taxHistDefLegado">' + H.legado.map(function (e) {
+      return '<li class="tax-hist-def-item"><p class="tax-hist-def-cab">' + esc(fmtData(e.dataHora)) + ' · ' + esc(e.por || '—') + '</p>' +
+        '<p class="tax-confirma-rotulo">Texto anterior</p><p class="tax-fonte-texto">' + esc(e.textoAnterior !== null ? e.textoAnterior : (e.rotuloAnterior ? '(' + e.rotuloAnterior + ')' : '(nenhum)')) + '</p>' +
+        '<p class="tax-confirma-rotulo">Texto novo</p><p class="tax-fonte-texto">' + esc(e.textoNovo !== null ? e.textoNovo : (e.rotuloNovo ? '(' + e.rotuloNovo + ')' : '(sem definição)')) + '</p></li>';
+    }).join('') + '</ul>';
+    return h + '</details>';
   }
 
   /* c) Critérios e pergunta discriminadora (só leitura aqui; a edição é "Editar dados do conceito", na Identificação) */
@@ -1688,14 +1337,14 @@
     var html = '<section class="tax-detalhe" aria-live="polite" aria-label="Conceito selecionado">';
     html += '<button type="button" class="btn tax-voltar" data-tax="voltar-lista">← VOLTAR PARA A LISTA</button>';
     if (!codigo || !D.conceitos[codigo]) return html + '<p class="tax-ausencia">Escolha um conceito na lista.</p></section>';
-    var c = D.conceitos[codigo], det = D.detalhe && D.detalhe.codigo === codigo ? D.detalhe : { carregando: true, fontes: {}, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
+    var c = D.conceitos[codigo], det = D.detalhe && D.detalhe.codigo === codigo ? D.detalhe : { carregando: true, versoes: {}, arquivo: {}, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
     html += '<p class="tax-area-rotulo">Conceito selecionado · ' + esc(DOMINIOS[dom].rotulo) + '</p>';
     html += '<h3 class="tax-titulo">' + esc(c.nome) + '</h3>';
     html += renderIdentificacao(dom, codigo);
-    var bf = blocosFontes(dom, codigo, det);
-    html += bf.definicao + bf.outras;
+    html += renderDefinicao(dom, codigo, det);
     html += renderPergunta(dom, codigo);
     if (dom === 'organizacional') { html += renderAtributos(dom, codigo, det); html += renderRelacoes(dom, codigo, det); }
+    html += renderAcoesConceito(dom, codigo);
     html += renderHistorico(dom, codigo, det);
     /* tela longa no celular: o mesmo "voltar" também no fim */
     html += '<div class="tax-voltar-rodape"><button type="button" class="btn" data-tax="voltar-lista">← VOLTAR PARA A LISTA</button></div>';
@@ -1717,7 +1366,7 @@
       if (imp.erros && imp.erros.length) html += '<div class="tax-aviso-erro" role="alert" id="taxImportErros"><strong>' + (imp.estado === 'invalido' ? 'O arquivo tem problemas — nada foi gravado:' : 'Não foi possível importar:') + '</strong><ul>' + imp.erros.slice(0, 40).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' + (imp.erros.length > 40 ? '<p>… e mais ' + (imp.erros.length - 40) + '.</p>' : '') + '</div>';
       if (imp.estado === 'pronto') {
         var r = imp.resumo;
-        html += '<div class="tax-previa" id="taxPrevia"><strong>Prévia — nada foi gravado ainda</strong><ul><li>' + r.conceitos + ' conceitos</li><li>' + r.fontes + ' textos-fonte (' + r.vigentes + ' com definição vigente)</li><li>' + r.atributos + ' atributos, ' + r.perfis + ' valores de perfil, ' + r.relacoes + ' relações</li></ul>' +
+        html += '<div class="tax-previa" id="taxPrevia"><strong>Prévia — nada foi gravado ainda</strong><ul><li>' + r.conceitos + ' conceitos (' + r.vigentes + ' com definição vigente)</li>' + (r.naoImportados ? '<li id="taxPreviaNaoImportados">' + r.naoImportados + ' textos que não eram a definição vigente não serão importados</li>' : '') + '<li>' + r.atributos + ' atributos, ' + r.perfis + ' valores de perfil, ' + r.relacoes + ' relações</li></ul>' +
           '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-importacao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'IMPORTANDO…' : 'IMPORTAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-importacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
       }
     }
@@ -1730,7 +1379,7 @@
      ainda existe página anterior, sem contador total. Nada é copiado para o histórico dos conceitos. */
   var HG_PAGINA = 25;
   var HG_TIPOS = { carga_inicial: 'Carga inicial', alteracao_atributo: 'Alteração de atributo', alteracao_relacao: 'Alteração de relação',
-    alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente', alteracao_perfil: 'Alteração de perfil', fonte_arquivada: 'Fonte arquivada', fonte_restaurada: 'Fonte restaurada',
+    alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente (modelo antigo)', definicao_publicada: 'Definição publicada', migracao_definicoes: 'Simplificação da Taxonomia (migração)', migracao_revertida: 'Migração revertida', alteracao_perfil: 'Alteração de perfil', fonte_arquivada: 'Fonte arquivada', fonte_restaurada: 'Fonte restaurada',
     inativacao: 'Conceito inativado', reativacao: 'Conceito reativado', relacao_criada: 'Relação criada', relacao_encerrada: 'Relação encerrada', alteracao_camada: 'Camada alterada', indice_filhos: 'Índice de conceitos filhos' };
   function podeVerHG() { return ehAdmin() && adminPronto() && !st.opcoes.somenteLeitura; }
   function carregarHG(quais) {
@@ -1784,14 +1433,9 @@
     ORDEM_DOMINIOS.forEach(function (d) {
       if (H.contagem[d] && H.contagem[d].estado !== 'erro') return;
       if (!H.itens.some(function (i) { return i._dom === d && ehCargaAntiga(i); })) return;
-      var C = H.contagem[d] = { estado: 'carregando', conceitos: 0, fontes: 0 }, pend = 2, falhou = false;
+      var C = H.contagem[d] = { estado: 'carregando', conceitos: 0, fontes: 0 }, pend = 1, falhou = false;
       function fim() { if (--pend > 0) return; C.estado = falhou ? 'erro' : 'ok'; render(); }
-      lerNo(RAIZ + '/' + d + '/conceitos', function (r) { if (!r.ok) falhou = true; else C.conceitos = chaves(r.valor).length; fim(); });
-      lerNo(RAIZ + '/' + d + '/fontes', function (r) {
-        if (!r.ok) falhou = true;
-        else { var v = r.valor || {}; C.fontes = chaves(v).reduce(function (n, cod) { return n + chaves(v[cod]).length; }, 0); }
-        fim();
-      });
+      lerNo(RAIZ + '/' + d + '/conceitos', function (r) { if (!r.ok) falhou = true; else { var v = r.valor || {}; C.conceitos = chaves(v).length; C.fontes = chaves(v).filter(function (k) { return v[k] && v[k].definicao; }).length; } fim(); });
     });
   }
   function resumoCarga(e) {
@@ -1799,7 +1443,7 @@
     var C = st.hg.contagem[e._dom], hoje;
     if (!C || C.estado === 'carregando') hoje = 'Contando o que o domínio tem hoje…';
     else if (C.estado === 'erro') hoje = 'Não foi possível contar agora o que o domínio tem hoje.';
-    else hoje = 'Hoje o domínio tem ' + plural(C.conceitos, 'conceito', 'conceitos') + ' e ' + plural(C.fontes, 'texto-fonte', 'textos-fonte') + ' (contagem atual, não a da carga).';
+    else hoje = 'Hoje o domínio tem ' + plural(C.conceitos, 'conceito', 'conceitos') + ', ' + C.fontes + ' com definição vigente (contagem atual, não a da carga).';
     return 'Contagem deste domínio na carga: não registrada (linha anterior à separação por domínio). ' + hoje +
       (e.valorNovo ? ' Registro original, com o total dos dois domínios juntos: "' + e.valorNovo + '".' : '');
   }
@@ -1852,10 +1496,10 @@
      limite de espera do resto da tela; se QUALQUER ramo falhar ou não responder, nada é baixado e a tela diz
      qual ramo falhou — nunca um arquivo incompleto que pareça completo. O Excel usa a mesma biblioteca
      vendorizada (forca-agil/xlsx.mini.min.js, SheetJS) das exportações da Avaliação, carregada sob demanda. */
-  var EXPORT_FORMATO = 'forca-agil/taxonomia-exportacao', EXPORT_VERSAO = 1;
+  var EXPORT_FORMATO = 'forca-agil/taxonomia-exportacao', EXPORT_VERSAO = 2; /* 2 = modelo de definição única (definicao + definicoes); 1 tinha fontes */
   var RAMOS_EXPORT = [
-    ['organizacional', 'conceitos'], ['organizacional', 'fontes'], ['organizacional', 'atributos'], ['organizacional', 'perfis'], ['organizacional', 'relacoes'], ['organizacional', 'auditoria'],
-    ['arquitetural', 'conceitos'], ['arquitetural', 'fontes'], ['arquitetural', 'auditoria'],
+    ['organizacional', 'conceitos'], ['organizacional', 'definicoes'], ['organizacional', 'atributos'], ['organizacional', 'perfis'], ['organizacional', 'relacoes'], ['organizacional', 'auditoria'],
+    ['arquitetural', 'conceitos'], ['arquitetural', 'definicoes'], ['arquitetural', 'auditoria'],
     ['meta']
   ];
   function lerTudoParaExportar(cb) {
@@ -1901,26 +1545,21 @@
   function simNao(b) { return b ? 'Sim' : 'Não'; }
   /* Linhas das abas (cabeçalhos em português). Pura: recebe o bruto lido, não lê nem grava nada. */
   function linhasExportacao(bruto) {
-    var L = { Conceitos: [], Fontes: [], Atributos: [], Perfis: [], 'Relações': [], 'Histórico': [] };
+    var L = { Conceitos: [], 'Definições': [], Atributos: [], Perfis: [], 'Relações': [], 'Histórico': [] };
     ORDEM_DOMINIOS.forEach(function (dom) {
-      var B = bruto[dom] || {}, cs = B.conceitos || {}, fs = B.fontes || {};
+      var B = bruto[dom] || {}, cs = B.conceitos || {}, dv = B.definicoes || {};
       var nome = function (cod) { return (cs[cod] && cs[cod].nome) || ''; };
       ordenaPor(chaves(cs).map(function (k) { return Object.assign({ _cod: k }, cs[k]); }), 'ordem').forEach(function (c) {
-        var vig = c.definicaoVigenteFonteId || '', fv = vig && fs[c._cod] ? fs[c._cod][vig] : null;
-        var integ = '';
-        if (vig && !fv) integ = 'ponteiro aponta para fonte inexistente';
-        else if (fv && fv.situacao !== 'vigente') integ = 'fonte apontada não está vigente';
-        else { var vv = validarVigencia(fs[c._cod] || {}, vig || null); if (!vv.ok) integ = vv.erro; }
+        var d0 = c.definicao || null, nv = chaves(dv[c._cod] || {}).length;
+        var integ = d0 && !(dv[c._cod] || {})['v' + d0.versao] ? 'a versão vigente não está no histórico' : '';
         L.Conceitos.push([DOMINIOS[dom].rotulo, c._cod, c.nome || '', c.camada ? (CAMADA_ROTULO[c.camada] || c.camada) : '', c.pai || '', c.pai ? nome(c.pai) : '',
-          c.ativo === false ? 'Não' : 'Sim', SIT_DEFINICAO_ROTULO[c.situacaoDefinicao] || txt(c.situacaoDefinicao), fv ? fv.texto : '', vig, fv ? (fv.rotulo || '') : '', fv ? fv.contexto : '', fv ? fv.tipoRedacao : '',
+          c.ativo === false ? 'Não' : 'Sim', d0 ? d0.texto : '', d0 ? d0.versao : '', d0 ? d0.publicadaEm || '' : '', d0 ? d0.publicadaPor || '' : '', nv,
           txt(c.ordem), listaCriterios(c).join(' | '), c.observacoes || '', c.perguntaDiscriminadora || '', txt(c.ordemDaPergunta), c.notaDeAplicacao || '',
           c.criadoEm || '', c.criadoPor || '', c.atualizadoEm || '', c.atualizadoPor || '', integ]);
       });
-      chaves(fs).sort().forEach(function (cod) {
-        ordenaPor(chaves(fs[cod] || {}).map(function (k) { return Object.assign({ _id: k }, fs[cod][k]); }), 'criadoEm').forEach(function (f) {
-          var a = f.arquivamento || {};
-          L.Fontes.push([DOMINIOS[dom].rotulo, cod, nome(cod), f._id, f.situacao || '', simNao(cs[cod] && cs[cod].definicaoVigenteFonteId === f._id), simNao(!!f.arquivada), f.rotulo || '', f.contexto || '', f.tipoRedacao || '', f.texto || '',
-            f.criadoEm || '', f.criadoPor || '', a.motivo || '', a.justificativa || '', a.em || '', a.por || '']);
+      chaves(dv).sort().forEach(function (cod) {
+        chaves(dv[cod] || {}).map(function (k) { return dv[cod][k] || {}; }).sort(function (a, b) { return (a.versao || 0) - (b.versao || 0); }).forEach(function (v) {
+          L['Definições'].push([DOMINIOS[dom].rotulo, cod, nome(cod), v.versao || '', simNao(cs[cod] && cs[cod].definicao && cs[cod].definicao.versao === v.versao), v.texto || '', v.publicadaEm || '', v.publicadaPor || '', ({ publicacao: 'publicação', 'carga-inicial': 'carga inicial', migracao: 'migração' })[v.origem] || txt(v.origem), v.motivo || '']);
         });
       });
       if (dom === 'organizacional') {
@@ -1961,16 +1600,16 @@
   /* ---------- VISÃO CONSOLIDADA POR CONCEITO (Excel: 1ª aba; JSON: conceitosConsolidados) ----------
      Pura: recebe o bruto lido e devolve UMA entrada por conceito — lista plana, com o campo `dominio`, na ordem
      dos domínios da tela e, dentro de cada um, pela `ordem` do conceito. Tudo indexado pelo CÓDIGO; os nomes são
-     os ATUAIS, só para leitura. "Fontes históricas" = todas as fontes do conceito que NÃO são a vigente apontada
-     (em validação, histórica/contextual, placeholder, não localizado e arquivadas). Não lê nem grava nada. */
+     os ATUAIS, só para leitura. "historicoDefinicao" = todas as versões publicadas da definição (v1, v2, …), a
+     vigente incluída. Não lê nem grava nada. */
   function consolidarConceitos(bruto) {
     var lista = [];
     ORDEM_DOMINIOS.forEach(function (dom) {
-      var B = bruto[dom] || {}, cs = B.conceitos || {}, fs = B.fontes || {}, atrs = B.atributos || {}, perfis = B.perfis || {}, rel = B.relacoes || {}, aud = B.auditoria || {};
+      var B = bruto[dom] || {}, cs = B.conceitos || {}, dv = B.definicoes || {}, atrs = B.atributos || {}, perfis = B.perfis || {}, rel = B.relacoes || {}, aud = B.auditoria || {};
       var nome = function (cod) { return (cs[cod] && cs[cod].nome) || null; };
       ordenaPor(chaves(cs).map(function (k) { return Object.assign({ _cod: k }, cs[k]); }), 'ordem').forEach(function (c) {
-        var cod = c._cod, fontes = fs[cod] || {}, vigId = c.definicaoVigenteFonteId || null, fv = vigId && fontes[vigId] ? fontes[vigId] : null;
-        var todas = ordenaPor(chaves(fontes).map(function (k) { return Object.assign({ id: k }, fontes[k]); }), 'criadoEm');
+        var cod = c._cod, d0 = c.definicao || null;
+        var versoes = chaves(dv[cod] || {}).map(function (k) { return dv[cod][k] || {}; }).sort(function (a, b) { return (a.versao || 0) - (b.versao || 0); });
         var pf = perfis[cod] || {};
         var listaPerfis = ordenaPor(chaves(pf).map(function (a) {
           return Object.assign({ atributo: a, atributoNome: (atrs[a] && atrs[a].nome) || null, _ordem: atrs[a] && typeof atrs[a].ordem === 'number' ? atrs[a].ordem : 9999 }, pf[a]);
@@ -1988,47 +1627,44 @@
           porTipo[t] = (porTipo[t] || 0) + 1;
           if (!ultima || String(e.dataHora || '') > String(ultima.dataHora || '')) ultima = e;
         });
-        var integ = null;
-        if (vigId && !fontes[vigId]) integ = 'ponteiro aponta para fonte inexistente';
-        else { var vv = validarVigencia(fontes, vigId); if (!vv.ok) integ = vv.erro; }
+        var integ = d0 && !(dv[cod] || {})['v' + d0.versao] ? 'a versão vigente não está no histórico' : null;
         lista.push({
           dominio: dom, dominioRotulo: DOMINIOS[dom].rotulo, codigo: cod, nome: c.nome || null, ordem: typeof c.ordem === 'number' ? c.ordem : null,
-          ativo: c.ativo !== false, situacaoDefinicao: c.situacaoDefinicao || null,
+          ativo: c.ativo !== false,
           camada: c.camada || null, camadaRotulo: c.camada ? (CAMADA_ROTULO[c.camada] || c.camada) : null,
           pai: c.pai ? { codigo: c.pai, nome: nome(c.pai) } : null,
           criterios: listaCriterios(c), perguntaDiscriminadora: c.perguntaDiscriminadora || null, ordemDaPergunta: typeof c.ordemDaPergunta === 'number' ? c.ordemDaPergunta : null,
           observacoes: c.observacoes || null, notaDeAplicacao: c.notaDeAplicacao || null,
           atualizadoEm: c.atualizadoEm || null, atualizadoPor: c.atualizadoPor || null,
-          definicaoVigente: fv ? { texto: fv.texto || null, fonteId: vigId } : null,
-          fonteVigente: fv ? Object.assign({ id: vigId }, fv) : null,
-          fontesHistoricas: todas.filter(function (f) { return f.id !== vigId; }),
+          definicaoVigente: d0 ? { texto: d0.texto || null, versao: d0.versao || null, publicadaEm: d0.publicadaEm || null, publicadaPor: d0.publicadaPor || null } : null,
+          historicoDefinicao: versoes,
           perfis: listaPerfis,
           relacoesSaida: saida, relacoesEntrada: entrada,
           auditoria: { total: evs.length, ultimaAlteracaoEm: ultima ? ultima.dataHora || null : null, ultimaAlteracaoPor: ultima && ultima.usuario ? (ultima.usuario.email || ultima.usuario.nome || null) : null, porTipo: porTipo },
-          integridadeVigencia: integ
+          integridadeDefinicao: integ
         });
       });
     });
     return lista;
   }
   var ABA_CONSOLIDADA = 'Visão consolidada por conceito'; /* 30 caracteres: cabe no limite de 31 do Excel */
-  var CAB_CONSOLIDADA = ['Domínio', 'Código', 'Nome', 'Ativo', 'Situação da definição', 'Camada / especialização', 'Conceito pai', 'Definição vigente',
-    'ID da fonte vigente', 'Rótulo da fonte', 'Contexto', 'Tipo de redação', 'Critérios', 'Pergunta discriminadora', 'Observações', 'Nota de aplicação',
-    'Atributos / perfil', 'Relações de saída', 'Relações de entrada', 'Fontes históricas (qtd.)', 'Alterações (qtd.)', 'Atualizado em', 'Atualizado por'];
-  var LARG_CONSOLIDADA = [14, 16, 28, 8, 22, 20, 28, 70, 16, 22, 11, 16, 50, 44, 44, 44, 50, 44, 44, 12, 12, 20, 28];
+  var CAB_CONSOLIDADA = ['Domínio', 'Código', 'Nome', 'Ativo', 'Camada / especialização', 'Conceito pai', 'Definição vigente',
+    'Versão da definição', 'Publicada em', 'Publicada por', 'Critérios', 'Pergunta discriminadora', 'Observações', 'Nota de aplicação',
+    'Atributos / perfil', 'Relações de saída', 'Relações de entrada', 'Versões da definição (qtd.)', 'Alterações (qtd.)', 'Atualizado em', 'Atualizado por'];
+  var LARG_CONSOLIDADA = [14, 16, 28, 8, 20, 28, 70, 10, 20, 28, 50, 44, 44, 44, 50, 44, 44, 12, 12, 20, 28];
   /* uma linha por conceito; vários valores na mesma célula vão um por linha (a aba tem quebra de linha) */
   /* relação encerrada nunca aparece como se estivesse ativa nas exportações */
   function encerradaTxt(r) { return r.encerrada ? ' [ENCERRADA em ' + String(r.encerrada.em || '').slice(0, 10) + ' — ' + (r.encerrada.motivo || '') + ']' : ''; }
   function linhasConsolidadas(lista) {
     return lista.map(function (k) {
-      var fv = k.fonteVigente;
-      return [k.dominioRotulo, k.codigo, k.nome || '', k.ativo ? 'Sim' : 'Não', SIT_DEFINICAO_ROTULO[k.situacaoDefinicao] || txt(k.situacaoDefinicao), k.camadaRotulo || '',
-        k.pai ? k.pai.codigo + (k.pai.nome ? ' — ' + k.pai.nome : '') : '', fv ? fv.texto || '' : '', fv ? fv.id : '', fv ? fv.rotulo || '' : '', fv ? fv.contexto || '' : '', fv ? fv.tipoRedacao || '' : '',
+      var dv = k.definicaoVigente;
+      return [k.dominioRotulo, k.codigo, k.nome || '', k.ativo ? 'Sim' : 'Não', k.camadaRotulo || '',
+        k.pai ? k.pai.codigo + (k.pai.nome ? ' — ' + k.pai.nome : '') : '', dv ? dv.texto || '' : '', dv ? dv.versao : '', dv ? dv.publicadaEm || '' : '', dv ? dv.publicadaPor || '' : '',
         k.criterios.join('\n'), k.perguntaDiscriminadora || '', k.observacoes || '', k.notaDeAplicacao || '',
         k.perfis.map(function (p) { return (p.atributoNome || p.atributo) + ': ' + (p.estado === 'registrado' ? p.valor + ' (' + p.papel + ' · origem: ' + p.origem + ')' : p.estado); }).join('\n'),
         k.relacoesSaida.map(function (r) { return (r.tipoRotulo || r.tipo) + ' → ' + r.para + (r.paraNome ? ' — ' + r.paraNome : '') + (r.nota ? ' (' + r.nota + ')' : '') + encerradaTxt(r); }).join('\n'),
         k.relacoesEntrada.map(function (r) { return r.de + (r.deNome ? ' — ' + r.deNome : '') + ' ' + (r.tipoRotulo || r.tipo) + ' → este conceito' + (r.nota ? ' (' + r.nota + ')' : '') + encerradaTxt(r); }).join('\n'),
-        k.fontesHistoricas.length, k.auditoria.total, k.atualizadoEm || '', k.atualizadoPor || ''];
+        k.historicoDefinicao.length, k.auditoria.total, k.atualizadoEm || '', k.atualizadoPor || ''];
     });
   }
   /* A SheetJS vendorizada (0.18.5, edição comunitária) grava larguras ('!cols') e autofiltro ('!autofilter'),
@@ -2071,9 +1707,9 @@
     return X.CFB.write(z, { fileType: 'zip', type: 'array' });
   }
   var CABECALHOS_EXPORT = {
-    Conceitos: ['Domínio', 'Código', 'Nome', 'Camada / especialização', 'Pai (código)', 'Pai (nome)', 'Ativo', 'Situação da definição', 'Definição vigente (texto)', 'Fonte vigente (id)', 'Fonte vigente (rótulo)', 'Fonte vigente (contexto)', 'Fonte vigente (tipo de redação)',
-      'Ordem', 'Critérios', 'Observações', 'Pergunta discriminadora', 'Ordem da pergunta', 'Nota de aplicação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por', 'Integridade da vigência'],
-    Fontes: ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Fonte (id)', 'Situação', 'É a definição vigente', 'Arquivada', 'Rótulo', 'Contexto', 'Tipo de redação', 'Texto', 'Criada em', 'Criada por', 'Motivo do arquivamento', 'Justificativa do arquivamento', 'Arquivada em', 'Arquivada por'],
+    Conceitos: ['Domínio', 'Código', 'Nome', 'Camada / especialização', 'Pai (código)', 'Pai (nome)', 'Ativo', 'Definição vigente (texto)', 'Versão da definição', 'Publicada em', 'Publicada por', 'Versões no histórico',
+      'Ordem', 'Critérios', 'Observações', 'Pergunta discriminadora', 'Ordem da pergunta', 'Nota de aplicação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por', 'Integridade da definição'],
+    'Definições': ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Versão', 'É a vigente', 'Texto', 'Publicada em', 'Publicada por', 'Origem', 'Motivo'],
     Atributos: ['Domínio', 'Código', 'Nome', 'Grupo', 'Tipo de valor', 'Valores permitidos', 'Ordem', 'Ativo'],
     Perfis: ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Atributo (código)', 'Atributo (nome)', 'Estado', 'Valor', 'Papel', 'Origem', 'Atualizado em'],
     'Relações': ['Domínio', 'Relação (id)', 'De (código)', 'De (nome)', 'Tipo', 'Tipo (por extenso)', 'Para (código)', 'Para (nome)', 'Nota', 'Situação', 'Encerrada em', 'Encerrada por', 'Motivo do encerramento'],
@@ -2149,9 +1785,9 @@
   function htmlExportar() {
     if (!podeVerHG()) return '';
     var x = st.exp, ocupado = !!(x && (x.estado === 'lendo' || x.estado === 'gerando'));
-    var h = '<section class="tax-exportar" id="taxExportar" aria-label="Exportar a Taxonomia"><p class="tax-exportar-titulo"><strong>Exportar a Taxonomia inteira</strong> <span class="tax-ajuda">(só leitura: nada é gravado). O Excel abre na aba “Visão consolidada por conceito”.</span></p>' +
-      '<div class="tax-acoes tax-exportar-acoes"><button type="button" class="btn btn--sm" data-tax="exportar-excel" id="taxExportarExcel"' + (ocupado ? ' disabled' : '') + '>Baixar Excel (revisão)</button>' +
-      '<button type="button" class="btn btn--sm" data-tax="exportar-json" id="taxExportarJson"' + (ocupado ? ' disabled' : '') + '>Baixar JSON (diagnóstico)</button></div>';
+    var h = '<section class="tax-exportar" id="taxExportar" aria-label="Exportar Taxonomia"><p class="tax-exportar-titulo"><strong>Exportar Taxonomia</strong></p><p class="tax-ajuda" id="taxExportarDescricao">Baixe os dados da Taxonomia Organizacional e Arquitetural.</p>' +
+      '<div class="tax-acoes tax-exportar-acoes"><button type="button" class="btn btn--sm" data-tax="exportar-excel" id="taxExportarExcel"' + (ocupado ? ' disabled' : '') + '>Baixar Excel</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="exportar-json" id="taxExportarJson"' + (ocupado ? ' disabled' : '') + '>Baixar JSON</button></div>';
     if (x) {
       if (ocupado) h += '<p class="loading-msg" id="taxExportarStatus">' + (x.estado === 'lendo' ? 'Lendo a Taxonomia inteira…' : 'Gerando a planilha…') + '</p>';
       else h += '<p class="' + (x.estado === 'erro' ? 'tax-aviso-erro' : 'tax-ajuda') + '" id="taxExportarStatus" role="' + (x.estado === 'erro' ? 'alert' : 'status') + '">' + esc(x.texto) + '</p>';
@@ -2194,9 +1830,6 @@
   function valoresDe(dom, tipo, chave) {
     var D = st.d[dom], c = D.conceitos[D.selecionado] || {}, det = D.detalhe || {};
     if (tipo === 'conceito') return { nome: c.nome || '', observacoes: c.observacoes || '', perguntaDiscriminadora: c.perguntaDiscriminadora || '', notaDeAplicacao: c.notaDeAplicacao || '', criterios: listaCriterios(c).join('\n') };
-    if (tipo === 'fonte') { var f = (det.fontes || {})[chave] || {}; return { rotulo: f.rotulo || '', texto: f.texto || '', contexto: f.contexto || 'PREVI', tipoRedacao: f.tipoRedacao || 'Conceito', situacao: f.situacao === 'vigente' ? 'vigente' : (f.situacao || 'histórica/contextual') }; }
-    if (tipo === 'rotulo') { var fr = (det.fontes || {})[chave] || {}; return { rotulo: fr.rotulo || '' }; }
-    if (tipo === 'novaFonte') return { rotulo: '', texto: '', contexto: 'PREVI', tipoRedacao: 'Conceito', situacao: 'em validação' };
     var p = (det.perfis || {})[chave] || {};
     return { estado: p.estado || 'registrado', valor: p.valor || '', papel: p.papel || 'observado', origem: p.origem || '' };
   }
@@ -2204,23 +1837,8 @@
     var D = st.d[st.dominio];
     if (D.detalhe && D.detalhe.carregando && tipo !== 'conceito') { /* ainda carregando: espera */ }
     D.edicao = { tipo: tipo, chave: chave || D.selecionado, valores: valoresDe(st.dominio, tipo, chave), erro: null };
-    D.confirmacao = null; D.arquivando = null; D.novaVersao = null; if (tipo === 'fonte') D.expandida = chave;
+    D.atualizando = null;
     render();
-  }
-  /* "Nova versão da definição": abre o MESMO formulário de "+ Adicionar texto-fonte", pré-preenchido com o
-     texto, contexto, tipo de redação e rótulo da vigente. Salvar cria uma fonte NOVA (salvarFonte, caminho
-     de sempre); a anterior não é tocada. A troca da definição é o "Usar como vigente" (tornarVigente). */
-  function iniciaNovaVersao(fonteId) {
-    var D = st.d[st.dominio], f = fontesAtuais(st.dominio)[fonteId];
-    if (!f || f.situacao !== 'vigente' || f.arquivada) return;
-    D.edicao = { tipo: 'novaFonte', chave: D.selecionado, baseFonteId: fonteId, erro: null,
-      valores: { rotulo: f.rotulo || '', texto: f.texto || '', contexto: f.contexto || 'PREVI', tipoRedacao: f.tipoRedacao || 'Conceito', situacao: 'em validação' } };
-    D.confirmacao = null; D.arquivando = null; D.novaVersao = null; D.expandida = null;
-    render();
-    var form = document.getElementById('taxFormFonte');
-    if (form && form.scrollIntoView) form.scrollIntoView({ block: 'start' });
-    var campo = document.getElementById('taxF_texto');
-    if (campo && campo.focus) campo.focus({ preventScroll: true });
   }
   function aoClicar(ev) {
     var alvo = ev.target.closest('[data-tax]');
@@ -2249,7 +1867,7 @@
       var cod = alvo.getAttribute('data-codigo');
       if (window.innerWidth <= 720) st.rolagemLista = window.pageYOffset || document.documentElement.scrollTop || 0;
       zerarDetConceito(); /* abrir um conceito (mesmo o mesmo, de novo) começa com os históricos fechados */
-      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; st.vista = 'detalhe'; st.flash = null;
+      D.selecionado = cod; D.edicao = null; D.atualizando = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; st.vista = 'detalhe'; st.flash = null;
       carregarDetalhe(dom, cod);
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') {
@@ -2261,37 +1879,31 @@
     }
     else if (acao === 'fechar-flash') { st.flash = null; render(); }
     else if (acao === 'verificar-pendente') { var pp = st.pendente; if (pp && !pp.resolvido && !pp.verificando) { clearTimeout(pp.timerVerif); pp.tentativas = 0; verificarGravacao(pp); } }
-    else if (acao === 'ver') { var idv = alvo.getAttribute('data-fonte'); D.expandida = D.expandida === idv ? null : idv; render(); }
-    else if (acao === 'alternar-arquivadas') { D.arquivadasAbertas = !D.arquivadasAbertas; render(); }
     else if (!podeEditar() && acao !== 'cancelar-importacao') return;
-    else if (acao === 'alterar-definicao') {
-      /* Só leva o olhar até as fontes disponíveis. Não ordena, não sugere, não escolhe nada. */
-      D.dica = true; st.detAbertos[idDet('outras', dom, D.selecionado)] = true; render();
-      var disp = document.getElementById('taxFontesDisponiveis');
-      if (disp) { if (disp.scrollIntoView) disp.scrollIntoView({ block: 'start' }); if (disp.focus) disp.focus({ preventScroll: true }); }
+    else if (acao === 'atualizar-definicao') {
+      var cd = D.conceitos[D.selecionado] || {};
+      D.atualizando = { codigo: D.selecionado, etapa: 'editar', texto: cd.definicao ? cd.definicao.texto : '', motivo: '', erro: null, versaoBase: cd.definicao ? cd.definicao.versao : 0 };
+      D.edicao = null; D.inativando = null; D.camadaMudando = null; render();
+      var campoDef = document.getElementById('taxDefNovo'); if (campoDef && campoDef.focus) campoDef.focus({ preventScroll: true });
     }
-    else if (acao === 'arquivar') { D.arquivando = { fonte: alvo.getAttribute('data-fonte'), motivo: '', justificativa: '', erro: null }; D.confirmacao = null; D.edicao = null; render(); }
-    else if (acao === 'cancelar-arquivar') { D.arquivando = null; render(); }
-    else if (acao === 'confirmar-arquivar') { if (!st.salvando) arquivarFonte(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
-    else if (acao === 'restaurar') { if (!st.salvando) restaurarFonte(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
+    else if (acao === 'conferir-definicao') {
+      var ad = D.atualizando; if (!ad) return;
+      var ant = (D.conceitos[D.selecionado] || {}).definicao, tx = String(ad.texto || '').trim();
+      if (!tx) { ad.erro = 'Escreva o texto da definição.'; render(); return; }
+      if (ant && ant.texto.trim() === tx) { ad.erro = 'O texto proposto é igual à definição vigente: nada a publicar.'; render(); return; }
+      ad.erro = null; ad.etapa = 'conferir'; render();
+    }
+    else if (acao === 'voltar-definicao') { if (D.atualizando && !st.salvando) { D.atualizando.etapa = 'editar'; render(); } }
+    else if (acao === 'cancelar-definicao') { if (!st.salvando) { D.atualizando = null; render(); } }
+    else if (acao === 'publicar-definicao') publicarDefinicao(dom, D.selecionado);
     else if (acao === 'editar-conceito') iniciaEdicao('conceito', D.selecionado);
-    else if (acao === 'nova-fonte') iniciaEdicao('novaFonte', null);
-    else if (acao === 'nova-versao') iniciaNovaVersao(alvo.getAttribute('data-fonte'));
-    else if (acao === 'editar-fonte') iniciaEdicao('fonte', alvo.getAttribute('data-fonte'));
-    else if (acao === 'editar-rotulo') iniciaEdicao('rotulo', alvo.getAttribute('data-fonte'));
     else if (acao === 'editar-perfil') iniciaEdicao('perfil', alvo.getAttribute('data-atributo'));
     else if (acao === 'cancelar-edicao') { D.edicao = null; render(); }
     else if (acao === 'salvar-edicao') {
       var e = D.edicao; if (!e || st.salvando) return;
       if (e.tipo === 'conceito') salvarConceito(dom, D.selecionado);
-      else if (e.tipo === 'rotulo') salvarRotuloVigente(dom, D.selecionado);
-      else if (e.tipo === 'fonte' || e.tipo === 'novaFonte') salvarFonte(dom, D.selecionado);
       else salvarPerfil(dom, D.selecionado);
-    } else if (acao === 'tornar-vigente') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'tornar' }; D.arquivando = null; render(); }
-    else if (acao === 'cancelar-confirmacao') { D.confirmacao = null; render(); }
-    else if (acao === 'confirmar-vigente') { if (!st.salvando) tornarVigente(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
-    else if (acao === 'remover-vigencia') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'remover' }; render(); }
-    else if (acao === 'confirmar-remocao') { if (!st.salvando) removerVigencia(dom, D.selecionado); }
+    }
     else if (acao === 'inativar') { D.inativando = { codigo: D.selecionado, motivo: '', erro: null }; D.camadaMudando = null; D.edicao = null; D.confirmacao = null; D.arquivando = null; render(); }
     else if (acao === 'cancelar-inativar') { D.inativando = null; render(); }
     else if (acao === 'confirmar-inativar') { if (!st.salvando) inativarConceito(dom, D.selecionado); }
@@ -2323,8 +1935,8 @@
     if (el.id === 'taxArquivo') { if (ev.type === 'change' && el.files && el.files[0]) escolherArquivo(el.files[0]); return; }
     var campo = el.getAttribute && el.getAttribute('data-campo');
     var D = st.d[st.dominio];
-    var campoArq = el.getAttribute && el.getAttribute('data-arq');
-    if (campoArq && D.arquivando) { D.arquivando[campoArq] = el.value; D.arquivando.erro = null; return; }
+    var campoDef = el.getAttribute && el.getAttribute('data-def');
+    if (campoDef && D.atualizando) { D.atualizando[campoDef] = el.value; return; }
     var campoInat = el.getAttribute && el.getAttribute('data-inat');
     if (campoInat && D.inativando) { D.inativando[campoInat] = el.value; D.inativando.erro = null; return; }
     var campoCam = el.getAttribute && el.getAttribute('data-cam');
@@ -2394,14 +2006,13 @@
 
   window.faTaxonomia = {
     abrir: abrir,
-    validarVigencia: validarVigencia,
     prepararImportacao: prepararImportacao,
     DOMINIOS: DOMINIOS,
     /* Só para teste: permite rodar as MESMAS operações da tela contra o emulador com as regras reais
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
-      st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, lerTudoParaExportar: lerTudoParaExportar, linhasExportacao: linhasExportacao, consolidarConceitos: consolidarConceitos, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente, arquivarFonte: arquivarFonte, restaurarFonte: restaurarFonte,
-      removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil,
+      st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, lerTudoParaExportar: lerTudoParaExportar, linhasExportacao: linhasExportacao, consolidarConceitos: consolidarConceitos, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe,
+      publicarDefinicao: publicarDefinicao, salvarConceito: salvarConceito, salvarPerfil: salvarPerfil,
       carregarLigacoes: carregarLigacoes, previaLigacoes: previaLigacoes, registrarLigacoes: registrarLigacoes, inativarConceito: inativarConceito, reativarConceito: reativarConceito, alterarCamada: alterarCamada, carregarIndiceFilhos: carregarIndiceFilhos,
       salvarRelacao: salvarRelacao, encerrarRelacao: encerrarRelacao
     }

@@ -10,11 +10,10 @@
  *   - carregar o módulo não lê nada (o Firebase só é tocado depois de iniciar());
  *   - o módulo não tem nenhuma chamada de gravação; o motor não lê a Taxonomia.
  * Parte 2 (navegador, desktop e celular 375 px):
- *   - nome vindo da Taxonomia; definição SÓ da fonte apontada (outra fonte marcada "vigente" e gravada antes
- *     não é escolhida); conceito ausente → rótulo de fábrica + aviso, sem definição inventada; inativo → nome
+ *   - nome vindo da Taxonomia; definição = a ÚNICA vigente do conceito (definicao/texto); conceito ausente → rótulo de fábrica + aviso, sem definição inventada; inativo → nome
  *     continua (ativo é só informação);
- *   - só lê nome/ativo/ponteiro dos 10 códigos e o texto da fonte apontada — nenhum outro caminho;
- *   - renomear ao vivo muda nome e DOM; trocar o ponteiro desliga a escuta da fonte antiga e liga a da nova;
+ *   - só lê nome/ativo/definição vigente dos 10 códigos — nenhum outro caminho;
+ *   - renomear ao vivo muda nome e DOM; publicar uma nova versão da definição troca o texto sem recarregar;
  *   - Taxonomia lenta (passa do limite), que nunca responde, ou recusada → só rótulo de contingência;
  *   - perder o acesso invalida as respostas atrasadas da sessão anterior; voltar religa;
  *   - o módulo não grava nada no Firebase; sem rolagem horizontal; sem erro de JS. */
@@ -44,9 +43,9 @@ const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const DEZ = MOTOR.CODIGOS_INTERMEDIARIOS.concat(MOTOR.CODIGOS_FIRMES);
 const AUSENTE = 'PLATAFORMA_CANAIS';
 const INATIVO = 'COE';
-const DEF_A = 'Definição A da Linha: fonte APONTADA pelo ponteiro.';
-const DEF_B = 'Definição B da Linha: também marcada vigente, mas NÃO apontada.';
-const DEF_NOVA = 'Definição nova da Linha, depois da troca do ponteiro.';
+const DEF_A = 'Definição A da Linha: a versão vigente.';
+const DEF_B = 'Definição B da Linha: um texto que não é a definição.';
+const DEF_NOVA = 'Definição nova da Linha, publicada como nova versão.';
 
 function parte1() {
   console.log('\n== Catálogo: os 10 códigos do motor ==');
@@ -85,18 +84,13 @@ function parte1() {
 }
 
 function taxonomia() {
-  const conceitos = {}, fontes = {};
+  const conceitos = {};
   DEZ.concat(['SQUAD', 'CAPITULO', 'DISCIPLINA']).forEach((c, i) => {
     if (c === AUSENTE) return;
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: c !== INATIVO, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: 'fA', observacoes: 'obs' };
-    /* fB gravada ANTES de fA e também 'vigente': quem escolhesse "a fonte vigente" pegaria a B */
-    fontes[c] = {
-      fB: { texto: c === 'LINHA' ? DEF_B : 'B de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' },
-      fA: { texto: c === 'LINHA' ? DEF_A : 'Definição de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' }
-    };
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: c !== INATIVO, camada: 'A', definicao: { texto: c === 'LINHA' ? DEF_A : 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T10:00:00.000Z', publicadaPor: 'curadoria@previ.com.br' }, observacoes: 'obs' };
   });
   conceitos.LINHA.nome = 'Linha (Taxonomia)';
-  return { organizacional: { conceitos, fontes } };
+  return { organizacional: { conceitos } };
 }
 
 async function abrir(browser, viewport, opts) {
@@ -145,15 +139,17 @@ async function parte2(browser, nomeTela, viewport) {
   console.log('\n== Nome e definição vindos da Taxonomia Organizacional ==');
   afirma(await P(page, () => window.__ons.filter((p) => /taxonomia/.test(p)).length === 0), 'a página carregou sem o módulo ler a Taxonomia (ninguém chamou iniciar() ainda)');
   await P(page, () => { window.__notificacoes = 0; window.faPosicionamentos.onMudanca(() => { window.__notificacoes++; }); });
-  await esperarCondicao(page, () => window.faPosicionamentos.nome('LINHA') === 'Linha (Taxonomia)' && !!window.faPosicionamentos.definicao('LINHA'), null, { descricao: 'nome e definição da LINHA' });
+  /* espera também o COE ter sido LIDO (ativo deixa de ser null): a definição chega numa leitura só e pode vir antes do
+     campo ativo de outro código; a asserção abaixo é que confere o VALOR lido */
+  await esperarCondicao(page, () => window.faPosicionamentos.nome('LINHA') === 'Linha (Taxonomia)' && !!window.faPosicionamentos.definicao('LINHA') && window.faPosicionamentos.ativo('COE') !== null && window.faPosicionamentos.ativo('LINHA') !== null && !window.faPosicionamentos.usandoContingencia('COE'), null, { descricao: 'nome e definição da LINHA, e o COE lido' });
   const est = await P(page, (aus) => { const F = window.faPosicionamentos; return { nome: F.nome('LINHA'), def: F.definicao('LINHA'), est: F.estadoDefinicao('LINHA'),
     nomes: F.codigos().map((c) => F.nome(c)), estado: F.estado(), coeNome: F.nome('COE'), coeAtivo: F.ativo('COE'), linhaAtivo: F.ativo('LINHA'),
     ausNome: F.nome(aus), ausCont: F.usandoContingencia(aus), ausDef: F.definicao(aus), ausEst: F.estadoDefinicao(aus), aviso: F.precisaAviso([aus]), avisoLinha: F.precisaAviso(['LINHA']),
     notif: window.__notificacoes }; }, AUSENTE);
   afirma(est.nome === 'Linha (Taxonomia)', 'nome = o da Taxonomia ("' + est.nome + '"), não o de fábrica');
-  afirma(est.def === DEF_A && est.est === 'ok', 'definição = texto da fonte APONTADA (fA)', est.def);
-  afirma(est.def !== DEF_B, 'a fonte B, também marcada "vigente" e gravada antes, NÃO é escolhida');
-  afirma(est.coeNome === 'Tx COE' && est.coeAtivo === false && est.linhaAtivo === true, 'conceito inativo (COE): o nome atual continua; ativo === false é só informação');
+  afirma(est.def === DEF_A && est.est === 'ok', 'definição = a vigente do conceito', est.def);
+  afirma(est.def !== DEF_B, 'nenhum outro texto (B) é usado');
+  afirma(est.coeNome === 'Tx COE' && est.coeAtivo === false && est.linhaAtivo === true, 'conceito inativo (COE): o nome atual continua; ativo === false é só informação', JSON.stringify([est.coeNome, est.coeAtivo, est.linhaAtivo]));
   afirma(est.ausNome === 'Plataforma de Canais' && est.ausCont && est.ausDef === null && est.ausEst === 'indisponivel', 'conceito AUSENTE (PLATAFORMA_CANAIS): rótulo de fábrica, sem definição inventada');
   afirma(est.aviso && !est.avisoLinha && est.estado === 'contingencia', 'aviso de contingência só para o ausente; estado geral "contingencia"');
   await esperarCondicao(page, () => window.__notificacoes >= 1, null, { descricao: 'onMudanca chamado' });
@@ -162,13 +158,13 @@ async function parte2(browser, nomeTela, viewport) {
   console.log('\n== Só os caminhos mínimos ==');
   const lidos = await P(page, () => window.__ons.filter((p) => /taxonomia/.test(p)));
   const permitido = (p) => {
-    const m = /^taxonomia\/organizacional\/conceitos\/([A-Z_]+)\/(nome|ativo|definicaoVigenteFonteId)$/.exec(p) || /^taxonomia\/organizacional\/fontes\/([A-Z_]+)\/fA\/texto$/.exec(p);
+    const m = /^taxonomia\/organizacional\/conceitos\/([A-Z_]+)\/(nome|ativo|definicao\/texto)$/.exec(p);
     return !!m && DEZ.includes(m[1]);
   };
-  afirma(lidos.length > 0 && lidos.every(permitido), 'toda escuta é nome/ativo/ponteiro de um dos 10 códigos ou o texto da fonte apontada (' + lidos.length + ' escutas)', lidos.filter((p) => !permitido(p)).join(' | '));
-  afirma(DEZ.every((c) => ['nome', 'ativo', 'definicaoVigenteFonteId'].every((k) => lidos.includes(ORG + '/conceitos/' + c + '/' + k))), 'os três campos dos 10 códigos são escutados');
-  afirma(!lidos.some((p) => /SQUAD|CAPITULO|DISCIPLINA|A_VALIDAR|\/fB\/|\/situacao|\/camada|\/pai|\/criterios|\/auditoria|\/relacoes|\/atributos|\/perfis/.test(p)) &&
-    !lidos.includes(ORG + '/conceitos') && !lidos.includes(ORG + '/fontes') && !lidos.includes(ORG), 'nunca SQUAD/CAPITULO/DISCIPLINA, outra fonte, campo extra ou coleção inteira');
+  afirma(lidos.length > 0 && lidos.every(permitido), 'toda escuta é nome/ativo/definição vigente de um dos 10 códigos (' + lidos.length + ' escutas)', lidos.filter((p) => !permitido(p)).join(' | '));
+  afirma(DEZ.every((c) => ['nome', 'ativo', 'definicao/texto'].every((k) => lidos.includes(ORG + '/conceitos/' + c + '/' + k))), 'os três campos dos 10 códigos são escutados');
+  afirma(!lidos.some((p) => /SQUAD|CAPITULO|DISCIPLINA|A_VALIDAR|\/fontes|\/definicoes|\/situacao|\/camada|\/pai|\/criterios|\/auditoria|\/relacoes|\/atributos|\/perfis/.test(p)) &&
+    !lidos.includes(ORG + '/conceitos') && !lidos.includes(ORG), 'nunca SQUAD/CAPITULO/DISCIPLINA, fontes, histórico, campo extra ou coleção inteira');
 
   console.log('\n== Na tela: nome, definição e aviso que se atualizam sozinhos ==');
   await P(page, (aus) => {
@@ -187,21 +183,14 @@ async function parte2(browser, nomeTela, viewport) {
     'DOM: ausente com rótulo de fábrica, "indisponível" (sem texto de fábrica) e o aviso; LINHA sem aviso');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
 
-  console.log('\n== Ao vivo: renomear e trocar o ponteiro ==');
+  console.log('\n== Ao vivo: renomear e publicar uma nova versão ==');
   await P(page, () => window.__gravarTeste(() => firebase.database().ref('taxonomia/organizacional/conceitos/LINHA/nome').set('Linha renomeada ao vivo')));
   await esperarCondicao(page, () => document.getElementById('posNomeLinha').textContent === 'Linha renomeada ao vivo' && window.faPosicionamentos.nome('LINHA') === 'Linha renomeada ao vivo',
     null, { descricao: 'nome novo ao vivo' });
   afirma(true, 'renomear na Taxonomia muda o nome e o DOM sem recarregar');
-  await P(page, (def) => window.__gravarTeste(() => firebase.database().ref().update({
-    'taxonomia/organizacional/fontes/LINHA/f2': { texto: def, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' },
-    'taxonomia/organizacional/fontes/LINHA/fA/situacao': 'histórica/contextual',
-    'taxonomia/organizacional/conceitos/LINHA/definicaoVigenteFonteId': 'f2' })), DEF_NOVA);
+  await P(page, (def) => window.__gravarTeste(() => firebase.database().ref('taxonomia/organizacional/conceitos/LINHA/definicao').set({ texto: def, versao: 2, publicadaEm: '2026-10-02T10:00:00.000Z', publicadaPor: 'curadoria@previ.com.br' })), DEF_NOVA);
   await esperarCondicao(page, (def) => window.faPosicionamentos.definicao('LINHA') === def && document.getElementById('posDefLinha').textContent === def, DEF_NOVA, { descricao: 'definição nova' });
-  const troca = await P(page, () => ({ off: window.__offs.includes('taxonomia/organizacional/fontes/LINHA/fA/texto'), on: window.__ons.includes('taxonomia/organizacional/fontes/LINHA/f2/texto') }));
-  afirma(troca.off && troca.on, 'trocar o ponteiro: desliga a escuta da fonte antiga (fA) e liga a da nova (f2)');
-  await P(page, () => window.__gravarTeste(() => firebase.database().ref('taxonomia/organizacional/fontes/LINHA/fA/texto').set('Texto mexido na fonte ANTIGA')));
-  await page.waitForTimeout(300);
-  afirma(await P(page, (def) => window.faPosicionamentos.definicao('LINHA') === def, DEF_NOVA), 'mexer na fonte antiga não muda nada: ela não é mais ouvida');
+  afirma(true, 'publicar uma nova versão troca a definição e o DOM sem recarregar');
   const ENTRADAS = [[{ O1: 'SIM', O2: 'NAO', O3: 'NAO', O4: 'NAO', O5: 'SIM' }, {}], [{ O1: 'SIM', O2: 'NAO', O3: 'NAO', O4: 'NAO', O5: 'NAO', O6: 'SIM', O7: 'SIM', O8: 'NAO', O9: 'NAO' }, {}],
     [{ O1: 'NAO', O2: 'NAO', O3: 'SIM' }, {}]];
   const naPagina = await P(page, (e) => e.map((x) => window.faMotorPosicionamento.avaliar(x[0], x[1])), ENTRADAS);

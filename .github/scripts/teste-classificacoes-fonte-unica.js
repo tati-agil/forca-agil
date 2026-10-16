@@ -6,8 +6,8 @@
  *      filtro, a ficha/resultado, o histórico de versões, o PDF e o Excel mostram o nome NOVO; a
  *      avaliação antiga (gravada como "Produto/Serviço principal") mostra o nome atual e, ao lado,
  *      "na conclusão: Produto/Serviço principal"; nada antigo é reescrito.
- *   2. DEFINIÇÃO = a fonte APONTADA por definicaoVigenteFonteId: com a fonte B também marcada
- *      'vigente' (e gravada ANTES da A), a tela mostra a A; trocar o ponteiro ao vivo passa para a B.
+ *   2. DEFINIÇÃO = a ÚNICA definição vigente do conceito (definicao/texto, modelo simplificado): a tela mostra a
+ *      versão vigente (A); publicar uma nova versão (B) ao vivo troca a definição sem recarregar.
  *   3. AO VIVO: renomear o conceito muda a tela sem recarregar (lista, ficha, Squad).
  *   4. CONCLUIR AGORA grava o código + o nome resolvido; a frase explicativa usa o nome da Taxonomia.
  *   5. SQUAD: o contexto arquitetural mostra o nome atual e troca no lugar.
@@ -21,7 +21,7 @@
  *
  * Provas inversas (fora da suíte; cada uma tem de FAZER O TESTE FALHAR):
  *   FA_PROVA_INVERSA=fabrica            resolvedor sempre devolve o rótulo de fábrica
- *   FA_PROVA_INVERSA=qualquer-vigente   definição = primeira fonte com situacao 'vigente'
+ *   FA_PROVA_INVERSA=ignora-definicao   o leitor não lê a definição vigente do conceito
  *   FA_PROVA_INVERSA=contingencia-muda  em contingência, o cálculo grava outra camada */
 const { chromium } = require('playwright');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
@@ -83,21 +83,17 @@ const NOVO_CANAL = 'Canal de relacionamento (Taxonomia)';
 const ANTIGO_PP = 'Produto/Serviço principal';
 /* trecho do texto FIXO que o quadro "Conceito-base" da lista tinha antes (segunda definição no código) */
 const DEF_FIXA_ANTIGA = 'gera valor perceptível para o cliente ao atender';
-const DEF_A = 'Definição A: solução com identidade, fronteira e resultado próprios (fonte apontada).';
-const DEF_B = 'Definição B: outra fonte também marcada vigente, mas NÃO apontada.';
+const DEF_A = 'Definição A: solução com identidade, fronteira e resultado próprios (versão vigente).';
+const DEF_B = 'Definição B: uma nova versão publicada depois.';
+const DEF = (texto, versao) => ({ texto, versao, publicadaEm: '2026-10-01T10:00:00.000Z', publicadaPor: 'curadoria@previ.com.br' });
 function taxonomiaSemeada() {
-  const conceitos = {}, fontes = {};
+  const conceitos = {};
   CODIGOS.forEach((c, i) => {
     if (c === SEM_CONCEITO) return;
     const nome = c === 'produto-principal' ? NOVO_PP : c === 'canal' ? NOVO_CANAL : 'Tx ' + c;
-    conceitos[c] = { nome, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', definicaoVigenteFonteId: 'fA', observacoes: 'obs', criterios: { k1: { texto: 'crit', ordem: 1 } } };
-    /* fB gravada ANTES de fA e também 'vigente': quem escolhesse "a fonte vigente" pegaria a B */
-    fontes[c] = {
-      fB: { texto: c === 'produto-principal' ? DEF_B : 'B de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' },
-      fA: { texto: c === 'produto-principal' ? DEF_A : 'Definição de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' }
-    };
+    conceitos[c] = { nome, ordem: i + 1, ativo: true, definicao: DEF(c === 'produto-principal' ? DEF_A : 'Definição de ' + c, 1), observacoes: 'obs', criterios: { k1: { texto: 'crit', ordem: 1 } } };
   });
-  return { arquitetural: { conceitos, fontes }, meta: { cargaInicial: { em: '2026-10-01T10:00:00.000Z', por: EMAIL } } };
+  return { arquitetural: { conceitos }, meta: { cargaInicial: { em: '2026-10-01T10:00:00.000Z', por: EMAIL } } };
 }
 
 function itemConcluido(nome, camada, extra) {
@@ -164,11 +160,8 @@ async function abrir(browser, viewport, opts) {
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   if (INVERSA === 'fabrica') {
     await servirMutado(page, 'classificacoes.js', SRC_CLS, '    var n = nomeDaTaxonomia(id);\n    if (n) return n;\n', '');
-  } else if (INVERSA === 'qualquer-vigente') {
-    /* lê as fontes do código inteiras e usa a PRIMEIRA com situacao 'vigente', ignorando o ponteiro */
-    await servirMutado(page, 'classificacoes.js', SRC_CLS,
-      "      var o = ouvir(RAIZ + '/fontes/' + id + '/' + fonteId + '/texto', minha, function (v) {\n        if (lido[id].fonteId !== fonteId) return; /* o ponteiro já mudou */\n        lido[id].texto = typeof v === 'string' ? v : null;",
-      "      var o = ouvir(RAIZ + '/fontes/' + id, minha, function (todas) {\n        var vig = Object.keys(todas || {}).filter(function (k) { return todas[k] && todas[k].situacao === 'vigente'; })[0];\n        var v = vig ? todas[vig].texto : null;\n        lido[id].texto = typeof v === 'string' ? v : null;");
+  } else if (INVERSA === 'ignora-definicao') {
+    await servirMutado(page, 'classificacoes.js', SRC_CLS, "'/definicao/texto'", "'/definicaoIgnorada/texto'");
   } else if (INVERSA === 'contingencia-muda') {
     await servirMutado(page, 'avaliacao-produto.js', SRC_AVP, '      id: ident.camada,\n      label: nomeClassificacao(ident.camada),',
       "      id: (window.faClassificacoes && window.faClassificacoes.usandoContingencia(ident.camada)) ? 'a-validar' : ident.camada,\n      label: nomeClassificacao(ident.camada),");
@@ -270,10 +263,10 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     afirma(true, 'Conceito-base: renomear produto-principal na Taxonomia troca o título do quadro, sem recarregar');
     await page.evaluate((n) => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/nome').set(n), NOVO_PP);
     await esperarCondicao(page, (n) => (document.getElementById('avpConceitoBase') || {}).textContent.indexOf('Conceito-base — ' + n + ':') === 0, NOVO_PP, { descricao: 'Conceito-base voltar ao nome do teste' });
-    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicaoVigenteFonteId').set('fB'));
-    await esperarCondicao(page, (b) => ((document.getElementById('avpConceitoBaseDef') || {}).textContent || '') === b, DEF_B, { descricao: 'Conceito-base seguir o ponteiro novo (B)' });
-    afirma(true, 'Conceito-base: trocar definicaoVigenteFonteId troca a definição do quadro, sem recarregar');
-    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicaoVigenteFonteId').set('fA'));
+    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicao').set({ texto: 'Definição B: uma nova versão publicada depois.', versao: 2, publicadaEm: '2026-10-02T10:00:00.000Z', publicadaPor: 'curadoria@previ.com.br' }));
+    await esperarCondicao(page, (b) => ((document.getElementById('avpConceitoBaseDef') || {}).textContent || '') === b, DEF_B, { descricao: 'Conceito-base seguir a versão nova (B)' });
+    afirma(true, 'Conceito-base: publicar nova versão da definição troca o quadro, sem recarregar');
+    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicao').set({ texto: 'Definição A: solução com identidade, fronteira e resultado próprios (versão vigente).', versao: 3, publicadaEm: '2026-10-03T10:00:00.000Z', publicadaPor: 'curadoria@previ.com.br' }));
     await esperarCondicao(page, (a) => ((document.getElementById('avpConceitoBaseDef') || {}).textContent || '') === a, DEF_A, { descricao: 'Conceito-base voltar para a A' });
     await foto(page, 'conceito-base-lista-' + sufixo, '.avp-intro');
     await page.click('#avpFiltrosBtn');
@@ -290,8 +283,8 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     /* o título do resultado também usa o nome da Taxonomia ("É <nome>"), não o literal antigo */
     const tituloResultado = espaco(await page.locator('#avpSecaoSistema .avp-result-badge-grande').textContent());
     afirma(tituloResultado === 'É ' + NOVO_PP, 'título do resultado: "É ' + NOVO_PP + '" (' + tituloResultado + ')');
-    afirma(sis.indexOf(DEF_A) !== -1, 'definição = a fonte APONTADA por definicaoVigenteFonteId (A)');
-    afirma(sis.indexOf(DEF_B) === -1, 'a outra fonte também "vigente" (B, gravada antes) NÃO aparece');
+    afirma(sis.indexOf(DEF_A) !== -1, 'definição = a vigente do conceito (A)');
+    afirma(sis.indexOf(DEF_B) === -1, 'nenhum outro texto (B) aparece');
     afirma(await page.locator('#avpClassifContingencia').isHidden(), 'resultado: sem aviso de contingência');
     afirma((await texto(page, '#avpResumoFicha')).indexOf(NOVO_PP) !== -1, 'faixa-resumo da ficha com o nome atual');
     await page.click('#avpHistoricoVersoesLista > summary');
@@ -302,15 +295,15 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     const pdf = await gerarPdf(page);
     afirma(pdf.indexOf('Classificação arquitetural ' + NOVO_PP + ' Nome registrado na conclusão: ' + ANTIGO_PP) !== -1, 'PDF novo: nome atual e o nome registrado na conclusão');
 
-    /* 2+3: ao vivo — renomear e apontar a definição para a B, no banco, sem recarregar */
+    /* 2+3: ao vivo — renomear e publicar a nova versão B, no banco, sem recarregar */
     await page.evaluate(() => { window.__semRecarga = true; });
     await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/nome').set('Produto renomeado ao vivo'));
     await esperarCondicao(page, () => (document.getElementById('avpCamadaNome') || {}).textContent === 'Produto renomeado ao vivo', null, { descricao: 'o nome na ficha trocar sem recarregar' });
     afirma(true, 'ao vivo: a ficha troca o nome sem recarregar');
-    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicaoVigenteFonteId').set('fB'));
-    await esperarCondicao(page, (b) => ((document.getElementById('avpCamadaDefinicao') || {}).textContent || '') === b, DEF_B, { descricao: 'a definição seguir o ponteiro novo (B)' });
-    afirma((await texto(page, '#avpSecaoSistema')).indexOf(DEF_A) === -1, 'ponteiro trocado: a definição A sai da tela, fica a B');
-    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicaoVigenteFonteId').set('fA'));
+    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicao').set({ texto: 'Definição B: uma nova versão publicada depois.', versao: 2, publicadaEm: '2026-10-02T10:00:00.000Z', publicadaPor: 'curadoria@previ.com.br' }));
+    await esperarCondicao(page, (b) => ((document.getElementById('avpCamadaDefinicao') || {}).textContent || '') === b, DEF_B, { descricao: 'a definição seguir a versão nova (B)' });
+    afirma((await texto(page, '#avpSecaoSistema')).indexOf(DEF_A) === -1, 'nova versão publicada: a definição A sai da tela, fica a B');
+    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicao').set({ texto: 'Definição A: solução com identidade, fronteira e resultado próprios (versão vigente).', versao: 3, publicadaEm: '2026-10-03T10:00:00.000Z', publicadaPor: 'curadoria@previ.com.br' }));
     await esperarCondicao(page, (a) => ((document.getElementById('avpCamadaDefinicao') || {}).textContent || '') === a, DEF_A, { descricao: 'a definição voltar para a A' });
     await page.evaluate((n) => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/nome').set(n), NOVO_PP);
     await esperarCondicao(page, (n) => (document.getElementById('avpCamadaNome') || {}).textContent === n, NOVO_PP, { descricao: 'voltar ao nome do teste' });
@@ -461,7 +454,7 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     afirma(await larguraOk(page), 'Taxonomia sem rolagem horizontal');
     await foto(page, 'conceitos-base-' + sufixo, '#taxConceitosBase');
     await page.click('#taxConceitosBase .tax-base-abrir[data-codigo="produto-principal"]');
-    await page.waitForSelector('#taxSecFontes', { timeout: 8000 });
+    await page.waitForSelector('#taxSecDefinicao', { timeout: 8000 });
     afirma((await texto(page, '.tax-detalhe')).indexOf(NOVO_PP) !== -1, 'clicar abre o conceito');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
@@ -475,5 +468,5 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
   await rodada(browser, CELULAR, 'CELULAR (375 px)', '375');
   await browser.close();
   if (falhas) { console.log('\n' + falhas + ' FALHA(S)'); process.exit(1); }
-  console.log('\nOK — nome e definição das classificações vêm da Taxonomia Arquitetural pelo código (lista, filtro, ficha, histórico, PDF, Excel, Squad), ao vivo, com a definição da fonte apontada; contingência visível sem tocar no motor; nome da época preservado; sem "Editar textos" no motor; conceitos-base na Taxonomia.');
+  console.log('\nOK — nome e definição das classificações vêm da Taxonomia Arquitetural pelo código (lista, filtro, ficha, histórico, PDF, Excel, Squad), ao vivo, com a definição vigente do conceito; contingência visível sem tocar no motor; nome da época preservado; sem "Editar textos" no motor; conceitos-base na Taxonomia.');
 })().catch((e) => { console.error(e); process.exit(1); });

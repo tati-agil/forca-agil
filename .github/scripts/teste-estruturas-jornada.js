@@ -61,7 +61,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await subirEmulador();
     await S.semear(() => {});
     /* M2: definição vigente de TESTE só para NEGOCIOS (emulador próprio desta jornada); os outros tipos ficam sem → "indisponível" */
-    await S.banco('PATCH', 'taxonomia/organizacional', { 'conceitos/NEGOCIOS/definicaoVigenteFonteId': 'f-teste', 'fontes/NEGOCIOS/f-teste': { texto: 'Definição de teste — NEGOCIOS', contexto: 'teste', situacao: 'vigente', tipoRedacao: 'Conceito' } });
+    await S.banco('PATCH', 'taxonomia/organizacional', { 'conceitos/NEGOCIOS/definicao': { texto: 'Definição de teste — NEGOCIOS', versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } });
     servidor = spawn(process.execPath, [path.join(__dirname, 'ambiente-local', 'servidor.js'), RAIZ, String(PORTA_SITE)], { env: Object.assign({}, process.env, { SEM_NAVEGADOR: '1' }), stdio: 'ignore' });
     for (let i = 0; i < 20 && !(await aberto(PORTA_SITE)); i++) await espera(300);
     navegador = await chromium.launch();
@@ -605,7 +605,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       /* I1: Taxonomia como a de produção — Squad compõe só o conceito GERAL "Linha": o cadastro não oferece Squad e explica
          a causa (lida da Taxonomia), sem caminho de contorno */
       await S.banco('PATCH', '', {
-        [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, situacaoDefinicao: 'ainda não registrada', camada: 'trabalho' },
+        [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, camada: 'trabalho' },
         [T + 'relacoes/SQUAD__compoe__LINHA']: { de: 'SQUAD', tipo: 'compoe', para: 'LINHA', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't0' }
       });
       await ir(p, '#admin?arq=estruturas'); await p.waitForSelector('#estNova', { timeout: 15000 }); await p.click('#estNova');
@@ -616,7 +616,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
         'I1: com "Squad compõe Linha" só no conceito geral, o cadastro não oferece Squad e explica a pendência da Taxonomia (sem contorno)', avisoSq);
       await p.click('#estCancelar');
       await S.banco('PATCH', '', {
-        [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, situacaoDefinicao: 'ainda não registrada', camada: 'trabalho' },
+        [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, camada: 'trabalho' },
         [T + 'relacoes/SQUAD__compoe__NEGOCIOS']: { de: 'SQUAD', tipo: 'compoe', para: 'NEGOCIOS', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't1' },
         [T + 'relacoes/COE__atende__NEGOCIOS']: { de: 'COE', tipo: 'atende', para: 'NEGOCIOS', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't2' },
         'estruturas-concretas/registros/neg-3': { id: 'neg-3', tipo: 'NEGOCIOS', nome: 'Linha de Previdência', situacao: 'ativa', revisao: 1, criadaEm: 1791713600000, criadaPor: { id: 'semente', email: 'semente@teste' }, ultimaOperacao: 'semente-m7' }

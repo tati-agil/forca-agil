@@ -34,7 +34,7 @@ const semente = () => {
       meta: { cargaInicial: { feitaEm: '2026-10-01T09:00:00.000Z', feitaPor: EMAIL } },
       arquitetural: {},
       organizacional: {
-        conceitos: { SQ: { nome: 'Squad Fictícia', camada: 'A', ordem: 1, ativo: true, situacaoDefinicao: 'em revisão' }, COE: { nome: 'CoE Fictício', camada: 'A', ordem: 2, ativo: true, situacaoDefinicao: 'em revisão' } },
+        conceitos: { SQ: { nome: 'Squad Fictícia', camada: 'A', ordem: 1, ativo: true }, COE: { nome: 'CoE Fictício', camada: 'A', ordem: 2, ativo: true } },
         atributos: {
           ALCANCE: { nome: 'Alcance de atuação', grupo: 'alcance', tipoValor: 'lista', ordem: 1, ativo: true, valoresPermitidos: { v1: { texto: 'específica', ordem: 1 }, v2: { texto: 'transversal', ordem: 2 } } },
           BENEF: { nome: 'Beneficiário indireto', grupo: 'quem-recebe', tipoValor: 'texto', ordem: 2, ativo: true },
