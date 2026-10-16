@@ -1,4 +1,4 @@
-/* TAXONOMIA — o redesenho em três espaços (Catálogo, Administração, Integridade e configurações), nos DOIS domínios,
+/* TAXONOMIA — o redesenho em três espaços (Catálogo, Administração, Verificações do sistema), nos DOIS domínios,
  * desktop e 375 px. CONTEÚDO 100% FICTÍCIO (semente-taxonomia-ficha.js: a mesma estrutura do banco real). Firebase falso
  * em persistência real; hermético (sem rede, sem segredo). Prova:
  *   A. CATÁLOGO: abre em consulta; busca por nome e por código (o campo não perde o foco); a ficha mostra SOMENTE nome
@@ -12,8 +12,9 @@
  *      códigos, aviso de que não é regra universal nem relação entre áreas reais, Substituir com o efeito explicado,
  *      cancelar não grava, concorrência, clique repetido); Histórico recolhido com registro inicial e detalhes técnicos;
  *      governança secundária e protegida.
- *   D. INTEGRIDADE: só por "Integridade e configurações"; 11 de 11 e 10 de 10 discretos, listas recolhidas, exportação e
- *      histórico global (com volta à Integridade).
+ *   D. VERIFICAÇÕES DO SISTEMA: só pela Administração ("Verificações do sistema e dados"); a explicação do que a área é;
+ *      sem pendência, "Nenhuma pendência" e os detalhes técnicos recolhidos (11 de 11 e 10 de 10 lá dentro); "Dados e
+ *      histórico" à parte: exportação e histórico global (com volta às Verificações).
  *   E. Somente leitura: consulta completa, sem administração nem integridade. Sem rolagem lateral; sem erro de JS. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -74,7 +75,7 @@ const visiveis = (page, sel) => page.locator(sel).evaluateAll((els) => els.filte
     console.log('\n== A. Catálogo: abre em consulta ==');
     afirma(/Catálogo de conceitos/.test(await texto(page, '#taxLocal')) && await page.locator('.tax-dominio[aria-selected="true"]').count() === 1, 'abre no Catálogo, com o seletor de domínio');
     afirma(await page.locator('#taxConceitosBase, #taxConceitosBasePos, #taxExportar, #taxImportador, #taxAcoesGerais, #taxProtecaoIncompleta').count() === 0, 'nenhum painel de integração, exportação ou carga no Catálogo');
-    afirma(await page.locator('#taxIntegridadeLink .tax-ponto--ok').count() === 1, 'só um link discreto "Integridade e configurações" (indicador de situação)');
+    afirma(await page.locator('#taxIntegridadeLink, #taxVerificacoesLink').count() === 0 && !/Verificações do sistema|Integridade/.test(await texto(page, '.tax-topo')), 'o cabeçalho do Catálogo não tem link permanente para as Verificações');
 
     console.log('\n== A. Busca por nome e por código ==');
     if (movel) afirma(await page.locator('#taxBusca').isVisible(), '375 px: a busca aparece com a lista, em largura total');
@@ -192,17 +193,23 @@ const visiveis = (page, sel) => page.locator(sel).evaluateAll((els) => els.filte
     afirma(JSON.stringify(await page.locator('.tax-admin-aba').allTextContents()) === JSON.stringify(['Conteúdo', 'Histórico e governança']), 'arquitetural: só Conteúdo e Histórico (o domínio não tem perfil nem relações)');
     afirma(/Protegido: é uma classificação da Avaliação/.test(await texto(page, '#taxSecIdent')), 'a proteção aparece na Administração');
 
-    console.log('\n== D. Integridade e configurações ==');
+    console.log('\n== D. Verificações do sistema ==');
+    await T.abrirAdminQualquer(page);
+    await esperarCondicao(page, () => { const b = document.getElementById('taxVerificacoesLink'); return !!b && b.getAttribute('data-estado') === 'ok'; }, null, { descricao: 'acesso às Verificações, sem pendência' });
+    afirma(/Verificações do sistema e dados/.test(await texto(page, '#taxVerificacoesLink')) && await page.locator('#taxVerificacoesLink .tax-ponto--ok').count() === 1, 'acesso secundário na Administração, discreto, com o estado');
     await T.irIntegridade(page);
-    afirma(/Integridade e configurações/.test(await texto(page, '#taxLocal')) && /^✓ 11 de 11 classificações conectadas$/.test((await texto(page, '#taxIntegracaoResumo')).trim()) && /^✓ 10 de 10 conceitos conectados$/.test((await texto(page, '#taxIntegracaoResumoPos')).trim()), 'Avaliação 11 de 11 e Posicionamento 10 de 10, discretos');
+    afirma((await texto(page, '#taxVerifIntro')).trim() === 'Esta área verifica se a Avaliação e o Posicionamento estão utilizando corretamente os conceitos oficiais da Taxonomia. Não representa o andamento das avaliações nem do Mapa da Floresta.', 'começa explicando o que a área é (e o que não é)');
+    afirma(/Nenhuma pendência/.test(await texto(page, '#taxVerifOk')) && !(await page.locator('#taxVerifDetalhes').evaluate((x) => x.open)) && !(await page.locator('#taxConceitosBase').isVisible()), 'sem pendência: uma frase curta; os 11 + 10 não aparecem em cartões');
+    await page.click('#taxVerifDetalhes > summary');
+    afirma(/Verificações do sistema/.test(await texto(page, '#taxLocal')) && /^✓ 11 de 11 classificações conectadas$/.test((await texto(page, '#taxIntegracaoResumo')).trim()) && /^✓ 10 de 10 conceitos conectados$/.test((await texto(page, '#taxIntegracaoResumoPos')).trim()), 'Avaliação 11 de 11 e Posicionamento 10 de 10, discretos');
     afirma(!(await page.locator('#taxIntegracaoLista').evaluate((x) => x.open)) && !(await page.locator('#taxIntegracaoListaPos').evaluate((x) => x.open)), 'as listas ficam recolhidas');
-    afirma(await page.locator('#taxAcoesGerais #taxExportarExcel').isVisible() && await page.locator('#taxAcoesGerais #taxExportarJson').isVisible() && /Dados e manutenção/.test(await texto(page, '#taxAcoesGerais')), 'Dados e manutenção: exportações');
+    afirma(await page.locator('#taxAcoesGerais #taxExportarExcel').isVisible() && await page.locator('#taxAcoesGerais #taxExportarJson').isVisible() && /Dados e histórico/.test(await texto(page, '#taxAcoesGerais')) && await page.locator('#taxVerificacoes #taxExportar, #taxVerificacoes #taxHistoricoGlobalBtn').count() === 0, '"Dados e histórico" separado das verificações: exportações e histórico global');
     await page.click('#taxHistoricoGlobalBtn');
     await page.waitForSelector('#taxHistoricoGlobal', { timeout: 6000 });
     await page.locator('#taxHistoricoGlobal [data-tax="voltar-dominio"]').first().click();
     await page.waitForSelector('#taxIntegracaoResumo', { timeout: 6000 });
-    afirma(true, 'histórico global abre e "Voltar à Integridade" retorna');
-    afirma(await larguraOk(page), 'integridade: sem rolagem lateral');
+    afirma(true, 'histórico global abre e "Voltar às Verificações do sistema" retorna');
+    afirma(await larguraOk(page), 'verificações: sem rolagem lateral');
     await T.voltarCatalogo(page);
     afirma(await page.locator('#taxConceitosBase').count() === 0, 'de volta ao Catálogo, sem os painéis de integração');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
@@ -213,7 +220,7 @@ const visiveis = (page, sel) => page.locator(sel).evaluateAll((els) => els.filte
     await T.abrirConceito(r.page, EC);
     await r.page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
     await esperarCondicao(r.page, () => !!document.getElementById('taxDefinicaoTexto') && !document.getElementById('taxAdministrarBtn'), null, { descricao: 'ficha em modo leitura' });
-    afirma(await r.page.locator('#taxAdministrarBtn, #taxIntegridadeLink').count() === 0 && await r.page.locator('#taxCompararBtn').isVisible(), 'consulta e comparação continuam; sem administração nem integridade');
+    afirma(await r.page.locator('#taxAdministrarBtn, #taxVerificacoesLink').count() === 0 && await r.page.locator('#taxCompararBtn').isVisible(), 'consulta e comparação continuam; sem administração nem integridade');
     afirma(await larguraOk(r.page), 'sem rolagem lateral');
     await r.ctx.close();
   }

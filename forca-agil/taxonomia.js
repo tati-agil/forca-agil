@@ -939,12 +939,12 @@
      Taxonomia; código sem conceito aqui faz a Avaliação usar o rótulo de contingência. Clicar abre o conceito. */
   /* Textos da área de integração por domínio. */
   var BASE_TXT = {
-    arquitetural: { id: '', titulo: 'Integração com a Avaliação', alvo: 'da Avaliação', itens: ['classificação conectada', 'classificações conectadas'],
+    arquitetural: { id: '', titulo: 'Conexão com a Avaliação', alvo: 'da Avaliação', itens: ['classificação conectada', 'classificações conectadas'],
       ajuda: 'A Avaliação utiliza os nomes e as definições oficiais destes conceitos. Enquanto estiverem vinculados, não podem ser inativados.',
       impacto: 'Enquanto o vínculo não for registrado, o conceito pode ser inativado e a Avaliação pode passar a mostrar o rótulo de contingência no lugar do nome oficial.',
       ver: 'Ver classificações conectadas', semConceito: 'sem conceito nesta Taxonomia — a Avaliação usa o rótulo de contingência', orfas: 'Vínculos sem classificação correspondente no motor: ',
       botao: 'Registrar vínculos da Avaliação…' },
-    organizacional: { id: 'Pos', titulo: 'Integração com o Posicionamento', alvo: 'do Posicionamento', itens: ['conceito conectado', 'conceitos conectados'],
+    organizacional: { id: 'Pos', titulo: 'Conexão com o Posicionamento', alvo: 'do Posicionamento', itens: ['conceito conectado', 'conceitos conectados'],
       ajuda: 'O Posicionamento Organizacional utiliza os nomes e as definições oficiais destes conceitos. Enquanto estiverem vinculados, não podem ser inativados nem mudar entre "' + CAMADA_ROTULO.A + '" e "' + CAMADA_ROTULO.trabalho + '".',
       impacto: 'Enquanto o vínculo não for registrado, o conceito pode ser inativado ou mudar de camada, e o Posicionamento pode passar a mostrar o rótulo de contingência no lugar do nome oficial.',
       ver: 'Ver conceitos conectados', semConceito: 'sem conceito nesta Taxonomia — o Posicionamento usa o rótulo de contingência', orfas: 'Vínculos sem código correspondente no motor de Posicionamento: ',
@@ -981,11 +981,11 @@
     var A = avaliarIntegracao(dom), ok = A.ok, itens = A.itens, orfas = A.orfas, problemas = A.problemas, conectados = A.conectados;
     var h = '<section class="tax-base tax-integracao" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '" data-estado="' + A.estado + '"><h4 class="tax-integracao-titulo">' + T.titulo + '</h4>' +
       '<p class="tax-ajuda" id="taxIntegracaoAjuda' + T.id + '">' + T.ajuda + '</p>';
-    if (A.estado === 'erro') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar" data-dominio="' + dom + '">Tentar novamente</button></p>';
-    else if (!ok) h += '<p class="loading-msg" id="taxIntegracaoResumo' + T.id + '" data-estado="conferindo">Conferindo a integração…</p>';
+    if (A.estado === 'erro') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a conexão.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar" data-dominio="' + dom + '">Tentar novamente</button></p>';
+    else if (!ok) h += '<p class="loading-msg" id="taxIntegracaoResumo' + T.id + '" data-estado="conferindo">Conferindo a conexão…</p>';
     else if (!problemas.length && !orfas.length) h += '<p class="tax-integracao-ok" id="taxIntegracaoResumo' + T.id + '" data-estado="ok"><span class="tax-integracao-marca" aria-hidden="true">✓</span> ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '</p>';
     else {
-      h += '<div class="tax-aviso-erro tax-integracao-alerta" id="taxIntegracaoResumo' + T.id + '" data-estado="problema" role="alert"><p><strong>Integração incompleta: ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '.</strong> ' + T.impacto + '</p>';
+      h += '<div class="tax-aviso-erro tax-integracao-alerta" id="taxIntegracaoResumo' + T.id + '" data-estado="problema" role="alert"><p><strong>Conexão incompleta: ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '.</strong> ' + T.impacto + '</p>';
       if (problemas.length) h += '<ul class="tax-integracao-problemas">' + problemas.map(function (i) { return '<li data-problema="' + esc(i.cod) + '"><strong>' + esc(i.c ? i.c.nome : i.cod) + '</strong> — ' + esc(i.problema) + '</li>'; }).join('') + '</ul>';
       if (orfas.length) h += '<p id="taxLigacoesOrfas' + T.id + '">' + T.orfas + orfas.map(function (k) { return '<code>' + esc(k) + '</code>'; }).join(', ') + '.</p>';
       h += '</div>';
@@ -1567,7 +1567,7 @@
   }
   function htmlHistoricoGlobal() {
     var H = st.hg;
-    var voltar = function (onde) { return '<div class="tax-voltar-hg tax-voltar-hg--' + onde + '"><button type="button" class="btn" data-tax="voltar-dominio">← Voltar à Integridade</button></div>'; };
+    var voltar = function (onde) { return '<div class="tax-voltar-hg tax-voltar-hg--' + onde + '"><button type="button" class="btn" data-tax="voltar-dominio">← Voltar às Verificações do sistema</button></div>'; };
     var h = '<section class="tax-hg" id="taxHistoricoGlobal">' + voltar('topo') + '<h4>Histórico global</h4>' +
       '<p class="tax-ajuda">Eventos que valem para o domínio inteiro (por exemplo, a carga inicial), do mais recente para o mais antigo. O histórico de cada conceito fica no próprio conceito.</p>';
     ORDEM_DOMINIOS.forEach(function (d) {
@@ -1931,15 +1931,21 @@
     var e = ['arquitetural', 'organizacional'].map(function (d) { return avaliarIntegracao(d).estado; });
     return e.indexOf('problema') !== -1 ? 'problema' : e.indexOf('erro') !== -1 ? 'erro' : e.indexOf('conferindo') !== -1 ? 'conferindo' : 'ok';
   }
+  /* origem registrada pelo ADMIN (atalho "Abrir a aba Taxonomia" em Avaliações e Mapa — admin.js): só com a marca */
+  function origemTaxonomia() { return window.faAdminOrigemTaxonomia ? window.faAdminOrigemTaxonomia() : null; }
   function renderTopo() {
-    var local = st.espaco === 'admin' ? 'Administração' : st.espaco === 'integridade' ? 'Integridade e configurações' : 'Catálogo de conceitos';
-    var h = '<div class="tax-topo"><div class="tax-topo-titulo"><h3 class="tax-titulo-area" id="taxTituloArea">Taxonomia</h3><p class="tax-local" id="taxLocal">' + esc(local) + '</p></div>';
-    if (st.espaco === 'catalogo' && podeVerHG()) {
-      var ei = estadoIntegracao();
-      h += '<button type="button" class="tax-lnk tax-integ-link" data-tax="integridade" id="taxIntegridadeLink" data-estado="' + ei + '"><span class="tax-ponto tax-ponto--' + (ei === 'ok' ? 'ok' : ei === 'conferindo' ? 'neutro' : 'atencao') + '" aria-hidden="true"></span>Integridade e configurações' +
-        (ei === 'problema' ? '<span class="tax-integ-atencao"> · requer atenção</span>' : ei === 'erro' ? '<span class="tax-integ-atencao"> · não foi possível conferir</span>' : '') + '</button>';
-    }
+    var local = st.espaco === 'admin' ? 'Administração' : st.espaco === 'integridade' ? 'Verificações do sistema' : 'Catálogo de conceitos';
+    var o = origemTaxonomia();
+    var h = (o ? '<p class="tax-voltar-origem-linha"><button type="button" class="tax-lnk tax-voltar-origem" data-tax="voltar-origem" id="taxVoltarOrigem">← Voltar para ' + esc(o.rotulo || 'a área de origem') + '</button></p>' : '') +
+      '<div class="tax-topo"><div class="tax-topo-titulo"><h3 class="tax-titulo-area" id="taxTituloArea">Taxonomia</h3><p class="tax-local" id="taxLocal">' + esc(local) + '</p></div>';
     return h + '</div>';
+  }
+  /* acesso secundário às Verificações do sistema, na Administração (só quem as vê); o estado é o mesmo das Verificações */
+  function htmlAcessoVerificacoes() {
+    if (!podeVerHG()) return '';
+    var ei = estadoIntegracao();
+    return '<div class="tax-admin-rodape"><button type="button" class="tax-lnk tax-integ-link" data-tax="integridade" id="taxVerificacoesLink" data-estado="' + ei + '"><span class="tax-ponto tax-ponto--' + (ei === 'ok' ? 'ok' : ei === 'conferindo' ? 'neutro' : 'atencao') + '" aria-hidden="true"></span>Verificações do sistema e dados' +
+      (ei === 'problema' ? '<span class="tax-integ-atencao"> · requer atenção</span>' : ei === 'erro' ? '<span class="tax-integ-atencao"> · não foi possível conferir</span>' : '') + '</button></div>';
   }
   /* ---------- CATÁLOGO ---------- */
   function renderCatalogo(dom) {
@@ -1955,7 +1961,7 @@
     if (!chaves(D.conceitos).length) {
       var semCarga = st.meta.estado === 'ok' && !st.meta.cargaFeita;
       return h + '<p class="tax-ausencia" id="taxVazio">' + (semCarga ? 'Nenhum conceito cadastrado: a carga inicial ainda não foi feita.' : 'Este domínio não tem conceitos cadastrados.') + '</p>' +
-        (semCarga && podeVerHG() ? '<p class="tax-ajuda" id="taxVazioCarga">A carga inicial é feita em <button type="button" class="tax-lnk" data-tax="integridade">Integridade e configurações</button>.</p>' : '');
+        (semCarga && podeVerHG() ? '<p class="tax-ajuda" id="taxVazioCarga">A carga inicial é feita em <button type="button" class="tax-lnk" data-tax="integridade">Verificações do sistema › Dados e histórico</button>.</p>' : '');
     }
     return h + '<div class="tax-wrap" data-vista="' + st.vista + '">' + renderLista(dom) + renderFicha(dom) + '</div>';
   }
@@ -2034,16 +2040,34 @@
     else if (aba === 'perfil') h += renderAtributos(dom, codigo, det);
     else if (aba === 'relacoes') h += renderRelacoes(dom, codigo, det);
     else h += renderHistorico(dom, codigo, det) + renderAcoesConceito(dom, codigo);
-    return h + '</div></section>';
+    return h + '</div>' + htmlAcessoVerificacoes() + '</section>';
   }
-  /* ---------- INTEGRIDADE E CONFIGURAÇÕES ---------- */
+  /* ---------- VERIFICAÇÕES DO SISTEMA (antes "Integridade e configurações") ----------
+     Duas seções que não se misturam: Verificações (conexões com a Avaliação e o Posicionamento, pendências e correções)
+     e Dados e histórico (exportar, histórico global, carga inicial). Sem pendência: uma frase curta e os detalhes técnicos
+     recolhidos; com pendência, erro ou leitura em curso: os dois blocos abertos (qual conexão, o impacto, o conceito e a
+     correção que já existia). Nunca verde antes de ler tudo — o estado é o mesmo avaliarIntegracao() dos blocos. */
   function renderIntegridade() {
-    var h = '<section class="tax-integridade" id="taxIntegridade" aria-label="Integridade e configurações">' +
+    var h = '<section class="tax-integridade" id="taxIntegridade" aria-label="Verificações do sistema">' +
       '<button type="button" class="tax-lnk tax-voltar-catalogo" data-tax="voltar-catalogo" id="taxVoltarCatalogo">← Voltar ao catálogo</button>';
     if (st.aba === 'historico') return h + htmlHistoricoGlobal() + '</section>';
-    h += '<h3 class="tax-titulo">Integridade e configurações</h3><p class="tax-ajuda tax-integ-sub">Conexões da Taxonomia com os motores da Avaliação e do Posicionamento, exportação e controles técnicos.</p>';
-    h += renderConceitosBase('arquitetural') + renderConceitosBase('organizacional');
-    h += '<section class="tax-globais" id="taxAcoesGerais" aria-label="Dados e manutenção"><h4 class="tax-globais-titulo">Dados e manutenção</h4>' + htmlExportar() +
+    h += '<h3 class="tax-titulo">Verificações do sistema</h3><p class="tax-ajuda tax-integ-sub" id="taxVerifIntro">Esta área verifica se a Avaliação e o Posicionamento estão utilizando corretamente os conceitos oficiais da Taxonomia. Não representa o andamento das avaliações nem do Mapa da Floresta.</p>';
+    var ea = avaliarIntegracao('arquitetural'), eo = avaliarIntegracao('organizacional'), eg = estadoIntegracao();
+    var blocos = renderConceitosBase('arquitetural') + renderConceitosBase('organizacional');
+    h += '<section class="tax-verificacoes" id="taxVerificacoes" data-estado="' + eg + '" aria-labelledby="taxVerifTitulo"><h4 class="tax-globais-titulo" id="taxVerifTitulo">Conexões com os motores</h4>';
+    if (eg === 'ok') {
+      h += '<p class="tax-integracao-ok" id="taxVerifOk"><span class="tax-integracao-marca" aria-hidden="true">✓</span> Nenhuma pendência: a Avaliação (' + ea.conectados + ' de ' + ea.total + ') e o Posicionamento (' + eo.conectados + ' de ' + eo.total + ') usam os conceitos oficiais.</p>' +
+        '<details class="tax-recolhivel tax-verif-detalhes" id="taxVerifDetalhes" data-det="verif"' + detAberto('verif', false) + '><summary class="tax-recolhivel-cab">Ver detalhes técnicos</summary>' + blocos + '</details>';
+    } else {
+      var nomes = [[ea, 'Conexão com a Avaliação'], [eo, 'Conexão com o Posicionamento']];
+      var comProblema = nomes.filter(function (x) { return x[0].estado === 'problema'; }).map(function (x) { return x[1]; });
+      var comErro = nomes.filter(function (x) { return x[0].estado === 'erro'; }).map(function (x) { return x[1]; });
+      h += '<p class="' + (eg === 'conferindo' ? 'loading-msg' : 'tax-verif-resumo') + '" id="taxVerifResumo" role="status">' +
+        (eg === 'conferindo' ? 'Conferindo as conexões…' : eg === 'problema' ? '<strong>Pendências em:</strong> ' + esc(comProblema.join(' e ')) + '. Veja abaixo o impacto, o conceito afetado e a correção.' :
+          '<strong>Não foi possível conferir:</strong> ' + esc(comErro.join(' e ')) + '.') + '</p>' + blocos;
+    }
+    h += '</section>';
+    h += '<section class="tax-globais" id="taxAcoesGerais" aria-labelledby="taxDadosTitulo"><h4 class="tax-globais-titulo" id="taxDadosTitulo">Dados e histórico</h4>' + htmlExportar() +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="aba-historico" id="taxHistoricoGlobalBtn">Ver o histórico global</button></div>' + renderImportador() + '</section>';
     return h + '</section>';
   }
@@ -2121,6 +2145,7 @@
       var it = D.selecionado ? raiz().querySelector('.tax-item[data-codigo="' + String(D.selecionado).replace(/"/g, '') + '"]') : null;
       if (it && it.getBoundingClientRect && it.scrollIntoView) { var rr = it.getBoundingClientRect(); if (rr.top < 0 || rr.bottom > window.innerHeight) it.scrollIntoView({ block: 'center' }); }
     }
+    else if (acao === 'voltar-origem') { if (window.faAdminVoltarDaTaxonomia) window.faAdminVoltarDaTaxonomia(); }
     else if (acao === 'voltar-catalogo') { st.espaco = 'catalogo'; st.aba = 'dominio'; st.flash = null; render(); topoDaArea(); }
     else if (acao === 'integridade') {
       if (!podeVerHG()) return;
@@ -2282,7 +2307,7 @@
     if (st.meta.estado === 'ocioso' || st.meta.estado === 'erro') carregarMeta();
     if (st.lig.estado === 'ocioso' || st.lig.estado === 'erro') carregarLigacoes('arquitetural');
     if (st.ligPos.estado === 'ocioso' || st.ligPos.estado === 'erro') carregarLigacoes('organizacional');
-    /* o atalho "Integridade e configurações" confere os conceitos dos DOIS domínios: quem o vê lê os dois */
+    /* o acesso "Verificações do sistema" (e o seu estado) confere os conceitos dos DOIS domínios: quem o vê lê os dois */
     if (podeVerHG()) ORDEM_DOMINIOS.forEach(function (d) { if (d !== st.dominio && st.d[d].estado === 'ocioso') carregarDominio(d); });
     var D = st.d[st.dominio];
     if (D.estado === 'ocioso' || D.estado === 'erro') carregarDominio(st.dominio); else render();

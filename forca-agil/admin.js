@@ -87,15 +87,58 @@
   window.addEventListener('hashchange', function () { window.faAdminAtualizarVoltaInicio(); });
   window.addEventListener('popstate', function () { window.faAdminAtualizarVoltaInicio(); });
 
+  /* TAXONOMIA ABERTA A PARTIR DE "AVALIAÇÕES E MAPA" — origem registrada no histórico do navegador, como o atalho do Início:
+     a entrada de origem ganha faAbaAtual (a aba em que a pessoa estava) e a posição da rolagem; a nova entrada, faAbaAtual =
+     Taxonomia e faTaxOrigem (de onde veio). A Taxonomia mostra "← Voltar para Avaliações e Mapa" só com essa marca, nos três
+     espaços; o retorno é o Voltar do navegador (mesma área, mesma posição). F5 e Avançar reabrem a aba certa pela marca.
+     Entrar pela própria aba Taxonomia não inventa origem: trocar de aba à mão apaga a marca da entrada atual. Nada aqui
+     descarta o que está sendo editado na Taxonomia: o estado dela fica na memória enquanto a aba está escondida. */
+  function noAdmin() { return /^#admin(\?|$)/.test(location.hash || ''); }
+  window.faAdminOrigemTaxonomia = function () {
+    var st = history.state;
+    return st && st.faTaxOrigem && st.faAbaAtual === 'adminPanelTaxonomia' && noAdmin() ? st.faTaxOrigem : null;
+  };
+  window.faAdminIrTaxonomiaComOrigem = function () {
+    var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+    if (!t || t.hidden) return false;
+    var aqui = location.hash || '#admin';
+    var base = {}; var st = history.state || {}; Object.keys(st).forEach(function (k) { if (k !== 'faTaxOrigem') base[k] = st[k]; });
+    base.faAbaAtual = 'adminPanelArquitetura'; base.faRolagem = window.pageYOffset || 0;
+    history.replaceState(base, '', aqui);
+    history.pushState({ faAbaAtual: 'adminPanelTaxonomia', faTaxOrigem: { aba: 'adminPanelArquitetura', rotulo: 'Avaliações e Mapa', hash: aqui } }, '', '#admin');
+    ativarAba('adminPanelTaxonomia');
+    var painel = document.getElementById('adminPanelTaxonomia');
+    if (painel && painel.scrollIntoView && painel.getBoundingClientRect().top < 0) painel.scrollIntoView({ block: 'start' });
+    return true;
+  };
+  window.faAdminVoltarDaTaxonomia = function () { if (window.faAdminOrigemTaxonomia()) history.back(); };
+  /* Voltar/Avançar e F5 numa entrada marcada: reabre a aba registrada (e, na origem, a posição em que a pessoa estava) */
+  function aplicarAbaDoHistorico() {
+    var st = history.state;
+    if (!st || !st.faAbaAtual || !noAdmin()) return;
+    if (!window.faAdminAbrirAba(st.faAbaAtual)) return;
+    if (st.faAbaAtual === 'adminPanelArquitetura' && typeof st.faRolagem === 'number') {
+      var y = st.faRolagem;
+      requestAnimationFrame(function () { window.scrollTo(0, y); });
+    }
+  }
+  window.addEventListener('popstate', aplicarAbaDoHistorico);
+
   document.addEventListener('DOMContentLoaded', function () {
     if (window.faRouter) window.faRouter.onPageInit('admin', initAdmin);
     window.faAdminAtualizarVoltaInicio(); /* F5 numa entrada marcada pelo atalho do Início */
+    aplicarAbaDoHistorico(); /* F5 numa entrada marcada pela Taxonomia aberta de "Avaliações e Mapa" */
 
     /* Tab switching inside admin */
     document.querySelectorAll('.admin-tab-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const target = btn.dataset.panel;
         ativarAba(target);
+        var stAba = history.state;
+        if (stAba && (stAba.faTaxOrigem || stAba.faAbaAtual)) {
+          var limpo = {}; Object.keys(stAba).forEach(function (k) { if (k !== 'faTaxOrigem' && k !== 'faAbaAtual' && k !== 'faRolagem') limpo[k] = stAba[k]; });
+          history.replaceState(limpo, '', location.hash);
+        }
         if (target !== 'adminPanelArquitetura' && /[?&]arq=/.test(location.hash)) history.replaceState(history.state, '', '#admin');
         else if (target === 'adminPanelArquitetura') window.dispatchEvent(new CustomEvent('fa-admin-aba-arquitetura'));
       });
@@ -181,6 +224,7 @@
     if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
     initCertificados();
     window.faAdminAtualizarVoltaInicio();
+    aplicarAbaDoHistorico();
   }
 
   /* Admin restrito ("Avaliação + Configuração"): só o painel Avaliação e Mapa.
@@ -193,7 +237,7 @@
     var b = document.getElementById('admArqIrTaxonomia'), aba = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
     if (!b) return;
     b.hidden = !(visivel && aba && !aba.hidden);
-    if (!b._ligado) { b._ligado = true; b.addEventListener('click', function () { var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]'); if (t && !t.hidden) t.click(); }); }
+    if (!b._ligado) { b._ligado = true; b.addEventListener('click', function () { window.faAdminIrTaxonomiaComOrigem(); }); }
   }
   var _adminRestritoAplicado = false;
   /* Desfaz initAdminArquitetura: abas, barra e painéis de volta ao que o HTML entrega. Só age se o

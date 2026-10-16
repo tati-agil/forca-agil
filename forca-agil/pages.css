@@ -3946,3 +3946,29 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
   .tax-ui .tax-perfil-tabela tr.tax-atributo th { font-weight: 600; }
   .tax-ui .tax-perfil-tabela tr.tax-atributo--vazio td:not([data-rotulo="Estado"]) { display: none; }
 }
+
+/* Mapa da Floresta — destino da jornada (ADMIN › Avaliações e Mapa e Início da Avaliação): o cartão de sempre do site com
+   a faixa lateral ciano, sem cartão decorativo nem amarelo além da ação principal do ADMIN */
+.avp-mapa-destaque { background: var(--panel); border: 1px solid var(--line-strong); border-left: 4px solid var(--cyan); border-radius: 12px; padding: 16px 18px; margin: 0 0 16px; }
+.avp-mapa-destaque h3, .avp-mapa-destaque h4 { margin: 0 0 4px; }
+.avp-mapa-desc { margin: 0 0 8px; color: var(--ink); max-width: 72ch; }
+.avp-mapa-situacao { margin: 0 0 12px; font-size: .88rem; color: var(--ink-2); max-width: 72ch; }
+.avp-mapa-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.avp-mapa-acoes .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.avp-mapa-link { color: var(--cyan-soft); text-decoration: underline; text-underline-offset: 3px; min-height: 44px; display: inline-flex; align-items: center; }
+.avp-mapa-como { margin-top: 10px; font-size: .9rem; color: var(--ink-2); }
+.avp-mapa-como summary { cursor: pointer; color: var(--cyan-soft); min-height: 36px; display: flex; align-items: center; }
+.avp-mapa-como ul { margin: 6px 0 6px; padding-left: 18px; }
+.avp-mapa-como p { margin: 4px 0 0; }
+.avp-inicio-mapa { margin: 16px 0; }
+@media (max-width: 720px) {
+  .avp-mapa-acoes { flex-direction: column; align-items: stretch; }
+  .avp-mapa-acoes .btn { width: 100%; }
+}
+/* Taxonomia: retorno à área de origem e o acesso secundário às Verificações do sistema */
+.tax-ui .tax-voltar-origem-linha { margin: 0 0 10px; }
+.tax-ui .tax-voltar-origem { min-height: 40px; font-size: .95rem; font-weight: 600; }
+.tax-ui .tax-admin-rodape { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--tx-borda); }
+.tax-ui .tax-verif-resumo { margin: 0 0 10px; color: var(--tx-texto); }
+.tax-ui .tax-verificacoes { margin: 18px 0 0; }
+.tax-ui .tax-verif-detalhes { margin-top: 10px; }

@@ -76,13 +76,32 @@ async function abrirAdmin(page, codigo, aba) { await abrirConceito(page, codigo)
 async function voltarCatalogo(page) {
   await clicarEsperando(page, '#taxVoltarCatalogo', () => !!document.querySelector('.tax-dominios') && !document.getElementById('taxAdmin') && !document.getElementById('taxIntegridade'), null, 'voltar ao Catálogo');
 }
+/* Administração do conceito selecionado (ou do primeiro da lista): é onde fica o acesso às Verificações do sistema */
+async function abrirAdminQualquer(page) {
+  if (await page.locator('#taxAdmin').count()) return;
+  await esperarTelaEstavel(page, 'escolher um conceito para administrar');
+  const cod = await page.evaluate(() => { const s = window.faTaxonomia._interno.st, D = s.d[s.dominio]; if (D.selecionado && D.conceitos[D.selecionado]) return D.selecionado; const it = document.querySelector('.tax-item'); return it ? it.getAttribute('data-codigo') : null; });
+  if (!cod) throw new Error('Sem conceito para administrar — ' + await diagnostico(page));
+  await abrirAdmin(page, cod);
+}
+/* Verificações do sistema (antes "Integridade e configurações"): fora do Catálogo — o acesso fica na Administração
+   ("Verificações do sistema e dados"); com o catálogo vazio, pelo link da carga inicial. Sem conceito aberto, abre a
+   administração do selecionado (ou do primeiro da lista) só para chegar lá. */
 async function irIntegridade(page) {
   if (await page.locator('#taxIntegridade').count()) return;
-  if (await page.locator('#taxAdmin').count()) await voltarCatalogo(page);
-  await clicarEsperando(page, '#taxIntegridadeLink', () => !!document.getElementById('taxIntegridade'), null, 'abrir Integridade e configurações');
+  const paraVerificacoes = () => !!document.getElementById('taxIntegridade');
+  if (!(await page.locator('#taxAdmin').count())) {
+    await esperarTelaEstavel(page, 'procurar o acesso às Verificações do sistema');
+    if (await page.locator('#taxVazioCarga [data-tax="integridade"]').count()) {
+      await clicarEsperando(page, '#taxVazioCarga [data-tax="integridade"]', paraVerificacoes, null, 'abrir Verificações do sistema (catálogo vazio)');
+      return;
+    }
+    await abrirAdminQualquer(page);
+  }
+  await clicarEsperando(page, '#taxVerificacoesLink', paraVerificacoes, null, 'abrir Verificações do sistema');
 }
 async function dominio(page, d) {
   if (await page.locator('#taxAdmin, #taxIntegridade').count()) await voltarCatalogo(page);
   await clicarEsperando(page, '.tax-dominio[data-dominio="' + d + '"]', (x) => { const b = document.querySelector('.tax-dominio[data-dominio="' + x + '"]'); return !!b && b.getAttribute('aria-selected') === 'true' && !document.getElementById('taxCarregando'); }, d, 'trocar para o domínio ' + d);
 }
-module.exports = { abrirConceito, administrar, abaAdmin, abrirAdmin, adminAssentada, voltarCatalogo, irIntegridade, dominio, esperarTelaEstavel, diagnostico };
+module.exports = { abrirAdminQualquer, abrirConceito, administrar, abaAdmin, abrirAdmin, adminAssentada, voltarCatalogo, irIntegridade, dominio, esperarTelaEstavel, diagnostico };

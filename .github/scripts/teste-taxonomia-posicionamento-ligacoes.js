@@ -2,11 +2,11 @@
  * CONTEÚDO FICTÍCIO. Firebase falso em persistência real; hermético (sem rede, sem segredo). A trava de verdade
  * (regras do banco) é provada no emulador em teste-rules-taxonomia-governanca.js, seção F.
  *
- *   1. Catálogo: nada de integração; o atalho "Integridade e configurações" diz "requer atenção" enquanto faltar vínculo.
- *   2. Em Integridade e configurações (os dois blocos juntos): exatamente os 10 códigos do motor de Posicionamento (vindos do catálogo do
+ *   1. Catálogo: nada de integração; na Administração, "Verificações do sistema e dados" diz "requer atenção" enquanto faltar vínculo.
+ *   2. Em Verificações do sistema (os dois blocos juntos): exatamente os 10 códigos do motor de Posicionamento (vindos do catálogo do
  *      motor, nunca SQUAD/CAPITULO/DISCIPLINA); com falta, aviso destacado com o que falta e o impacto; a lista
  *      (conectado / sem vínculo / sem conceito / conceito inativo) fica em "Ver conceitos conectados" e códigos e datas
- *      em "Detalhes administrativos"; ao lado, a "Integração com a Avaliação" (11).
+ *      em "Detalhes administrativos"; ao lado, a "Conexão com a Avaliação" (11).
  *   3. "Registrar ligações do Posicionamento…" mostra a prévia e NADA é gravado antes de confirmar (nem ao
  *      cancelar); confirmar grava, numa gravação só, as ligações válidas + auditoria (sem nome nem definição);
  *      depois não sobra nada a registrar e rodar de novo não grava nada (idempotente).
@@ -101,16 +101,17 @@ const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySe
     const { ctx, page, erros } = await abrir(browser, viewport);
 
     console.log('\n== 1. Catálogo: integração fora; o atalho avisa ==');
-    await esperarCondicao(page, () => { const b = document.getElementById('taxIntegridadeLink'); return !!b && b.getAttribute('data-estado') === 'problema'; }, null, { descricao: 'atalho da integridade conferido' });
-    afirma(/requer atenção/.test(await texto(page, '#taxIntegridadeLink')), 'atalho: "Integridade e configurações · requer atenção"');
-    afirma(await page.locator('#taxConceitosBasePos, #taxIntegracaoResumoPos, #taxProtecaoIncompletaPos').count() === 0 && !/de 10 conceitos/.test(await texto(page, '#adminTaxonomia')), 'o Catálogo não mostra a integração do Posicionamento');
+    afirma(await page.locator('#taxConceitosBasePos, #taxIntegracaoResumoPos, #taxProtecaoIncompletaPos, #taxVerificacoesLink').count() === 0 && !/de 10 conceitos/.test(await texto(page, '#adminTaxonomia')), 'o Catálogo não mostra a integração do Posicionamento nem um atalho para ela');
+    await T.abrirAdminQualquer(page);
+    await esperarCondicao(page, () => { const b = document.getElementById('taxVerificacoesLink'); return !!b && b.getAttribute('data-estado') === 'problema'; }, null, { descricao: 'acesso às Verificações conferido' });
+    afirma(/requer atenção/.test(await texto(page, '#taxVerificacoesLink')), 'Administração: "Verificações do sistema e dados · requer atenção"');
 
     console.log('\n== 2. Integridade: os 10 códigos do motor de Posicionamento ==');
     await dominio(page, 'organizacional');
     await T.irIntegridade(page);
     await esperarCondicao(page, () => /conceitos conectados/.test((document.getElementById('taxIntegracaoResumoPos') || {}).innerText || ''), null, { descricao: 'integração conferida' });
-    afirma(/^Integração com o Posicionamento$/.test((await texto(page, '#taxConceitosBasePos h4')).trim()) && /utiliza os nomes e as definições oficiais destes conceitos/.test(await texto(page, '#taxIntegracaoAjudaPos')), 'título "Integração com o Posicionamento" e a explicação simples');
-    afirma(/Integração incompleta: 1 de 10 conceitos conectados/.test(await texto(page, '#taxIntegracaoResumoPos')) && await page.locator('#taxIntegracaoResumoPos[role="alert"]').count() === 1, 'falta de vínculo: aviso destacado "1 de 10 conceitos conectados"', await texto(page, '#taxIntegracaoResumoPos'));
+    afirma(/^Conexão com o Posicionamento$/.test((await texto(page, '#taxConceitosBasePos h4')).trim()) && /utiliza os nomes e as definições oficiais destes conceitos/.test(await texto(page, '#taxIntegracaoAjudaPos')), 'título "Conexão com o Posicionamento" e a explicação simples');
+    afirma(/Conexão incompleta: 1 de 10 conceitos conectados/.test(await texto(page, '#taxIntegracaoResumoPos')) && await page.locator('#taxIntegracaoResumoPos[role="alert"]').count() === 1, 'falta de vínculo: aviso destacado "1 de 10 conceitos conectados"', await texto(page, '#taxIntegracaoResumoPos'));
     await page.click('#taxIntegracaoListaPos > summary');
     const itens = await page.evaluate(() => Array.from(document.querySelectorAll('#taxConceitosBasePos [data-base]')).map((li) => li.dataset.base));
     afirma(itens.length === 10 && JSON.stringify(itens.slice().sort()) === JSON.stringify(DEZ.slice().sort()), 'exatamente os 10 códigos do motor (' + itens.join(', ') + ')');
@@ -183,7 +184,7 @@ const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySe
 
     console.log('\n== 5. A integração com a Avaliação continua como era ==');
     await T.irIntegridade(page);
-    afirma(/^Integração com a Avaliação$/.test((await texto(page, '#taxConceitosBase h4')).trim()) && await page.locator('#taxConceitosBase [data-base]').count() === 11 && await page.locator('#taxConceitosBase [data-base="LINHA"]').count() === 0, '"Integração com a Avaliação" (11 classificações), separada do Posicionamento');
+    afirma(/^Conexão com a Avaliação$/.test((await texto(page, '#taxConceitosBase h4')).trim()) && await page.locator('#taxConceitosBase [data-base]').count() === 11 && await page.locator('#taxConceitosBase [data-base="LINHA"]').count() === 0, '"Conexão com a Avaliação" (11 classificações), separada do Posicionamento');
     await T.voltarCatalogo(page);
     await dominio(page, 'arquitetural');
     afirma(await larguraOk(page), 'sem rolagem horizontal ao final');

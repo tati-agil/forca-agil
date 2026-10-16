@@ -3358,7 +3358,7 @@
     var DESTINOS_INICIO = {
       avpInicioJornada: '#avaliacoes?mf=catalogo', avpInicioNatureza: '#avaliacoes?nova=1', avpInicioAtuacao: '#avaliacoes?po=nova-atuacao',
       avpInicioRegNatureza: '#avaliacoes?av=lista', avpInicioRegPosicionamento: '#avaliacoes?po=lista', avpInicioRegSquad: '#avaliacoes?sq=lista',
-      avpInicioRegMapa: '#avaliacoes?mf=mapa', avpInicioTrabalhos: '#avaliacoes?tr=1'
+      avpInicioRegMapa: '#avaliacoes?mf=mapa', avpInicioTrabalhos: '#avaliacoes?tr=1', avpInicioMapa: '#avaliacoes?mf=mapa'
     };
     var inicioOuveNomes = false;
     /* COMO O SISTEMA FUNCIONA — um bloco só: cada atividade numa linha, de um lado o que ela é (o link para a lista,
@@ -3535,8 +3535,12 @@
         '<section class="avp-inicio-principal" id="avpInicioContinuar" aria-labelledby="avpInicioContinuarTitulo">' +
         '<h3 id="avpInicioContinuarTitulo">Continuar um trabalho</h3>' +
         '<p>Avaliações de Produto/Serviço, responsabilidades e análises de áreas já registradas: veja o andamento e continue de onde parou.</p>' +
-        '<div class="avp-inicio-continuar-acoes">' + link('avpInicioTrabalhos', 'btn avp-inicio-acao', 'Ver e continuar trabalhos') +
-        link('avpInicioJornada', 'avp-inicio-link-jornada', 'Consultar a Jornada do Mapa (ligação dos resultados às estruturas) →') + '</div></section>' +
+        '<div class="avp-inicio-continuar-acoes">' + link('avpInicioTrabalhos', 'btn avp-inicio-acao', 'Ver e continuar trabalhos') + '</div></section>' +
+        /* o destino da jornada: o Mapa da Floresta e a jornada até ele, sem depender do ADMIN */
+        '<section class="avp-mapa-destaque avp-inicio-mapa" id="avpInicioMapaSec" aria-labelledby="avpInicioMapaTitulo"><h3 id="avpInicioMapaTitulo">Mapa da Floresta</h3>' +
+        '<p class="avp-mapa-desc">' + esc(MAPA_DESCRICAO) + '</p>' + situacaoDadosMapaHtml('avpInicioMapaSituacao') +
+        '<div class="avp-mapa-acoes">' + link('avpInicioMapa', 'btn avp-inicio-acao', 'Abrir Mapa da Floresta') +
+        link('avpInicioJornada', 'avp-mapa-link', 'Consultar jornada até o Mapa') + '</div></section>' +
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho</h3>' +
         '<div class="avp-inicio-cartoes avp-inicio-cartoes--tres">' +
         '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1 · P1–P16</p><h4>Avaliar um Produto/Serviço</h4>' +
@@ -5103,6 +5107,22 @@
         'Peça a um administrador para liberar o seu acesso.</p></div>';
     }
 
+    /* ===================== MAPA DA FLORESTA — DESTINO DA JORNADA =====================
+       Um destaque curto, nas duas entradas (ADMIN › Avaliações e Mapa e Início da Avaliação), para o Mapa que JÁ existe
+       (#avaliacoes?mf=mapa) e a jornada preparatória (#avaliacoes?mf=catalogo). Nenhum segundo Mapa, definição ou registro:
+       a definição oficial é o cartão MAPA_FLORESTA de "Documentação e mapas". A situação dos dados segue a mesma regra do
+       Mapa (mapa-floresta.js): com o cadastro de estruturas disponível, registros reais; sem ele, modo demonstrativo, com
+       exemplos fictícios — nunca apresentados como relações concluídas; enquanto o marcador não chegou, "conferindo". */
+    var MAPA_DESCRICAO = 'Visualize as estruturas organizacionais e os produtos, serviços e responsabilidades associados a elas, conforme os registros disponíveis.';
+    function situacaoDadosMapaHtml(id) {
+      var pend = habilitacaoEstruturasPendente(), cad = estruturasDisponiveis();
+      var estado = pend ? 'conferindo' : cad ? 'cadastro' : 'demonstrativo';
+      var texto = pend ? 'Conferindo a origem dos dados do Mapa…'
+        : cad ? '<strong>Origem dos dados:</strong> estruturas cadastradas no ADMIN e vínculos registrados nas fichas do Posicionamento. Onde ainda não há registro, o Mapa mostra a ausência — nada é presumido.'
+        : '<strong>Origem dos dados:</strong> o cadastro de estruturas ainda não está habilitado. O Mapa abre em modo demonstrativo, com exemplos fictícios que não representam relações reais.';
+      return '<p class="avp-mapa-situacao' + (pend ? ' loading-msg' : '') + '" id="' + id + '" data-situacao="' + estado + '">' + texto + '</p>';
+    }
+
     /* ===================== ADMIN: INÍCIO DO BLOCO "AVALIAÇÃO DE PRODUTO/SERVIÇO" =====================
        Só parametrização e governança — nada de avaliar aqui. O trabalho do dia
        a dia (consultar, avaliar, reavaliar) fica na área AVALIAÇÃO do menu. */
@@ -5120,7 +5140,19 @@
       function cartao(id, titulo, texto) {
         return '<button type="button" class="avp-admin-card" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
       }
-      var html = '<div class="avp-form-card avp-admin-inicio">';
+      var html = '<section class="avp-form-card avp-mapa-destaque" id="avpAdminMapa" aria-labelledby="avpAdminMapaTitulo">' +
+        '<h4 id="avpAdminMapaTitulo">Mapa da Floresta</h4><p class="avp-mapa-desc">' + esc(MAPA_DESCRICAO) + '</p>' +
+        situacaoDadosMapaHtml('avpAdminMapaSituacao') +
+        '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a>' +
+        '<button type="button" class="btn" id="avpAdminDefinicaoMapa">Consultar definição do Mapa</button>' +
+        '<a class="avp-mapa-link" id="avpAdminJornadaMapa" href="#avaliacoes?mf=catalogo">Consultar jornada até o Mapa</a></div>' +
+        '<details class="avp-mapa-como" id="avpAdminMapaComo"><summary>Como as avaliações chegam ao Mapa</summary><ul>' +
+        '<li>A <strong>Avaliação de Produto/Serviço</strong> (P1–P16) descreve o que é o item.</li>' +
+        '<li>O <strong>Posicionamento Organizacional</strong> (O1–O9) recomenda o tipo de estrutura que deve sustentar a responsabilidade.</li>' +
+        '<li>O <strong>vínculo com a estrutura responsável</strong> é registrado na ficha do Posicionamento, com uma estrutura cadastrada.</li>' +
+        '<li>O <strong>Mapa</strong> mostra as estruturas e o que já está vinculado a cada uma.</li></ul>' +
+        '<p>Nem todo trabalho passa por todas essas etapas, e elas não são uma sequência obrigatória. A Adequação à Squad (S1–S8) continua opcional, quando aplicável.</p></details></section>';
+      html += '<div class="avp-form-card avp-admin-inicio">';
       html += '<p class="avp-decisao-aviso" id="avpAdminPapel">Duas responsabilidades diferentes: <strong>configurar</strong> como as avaliações perguntam e classificam, e <strong>cadastrar as estruturas concretas</strong> que recebem as responsabilidades e aparecem no Mapa. Conceitos, definições e relações oficiais ficam em <strong>ADMIN › Taxonomia</strong> (admin geral). Consultar e realizar avaliações (inclusive as de Squad) é feito na área <strong>Avaliação</strong> do menu principal.</p>';
       html += '</div>';
       html += grupo('Configuração das avaliações', 'O que as perguntas dizem e como as respostas viram uma classificação.',
@@ -5168,6 +5200,7 @@
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
       document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);
+      document.getElementById('avpAdminDefinicaoMapa').addEventListener('click', abrirDocumentacao);
       var habAn = document.getElementById('anHabilitacaoAdmin');
       if (habAn) window.faAnalisesOrganizacionais.montarHabilitacao(habAn);
     }

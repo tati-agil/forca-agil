@@ -66,7 +66,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
       const { ctx, page, erros } = await abrir(browser, vp, '#avaliacoes');
       console.log('A. Usuário novo: continuar um trabalho');
       await page.waitForSelector('#avpInicioTrabalhos');
-      afirma(/Ver e continuar trabalhos/.test(await texto(page, '#avpInicioTrabalhos')) && /Consultar a Jornada do Mapa/.test(await texto(page, '#avpInicioJornada')) &&
+      afirma(/Ver e continuar trabalhos/.test(await texto(page, '#avpInicioTrabalhos')) && /Consultar jornada até o Mapa/.test(await texto(page, '#avpInicioJornada')) &&
         await page.evaluate(() => ['avpInicioNatureza', 'avpInicioAtuacao', 'avpInicioAnalise', 'avpInicioTrabalhos', 'avpInicioJornada'].every((i) => !!document.getElementById(i))),
         'no Início: começar (Produto/Serviço, responsabilidade, área), continuar e a Jornada como consulta — tudo à vista');
       await page.click('#avpInicioTrabalhos');

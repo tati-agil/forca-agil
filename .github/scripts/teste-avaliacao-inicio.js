@@ -87,7 +87,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/O que você deseja fazer\?/.test(await texto(page, '#avpInicio')) && await visivel(page, '#avpInicioContinuar') && await visivel(page, '#avpInicioComecar') && await visivel(page, '#avpInicioConsultar'),
     'continuar um trabalho, começar um trabalho e (recolhido) entender como as avaliações se conectam');
   afirma(await page.locator('#avpInicio .btn--primary').count() === 0 && (await texto(page, '#avpInicioTrabalhos')).trim() === 'Ver e continuar trabalhos' && (await page.getAttribute('#avpInicioTrabalhos', 'href')) === '#avaliacoes?tr=1' &&
-    /Consultar a Jornada do Mapa/.test(await texto(page, '#avpInicioJornada')),
+    /Consultar jornada até o Mapa/.test(await texto(page, '#avpInicioJornada')),
     'continuar leva aos Trabalhos de avaliação; a Jornada do Mapa é consulta, com nome próprio; nenhum botão domina o Início');
   afirma(/Avaliar um Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se um item constitui um Produto\/Serviço\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
     (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' &&

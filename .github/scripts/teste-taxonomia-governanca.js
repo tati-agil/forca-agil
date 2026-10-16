@@ -3,9 +3,9 @@
  * As REGRAS do banco (a trava de verdade) são provadas no emulador em teste-rules-taxonomia-governanca.js;
  * aqui se prova o que a pessoa vê e o que a tela grava (ou não grava).
  *
- *   1. Catálogo: nada de integração na ficha nem na lista; o atalho "Integridade e configurações" do topo diz
+ *   1. Catálogo: nada de integração, nem atalho; na Administração, o acesso "Verificações do sistema e dados" diz
  *      "requer atenção" enquanto faltar vínculo (e nunca diz que está tudo bem antes de conferir).
- *   2. Integridade › Integração com a Avaliação: com falta, aviso destacado com o impacto e o que falta (nunca um resumo positivo);
+ *   2. Verificações do sistema › Conexão com a Avaliação: com falta, aviso destacado com o impacto e o que falta (nunca um resumo positivo);
  *      "Registrar vínculos…" mostra a prévia (já vinculado / será vinculado / não pode ser vinculado) e só grava ao
  *      confirmar; depois não sobra nada a registrar (idempotente). A lista fica em "Ver classificações conectadas".
  *      Gravação recusada pelo banco: erro visível, nada gravado.
@@ -98,7 +98,8 @@ async function abreConceito(page, cod, aba) {
   await T.abrirAdmin(page, cod, aba);
   await esperarCondicao(page, (c) => !!document.getElementById('taxAdmin') && !document.querySelector('#taxAdmin .loading-msg'), cod, { descricao: 'administração de ' + cod + ' carregada' });
 }
-const atalho = (page) => page.evaluate(() => { const b = document.getElementById('taxIntegridadeLink'); return b ? b.getAttribute('data-estado') + '|' + b.innerText : ''; });
+/* o acesso às Verificações (com o estado) fica na Administração de qualquer conceito */
+const atalho = (page) => page.evaluate(() => { const b = document.getElementById('taxVerificacoesLink'); return b ? b.getAttribute('data-estado') + '|' + b.innerText : ''; });
 
 (async () => {
   const browser = await chromium.launch();
@@ -106,15 +107,16 @@ const atalho = (page) => page.evaluate(() => { const b = document.getElementById
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
 
-    console.log('\n== 1. Catálogo: integração fora da ficha, atalho com "requer atenção" ==');
-    await esperarCondicao(page, () => { const b = document.getElementById('taxIntegridadeLink'); return !!b && b.getAttribute('data-estado') === 'problema'; }, null, { descricao: 'atalho da integridade conferido' });
-    afirma(/requer atenção/.test(await atalho(page)) && await page.locator('#taxIntegridadeLink .tax-ponto--atencao').count() === 1, 'atalho do topo: "Integridade e configurações · requer atenção"', await atalho(page));
-    afirma(await page.locator('#taxConceitosBase, #taxConceitosBasePos, #taxIntegracaoResumo, #taxProtecaoIncompleta').count() === 0 && !/de 11|de 10/.test(await texto(page, '#adminTaxonomia')), 'o Catálogo não mostra a integração (nem "X de 11"/"X de 10")');
+    console.log('\n== 1. Catálogo sem integração; acesso às Verificações na Administração com "requer atenção" ==');
+    afirma(await page.locator('#taxConceitosBase, #taxConceitosBasePos, #taxIntegracaoResumo, #taxProtecaoIncompleta, #taxVerificacoesLink, #taxIntegridadeLink').count() === 0 && !/de 11|de 10|Verificações do sistema/.test(await texto(page, '#adminTaxonomia')), 'o Catálogo não mostra a integração nem um atalho para ela');
+    await T.abrirAdminQualquer(page);
+    await esperarCondicao(page, () => { const b = document.getElementById('taxVerificacoesLink'); return !!b && b.getAttribute('data-estado') === 'problema'; }, null, { descricao: 'acesso às Verificações conferido' });
+    afirma(/requer atenção/.test(await atalho(page)) && await page.locator('#taxVerificacoesLink .tax-ponto--atencao').count() === 1, 'Administração: "Verificações do sistema e dados · requer atenção"', await atalho(page));
 
     console.log('\n== 2. Integridade: conceitos-base e registro controlado das ligações ==');
     await dominio(page, 'arquitetural');
     await T.irIntegridade(page);
-    afirma(/Integração com a Avaliação/.test(await texto(page, '#taxConceitosBase h4')) && /Integração incompleta: 1 de 11 classificações conectadas/.test(await texto(page, '#taxIntegracaoResumo')) && /pode ser inativado/.test(await texto(page, '#taxIntegracaoResumo')), 'integração incompleta: aviso destacado "1 de 11 classificações conectadas", com o impacto');
+    afirma(/Conexão com a Avaliação/.test(await texto(page, '#taxConceitosBase h4')) && /Conexão incompleta: 1 de 11 classificações conectadas/.test(await texto(page, '#taxIntegracaoResumo')) && /pode ser inativado/.test(await texto(page, '#taxIntegracaoResumo')), 'integração incompleta: aviso destacado "1 de 11 classificações conectadas", com o impacto');
     afirma(await page.locator('#taxIntegracaoResumo[data-estado="problema"][role="alert"]').count() === 1 && await page.locator('.tax-integracao-ok').count() === 0, 'falha real nunca aparece como resumo positivo');
     afirma(!(await page.evaluate(() => document.getElementById('taxIntegracaoLista').open)), '"Ver classificações conectadas" começa recolhido');
     afirma(await page.locator('#taxConceitosBase [data-base="produto-principal"][data-ligado="1"]').count() === 1 && /conectado/.test(await page.locator('#taxConceitosBase [data-base="produto-principal"]').textContent()) && !/ligado à Avaliação/.test(await page.locator('#taxConceitosBase').textContent()), 'produto-principal aparece "conectado" (sem repetir "ligado à Avaliação" em cada item)');
@@ -136,8 +138,7 @@ const atalho = (page) => page.evaluate(() => { const b = document.getElementById
     afirma(JSON.stringify(b['avaliacao-classificacoes']['produto-principal']) === JSON.stringify(semente()['avaliacao-classificacoes']['produto-principal']), 'a ligação que já existia não foi tocada');
     await esperarCondicao(page, () => /4 de 11 classificações conectadas/.test((document.getElementById('taxIntegracaoResumo') || {}).innerText || ''), null, { descricao: 'contagem atualizada' });
     afirma(await page.locator('#taxRegistrarLigacoesBtn').count() === 0, 'idempotente: depois do registro não sobra nada a registrar (sem botão)');
-    await T.voltarCatalogo(page);
-    afirma(/requer atenção/.test(await atalho(page)), 'o atalho continua "requer atenção" (faltam conceitos: 4 de 11)', await atalho(page));
+    afirma(await page.locator('#taxVerificacoes[data-estado="problema"]').count() === 1 && /Pendências em:/.test(await texto(page, '#taxVerifResumo')), 'as Verificações continuam com pendência (faltam conceitos: 4 de 11)', await texto(page, '#taxVerifResumo'));
 
     console.log('\n== 3. Conceito ligado à Avaliação não pode ser inativado ==');
     await abreConceito(page, 'canal');
@@ -246,9 +247,10 @@ const atalho = (page) => page.evaluate(() => { const b = document.getElementById
     /* ligações nunca respondem: "ainda não sei" não vira "pode inativar" */
     const { ctx, page, erros } = await abrir(browser, DESKTOP, { delays: { 'avaliacao-classificacoes': 100000000 } });
     await dominio(page, 'arquitetural');
-    afirma(!(await atalho(page)).startsWith('ok|') && await page.locator('#taxIntegridadeLink .tax-ponto--ok').count() === 0, 'atalho do topo: com a Avaliação ainda sem resposta, nunca "ok"', await atalho(page));
+    await T.abrirAdminQualquer(page);
+    afirma(!(await atalho(page)).startsWith('ok|') && await page.locator('#taxVerificacoesLink .tax-ponto--ok').count() === 0, 'acesso às Verificações: com a Avaliação ainda sem resposta, nunca "ok"', await atalho(page));
     await T.irIntegridade(page);
-    afirma(/Conferindo a integração/.test(await texto(page, '#taxIntegracaoResumo')) && await page.locator('.tax-integracao-ok').count() === 0 && await page.locator('#taxRegistrarLigacoesBtn').count() === 0, 'vínculos sem resposta: "Conferindo a integração…", nem resumo positivo, nem aviso de incompleta, nem botão de registrar');
+    afirma(/Conferindo a conexão/.test(await texto(page, '#taxIntegracaoResumo')) && await page.locator('.tax-integracao-ok').count() === 0 && await page.locator('#taxRegistrarLigacoesBtn').count() === 0, 'vínculos sem resposta: "Conferindo a conexão…", nem resumo positivo, nem aviso de incompleta, nem botão de registrar');
     await abreConceito(page, 'componente', 'historico');
     const e0 = await escritas(page);
     await page.click('#taxInativarBtn');
@@ -262,7 +264,8 @@ const atalho = (page) => page.evaluate(() => { const b = document.getElementById
     /* leitura das ligações recusada: erro visível + "Tentar novamente"; inativar fica bloqueado */
     const { ctx, page, erros } = await abrir(browser, CELULAR, { fail: ['avaliacao-classificacoes'] });
     await dominio(page, 'arquitetural');
-    afirma(!(await atalho(page)).startsWith('ok|') && await page.locator('#taxIntegridadeLink .tax-ponto--atencao').count() === 1, 'atalho do topo: leitura recusada → sinal de atenção, nunca "ok"', await atalho(page));
+    await T.abrirAdminQualquer(page);
+    afirma(!(await atalho(page)).startsWith('ok|') && await page.locator('#taxVerificacoesLink .tax-ponto--atencao').count() === 1, 'acesso às Verificações: leitura recusada → sinal de atenção, nunca "ok"', await atalho(page));
     await T.irIntegridade(page);
     await esperarCondicao(page, () => !!document.getElementById('taxLigacoesErro'), null, { descricao: 'erro das ligações' });
     afirma(/Sem acesso aos vínculos|Não foi possível ler os vínculos/.test(await texto(page, '#taxLigacoesErro')) && await page.locator('#taxLigacoesErro [data-tax="ligacoes-recarregar"]').count() === 1, 'leitura recusada: erro visível com "Tentar novamente" (375 px)');
