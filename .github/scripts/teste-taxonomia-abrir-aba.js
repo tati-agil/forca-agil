@@ -38,7 +38,7 @@ async function abrir(browser, viewport, hash, opts) {
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
-const carregada = () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && p.classList.contains('active') && !/Carregando a Taxonomia/.test(p.textContent) && /A Taxonomia define/.test(p.textContent); };
+const carregada = () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && p.classList.contains('active') && !/Carregando a Taxonomia|Verificando o acesso/.test(p.textContent) && /Que tipo de estrutura organizacional é esta?|O que é o item?/.test(p.textContent); };
 const esperarCarregada = (page, limite) => esperarCondicao(page, carregada, undefined, { limite: limite || 15000 });
 const noInicio = (page) => esperarCondicao(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#avaliacoes'; }, undefined, { limite: 15000 });
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
