@@ -1004,6 +1004,15 @@
         h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" data-dominio="' + dom + '" id="taxRegistrarLigacoesBtn' + T.id + '">' + T.botao + '</button></div>';
       }
     }
+    /* com problema: diz se há correção autorizada nesta tela (registrar os vínculos que faltam) ou não — conceito ausente,
+       inativo ou vínculo sem código no motor pedem decisão de curadoria, não uma ação automática */
+    if (A.estado === 'problema') {
+      var ligaveis = ok && D.estado === 'ok' ? previaLigacoes(dom).filter(function (i) { return i.situacao === 'ligar'; }).length : 0;
+      var outros = problemas.filter(function (i) { return i.problema !== 'sem vínculo registrado'; }).length + orfas.length;
+      h += '<p class="tax-ajuda tax-correcao" id="taxCorrecao' + T.id + '">' +
+        (ligaveis && podeEditar() ? '<strong>Correção disponível:</strong> registrar ' + plural(ligaveis, 'vínculo que falta', 'vínculos que faltam') + ' (com prévia, antes de gravar).' : ligaveis ? '<strong>Correção:</strong> registrar os vínculos que faltam — ação da administração geral.' : '') +
+        (outros ? (ligaveis ? ' ' : '') + '<strong>Sem correção automática</strong> para ' + plural(outros, 'item', 'itens') + ' (conceito ausente ou inativo, ou vínculo sem código no motor): pedem revisão na Taxonomia.' : '') + '</p>';
+    }
     var idB = 'base:' + dom, idA = 'baseadm:' + dom;
     h += '<details class="tax-recolhivel tax-integracao-lista" id="taxIntegracaoLista' + T.id + '" data-det="' + idB + '"' + detAberto(idB, false) + '><summary class="tax-recolhivel-cab">' + T.ver + '</summary><ul class="tax-base-lista">';
     itens.forEach(function (i) {
@@ -1933,10 +1942,17 @@
   }
   /* origem registrada pelo ADMIN (atalho "Abrir a aba Taxonomia" em Avaliações e Mapa — admin.js): só com a marca */
   function origemTaxonomia() { return window.faAdminOrigemTaxonomia ? window.faAdminOrigemTaxonomia() : null; }
+  /* alguma edição aberta e ainda não gravada, em qualquer domínio */
+  function edicaoNaoSalva() {
+    return ORDEM_DOMINIOS.some(function (d) { var D = st.d[d]; return !!(D.edicao || D.atualizando || D.perfilLote || D.relForm || D.encerrando || D.inativando || D.camadaMudando); });
+  }
   function renderTopo() {
     var local = st.espaco === 'admin' ? 'Administração' : st.espaco === 'integridade' ? 'Verificações do sistema' : 'Catálogo de conceitos';
     var o = origemTaxonomia();
-    var h = (o ? '<p class="tax-voltar-origem-linha"><button type="button" class="tax-lnk tax-voltar-origem" data-tax="voltar-origem" id="taxVoltarOrigem">← Voltar para ' + esc(o.rotulo || 'a área de origem') + '</button></p>' : '') +
+    if (!o) st.confirmandoVolta = false;
+    var h = (o ? '<p class="tax-voltar-origem-linha"><button type="button" class="tax-lnk tax-voltar-origem" data-tax="voltar-origem" id="taxVoltarOrigem">← Voltar para ' + esc(o.rotulo || 'a área de origem') + '</button></p>' +
+      (st.confirmandoVolta ? '<div class="tax-confirma" id="taxConfirmaVolta" role="group" aria-label="Edição não salva"><p><strong>Há uma edição não salva na Taxonomia.</strong> Se voltar agora, ela não é gravada; continua nesta aba enquanto a página estiver aberta.</p>' +
+        '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="voltar-origem-confirmar" id="taxConfirmaVoltaSim">Voltar mesmo assim</button><button type="button" class="btn btn--sm" data-tax="voltar-origem-cancelar" id="taxConfirmaVoltaNao">Continuar editando</button></div></div>' : '') : '') +
       '<div class="tax-topo"><div class="tax-topo-titulo"><h3 class="tax-titulo-area" id="taxTituloArea">Taxonomia</h3><p class="tax-local" id="taxLocal">' + esc(local) + '</p></div>';
     return h + '</div>';
   }
@@ -2051,19 +2067,19 @@
     var h = '<section class="tax-integridade" id="taxIntegridade" aria-label="Verificações do sistema">' +
       '<button type="button" class="tax-lnk tax-voltar-catalogo" data-tax="voltar-catalogo" id="taxVoltarCatalogo">← Voltar ao catálogo</button>';
     if (st.aba === 'historico') return h + htmlHistoricoGlobal() + '</section>';
-    h += '<h3 class="tax-titulo">Verificações do sistema</h3><p class="tax-ajuda tax-integ-sub" id="taxVerifIntro">Esta área verifica se a Avaliação e o Posicionamento estão utilizando corretamente os conceitos oficiais da Taxonomia. Não representa o andamento das avaliações nem do Mapa da Floresta.</p>';
+    h += '<h3 class="tax-titulo">Verificações do sistema</h3><p class="tax-ajuda tax-integ-sub" id="taxVerifIntro">Estas verificações confirmam se a Avaliação e o Posicionamento estão conectados aos conceitos oficiais da Taxonomia. Não mostram o andamento das avaliações nem a conclusão do Mapa da Floresta.</p>';
     var ea = avaliarIntegracao('arquitetural'), eo = avaliarIntegracao('organizacional'), eg = estadoIntegracao();
     var blocos = renderConceitosBase('arquitetural') + renderConceitosBase('organizacional');
     h += '<section class="tax-verificacoes" id="taxVerificacoes" data-estado="' + eg + '" aria-labelledby="taxVerifTitulo"><h4 class="tax-globais-titulo" id="taxVerifTitulo">Conexões com os motores</h4>';
     if (eg === 'ok') {
-      h += '<p class="tax-integracao-ok" id="taxVerifOk"><span class="tax-integracao-marca" aria-hidden="true">✓</span> Nenhuma pendência: a Avaliação (' + ea.conectados + ' de ' + ea.total + ') e o Posicionamento (' + eo.conectados + ' de ' + eo.total + ') usam os conceitos oficiais.</p>' +
+      h += '<div class="tax-verif-ok" id="taxVerifOk"><p class="tax-integracao-ok"><span class="tax-integracao-marca" aria-hidden="true">✓</span> <strong>Conexões funcionando corretamente.</strong></p><p>A Avaliação e o Posicionamento estão conectados aos conceitos oficiais. Nenhuma correção necessária.</p></div>' +
         '<details class="tax-recolhivel tax-verif-detalhes" id="taxVerifDetalhes" data-det="verif"' + detAberto('verif', false) + '><summary class="tax-recolhivel-cab">Ver detalhes técnicos</summary>' + blocos + '</details>';
     } else {
       var nomes = [[ea, 'Conexão com a Avaliação'], [eo, 'Conexão com o Posicionamento']];
       var comProblema = nomes.filter(function (x) { return x[0].estado === 'problema'; }).map(function (x) { return x[1]; });
       var comErro = nomes.filter(function (x) { return x[0].estado === 'erro'; }).map(function (x) { return x[1]; });
       h += '<p class="' + (eg === 'conferindo' ? 'loading-msg' : 'tax-verif-resumo') + '" id="taxVerifResumo" role="status">' +
-        (eg === 'conferindo' ? 'Conferindo as conexões…' : eg === 'problema' ? '<strong>Pendências em:</strong> ' + esc(comProblema.join(' e ')) + '. Veja abaixo o impacto, o conceito afetado e a correção.' :
+        (eg === 'conferindo' ? 'Conferindo as conexões…' : eg === 'problema' ? '<strong>Conexão com problema:</strong> ' + esc(comProblema.join(' e ')) + '. Veja abaixo o conceito envolvido, o impacto e se há correção disponível.' :
           '<strong>Não foi possível conferir:</strong> ' + esc(comErro.join(' e ')) + '.') + '</p>' + blocos;
     }
     h += '</section>';
@@ -2145,7 +2161,12 @@
       var it = D.selecionado ? raiz().querySelector('.tax-item[data-codigo="' + String(D.selecionado).replace(/"/g, '') + '"]') : null;
       if (it && it.getBoundingClientRect && it.scrollIntoView) { var rr = it.getBoundingClientRect(); if (rr.top < 0 || rr.bottom > window.innerHeight) it.scrollIntoView({ block: 'center' }); }
     }
-    else if (acao === 'voltar-origem') { if (window.faAdminVoltarDaTaxonomia) window.faAdminVoltarDaTaxonomia(); }
+    else if (acao === 'voltar-origem') {
+      if (edicaoNaoSalva() && !st.confirmandoVolta) { st.confirmandoVolta = true; render(); var cv = document.getElementById('taxConfirmaVoltaNao'); if (cv && cv.focus) cv.focus({ preventScroll: true }); return; }
+      st.confirmandoVolta = false; if (window.faAdminVoltarDaTaxonomia) window.faAdminVoltarDaTaxonomia();
+    }
+    else if (acao === 'voltar-origem-confirmar') { st.confirmandoVolta = false; render(); if (window.faAdminVoltarDaTaxonomia) window.faAdminVoltarDaTaxonomia(); }
+    else if (acao === 'voltar-origem-cancelar') { st.confirmandoVolta = false; render(); }
     else if (acao === 'voltar-catalogo') { st.espaco = 'catalogo'; st.aba = 'dominio'; st.flash = null; render(); topoDaArea(); }
     else if (acao === 'integridade') {
       if (!podeVerHG()) return;

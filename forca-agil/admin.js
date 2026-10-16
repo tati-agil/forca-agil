@@ -111,7 +111,24 @@
     if (painel && painel.scrollIntoView && painel.getBoundingClientRect().top < 0) painel.scrollIntoView({ block: 'start' });
     return true;
   };
-  window.faAdminVoltarDaTaxonomia = function () { if (window.faAdminOrigemTaxonomia()) history.back(); };
+  /* RETORNO À ORIGEM, CONFERIDO: o Voltar do navegador devolve a mesma área e a mesma posição; se ele não levar ao endereço
+     de origem (histórico diferente do esperado — outra aba, entradas intermediárias), vai direto ao endereço guardado e reabre
+     a aba. Nunca deixa a pessoa num lugar diferente do prometido pelo botão. Usado pela Taxonomia e pelo Mapa (aberto do ADMIN). */
+  window.faVoltarParaOrigem = function (hash, aba) {
+    if (!hash) return;
+    var chegou = false;
+    function conferir() {
+      window.removeEventListener('popstate', aoVoltar);
+      if (location.hash === hash) { if (aba) window.faAdminAbrirAba(aba); return; }
+      location.hash = hash; /* fallback: o histórico não levava à origem */
+      if (aba) setTimeout(function () { window.faAdminAbrirAba(aba); }, 0);
+    }
+    function aoVoltar() { if (chegou) return; chegou = true; setTimeout(conferir, 0); }
+    window.addEventListener('popstate', aoVoltar);
+    history.back();
+    setTimeout(function () { if (!chegou) { chegou = true; conferir(); } }, 700); /* sem entrada anterior: nada voltou */
+  };
+  window.faAdminVoltarDaTaxonomia = function () { var o = window.faAdminOrigemTaxonomia(); if (o) window.faVoltarParaOrigem(o.hash, o.aba); };
   /* Voltar/Avançar e F5 numa entrada marcada: reabre a aba registrada (e, na origem, a posição em que a pessoa estava) */
   function aplicarAbaDoHistorico() {
     var st = history.state;

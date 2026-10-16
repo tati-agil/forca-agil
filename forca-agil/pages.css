@@ -3972,3 +3972,21 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .tax-ui .tax-verif-resumo { margin: 0 0 10px; color: var(--tx-texto); }
 .tax-ui .tax-verificacoes { margin: 18px 0 0; }
 .tax-ui .tax-verif-detalhes { margin-top: 10px; }
+
+/* Jornada integrada (ADMIN › Avaliações e Mapa): rótulo do destaque e "Como cada parte contribui para o Mapa" — uma lista
+   compacta, sem cartão por item; cada parte leva à funcionalidade existente (ou só o nome, sem permissão) */
+.avp-mapa-rotulo { margin: 0 0 2px; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--cyan-soft); }
+.avp-partes-jornada { margin: 0 0 16px; }
+.avp-partes-jornada h4 { margin: 0 0 2px; }
+.avp-partes-lista { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+.avp-parte { display: flex; align-items: center; justify-content: space-between; gap: 6px 14px; padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; flex-wrap: wrap; }
+.avp-parte-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.avp-parte-texto strong { color: var(--ink); font-size: .95rem; }
+.avp-parte-texto span { color: var(--ink-2); font-size: .86rem; }
+.avp-parte-acesso { background: none; border: 0; padding: 0; font: inherit; font-size: .9rem; color: var(--cyan-soft); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; white-space: nowrap; }
+.avp-parte-acesso:focus-visible { outline: 3px solid var(--cyan-soft); outline-offset: 2px; }
+.avp-parte-sem { color: var(--ink-3); font-size: .84rem; }
+@media (max-width: 720px) { .avp-partes-lista { grid-template-columns: minmax(0, 1fr); } .avp-parte-acesso { white-space: normal; } }
+.tax-ui .tax-correcao { margin: 6px 0 10px; color: var(--tx-texto-2); }
+.tax-ui .tax-verif-ok p { margin: 0 0 4px; }
+.tax-ui .tax-verif-ok p:last-child { color: var(--tx-texto-2); }

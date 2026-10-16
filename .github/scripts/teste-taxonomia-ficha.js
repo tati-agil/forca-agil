@@ -13,7 +13,7 @@
  *      cancelar não grava, concorrência, clique repetido); Histórico recolhido com registro inicial e detalhes técnicos;
  *      governança secundária e protegida.
  *   D. VERIFICAÇÕES DO SISTEMA: só pela Administração ("Verificações do sistema e dados"); a explicação do que a área é;
- *      sem pendência, "Nenhuma pendência" e os detalhes técnicos recolhidos (11 de 11 e 10 de 10 lá dentro); "Dados e
+ *      sem pendência, "Conexões funcionando corretamente" e os detalhes técnicos recolhidos (11 de 11 e 10 de 10 lá dentro); "Dados e
  *      histórico" à parte: exportação e histórico global (com volta às Verificações).
  *   E. Somente leitura: consulta completa, sem administração nem integridade. Sem rolagem lateral; sem erro de JS. */
 const { chromium } = require('playwright');
@@ -198,8 +198,8 @@ const visiveis = (page, sel) => page.locator(sel).evaluateAll((els) => els.filte
     await esperarCondicao(page, () => { const b = document.getElementById('taxVerificacoesLink'); return !!b && b.getAttribute('data-estado') === 'ok'; }, null, { descricao: 'acesso às Verificações, sem pendência' });
     afirma(/Verificações do sistema e dados/.test(await texto(page, '#taxVerificacoesLink')) && await page.locator('#taxVerificacoesLink .tax-ponto--ok').count() === 1, 'acesso secundário na Administração, discreto, com o estado');
     await T.irIntegridade(page);
-    afirma((await texto(page, '#taxVerifIntro')).trim() === 'Esta área verifica se a Avaliação e o Posicionamento estão utilizando corretamente os conceitos oficiais da Taxonomia. Não representa o andamento das avaliações nem do Mapa da Floresta.', 'começa explicando o que a área é (e o que não é)');
-    afirma(/Nenhuma pendência/.test(await texto(page, '#taxVerifOk')) && !(await page.locator('#taxVerifDetalhes').evaluate((x) => x.open)) && !(await page.locator('#taxConceitosBase').isVisible()), 'sem pendência: uma frase curta; os 11 + 10 não aparecem em cartões');
+    afirma((await texto(page, '#taxVerifIntro')).trim() === 'Estas verificações confirmam se a Avaliação e o Posicionamento estão conectados aos conceitos oficiais da Taxonomia. Não mostram o andamento das avaliações nem a conclusão do Mapa da Floresta.', 'começa explicando o que a área é (e o que não é)');
+    afirma(/Conexões funcionando corretamente\./.test(await texto(page, '#taxVerifOk')) && /Nenhuma correção necessária\./.test(await texto(page, '#taxVerifOk')) && !(await page.locator('#taxVerifDetalhes').evaluate((x) => x.open)) && !(await page.locator('#taxConceitosBase').isVisible()), 'sem pendência: uma frase curta; os 11 + 10 não aparecem em cartões');
     await page.click('#taxVerifDetalhes > summary');
     afirma(/Verificações do sistema/.test(await texto(page, '#taxLocal')) && /^✓ 11 de 11 classificações conectadas$/.test((await texto(page, '#taxIntegracaoResumo')).trim()) && /^✓ 10 de 10 conceitos conectados$/.test((await texto(page, '#taxIntegracaoResumoPos')).trim()), 'Avaliação 11 de 11 e Posicionamento 10 de 10, discretos');
     afirma(!(await page.locator('#taxIntegracaoLista').evaluate((x) => x.open)) && !(await page.locator('#taxIntegracaoListaPos').evaluate((x) => x.open)), 'as listas ficam recolhidas');

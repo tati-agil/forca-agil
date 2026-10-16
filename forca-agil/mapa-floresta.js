@@ -393,9 +393,15 @@
       var desejado = enderecoDesejado();
       if (wrap.hidden || location.hash === desejado || (location.hash || '').split('?')[0] !== '#avaliacoes') return;
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
-      history.pushState({ avp: 1, seq: Date.now(), origem: null, mfAnterior: location.hash || '#avaliacoes' }, '', desejado);
+      var volta = history.state && history.state.mfVoltaAdmin; /* aberto pelo ADMIN: a origem acompanha as trocas Mapa ↔ jornada */
+      history.pushState({ avp: 1, seq: Date.now(), origem: null, mfAnterior: location.hash || '#avaliacoes', mfVoltaAdmin: volta || undefined }, '', desejado);
     }
+    /* Mapa (ou jornada) aberto a partir de ADMIN › Avaliações e Mapa: o "← Voltar" volta para lá, conferido */
+    function voltaAdmin() { var st = history.state; return st && st.mfVoltaAdmin && st.mfVoltaAdmin.hash ? st.mfVoltaAdmin : null; }
+    function rotuloVoltar() { var v = voltaAdmin(); return v ? '← Voltar para ' + esc(v.rotulo || 'Avaliações e Mapa') : '← Voltar para Avaliações'; }
     function sairParaAvaliacoes() {
+      var va = voltaAdmin();
+      if (va && window.faVoltarParaOrigem) { window.faVoltarParaOrigem(va.hash, va.aba); return; }
       var st = history.state;
       if (st && st.mfAnterior && st.mfAnterior.split('?')[0] === '#avaliacoes' && !/[?&](po|sq|mf)=/.test(st.mfAnterior)) { history.back(); return; }
       history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#avaliacoes');
@@ -453,7 +459,7 @@
       if (modo === 'mapa') { renderMapaTela(); return; }
       var ativo = document.activeElement, foco = null;
       if (ativo && ativo.id && wrap.contains(ativo) && /^(INPUT|SELECT)$/.test(ativo.tagName)) foco = { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd };
-      var h = '<button type="button" class="avp-voltar-link" id="mfVoltar">← Voltar para Avaliações</button>';
+      var h = '<button type="button" class="avp-voltar-link" id="mfVoltar">' + rotuloVoltar() + '</button>';
       h += '<button type="button" class="btn btn--sm mf-ir-mapa" id="mfIrMapa">Ver Mapa completo</button>';
       h += '<div class="avp-form-card mf-card" id="mfCatalogo">' + (focoItem ? '' : '<details class="mf-sobre" id="mfSobre"><summary>Sobre esta tela</summary>') +
         '<p class="avp-intro">O Mapa da Floresta vai representar as estruturas organizacionais concretas de três categorias. Os produtos, serviços e demais objetos avaliados ' +
@@ -1039,9 +1045,10 @@
       /* um só painel claro: título, ações, aviso de demonstração e o quadro — o fundo do site fica só na margem */
       var h = '<div class="mfm-painel"><div class="mfm-cabecalho"><div class="mfm-cabecalho-texto"><h2 class="mfm-titulo">Mapa da Floresta</h2>' +
         '<p class="mfm-subtitulo">' + (fonte === 'cadastro' ? 'Visão organizacional · estruturas cadastradas' : 'Visão organizacional · demonstração com exemplos fictícios') + '</p></div>' +
-        '<div class="mfm-acoes"><button type="button" class="mfm-acao" id="mfVoltar">← Voltar para Avaliações</button>' +
+        '<div class="mfm-acoes"><button type="button" class="mfm-acao" id="mfVoltar">' + rotuloVoltar() + '</button>' +
         (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaItem) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' : '') +
-        (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver a Jornada de Avaliação e Posicionamento</button>' : '') + '</div></div>';
+        (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver a Jornada de Avaliação e Posicionamento</button>' : '') +
+        (podeManterEstruturas() ? '<a class="mfm-acao" id="mfmDefinicao" href="#admin?arq=documentacao">Definição e documentação do Mapa</a>' : '') + '</div></div>';
       if (cadastroDisponivel() && autorizacaoResolvida() && podeLer()) h += '<div class="mfm-cenarios mfm-fontes" role="group" aria-label="Dados do Mapa"><span class="mfm-cenarios-rotulo">Dados:</span>' +
         [['cadastro', 'Estruturas cadastradas'], ['demo', 'Demonstração (fictícia)']].map(function (o) {
           return '<button type="button" class="mfm-cenario mfm-fonte' + (fonte === o[0] ? ' mfm-cenario--ativo' : '') + '" data-fonte="' + o[0] + '" aria-pressed="' + (fonte === o[0]) + '">' + o[1] + '</button>';
