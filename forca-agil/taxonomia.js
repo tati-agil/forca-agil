@@ -133,10 +133,10 @@
   /* ---------- estado ---------- */
   function novoHGDom() { return { estado: 'ocioso', cursor: null, temMais: false, erro: null }; }
   function novoHG() { return { carregou: false, carregando: false, itens: [], doms: { organizacional: novoHGDom(), arquitetural: novoHGDom() }, contagem: {} }; }
-  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false, novaVersao: null, inativando: null, camadaMudando: null, relForm: null, encerrando: null }; }
+  function novoDominio() { return { comparando: false, compararCom: null, adminAba: 'conteudo', estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false, novaVersao: null, inativando: null, camadaMudando: null, relForm: null, encerrando: null }; }
   var st = {
     exp: null, /* exportação em andamento/resultado: { estado: lendo|gerando|ok|erro, formato, texto } */
-    dominio: 'organizacional', email: null, raiz: null, opcoes: { somenteLeitura: false },
+    dominio: 'organizacional', espaco: 'catalogo', busca: '', email: null, raiz: null, opcoes: { somenteLeitura: false },
     meta: { estado: 'ocioso', cargaFeita: false }, indiceFilhos: { estado: 'ocioso', existe: false }, importacao: null, flash: null, salvando: false,
     vista: 'lista', aba: 'dominio', /* aba: 'dominio' (lista + detalhe) ou 'historico' (histórico global) */
     hg: novoHG(),
@@ -189,7 +189,7 @@
       if (falha) D.estado = falha.negado ? 'sem-acesso' : 'erro';
       else D.estado = 'ok';
       /* conceito selecionado que sumiu: volta à lista */
-      if (D.selecionado && !D.conceitos[D.selecionado]) { D.selecionado = null; D.detalhe = null; st.vista = 'lista'; }
+      if (D.selecionado && !D.conceitos[D.selecionado]) { D.selecionado = null; D.detalhe = null; st.vista = 'lista'; if (st.espaco === 'admin' && st.dominio === dom) st.espaco = 'catalogo'; }
       render();
     }
     lerNo(RAIZ + '/' + dom + '/conceitos', function (r) { if (!r.ok) falha = falha || r; else D.conceitos = r.valor || {}; fim(); });
@@ -896,12 +896,22 @@
     return ordenaPor(chaves(D.conceitos).map(function (k) { return Object.assign({ _codigo: k }, D.conceitos[k]); }), 'ordem');
   }
   function renderLista(dom) {
-    var D = st.d[dom], lista = ordenados(D), html = '<nav class="tax-lista" aria-label="Conceitos da ' + esc(DOMINIOS[dom].titulo) + '">';
-    function item(c, nivel) {
-      var ativo = D.selecionado === c._codigo;
-      return '<button type="button" class="tax-item tax-item--n' + nivel + (ativo ? ' tax-item--ativo' : '') + (c.ativo === false ? ' tax-item--inativo' : '') + '" data-tax="selecionar" data-codigo="' + esc(c._codigo) + '">' +
+    var D = st.d[dom], lista = ordenados(D), q = normBusca(st.busca).trim();
+    var html = '<nav class="tax-lista" aria-label="Conceitos da ' + esc(DOMINIOS[dom].titulo) + '">' +
+      '<div class="tax-busca"><label class="tax-rotulo-campo" for="taxBusca">Buscar conceito</label><input type="search" id="taxBusca" value="' + esc(st.busca) + '" placeholder="Nome ou código" autocomplete="off"></div>';
+    function item(c, nivel, comCaminho) {
+      var ativo = D.selecionado === c._codigo, anc = comCaminho ? ancestrais(dom, c._codigo) : [];
+      var marcas = (c.definicao ? '' : selo('sem definição', 'tax-selo--sem-def')) + (c.ativo === false ? selo('desativado') : '');
+      return '<button type="button" class="tax-item tax-item--n' + nivel + (ativo ? ' tax-item--ativo' : '') + (c.ativo === false ? ' tax-item--inativo' : '') + '" data-tax="selecionar" data-codigo="' + esc(c._codigo) + '"' + (ativo ? ' aria-current="true"' : '') + '>' +
         '<span class="tax-item-nome">' + esc(c.nome) + '</span>' +
-        '<span class="tax-item-selos">' + (c.camada ? selo(CAMADA_ROTULO[c.camada] || c.camada) : '') + (c.definicao ? '' : selo('sem definição', 'tax-selo--sem-def')) + (c.ativo === false ? selo('desativado') : '') + '</span></button>';
+        (anc.length ? '<span class="tax-item-ctx">em ' + esc(anc.map(function (a) { return a.nome; }).join(' › ')) + '</span>' : '') +
+        (marcas ? '<span class="tax-item-selos">' + marcas + '</span>' : '') + '</button>';
+    }
+    if (q) {
+      var achados = lista.filter(function (c) { return normBusca(c.nome).indexOf(q) !== -1 || normBusca(c._codigo).indexOf(q) !== -1; });
+      html += '<p class="tax-busca-resultado" id="taxBuscaResultado" role="status">' + (achados.length ? plural(achados.length, 'conceito encontrado', 'conceitos encontrados') : 'Nenhum conceito com esse nome ou código.') + '</p>';
+      achados.forEach(function (c) { html += item(c, 0, true); });
+      return html + '</nav>';
     }
     if (dom === 'organizacional') {
       var filhos = {};
@@ -935,14 +945,6 @@
     var n = cods.filter(function (c) { return !!L.mapa[c]; }).length;
     return { total: cods.length, ligadas: n };
   }
-  function avisoProtecao() {
-    var r = resumoLigacoes('arquitetural'), rp = resumoLigacoes('organizacional'), h = '';
-    if (r && r.ligadas < r.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompleta" role="status"><strong>Proteção da Avaliação incompleta:</strong> ' + r.ligadas + ' de ' + r.total + ' classificações conectadas. ' +
-      'Enquanto o vínculo não for registrado, o conceito correspondente pode ser inativado. Registre em Taxonomia › Arquitetural › “Integração com a Avaliação”.</p>';
-    if (rp && rp.ligadas < rp.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompletaPos" role="status"><strong>Proteção do Posicionamento incompleta:</strong> ' + rp.ligadas + ' de ' + rp.total + ' conceitos conectados. ' +
-      'Enquanto o vínculo não for registrado, o conceito correspondente pode ser inativado ou trocar de camada. Registre em Taxonomia › Organizacional › “Integração com o Posicionamento”.</p>';
-    return h;
-  }
   /* Textos da área de integração por domínio. */
   var BASE_TXT = {
     arquitetural: { id: '', titulo: 'Integração com a Avaliação', alvo: 'da Avaliação', itens: ['classificação conectada', 'classificações conectadas'],
@@ -965,8 +967,8 @@
     var cods = codigosMotor(dom);
     if (!LIG_CFG[dom] || !cods.length) return '';
     var T = BASE_TXT[dom], cfg = LIG_CFG[dom];
-    var D = st.d[dom], L = L_(dom), ok = L.estado === 'ok', P = st[cfg.carga];
-    var h = '<section class="tax-base tax-integracao" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '" data-vista="' + esc(st.vista) + '"><h4 class="tax-integracao-titulo">' + T.titulo + '</h4>' +
+    var D = st.d[dom], L = L_(dom), ok = L.estado === 'ok' && D.estado === 'ok', P = st[cfg.carga];
+    var h = '<section class="tax-base tax-integracao" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '"><h4 class="tax-integracao-titulo">' + T.titulo + '</h4>' +
       '<p class="tax-ajuda" id="taxIntegracaoAjuda' + T.id + '">' + T.ajuda + '</p>';
     var itens = cods.map(function (cod) {
       var c = D.conceitos[cod], l = ok ? L.mapa[cod] : null;
@@ -975,7 +977,7 @@
     });
     var orfas = ok ? chaves(L.mapa).filter(function (k) { return cods.indexOf(k) === -1; }) : [];
     var problemas = itens.filter(function (i) { return i.problema; }), conectados = itens.filter(function (i) { return i.l && !i.problema; }).length;
-    if (L.estado === 'erro' || L.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button></p>';
+    if (L.estado === 'erro' || L.estado === 'sem-acesso' || D.estado === 'erro' || D.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar" data-dominio="' + dom + '">Tentar novamente</button></p>';
     else if (!ok) h += '<p class="loading-msg" id="taxIntegracaoResumo' + T.id + '" data-estado="conferindo">Conferindo a integração…</p>';
     else if (!problemas.length && !orfas.length) h += '<p class="tax-integracao-ok" id="taxIntegracaoResumo' + T.id + '" data-estado="ok"><span class="tax-integracao-marca" aria-hidden="true">✓</span> ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '</p>';
     else {
@@ -992,7 +994,7 @@
           var c = D.conceitos[i.codigo];
           return '<li data-previa="' + esc(i.codigo) + '" data-situacao="' + i.situacao + '">' + esc(c ? c.nome : i.codigo) + ' <code>' + esc(i.codigo) + '</code> — ' + rot + '</li>';
         }).join('') + '</ul>' + (P.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(P.erro) + '</p>' : '') +
-          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes' + T.id + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Registrar ' + plural(aLigar.length, 'vínculo', 'vínculos')) + '</button>' : '') +
+          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes' + T.id + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : 'Registrar ' + plural(aLigar.length, 'vínculo', 'vínculos')) + '</button>' : '') +
           '<button type="button" class="btn btn--sm" data-tax="cancelar-ligacoes"' + (st.salvando ? ' disabled' : '') + '>' + (aLigar.length ? 'Cancelar' : 'Fechar') + '</button></div></div>';
       } else if (aLigar.length) {
         h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" id="taxRegistrarLigacoesBtn' + T.id + '">' + T.botao + '</button></div>';
@@ -1002,7 +1004,7 @@
     h += '<details class="tax-recolhivel tax-integracao-lista" id="taxIntegracaoLista' + T.id + '" data-det="' + idB + '"' + detAberto(idB, false) + '><summary class="tax-recolhivel-cab">' + T.ver + '</summary><ul class="tax-base-lista">';
     itens.forEach(function (i) {
       var marca = !ok ? '<span class="tax-ajuda">conferindo…</span>' : i.problema ? '<span class="tax-base-falta">' + esc(i.problema) + '</span>' : '<span class="tax-integracao-item-ok">conectado</span>';
-      if (i.c) h += '<li class="tax-base-item" data-base="' + esc(i.cod) + '" data-ligado="' + (i.l ? '1' : '0') + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-codigo="' + esc(i.cod) + '"><span class="tax-base-nome">' + esc(i.c.nome) + '</span></button> ' + marca + '</li>';
+      if (i.c) h += '<li class="tax-base-item" data-base="' + esc(i.cod) + '" data-ligado="' + (i.l ? '1' : '0') + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-dominio="' + dom + '" data-codigo="' + esc(i.cod) + '"><span class="tax-base-nome">' + esc(i.c.nome) + '</span></button> ' + marca + '</li>';
       else h += '<li class="tax-base-item tax-base-item--sem" data-base="' + esc(i.cod) + '" data-ligado="' + (i.l ? '1' : '0') + '"><code class="tax-base-codigo">' + esc(i.cod) + '</code> ' + marca + '</li>';
     });
     h += '</ul>';
@@ -1082,16 +1084,14 @@
       detalhesAud(l, idDetalhe, cortou) + '</li>';
   }
 
-  /* ---------- ficha do conceito, NESTA ordem ----------
-     A) Cabeçalho (código, camada, hierarquia, situação, proteções) · B) Definição oficial, com "Atualizar definição"
-     · C) Como reconhecer este conceito? (Editar informações) · D) Perfil (Gerenciar perfil) · E) Relações entre conceitos
-     (Gerenciar relações) · administração discreta (inativar, camada) · F) Histórico único (recolhido, por último).
-     Tudo indexado pelo CÓDIGO do conceito. */
-  /* A) CABEÇALHO — nome (no título), código, camada, hierarquia, situação e proteções, numa área só. Não há outra
-     "identificação" no fim da ficha: editar o nome fica em "Como reconhecer" (Editar informações). */
+  /* ---------- blocos da ADMINISTRAÇÃO do conceito (abas) ----------
+     Conteúdo: identificação · definição oficial ("Atualizar definição") · pergunta, critérios e observações ("Editar
+     informações") — Perfil ("Gerenciar perfil") — Relações registradas — Histórico e governança (histórico único,
+     inativar, camada). A ficha do CATÁLOGO é outra (renderFicha). Tudo indexado pelo CÓDIGO do conceito. */
+  /* IDENTIFICAÇÃO — código, camada, hierarquia, situação e proteções, numa área só; o nome muda em "Editar informações". */
   function renderIdentificacao(dom, codigo) {
     var D = st.d[dom], c = D.conceitos[codigo], org = dom === 'organizacional';
-    var html = '<section class="tax-sec tax-sec--ident tax-cabecalho" id="taxSecIdent" aria-label="Identificação do conceito"><div class="tax-ident-meta">';
+    var html = '<section class="tax-sec tax-sec--ident tax-cabecalho" id="taxSecIdent" aria-label="Identificação do conceito"><h4>Identificação</h4><div class="tax-ident-meta">';
     html += '<span class="tax-ident-item" id="taxCodigo"><span class="tax-ident-k">Código:</span> <code>' + esc(codigo) + '</code></span>';
     if (org) html += '<span class="tax-ident-item" id="taxIdentCamada"><span class="tax-ident-k">Camada:</span> ' + (c.camada ? esc(CAMADA_ROTULO[c.camada] || c.camada) : '<span class="tax-ausencia">sem camada</span>') + '</span>';
     html += '<span class="tax-ident-item" id="taxIdentSituacao"><span class="tax-ident-k">Situação:</span> ' + (c.ativo === false ? selo('desativado') : 'ativo') + '</span></div>';
@@ -1112,7 +1112,7 @@
   function renderAcoesConceito(dom, codigo) {
     var D = st.d[dom], c = D.conceitos[codigo], ed = podeEditar(), org = dom === 'organizacional';
     if (!ed) return '';
-    var html = '<section class="tax-sec tax-sec--governanca" id="taxSecIdentAcoes" aria-label="Administração do conceito"><p class="tax-governanca-titulo">Administração do conceito</p>';
+    var html = '<section class="tax-sec tax-sec--governanca" id="taxSecIdentAcoes" aria-label="Situação do conceito"><h4>Situação do conceito</h4>';
     html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito">' +
       (c.ativo === false ? '<button type="button" class="btn btn--sm" data-tax="reativar" id="taxReativarBtn"' + (st.salvando ? ' disabled' : '') + '>Reativar conceito</button>'
         : '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="inativar" id="taxInativarBtn">Inativar conceito</button>') +
@@ -1140,7 +1140,7 @@
       '<p class="tax-ajuda" id="taxCamadaPrevia">Muda só a camada. O código <code>' + esc(codigo) + '</code>, o nome, a definição, as relações e o histórico continuam como estão. A troca fica no histórico com o motivo e pode ser desfeita do mesmo jeito.</p>' +
       '<label for="taxC_motivo">Motivo *</label><textarea id="taxC_motivo" data-cam="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
       (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
-      '<div class="tax-acoes"><button type="button" class="btn btn--sm btn--primary" data-tax="confirmar-camada"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Alterar camada') + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm btn--primary" data-tax="confirmar-camada"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : 'Alterar camada') + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-camada"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
     return h;
   }
@@ -1177,7 +1177,7 @@
     }
     h += '<label for="taxI_motivo">Motivo *</label><textarea id="taxI_motivo" data-inat="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
       (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
-      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-inativar"' + (st.salvando || !af.pronto ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Inativar conceito') + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-inativar"' + (st.salvando || !af.pronto ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : 'Inativar conceito') + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-inativar"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
     return h;
   }
@@ -1192,7 +1192,7 @@
     if (def) h += '<p class="tax-definicao-texto" id="taxDefinicaoTexto">' + esc(def.texto) + '</p>' +
       '<p class="tax-def-atualizacao" id="taxDefAtualizacao"><strong>Última atualização:</strong> ' + esc(fmtData(def.publicadaEm)) + (def.publicadaPor ? ' · ' + esc(def.publicadaPor) : '') + ' · versão ' + esc(def.versao) + '</p>';
     else h += '<p class="tax-ausencia" id="taxSemDefinicao">Este conceito ainda não tem definição oficial vigente.</p>';
-    if (ed && !(a && a.codigo === codigo)) h += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="atualizar-definicao" id="taxAtualizarDefinicaoBtn"' + (st.salvando ? ' disabled' : '') + '>' + (def ? 'ATUALIZAR DEFINIÇÃO' : 'REGISTRAR DEFINIÇÃO') + '</button></div>';
+    if (ed && !(a && a.codigo === codigo)) h += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="atualizar-definicao" id="taxAtualizarDefinicaoBtn"' + (st.salvando ? ' disabled' : '') + '>' + (def ? 'Atualizar definição' : 'Registrar definição') + '</button></div>';
     if (ed && a && a.codigo === codigo) h += a.etapa === 'conferir' ? painelConferir(def, a) : painelEditarDefinicao(def, a);
     return h + '</section>';
   }
@@ -1202,7 +1202,7 @@
       '<label for="taxDefNovo">' + (def ? 'Nova redação' : 'Texto da definição') + ' *</label><textarea id="taxDefNovo" data-def="texto" rows="6" maxlength="8000">' + esc(a.texto) + '</textarea>' +
       '<label for="taxDefMotivo">Motivo da alteração (opcional)</label><textarea id="taxDefMotivo" data-def="motivo" rows="2" maxlength="500">' + esc(a.motivo) + '</textarea>' +
       (a.erro ? '<p class="tax-aviso-erro" role="alert" id="taxDefErro">' + esc(a.erro) + '</p>' : '') +
-      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="conferir-definicao" id="taxDefConferirBtn">CONTINUAR</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="conferir-definicao" id="taxDefConferirBtn">Continuar</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-definicao" id="taxDefCancelarBtn">Cancelar</button></div></div>';
   }
   function painelConferir(def, a) {
@@ -1212,7 +1212,7 @@
       '<p class="tax-confirma-rotulo">Nova definição proposta</p><p class="tax-confirma-texto" id="taxDefNovaConferir">' + esc(String(a.texto).trim()) + '</p>' +
       (String(a.motivo || '').trim() ? '<p class="tax-confirma-rotulo">Motivo</p><p class="tax-confirma-texto" id="taxDefMotivoConferir">' + esc(String(a.motivo).trim()) + '</p>' : '') +
       '<p class="tax-confirma-aviso" role="note">Ao publicar, a nova definição passa a ser a vigente' + (def ? ' e a atual fica preservada no histórico' : '') + '. Autoria e data são registradas automaticamente.</p>' +
-      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="publicar-definicao" id="taxDefPublicarBtn"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'PUBLICANDO…' : 'PUBLICAR NOVA DEFINIÇÃO') + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="publicar-definicao" id="taxDefPublicarBtn"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Publicando…' : 'Publicar nova definição') + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="voltar-definicao"' + (st.salvando ? ' disabled' : '') + '>Voltar e editar</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-definicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
   }
@@ -1221,7 +1221,7 @@
      distintas: nada é fundido nem apagado só porque os textos se parecem. */
   function renderPergunta(dom, codigo) {
     var D = st.d[dom], c = D.conceitos[codigo], org = dom === 'organizacional', e = D.edicao, ed = podeEditar();
-    var html = '<section class="tax-sec tax-sec--reconhecer" id="taxSecPergunta"><h4>Como reconhecer este conceito?</h4>';
+    var html = '<section class="tax-sec tax-sec--reconhecer" id="taxSecPergunta"><h4>Pergunta, critérios e observações</h4>';
     if (ed && e && e.tipo === 'conceito' && e.chave === codigo) return html + formConceito(dom, e) + '</section>';
     var crit = listaCriterios(c), algo = false;
     if (org && c.perguntaDiscriminadora) { algo = true; html += '<p class="tax-pergunta-disc"><span class="tax-rotulo">Pergunta</span> ' + esc(c.perguntaDiscriminadora) + '</p>'; }
@@ -1242,7 +1242,7 @@
     if (org) html += '<label for="taxF_notaDeAplicacao">Nota de aplicação</label><textarea id="taxF_notaDeAplicacao" data-campo="notaDeAplicacao" rows="4">' + esc(v.notaDeAplicacao) + '</textarea>';
     html += '<label for="taxF_observacoes">Observações</label><textarea id="taxF_observacoes" data-campo="observacoes" rows="3">' + esc(v.observacoes) + '</textarea>';
     if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
-    return html + '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+    return html + '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : 'Salvar') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
   }
 
   /* D) PERFIL DO CONCEITO — na consulta, só os atributos efetivamente definidos e "N de M atributos definidos"; os ainda
@@ -1266,6 +1266,14 @@
     return '<span class="tax-valor">' + esc(p.valor) + '</span> ' + selo('Papel: ' + p.papel, 'tax-selo--papel-' + String(p.papel).replace(/[^a-z]/gi, '')) +
       selo('Origem: ' + p.origem, 'tax-selo--origem tax-selo--origem-' + (ORIGEM_CLASSE[p.origem] || 'fonte'));
   }
+  function gruposDeAtributos(atrs) {
+    var por = {}, ordem = [];
+    atrs.forEach(function (a) { var g = a.grupo || 'outros'; if (!por[g]) { por[g] = []; ordem.push(g); } por[g].push(a); });
+    ordem.sort(function (x, y) { var ix = GRUPOS.indexOf(x), iy = GRUPOS.indexOf(y); return (ix === -1 ? 99 : ix) - (iy === -1 ? 99 : iy); });
+    return ordem.map(function (g) { return { grupo: g, rotulo: GRUPO_ROTULO[g] || g, itens: por[g] }; });
+  }
+  /* PERFIL (Administração): os 13 atributos agrupados numa tabela (Estado, Valor, Papel, Origem), sem cartões; os sem
+     registro aparecem aqui, para preenchimento — nunca no Catálogo. Edição: "Gerenciar perfil" (formulário integrado). */
   function renderAtributos(dom, codigo, det) {
     var D = st.d[dom], ed = podeEditar(), L = D.perfilLote && D.perfilLote.codigo === codigo ? D.perfilLote : null;
     var atrs = atributosOrdenados(D);
@@ -1274,20 +1282,19 @@
     if (det.carregando && !chaves(det.perfis).length) return html + '<p class="loading-msg" id="taxPerfilCarregando">Carregando o perfil…</p></section>';
     if (!atrs.length) return html + '<p class="tax-ausencia">O catálogo de atributos está vazio.</p></section>';
     if (ed && L) return html + formPerfilLote(dom, codigo, det, atrs, L) + '</section>';
-    var defs = atrs.filter(function (a) { return perfilDefinido(det.perfis[a._cod]); });
-    var pend = atrs.filter(function (a) { return !perfilDefinido(det.perfis[a._cod]); });
-    html += '<p class="tax-perfil-contagem" id="taxPerfilContagem">' + defs.length + ' de ' + atrs.length + ' atributos definidos</p>';
-    if (defs.length) html += '<ul class="tax-perfil-lista" id="taxPerfilDefinidos">' + defs.map(function (a) {
-      return '<li class="tax-atributo" data-atributo="' + esc(a._cod) + '"><span class="tax-atributo-nome">' + esc(a.nome) + '</span> ' + valorPerfilHtml(det.perfis[a._cod]) + '</li>';
-    }).join('') + '</ul>';
-    else html += '<p class="tax-ausencia" id="taxPerfilVazio">Nenhum atributo definido ainda.</p>';
-    if (pend.length) {
-      var idP = idDet('perfpend', dom, codigo);
-      html += '<details class="tax-recolhivel tax-perfil-pendentes" id="taxPerfilPendentes" data-det="' + esc(idP) + '"' + detAberto(idP, false) + '><summary class="tax-recolhivel-cab">Ainda não definidos (' + pend.length + ')</summary><ul class="tax-perfil-lista tax-perfil-lista--pendentes">' +
-        pend.map(function (a) { return '<li class="tax-atributo" data-atributo="' + esc(a._cod) + '"><span class="tax-atributo-nome">' + esc(a.nome) + '</span> ' + valorPerfilHtml(det.perfis[a._cod]) + '</li>'; }).join('') + '</ul></details>';
-    }
-    html += ajudaPapelOrigem(idDet('ajpo', dom, codigo));
-    if (ed) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="gerenciar-perfil" id="taxGerenciarPerfilBtn"' + (det.carregando ? ' disabled' : '') + '>Gerenciar perfil</button></div>';
+    var defs = atrs.filter(function (a) { return perfilDefinido(det.perfis[a._cod]); }).length;
+    html += '<p class="tax-perfil-contagem" id="taxPerfilContagem">' + defs + ' de ' + atrs.length + ' atributos definidos</p>' + ajudaPapelOrigem(idDet('ajpo', dom, codigo));
+    html += '<div class="tax-perfil-tabela-wrap"><table class="tax-perfil-tabela" id="taxPerfilTabela"><thead><tr><th scope="col">Atributo</th><th scope="col">Estado</th><th scope="col">Valor</th><th scope="col">Papel</th><th scope="col">Origem</th></tr></thead>';
+    gruposDeAtributos(atrs).forEach(function (g) {
+      html += '<tbody><tr class="tax-perfil-grupo"><th colspan="5" scope="colgroup">' + esc(g.rotulo) + '</th></tr>' + g.itens.map(function (a) {
+        var p = det.perfis[a._cod], reg = p && p.estado === 'registrado';
+        return '<tr class="tax-atributo' + (p ? '' : ' tax-atributo--vazio') + '" data-atributo="' + esc(a._cod) + '"><th scope="row">' + esc(a.nome) + '</th>' +
+          '<td data-rotulo="Estado">' + (p ? esc(p.estado) : '<span class="tax-valor--ausente">sem registro</span>') + '</td>' +
+          '<td data-rotulo="Valor">' + (reg ? esc(p.valor) : '—') + '</td><td data-rotulo="Papel">' + (reg ? esc(p.papel) : '—') + '</td><td data-rotulo="Origem">' + (reg ? esc(p.origem) : '—') + '</td></tr>';
+      }).join('') + '</tbody>';
+    });
+    html += '</table></div>';
+    if (ed) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm btn--primary" data-tax="gerenciar-perfil" id="taxGerenciarPerfilBtn"' + (det.carregando ? ' disabled' : '') + '>Gerenciar perfil</button></div>';
     return html + '</section>';
   }
   /* valores do formulário integrado: '' = sem registro (só para atributo que ainda não tem registro) */
@@ -1312,7 +1319,9 @@
     var n = alteracoesPerfil(L).length, ocupado = st.salvando || L.verificando;
     var h = '<div class="tax-form tax-perfil-lote" id="taxFormPerfilLote" role="group" aria-label="Gerenciar perfil">' +
       '<p class="tax-form-titulo"><strong>Gerenciar perfil</strong> <span class="tax-ajuda">— altere os atributos que quiser e salve uma vez. Só o que mudar é gravado.</span></p>' + ajudaPapelOrigem(idDet('ajpo', dom, codigo));
-    atrs.forEach(function (a) {
+    var grupoAtual = null;
+    gruposDeAtributos(atrs).reduce(function (l, g) { return l.concat(g.itens); }, []).forEach(function (a) {
+      if ((a.grupo || 'outros') !== grupoAtual) { grupoAtual = a.grupo || 'outros'; h += '<p class="tax-perfil-grupo-titulo">' + esc(GRUPO_ROTULO[grupoAtual] || grupoAtual) + '</p>'; }
       var v = L.valores[a._cod], id = 'taxPL_' + a._cod, alt = perfilAlterado(L, a._cod), erro = L.erros[a._cod];
       var perm = a.valoresPermitidos ? ordenaPor(chaves(a.valoresPermitidos).map(function (k) { return a.valoresPermitidos[k]; }), 'ordem').map(function (x) { return x.texto; }) : null;
       h += '<fieldset class="tax-perfil-linha' + (alt ? ' tax-perfil-linha--alterada' : '') + (erro ? ' tax-perfil-linha--erro' : '') + '" data-atributo="' + esc(a._cod) + '"><legend>' + esc(a.nome) + (alt ? ' <span class="tax-perfil-alterado">alterado</span>' : '') + '</legend>' +
@@ -1335,49 +1344,43 @@
     if (L.confirmandoCancelar) return h + '<div class="tax-confirma" id="taxPerfilDescartar" role="group" aria-label="Descartar alterações"><p><strong>Descartar ' + plural(n, 'alteração não salva', 'alterações não salvas') + '?</strong> Nada foi gravado.</p>' +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="descartar-perfil">Descartar</button><button type="button" class="btn btn--sm" data-tax="continuar-perfil">Continuar editando</button></div></div></div>';
     return h + '<p class="tax-ajuda" id="taxPerfilResumo">' + (n ? plural(n, 'atributo alterado', 'atributos alterados') + ', ainda não salvo' + (n === 1 ? '' : 's') + '.' : 'Nenhuma alteração ainda.') + '</p>' +
-      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-perfil" id="taxSalvarPerfilBtn"' + (ocupado ? ' disabled' : '') + '>' + (L.verificando ? 'CONFERINDO…' : st.salvando ? 'SALVANDO…' : 'SALVAR PERFIL') + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-perfil" id="taxSalvarPerfilBtn"' + (ocupado ? ' disabled' : '') + '>' + (L.verificando ? 'Conferindo…' : st.salvando ? 'Salvando…' : 'Salvar perfil') + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-perfil" id="taxCancelarPerfilBtn"' + (ocupado ? ' disabled' : '') + '>Cancelar</button></div></div>';
   }
 
-  /* E) RELAÇÕES ENTRE CONCEITOS — vínculos entre conceitos da Taxonomia (não relações operacionais entre áreas concretas).
-     Consulta: uma lista só, em frase ("A atende B"), sem grupos vazios nem códigos. Edição: UMA ação, "Gerenciar
-     relações" — nova relação, substituir (encerra a atual e cria a nova, numa gravação) e encerrar, como antes.
-     Só o domínio organizacional registra relações (as regras do banco não têm relações no arquitetural). */
+  /* RELAÇÕES (Administração): "Relações registradas entre conceitos" — vínculos CADASTRADOS entre conceitos, em frase
+     (origem — tipo — destino, sem códigos). Não comprovam relação entre áreas concretas nem são, por si, regra universal;
+     nenhuma natureza ou estado é atribuído (o modelo não os tem). Ações de sempre: nova, substituir, encerrar. Só o domínio
+     organizacional tem relações. */
   function renderRelacoes(dom, codigo, det) {
-    var D = st.d[dom], ed = podeEditar(), gerenciando = ed && D.gerenciandoRelacoes === codigo;
+    var D = st.d[dom], ed = podeEditar() && D.conceitos[codigo].ativo !== false;
     function nome(cod) { return (D.conceitos[cod] && D.conceitos[cod].nome) || cod; }
-    function outro(cod) { return '<strong>' + esc(nome(cod)) + '</strong>' + (D.conceitos[cod] && D.conceitos[cod].ativo === false ? ' ' + selo('desativado') : ''); }
-    function nota(r) { return r.nota ? '<span class="tax-rel-nota">' + esc(r.nota) + '</span>' : ''; }
+    function lado(cod) { return '<strong>' + esc(nome(cod)) + '</strong>' + (D.conceitos[cod] && D.conceitos[cod].ativo === false ? ' ' + selo('desativado') : ''); }
+    function nota(r) { return r.nota ? '<span class="tax-rel-nota">Nota: ' + esc(r.nota) + '</span>' : ''; }
+    function frase(r) { return lado(r.de) + ' <span class="tax-rel-sep">—</span> <em class="tax-rel-tipo">' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> <span class="tax-rel-sep">—</span> ' + lado(r.para); }
     var html = '<section class="tax-sec tax-sec--relacoes" id="taxSecRelacoes">';
-    if (det.erros.relacoes) return html + '<h4>Relações entre conceitos</h4><p class="tax-aviso-erro">Não foi possível carregar as relações agora.</p></section>';
-    if (det.carregando && !chaves(det.relacoes).length) return html + '<h4>Relações entre conceitos</h4><p class="loading-msg">Carregando relações…</p></section>';
+    if (det.erros.relacoes) return html + '<h4>Relações registradas entre conceitos</h4><p class="tax-aviso-erro">Não foi possível carregar as relações agora.</p></section>';
+    if (det.carregando && !chaves(det.relacoes).length) return html + '<h4>Relações registradas entre conceitos</h4><p class="loading-msg">Carregando relações…</p></section>';
     var ids = chaves(det.relacoes).sort();
     var abertas = ids.filter(function (k) { return !det.relacoes[k].encerrada; });
     var encerradas = ids.filter(function (k) { return !!det.relacoes[k].encerrada; });
-    /* primeiro as que saem deste conceito, depois as que chegam a ele; a frase já diz a direção */
     abertas.sort(function (a, b) { var sa = det.relacoes[a].de === codigo ? 0 : 1, sb = det.relacoes[b].de === codigo ? 0 : 1; return sa - sb || (a < b ? -1 : 1); });
     var ocupado = !!(D.relForm || D.encerrando);
-    html += '<h4>Relações entre conceitos (' + abertas.length + ')</h4>' +
-      '<p class="tax-ajuda" id="taxRelNatureza">Vínculos entre conceitos da Taxonomia — não são relações operacionais entre áreas concretas da PREVI.</p>';
-    function frase(r) { return outro(r.de) + ' <em class="tax-rel-tipo">' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> ' + outro(r.para); }
+    html += '<h4>Relações registradas entre conceitos (' + abertas.length + ')</h4>' +
+      '<p class="tax-ajuda" id="taxRelNatureza">Vínculos cadastrados entre conceitos da Taxonomia. Não comprovam relações entre áreas concretas da PREVI e não são, por si, regras arquiteturais universais.</p>';
     function item(k) {
       var r = det.relacoes[k], h = '<li class="tax-rel-item" data-relacao="' + esc(k) + '" data-direcao="' + (r.de === codigo ? 'saida' : 'entrada') + '"><span class="tax-rel-frase">' + frase(r) + '</span>' + nota(r);
-      if (gerenciando && !ocupado && D.conceitos[codigo].ativo !== false) h += '<span class="tax-rel-acoes"><button type="button" class="btn btn--sm" data-tax="alterar-relacao" data-relacao="' + esc(k) + '">Substituir</button>' +
-        '<button type="button" class="btn btn--sm" data-tax="encerrar-relacao" data-relacao="' + esc(k) + '">Encerrar</button></span>';
-      if (gerenciando && D.encerrando && D.encerrando.chave === k) h += painelEncerrar(k);
-      if (gerenciando && D.relForm && D.relForm.modo === 'alterar' && D.relForm.base === k) h += formRelacao(dom, codigo);
+      if (ed && !ocupado) h += '<span class="tax-rel-acoes"><button type="button" class="btn btn--sm" data-tax="alterar-relacao" data-relacao="' + esc(k) + '">Substituir</button>' +
+        '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="encerrar-relacao" data-relacao="' + esc(k) + '">Encerrar</button></span>';
+      if (ed && D.encerrando && D.encerrando.chave === k) h += painelEncerrar(k);
+      if (ed && D.relForm && D.relForm.modo === 'alterar' && D.relForm.base === k) h += formRelacao(dom, codigo);
       return h + '</li>';
     }
-    if (!abertas.length) html += '<p class="tax-ausencia" id="taxRelVazio">Nenhuma relação cadastrada.</p>';
+    if (!abertas.length) html += '<p class="tax-ausencia" id="taxRelVazio">Nenhuma relação registrada para este conceito.</p>';
     else html += '<ul class="tax-relacoes" id="taxRelLista">' + abertas.map(item).join('') + '</ul>';
-    if (ed && D.conceitos[codigo].ativo !== false) {
-      if (!gerenciando) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="gerenciar-relacoes" id="taxGerenciarRelacoesBtn">Gerenciar relações</button></div>';
-      else {
-        if (D.relForm && D.relForm.modo === 'nova') html += formRelacao(dom, codigo);
-        html += '<div class="tax-acoes tax-rel-gerenciar" id="taxRelGerenciar">' + (ocupado ? '' : '<button type="button" class="btn btn--sm" data-tax="nova-relacao" id="taxNovaRelacaoBtn">+ Nova relação</button>') +
-          '<button type="button" class="btn btn--sm" data-tax="fechar-relacoes" id="taxFecharRelacoesBtn"' + (st.salvando ? ' disabled' : '') + '>Concluir</button></div>' +
-          '<p class="tax-ajuda">Substituir encerra a relação atual (com o motivo) e cria a nova. Encerrar mantém a relação registrada como encerrada. Nada é apagado.</p>';
-      }
+    if (ed) {
+      if (D.relForm && D.relForm.modo === 'nova') html += formRelacao(dom, codigo);
+      else if (!ocupado) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm btn--primary" data-tax="nova-relacao" id="taxNovaRelacaoBtn">Nova relação</button></div>';
     }
     if (encerradas.length) {
       var idE = idDet('relenc', dom, codigo);
@@ -1396,7 +1399,7 @@
       '<p class="tax-ajuda">Ela não é apagada: continua registrada como encerrada, com o motivo. Uma relação idêntica não poderá ser criada de novo.</p>' +
       '<label for="taxE_motivo">Motivo *</label><textarea id="taxE_motivo" data-enc="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
       (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
-      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-encerrar"' + (st.salvando || f.conferindo ? ' disabled' : '') + '>' + (f.conferindo ? 'CONFERINDO…' : st.salvando ? 'SALVANDO…' : 'Encerrar relação') + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-encerrar"' + (st.salvando || f.conferindo ? ' disabled' : '') + '>' + (f.conferindo ? 'Conferindo…' : st.salvando ? 'Salvando…' : 'Encerrar relação') + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-relacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
   }
   function formRelacao(dom, codigo) {
@@ -1411,7 +1414,7 @@
       '<label for="taxR_nota">Nota</label><textarea id="taxR_nota" data-rel="nota" rows="2" maxlength="2000">' + esc(f.nota || '') + '</textarea>' +
       (alterar ? '<label for="taxR_motivo">Motivo da substituição *</label><textarea id="taxR_motivo" data-rel="motivo" rows="2" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' : '') +
       (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
-      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-relacao"' + (st.salvando || f.conferindo ? ' disabled' : '') + '>' + (f.conferindo ? 'CONFERINDO…' : st.salvando ? 'SALVANDO…' : (alterar ? 'Substituir relação' : 'Criar relação')) + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-relacao"' + (st.salvando || f.conferindo ? ' disabled' : '') + '>' + (f.conferindo ? 'Conferindo…' : st.salvando ? 'Salvando…' : (alterar ? 'Substituir relação' : 'Criar relação')) + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-relacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
     return h;
   }
@@ -1462,25 +1465,6 @@
     return html + '</details></section>';
   }
 
-  function renderDetalhe(dom) {
-    var D = st.d[dom], codigo = D.selecionado;
-    var html = '<section class="tax-detalhe" aria-live="polite" aria-label="Conceito selecionado">';
-    html += '<button type="button" class="btn tax-voltar" data-tax="voltar-lista">← VOLTAR PARA A LISTA</button>';
-    if (!codigo || !D.conceitos[codigo]) return html + '<p class="tax-ausencia">Escolha um conceito na lista.</p></section>';
-    var c = D.conceitos[codigo], det = D.detalhe && D.detalhe.codigo === codigo ? D.detalhe : { carregando: true, versoes: {}, arquivo: {}, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
-    html += '<p class="tax-area-rotulo">Conceito selecionado · ' + esc(DOMINIOS[dom].rotulo) + '</p>';
-    html += '<h3 class="tax-titulo">' + esc(c.nome) + '</h3>';
-    html += renderIdentificacao(dom, codigo);
-    html += renderDefinicao(dom, codigo, det);
-    html += renderPergunta(dom, codigo);
-    if (dom === 'organizacional') { html += renderAtributos(dom, codigo, det); html += renderRelacoes(dom, codigo, det); }
-    html += renderAcoesConceito(dom, codigo);
-    html += renderHistorico(dom, codigo, det);
-    /* tela longa no celular: o mesmo "voltar" também no fim */
-    html += '<div class="tax-voltar-rodape"><button type="button" class="btn" data-tax="voltar-lista">← VOLTAR PARA A LISTA</button></div>';
-    return html + '</section>';
-  }
-
   function renderImportador() {
     if (!ehAdmin() || !adminPronto() || st.opcoes.somenteLeitura) return '';
     if (st.meta.estado === 'carregando' || st.meta.estado === 'ocioso') return '';
@@ -1497,7 +1481,7 @@
       if (imp.estado === 'pronto') {
         var r = imp.resumo;
         html += '<div class="tax-previa" id="taxPrevia"><strong>Prévia — nada foi gravado ainda</strong><ul><li>' + r.conceitos + ' conceitos (' + r.vigentes + ' com definição vigente)</li>' + (r.naoImportados ? '<li id="taxPreviaNaoImportados">' + r.naoImportados + ' textos que não eram a definição vigente não serão importados</li>' : '') + '<li>' + r.atributos + ' atributos, ' + r.perfis + ' valores de perfil, ' + r.relacoes + ' relações</li></ul>' +
-          '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-importacao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'IMPORTANDO…' : 'IMPORTAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-importacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+          '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-importacao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Importando…' : 'Importar') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-importacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
       }
     }
     return html + '</section>';
@@ -1579,7 +1563,7 @@
   }
   function htmlHistoricoGlobal() {
     var H = st.hg;
-    var voltar = function (onde) { return '<div class="tax-voltar-hg tax-voltar-hg--' + onde + '"><button type="button" class="btn" data-tax="voltar-dominio">← VOLTAR PARA OS CONCEITOS (' + esc(DOMINIOS[st.dominio].rotulo.toUpperCase()) + ')</button></div>'; };
+    var voltar = function (onde) { return '<div class="tax-voltar-hg tax-voltar-hg--' + onde + '"><button type="button" class="btn" data-tax="voltar-dominio">← Voltar à Integridade</button></div>'; };
     var h = '<section class="tax-hg" id="taxHistoricoGlobal">' + voltar('topo') + '<h4>Histórico global</h4>' +
       '<p class="tax-ajuda">Eventos que valem para o domínio inteiro (por exemplo, a carga inicial), do mais recente para o mais antigo. O histórico de cada conceito fica no próprio conceito.</p>';
     ORDEM_DOMINIOS.forEach(function (d) {
@@ -1925,35 +1909,162 @@
     return h + '</section>';
   }
 
+  /* ================= TRÊS ESPAÇOS =================
+     CATÁLOGO (entender: buscar, ler a definição oficial, navegar na hierarquia, comparar) · ADMINISTRAÇÃO (manter o
+     conceito selecionado: conteúdo, perfil, relações, histórico e governança) · INTEGRIDADE E CONFIGURAÇÕES (conexão com
+     os motores, exportação, histórico global, carga inicial). Uma navegação só, com localização e retorno claros. Nenhum
+     formulário, ação ou leitura é duplicado: cada espaço chama as mesmas funções de gravação de antes. */
+  function normBusca(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function ancestrais(dom, codigo) {
+    var D = st.d[dom], out = [], c = D.conceitos[codigo], guarda = 0;
+    while (c && c.pai && guarda++ < 6) { var p = D.conceitos[c.pai]; out.unshift({ codigo: c.pai, nome: p ? p.nome : c.pai, existe: !!p }); c = p; }
+    return out;
+  }
+  /* estado da integração com os motores, para o atalho do topo: 'problema' (falta vínculo), 'erro' (não deu para
+     conferir), 'conferindo' (ainda lendo) ou 'ok' — "ok" só quando os dois lados foram lidos e estão completos */
+  function estadoIntegracao() {
+    var s = 'ok';
+    ['arquitetural', 'organizacional'].forEach(function (d) {
+      var L = L_(d), r = resumoLigacoes(d);
+      if (r && r.ligadas < r.total) s = 'problema';
+      else if (L.estado === 'erro' || L.estado === 'sem-acesso') { if (s !== 'problema') s = 'erro'; }
+      else if (!r && s === 'ok') s = 'conferindo';
+    });
+    return s;
+  }
+  function renderTopo() {
+    var local = st.espaco === 'admin' ? 'Administração' : st.espaco === 'integridade' ? 'Integridade e configurações' : 'Catálogo de conceitos';
+    var h = '<div class="tax-topo"><div class="tax-topo-titulo"><h3 class="tax-titulo-area" id="taxTituloArea">Taxonomia</h3><p class="tax-local" id="taxLocal">' + esc(local) + '</p></div>';
+    if (st.espaco === 'catalogo' && podeVerHG()) {
+      var ei = estadoIntegracao();
+      h += '<button type="button" class="tax-lnk tax-integ-link" data-tax="integridade" id="taxIntegridadeLink" data-estado="' + ei + '"><span class="tax-ponto tax-ponto--' + (ei === 'ok' ? 'ok' : ei === 'conferindo' ? 'neutro' : 'atencao') + '" aria-hidden="true"></span>Integridade e configurações' +
+        (ei === 'problema' ? '<span class="tax-integ-atencao"> · requer atenção</span>' : ei === 'erro' ? '<span class="tax-integ-atencao"> · não foi possível conferir</span>' : '') + '</button>';
+    }
+    return h + '</div>';
+  }
+  /* ---------- CATÁLOGO ---------- */
+  function renderCatalogo(dom) {
+    var D = st.d[dom];
+    var h = '<div class="tax-dominios" role="tablist" aria-label="Domínio da Taxonomia">' + ORDEM_DOMINIOS.map(function (d) {
+      var ativo = d === dom;
+      return '<button type="button" role="tab" class="tax-dominio' + (ativo ? ' tax-dominio--ativo' : '') + '" aria-selected="' + ativo + '" data-tax="dominio" data-dominio="' + d + '">' + esc(DOMINIOS[d].rotulo) + '</button>';
+    }).join('') + '</div>';
+    h += '<p class="tax-pergunta" id="taxPergunta"><strong>' + esc(DOMINIOS[dom].titulo) + '</strong> · ' + esc(DOMINIOS[dom].pergunta) + '</p>';
+    if (D.estado === 'carregando' || D.estado === 'ocioso') return h + '<p class="loading-msg" id="taxCarregando">Carregando a Taxonomia…</p>';
+    if (D.estado === 'erro') return h + '<div class="tax-aviso-erro" id="taxErro" role="alert"><p>Não foi possível carregar a Taxonomia agora. Confira a conexão.</p><button type="button" class="btn btn--sm" data-tax="recarregar">Tentar novamente</button></div>';
+    if (D.estado === 'sem-acesso') return h + '<p class="tax-aviso-erro" id="taxSemAcesso" role="alert">Você não tem acesso a esta área.</p>';
+    if (!chaves(D.conceitos).length) {
+      var semCarga = st.meta.estado === 'ok' && !st.meta.cargaFeita;
+      return h + '<p class="tax-ausencia" id="taxVazio">' + (semCarga ? 'Nenhum conceito cadastrado: a carga inicial ainda não foi feita.' : 'Este domínio não tem conceitos cadastrados.') + '</p>' +
+        (semCarga && podeVerHG() ? '<p class="tax-ajuda" id="taxVazioCarga">A carga inicial é feita em <button type="button" class="tax-lnk" data-tax="integridade">Integridade e configurações</button>.</p>' : '');
+    }
+    return h + '<div class="tax-wrap" data-vista="' + st.vista + '">' + renderLista(dom) + renderFicha(dom) + '</div>';
+  }
+  /* A FICHA de consulta mostra SOMENTE: nome e localização, "O que é?" (a definição oficial, integral, uma vez),
+     hierarquia, comparar e — para quem pode — "Administrar conceito". Pergunta, critérios, observações, perfil,
+     relações, histórico, códigos e integração ficam na Administração ou na Integridade. */
+  function renderFicha(dom) {
+    var D = st.d[dom], codigo = D.selecionado;
+    var h = '<section class="tax-detalhe tax-ficha" aria-live="polite" aria-label="Conceito selecionado">' +
+      '<button type="button" class="btn tax-voltar" data-tax="voltar-lista">← Voltar aos conceitos</button>';
+    if (!codigo || !D.conceitos[codigo]) return h + '<p class="tax-ausencia" id="taxFichaVazia">Escolha um conceito na lista para ver o que ele significa.</p></section>';
+    var c = D.conceitos[codigo], anc = ancestrais(dom, codigo);
+    h += '<nav class="tax-trilha" id="taxTrilha" aria-label="Localização"><span>' + esc(DOMINIOS[dom].rotulo) + '</span>' + anc.map(function (a) {
+      return '<span aria-hidden="true">›</span>' + (a.existe ? '<button type="button" class="tax-lnk" data-tax="selecionar" data-codigo="' + esc(a.codigo) + '">' + esc(a.nome) + '</button>' : '<span>' + esc(a.nome) + '</span>');
+    }).join('') + '<span aria-hidden="true">›</span><span aria-current="page">' + esc(c.nome) + '</span></nav>';
+    h += '<h3 class="tax-titulo">' + esc(c.nome) + '</h3>';
+    if (c.ativo === false) h += '<p class="tax-ajuda" id="taxFichaInativo">Conceito inativo.</p>';
+    h += '<section class="tax-sec tax-sec--definicao" id="taxSecDefinicao" aria-label="O que é?"><h4>O que é?</h4>' +
+      (c.definicao ? '<p class="tax-definicao-texto" id="taxDefinicaoTexto">' + esc(c.definicao.texto) + '</p>' : '<p class="tax-ausencia" id="taxSemDefinicao">Não há definição oficial disponível para este conceito.</p>') + '</section>';
+    var pai = c.pai ? D.conceitos[c.pai] : null;
+    var filhos = ordenados(D).filter(function (x) { return x.pai === codigo; });
+    if (c.pai || filhos.length) {
+      h += '<section class="tax-sec tax-hierarquia" id="taxSecHierarquia" aria-label="Hierarquia"><h4>Hierarquia</h4>';
+      if (c.pai) h += '<p class="tax-hier-linha" id="taxHierPai"><span class="tax-hier-k">Faz parte de</span> ' + (pai ? '<button type="button" class="tax-lnk" data-tax="selecionar" data-codigo="' + esc(c.pai) + '">' + esc(pai.nome) + '</button>' : esc(c.pai) + ' <span class="tax-ajuda">(não encontrado)</span>') + '</p>';
+      if (filhos.length) h += '<div class="tax-hier-linha" id="taxHierFilhos"><span class="tax-hier-k">Especializações</span><ul class="tax-hier-filhos">' + filhos.map(function (f) {
+        return '<li><button type="button" class="tax-lnk" data-tax="selecionar" data-codigo="' + esc(f._codigo) + '">' + esc(f.nome) + '</button>' + (f.ativo === false ? ' <span class="tax-ajuda">(inativo)</span>' : '') + '</li>';
+      }).join('') + '</ul></div>';
+      h += '</section>';
+    }
+    h += renderComparar(dom, codigo);
+    if (podeEditar()) h += '<div class="tax-ficha-rodape"><button type="button" class="btn btn--sm" data-tax="administrar" id="taxAdministrarBtn">Administrar conceito</button></div>';
+    return h + '<div class="tax-voltar-rodape"><button type="button" class="btn" data-tax="voltar-lista">← Voltar aos conceitos</button></div></section>';
+  }
+  /* COMPARAR: duas definições oficiais do mesmo domínio, lado a lado (um após o outro no celular), com a hierarquia de
+     cada uma. Não interpreta, não classifica, não grava. Sem definição de um dos lados, ou com textos idênticos, diz que
+     as definições não bastam — nunca inventa diferença. */
+  function renderComparar(dom, codigo) {
+    var D = st.d[dom], h = '<section class="tax-sec tax-comparar" id="taxSecComparar" aria-label="Comparar conceitos">';
+    if (!D.comparando) return h + '<button type="button" class="btn btn--sm" data-tax="comparar-abrir" id="taxCompararBtn">Comparar com outro conceito</button></section>';
+    var outros = ordenados(D).filter(function (x) { return x._codigo !== codigo; });
+    h += '<h4>Comparar conceitos</h4><label class="tax-rotulo-campo" for="taxCompararSel">Comparar “' + esc(D.conceitos[codigo].nome) + '” com</label>' +
+      '<select id="taxCompararSel"><option value="">— escolha um conceito —</option>' + outros.map(function (o) {
+        return '<option value="' + esc(o._codigo) + '"' + (D.compararCom === o._codigo ? ' selected' : '') + '>' + esc(o.nome) + '</option>';
+      }).join('') + '</select>';
+    var b = D.compararCom && D.conceitos[D.compararCom] ? D.conceitos[D.compararCom] : null;
+    if (b) {
+      var a = D.conceitos[codigo];
+      var col = function (cod, x) {
+        var anc = ancestrais(dom, cod).map(function (y) { return y.nome; });
+        return '<article class="tax-comparar-col" data-codigo="' + esc(cod) + '"><p class="tax-comparar-nome">' + esc(x.nome) + '</p>' +
+          (anc.length ? '<p class="tax-comparar-caminho">Faz parte de ' + esc(anc.join(' › ')) + '</p>' : '') +
+          (x.definicao ? '<p class="tax-comparar-def">' + esc(x.definicao.texto) + '</p>' : '<p class="tax-ausencia">Não há definição oficial disponível.</p>') + '</article>';
+      };
+      h += '<div class="tax-comparar-grade" id="taxCompararGrade">' + col(codigo, a) + col(D.compararCom, b) + '</div>';
+      var insuficiente = !a.definicao || !b.definicao || normBusca(a.definicao.texto).trim() === normBusca(b.definicao.texto).trim();
+      if (insuficiente) h += '<p class="tax-aviso-neutro" id="taxCompararInsuficiente" role="note">As definições disponíveis não são suficientes para estabelecer uma distinção clara. Essa diferenciação depende de revisão arquitetural.</p>';
+      h += '<p class="tax-ajuda">A comparação mostra as definições oficiais. Ela não classifica nenhum objeto e não grava nada.</p>';
+    }
+    return h + '<button type="button" class="tax-lnk" data-tax="comparar-fechar" id="taxCompararFechar">Fechar comparação</button></section>';
+  }
+  /* ---------- ADMINISTRAÇÃO do conceito selecionado ---------- */
+  var ABAS_ADMIN = [['conteudo', 'Conteúdo'], ['perfil', 'Perfil'], ['relacoes', 'Relações'], ['historico', 'Histórico e governança']];
+  function renderAdmin(dom) {
+    var D = st.d[dom], codigo = D.selecionado, c = D.conceitos[codigo], org = dom === 'organizacional';
+    var det = D.detalhe && D.detalhe.codigo === codigo ? D.detalhe : { carregando: true, versoes: {}, arquivo: {}, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
+    var abas = ABAS_ADMIN.filter(function (a) { return org || (a[0] !== 'perfil' && a[0] !== 'relacoes'); });
+    var aba = abas.some(function (a) { return a[0] === D.adminAba; }) ? D.adminAba : 'conteudo';
+    var h = '<section class="tax-admin" id="taxAdmin" aria-label="Administração do conceito">' +
+      '<button type="button" class="tax-lnk tax-voltar-catalogo" data-tax="voltar-catalogo" id="taxVoltarCatalogo">← Voltar ao catálogo</button>' +
+      '<h3 class="tax-titulo" id="taxAdminTitulo">Administrar — ' + esc(c.nome) + '</h3>' +
+      '<div class="tax-admin-abas" role="tablist" aria-label="Áreas da administração">' + abas.map(function (a) {
+        var sel = a[0] === aba;
+        return '<button type="button" role="tab" class="tax-admin-aba' + (sel ? ' tax-admin-aba--ativa' : '') + '" aria-selected="' + sel + '" data-tax="admin-aba" data-aba="' + a[0] + '" id="taxAba_' + a[0] + '">' + a[1] + '</button>';
+      }).join('') + '</div><div class="tax-admin-corpo" role="tabpanel" id="taxAdminCorpo" aria-labelledby="taxAba_' + aba + '">';
+    if (aba === 'conteudo') h += renderIdentificacao(dom, codigo) + renderDefinicao(dom, codigo, det) + renderPergunta(dom, codigo);
+    else if (aba === 'perfil') h += renderAtributos(dom, codigo, det);
+    else if (aba === 'relacoes') h += renderRelacoes(dom, codigo, det);
+    else h += renderHistorico(dom, codigo, det) + renderAcoesConceito(dom, codigo);
+    return h + '</div></section>';
+  }
+  /* ---------- INTEGRIDADE E CONFIGURAÇÕES ---------- */
+  function renderIntegridade() {
+    var h = '<section class="tax-integridade" id="taxIntegridade" aria-label="Integridade e configurações">' +
+      '<button type="button" class="tax-lnk tax-voltar-catalogo" data-tax="voltar-catalogo" id="taxVoltarCatalogo">← Voltar ao catálogo</button>';
+    if (st.aba === 'historico') return h + htmlHistoricoGlobal() + '</section>';
+    h += '<h3 class="tax-titulo">Integridade e configurações</h3><p class="tax-ajuda tax-integ-sub">Conexões da Taxonomia com os motores da Avaliação e do Posicionamento, exportação e controles técnicos.</p>';
+    h += renderConceitosBase('arquitetural') + renderConceitosBase('organizacional');
+    h += '<section class="tax-globais" id="taxAcoesGerais" aria-label="Dados e manutenção"><h4 class="tax-globais-titulo">Dados e manutenção</h4>' + htmlExportar() +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="aba-historico" id="taxHistoricoGlobalBtn">Ver o histórico global</button></div>' + renderImportador() + '</section>';
+    return h + '</section>';
+  }
   function render() {
     var el = raiz();
     if (!el) return;
     var dom = st.dominio, D = st.d[dom];
-    var html = '<div class="tax-raiz"><h3 class="avp-panel-titulo">Taxonomia</h3><p class="adm-area-desc" id="taxDescricaoAba">Administração dos conceitos, definições e relações utilizados na arquitetura organizacional.</p>';
-    html += '<p class="tax-aviso">A Taxonomia <strong>define</strong> os conceitos. A Avaliação <strong>aplica</strong> esses conceitos aos itens avaliados. Os dois domínios abaixo são independentes.</p>';
+    var ativo = document.activeElement, foco = ativo && ativo.id === 'taxBusca' && el.contains(ativo) ? ativo.selectionStart : null;
+    var html = '<div class="tax-raiz tax-ui">' + renderTopo();
     if (st.pendente && st.pendente.semResposta) html += htmlPendencia(st.pendente);
     if (st.flash) html += '<p class="tax-flash' + (st.flash.erro ? ' tax-flash--erro' : '') + '" role="status" id="taxFlash">' + esc(st.flash.texto) + ' <button type="button" class="tax-flash-fechar" data-tax="fechar-flash" aria-label="Fechar">×</button></p>';
     if (!adminPronto()) { el.innerHTML = html + '<p class="loading-msg">Verificando o acesso…</p></div>'; return; }
     if (!ehAdmin()) { el.innerHTML = html + '<p class="tax-aviso-erro">Esta área é só para administradoras.</p></div>'; return; }
-    /* AÇÕES GERAIS (a Taxonomia inteira: carga inicial, exportação, histórico global) ficam numa área própria,
-       separada das ações do conceito selecionado (que ficam dentro do detalhe, em "Identificação" e nos cartões) */
-    html += avisoProtecao();
-    var globais = renderImportador() + htmlExportar();
-    if (globais) html += '<section class="tax-globais" id="taxAcoesGerais" aria-label="Ações gerais da Taxonomia"><h4 class="tax-globais-titulo">Ações gerais da Taxonomia</h4>' +
-      '<p class="tax-ajuda">Valem para a Taxonomia inteira (os dois domínios), não para um conceito.' + (podeVerHG() ? ' O histórico global fica na aba “Histórico global”, ao lado dos domínios.' : '') + '</p>' + globais + '</section>';
-    html += '<div class="tax-dominios" role="tablist" aria-label="Domínio da Taxonomia">' + ORDEM_DOMINIOS.map(function (d) {
-      var ativo = d === dom && st.aba === 'dominio';
-      return '<button type="button" role="tab" class="tax-dominio' + (ativo ? ' tax-dominio--ativo' : '') + '" aria-selected="' + ativo + '" data-tax="dominio" data-dominio="' + d + '">' + esc(DOMINIOS[d].rotulo) + '</button>';
-    }).join('') + (podeVerHG() ? '<button type="button" role="tab" class="tax-dominio' + (st.aba === 'historico' ? ' tax-dominio--ativo' : '') + '" aria-selected="' + (st.aba === 'historico') + '" data-tax="aba-historico">Histórico global</button>' : '') + '</div>';
-    if (st.aba === 'historico' && podeVerHG()) { el.innerHTML = html + htmlHistoricoGlobal() + '</div>'; return; }
-    html += '<p class="tax-pergunta" id="taxPergunta"><strong>' + esc(DOMINIOS[dom].titulo) + '</strong> · ' + esc(DOMINIOS[dom].pergunta) + '</p>';
-    if (D.estado === 'carregando' || D.estado === 'ocioso') html += '<p class="loading-msg" id="taxCarregando">Carregando a Taxonomia…</p>';
-    else if (D.estado === 'erro') html += '<div class="tax-aviso-erro" id="taxErro" role="alert"><p>Não foi possível carregar a Taxonomia agora. Confira a conexão.</p><button type="button" class="btn btn--sm" data-tax="recarregar">TENTAR NOVAMENTE</button></div>';
-    else if (D.estado === 'sem-acesso') html += '<p class="tax-aviso-erro" id="taxSemAcesso" role="alert">Você não tem acesso a esta área.</p>';
-    else if (!chaves(D.conceitos).length) {
-      html += '<p class="tax-ausencia" id="taxVazio">' + (st.meta.estado === 'ok' && !st.meta.cargaFeita ? 'Nenhum conceito cadastrado: a carga inicial ainda não foi feita.' : 'Este domínio não tem conceitos cadastrados.') + '</p>';
-    } else html += renderConceitosBase(dom) + '<div class="tax-wrap" data-vista="' + st.vista + '">' + renderLista(dom) + renderDetalhe(dom) + '</div>';
+    if (st.espaco === 'integridade' && podeVerHG()) html += renderIntegridade();
+    else if (st.espaco === 'admin' && podeEditar() && D.selecionado && D.conceitos[D.selecionado]) html += renderAdmin(dom);
+    /* releitura do domínio depois de uma gravação: a administração espera no lugar (nunca cai no catálogo por um instante) */
+    else if (st.espaco === 'admin' && podeEditar() && D.selecionado && (D.estado === 'carregando' || D.estado === 'ocioso')) html += '<section class="tax-admin" id="taxAdmin" aria-label="Administração do conceito"><button type="button" class="tax-lnk tax-voltar-catalogo" data-tax="voltar-catalogo" id="taxVoltarCatalogo">← Voltar ao catálogo</button><p class="loading-msg">Carregando o conceito…</p></section>';
+    else html += renderCatalogo(dom);
     el.innerHTML = html + '</div>';
+    if (foco !== null) { var b = document.getElementById('taxBusca'); if (b) { b.focus(); try { b.setSelectionRange(foco, foco); } catch (e) { /* tipo search sem seleção */ } } }
   }
 
   /* ---------- eventos (delegados) ---------- */
@@ -1970,6 +2081,8 @@
     D.atualizando = null;
     render();
   }
+  /* depois de trocar de espaço: o topo da Taxonomia à vista (no celular, a troca começa no alto) */
+  function topoDaArea() { var t = raiz() && raiz().querySelector('.tax-raiz'); if (t && t.getBoundingClientRect && t.getBoundingClientRect().top < 0 && t.scrollIntoView) t.scrollIntoView({ block: 'start' }); }
   function aoClicar(ev) {
     var alvo = ev.target.closest('[data-tax]');
     if (!alvo || !raiz().contains(alvo)) return;
@@ -1977,7 +2090,7 @@
     if (acao === 'dominio') {
       var novo = alvo.getAttribute('data-dominio');
       if (novo === dom && st.aba === 'dominio') return;
-      st.dominio = novo; st.aba = 'dominio'; st.vista = 'lista'; st.flash = null;
+      st.dominio = novo; st.aba = 'dominio'; st.espaco = 'catalogo'; st.busca = ''; st.vista = 'lista'; st.flash = null;
       if (st.d[novo].estado === 'ocioso') carregarDominio(novo); else render();
     } else if (acao === 'aba-historico') {
       if (!podeVerHG()) return;
@@ -1985,19 +2098,21 @@
       if (!st.hg.carregou) carregarHG(function () { return true; }); else render();
     } else if (acao === 'voltar-dominio') {
       /* volta do Histórico global para o domínio, com a lista e o conceito selecionado como estavam */
-      st.aba = 'dominio'; st.flash = null;
-      if (D.estado === 'ocioso') carregarDominio(dom); else render();
-      var topo = raiz().querySelector('.tax-dominios'); if (topo && topo.scrollIntoView) topo.scrollIntoView({ block: 'start' });
+      st.aba = 'dominio'; st.flash = null; render();
+      var topo = raiz().querySelector('.tax-raiz'); if (topo && topo.scrollIntoView) topo.scrollIntoView({ block: 'start' });
     } else if (acao === 'hg-mais') { carregarHG(function (x) { return x.estado === 'ok' && x.temMais; }); }
     else if (acao === 'hg-recarregar') { carregarHG(function (x) { return x.estado === 'erro'; }); }
     else if (acao === 'exportar-excel') exportar('excel');
     else if (acao === 'exportar-json') exportar('json');
     else if (acao === 'recarregar') { carregarMeta(); carregarDominio(dom); }
     else if (acao === 'selecionar') {
+      var domSel = alvo.getAttribute('data-dominio');
+      if (domSel && DOMINIOS[domSel] && domSel !== dom) { st.dominio = dom = domSel; D = st.d[dom]; st.busca = ''; }
+      st.espaco = 'catalogo'; st.aba = 'dominio';
       var cod = alvo.getAttribute('data-codigo');
       if (window.innerWidth <= 720) st.rolagemLista = window.pageYOffset || document.documentElement.scrollTop || 0;
       zerarDetConceito(); /* abrir um conceito (mesmo o mesmo, de novo) começa com os históricos fechados */
-      D.selecionado = cod; D.edicao = null; D.atualizando = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; D.perfilLote = null; D.gerenciandoRelacoes = null; st.vista = 'detalhe'; st.flash = null;
+      D.selecionado = cod; D.edicao = null; D.atualizando = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; D.perfilLote = null; D.gerenciandoRelacoes = null; D.comparando = false; D.compararCom = null; st.vista = 'detalhe'; st.flash = null;
       carregarDetalhe(dom, cod);
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') {
@@ -2007,9 +2122,21 @@
       var it = D.selecionado ? raiz().querySelector('.tax-item[data-codigo="' + String(D.selecionado).replace(/"/g, '') + '"]') : null;
       if (it && it.getBoundingClientRect && it.scrollIntoView) { var rr = it.getBoundingClientRect(); if (rr.top < 0 || rr.bottom > window.innerHeight) it.scrollIntoView({ block: 'center' }); }
     }
+    else if (acao === 'voltar-catalogo') { st.espaco = 'catalogo'; st.aba = 'dominio'; st.flash = null; render(); topoDaArea(); }
+    else if (acao === 'integridade') {
+      if (!podeVerHG()) return;
+      st.espaco = 'integridade'; st.aba = 'dominio'; st.flash = null;
+      ORDEM_DOMINIOS.forEach(function (d) { if (st.d[d].estado === 'ocioso' || st.d[d].estado === 'erro') carregarDominio(d); });
+      if (st.meta.estado === 'ocioso' || st.meta.estado === 'erro') carregarMeta();
+      render(); topoDaArea();
+    }
+    else if (acao === 'comparar-abrir') { D.comparando = true; render(); var sc = document.getElementById('taxCompararSel'); if (sc && sc.focus) sc.focus({ preventScroll: true }); }
+    else if (acao === 'comparar-fechar') { D.comparando = false; D.compararCom = null; render(); }
     else if (acao === 'fechar-flash') { st.flash = null; render(); }
     else if (acao === 'verificar-pendente') { var pp = st.pendente; if (pp && !pp.resolvido && !pp.verificando) { clearTimeout(pp.timerVerif); pp.tentativas = 0; verificarGravacao(pp); } }
     else if (!podeEditar() && acao !== 'cancelar-importacao') return;
+    else if (acao === 'administrar') { if (!D.selecionado) return; st.espaco = 'admin'; D.adminAba = 'conteudo'; st.flash = null; render(); topoDaArea(); }
+    else if (acao === 'admin-aba') { D.adminAba = alvo.getAttribute('data-aba') || 'conteudo'; render(); }
     else if (acao === 'atualizar-definicao') {
       var cd = D.conceitos[D.selecionado] || {};
       D.atualizando = { codigo: D.selecionado, etapa: 'editar', texto: cd.definicao ? cd.definicao.texto : '', motivo: '', erro: null, versaoBase: cd.definicao ? cd.definicao.versao : 0 };
@@ -2050,7 +2177,11 @@
     else if (acao === 'indice-recarregar') carregarIndiceFilhos();
     else if (acao === 'cancelar-camada') { D.camadaMudando = null; render(); }
     else if (acao === 'confirmar-camada') { if (!st.salvando) alterarCamada(dom, D.selecionado); }
-    else if (acao === 'ligacoes-recarregar') carregarLigacoes(st.dominio);
+    else if (acao === 'ligacoes-recarregar') {
+      var dl = DOMINIOS[alvo.getAttribute('data-dominio')] ? alvo.getAttribute('data-dominio') : st.dominio;
+      carregarLigacoes(dl);
+      if (st.d[dl].estado === 'erro' || st.d[dl].estado === 'sem-acesso') carregarDominio(dl);
+    }
     else if (acao === 'nova-relacao') { D.gerenciandoRelacoes = D.selecionado; D.relForm = { modo: 'nova', direcao: 'saida', tipo: '', outro: '', nota: '', erro: null }; D.encerrando = null; render(); }
     else if (acao === 'alterar-relacao') {
       var kr = alvo.getAttribute('data-relacao'), rr = D.detalhe && D.detalhe.relacoes[kr];
@@ -2071,6 +2202,8 @@
   function aoEditar(ev) {
     var el = ev.target;
     if (el.id === 'taxArquivo') { if (ev.type === 'change' && el.files && el.files[0]) escolherArquivo(el.files[0]); return; }
+    if (el.id === 'taxBusca') { if (st.busca !== el.value) { st.busca = el.value; render(); } return; }
+    if (el.id === 'taxCompararSel') { if (ev.type === 'change') { st.d[st.dominio].compararCom = el.value || null; render(); } return; }
     var campo = el.getAttribute && el.getAttribute('data-campo');
     var D = st.d[st.dominio];
     var campoDef = el.getAttribute && el.getAttribute('data-def');
@@ -2125,14 +2258,14 @@
       st.aba = 'dominio';
     }
     if (opcoes) st.opcoes = Object.assign({ somenteLeitura: false }, { somenteLeitura: !!opcoes.somenteLeitura });
-    if (st.opcoes.somenteLeitura) st.aba = 'dominio';
+    if (st.opcoes.somenteLeitura) { st.aba = 'dominio'; st.espaco = 'catalogo'; }
     var el = raiz();
     if (!el) return;
     ligar();
     var s = sessao();
     var email = s ? s.email : null;
     if (st.email !== email) {
-      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.indiceFilhos = { estado: 'ocioso', existe: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null; st.lig = { estado: 'ocioso', mapa: {} }; st.cargaLig = null; st.ligPos = { estado: 'ocioso', mapa: {} }; st.cargaLigPos = null;
+      st.email = email; st.espaco = 'catalogo'; st.busca = ''; st.meta = { estado: 'ocioso', cargaFeita: false }; st.indiceFilhos = { estado: 'ocioso', existe: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null; st.lig = { estado: 'ocioso', mapa: {} }; st.cargaLig = null; st.ligPos = { estado: 'ocioso', mapa: {} }; st.cargaLigPos = null;
       ORDEM_DOMINIOS.forEach(function (d) { st.d[d] = novoDominio(); });
     }
     if (!adminPronto()) {

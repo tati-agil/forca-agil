@@ -1,24 +1,27 @@
 /* TAXONOMIA — modelo simplificado da definição, na tela (ADMIN › Taxonomia), nos DOIS domínios. Firebase falso em
  * persistência real; hermético; conteúdo 100% fictício. Desktop e 375 px. Prova:
- *   1. Cada conceito mostra UMA definição oficial vigente, a última atualização e UMA ação principal ("ATUALIZAR
- *      DEFINIÇÃO"); nada de fontes, rótulos, tipos de redação, identificadores técnicos, "usar como vigente",
+ *   0. Catálogo: "O que é?" mostra a definição oficial vigente uma vez, sem "Última atualização" nem ações; a
+ *      administração fica em "Administrar conceito".
+ *   1. Administração › Conteúdo: UMA definição oficial vigente, a última atualização e UMA ação principal ("Atualizar
+ *      definição"); nada de fontes, rótulos, tipos de redação, identificadores técnicos, "usar como vigente",
  *      "remover vigência", "editar rótulo", "outras fontes" ou "fontes arquivadas".
  *   2. Lista: o nome em destaque, sem a etiqueta repetida "Definição registrada"; "sem definição" só quando falta.
  *   3. "Atualizar definição": começa com o texto vigente; conferir mostra atual × proposta (e o motivo); publicar
  *      grava versão + 1, a entrada do histórico (com motivo) e a auditoria numa gravação; a tela volta à definição
  *      nova com a confirmação. Texto igual ou vazio não avança. Clique repetido em publicar não publica duas vezes.
- *   4. UM histórico na ficha, recolhido, com a contagem real ("Histórico — N alterações"); aberto: a versão nova com
+ *   4. UM histórico (Administração › Histórico e governança), recolhido, com a contagem real ("Histórico — N alterações"); aberto: a versão nova com
  *      anterior → novo, responsável e motivo; a versão 1 migrada aparece como "Registro inicial da definição" (não é
  *      alteração); as trocas do modelo antigo ficam em "Detalhes técnicos anteriores à simplificação", com os textos do
  *      arquivo da migração — fontes que nunca foram vigentes não aparecem como versões.
- *   5. Conceito sem definição: "REGISTRAR DEFINIÇÃO" publica a versão 1.
- *   6. "Editar informações" (nome, critérios…) fica em "Como reconhecer este conceito?", depois da definição e separado
- *      dela; a ligação com a Avaliação (arquitetural) continua indicada.
+ *   5. Conceito sem definição: o Catálogo diz que não há; "Registrar definição" publica a versão 1.
+ *   6. "Editar informações" (nome, critérios…) fica em "Pergunta, critérios e observações", depois da definição e
+ *      separado dela; a ligação com a Avaliação (arquitetural) continua indicada.
  *   7. As duas abas do ADMIN (Avaliações e Mapa, Taxonomia) continuam lá. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
+const T = require('./taxonomia-tela');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -86,12 +89,11 @@ const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.innerText : ''; }, sel);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const esperar = (page, fn, arg) => esperarCondicao(page, fn, arg, { limite: 10000 });
-async function dominio(page, d) { await page.click('[data-tax="dominio"][data-dominio="' + d + '"]'); await page.waitForSelector('.tax-item'); }
+async function dominio(page, d) { await T.dominio(page, d); await page.waitForSelector('.tax-item'); }
+/* administração do conceito (aba Conteúdo): é onde a definição se atualiza */
 async function abrirConceito(page, cod) {
-  if (!(await page.locator('.tax-item[data-codigo="' + cod + '"]').isVisible())) { await page.locator('[data-tax="voltar-lista"]').first().click(); await page.waitForSelector('.tax-item[data-codigo="' + cod + '"]', { state: 'visible' }); }
-  await page.click('.tax-item[data-codigo="' + cod + '"]');
-  await page.waitForSelector('#taxSecDefinicao');
-  await esperar(page, () => !document.querySelector('#taxSecDefinicao .loading-msg'));
+  await T.abrirAdmin(page, cod);
+  await esperar(page, () => !!document.querySelector('#taxAdmin #taxSecDefinicao') && !document.querySelector('#taxAdmin .loading-msg'));
 }
 const PROIBIDOS = ['Fonte (id)', 'Tipo de redação', 'Rótulo da fonte', 'Outras fontes', 'Fontes arquivadas', 'Fontes disponíveis', 'Usar como vigente', 'Remover vigência', 'Editar rótulo', 'Adicionar texto-fonte', 'Nova versão da definição', 'Alterar definição', 'Definição registrada'];
 async function semComplexidade(page, rot) {
@@ -117,11 +119,17 @@ async function rodada(browser, viewport, rotulo) {
   await dominio(page, 'organizacional');
   const itens = await page.evaluate(() => Array.from(document.querySelectorAll('.tax-item')).map((x) => x.getAttribute('data-codigo') + '|' + x.innerText.replace(/\s+/g, ' ')));
   afirma(itens.every((i) => i.indexOf('Definição registrada') === -1) && /SEMDEF\|.*sem definição/.test(itens.join('\n')) && !/PHN\|.*sem definição/.test(itens.join('\n')), '2. lista: sem etiqueta repetida; "sem definição" só onde falta', itens);
+  await T.abrirConceito(page, 'PHN');
+  const ficha = await texto(page, '.tax-ficha');
+  afirma((await texto(page, '#taxDefinicaoTexto')).trim() === 'Texto organizacional fictício, versão 2.' && ficha.split('Texto organizacional fictício, versão 2.').length === 2, '0. Catálogo: "O que é?" com a definição vigente, uma vez');
+  afirma(!/Última atualização|versão 1|Histórico/.test(ficha) && await page.locator('.tax-ficha [data-tax="atualizar-definicao"]').count() === 0, '0. Catálogo: sem "Última atualização", histórico nem ação de atualizar', ficha);
   await abrirConceito(page, 'PHN');
   afirma((await texto(page, '#taxDefinicaoTexto')).trim() === 'Texto organizacional fictício, versão 2.', '1. organizacional: a definição oficial vigente');
   afirma(/Última atualização: .*outra@previ\.com\.br · versão 2/.test(await texto(page, '#taxDefAtualizacao')), '1. organizacional: data, responsável e versão da última atualização', await texto(page, '#taxDefAtualizacao'));
-  afirma(await page.locator('#taxSecDefinicao .btn--primary').count() === 1 && (await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim() === 'ATUALIZAR DEFINIÇÃO', '1. organizacional: uma única ação principal, ATUALIZAR DEFINIÇÃO');
+  afirma(await page.locator('#taxSecDefinicao .btn--primary').count() === 1 && (await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim() === 'Atualizar definição', '1. organizacional: uma única ação principal, "Atualizar definição"');
   await semComplexidade(page, '1. organizacional');
+  afirma(await page.evaluate(() => { const d = document.getElementById('taxSecDefinicao').getBoundingClientRect().top, i = document.getElementById('taxEditarInfoBtn').getBoundingClientRect().top; return i > d; }) && /Editar informações/i.test(await texto(page, '#taxSecPergunta')) && await page.locator('#taxSecDefinicao [data-tax="editar-conceito"]').count() === 0, '6. "Editar informações" em "Pergunta, critérios e observações", depois da definição e fora dela');
+  await T.abaAdmin(page, 'historico');
   afirma(!(await page.evaluate(() => document.getElementById('taxHistoricoConceito').open)) && /^Histórico — 1 alteração$/.test((await texto(page, '#taxHistoricoConceito > summary')).trim()) && await page.locator('#taxHistDefinicao').count() === 0, '4. um histórico só, recolhido, com a contagem real (a versão 2; o registro inicial e o modelo antigo não contam)', await texto(page, '#taxHistoricoConceito > summary'));
   await page.click('#taxHistoricoConceito > summary');
   const hist = await texto(page, '#taxHistoricoConceito');
@@ -132,8 +140,8 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#taxHistLegado > summary');
   const leg = await texto(page, '#taxHistLegado');
   afirma(/Texto que deixou de valer: Texto antigo fictício anterior\./.test(leg) && !/nunca foi vigente/.test(await texto(page, '#taxSecHistorico')), '4. troca do modelo antigo com os textos do arquivo; a proposta que nunca foi vigente não vira versão');
-  afirma(await page.evaluate(() => { const d = document.getElementById('taxSecDefinicao').getBoundingClientRect().top, i = document.getElementById('taxEditarInfoBtn').getBoundingClientRect().top; return i > d; }) && /Editar informações/i.test(await texto(page, '#taxSecPergunta')) && await page.locator('#taxSecDefinicao [data-tax="editar-conceito"]').count() === 0, '6. "Editar informações" em "Como reconhecer", depois da definição e fora dela');
   /* 3. fluxo */
+  await T.abaAdmin(page, 'conteudo');
   await page.click('#taxAtualizarDefinicaoBtn');
   await page.waitForSelector('#taxDefNovo');
   afirma((await page.inputValue('#taxDefNovo')) === 'Texto organizacional fictício, versão 2.' && await page.locator('#taxSecDefinicao [data-tax="atualizar-definicao"]').count() === 0, '3. a atualização começa com o texto vigente preenchido');
@@ -157,11 +165,15 @@ async function rodada(browser, viewport, rotulo) {
   afirma(O.conceitos.PHN.definicao.versao === 3 && O.conceitos.PHN.definicao.texto === 'Texto organizacional fictício, versão 3.' && O.conceitos.PHN.definicao.publicadaPor === EMAIL, '3. publicada: versão 3, texto novo, autoria');
   afirma(Object.keys(O.definicoes.PHN).sort().join() === 'v1,v2,v3' && O.definicoes.PHN.v3.motivo === 'Motivo fictício da versão 3' && O.definicoes.PHN.v2.texto === 'Texto organizacional fictício, versão 2.', '3. histórico: v3 com motivo; v1 e v2 intactas (clique repetido não criou v4)');
   afirma(Object.values(O.auditoria.PHN).filter((e) => e.tipo === 'definicao_publicada').length === 1, '3. uma linha de auditoria "definicao_publicada"');
+  await T.abaAdmin(page, 'historico');
   await esperar(page, () => /Histórico — 2 alterações/.test((document.querySelector('#taxHistoricoConceito > summary') || {}).textContent || ''));
   afirma(true, '4. depois de publicar: a contagem passa a 2');
   /* 5. sem definição */
-  await abrirConceito(page, 'SEMDEF');
-  afirma(/ainda não tem definição oficial vigente/.test(await texto(page, '#taxSemDefinicao')) && (await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim() === 'REGISTRAR DEFINIÇÃO', '5. sem definição: "REGISTRAR DEFINIÇÃO"');
+  await T.abrirConceito(page, 'SEMDEF');
+  afirma((await texto(page, '#taxSemDefinicao')).trim() === 'Não há definição oficial disponível para este conceito.', '5. Catálogo sem definição: diz que não há (nada inventado)');
+  await T.administrar(page);
+  await esperar(page, () => !!document.querySelector('#taxAdmin #taxSemDefinicao'));
+  afirma(/ainda não tem definição oficial vigente/.test(await texto(page, '#taxSemDefinicao')) && (await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim() === 'Registrar definição', '5. sem definição: "Registrar definição"');
   await publicar(page, 'Primeira definição fictícia.');
   await page.click('#taxDefPublicarBtn');
   await esperar(page, () => /Primeira definição/.test((document.getElementById('taxDefinicaoTexto') || {}).textContent || ''));
@@ -174,8 +186,10 @@ async function rodada(browser, viewport, rotulo) {
   afirma((await texto(page, '#taxDefinicaoTexto')).trim() === 'Definição arquitetural fictícia, versão 1.' && /versão 1/.test(await texto(page, '#taxDefAtualizacao')), '1. arquitetural: a definição oficial vigente e a última atualização');
   afirma(await page.locator('#taxSecDefinicao .btn--primary').count() === 1, '1. arquitetural: uma única ação principal');
   await semComplexidade(page, '1. arquitetural');
+  afirma(!!(await page.locator('#taxIdentLigado').count()), '6. arquitetural: a ligação com a Avaliação continua indicada (na administração)');
+  await T.abaAdmin(page, 'historico');
   afirma(/^Histórico — 0 alterações$/.test((await texto(page, '#taxHistoricoConceito > summary')).trim()) && await page.locator('#taxHistInicial').count() === 1, '4. arquitetural: só o registro inicial (0 alterações)');
-  afirma(!!(await page.locator('#taxIdentLigado').count()), '6. arquitetural: a ligação com a Avaliação continua indicada');
+  await T.abaAdmin(page, 'conteudo');
   await publicar(page, 'Definição arquitetural fictícia, versão 2.', 'Motivo arquitetural fictício');
   await page.click('#taxDefPublicarBtn');
   await esperar(page, () => /versão 2\./.test((document.getElementById('taxDefinicaoTexto') || {}).textContent || ''));

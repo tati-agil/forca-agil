@@ -3,16 +3,17 @@
  * As REGRAS do banco (a trava de verdade) são provadas no emulador em teste-rules-taxonomia-governanca.js;
  * aqui se prova o que a pessoa vê e o que a tela grava (ou não grava).
  *
- *   1. Aviso permanente "Proteção da Avaliação incompleta: X de 11" enquanto faltar ligação.
- *   2. Integração com a Avaliação: com falta, aviso destacado com o impacto e o que falta (nunca um resumo positivo);
+ *   1. Catálogo: nada de integração na ficha nem na lista; o atalho "Integridade e configurações" do topo diz
+ *      "requer atenção" enquanto faltar vínculo (e nunca diz que está tudo bem antes de conferir).
+ *   2. Integridade › Integração com a Avaliação: com falta, aviso destacado com o impacto e o que falta (nunca um resumo positivo);
  *      "Registrar vínculos…" mostra a prévia (já vinculado / será vinculado / não pode ser vinculado) e só grava ao
  *      confirmar; depois não sobra nada a registrar (idempotente). A lista fica em "Ver classificações conectadas".
  *      Gravação recusada pelo banco: erro visível, nada gravado.
- *   3. Conceito ligado: "Inativar" só explica ("…não pode ser inativado enquanto essa ligação estiver ativa.")
+ *   3. Administração › Histórico e governança — conceito ligado: "Inativar" só explica ("…não pode ser inativado enquanto essa ligação estiver ativa.")
  *      e não grava nada. Ligações ainda lendo: "Conferindo…" — "ainda não sei" não vira "pode inativar".
  *   4. Inativar (organizacional): mostra filhos ativos e relações ativas afetadas; motivo obrigatório; grava
  *      ativo=false + inativacao + histórico; reativar volta e fica no histórico.
- *   5. Relações entre conceitos, por "Gerenciar relações": criar (histórico nas duas pontas, mesmo operacaoId); relação
+ *   5. Administração › Relações ("Relações registradas entre conceitos", ações diretas): criar (histórico nas duas pontas, mesmo operacaoId); relação
  *      idêntica a uma encerrada é bloqueada; encerrar com motivo (fica em "Relações encerradas"); "Substituir" explica o
  *      efeito antes e grava encerrar + criar.
  *   6. Sem rolagem horizontal; nenhum erro de JS. */
@@ -20,6 +21,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
+const T = require('./taxonomia-tela');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -87,18 +89,16 @@ const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length)
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.innerText : ''; }, sel);
 async function foto(page, nome, sel) { if (!SHOTS) return; try { await page.locator(sel).first().screenshot({ path: path.join(SHOTS, nome + '.png') }); } catch (e) { console.log('(foto ' + nome + ' não tirada: ' + e.message + ')'); } }
 async function dominio(page, dom) {
-  await page.click('[data-tax="dominio"][data-dominio="' + dom + '"]');
+  await T.dominio(page, dom);
   await esperarCondicao(page, (d) => !!document.querySelector('.tax-dominio--ativo[data-dominio="' + d + '"]') && !!document.querySelector('.tax-item'), dom, { descricao: 'domínio ' + dom + ' carregado' });
 }
-async function abreConceito(page, cod) {
-  /* depois de salvar, a tela RECARREGA o domínio ("Carregando…" por um instante): decidir só com a lista já
-     montada — senão, no celular, olhava no meio da recarga, não voltava à lista e o item ficava escondido */
-  await esperarCondicao(page, (c) => !!document.querySelector('.tax-item[data-codigo="' + c + '"]') && !document.querySelector('.tax-lista .loading-msg, #taxCarregando'), cod, { descricao: 'lista do domínio montada' });
-  /* no celular a lista some quando o detalhe está aberto: volta para a lista antes */
-  if (await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().isVisible() && !(await page.locator('.tax-item[data-codigo="' + cod + '"]').isVisible())) await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().click();
-  await page.click('.tax-item[data-codigo="' + cod + '"]');
-  await esperarCondicao(page, (c) => { const t = document.querySelector('#taxCodigo'); return !!t && t.innerText.indexOf(c) !== -1 && !document.querySelector('.tax-detalhe .loading-msg'); }, cod, { descricao: 'detalhe de ' + cod + ' carregado' });
+/* administração do conceito (opcionalmente numa aba) */
+async function abreConceito(page, cod, aba) {
+  if (!(await page.locator('#taxAdmin, #taxIntegridade').count())) await esperarCondicao(page, (c) => !!document.querySelector('.tax-item[data-codigo="' + c + '"]') && !document.querySelector('.tax-lista .loading-msg, #taxCarregando'), cod, { descricao: 'lista do domínio montada' });
+  await T.abrirAdmin(page, cod, aba);
+  await esperarCondicao(page, (c) => !!document.getElementById('taxAdmin') && !document.querySelector('#taxAdmin .loading-msg'), cod, { descricao: 'administração de ' + cod + ' carregada' });
 }
+const atalho = (page) => page.evaluate(() => { const b = document.getElementById('taxIntegridadeLink'); return b ? b.getAttribute('data-estado') + '|' + b.innerText : ''; });
 
 (async () => {
   const browser = await chromium.launch();
@@ -106,12 +106,14 @@ async function abreConceito(page, cod) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
 
-    console.log('\n== 1. Aviso de proteção incompleta ==');
-    await esperarCondicao(page, () => !!document.getElementById('taxProtecaoIncompleta'), null, { descricao: 'aviso de proteção' });
-    afirma(/Proteção da Avaliação incompleta:.*1 de 11 classificações conectadas/.test(await texto(page, '#taxProtecaoIncompleta')), 'aviso permanente: "Proteção da Avaliação incompleta: 1 de 11"', await texto(page, '#taxProtecaoIncompleta'));
+    console.log('\n== 1. Catálogo: integração fora da ficha, atalho com "requer atenção" ==');
+    await esperarCondicao(page, () => { const b = document.getElementById('taxIntegridadeLink'); return !!b && b.getAttribute('data-estado') === 'problema'; }, null, { descricao: 'atalho da integridade conferido' });
+    afirma(/requer atenção/.test(await atalho(page)) && await page.locator('#taxIntegridadeLink .tax-ponto--atencao').count() === 1, 'atalho do topo: "Integridade e configurações · requer atenção"', await atalho(page));
+    afirma(await page.locator('#taxConceitosBase, #taxConceitosBasePos, #taxIntegracaoResumo, #taxProtecaoIncompleta').count() === 0 && !/de 11|de 10/.test(await texto(page, '#adminTaxonomia')), 'o Catálogo não mostra a integração (nem "X de 11"/"X de 10")');
 
-    console.log('\n== 2. Conceitos-base e registro controlado das ligações ==');
+    console.log('\n== 2. Integridade: conceitos-base e registro controlado das ligações ==');
     await dominio(page, 'arquitetural');
+    await T.irIntegridade(page);
     afirma(/Integração com a Avaliação/.test(await texto(page, '#taxConceitosBase h4')) && /Integração incompleta: 1 de 11 classificações conectadas/.test(await texto(page, '#taxIntegracaoResumo')) && /pode ser inativado/.test(await texto(page, '#taxIntegracaoResumo')), 'integração incompleta: aviso destacado "1 de 11 classificações conectadas", com o impacto');
     afirma(await page.locator('#taxIntegracaoResumo[data-estado="problema"][role="alert"]').count() === 1 && await page.locator('.tax-integracao-ok').count() === 0, 'falha real nunca aparece como resumo positivo');
     afirma(!(await page.evaluate(() => document.getElementById('taxIntegracaoLista').open)), '"Ver classificações conectadas" começa recolhido');
@@ -134,24 +136,27 @@ async function abreConceito(page, cod) {
     afirma(JSON.stringify(b['avaliacao-classificacoes']['produto-principal']) === JSON.stringify(semente()['avaliacao-classificacoes']['produto-principal']), 'a ligação que já existia não foi tocada');
     await esperarCondicao(page, () => /4 de 11 classificações conectadas/.test((document.getElementById('taxIntegracaoResumo') || {}).innerText || ''), null, { descricao: 'contagem atualizada' });
     afirma(await page.locator('#taxRegistrarLigacoesBtn').count() === 0, 'idempotente: depois do registro não sobra nada a registrar (sem botão)');
-    afirma(/4 de 11/.test(await texto(page, '#taxProtecaoIncompleta')), 'o aviso de proteção continua, agora "4 de 11" (faltam conceitos)');
+    await T.voltarCatalogo(page);
+    afirma(/requer atenção/.test(await atalho(page)), 'o atalho continua "requer atenção" (faltam conceitos: 4 de 11)', await atalho(page));
 
     console.log('\n== 3. Conceito ligado à Avaliação não pode ser inativado ==');
     await abreConceito(page, 'canal');
-    afirma(/ligado à Avaliação/.test(await texto(page, '#taxIdentLigado')), 'a identificação mostra "ligado à Avaliação"');
+    afirma(/ligado à Avaliação/.test(await texto(page, '#taxIdentLigado')), 'a identificação (Administração › Conteúdo) mostra "ligado à Avaliação"');
+    await T.abaAdmin(page, 'historico');
     e0 = await escritas(page);
     await page.click('#taxInativarBtn');
     await page.waitForSelector('#taxInativarBloqueado', { timeout: 4000 });
     afirma((await texto(page, '#taxInativarBloqueado')).trim() === 'Este conceito está ligado à classificação "Canal Fictício" da Avaliação e não pode ser inativado enquanto essa ligação estiver ativa.', 'mensagem exata do bloqueio', await texto(page, '#taxInativarBloqueado'));
     afirma(await page.locator('#taxPainelInativar [data-tax="confirmar-inativar"], #taxPainelInativar textarea').count() === 0, 'sem campo de motivo e sem botão de confirmar');
     afirma(await escritas(page) === e0 && (await banco(page)).taxonomia.arquitetural.conceitos.canal.ativo === true, 'nada foi gravado');
-    await foto(page, 'governanca-bloqueio-' + suf, '#taxSecIdent');
+    await foto(page, 'governanca-bloqueio-' + suf, '#taxSecIdentAcoes');
     afirma(await larguraOk(page), 'bloqueio sem rolagem horizontal');
     await page.click('#taxPainelInativar [data-tax="cancelar-inativar"]');
 
     console.log('\n== 4. Inativar com motivo, mostrando o que é afetado; reativar ==');
     await dominio(page, 'organizacional');
-    await abreConceito(page, 'LINHA');
+    await abreConceito(page, 'LINHA', 'historico');
+    afirma(await page.locator('#taxSecIdentAcoes #taxInativarBtn').count() === 1, 'inativar fica em Histórico e governança › "Situação do conceito"');
     await page.click('#taxInativarBtn');
     await page.waitForSelector('#taxInativarAfetados', { timeout: 4000 });
     const af = await texto(page, '#taxInativarAfetados');
@@ -169,19 +174,22 @@ async function abreConceito(page, cod) {
     const L = b.taxonomia.organizacional.conceitos.LINHA, audL = b.taxonomia.organizacional.auditoria.LINHA || {};
     afirma(L.inativacao && L.inativacao.motivo === 'Reorganização fictícia' && L.inativacao.por === EMAIL && audL[L.inativacao.auditoriaId] && audL[L.inativacao.auditoriaId].tipo === 'inativacao' && audL[L.inativacao.auditoriaId].filhosAtivos === 'SQ', 'gravado: ativo=false + motivo/autor + histórico apontado (com os filhos afetados)');
     afirma(b.taxonomia.organizacional.conceitos.SQ.ativo === true && !!b.taxonomia.organizacional.relacoes.SQ__compoe__LINHA && !b.taxonomia.organizacional.relacoes.SQ__compoe__LINHA.encerrada, 'nada mais mudou: o filho e a relação continuam como estavam');
+    await esperarCondicao(page, () => !!document.getElementById('taxReativarBtn') && !document.querySelector('#taxAdmin .loading-msg'), null, { descricao: 'administração com o conceito inativo' });
+    await T.abaAdmin(page, 'conteudo');
     await esperarCondicao(page, () => !!document.getElementById('taxIdentInativacao'), null, { descricao: 'identificação com a inativação' });
     afirma(/motivo: Reorganização fictícia/.test(await texto(page, '#taxIdentInativacao')), 'a identificação mostra quando, quem e o motivo');
+    await T.abaAdmin(page, 'historico');
     await page.click('#taxReativarBtn');
     await esperarCondicao(page, () => window.__CFG.__dbReal.taxonomia.organizacional.conceitos.LINHA.ativo === true, null, { descricao: 'LINHA reativado' });
     b = await banco(page);
     afirma(!b.taxonomia.organizacional.conceitos.LINHA.inativacao && Object.values(b.taxonomia.organizacional.auditoria.LINHA).map((e) => e.tipo).sort().join(',') === 'inativacao,reativacao', 'reativado: o histórico tem a inativação E a reativação');
 
     console.log('\n== 5. Relações: criar, bloquear idêntica encerrada, encerrar, alterar ==');
-    await abreConceito(page, 'SQ');
+    await abreConceito(page, 'SQ', 'relacoes');
     afirma(/Relações encerradas \(1\)/.test(await texto(page, '#taxRelEncerradas summary')), 'a relação encerrada aparece em "Relações encerradas (1)"');
-    afirma(/Relações entre conceitos \(/.test(await texto(page, '#taxSecRelacoes h4')) && /não são relações operacionais entre áreas concretas/.test(await texto(page, '#taxRelNatureza')), 'título "Relações entre conceitos" e a explicação de que são vínculos entre conceitos');
-    afirma(await page.locator('#taxSecRelacoes [data-tax="alterar-relacao"], #taxSecRelacoes [data-tax="encerrar-relacao"], #taxNovaRelacaoBtn').count() === 0 && await page.locator('#taxGerenciarRelacoesBtn').isVisible(), 'na consulta, só "Gerenciar relações" (nada de botões por relação)');
-    await page.click('#taxGerenciarRelacoesBtn');
+    afirma(/Relações registradas entre conceitos \(/.test(await texto(page, '#taxSecRelacoes h4')) && /Não comprovam relações entre áreas concretas/.test(await texto(page, '#taxRelNatureza')) && /não são, por si, regras arquiteturais universais/.test(await texto(page, '#taxRelNatureza')), 'título "Relações registradas entre conceitos" e o que elas são (não relações entre áreas reais, nem regras universais)');
+    afirma(await page.locator('#taxNovaRelacaoBtn').isVisible() && await page.locator('#taxRelLista [data-tax="alterar-relacao"]').count() > 0 && await page.locator('#taxRelLista [data-tax="encerrar-relacao"]').count() > 0 && await page.locator('#taxGerenciarRelacoesBtn').count() === 0, 'na Administração, as ações são diretas: "Nova relação", "Substituir" e "Encerrar"');
+    afirma(await page.locator('#taxSecRelacoes [data-campo="natureza"], #taxSecRelacoes [data-rel="natureza"]').count() === 0 && !/aprovada|validada|a confirmar/i.test(await texto(page, '#taxSecRelacoes')), 'sem campos de "natureza" nem estados aprovada/validada/a confirmar');
     await page.click('#taxNovaRelacaoBtn');
     await page.waitForSelector('#taxFormRelacao', { timeout: 4000 });
     afirma(await page.locator('#taxR_outro option[value="ANT"]').count() === 0 && await page.locator('#taxR_outro option[value="SQ"]').count() === 0, 'só conceitos ativos e diferentes do próprio podem ser escolhidos');
@@ -238,8 +246,10 @@ async function abreConceito(page, cod) {
     /* ligações nunca respondem: "ainda não sei" não vira "pode inativar" */
     const { ctx, page, erros } = await abrir(browser, DESKTOP, { delays: { 'avaliacao-classificacoes': 100000000 } });
     await dominio(page, 'arquitetural');
-    afirma(/Conferindo a integração/.test(await texto(page, '#taxIntegracaoResumo')) && await page.locator('#taxProtecaoIncompleta').count() === 0 && await page.locator('.tax-integracao-ok').count() === 0 && await page.locator('#taxRegistrarLigacoesBtn').count() === 0, 'vínculos sem resposta: "Conferindo a integração…", nem resumo positivo, nem aviso de incompleta, nem botão de registrar');
-    await abreConceito(page, 'componente');
+    afirma(!(await atalho(page)).startsWith('ok|') && await page.locator('#taxIntegridadeLink .tax-ponto--ok').count() === 0, 'atalho do topo: com a Avaliação ainda sem resposta, nunca "ok"', await atalho(page));
+    await T.irIntegridade(page);
+    afirma(/Conferindo a integração/.test(await texto(page, '#taxIntegracaoResumo')) && await page.locator('.tax-integracao-ok').count() === 0 && await page.locator('#taxRegistrarLigacoesBtn').count() === 0, 'vínculos sem resposta: "Conferindo a integração…", nem resumo positivo, nem aviso de incompleta, nem botão de registrar');
+    await abreConceito(page, 'componente', 'historico');
     const e0 = await escritas(page);
     await page.click('#taxInativarBtn');
     await page.waitForSelector('#taxInativarLigacao', { timeout: 4000 });
@@ -252,6 +262,8 @@ async function abreConceito(page, cod) {
     /* leitura das ligações recusada: erro visível + "Tentar novamente"; inativar fica bloqueado */
     const { ctx, page, erros } = await abrir(browser, CELULAR, { fail: ['avaliacao-classificacoes'] });
     await dominio(page, 'arquitetural');
+    afirma(!(await atalho(page)).startsWith('ok|') && await page.locator('#taxIntegridadeLink .tax-ponto--atencao').count() === 1, 'atalho do topo: leitura recusada → sinal de atenção, nunca "ok"', await atalho(page));
+    await T.irIntegridade(page);
     await esperarCondicao(page, () => !!document.getElementById('taxLigacoesErro'), null, { descricao: 'erro das ligações' });
     afirma(/Sem acesso aos vínculos|Não foi possível ler os vínculos/.test(await texto(page, '#taxLigacoesErro')) && await page.locator('#taxLigacoesErro [data-tax="ligacoes-recarregar"]').count() === 1, 'leitura recusada: erro visível com "Tentar novamente" (375 px)');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
@@ -262,6 +274,7 @@ async function abreConceito(page, cod) {
     /* gravação das ligações recusada pelo banco: erro, nada gravado, prévia continua na tela */
     const { ctx, page, erros } = await abrir(browser, DESKTOP, { fail: ['avaliacao-classificacoes-auditoria'] });
     await dominio(page, 'arquitetural');
+    await T.irIntegridade(page);
     await page.click('#taxRegistrarLigacoesBtn');
     await page.click('#taxConfirmarLigacoes');
     await esperarCondicao(page, () => !!document.querySelector('#taxFlash.tax-flash--erro'), null, { descricao: 'erro da gravação' });

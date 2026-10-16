@@ -1,10 +1,12 @@
-/* TAXONOMIA — ficha do conceito: "Perfil do conceito" compacto e "Gerenciar perfil" integrado. Desktop e celular (375 px).
+/* TAXONOMIA — Administração › Perfil: os atributos agrupados (Estado, Valor, Papel, Origem) e "Gerenciar perfil" integrado.
+ * O Catálogo não mostra perfil nenhum. Desktop e celular (375 px).
  * CONTEÚDO 100% FICTÍCIO (semente-taxonomia-ficha.js, mesma estrutura de "Linhas de Estratégia de Clientes": 13 atributos,
  * 3 definidos). Firebase falso em persistência real; hermético (sem rede, sem segredo).
  *
- *   1. Consulta: só os atributos definidos, "3 de 13 atributos definidos", os 10 sem registro num recolhível, Papel/Origem
- *      em ajuda contextual (recolhida) e UMA ação, "Gerenciar perfil" — nenhum "Editar" por atributo.
- *   2. Conceito sem nenhum atributo: "0 de 13" e "Nenhum atributo definido ainda.".
+ *   1. Administração › Perfil: os 13 atributos numa tabela agrupada por grupo (sem cartões), com Estado, Valor, Papel e
+ *      Origem; os sem registro aparecem aqui para preenchimento; "3 de 13 atributos definidos"; Papel/Origem em ajuda
+ *      contextual; UMA ação, "Gerenciar perfil". O Catálogo não mostra perfil.
+ *   2. Conceito sem nenhum atributo: "0 de 13", todos "sem registro".
  *   3. Gerenciar perfil: todos os atributos num formulário; altera vários (criar registrado, criar ausência, mudar valor) e
  *      salva UMA vez: grava só os alterados, um evento de auditoria por atributo, nenhum registro vazio; a consulta acompanha.
  *   4. Validação: "registrado" sem valor → erro no atributo e NADA gravado; o resto do formulário continua como estava.
@@ -19,6 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
 const S = require('./semente-taxonomia-ficha');
+const T = require('./taxonomia-tela');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -60,11 +63,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length);
 const perfisDb = (page) => page.evaluate((p) => JSON.parse(JSON.stringify(p.split('/').reduce((o, k) => (o == null ? o : o[k]), window.__CFG.__dbReal) || {})), PERFIS);
 const contagem = (page) => page.evaluate(() => { const e = document.getElementById('taxPerfilContagem'); return e ? e.textContent.trim() : ''; });
-async function abreConceito(page, cod) {
-  if (!(await page.locator('.tax-item[data-codigo="' + cod + '"]').isVisible())) await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().click();
-  await page.click('.tax-item[data-codigo="' + cod + '"]');
-  await esperarCondicao(page, (c) => { const t = document.querySelector('#taxCodigo'); return !!t && t.innerText.indexOf(c) !== -1 && !document.querySelector('.tax-detalhe .loading-msg'); }, cod, { descricao: 'ficha de ' + cod });
-}
+/* o perfil fica na Administração › Perfil do conceito */
+async function abreConceito(page, cod) { await T.abrirAdmin(page, cod, 'perfil'); }
 async function gerenciar(page) {
   await page.click('#taxGerenciarPerfilBtn');
   await page.waitForSelector('#taxFormPerfilLote', { timeout: 4000 });
@@ -81,17 +81,22 @@ async function gerenciar(page) {
 
       console.log('\n== 1. Consulta compacta ==');
       afirma(await contagem(page) === '3 de 13 atributos definidos', '"3 de 13 atributos definidos"', await contagem(page));
-      const defs = await page.locator('#taxPerfilDefinidos .tax-atributo').evaluateAll((els) => els.map((e) => e.getAttribute('data-atributo')));
-      afirma(defs.join(',') === 'OBJETO_PREDOMINANTE,PROPOSITO_PREDOMINANTE,LIDERANCA', 'na consulta, só os 3 definidos (na ordem do catálogo)', defs.join(','));
-      afirma(/públicos e segmentos \(fictício\)/.test(await page.locator('#taxPerfilDefinidos').innerText()) && await page.locator('#taxPerfilDefinidos .tax-selo--origem-decisao').count() === 2, 'valor, papel e origem de cada definido');
-      afirma(await page.locator('#taxPerfilPendentes').count() === 1 && !(await page.locator('#taxPerfilPendentes').evaluate((d) => d.open)) && /Ainda não definidos \(10\)/.test(await page.locator('#taxPerfilPendentes > summary').innerText()), 'os 10 sem registro ficam em "Ainda não definidos (10)", recolhido');
+      const linhas = await page.locator('#taxPerfilTabela tr.tax-atributo').evaluateAll((els) => els.map((e) => e.getAttribute('data-atributo')));
+      afirma(linhas.length === 13 && await page.locator('#taxPerfilTabela tr.tax-atributo--vazio').count() === 10, 'os 13 atributos numa tabela, os 10 sem registro aqui para preenchimento', String(linhas.length));
+      afirma(JSON.stringify(await page.locator('#taxPerfilTabela .tax-perfil-grupo th').allTextContents()) === JSON.stringify(['Quem recebe', 'Alcance', 'O que entrega', 'Governança', 'Outros']), 'agrupados por grupo, sem cartões decorativos');
+      const obj = await page.locator('#taxPerfilTabela tr[data-atributo="OBJETO_PREDOMINANTE"] td').allTextContents();
+      afirma(JSON.stringify(obj) === JSON.stringify(['registrado', 'públicos e segmentos (fictício)', 'definidor', 'decisão']), 'cada atributo com Estado, Valor, Papel e Origem', obj.join(' | '));
+      afirma(await page.locator('#taxPerfilPendentes, #taxPerfilDefinidos').count() === 0, 'nada de listas "definidos/ainda não definidos" separadas');
       afirma(await page.locator('#taxLegenda').count() === 1 && !(await page.locator('#taxLegenda').evaluate((d) => d.open)) && /observado: valor presente na fonte ou registrado no perfil/.test(await page.locator('#taxLegenda').textContent()), 'Papel e Origem explicados em ajuda contextual recolhida (o significado não mudou)');
-      afirma(await page.locator('#taxSecAtributos button').count() === 1 && await page.locator('#taxGerenciarPerfilBtn').isVisible() && await page.locator('[data-tax="editar-perfil"]').count() === 0, 'UMA ação na seção: "Gerenciar perfil" (nenhum "Editar" por atributo)');
+      afirma(await page.locator('#taxSecAtributos .tax-acoes button').count() === 1 && await page.locator('#taxGerenciarPerfilBtn').isVisible() && await page.locator('[data-tax="editar-perfil"]').count() === 0, 'UMA ação na seção: "Gerenciar perfil" (nenhum "Editar" por atributo)');
       afirma(await page.locator('.tax-inferencia-aviso').count() === 0, 'nenhuma explicação longa repetida em cada linha');
+      await T.voltarCatalogo(page);
+      afirma(await page.locator('#taxSecAtributos, #taxPerfilContagem').count() === 0, 'o Catálogo não mostra perfil nenhum');
+      await T.administrar(page, 'perfil');
 
       console.log('\n== 2. Conceito sem atributos definidos ==');
       await abreConceito(page, 'LINHA');
-      afirma(await contagem(page) === '0 de 13 atributos definidos' && /Nenhum atributo definido ainda/.test(await page.locator('#taxSecAtributos').innerText()), '"0 de 13" e "Nenhum atributo definido ainda."');
+      afirma(await contagem(page) === '0 de 13 atributos definidos' && await page.locator('#taxPerfilTabela tr.tax-atributo--vazio').count() === 13, '"0 de 13": todos sem registro, para preenchimento');
       await abreConceito(page, EC);
 
       console.log('\n== 3. Gerenciar perfil: vários atributos, uma gravação ==');
@@ -170,18 +175,22 @@ async function gerenciar(page) {
     {
       console.log('\n== 8. Somente leitura, leitura lenta e recusada ==');
       const { ctx, page } = await abrir(browser, viewport);
-      await abreConceito(page, EC);
+      await T.abrirConceito(page, EC);
       await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
-      await esperarCondicao(page, () => !!document.getElementById('taxPerfilContagem') && !document.getElementById('taxGerenciarPerfilBtn'), null, { descricao: 'perfil em modo leitura' });
-      afirma(/3 de 13/.test(await contagem(page)) && await page.locator('#taxGerenciarPerfilBtn').count() === 0, 'somente leitura: o perfil aparece, sem "Gerenciar perfil"');
+      await esperarCondicao(page, () => !!document.getElementById('taxDefinicaoTexto') && !document.getElementById('taxAdministrarBtn'), null, { descricao: 'ficha em modo leitura' });
+      afirma(await page.locator('#taxGerenciarPerfilBtn, #taxSecAtributos, #taxAdministrarBtn').count() === 0, 'somente leitura: sem administração, o perfil não é editável nem aparece na consulta');
       await ctx.close();
       const lenta = await abrir(browser, viewport, { delays: { [PERFIS]: 600000 } });
-      await lenta.page.click('.tax-item[data-codigo="' + EC + '"]');
+      await T.abrirConceito(lenta.page, EC);
+      await lenta.page.click('#taxAdministrarBtn');
+      await lenta.page.click('#taxAba_perfil');
       await lenta.page.waitForSelector('#taxPerfilCarregando', { timeout: 4000 });
       afirma(/Carregando o perfil/.test(await lenta.page.locator('#taxSecAtributos').innerText()) && await lenta.page.locator('#taxPerfilContagem').count() === 0 && await lenta.page.locator('#taxGerenciarPerfilBtn').count() === 0, 'lenta: "Carregando o perfil…", nunca "0 de 13", sem botão de editar');
       await lenta.ctx.close();
       const rec = await abrir(browser, viewport, { fail: [PERFIS] });
-      await rec.page.click('.tax-item[data-codigo="' + EC + '"]');
+      await T.abrirConceito(rec.page, EC);
+      await rec.page.click('#taxAdministrarBtn');
+      await rec.page.click('#taxAba_perfil');
       await rec.page.waitForSelector('#taxPerfilErro', { timeout: 6000 });
       afirma(/Não foi possível carregar o perfil/.test(await rec.page.locator('#taxSecAtributos').innerText()) && await rec.page.locator('#taxGerenciarPerfilBtn').count() === 0, 'recusada: "Não foi possível carregar o perfil agora", sem botão de editar');
       await rec.ctx.close();

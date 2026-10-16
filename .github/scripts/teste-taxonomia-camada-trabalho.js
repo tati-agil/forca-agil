@@ -3,7 +3,7 @@
  * As REGRAS do banco são provadas no emulador (teste-rules-taxonomia-governanca.js, seção E); aqui, o que a
  * pessoa vê e o que a tela grava:
  *   1. Antes da troca não existe o grupo "Organização do trabalho".
- *   2. "Alterar camada": prévia (de → para e o que NÃO muda), motivo obrigatório, grava camada + camadaAlteracao +
+ *   2. "Alterar camada" (Administração › Histórico e governança): prévia (de → para e o que NÃO muda), motivo obrigatório, grava camada + camadaAlteracao +
  *      linha de histórico alteracao_camada; código, nome e relação "Squad compõe Linha" intactos.
  *   3. A lista fica em três grupos: estruturas · Organização do trabalho · Conceito auxiliar.
  *   4. Especialização e Conceito auxiliar não têm o botão; conceito com filho ATIVO só recebe a explicação; só com filho
@@ -14,6 +14,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
+const T = require('./taxonomia-tela');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -83,19 +84,15 @@ const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length)
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.innerText : ''; }, sel);
 async function foto(page, nome, sel) { if (!SHOTS) return; try { await page.locator(sel).first().screenshot({ path: path.join(SHOTS, nome + '.png') }); } catch (e) { console.log('(foto ' + nome + ' não tirada: ' + e.message + ')'); } }
 async function dominio(page, dom) {
-  await page.click('[data-tax="dominio"][data-dominio="' + dom + '"]');
+  await T.dominio(page, dom);
   await esperarCondicao(page, (d) => !!document.querySelector('.tax-dominio--ativo[data-dominio="' + d + '"]') && !!document.querySelector('.tax-item'), dom, { descricao: 'domínio ' + dom + ' carregado' });
 }
+/* "Alterar camada" fica na Administração › Histórico e governança */
 async function abreConceito(page, cod) {
-  /* depois de salvar, a tela RECARREGA o domínio ("Carregando…" por um instante): decidir só com a lista já
-     montada — senão, no celular, olhava no meio da recarga, não voltava à lista e o item ficava escondido */
-  await esperarCondicao(page, (c) => !!document.querySelector('.tax-item[data-codigo="' + c + '"]') && !document.querySelector('.tax-lista .loading-msg, #taxCarregando'), cod, { descricao: 'lista do domínio montada' });
-  /* no celular a lista some quando o detalhe está aberto: volta para a lista antes */
-  if (await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().isVisible() && !(await page.locator('.tax-item[data-codigo="' + cod + '"]').isVisible())) await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().click();
-  await page.click('.tax-item[data-codigo="' + cod + '"]');
-  await esperarCondicao(page, (c) => { const t = document.querySelector('#taxCodigo'); return !!t && t.innerText.indexOf(c) !== -1 && !document.querySelector('.tax-detalhe .loading-msg'); }, cod, { descricao: 'detalhe de ' + cod + ' carregado' });
+  if (!(await page.locator('#taxAdmin, #taxIntegridade').count())) await esperarCondicao(page, (c) => !!document.querySelector('.tax-item[data-codigo="' + c + '"]') && !document.querySelector('.tax-lista .loading-msg, #taxCarregando'), cod, { descricao: 'lista do domínio montada' });
+  await T.abrirAdmin(page, cod, 'historico');
+  await esperarCondicao(page, () => !!document.getElementById('taxSecIdentAcoes') && !document.querySelector('#taxAdmin .loading-msg'), null, { descricao: 'governança de ' + cod + ' carregada' });
 }
-
 
 /* ordem dos itens e dos grupos na lista, como a pessoa vê */
 const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll('.tax-lista .tax-item, .tax-lista .tax-lista-grupo')).map((e) => e.classList.contains('tax-lista-grupo') ? '#' + e.textContent.trim().toLowerCase() : e.getAttribute('data-codigo')));
@@ -137,16 +134,21 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
     afirma(S.nome === 'Squad Fictícia' && !S.pai && b.taxonomia.organizacional.relacoes.SQUAD__compoe__LINHA.de === 'SQUAD', 'código, nome e relação "compõe Linha" intactos');
 
     console.log('\n== 3. Depois: três grupos na lista ==');
-    await esperarCondicao(page, () => !!document.querySelector('#taxIdentCamadaAlteracao'), null, { descricao: 'detalhe recarregado' });
+    await T.adminAssentada(page);
+    await T.abaAdmin(page, 'conteudo');
+    await esperarCondicao(page, () => !!document.querySelector('#taxIdentCamadaAlteracao'), null, { descricao: 'identificação com a troca' });
     afirma(/Camada:\s*Organização do trabalho/.test(await texto(page, '#taxSecIdent')) && /de Tipo organizacional para Organização do trabalho .* motivo: Squad é organização do trabalho/.test(await texto(page, '#taxIdentCamadaAlteracao')), 'identificação: camada nova e a última troca com motivo');
+    await T.abaAdmin(page, 'historico');
     afirma(/Camada alterada/.test(await page.evaluate(() => (document.getElementById('taxSecHistorico') || {}).textContent || '')), 'histórico do conceito mostra "Camada alterada"');
     await abreConceito(page, 'CAPITULO');
     await page.click('#taxCamadaBtn');
     await page.fill('#taxC_motivo', 'Capítulo é organização do trabalho');
     await page.click('[data-tax="confirmar-camada"]');
     await esperarCondicao(page, () => window.__CFG.__dbReal.taxonomia.organizacional.conceitos.CAPITULO.camada === 'trabalho', null, { descricao: 'Capítulo gravado' });
+    await T.adminAssentada(page);
+    await T.voltarCatalogo(page);
     await esperarCondicao(page, () => !document.querySelector('.tax-lista .loading-msg, #taxCarregando') && !!document.querySelector('.tax-item[data-codigo="CAPITULO"]'), null, { descricao: 'lista recarregada' });
-    if (await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().isVisible()) await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().click();
+    if (await page.locator('.tax-ficha [data-tax="voltar-lista"]').first().isVisible()) await page.locator('.tax-ficha [data-tax="voltar-lista"]').first().click();
     L = await lista(page);
     const gT = L.indexOf('#organização do trabalho'), gA = L.indexOf('#conceito auxiliar');
     afirma(gT !== -1 && gA > gT && ['LINHA', 'NEG', 'AREA'].every((c) => L.indexOf(c) < gT) && ['SQUAD', 'CAPITULO'].every((c) => L.indexOf(c) > gT && L.indexOf(c) < gA) && L.indexOf('DISC') > gA,

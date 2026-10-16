@@ -4,7 +4,7 @@
  * versões (definicoes/<c>/v<n>) — sem catálogo de fontes, situação, rótulo ou tipo de redação.
  *
  * O que se prova:
- *   1. Título "Exportar Taxonomia", a descrição dos dois domínios e os dois botões ("Baixar Excel", "Baixar JSON",
+ *   1. Em Integridade e configurações › Dados e manutenção (nunca no Catálogo): título "Exportar Taxonomia", a descrição dos dois domínios e os dois botões ("Baixar Excel", "Baixar JSON",
  *      sem "(revisão)"/"(diagnóstico)"), que cabem na tela (375 px também) e somem no modo somente leitura.
  *   2. JSON: cabeçalho (formato, versão 2, exportadoEm, exportadoPor) + o nó `taxonomia` EXATAMENTE como está no
  *      banco (lido ramo a ramo) + `conceitosConsolidados` (um item por conceito, com `dominio`): dados básicos,
@@ -21,6 +21,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
+const T = require('./taxonomia-tela');
 const { arquivoTemporario } = require('./arquivo-temporario');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
@@ -88,7 +89,9 @@ async function abrir(browser, viewport, extra) {
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 12000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
   await page.waitForSelector('.tax-item[data-codigo="SQ"]', { timeout: 8000 });
-  return { ctx, page, erros, downloads };
+  const noCatalogo = await page.locator('#taxExportar').count();
+  await T.irIntegridade(page); /* exportar fica em Integridade e configurações › Dados e manutenção */
+  return { ctx, page, erros, downloads, noCatalogo };
 }
 async function baixar(page, seletor) {
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click(seletor)]);
@@ -113,8 +116,9 @@ const taxDb = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     {
-      const { ctx, page, erros, downloads } = await abrir(browser, viewport);
+      const { ctx, page, erros, downloads, noCatalogo } = await abrir(browser, viewport);
       console.log('\n== 1. Botões ==');
+      afirma(noCatalogo === 0 && await page.locator('#taxIntegridade #taxAcoesGerais #taxExportar').count() === 1, 'a exportação fica em Integridade › Dados e manutenção, nunca no Catálogo');
       afirma(await page.locator('#taxExportarExcel').isVisible() && await page.locator('#taxExportarJson').isVisible(), 'admin vê os dois botões de exportação');
       const rot = await page.evaluate(() => ['#taxExportarExcel', '#taxExportarJson'].map((q) => document.querySelector(q).textContent.trim()));
       afirma(/^baixar excel$/i.test(rot[0]) && /^baixar json$/i.test(rot[1]), 'rótulos exatos "Baixar Excel" e "Baixar JSON" (sem "(revisão)"/"(diagnóstico)")', rot.join(' / '));

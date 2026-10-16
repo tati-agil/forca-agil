@@ -437,13 +437,16 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     await ctx.close();
   }
 
-  /* ---------------- 8: Conceitos-base da Avaliação na Taxonomia ---------------- */
+  /* ---------------- 8: Conceitos-base da Avaliação na Taxonomia (Integridade e configurações) ---------------- */
   {
     const { ctx, page, erros } = await abrir(browser, viewport, { rota: 'admin' });
     await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 12000 });
     await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
     await page.waitForSelector('#taxPergunta');
     await page.click('.tax-dominio[data-dominio="arquitetural"]');
+    await page.waitForSelector('#taxIntegridadeLink', { timeout: 10000 });
+    afirma(await page.locator('#taxConceitosBase').count() === 0, 'a integração com a Avaliação não fica no Catálogo');
+    await page.click('#taxIntegridadeLink');
     await page.waitForSelector('#taxConceitosBase', { timeout: 10000 });
     await page.click('#taxIntegracaoLista > summary');
     const itens = await page.locator('#taxConceitosBase .tax-base-item').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-base')));
@@ -457,8 +460,8 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     afirma(await larguraOk(page), 'Taxonomia sem rolagem horizontal');
     await foto(page, 'conceitos-base-' + sufixo, '#taxConceitosBase');
     await page.click('#taxConceitosBase .tax-base-abrir[data-codigo="produto-principal"]');
-    await page.waitForSelector('#taxSecDefinicao', { timeout: 8000 });
-    afirma((await texto(page, '.tax-detalhe')).indexOf(NOVO_PP) !== -1, 'clicar abre o conceito');
+    await page.waitForSelector('.tax-ficha #taxSecDefinicao', { timeout: 8000 });
+    afirma((await texto(page, '.tax-ficha')).indexOf(NOVO_PP) !== -1, 'clicar abre o conceito no Catálogo');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }

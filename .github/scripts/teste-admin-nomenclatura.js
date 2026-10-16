@@ -60,8 +60,8 @@ async function rodada(browser, viewport, rotulo) {
   afirma(await visivel(page, '#admArqIrTaxonomia'), '2. admin geral: atalho "Abrir a aba Taxonomia" visível');
   afirma(await larguraOk(page), '2. área sem rolagem lateral');
   await page.click('#admArqIrTaxonomia');
-  await esperar(page, () => document.getElementById('adminPanelTaxonomia').classList.contains('active') && !!document.getElementById('taxDescricaoAba'));
-  afirma(await texto(page, '#taxDescricaoAba') === 'Administração dos conceitos, definições e relações utilizados na arquitetura organizacional.', '2. o atalho abre a aba Taxonomia, com a descrição dela');
+  await esperar(page, () => document.getElementById('adminPanelTaxonomia').classList.contains('active') && !!document.getElementById('taxTituloArea'));
+  afirma(await texto(page, '#taxTituloArea') === 'Taxonomia' && await texto(page, '#taxLocal') === 'Catálogo de conceitos', '2. o atalho abre a aba Taxonomia, no Catálogo (cabeçalho compacto)');
   afirma(await larguraOk(page), '2. Taxonomia sem rolagem lateral');
   afirma(!erros.length, 'sem erro de página (admin geral)', erros);
   await ctx.close();
