@@ -28,8 +28,8 @@ const SHOTS = process.env.FA_SHOTS_DIR || null;
 let falhas = 0;
 function afirma(cond, msg, detalhe) { console.log((cond ? '  ok    ' : '  FALHA ') + msg + (!cond && detalhe ? ' → ' + detalhe : '')); if (!cond) falhas++; }
 
-const arq = (nome, ativo) => ({ nome, ordem: 1, ativo, situacaoDefinicao: 'ainda não registrada' });
-const org = (nome, extra) => Object.assign({ nome, ordem: 1, ativo: true, situacaoDefinicao: 'em revisão', camada: 'B' }, extra || {});
+const arq = (nome, ativo) => ({ nome, ordem: 1, ativo });
+const org = (nome, extra) => Object.assign({ nome, ordem: 1, ativo: true, camada: 'B' }, extra || {});
 const semente = () => {
   const adm = {}; adm[chave(EMAIL)] = { email: EMAIL, name: 'ADMIN' };
   const users = {}; users[chave(EMAIL)] = { name: 'ADMIN', email: EMAIL, area: 'INFOR' };
@@ -119,7 +119,7 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
     /* o painel abre em "Conferindo o índice…" e só depois mostra a prévia: esperar a prévia, não o painel */
     await page.waitForSelector('#taxCamadaPrevia', { timeout: 6000 });
     const painel = await texto(page, '#taxPainelCamada');
-    afirma(/Mover de "Tipo organizacional" para "Organização do trabalho"\?/.test(painel) && /código SQUAD, o nome, a definição, as fontes, as relações e o histórico continuam como estão/.test(painel), 'prévia diz de → para e o que NÃO muda', painel);
+    afirma(/Mover de "Tipo organizacional" para "Organização do trabalho"\?/.test(painel) && /código SQUAD, o nome, a definição, as relações e o histórico continuam como estão/.test(painel), 'prévia diz de → para e o que NÃO muda', painel);
     afirma(await larguraOk(page), 'painel sem rolagem horizontal');
     await foto(page, 'camada-previa-' + suf, '#taxPainelCamada');
     let e0 = await escritas(page);

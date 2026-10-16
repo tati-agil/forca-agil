@@ -62,7 +62,7 @@ async function semear(log) {
   Object.values(CONTAS).forEach((c) => { usuarios[chave(c.email)] = { name: c.nome, area: 'Ambiente de testes' }; if (c.perfil) autorizados[chave(c.email)] = { tipo: c.perfil, email: c.email }; });
   const conceitos = {}, ligacoes = {};
   Object.keys(ROT).forEach((cod, i) => {
-    conceitos[cod] = { nome: ROT[cod], ordem: i + 1, ativo: true, situacaoDefinicao: 'ainda não registrada', camada: 'A' };
+    conceitos[cod] = { nome: ROT[cod], ordem: i + 1, ativo: true, camada: 'A' };
     ligacoes[cod] = { registradoEm: quando, registradoPor: CONTAS.admin.email, auditoriaId: 'semente-teste' };
   });
   for (const [caminho, valor] of [

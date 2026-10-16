@@ -17,11 +17,9 @@
    para estes 10 códigos):
      taxonomia/organizacional/conceitos/<codigo>/nome
      taxonomia/organizacional/conceitos/<codigo>/ativo
-     taxonomia/organizacional/conceitos/<codigo>/definicaoVigenteFonteId
-     taxonomia/organizacional/fontes/<codigo>/<definicaoVigenteFonteId>/texto
-   A definição vem EXATAMENTE da fonte apontada por definicaoVigenteFonteId — nunca de uma fonte
-   escolhida por ter situacao 'vigente'. Leituras ao vivo (.on): renomear muda a tela sem recarregar;
-   trocar o ponteiro desliga a leitura da fonte antiga e liga a da nova. ativo === false não esconde
+     taxonomia/organizacional/conceitos/<codigo>/definicao/texto   (a ÚNICA definição vigente, versionada — modelo simplificado)
+   A definição é a ÚNICA vigente do conceito (definicao/texto, versionada). Leituras ao vivo (.on):
+   renomear ou publicar uma nova versão da definição muda a tela sem recarregar. ativo === false não esconde
    nem muda nada: é só informação de apresentação/governança.
 
    CONTINGÊNCIA: nunca bloqueia nada e nunca altera resultado, código ou decisão — só o texto exibido,
@@ -231,24 +229,6 @@
     ref.on('value', cb, erro);
     return { ref: ref, cb: cb };
   }
-  /* Liga (ou religa) a leitura do texto da fonte APONTADA pelo conceito. */
-  function apontarFonte(c, fonteId, minha) {
-    var atual = ouvintesFonte[c];
-    if (atual && atual.fonteId === fonteId) return;
-    desligarFonte(c);
-    lido[c].texto = undefined; lido[c].textoDe = null;
-    if (!fonteId) return;
-    try {
-      var o = ouvir(RAIZ + '/fontes/' + c + '/' + fonteId + '/texto', minha, function (v) {
-        if (lido[c].fonteId !== fonteId) return; /* o ponteiro já mudou */
-        lido[c].texto = typeof v === 'string' ? v : null;
-        lido[c].textoDe = fonteId;
-        notificar();
-      }, function () { lido[c].texto = null; lido[c].textoDe = null; notificar(); });
-      o.fonteId = fonteId;
-      ouvintesFonte[c] = o;
-    } catch (e) { console.error('[posicionamentos] erro ao ler a definição de ' + c + ':', e); }
-  }
   function ligar() {
     desligar();
     var minha = geracao;
@@ -270,12 +250,12 @@
           lido[c].ativo = typeof v === 'boolean' ? v : undefined;
           notificar();
         }, function () { /* ativo é só informativo: sem ele, nada muda */ }));
-        ouvintesFirebase.push(ouvir(RAIZ + '/conceitos/' + c + '/definicaoVigenteFonteId', minha, function (v) {
-          var fid = typeof v === 'string' && v ? v : null;
-          lido[c].fonteId = fid;
-          apontarFonte(c, fid, minha);
+        /* modelo simplificado: a definição vigente é o próprio conceito (definicao/texto), sem fonte a seguir */
+        ouvintesFirebase.push(ouvir(RAIZ + '/conceitos/' + c + '/definicao/texto', minha, function (v) {
+          var t = typeof v === 'string' && v ? v : null;
+          lido[c].fonteId = t ? 'definicao' : null; lido[c].texto = t; lido[c].textoDe = t ? 'definicao' : null;
           notificar();
-        }, function () { lido[c].fonteId = null; apontarFonte(c, null, minha); notificar(); }));
+        }, function () { lido[c].fonteId = null; lido[c].texto = null; lido[c].textoDe = null; notificar(); }));
       } catch (e) {
         console.error('[posicionamentos] erro ao iniciar a leitura de ' + c + ':', e);
         lido[c].erro = true;

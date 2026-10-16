@@ -60,7 +60,7 @@ async function abrirApp(browser, avaliacoes, viewport) {
     'turmas-checkin': {}, 'turmas-espera': {}, 'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {},
     eventos: {}, 'turmas-publico': {}, 'eventos-publico': {}, 'avaliacoes-produto': avaliacoes, 'avaliacoes-squad': {},
     'motor-squad-config': {}, 'motor-squad-auditoria': {}, 'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {},
-    taxonomia: { arquitetural: { conceitos: { 'unidade-valor-associada': { nome: NOME_LONGO, ordem: 2, ativo: true, situacaoDefinicao: 'registrada' } } } } };
+    taxonomia: { arquitetural: { conceitos: { 'unidade-valor-associada': { nome: NOME_LONGO, ordem: 2, ativo: true } } } } };
   const cfg = { db: db, user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true };
   const ctx = await browser.newContext({ viewport: viewport });
   const page = await ctx.newPage();

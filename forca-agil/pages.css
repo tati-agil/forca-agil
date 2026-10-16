@@ -2707,6 +2707,10 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-sec--definicao .tax-bloco--vigente { border: 0; padding: 0; margin: 8px 0 0; background: transparent; }
 .tax-sec--definicao .tax-fonte--vigente { background: var(--space-1); border: 1px solid rgba(24,194,186,.55); padding: 14px; }
 .tax-sec--definicao .tax-definicao-texto { font-size: 1.04rem; line-height: 1.6; color: var(--ink); margin: 10px 0; }
+/* histórico da definição única: lista sem numeração (a versão já está no cabeçalho de cada item), dentro da caixa no celular */
+.tax-hist-def { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.tax-hist-def-item { min-width: 0; padding-top: 8px; border-top: 1px solid var(--line, rgba(255,255,255,.12)); overflow-wrap: anywhere; }
+.tax-hist-def-item:first-child { border-top: 0; padding-top: 0; }
 .tax-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 8px 0; }
 .tax-dl dt { color: var(--ink-3); }
 .tax-dl dd { margin: 0; overflow-wrap: anywhere; }

@@ -30,8 +30,7 @@ function semente() {
   const conceitos = {}, fontes = {};
   ['LINHA', 'PLATAFORMA', 'AREA_ESPECIALIZADA', 'COE'].concat(LINHA6).forEach((c, i) => {
     /* M2: Área Especializada sem definição vigente → o detalhe diz "indisponível" */
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: c === 'AREA_ESPECIALIZADA' ? null : 'f1' };
-    fontes[c] = { f1: { texto: 'Definição de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' } };
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', ...(c === 'AREA_ESPECIALIZADA' ? {} : { definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } }) };
   });
   return { 'fa-users': users, 'fa-admins': {}, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
     'fa-avaliacao-autorizados': aut, 'avaliacoes-produto': {}, 'avaliacoes-posicionamento': {}, 'posicionamento-vigente-por-item': {}, 'posicionamento-decisoes': {},

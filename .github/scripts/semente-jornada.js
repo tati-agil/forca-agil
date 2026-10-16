@@ -35,8 +35,7 @@ function semente() {
   const users = {}; [ARQ, AVAL].forEach((e) => { users[chave(e)] = { name: 'Pessoa', email: e, area: 'INFOR' }; });
   const conceitos = {}, fontes = {}, ligacoes = {};
   M.CODIGOS_FIRMES.concat(['LINHA', 'PLATAFORMA']).forEach((c, i) => {
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: 'f1' };
-    fontes[c] = { f1: { texto: 'Definição de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' } };
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
   });
   M.CODIGOS_FIRMES.forEach((c) => { ligacoes[c] = { registradoEm: QUANDO, registradoPor: ARQ, auditoriaId: 'l' }; });
   const CA = M.avaliar(CONFLITO, { N1: 'mesma' }), raC = {};

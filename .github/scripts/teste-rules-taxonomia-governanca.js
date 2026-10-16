@@ -66,8 +66,8 @@ async function main() {
   async function pode(rotulo, promessa) { try { await assertSucceeds(promessa); anota(rotulo, true); } catch (e) { anota(rotulo, false, 'foi NEGADO: ' + String(e.message || e).slice(0, 140)); } }
   async function nega(rotulo, promessa) { try { await assertFails(promessa); anota(rotulo, true); } catch (e) { anota(rotulo, false, 'foi PERMITIDO (deveria negar)'); } }
 
-  const arq = (nome, ativo) => ({ nome, ordem: 1, ativo, situacaoDefinicao: 'ainda não registrada' });
-  const org = (nome, extra) => Object.assign({ nome, ordem: 1, ativo: true, situacaoDefinicao: 'em revisão', camada: 'B' }, extra || {});
+  const arq = (nome, ativo) => ({ nome, ordem: 1, ativo });
+  const org = (nome, extra) => Object.assign({ nome, ordem: 1, ativo: true, camada: 'B' }, extra || {});
   async function semearBase() {
     await testEnv.clearDatabase();
     await semear(async (a) => {
@@ -439,6 +439,7 @@ async function main() {
     /* catálogo do motor de Posicionamento, como faPosicionamentos.codigos() o entrega na página */
     c.window.faPosicionamentos = { codigos: () => POS_DEZ.slice() };
     vm.createContext(c);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'taxonomia-definicao.js'), 'utf8'), c, { filename: 'taxonomia-definicao.js' });
     vm.runInContext(SRC_TAX, c, { filename: 'taxonomia.js' });
     return c.window.faTaxonomia._interno;
   }

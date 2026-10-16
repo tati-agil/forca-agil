@@ -30,7 +30,7 @@ const QUANDO = '2026-10-01T09:00:00.000Z';
 let falhas = 0;
 function afirma(cond, msg, detalhe) { console.log((cond ? '  ok    ' : '  FALHA ') + msg + (!cond && detalhe ? ' → ' + detalhe : '')); if (!cond) falhas++; }
 
-const org = (nome, extra) => Object.assign({ nome, ordem: 1, ativo: true, situacaoDefinicao: 'em revisão', camada: 'B' }, extra || {});
+const org = (nome, extra) => Object.assign({ nome, ordem: 1, ativo: true, camada: 'B' }, extra || {});
 const AUSENTE = 'PLATAFORMA_HABILITADORA_TECNOLOGIA';
 const INATIVO = 'PLATAFORMA_HABILITADORA_NEGOCIOS';
 const JA_LIGADO = 'COE';
@@ -52,7 +52,7 @@ const semente = () => {
     'posicionamento-classificacoes-auditoria': { [JA_LIGADO]: { p0: { tipo: 'ligacao_registrada', codigo: JA_LIGADO, usuario: { email: EMAIL }, dataHora: QUANDO } } },
     taxonomia: {
       meta: { cargaInicial: { feitaEm: QUANDO, feitaPor: EMAIL, resumo: {} }, indiceFilhos: { criadoEm: QUANDO, criadoPor: EMAIL } },
-      arquitetural: { conceitos: { canal: { nome: 'Canal Fictício', ordem: 1, ativo: true, situacaoDefinicao: 'ainda não registrada' } } },
+      arquitetural: { conceitos: { canal: { nome: 'Canal Fictício', ordem: 1, ativo: true } } },
       organizacional: { conceitos, auditoria: {} }
     }
   };

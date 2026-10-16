@@ -25,7 +25,8 @@
     ".github/scripts/teste-rules-objetos-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-exclusao-cadastros.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-analises-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-estrutura-atual.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-estrutura-atual.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-taxonomia-definicoes.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -520,18 +521,6 @@
       "sobre": "Na ficha do conceito, \"Atributos / perfil\" começa recolhido com \"X definidos de N\" (definido = estado decidido; \"ainda não definido\" e sem registro não contam); expande e recolhe pelo cabeçalho sem gravar nada; editar um atributo continua gravando, a seção fica aberta e a contagem acompanha; trocar de conceito recolhe; perfis lentos mostram \"carregando…\" e recusados \"indisponível agora\", nunca \"0 definidos\". Hermético."
     },
     {
-      "arquivo": ".github/scripts/teste-taxonomia-nova-versao.js",
-      "nome": "Taxonomia: texto-fonte imutável e \"Nova versão da definição\" (desktop e celular)",
-      "duracao": 6,
-      "sobre": "Detalhe mostra o código do conceito; a vigente não tem \"Editar\", e sim \"Nova versão da definição\", à vista no próprio cartão da definição vigente, que abre — junto da definição — o formulário de nova fonte pré-preenchido; salvar cria fonte NOVA \"em validação\" (criadoEm/criadoPor próprios), a anterior fica intacta e a definição não muda; \"Usar como vigente\" troca a definição e a anterior vira histórica com o mesmo texto. Hermético; a imutabilidade no banco é provada por teste-rules-taxonomia.js no emulador."
-    },
-    {
-      "arquivo": ".github/scripts/teste-taxonomia-rotulo-vigente.js",
-      "nome": "Taxonomia: \"Editar rótulo\" da fonte vigente (desktop e celular)",
-      "duracao": 4,
-      "sobre": "A fonte vigente tem \"Editar rótulo\": só o rótulo é editável (texto, contexto, tipo e vigência só para leitura, com o aviso de que o texto e a definição vigente permanecem iguais); cancelar e \"nada mudou\" não gravam; salvar grava só o rótulo — mesma fonte (mesmo id), texto/contexto/tipoRedacao/situação=vigente e definicaoVigenteFonteId iguais, nenhuma fonte nova — com histórico alteracao_fonte rótulo anterior → novo; fontes não vigentes seguem com Ver → Editar. Hermético; as regras (só o rótulo de fonte existente muda) são provadas no emulador por teste-rules-taxonomia.js."
-    },
-    {
       "arquivo": ".github/scripts/teste-taxonomia-governanca.js",
       "nome": "Taxonomia: ligações da Avaliação, inativação e relações (desktop e celular)",
       "duracao": 10,
@@ -554,6 +543,12 @@
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 8,
       "sobre": "Exportação da Taxonomia: JSON com cabeçalho, o nó taxonomia idêntico ao banco e conceitosConsolidados (um item por conceito, com domínio: definição e fonte vigentes, fontes históricas, perfis, relações de saída e de entrada, resumo da auditoria); Excel com a 1ª aba \"Visão consolidada por conceito\" (uma linha por conceito; cabeçalho congelado, 3 colunas fixas, autofiltro, larguras e quebra de linha conferidos no XML) e as abas Conceitos, Fontes (inclusive histórica e arquivada), Atributos, Perfis, Relações e Histórico, cabeçalhos em português; nenhuma escrita durante a exportação; leitura que não responde ou é recusada mostra erro visível com o ramo e não baixa nada; some no modo somente leitura. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-definicao.js",
+      "nome": "Taxonomia: definição única versionada nos dois domínios — atualizar, conferir, publicar e histórico, desktop e 375 px",
+      "duracao": 45,
+      "sobre": "Cada conceito mostra uma definição oficial vigente, a última atualização e uma só ação principal (ATUALIZAR DEFINIÇÃO), sem nenhum controle de fontes; o fluxo começa com o texto vigente, confere atual × proposta e publica versão + 1 com histórico e auditoria; clique repetido não duplica; histórico recolhido com a contagem real, anterior → novo e motivo, e as trocas do modelo antigo à parte; conceito sem definição registra a versão 1; identificação separada; ligação com a Avaliação preservada."
     },
     {
       "arquivo": ".github/scripts/teste-squad-liberacao.js",
