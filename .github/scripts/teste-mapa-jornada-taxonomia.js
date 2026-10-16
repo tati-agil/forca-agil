@@ -1,5 +1,12 @@
-/* MAPA DA FLORESTA COMO DESTINO + RETORNO CONTEXTUAL DA TAXONOMIA. Firebase falso em persistência real; hermético;
- * conteúdo fictício (semente-taxonomia-ficha.js). Desktop e 375 px.
+/* JORNADA INTEGRADA: MAPA DA FLORESTA COMO DESTINO, PARTES CONECTADAS E RETORNOS CONFERIDOS. Firebase falso em persistência
+ * real; hermético; conteúdo fictício (semente-taxonomia-ficha.js). Desktop e 375 px.
+ *   A2. "Como cada parte contribui para o Mapa": as sete partes, em lista (não sequência), cada uma levando à funcionalidade
+ *      existente conforme o perfil. Cenário 1: Abrir Mapa → "← Voltar para Avaliações e Mapa" → a mesma área do ADMIN.
+ *      Cenário 2/7: Documentação e mapas → "Abrir Mapa da Floresta" (o Mapa existente) → Voltar → Documentação; o valor
+ *      inicial continua avisado como "ainda não salvo" e nada é gravado. Do Mapa, "Definição e documentação do Mapa" só para
+ *      quem entra na área (cenário 6).
+ *   C2. Voltar da Taxonomia com edição aberta pede confirmação; o retorno é conferido — se o histórico não levar à origem,
+ *      vai direto ao endereço guardado.
  *
  *   A. ADMIN › Avaliações e Mapa: o destaque "Mapa da Floresta" vem ANTES dos grupos de configuração, com a descrição
  *      combinada, a origem/situação dos dados (demonstrativo sem cadastro; registros com cadastro; nunca exemplo fictício
@@ -23,6 +30,7 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.j
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 const DESKTOP = { width: 1280, height: 900 };
 const CELULAR = { width: 375, height: 800 };
+const DESCRICAO_ADMIN = 'O Mapa da Floresta reúne a visão das estruturas organizacionais e de suas responsabilidades. As avaliações, o posicionamento e os vínculos com as estruturas fornecem as informações utilizadas nessa representação.';
 const DESCRICAO = 'Visualize as estruturas organizacionais e os produtos, serviços e responsabilidades associados a elas, conforme os registros disponíveis.';
 let falhas = 0;
 function afirma(c, msg, det) { console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det !== undefined ? ' → ' + (typeof det === 'string' ? det : JSON.stringify(det)) : '')); if (!c) falhas++; }
@@ -72,17 +80,42 @@ async function cenarioA(browser, vp, nome) {
   await irAvaliacoesEMapa(page);
   const ordem = await page.evaluate(() => { const m = document.getElementById('avpAdminMapa'), g = document.querySelector('#adminAvaliacaoProduto .avp-admin-grupo'), p = document.getElementById('avpAdminPapel'); return !!m && !!g && !!p && (m.compareDocumentPosition(g) & 4) && (m.compareDocumentPosition(p) & 4); });
   afirma(!!ordem, 'o destaque "Mapa da Floresta" vem antes dos grupos de configuração');
-  afirma((await page.innerText('#avpAdminMapaTitulo')).trim() === 'Mapa da Floresta' && (await page.innerText('#avpAdminMapa .avp-mapa-desc')).trim() === DESCRICAO, 'título e descrição');
+  afirma((await page.innerText('#avpAdminMapaTitulo')).trim() === 'Mapa da Floresta' && /destino da jornada/i.test(await page.innerText('#avpAdminMapa .avp-mapa-rotulo')) && (await page.innerText('#avpAdminMapa .avp-mapa-desc')).trim() === DESCRICAO_ADMIN, 'título "Mapa da Floresta — destino da jornada" e o texto combinado');
   afirma(await situacao(page, 'avpAdminMapaSituacao') === 'demonstrativo' && /modo demonstrativo, com exemplos fictícios que não representam relações reais/.test(await page.innerText('#avpAdminMapaSituacao')), 'sem cadastro de estruturas: diz que o Mapa é demonstrativo e que os exemplos não são relações reais');
   afirma(await page.getAttribute('#avpAdminAbrirMapa', 'href') === '#avaliacoes?mf=mapa' && (await page.innerText('#avpAdminAbrirMapa')).trim().toLowerCase() === 'abrir mapa da floresta' && await page.locator('#avpAdminMapa .btn--primary').count() === 1, 'ação principal "Abrir Mapa da Floresta" → #avaliacoes?mf=mapa (a única ação amarela do destaque)');
-  afirma(await page.getAttribute('#avpAdminJornadaMapa', 'href') === '#avaliacoes?mf=catalogo' && (await page.innerText('#avpAdminJornadaMapa')).trim() === 'Consultar jornada até o Mapa', '"Consultar jornada até o Mapa" → #avaliacoes?mf=catalogo');
-  const como = await page.evaluate(() => document.getElementById('avpAdminMapaComo').textContent);
-  afirma(/Produto\/Serviço/.test(como) && /Posicionamento/.test(como) && /vínculo com a estrutura responsável/.test(como) && /não são uma sequência obrigatória/.test(como) && /Adequação à Squad \(S1–S8\) continua opcional/.test(como) && !(await page.evaluate(() => document.getElementById('avpAdminMapaComo').open)), 'explica como as avaliações chegam ao Mapa, sem sequência obrigatória e com a Squad opcional (recolhido)');
+  afirma(await page.getAttribute('#avpAdminJornadaMapa', 'href') === '#avaliacoes?mf=catalogo' && (await page.innerText('#avpAdminJornadaMapa')).trim().toLowerCase() === 'consultar jornada até o mapa', '"Consultar jornada até o Mapa" → #avaliacoes?mf=catalogo');
+  afirma((await page.innerText('#avpAdminDefinicaoMapa')).trim().toLowerCase() === 'consultar definição e documentação', '"Consultar definição e documentação"');
+  /* as partes conectadas: lista (não sequência), cada uma com a sua responsabilidade e o acesso existente */
+  const partes = await page.$$eval('#avpAdminPartes .avp-parte strong', (els) => els.map((e) => e.textContent.trim()));
+  afirma(JSON.stringify(partes) === JSON.stringify(['Avaliação de Produto/Serviço', 'Posicionamento Organizacional', 'Estruturas Organizacionais', 'Vínculo de responsabilidade', 'Mapa da Floresta', 'Taxonomia', 'Adequação à Squad']) && await page.locator('#avpAdminPartes ol').count() === 0, 'as sete partes, em lista (sem numeração de etapas)', partes);
+  const textoPartes = await page.innerText('#avpAdminPartes');
+  afirma(/Não é uma sequência obrigatória/.test(textoPartes) && /não é etapa obrigatória para todos os itens/.test(textoPartes) && /quando registrado/.test(textoPartes), 'diz que não há sequência obrigatória, que a Squad é complementar e que o vínculo existe só quando registrado');
+  afirma(await page.getAttribute('#avpParteProduto', 'href') === '#avaliacoes?av=lista' && await page.getAttribute('#avpPartePosicionamento', 'href') === '#avaliacoes?po=lista' && await page.getAttribute('#avpParteSquad', 'href') === '#avaliacoes?sq=lista' && await page.locator('#avpParteMapa, #avpParteTaxonomia').count() === 2, 'cada parte leva à funcionalidade existente (avaliações, posicionamentos, Squad, Mapa, Taxonomia)');
+  afirma(await page.locator('#avpParteEstruturasSem').count() === 1 && /ainda não habilitado/.test(await page.innerText('#avpParteEstruturasSem')), 'Estruturas sem cadastro habilitado: o nome sem link, dizendo por quê');
+  afirma(await page.locator('#avpAdminPartes ~ * .avp-admin-grupo, #avpAdminPartes ~ .avp-admin-grupo').count() >= 3 && await page.locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn, #avpConfigNaturezasBtn, #avpDocumentacaoBtn, #avpUsuariosBtn').count() === 5, 'as configurações e cadastros continuam abaixo (Questionários, Motores, Naturezas, Documentação, Usuários)');
+  /* cenário 1: Abrir Mapa → Voltar para Avaliações e Mapa */
+  const hashAdmin = await page.evaluate(() => location.hash);
+  await page.click('#avpAdminAbrirMapa');
+  await esperarCondicao(page, () => /^#avaliacoes\?mf=mapa/.test(location.hash) && !!document.getElementById('mfVoltar'), null, { limite: 12000, descricao: 'Mapa aberto pelo ADMIN' });
+  afirma((await page.innerText('#mfVoltar')).trim() === '← Voltar para Avaliações e Mapa', 'no Mapa aberto pelo ADMIN: "← Voltar para Avaliações e Mapa"');
+  afirma(await page.locator('#mfmDefinicao').count() === 1 && await page.getAttribute('#mfmDefinicao', 'href') === '#admin?arq=documentacao', 'do Mapa: "Definição e documentação do Mapa" (o cartão MAPA_FLORESTA existente)');
+  await page.click('#mfVoltar');
+  await esperarCondicao(page, (h) => location.hash === h && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura' && !!document.getElementById('avpAdminMapa'), hashAdmin, { descricao: 'de volta a Avaliações e Mapa' });
+  afirma(true, 'Voltar devolve a ADMIN › Avaliações e Mapa (' + hashAdmin + ')');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   /* definição oficial existente */
   await page.click('#avpAdminDefinicaoMapa');
   await esperarCondicao(page, () => /^#admin\?arq=documentacao/.test(location.hash) && !!document.getElementById('avpDocsMapaFlorestaTitulo'), null, { descricao: 'definição do Mapa (Documentação e mapas)' });
-  afirma(true, '"Consultar definição do Mapa" abre #admin?arq=documentacao, no cartão MAPA_FLORESTA existente');
+  afirma(true, '"Consultar definição e documentação" abre #admin?arq=documentacao, no cartão MAPA_FLORESTA existente');
+  const escritasAntes = await page.evaluate(() => (window.__ESCRITAS || []).length);
+  afirma(await page.locator('#avpMapaFabrica').count() === 1 && /Valor inicial — ainda não salvo no banco/.test(await page.innerText('#avpMapaFabrica')), 'sem definição gravada: o valor inicial continua avisado como "ainda não salvo no banco"');
+  afirma(await page.locator('#avpMapaAbrirMapa').count() === 1 && await page.getAttribute('#avpMapaAbrirMapa', 'href') === '#avaliacoes?mf=mapa' && await page.locator('#avpMapaEditarBtn').count() === 1, 'o cartão tem "Abrir Mapa da Floresta" (o Mapa existente) ao lado de "Editar definição"');
+  await page.click('#avpMapaAbrirMapa');
+  await esperarCondicao(page, () => /^#avaliacoes\?mf=mapa/.test(location.hash) && !!document.getElementById('mfVoltar'), null, { limite: 12000, descricao: 'Mapa aberto pela Documentação' });
+  afirma((await page.innerText('#mfVoltar')).trim() === '← Voltar para Avaliações e Mapa', 'Mapa aberto pela Documentação: "← Voltar para Avaliações e Mapa"');
+  await page.click('#mfVoltar');
+  await esperarCondicao(page, () => /^#admin\?arq=documentacao/.test(location.hash) && !!document.getElementById('avpDocsMapaFlorestaTitulo'), null, { descricao: 'de volta à Documentação e mapas' });
+  afirma(await page.evaluate(() => (window.__ESCRITAS || []).length) === escritasAntes && !(await page.evaluate(() => window.__CFG.__dbReal['arquitetura-definicoes'])), 'Voltar devolve à Documentação e mapas; nada foi gravado (a definição continua não registrada)');
   await page.goBack();
   await page.waitForSelector('#avpAdminMapa', { timeout: 8000 });
   /* o Mapa existente */
@@ -104,6 +137,7 @@ async function cenarioA(browser, vp, nome) {
 }
 
 async function cenarioB(browser, vp, nome) {
+  /* cenário 6: quem tem só a Avaliação consulta o Mapa, sem o acesso à área administrativa */
   console.log('\n== B. ' + nome + ': área Avaliação (sem ADMIN) — o Mapa no Início ==');
   const { ctx, page, erros } = await abrir(browser, vp, { email: 'avaliadora@previ.com.br', admin: false, tipo: 'avaliacao', hash: 'avaliacoes' });
   await page.waitForSelector('#avpInicioMapaSec', { timeout: 15000 });
@@ -113,6 +147,7 @@ async function cenarioB(browser, vp, nome) {
   await page.click('#avpInicioMapa');
   await esperarCondicao(page, () => /^#avaliacoes\?mf=mapa/.test(location.hash) && !!document.getElementById('mfmMapa'), null, { limite: 12000, descricao: 'Mapa aberto pelo Início' });
   afirma(true, 'quem tem só a Avaliação abre o Mapa pelo Início');
+  afirma(await page.locator('#mfmDefinicao').count() === 0 && (await page.innerText('#mfVoltar')).trim() === '← Voltar para Avaliações', 'sem acesso à área administrativa: o Mapa não oferece a documentação do ADMIN; o Voltar é o da Avaliação');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
   await ctx.close();
@@ -136,6 +171,12 @@ async function cenarioC(browser, vp, nome) {
   await page.click('#taxEditarInfoBtn');
   await page.fill('#taxF_observacoes', 'Rascunho fictício não salvo.');
   await page.click('#taxVoltarOrigem');
+  await page.waitForSelector('#taxConfirmaVolta', { timeout: 4000 });
+  afirma(/edição não salva/.test(await page.innerText('#taxConfirmaVolta')) && await abaAtiva(page) === 'adminPanelTaxonomia', 'com edição aberta, voltar pede confirmação (e não sai)');
+  await page.click('#taxConfirmaVoltaNao');
+  afirma(await page.locator('#taxConfirmaVolta').count() === 0 && await page.inputValue('#taxF_observacoes') === 'Rascunho fictício não salvo.', '"Continuar editando": fica na Taxonomia, com o texto');
+  await page.click('#taxVoltarOrigem');
+  await page.click('#taxConfirmaVoltaSim');
   await esperarCondicao(page, (h) => location.hash === h && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura', hashOrigem, { descricao: 'de volta a Avaliações e Mapa' });
   afirma(await page.locator('#avpAdminMapa').isVisible(), 'voltar devolve à área de origem (Avaliações e Mapa, ' + hashOrigem + '), não ao Catálogo');
   await page.goForward();
@@ -159,6 +200,17 @@ async function cenarioC(browser, vp, nome) {
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
   await ctx.close();
+  /* retorno conferido: o histórico não leva à origem (entrada anterior é outra) → vai direto ao endereço guardado */
+  const f = await abrir(browser, vp, { hash: 'avaliacoes' });
+  await f.page.waitForSelector('#avpInicio', { timeout: 15000 });
+  await f.page.evaluate(() => { location.hash = '#admin'; });
+  await f.page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 15000 });
+  await f.page.evaluate(() => { history.replaceState({ faAbaAtual: 'adminPanelTaxonomia', faTaxOrigem: { aba: 'adminPanelArquitetura', rotulo: 'Avaliações e Mapa', hash: '#admin?arq=inicio' } }, '', '#admin'); window.faAdminAbrirAba('adminPanelTaxonomia'); });
+  await f.page.waitForSelector('#taxVoltarOrigem', { timeout: 8000 });
+  await f.page.click('#taxVoltarOrigem');
+  await esperarCondicao(f.page, () => location.hash === '#admin?arq=inicio' && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura', null, { descricao: 'retorno conferido' });
+  afirma(true, 'histórico diferente do esperado (entrada anterior era a Avaliação): o retorno vai direto a Avaliações e Mapa, nunca para outro lugar');
+  await f.ctx.close();
   /* entrada direta pela aba Taxonomia */
   const d = await abrir(browser, vp);
   await d.page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 15000 });

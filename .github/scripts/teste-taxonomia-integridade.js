@@ -142,9 +142,9 @@ async function cenarioB(browser) {
     const blocos = [await estadoBloco(page, 'taxConceitosBase'), await estadoBloco(page, 'taxConceitosBasePos')];
     const pior = blocos.indexOf('problema') !== -1 ? 'problema' : blocos.indexOf('erro') !== -1 ? 'erro' : blocos.indexOf('conferindo') !== -1 ? 'conferindo' : 'ok';
     afirma(pior === e && await estadoBloco(page, 'taxVerificacoes') === e, c.nome + ': o acesso e o resumo das Verificações são o pior estado dos dois blocos (' + blocos.join(' / ') + ')', pior + ' ≠ ' + e);
-    if (e === 'ok') afirma(/Nenhuma pendência/.test(await page.locator('#taxVerifOk').innerText()) && !(await page.evaluate(() => document.getElementById('taxVerifDetalhes').open)), c.nome + ': "Nenhuma pendência" e os detalhes técnicos recolhidos (sem os 11 + 10 à vista)');
-    else if (e === 'conferindo') afirma(/Conferindo as conexões/.test(await page.locator('#taxVerifResumo').innerText()) && await page.locator('#taxVerifOk').count() === 0, c.nome + ': "Conferindo as conexões…", nunca "Nenhuma pendência"');
-    else afirma(await page.locator('#taxVerifOk').count() === 0 && (e === 'problema' ? /Pendências em:/ : /Não foi possível conferir:/).test(await page.locator('#taxVerifResumo').innerText()), c.nome + ': o resumo diz qual conexão tem problema', await page.locator('#taxVerifResumo').innerText());
+    if (e === 'ok') afirma(/Conexões funcionando corretamente./.test(await page.locator('#taxVerifOk').innerText()) && !(await page.evaluate(() => document.getElementById('taxVerifDetalhes').open)), c.nome + ': "Conexões funcionando corretamente" e os detalhes técnicos recolhidos (sem os 11 + 10 à vista)');
+    else if (e === 'conferindo') afirma(/Conferindo as conexões/.test(await page.locator('#taxVerifResumo').innerText()) && await page.locator('#taxVerifOk').count() === 0, c.nome + ': "Conferindo as conexões…", nunca "Conexões funcionando corretamente"');
+    else afirma(await page.locator('#taxVerifOk').count() === 0 && (e === 'problema' ? /Conexão com problema:/ : /Não foi possível conferir:/).test(await page.locator('#taxVerifResumo').innerText()), c.nome + ': o resumo diz qual conexão tem problema', await page.locator('#taxVerifResumo').innerText());
     afirma(erros.length === 0, c.nome + ': nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }

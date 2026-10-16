@@ -138,7 +138,7 @@ const atalho = (page) => page.evaluate(() => { const b = document.getElementById
     afirma(JSON.stringify(b['avaliacao-classificacoes']['produto-principal']) === JSON.stringify(semente()['avaliacao-classificacoes']['produto-principal']), 'a ligação que já existia não foi tocada');
     await esperarCondicao(page, () => /4 de 11 classificações conectadas/.test((document.getElementById('taxIntegracaoResumo') || {}).innerText || ''), null, { descricao: 'contagem atualizada' });
     afirma(await page.locator('#taxRegistrarLigacoesBtn').count() === 0, 'idempotente: depois do registro não sobra nada a registrar (sem botão)');
-    afirma(await page.locator('#taxVerificacoes[data-estado="problema"]').count() === 1 && /Pendências em:/.test(await texto(page, '#taxVerifResumo')), 'as Verificações continuam com pendência (faltam conceitos: 4 de 11)', await texto(page, '#taxVerifResumo'));
+    afirma(await page.locator('#taxVerificacoes[data-estado="problema"]').count() === 1 && /Conexão com problema:/.test(await texto(page, '#taxVerifResumo')) && /Correção disponível:/.test(await texto(page, '#taxCorrecao') + '') === false, 'as Verificações continuam com pendência (faltam conceitos: 4 de 11)', await texto(page, '#taxVerifResumo'));
 
     console.log('\n== 3. Conceito ligado à Avaliação não pode ser inativado ==');
     await abreConceito(page, 'canal');
