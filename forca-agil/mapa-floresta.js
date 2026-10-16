@@ -227,7 +227,7 @@
       porque: 'Sem um posicionamento firme não há tipo de estrutura com que registrar o vínculo.', onde: 'Ficha do Posicionamento deste registro.', quem: QUEM_POSICIONA };
     if (e.id === 'estrutura') return { etapa: e.id, falta: 'Uma estrutura concreta ativa do tipo ' + (tipo || 'recomendado') + '.',
       porque: 'O Posicionamento definiu o tipo, mas não cria a estrutura; o vínculo só pode ser registrado com uma estrutura desse tipo.',
-      onde: 'ADMIN › Avaliações e Mapa › Estruturas Organizacionais (o tipo já vem escolhido; você confere antes de salvar). Depois, volte para este registro.', quem: QUEM_POSICIONA };
+      onde: 'ADMIN › Avaliações e Mapa › Estruturas do Mapa da Floresta (o tipo já vem escolhido; você confere antes de salvar). Depois, volte para este registro.', quem: QUEM_POSICIONA };
     if (e.id === 'vinculo') return { etapa: e.id, falta: e.estado === 'revisao' ? 'Revisar a estrutura responsável: o vínculo precisa de revisão.' : 'Registrar a estrutura responsável (o vínculo).',
       porque: 'A estrutura já existe, mas o Posicionamento sozinho não cria o vínculo; é o vínculo que leva este registro ao Mapa.', onde: 'Ficha do Posicionamento › Estrutura responsável.', quem: QUEM_POSICIONA };
     return null;
@@ -491,7 +491,7 @@
         'não viram nós do Mapa: aparecerão indiretamente, nos detalhes da estrutura responsável, quando essa associação for registrada. ' +
         'Este catálogo mostra, a partir das avaliações já gravadas, em que ponto cada objeto está. Nada aqui é gravado.</p>' +
         (habilitacaoPendente() ? '' : cadastroDisponivel() ? '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note">' + (emTestes() ? '<strong>Ambiente de testes.</strong> As estruturas e os vínculos de estrutura responsável vêm do Firebase Emulator — não são dados do banco oficial.' + (gravacaoAtiva() ? '' : ' <strong>Gravação suspensa:</strong> só consulta.')
-          : 'As estruturas e os vínculos de estrutura responsável vêm do cadastro de Estruturas Organizacionais.' + (gravacaoAtiva() ? '' : ' <strong>Gravação suspensa:</strong> só consulta.')) + '</div>'
+          : 'As estruturas e os vínculos de estrutura responsável vêm do cadastro de Estruturas do Mapa da Floresta.' + (gravacaoAtiva() ? '' : ' <strong>Gravação suspensa:</strong> só consulta.')) + '</div>'
           : '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>') +
         (focoItem ? '' : '</details>');
       if (cadastroDisponivel() && podeLer()) ligarCadastro();

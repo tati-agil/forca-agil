@@ -1,6 +1,6 @@
 /* ============================================================
    Força Ágil — Núcleo de Avaliação, Taxonomia e Mapa da Floresta
-   ESTRUTURAS ORGANIZACIONAIS — TELA DE CADASTRO (ADMIN › Avaliações e Mapa › Estruturas Organizacionais)
+   ESTRUTURAS ORGANIZACIONAIS — TELA DE CADASTRO (ADMIN › Avaliações e Mapa › Estruturas do Mapa da Floresta)
    (window.faEstruturasAdmin)
 
    Criar, consultar, alterar e encerrar as estruturas organizacionais concretas dos 8 tipos firmes (as seis
@@ -313,7 +313,7 @@
       return avisoSituacaoHtml('estAmbiente', 'O que for cadastrado aqui fica só no Firebase Emulator — não vai para o banco oficial.');
     }
     function listaHtml() {
-      var h = cabecalho('Estruturas Organizacionais', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'estVoltarOrigem') + abas('estruturas') + aviso();
+      var h = cabecalho('Estruturas do Mapa da Floresta', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'estVoltarOrigem') + abas('estruturas') + aviso();
       h += '<p class="est-intro">As estruturas organizacionais concretas — Linhas, Áreas Especializadas e Centros de Excelência — que aparecem no Mapa da Floresta. O tipo de cada uma é um dos oito posicionamentos firmes.</p>' +
         '<p class="est-intro est-tres" id="estTresCoisas">Três coisas diferentes: o <strong>tipo</strong> é recomendado pelo Posicionamento de cada item; a <strong>estrutura concreta</strong> é cadastrada aqui (pode existir antes de qualquer avaliação); o <strong>vínculo de responsabilidade</strong> é registrado na ficha do Posicionamento. O Mapa mostra as estruturas e os vínculos registrados.</p>';
       h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="estNova">Cadastrar estrutura</button>' : '') +
@@ -981,7 +981,7 @@
       h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir a estrutura responsável') + '</h5>';
       if (!opcoes.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa do tipo ' + esc(nomeTipo(tipo)) + (v ? ' além da atual' : '') + ' está cadastrada. ' +
         'O Posicionamento definiu o tipo, mas não cria a estrutura. A recomendação continua válida sem estrutura vinculada, e não é preciso cadastrar uma estrutura para concluir esta avaliação nem para continuar a análise da área. ' +
-        'Se houver decisão organizacional de criar uma estrutura deste tipo, ela é cadastrada em ADMIN › Avaliações e Mapa › Estruturas Organizacionais, e você volta para cá depois.</p>' +
+        'Se houver decisão organizacional de criar uma estrutura deste tipo, ela é cadastrada em ADMIN › Avaliações e Mapa › Estruturas do Mapa da Floresta, e você volta para cá depois.</p>' +
         (tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#admin?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
           (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura deste tipo</a></p>' : '');
       else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura (' + esc(nomeTipo(tipo)) + ') <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +

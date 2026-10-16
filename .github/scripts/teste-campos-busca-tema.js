@@ -128,7 +128,10 @@ async function conferir(page, sel, rotulo) {
     afirma(ac.atual === 'Desativada' && ac.botao === 'Alterar disponibilidade' && !/Habilitação/.test(await r.page.evaluate(() => document.getElementById('avpAdminAcessos').textContent)), 'rótulos compreensíveis: "Desativada", "Alterar disponibilidade" (sem "Habilitação")', ac);
     const g2 = await r.page.evaluate(() => (window.__ESCRITAS || []).length);
     await r.page.click('#anHabAlterar'); await r.page.waitForSelector('#anFormHabilitacao');
-    const ops = await r.page.$$eval('#anFormHabilitacao .an-opcao span', (l) => l.map((x) => x.textContent));
+    const ops = await r.page.$$eval('#anFormHabilitacao .an-opcao > span', (l) => l.map((x) => x.firstChild.textContent));
+    const dicas = await r.page.$$eval('#anFormHabilitacao .an-hab-dica', (l) => l.map((x) => x.textContent));
+    afirma(dicas.length === 3 && /Nenhum dado é apagado/.test(dicas[0]) && /homologar/.test(dicas[1]), 'cada estado com uma linha curta, só no formulário (desativar não apaga dados)', dicas);
+    afirma((await r.page.innerText('label[for="anHabMotivo"]')).includes('Motivo (obrigatório)'), 'o motivo é dito obrigatório');
     afirma(JSON.stringify(ops) === JSON.stringify(['Desativada', 'Ativada só para o admin geral (homologação)', 'Ativada para os perfis autorizados']), 'opções: Desativada / Ativada só para o admin geral / Ativada para os perfis autorizados', ops);
     afirma((await medir(r.page, '#anHabMotivo')).lumFundo < 0.1, 'o "Motivo" da disponibilidade no tema escuro');
     await r.page.click('#anHabCancelar');

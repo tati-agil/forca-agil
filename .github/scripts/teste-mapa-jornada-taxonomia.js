@@ -30,7 +30,7 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.j
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 const DESKTOP = { width: 1280, height: 900 };
 const CELULAR = { width: 375, height: 800 };
-const DESCRICAO_ADMIN = 'O Mapa da Floresta reúne a visão das estruturas organizacionais e de suas responsabilidades. As avaliações, o posicionamento e os vínculos com as estruturas fornecem as informações utilizadas nessa representação.';
+const DESCRICAO_ADMIN = 'O Mapa da Floresta reúne a visão das estruturas organizacionais e de suas responsabilidades.';
 const DESCRICAO = 'Visualize as estruturas organizacionais e os produtos, serviços e responsabilidades associados a elas, conforme os registros disponíveis.';
 let falhas = 0;
 function afirma(c, msg, det) { console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det !== undefined ? ' → ' + (typeof det === 'string' ? det : JSON.stringify(det)) : '')); if (!c) falhas++; }
@@ -85,12 +85,14 @@ async function cenarioA(browser, vp, nome) {
   afirma(await page.getAttribute('#avpAdminAbrirMapa', 'href') === '#avaliacoes?mf=mapa' && (await page.innerText('#avpAdminAbrirMapa')).trim().toLowerCase() === 'abrir mapa da floresta' && await page.locator('#avpAdminMapa .btn--primary').count() === 1, 'ação principal "Abrir Mapa da Floresta" → #avaliacoes?mf=mapa (a única ação amarela do destaque)');
   afirma(await page.getAttribute('#avpAdminJornadaMapa', 'href') === '#avaliacoes?mf=catalogo' && (await page.innerText('#avpAdminJornadaMapa')).trim().toLowerCase() === 'consultar jornada até o mapa', '"Consultar jornada até o Mapa" → #avaliacoes?mf=catalogo');
   afirma((await page.innerText('#avpAdminDefinicaoMapa')).trim().toLowerCase() === 'consultar definição e documentação', '"Consultar definição e documentação"');
+  afirma(await page.locator('#avpAdminMapa .btn').count() === 1 && await page.locator('#avpAdminMapa .avp-mapa-secundarias .avp-mapa-link').count() === 2, 'um destaque só: uma ação principal; jornada e definição como links secundários');
+  afirma(await page.locator('#avpParteMapa').count() === 0 && await page.locator('#adminAvaliacaoProduto a[href="#avaliacoes?mf=mapa"]').count() === 1, 'nenhum segundo "Abrir o Mapa" na mesma tela');
   /* as partes conectadas: lista (não sequência), cada uma com a sua responsabilidade e o acesso existente */
   const partes = await page.$$eval('#avpAdminPartes .avp-parte strong', (els) => els.map((e) => e.textContent.trim()));
-  afirma(JSON.stringify(partes) === JSON.stringify(['Avaliação de Produto/Serviço', 'Posicionamento Organizacional', 'Estruturas Organizacionais', 'Vínculo de responsabilidade', 'Mapa da Floresta', 'Taxonomia', 'Adequação à Squad']) && await page.locator('#avpAdminPartes ol').count() === 0, 'as sete partes, em lista (sem numeração de etapas)', partes);
+  afirma(JSON.stringify(partes) === JSON.stringify(['Avaliação de Produto/Serviço', 'Posicionamento Organizacional', 'Estruturas do Mapa da Floresta', 'Vínculo de responsabilidade', 'Mapa da Floresta', 'Taxonomia', 'Adequação à Squad']) && await page.locator('#avpAdminPartes ol').count() === 0, 'as sete partes, em lista (sem numeração de etapas)', partes);
   const textoPartes = await page.innerText('#avpAdminPartes');
   afirma(/Não é uma sequência obrigatória/.test(textoPartes) && /não é etapa obrigatória para todos os itens/.test(textoPartes) && /quando registrado/.test(textoPartes), 'diz que não há sequência obrigatória, que a Squad é complementar e que o vínculo existe só quando registrado');
-  afirma(await page.getAttribute('#avpParteProduto', 'href') === '#avaliacoes?av=lista' && await page.getAttribute('#avpPartePosicionamento', 'href') === '#avaliacoes?po=lista' && await page.getAttribute('#avpParteSquad', 'href') === '#avaliacoes?sq=lista' && await page.locator('#avpParteMapa, #avpParteTaxonomia').count() === 2, 'cada parte leva à funcionalidade existente (avaliações, posicionamentos, Squad, Mapa, Taxonomia)');
+  afirma(await page.getAttribute('#avpParteProduto', 'href') === '#avaliacoes?av=lista' && await page.getAttribute('#avpPartePosicionamento', 'href') === '#avaliacoes?po=lista' && await page.getAttribute('#avpParteSquad', 'href') === '#avaliacoes?sq=lista' && await page.locator('#avpParteTaxonomia').count() === 1, 'cada parte leva à funcionalidade existente (avaliações, posicionamentos, Squad, Taxonomia; o Mapa pelo destaque)');
   afirma(await page.locator('#avpParteEstruturasSem').count() === 1 && /ainda não habilitado/.test(await page.innerText('#avpParteEstruturasSem')), 'Estruturas sem cadastro habilitado: o nome sem link, dizendo por quê');
   afirma(await page.locator('#avpAdminPartes ~ * .avp-admin-grupo, #avpAdminPartes ~ .avp-admin-grupo').count() >= 3 && await page.locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn, #avpConfigNaturezasBtn, #avpDocumentacaoBtn, #avpUsuariosBtn').count() === 5, 'as configurações e cadastros continuam abaixo (Questionários, Motores, Naturezas, Documentação, Usuários)');
   /* cenário 1: Abrir Mapa → Voltar para Avaliações e Mapa */
@@ -109,7 +111,7 @@ async function cenarioA(browser, vp, nome) {
   afirma(true, '"Consultar definição e documentação" abre #admin?arq=documentacao, no cartão MAPA_FLORESTA existente');
   const escritasAntes = await page.evaluate(() => (window.__ESCRITAS || []).length);
   afirma(await page.locator('#avpMapaFabrica').count() === 1 && /Valor inicial — ainda não salvo no banco/.test(await page.innerText('#avpMapaFabrica')), 'sem definição gravada: o valor inicial continua avisado como "ainda não salvo no banco"');
-  afirma(await page.locator('#avpMapaAbrirMapa').count() === 1 && await page.getAttribute('#avpMapaAbrirMapa', 'href') === '#avaliacoes?mf=mapa' && await page.locator('#avpMapaEditarBtn').count() === 1, 'o cartão tem "Abrir Mapa da Floresta" (o Mapa existente) ao lado de "Editar definição"');
+  afirma(await page.locator('#avpMapaAbrirMapa.avp-mapa-link').count() === 1 && await page.getAttribute('#avpMapaAbrirMapa', 'href') === '#avaliacoes?mf=mapa' && await page.locator('#avpMapaEditarBtn').count() === 1 && /definição oficial/i.test(await page.innerText('#avpDocsMapaFloresta .avp-docs-definicao-rotulo')), 'o cartão tem "Abrir Mapa da Floresta" (o Mapa existente) ao lado de "Editar definição"');
   await page.click('#avpMapaAbrirMapa');
   await esperarCondicao(page, () => /^#avaliacoes\?mf=mapa/.test(location.hash) && !!document.getElementById('mfVoltar'), null, { limite: 12000, descricao: 'Mapa aberto pela Documentação' });
   afirma((await page.innerText('#mfVoltar')).trim() === '← Voltar para Avaliações e Mapa', 'Mapa aberto pela Documentação: "← Voltar para Avaliações e Mapa"');
