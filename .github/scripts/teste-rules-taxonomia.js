@@ -312,11 +312,20 @@ async function main() {
   D.inativando = { codigo: 'BETA', motivo: 'Conceito substituído (teste)', erro: null };
   await opera('INATIVAR o conceito (desativação lógica, com motivo)', () => I.inativarConceito('organizacional', 'BETA'), async () => (await ler(ORG + '/conceitos/BETA/ativo')) === false && (await ler(ORG + '/conceitos/BETA/inativacao/motivo')) === 'Conceito substituído (teste)');
   I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
-  D.edicao = { tipo: 'perfil', chave: 'ALCANCE', valores: { estado: 'registrado', valor: 'específica', papel: 'definidor', origem: 'inferência' }, erro: null };
-  await opera('PERFIL registrado (valor + papel + origem)', () => I.salvarPerfil('organizacional', 'BETA'), async () => (await ler(ORG + '/perfis/BETA/ALCANCE/estado')) === 'registrado');
+  /* Gerenciar perfil: vários atributos numa gravação só (um evento de auditoria por atributo) — nas regras reais */
+  let L = I.novoPerfilLote('BETA', D.detalhe, I.atributosOrdenados(D));
+  L.valores.ALCANCE = { estado: 'registrado', valor: 'específica', papel: 'definidor', origem: 'inferência' };
+  L.valores.BENEF = { estado: 'não consta na fonte', valor: '', papel: 'observado', origem: '' };
+  D.perfilLote = L;
+  await opera('PERFIL integrado: dois atributos numa gravação (registrado + ausência)', () => I.salvarPerfilLote('organizacional', 'BETA'), async () => {
+    const aud = Object.values((await ler(ORG + '/auditoria/BETA')) || {}).filter((e) => e.tipo === 'alteracao_perfil');
+    return (await ler(ORG + '/perfis/BETA/ALCANCE/estado')) === 'registrado' && (await ler(ORG + '/perfis/BETA/BENEF/estado')) === 'não consta na fonte' && aud.some((e) => e.campo === 'Alcance de atuação') && aud.some((e) => e.campo === 'Beneficiário indireto');
+  });
   I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando);
-  D.edicao = { tipo: 'perfil', chave: 'ALCANCE', valores: { estado: 'não aplicável', valor: '', papel: 'definidor', origem: 'inferência' }, erro: null };
-  await opera('PERFIL com ausência explícita (só o estado; sem valor/papel/origem)', () => I.salvarPerfil('organizacional', 'BETA'),
+  L = I.novoPerfilLote('BETA', D.detalhe, I.atributosOrdenados(D));
+  L.valores.ALCANCE = { estado: 'não aplicável', valor: '', papel: 'definidor', origem: 'inferência' };
+  D.perfilLote = L;
+  await opera('PERFIL com ausência explícita (só o estado; sem valor/papel/origem)', () => I.salvarPerfilLote('organizacional', 'BETA'),
     async () => { const p = await ler(ORG + '/perfis/BETA/ALCANCE'); return p.estado === 'não aplicável' && p.valor === undefined && p.papel === undefined && p.origem === undefined; });
   /* domínio arquitetural: a mesma aplicação, o mesmo banco */
   I.carregarDominio('arquitetural'); await ate(() => I.st.d.arquitetural.estado === 'ok');

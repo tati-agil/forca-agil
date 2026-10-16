@@ -3710,3 +3710,46 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
   .po-apoio-tabela td { border-bottom: none; padding: 4px 10px; }
   .po-apoio-tabela td::before { content: attr(data-label); display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
 }
+
+/* ---------- Taxonomia: ficha simplificada (cabeçalho, reconhecer, perfil, relações, histórico único, integração) ---------- */
+.tax-cabecalho { border-top: 0; padding-top: 0; margin-top: 6px; display: grid; gap: 6px; }
+.tax-ident-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .86rem; }
+.tax-ident-item { overflow-wrap: anywhere; }
+.tax-ident-item code { color: var(--ink); font-size: .8rem; font-family: var(--font-mono); padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; }
+.tax-protecao { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.tax-sec--reconhecer .tax-observacoes { font-size: .88rem; margin: 6px 0; }
+.tax-perfil-contagem { margin: 0 0 6px; font-size: .82rem; color: var(--ink-3); font-family: var(--font-mono); }
+.tax-perfil-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tax-perfil-lista .tax-atributo { margin: 0; padding: 6px 10px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; overflow-wrap: anywhere; }
+.tax-perfil-lista .tax-atributo-nome { min-width: 10em; }
+.tax-perfil-pendentes { margin-top: 8px; }
+.tax-ajuda-ctx { margin: 8px 0; }
+.tax-ajuda-ctx > summary { cursor: pointer; font-size: .82rem; color: var(--cyan-soft); }
+.tax-perfil-lote { display: grid; gap: 8px; }
+.tax-perfil-linha { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin: 0; min-width: 0; display: grid; gap: 4px; }
+.tax-perfil-linha legend { font-size: .86rem; padding: 0 4px; }
+.tax-perfil-linha--alterada { border-color: rgba(245,197,24,.55); }
+.tax-perfil-linha--erro { border-color: var(--red); }
+.tax-perfil-alterado { font-size: .7rem; font-family: var(--font-mono); color: var(--gold-soft); margin-left: 6px; }
+.tax-perfil-linha select, .tax-perfil-linha input { max-width: 100%; }
+.tax-sec--governanca { font-size: .86rem; }
+.tax-governanca-titulo { margin: 0 0 6px; font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; }
+.tax-sec--governanca .btn { font-size: .72rem; }
+.tax-rel-item { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.tax-rel-item:last-child { border-bottom: 0; }
+.tax-rel-tipo { color: var(--cyan-soft); font-style: normal; }
+.tax-rel-nota { font-size: .8rem; color: var(--ink-3); }
+.tax-rel-acoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.tax-relacoes { list-style: none; padding: 0; margin: 6px 0; }
+.tax-hist-inicial { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
+.tax-hist-motivo { margin: 2px 0; font-size: .82rem; }
+.tax-hist-legado { margin-top: 10px; }
+.tax-integracao { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; }
+.tax-integracao-titulo { margin: 0 0 4px; font-size: .92rem; }
+.tax-integracao-ok { margin: 6px 0; font-size: .9rem; }
+.tax-integracao-marca { color: var(--cyan); font-weight: 700; }
+.tax-integracao-alerta { margin: 8px 0; }
+.tax-integracao-problemas { margin: 4px 0 0; padding-left: 18px; }
+.tax-integracao-item-ok { font-size: .74rem; font-family: var(--font-mono); color: var(--cyan-soft); }
+.tax-integracao-dl dt { margin-top: 4px; }
+.tax-integracao-dl dd { margin: 0 0 4px; font-size: .8rem; color: var(--ink-3); overflow-wrap: anywhere; }

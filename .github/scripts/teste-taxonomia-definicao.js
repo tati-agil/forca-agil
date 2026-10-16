@@ -7,12 +7,13 @@
  *   3. "Atualizar definição": começa com o texto vigente; conferir mostra atual × proposta (e o motivo); publicar
  *      grava versão + 1, a entrada do histórico (com motivo) e a auditoria numa gravação; a tela volta à definição
  *      nova com a confirmação. Texto igual ou vazio não avança. Clique repetido em publicar não publica duas vezes.
- *   4. Histórico de alterações recolhido por padrão, com a contagem real; aberto: versão, data, responsável, texto
- *      anterior, texto novo e motivo; as trocas do modelo antigo aparecem à parte ("Antes da simplificação"), com os
- *      textos vindos do arquivo da migração — fontes que nunca foram vigentes não aparecem como versões.
+ *   4. UM histórico na ficha, recolhido, com a contagem real ("Histórico — N alterações"); aberto: a versão nova com
+ *      anterior → novo, responsável e motivo; a versão 1 migrada aparece como "Registro inicial da definição" (não é
+ *      alteração); as trocas do modelo antigo ficam em "Detalhes técnicos anteriores à simplificação", com os textos do
+ *      arquivo da migração — fontes que nunca foram vigentes não aparecem como versões.
  *   5. Conceito sem definição: "REGISTRAR DEFINIÇÃO" publica a versão 1.
- *   6. Identificação separada: "Editar identificação" em posição secundária, depois da definição; a ligação com a
- *      Avaliação (arquitetural) continua indicada.
+ *   6. "Editar informações" (nome, critérios…) fica em "Como reconhecer este conceito?", depois da definição e separado
+ *      dela; a ligação com a Avaliação (arquitetural) continua indicada.
  *   7. As duas abas do ADMIN (Avaliações e Mapa, Taxonomia) continuam lá. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -121,12 +122,17 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/Última atualização: .*outra@previ\.com\.br · versão 2/.test(await texto(page, '#taxDefAtualizacao')), '1. organizacional: data, responsável e versão da última atualização', await texto(page, '#taxDefAtualizacao'));
   afirma(await page.locator('#taxSecDefinicao .btn--primary').count() === 1 && (await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim() === 'ATUALIZAR DEFINIÇÃO', '1. organizacional: uma única ação principal, ATUALIZAR DEFINIÇÃO');
   await semComplexidade(page, '1. organizacional');
-  afirma(!(await page.evaluate(() => document.getElementById('taxHistDefinicao').open)) && /Histórico de alterações — 2 alterações/.test(await texto(page, '#taxHistDefinicao > summary')), '4. histórico recolhido, com a contagem real (v2 + 1 troca do modelo antigo)', await texto(page, '#taxHistDefinicao > summary'));
-  await page.click('#taxHistDefinicao > summary');
-  const hist = await texto(page, '#taxHistDefinicao');
-  afirma(/Versão 2/.test(hist) && /Texto anterior\s*Texto organizacional fictício, versão 1\./.test(hist) && /Texto novo\s*Texto organizacional fictício, versão 2\./.test(hist) && /Ajuste fictício de redação/.test(hist), '4. versão 2: data, responsável, anterior → novo e motivo');
-  afirma(/Antes da simplificação/.test(hist) && /Texto antigo fictício anterior\./.test(hist) && !/nunca foi vigente/.test(hist), '4. troca do modelo antigo com os textos do arquivo; a proposta que nunca foi vigente não vira versão');
-  afirma(await page.evaluate(() => { const d = document.getElementById('taxSecDefinicao').getBoundingClientRect().top, i = document.getElementById('taxSecIdentAcoes').getBoundingClientRect().top; return i > d; }) && /Editar identificação/i.test(await texto(page, '#taxSecIdentAcoes')), '6. "Editar identificação" em posição secundária, depois da definição');
+  afirma(!(await page.evaluate(() => document.getElementById('taxHistoricoConceito').open)) && /^Histórico — 1 alteração$/.test((await texto(page, '#taxHistoricoConceito > summary')).trim()) && await page.locator('#taxHistDefinicao').count() === 0, '4. um histórico só, recolhido, com a contagem real (a versão 2; o registro inicial e o modelo antigo não contam)', await texto(page, '#taxHistoricoConceito > summary'));
+  await page.click('#taxHistoricoConceito > summary');
+  const hist = await texto(page, '#taxHistoricoConceito');
+  afirma(/Definição atualizada \(versão 2\)/.test(hist) && /Texto organizacional fictício, versão 1\. → Texto organizacional fictício, versão 2\./.test(hist) && /Motivo: Ajuste fictício de redação/.test(hist) && /outra@previ\.com\.br/.test(hist), '4. versão 2: data, responsável, anterior → novo e motivo', hist);
+  afirma(/Registro inicial da definição \(versão 1\)/.test(hist) && /Não é uma alteração/.test(hist), '4. a versão 1 migrada é o registro inicial, não uma edição');
+  afirma((hist.match(/Texto organizacional fictício, versão 2\./g) || []).length === 1, '4. a definição vigente não é repetida várias vezes no histórico');
+  afirma(!(await page.evaluate(() => document.getElementById('taxHistLegado').open)) && /Detalhes técnicos anteriores à simplificação \(1\)/.test(await texto(page, '#taxHistLegado > summary')), '4. o modelo antigo fica em "Detalhes técnicos anteriores à simplificação", recolhido');
+  await page.click('#taxHistLegado > summary');
+  const leg = await texto(page, '#taxHistLegado');
+  afirma(/Texto que deixou de valer: Texto antigo fictício anterior\./.test(leg) && !/nunca foi vigente/.test(await texto(page, '#taxSecHistorico')), '4. troca do modelo antigo com os textos do arquivo; a proposta que nunca foi vigente não vira versão');
+  afirma(await page.evaluate(() => { const d = document.getElementById('taxSecDefinicao').getBoundingClientRect().top, i = document.getElementById('taxEditarInfoBtn').getBoundingClientRect().top; return i > d; }) && /Editar informações/i.test(await texto(page, '#taxSecPergunta')) && await page.locator('#taxSecDefinicao [data-tax="editar-conceito"]').count() === 0, '6. "Editar informações" em "Como reconhecer", depois da definição e fora dela');
   /* 3. fluxo */
   await page.click('#taxAtualizarDefinicaoBtn');
   await page.waitForSelector('#taxDefNovo');
@@ -151,7 +157,8 @@ async function rodada(browser, viewport, rotulo) {
   afirma(O.conceitos.PHN.definicao.versao === 3 && O.conceitos.PHN.definicao.texto === 'Texto organizacional fictício, versão 3.' && O.conceitos.PHN.definicao.publicadaPor === EMAIL, '3. publicada: versão 3, texto novo, autoria');
   afirma(Object.keys(O.definicoes.PHN).sort().join() === 'v1,v2,v3' && O.definicoes.PHN.v3.motivo === 'Motivo fictício da versão 3' && O.definicoes.PHN.v2.texto === 'Texto organizacional fictício, versão 2.', '3. histórico: v3 com motivo; v1 e v2 intactas (clique repetido não criou v4)');
   afirma(Object.values(O.auditoria.PHN).filter((e) => e.tipo === 'definicao_publicada').length === 1, '3. uma linha de auditoria "definicao_publicada"');
-  afirma(/Histórico de alterações — 3 alterações/.test(await texto(page, '#taxHistDefinicao > summary')), '4. depois de publicar: a contagem passa a 3');
+  await esperar(page, () => /Histórico — 2 alterações/.test((document.querySelector('#taxHistoricoConceito > summary') || {}).textContent || ''));
+  afirma(true, '4. depois de publicar: a contagem passa a 2');
   /* 5. sem definição */
   await abrirConceito(page, 'SEMDEF');
   afirma(/ainda não tem definição oficial vigente/.test(await texto(page, '#taxSemDefinicao')) && (await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim() === 'REGISTRAR DEFINIÇÃO', '5. sem definição: "REGISTRAR DEFINIÇÃO"');
@@ -167,7 +174,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma((await texto(page, '#taxDefinicaoTexto')).trim() === 'Definição arquitetural fictícia, versão 1.' && /versão 1/.test(await texto(page, '#taxDefAtualizacao')), '1. arquitetural: a definição oficial vigente e a última atualização');
   afirma(await page.locator('#taxSecDefinicao .btn--primary').count() === 1, '1. arquitetural: uma única ação principal');
   await semComplexidade(page, '1. arquitetural');
-  afirma(/Histórico de alterações — 0 alterações/.test(await texto(page, '#taxHistDefinicao > summary')), '4. arquitetural: só a versão inicial (0 alterações)');
+  afirma(/^Histórico — 0 alterações$/.test((await texto(page, '#taxHistoricoConceito > summary')).trim()) && await page.locator('#taxHistInicial').count() === 1, '4. arquitetural: só o registro inicial (0 alterações)');
   afirma(!!(await page.locator('#taxIdentLigado').count()), '6. arquitetural: a ligação com a Avaliação continua indicada');
   await publicar(page, 'Definição arquitetural fictícia, versão 2.', 'Motivo arquitetural fictício');
   await page.click('#taxDefPublicarBtn');

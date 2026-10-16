@@ -644,6 +644,83 @@
             'Serviços corporativos destinados predominantemente à administração e ao controle da própria organização, prestados ao cliente interno de forma padronizada, tendem a O9 — Plataforma de Gestão Corporativa.\n' +
             'A classificação deve considerar a finalidade da responsabilidade, a natureza da entrega e quem a consome e para quê. O nome da atividade, sua importância para as Linhas ou o simples fato de atender usuários internos não determinam isoladamente o tipo arquitetural.' }
       ]
+    },
+    /* PROPOSTA editorial da homologação didática "Gerir o processo contábil" (GECON), 2026-10-16 — AGUARDA a aprovação da
+       responsável: nada é publicado sozinho; só o botão "Aplicar" do cartão, no ADMIN, cria a nova versão. Só AJUDAS de
+       O1, O5, O7, O8 e O9 (o que estamos investigando, quando SIM/NÃO é defensável, o que não determina a resposta); a
+       Ajuda da O9 aprovada em 15/10 (O7 × O9) é preservada. Nenhuma pergunta, interpretação ou regra do motor muda; o
+       resultado esperado da homologação não orienta nenhum texto. */
+    {
+      id: 'ajudas-o1-o9-homologacao',
+      codigo: 'POSICIONAMENTO_ORGANIZACIONAL',
+      titulo: 'Ajudas de O1, O5, O7, O8 e O9 (homologação "Gerir o processo contábil")',
+      descricao: 'Proposta para aprovação: completa as Ajudas no padrão "O que estamos investigando? / Quando SIM é defensável? / Quando NÃO é defensável? / O que não determina a resposta?". ' +
+        'O1: SIM não cria uma Linha e "Linha" é resultado intermediário. O5: responder pelo Produto/Serviço × participar dele. O7: o que é capacidade e serviço compartilhado e consumo em escala, e o que não distingue O7 de O9. ' +
+        'O8: usar tecnologia ou parametrizar × disponibilizar e evoluir a capacidade tecnológica. O9: o que é serviço corporativo e cliente interno, e autosserviço como forma preferencial, nunca condição. Só ajudas: nenhuma pergunta nem regra do motor muda.',
+      ajustes: [
+        { pergunta: 'O1', campo: 'textoAjuda.significado',
+          de: 'Identifica se a responsabilidade tem característica de Linha: propósito contínuo, entregas e resultados.',
+          para: 'Investiga a natureza predominante da responsabilidade: se ela responde, de forma permanente, por um propósito ou proposta de valor, com objetivos, entregas e resultados. Responder SIM não cria uma nova Linha nem diz qual Linha: "Linha" é um resultado intermediário, e as perguntas seguintes investigam de que tipo.' },
+        { pergunta: 'O1', campo: 'textoAjuda.quandoSim',
+          de: 'Há responsabilidade permanente por propósito/proposta de valor e por objetivos, entregas e resultados.',
+          para: 'A responsabilidade responde continuamente por objetivos, entregas e resultados de um propósito comum — um resultado que outras pessoas ou estruturas recebem, acompanham e cobram.' },
+        { pergunta: 'O1', campo: 'textoAjuda.quandoNao',
+          de: 'A responsabilidade não se caracteriza predominantemente dessa forma.',
+          para: 'O que a responsabilidade entrega, na maior parte do tempo, são análises, pareceres e validações técnicas (O2) ou a evolução de padrões e práticas de uma disciplina (O3), e não um resultado contínuo pelo qual ela responde.' },
+        { pergunta: 'O1', campo: 'ajudaExtra', de: null,
+          para: 'Não determinam a resposta, sozinhos: o tamanho da equipe, o nome da área, a importância do tema ou o fato de a atividade ser contínua. O que decide é pelo que a responsabilidade responde, de forma predominante.' },
+        { pergunta: 'O5', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se a responsabilidade é dedicada a um Produto/Serviço (ou a um conjunto coerente deles, ou a um resultado de negócio específico para o cliente), respondendo pela entrega e pela evolução dele — ou se oferece capacidades, serviços ou atividades que ajudam diferentes Produtos/Serviços a funcionar.' },
+        { pergunta: 'O5', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'A estrutura responde pela entrega e pela evolução do Produto/Serviço: decide prioridades dele, acompanha o resultado dele e responde quando ele não entrega.' },
+        { pergunta: 'O5', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'A estrutura participa de vários Produtos/Serviços com uma capacidade ou atividade própria. Exemplo: definir roteiros contábeis e parametrizações para um produto novo é participar do desenvolvimento dele, não responder pela entrega e evolução desse produto.' },
+        { pergunta: 'O5', campo: 'ajudaExtra',
+          de: 'Uma função ou canal exclusivo de determinada solução pode responder SIM. Atender cliente externo, isoladamente, não basta.\n' +
+            'Utilizar plataformas compartilhadas também não transforma uma Linha de Negócios em Plataforma.',
+          para: 'Uma função ou canal exclusivo de determinada solução pode responder SIM. Atender cliente externo, isoladamente, não basta.\n' +
+            'Utilizar plataformas compartilhadas também não transforma uma Linha de Negócios em Plataforma.\n' +
+            'Participar do desenvolvimento ou da operação de um Produto/Serviço, sozinho, também não basta: o que decide é a responsabilidade predominante.' },
+        { pergunta: 'O7', campo: 'textoAjuda.significado',
+          de: 'Identifica uma responsabilidade típica de Plataforma Habilitadora de Negócios: desenvolver e fornecer capacidades, serviços ou soluções de negócio compartilhados e consumidos em escala por diferentes Linhas e times. Não é necessário que o objeto seja previdenciário ou financeiro.',
+          para: 'Investiga se a responsabilidade desenvolve e fornece capacidades, serviços ou soluções de negócio compartilhados, que diferentes Linhas e times consomem em escala para fazer as suas soluções funcionarem. Capacidade de negócio compartilhada: algo que a organização sabe fazer e oferece a várias soluções (por exemplo, um cálculo ou uma regra de negócio usada por vários produtos). Serviço compartilhado: uma entrega recorrente que várias Linhas usam do mesmo jeito. Consumo em escala: muitas Linhas e times usam, de forma padronizada. Não é necessário que o objeto seja previdenciário ou financeiro.' },
+        { pergunta: 'O7', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'Diferentes Linhas e times consomem a entrega, de forma padronizada, para sustentar as suas soluções de negócio, e as regras vêm do negócio dessas soluções.' },
+        { pergunta: 'O7', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'A entrega serve principalmente à administração e ao controle da própria organização (veja a O9), é dedicada a uma só solução (veja a O5) ou não é consumida em escala por diferentes Linhas.' },
+        { pergunta: 'O7', campo: 'ajudaExtra', de: null,
+          para: 'Não decidem sozinhos, porque O7 e O9 podem ter essas características: atender clientes internos; não atender diretamente participantes; ser transversal; ser importante para diferentes Linhas; ser ou não relacionado ao negócio previdenciário. O que distingue O7 de O9 é a finalidade da responsabilidade e a natureza da entrega — veja a Ajuda da O9.' },
+        { pergunta: 'O8', campo: 'textoAjuda.significado',
+          de: 'Identifica uma Plataforma Habilitadora de Tecnologia.',
+          para: 'Investiga se a responsabilidade é disponibilizar e evoluir capacidades tecnológicas compartilhadas — infraestrutura, serviços técnicos, automação, ferramentas — usadas em escala por diferentes Linhas e times.' },
+        { pergunta: 'O8', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'A estrutura responde por manter funcionando e evoluir a solução tecnológica que outras usam, como uma ferramenta ou um serviço técnico compartilhado.' },
+        { pergunta: 'O8', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'A estrutura usa tecnologia ou define regras para parametrizar um sistema, mas não responde por disponibilizar e evoluir a capacidade tecnológica. Exemplo: definir como uma operação deve ser contabilizada no sistema não é fornecer a solução tecnológica.' },
+        { pergunta: 'O8', campo: 'ajudaExtra', de: null,
+          para: 'Não determinam a resposta, sozinhos: usar sistemas intensamente, conhecer bem uma ferramenta ou ser responsável pelas regras parametrizadas nela.' },
+        { pergunta: 'O9', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se a responsabilidade oferece serviços corporativos: serviços destinados predominantemente à administração e ao controle da própria organização, prestados a um cliente interno — gestores, áreas, empregados ou instâncias de governança.' },
+        { pergunta: 'O9', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O serviço atende à administração e ao controle da organização, para um cliente interno, de forma padronizada (as mesmas regras, formatos e prazos para todos que pedem), com escala (atende muitos pedidos sem crescer na mesma proporção) e previsibilidade (quem pede sabe o que vai receber e quando). Com autosserviço, um gestor consulta diretamente um relatório num sistema; sem autosserviço, ele pede o relatório à equipe, que o prepara e entrega. Nos dois casos pode existir um serviço corporativo: soluções digitais e autosserviço são a forma preferencial de prestar o serviço, não uma condição para responder SIM.' },
+        { pergunta: 'O9', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'A entrega é uma capacidade de negócio consumida pelas Linhas para sustentar as suas soluções (O7) ou uma resposta técnica especializada cuja qualidade a estrutura assume (O2). A ausência de autosserviço ou de solução digital, sozinha, não leva a NÃO.' }
+      ]
+    },
+    /* PROPOSTA separada (também aguarda aprovação): a redação da PERGUNTA O9 deixa explícito o que é serviço corporativo e
+       que digital/autosserviço é forma preferencial, não condição. Separada das ajudas porque mudar o texto da pergunta
+       faz uma reavaliação pedir a O9 de novo (a resposta anterior não é herdada) — a responsável pode aprovar uma sem a
+       outra. Interpretações (SIM/NÃO) e regras do motor não mudam. */
+    {
+      id: 'redacao-pergunta-o9',
+      codigo: 'POSICIONAMENTO_ORGANIZACIONAL',
+      titulo: 'Redação da pergunta O9 (serviço corporativo; autosserviço como forma preferencial)',
+      descricao: 'Proposta para aprovação: a pergunta O9 passa a dizer o que é serviço corporativo (destinado predominantemente à administração e ao controle da própria organização) e deixa claro que soluções digitais e autosserviço são a forma preferencial, não uma condição. Em reavaliações, a O9 precisa ser respondida de novo. Nenhuma regra do motor muda.',
+      ajustes: [
+        { pergunta: 'O9', campo: 'texto',
+          de: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em oferecer serviços corporativos ao cliente interno, preferencialmente por soluções digitais e autosserviço padronizados, buscando escala e previsibilidade?',
+          para: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em oferecer serviços corporativos — destinados predominantemente à administração e ao controle da própria organização — ao cliente interno, de forma padronizada, buscando escala e previsibilidade (preferencialmente por soluções digitais e autosserviço, sem que isso seja condição)?' }
+      ]
     }
   ];
   function correcaoPorId(id) { return CORRECOES_EDITORIAIS.filter(function (c) { return c.id === id; })[0] || null; }

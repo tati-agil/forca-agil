@@ -1,56 +1,46 @@
-/* TAXONOMIA — ficha do conceito: "Atributos / perfil" recolhível (Etapa 6.1). Desktop e celular (375 px).
- * CONTEÚDO 100% FICTÍCIO. Firebase falso em persistência real; hermético (sem rede, sem segredo).
+/* TAXONOMIA — ficha do conceito: "Perfil do conceito" compacto e "Gerenciar perfil" integrado. Desktop e celular (375 px).
+ * CONTEÚDO 100% FICTÍCIO (semente-taxonomia-ficha.js, mesma estrutura de "Linhas de Estratégia de Clientes": 13 atributos,
+ * 3 definidos). Firebase falso em persistência real; hermético (sem rede, sem segredo).
  *
- *   1. A seção começa RECOLHIDA: só o cabeçalho "Atributos / perfil — X definidos de N" com indicador (▸).
- *   2. "Definidos" = atributos com estado decidido (tudo que não é "ainda não definido" nem está sem registro).
- *   3. Clicar no cabeçalho EXPANDE (explicação de Papel/Origem, atributos, valores, "Editar") e de novo RECOLHE.
- *   4. Editar um atributo continua funcionando: grava, a seção continua aberta e a contagem acompanha.
- *   5. Trocar de conceito volta a seção ao estado recolhido.
- *   6. Perfis lentos → "carregando…"; perfis recusados → "indisponível agora" (nunca "0 definidos").
- *   7. Sem rolagem horizontal; nenhum erro de JS. Nenhum dado muda ao abrir/fechar. */
+ *   1. Consulta: só os atributos definidos, "3 de 13 atributos definidos", os 10 sem registro num recolhível, Papel/Origem
+ *      em ajuda contextual (recolhida) e UMA ação, "Gerenciar perfil" — nenhum "Editar" por atributo.
+ *   2. Conceito sem nenhum atributo: "0 de 13" e "Nenhum atributo definido ainda.".
+ *   3. Gerenciar perfil: todos os atributos num formulário; altera vários (criar registrado, criar ausência, mudar valor) e
+ *      salva UMA vez: grava só os alterados, um evento de auditoria por atributo, nenhum registro vazio; a consulta acompanha.
+ *   4. Validação: "registrado" sem valor → erro no atributo e NADA gravado; o resto do formulário continua como estava.
+ *   5. Cancelar com alterações pede confirmação ("Continuar editando" mantém tudo); sem alterações fecha direto; nada gravado.
+ *   6. Concorrência: outra pessoa mudou o atributo enquanto o formulário estava aberto → nada gravado, aviso claro.
+ *   7. Clique repetido em "Salvar perfil" grava uma vez só.
+ *   8. Somente leitura: sem "Gerenciar perfil". Perfis lentos → "Carregando o perfil…"; recusados → "não foi possível",
+ *      nunca "0 de 13".
+ *   9. 375 px: formulário aberto sem rolagem horizontal, todo campo dentro da tela; nenhum erro de JS. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
+const S = require('./semente-taxonomia-ficha');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
   fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
-const EMAIL = 'adm@previ.com.br';
+const EMAIL = S.EMAIL;
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 const DESKTOP = { width: 1280, height: 900 };
 const CELULAR = { width: 375, height: 800 };
-const SHOTS = process.env.FA_SHOTS_DIR || null;
+const EC = 'ESTRATEGIA_CLIENTES';
+const PERFIS = 'taxonomia/organizacional/perfis/' + EC;
 
 let falhas = 0;
 function afirma(cond, msg, detalhe) { console.log((cond ? '  ok    ' : '  FALHA ') + msg + (!cond && detalhe ? ' → ' + detalhe : '')); if (!cond) falhas++; }
 
-const semente = () => {
+function banco() {
   const adm = {}; adm[chave(EMAIL)] = { email: EMAIL, name: 'ADMIN' };
   const users = {}; users[chave(EMAIL)] = { name: 'ADMIN', email: EMAIL, area: 'INFOR' };
-  return {
-    'fa-users': users, 'fa-admins': adm, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
-    taxonomia: {
-      meta: { cargaInicial: { feitaEm: '2026-10-01T09:00:00.000Z', feitaPor: EMAIL } },
-      arquitetural: {},
-      organizacional: {
-        conceitos: { SQ: { nome: 'Squad Fictícia', camada: 'A', ordem: 1, ativo: true }, COE: { nome: 'CoE Fictício', camada: 'A', ordem: 2, ativo: true } },
-        atributos: {
-          ALCANCE: { nome: 'Alcance de atuação', grupo: 'alcance', tipoValor: 'lista', ordem: 1, ativo: true, valoresPermitidos: { v1: { texto: 'específica', ordem: 1 }, v2: { texto: 'transversal', ordem: 2 } } },
-          BENEF: { nome: 'Beneficiário indireto', grupo: 'quem-recebe', tipoValor: 'texto', ordem: 2, ativo: true },
-          FORMA: { nome: 'Forma de entrega', grupo: 'entrega', tipoValor: 'texto', ordem: 3, ativo: true },
-          GOV: { nome: 'Governança', grupo: 'governanca', tipoValor: 'texto', ordem: 4, ativo: true }
-        },
-        perfis: { SQ: { ALCANCE: { estado: 'registrado', valor: 'transversal', papel: 'típico', origem: 'decisão' }, BENEF: { estado: 'não consta na fonte' }, FORMA: { estado: 'ainda não definido' } } },
-        auditoria: {}
-      }
-    }
-  };
-};
-
+  return Object.assign({ 'fa-users': users, 'fa-admins': adm, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {} }, S.semente());
+}
 async function abrir(browser, viewport, opts) {
   opts = opts || {};
-  const cfg = { db: semente(), user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true, delays: opts.delays || {}, fail: opts.fail || [] };
+  const cfg = { db: banco(), user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true, delays: opts.delays || {}, fail: opts.fail || [] };
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   const erros = [];
@@ -63,96 +53,141 @@ async function abrir(browser, viewport, opts) {
   await esperarSessaoAssentada(page);
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 12000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
-  await page.waitForSelector('.tax-item[data-codigo="SQ"]', { timeout: 8000 });
+  await page.waitForSelector('.tax-item[data-codigo="' + EC + '"]', { timeout: 8000 });
   return { ctx, page, erros };
 }
-const aberta = (page) => page.evaluate(() => { const d = document.getElementById('taxAtributosRecolhivel'); return !!d && d.open; });
-const resumo = (page) => page.evaluate(() => { const e = document.getElementById('taxAtributosResumo'); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; });
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length);
-async function foto(page, nome) { if (!SHOTS) return; try { await page.locator('#taxSecAtributos').screenshot({ path: path.join(SHOTS, nome + '.png') }); } catch (e) { console.log('(foto ' + nome + ' não tirada: ' + e.message + ')'); } }
+const perfisDb = (page) => page.evaluate((p) => JSON.parse(JSON.stringify(p.split('/').reduce((o, k) => (o == null ? o : o[k]), window.__CFG.__dbReal) || {})), PERFIS);
+const contagem = (page) => page.evaluate(() => { const e = document.getElementById('taxPerfilContagem'); return e ? e.textContent.trim() : ''; });
 async function abreConceito(page, cod) {
   if (!(await page.locator('.tax-item[data-codigo="' + cod + '"]').isVisible())) await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().click();
   await page.click('.tax-item[data-codigo="' + cod + '"]');
-  await esperarCondicao(page, (c) => { const t = document.querySelector('#taxCodigo'); return !!t && t.innerText.indexOf(c) !== -1 && !!document.getElementById('taxAtributosResumo') && !/carregando/.test(document.getElementById('taxAtributosResumo').textContent); }, cod, { descricao: 'detalhe de ' + cod });
+  await esperarCondicao(page, (c) => { const t = document.querySelector('#taxCodigo'); return !!t && t.innerText.indexOf(c) !== -1 && !document.querySelector('.tax-detalhe .loading-msg'); }, cod, { descricao: 'ficha de ' + cod });
+}
+async function gerenciar(page) {
+  await page.click('#taxGerenciarPerfilBtn');
+  await page.waitForSelector('#taxFormPerfilLote', { timeout: 4000 });
 }
 
 (async () => {
   const browser = await chromium.launch();
-  for (const [nomeTela, viewport, suf] of [['desktop', DESKTOP, 'desktop'], ['celular 375px', CELULAR, '375']]) {
+  for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
+    const movel = viewport.width <= 720;
     console.log('\n######## ' + nomeTela + ' ########');
-    const { ctx, page, erros } = await abrir(browser, viewport);
-    await abreConceito(page, 'SQ');
+    {
+      const { ctx, page, erros } = await abrir(browser, viewport);
+      await abreConceito(page, EC);
 
-    console.log('\n== 1–2. Começa recolhida, com a contagem ==');
-    afirma(!(await aberta(page)), 'a seção começa RECOLHIDA');
-    afirma(await resumo(page) === 'Atributos / perfil — 2 definidos de 4', 'cabeçalho: "Atributos / perfil — 2 definidos de 4" (registrado + "não consta na fonte"; "ainda não definido" e sem registro não contam)', await resumo(page));
-    afirma(await page.locator('#taxLegenda').isHidden() && await page.locator('.tax-atributo').first().isHidden() && await page.locator('[data-tax="editar-perfil"]').first().isHidden(), 'recolhida: explicação, atributos e "Editar" não aparecem');
-    afirma(await page.evaluate(() => getComputedStyle(document.getElementById('taxAtributosResumo'), '::before').content.indexOf('▸') !== -1), 'o cabeçalho tem o indicador (▸)');
-    await foto(page, 'atributos-recolhido-' + suf);
+      console.log('\n== 1. Consulta compacta ==');
+      afirma(await contagem(page) === '3 de 13 atributos definidos', '"3 de 13 atributos definidos"', await contagem(page));
+      const defs = await page.locator('#taxPerfilDefinidos .tax-atributo').evaluateAll((els) => els.map((e) => e.getAttribute('data-atributo')));
+      afirma(defs.join(',') === 'OBJETO_PREDOMINANTE,PROPOSITO_PREDOMINANTE,LIDERANCA', 'na consulta, só os 3 definidos (na ordem do catálogo)', defs.join(','));
+      afirma(/públicos e segmentos \(fictício\)/.test(await page.locator('#taxPerfilDefinidos').innerText()) && await page.locator('#taxPerfilDefinidos .tax-selo--origem-decisao').count() === 2, 'valor, papel e origem de cada definido');
+      afirma(await page.locator('#taxPerfilPendentes').count() === 1 && !(await page.locator('#taxPerfilPendentes').evaluate((d) => d.open)) && /Ainda não definidos \(10\)/.test(await page.locator('#taxPerfilPendentes > summary').innerText()), 'os 10 sem registro ficam em "Ainda não definidos (10)", recolhido');
+      afirma(await page.locator('#taxLegenda').count() === 1 && !(await page.locator('#taxLegenda').evaluate((d) => d.open)) && /observado: valor presente na fonte ou registrado no perfil/.test(await page.locator('#taxLegenda').textContent()), 'Papel e Origem explicados em ajuda contextual recolhida (o significado não mudou)');
+      afirma(await page.locator('#taxSecAtributos button').count() === 1 && await page.locator('#taxGerenciarPerfilBtn').isVisible() && await page.locator('[data-tax="editar-perfil"]').count() === 0, 'UMA ação na seção: "Gerenciar perfil" (nenhum "Editar" por atributo)');
+      afirma(await page.locator('.tax-inferencia-aviso').count() === 0, 'nenhuma explicação longa repetida em cada linha');
 
-    console.log('\n== 3. Expandir e recolher ==');
-    const e0 = await escritas(page);
-    await page.click('#taxAtributosResumo');
-    await esperarCondicao(page, () => document.getElementById('taxAtributosRecolhivel').open, null, { descricao: 'expandir' });
-    afirma(await page.locator('#taxLegenda').isVisible() && /definidor/.test(await page.locator('#taxLegenda').innerText()) && /inferência/.test(await page.locator('#taxLegenda').innerText()), 'expandida: a explicação de Papel/Origem aparece');
-    afirma(await page.locator('.tax-atributo').count() === 4 && /transversal/.test(await page.locator('.tax-atributo[data-atributo="ALCANCE"]').innerText()), 'expandida: os 4 atributos, com os valores');
-    afirma(await page.locator('[data-tax="editar-perfil"]').count() === 4 && await page.locator('[data-tax="editar-perfil"][data-atributo="GOV"]').isVisible(), 'expandida: os botões "Editar" de sempre');
-    await foto(page, 'atributos-aberto-' + suf);
-    afirma(await larguraOk(page), 'expandida: sem rolagem horizontal');
-    await page.click('#taxAtributosResumo');
-    await esperarCondicao(page, () => !document.getElementById('taxAtributosRecolhivel').open, null, { descricao: 'recolher' });
-    afirma(await page.locator('.tax-atributo').first().isHidden(), 'clicar de novo RECOLHE');
-    afirma(await escritas(page) === e0, 'abrir e fechar não grava nada');
+      console.log('\n== 2. Conceito sem atributos definidos ==');
+      await abreConceito(page, 'LINHA');
+      afirma(await contagem(page) === '0 de 13 atributos definidos' && /Nenhum atributo definido ainda/.test(await page.locator('#taxSecAtributos').innerText()), '"0 de 13" e "Nenhum atributo definido ainda."');
+      await abreConceito(page, EC);
 
-    console.log('\n== 4. Editar um atributo continua funcionando ==');
-    await page.click('#taxAtributosResumo');
-    await esperarCondicao(page, () => document.getElementById('taxAtributosRecolhivel').open, null, { descricao: 'expandir para editar' });
-    await page.click('[data-tax="editar-perfil"][data-atributo="GOV"]');
-    await page.waitForSelector('#taxFormPerfil', { timeout: 4000 });
-    afirma(await aberta(page), 'com o formulário aberto, a seção continua expandida');
-    await page.selectOption('#taxF_estado', 'registrado');
-    await page.waitForSelector('#taxF_valor', { timeout: 4000 });
-    await page.fill('#taxF_valor', 'Comitê fictício');
-    await page.selectOption('#taxF_papel', 'observado');
-    await page.selectOption('#taxF_origem', 'fonte');
-    await page.click('[data-tax="salvar-edicao"]');
-    await esperarCondicao(page, () => { const p = ((window.__CFG.__dbReal.taxonomia.organizacional.perfis || {}).SQ || {}).GOV; return !!p && p.valor === 'Comitê fictício'; }, null, { descricao: 'perfil gravado' });
-    afirma(true, 'o atributo foi gravado (estado registrado, valor, papel, origem)');
-    await esperarCondicao(page, () => /3 definidos de 4/.test((document.getElementById('taxAtributosResumo') || {}).textContent || '') && !document.getElementById('taxFormPerfil'), null, { descricao: 'contagem atualizada' });
-    afirma(await aberta(page), 'depois de salvar, a seção continua expandida');
-    afirma(await resumo(page) === 'Atributos / perfil — 3 definidos de 4', 'a contagem acompanha: "3 definidos de 4"');
+      console.log('\n== 3. Gerenciar perfil: vários atributos, uma gravação ==');
+      const antes = await perfisDb(page);
+      await gerenciar(page);
+      afirma(await page.locator('#taxFormPerfilLote .tax-perfil-linha').count() === 13 && /Nenhuma alteração ainda/.test(await page.locator('#taxPerfilResumo').innerText()), 'os 13 atributos num formulário só; "Nenhuma alteração ainda."');
+      afirma(await page.locator('#taxPL_CONSUMIDOR_DIRETO_estado option[value=""]').count() === 1 && await page.locator('#taxPL_LIDERANCA_estado option[value=""]').count() === 0, 'atributo sem registro começa "— sem registro —"; um com registro não pode virar "sem registro"');
+      await page.selectOption('#taxPL_ALCANCE_ATUACAO_estado', 'registrado');
+      await page.selectOption('#taxPL_ALCANCE_ATUACAO_valor', 'transversal');
+      await page.selectOption('#taxPL_ALCANCE_ATUACAO_papel', 'típico');
+      await page.selectOption('#taxPL_ALCANCE_ATUACAO_origem', 'decisão');
+      await page.selectOption('#taxPL_BENEFICIARIO_INDIRETO_estado', 'não consta na fonte');
+      await page.fill('#taxPL_OBJETO_PREDOMINANTE_valor', 'públicos, segmentos e experiência (fictício)');
+      await page.selectOption('#taxPL_CONSUMIDOR_DIRETO_estado', 'registrado'); /* sem valor: inválido */
+      afirma(/4 atributos alterados/.test(await page.locator('#taxPerfilResumo').innerText()) && await page.locator('.tax-perfil-linha--alterada').count() === 4, 'o formulário mostra o que mudou (4 alterados, marcados)');
 
-    console.log('\n== 5. Trocar de conceito volta a recolher ==');
-    await abreConceito(page, 'COE');
-    afirma(!(await aberta(page)) && await resumo(page) === 'Atributos / perfil — 0 definidos de 4', 'outro conceito: recolhida, "0 definidos de 4"', await resumo(page));
-    await abreConceito(page, 'SQ');
-    afirma(!(await aberta(page)), 'voltar ao primeiro conceito: recolhida de novo');
-    afirma(await larguraOk(page), 'sem rolagem horizontal');
-    afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
-    await ctx.close();
-  }
+      console.log('\n== 4. Validação: nada gravado ==');
+      const e0 = await escritas(page);
+      await page.click('#taxSalvarPerfilBtn');
+      await page.waitForSelector('#taxPerfilLoteErro', { timeout: 4000 });
+      afirma(/Corrija 1 atributo indicado\. Nada foi salvo\./.test(await page.locator('#taxPerfilLoteErro').innerText()) && /exige o valor/.test(await page.locator('.tax-perfil-linha[data-atributo="CONSUMIDOR_DIRETO"] .tax-perfil-erro').innerText()), 'erro no atributo inválido e "Nada foi salvo"');
+      afirma(await escritas(page) === e0 && JSON.stringify(await perfisDb(page)) === JSON.stringify(antes), 'nenhuma escrita');
+      afirma(await page.inputValue('#taxPL_OBJETO_PREDOMINANTE_valor') === 'públicos, segmentos e experiência (fictício)' && await page.inputValue('#taxPL_ALCANCE_ATUACAO_valor') === 'transversal', 'o que foi digitado nos outros atributos continua');
+      await page.selectOption('#taxPL_CONSUMIDOR_DIRETO_estado', '');
+      afirma(/3 atributos alterados/.test(await page.locator('#taxPerfilResumo').innerText()), 'voltar a "sem registro" desfaz a alteração (3)');
+      /* 7. clique repetido: dois cliques seguidos, uma gravação */
+      await page.evaluate(() => { const b = document.getElementById('taxSalvarPerfilBtn'); b.click(); b.click(); });
+      await esperarCondicao(page, () => /3 atributos salvos/.test((document.getElementById('taxFlash') || {}).innerText || ''), null, { descricao: 'perfil salvo' });
+      const depois = await perfisDb(page);
+      afirma(depois.ALCANCE_ATUACAO && depois.ALCANCE_ATUACAO.estado === 'registrado' && depois.ALCANCE_ATUACAO.valor === 'transversal' && depois.ALCANCE_ATUACAO.papel === 'típico' && depois.ALCANCE_ATUACAO.origem === 'decisão', 'atributo novo "registrado" gravado com valor, papel e origem');
+      afirma(depois.BENEFICIARIO_INDIRETO && JSON.stringify(Object.keys(depois.BENEFICIARIO_INDIRETO).sort()) === JSON.stringify(['atualizadoEm', 'estado']), 'ausência gravada como estado, sem valor/papel/origem');
+      afirma(depois.OBJETO_PREDOMINANTE.valor === 'públicos, segmentos e experiência (fictício)' && depois.OBJETO_PREDOMINANTE.papel === 'definidor', 'valor alterado; papel e origem mantidos');
+      afirma(!depois.CONSUMIDOR_DIRETO && Object.keys(depois).length === 5, 'nenhum registro vazio criado (só 3 + os 2 que existiam e não mudaram)', Object.keys(depois).join(','));
+      afirma(JSON.stringify(depois.LIDERANCA) === JSON.stringify(antes.LIDERANCA) && JSON.stringify(depois.PROPOSITO_PREDOMINANTE) === JSON.stringify(antes.PROPOSITO_PREDOMINANTE), 'os atributos não alterados ficaram intactos');
+      const aud = await page.evaluate((c) => Object.values(window.__CFG.__dbReal.taxonomia.organizacional.auditoria[c]).filter((e) => e.tipo === 'alteracao_perfil' && e.dataHora > '2026-10-10'), EC);
+      afirma(aud.length === 3 && aud.every((e) => e.usuario.email === EMAIL), 'um evento de auditoria por atributo alterado (3), do autor — clique repetido não duplicou', String(aud.length));
+      const audObj = aud.find((e) => e.campo === 'Objeto predominante');
+      afirma(!!audObj && /públicos e segmentos \(fictício\)/.test(audObj.valorAnterior) && /experiência/.test(audObj.valorNovo), 'auditoria com anterior → novo');
+      await esperarCondicao(page, () => /^5 de 13/.test(((document.getElementById('taxPerfilContagem') || {}).textContent || '').trim()), null, { descricao: 'contagem atualizada' });
+      afirma(await page.locator('#taxFormPerfilLote').count() === 0, 'o formulário fecha e a consulta mostra "5 de 13"');
 
-  console.log('\n######## perfis lentos e recusados ########');
-  {
-    const { ctx, page, erros } = await abrir(browser, CELULAR, { delays: { 'taxonomia/organizacional/perfis': 4000 } });
-    await page.click('.tax-item[data-codigo="SQ"]');
-    await page.waitForSelector('#taxAtributosResumo', { timeout: 6000 });
-    afirma(/Atributos \/ perfil — carregando…/.test(await resumo(page)), 'perfis lentos: "carregando…" (nunca "0 definidos")', await resumo(page));
-    await esperarCondicao(page, () => /2 definidos de 4/.test((document.getElementById('taxAtributosResumo') || {}).textContent || ''), null, { limite: 10000, descricao: 'contagem depois da leitura lenta' });
-    afirma(true, 'quando os perfis chegam: "2 definidos de 4"');
-    afirma(erros.length === 0, 'nenhum erro de JS');
-    await ctx.close();
-  }
-  {
-    const { ctx, page, erros } = await abrir(browser, DESKTOP, { fail: ['taxonomia/organizacional/perfis'] });
-    await page.click('.tax-item[data-codigo="SQ"]');
-    await esperarCondicao(page, () => /indisponível agora/.test((document.getElementById('taxAtributosResumo') || {}).textContent || ''), null, { descricao: 'perfis recusados' });
-    afirma(true, 'perfis recusados: "indisponível agora" (nunca "0 definidos")');
-    afirma(erros.length === 0, 'nenhum erro de JS');
-    await ctx.close();
+      console.log('\n== 5. Cancelar ==');
+      await gerenciar(page);
+      await page.click('#taxCancelarPerfilBtn');
+      afirma(await page.locator('#taxFormPerfilLote').count() === 0, 'sem alterações, "Cancelar" fecha direto');
+      await gerenciar(page);
+      await page.fill('#taxPL_LIDERANCA_valor', 'compartilhada (fictício)');
+      await page.locator('#taxPL_LIDERANCA_valor').dispatchEvent('change');
+      await page.click('#taxCancelarPerfilBtn');
+      afirma(await page.locator('#taxPerfilDescartar').count() === 1 && /Descartar 1 alteração não salva/.test(await page.locator('#taxPerfilDescartar').innerText()), 'com alteração, pede confirmação antes de descartar');
+      await page.click('[data-tax="continuar-perfil"]');
+      afirma(await page.inputValue('#taxPL_LIDERANCA_valor') === 'compartilhada (fictício)', '"Continuar editando" mantém o que foi digitado');
+
+      console.log('\n== 6. Concorrência ==');
+      await page.evaluate((c) => { window.__CFG.__dbReal.taxonomia.organizacional.perfis[c].LIDERANCA.valor = 'outra pessoa mudou (fictício)'; }, EC);
+      const e1 = await escritas(page);
+      await page.click('#taxSalvarPerfilBtn');
+      await esperarCondicao(page, () => /Outra pessoa alterou/.test((document.getElementById('taxPerfilLoteErro') || {}).innerText || ''), null, { descricao: 'aviso de concorrência' });
+      afirma(/Outra pessoa alterou Liderança/.test(await page.locator('#taxPerfilLoteErro').innerText()) && await escritas(page) === e1, 'outra pessoa mudou o mesmo atributo: nada gravado, aviso diz qual');
+      afirma((await perfisDb(page)).LIDERANCA.valor === 'outra pessoa mudou (fictício)', 'o valor da outra pessoa ficou intacto');
+      await page.click('#taxCancelarPerfilBtn');
+      await page.click('[data-tax="descartar-perfil"]');
+      afirma(await page.locator('#taxFormPerfilLote').count() === 0, '"Descartar" fecha sem gravar');
+
+      if (movel) {
+        console.log('\n== 9. 375 px ==');
+        await gerenciar(page);
+        afirma(await larguraOk(page), 'formulário aberto: sem rolagem horizontal');
+        afirma(await page.evaluate(() => [...document.querySelectorAll('#taxFormPerfilLote select, #taxFormPerfilLote input, #taxFormPerfilLote fieldset')].every((el) => el.getBoundingClientRect().right <= window.innerWidth + 1)), 'todo campo do formulário cabe na tela');
+        await page.click('#taxCancelarPerfilBtn');
+      }
+      afirma(await larguraOk(page), 'sem rolagem horizontal');
+      afirma(erros.length === 0, 'sem erros de JavaScript (' + erros.length + ')');
+      await ctx.close();
+    }
+    {
+      console.log('\n== 8. Somente leitura, leitura lenta e recusada ==');
+      const { ctx, page } = await abrir(browser, viewport);
+      await abreConceito(page, EC);
+      await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
+      await esperarCondicao(page, () => !!document.getElementById('taxPerfilContagem') && !document.getElementById('taxGerenciarPerfilBtn'), null, { descricao: 'perfil em modo leitura' });
+      afirma(/3 de 13/.test(await contagem(page)) && await page.locator('#taxGerenciarPerfilBtn').count() === 0, 'somente leitura: o perfil aparece, sem "Gerenciar perfil"');
+      await ctx.close();
+      const lenta = await abrir(browser, viewport, { delays: { [PERFIS]: 600000 } });
+      await lenta.page.click('.tax-item[data-codigo="' + EC + '"]');
+      await lenta.page.waitForSelector('#taxPerfilCarregando', { timeout: 4000 });
+      afirma(/Carregando o perfil/.test(await lenta.page.locator('#taxSecAtributos').innerText()) && await lenta.page.locator('#taxPerfilContagem').count() === 0 && await lenta.page.locator('#taxGerenciarPerfilBtn').count() === 0, 'lenta: "Carregando o perfil…", nunca "0 de 13", sem botão de editar');
+      await lenta.ctx.close();
+      const rec = await abrir(browser, viewport, { fail: [PERFIS] });
+      await rec.page.click('.tax-item[data-codigo="' + EC + '"]');
+      await rec.page.waitForSelector('#taxPerfilErro', { timeout: 6000 });
+      afirma(/Não foi possível carregar o perfil/.test(await rec.page.locator('#taxSecAtributos').innerText()) && await rec.page.locator('#taxGerenciarPerfilBtn').count() === 0, 'recusada: "Não foi possível carregar o perfil agora", sem botão de editar');
+      await rec.ctx.close();
+    }
   }
   await browser.close();
-  console.log(falhas ? '\n' + falhas + ' FALHA(S)' : '\nOK — "Atributos / perfil" recolhível: começa fechado com "X definidos de N", expande e recolhe, edição continua gravando, troca de conceito recolhe, estados lento/recusado distintos; desktop e 375 px.');
+  console.log('\n' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));
   process.exit(falhas ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

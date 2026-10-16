@@ -516,9 +516,21 @@
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-atributos.js",
-      "nome": "Taxonomia: \"Atributos / perfil\" recolhível (desktop e celular)",
-      "duracao": 10,
-      "sobre": "Na ficha do conceito, \"Atributos / perfil\" começa recolhido com \"X definidos de N\" (definido = estado decidido; \"ainda não definido\" e sem registro não contam); expande e recolhe pelo cabeçalho sem gravar nada; editar um atributo continua gravando, a seção fica aberta e a contagem acompanha; trocar de conceito recolhe; perfis lentos mostram \"carregando…\" e recusados \"indisponível agora\", nunca \"0 definidos\". Hermético."
+      "nome": "Taxonomia: perfil do conceito compacto e \"Gerenciar perfil\" integrado (desktop e celular)",
+      "duracao": 40,
+      "sobre": "Na ficha do conceito, o perfil mostra só os atributos definidos (\"3 de 13 atributos definidos\"), os sem registro recolhidos e Papel/Origem em ajuda contextual; UMA ação, \"Gerenciar perfil\": altera vários atributos e salva uma vez (só os alterados, um evento de auditoria por atributo, nenhum registro vazio), com validação por atributo, cancelar com confirmação, concorrência (outra pessoa mudou → nada gravado) e clique repetido; somente leitura sem edição; perfis lentos/recusados nunca viram \"0 de 13\". Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-ficha.js",
+      "nome": "Taxonomia: ficha simplificada do conceito nos dois domínios (desktop e celular)",
+      "duracao": 45,
+      "sobre": "Cabeçalho único (código, camada, hierarquia, situação, proteção em linguagem simples), \"Como reconhecer\" editado no lugar, histórico único (registro inicial ≠ alteração; modelo antigo em detalhes técnicos; definição sem repetição), relações entre conceitos em frase (zero, uma, várias) com \"Gerenciar relações\" (nova, substituir com efeito explicado, encerrar; cancelar; concorrência; clique repetido), integração completa \"10 de 10\" / \"11 de 11\" e somente leitura. Conteúdo fictício. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-orientacao-o1-o9.js",
+      "nome": "Orientações O1–O9: ajudas no padrão, evidências, \"ainda não sei\" e propostas editoriais sem publicação automática (desktop e celular)",
+      "duracao": 60,
+      "sobre": "As propostas editoriais de O1, O5, O7, O8 e O9 (ajudas) e da redação da O9 só mexem nos campos previstos, partem do texto em vigor e só entram em vigor pelo botão Aplicar do ADMIN (uma versão por proposta); a Ajuda aparece no padrão \"O que estamos investigando? / Quando SIM / Quando NÃO / O que não determina\", com \"Que evidência devo procurar?\" para O1–O9; avaliação começada antes mantém a redação dela; aviso de que sem resposta não é NÃO e de que dá para salvar e voltar; só SIM e NÃO. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-governanca.js",

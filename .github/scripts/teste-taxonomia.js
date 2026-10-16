@@ -14,7 +14,7 @@
  *   3. Dois domínios separados (Arquitetural / Organizacional), cada um com a sua pergunta orientadora e sem
  *      nenhum vínculo entre eles; árvore A → B → C; Disciplina como conceito auxiliar.
  *   4. Detalhe: nome, definição oficial vigente, "Última atualização", "ATUALIZAR DEFINIÇÃO" e
- *      "Histórico de alterações — N alterações" recolhido; sem definição → "REGISTRAR DEFINIÇÃO".
+ *      um histórico só ("Histórico — N alterações", recolhido); sem definição → "REGISTRAR DEFINIÇÃO".
  *   5. Pergunta discriminadora com a NOTA DE APLICAÇÃO junto; "Alcance de atuação" (nunca "Abrangência").
  *   6. Perfil: ausência é ESTADO (não consta na fonte, ainda não definido…), nunca campo vazio.
  *   7. Edição que de fato SALVA (conceito, perfil, definição), com auditoria na mesma gravação; recusa do banco
@@ -33,11 +33,13 @@ const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
 /* Etapa 6.1: "Atributos / perfil" começa RECOLHIDO — abrir (clicando no cabeçalho, como a pessoa) antes de ler ou editar */
 async function abrirAtributos(page) {
-  /* decide só com a ficha ASSENTADA: logo depois de salvar ela recarrega, e um clique nesse meio fecharia o que já estava aberto */
-  await esperarCondicao(page, () => !!document.getElementById('taxAtributosRecolhivel') && !document.querySelector('.tax-detalhe .loading-msg') && !/carregando/.test((document.getElementById('taxAtributosResumo') || {}).textContent || '') && !document.querySelector('#taxFlash ~ * .tax-salvando'), null, { descricao: 'ficha do conceito assentada' });
-  if (await page.evaluate(() => { const d = document.getElementById('taxAtributosRecolhivel'); return !!d && d.open; })) return;
-  await page.click('#taxAtributosRecolhivel > summary');
-  await page.waitForFunction(() => { const d = document.getElementById('taxAtributosRecolhivel'); return !!d && d.open; }, null, { timeout: 4000 });
+  /* o perfil não é mais recolhível ("N de M atributos definidos" à vista): só espera a ficha assentada */
+  await esperarCondicao(page, () => !!document.getElementById('taxPerfilContagem') && !document.querySelector('.tax-detalhe .loading-msg'), null, { descricao: 'ficha do conceito assentada' });
+}
+async function gerenciarPerfil(page) {
+  await abrirAtributos(page);
+  await page.click('#taxGerenciarPerfilBtn');
+  await page.waitForSelector('#taxFormPerfilLote', { timeout: 4000 });
 }
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
@@ -273,7 +275,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     t = await page.locator('#taxDefAtualizacao').innerText();
     afirma(/^Última atualização:/.test(t.trim()) && /\d{2}\/\d{2}\/\d{4}/.test(t) && new RegExp(EMAIL.replace('.', '\\.')).test(t) && /versão 1/.test(t), '"Última atualização: data e responsável" (e a versão)', t);
     afirma(await page.locator('#taxAtualizarDefinicaoBtn').isVisible() && /^atualizar definição$/i.test((await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim()), 'botão "ATUALIZAR DEFINIÇÃO" à vista');
-    afirma(await page.locator('#taxHistDefinicao').count() === 1 && !(await page.locator('#taxHistDefinicao').evaluate((d) => d.open)) && /^Histórico de alterações — 0 alterações$/.test((await page.locator('#taxHistDefinicao > summary').innerText()).trim()), '"Histórico de alterações — 0 alterações", recolhido');
+    afirma(await page.locator('#taxHistDefinicao').count() === 0, 'a definição não tem um histórico separado: há UM histórico, no fim da ficha');
     t = await page.locator('.tax-detalhe').innerText();
     afirma(await page.locator('#taxSecFontes, [data-fonte], [data-tax="tornar-vigente"], [data-tax="nova-fonte"], [data-tax="arquivar"], [data-tax="nova-versao"]').count() === 0 && !/Rótulo da fonte|Tipo de redação|em validação|placeholder|histórica\/contextual|Fontes disponíveis/i.test(t), 'nenhum catálogo de fontes, situação, rótulo, tipo de redação, promoção ou arquivamento');
     afirma(!/Texto fictício histórico de Alfa\./.test(t), 'os textos antigos que não eram a vigente não aparecem');
@@ -282,34 +284,34 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     afirma(tops.every((y) => y !== null) && tops.every((y, i) => i === 0 || y > tops[i - 1]), 'ordem do detalhe: Identificação, Definição, Critérios e pergunta, Atributos, Relações, Histórico', JSON.stringify(tops));
     afirma(await page.evaluate(() => { const secs = document.querySelectorAll('.tax-detalhe > .tax-sec'); return secs.length > 0 && secs[secs.length - 1].id === 'taxSecHistorico'; }), 'o Histórico é a última seção do detalhe');
     t = await page.locator('#taxSecIdent').innerText();
-    afirma(/Código:\s*ALFA/.test(t) && /Camada:\s*Tipo organizacional/.test(t) && !/Definição registrada|Situação/.test(t), 'Identificação: código e camada (sem situação da definição)', t.replace(/\s+/g, ' '));
+    afirma(/Código:\s*ALFA/.test(t) && /Camada:\s*Tipo organizacional/.test(t) && /Situação:\s*ativo/.test(t) && !/Definição registrada/.test(t), 'Cabeçalho: código, camada e situação, compactos', t.replace(/\s+/g, ' '));
     afirma(/^Definição oficial vigente/.test((await page.locator('#taxSecDefinicao h4').innerText()).trim()) && await page.locator('#taxSecDefinicao.tax-sec--definicao').count() === 1, '"Definição oficial vigente" é uma seção própria, em destaque');
-    /* HISTÓRICO recolhido por padrão — aqui com N = 0 (a carga inicial não grava no histórico do conceito) */
+    /* HISTÓRICO recolhido por padrão — aqui com N = 0: a versão 1 da carga é o registro inicial, não uma alteração */
     afirma(await page.locator('#taxHistoricoConceito').count() === 1 && !(await page.locator('#taxHistoricoConceito').evaluate((d) => d.open)) && (await page.locator('#taxHistoricoConceito > summary').innerText()).trim() === 'Histórico — 0 alterações', 'histórico do conceito: fechado por padrão, cabeçalho "Histórico — 0 alterações"');
     await abrirHistorico(page);
-    afirma(/Nenhuma alteração registrada/.test(await page.locator('#taxSecHistorico').innerText()), 'aberto (N = 0): "Nenhuma alteração registrada."');
+    afirma(/Nenhuma alteração depois do registro inicial/.test(await page.locator('#taxSecHistorico').innerText()) && /Registro inicial da definição \(versão 1\)/.test(await page.locator('#taxHistInicial').innerText()) && /carga inicial/.test(await page.locator('#taxHistInicial').innerText()), 'aberto (N = 0): o registro inicial (carga) e "Nenhuma alteração depois do registro inicial."');
     /* ações GERAIS separadas das ações do conceito */
     afirma(await page.locator('#taxAcoesGerais #taxExportar').count() === 1 && await page.locator('.tax-detalhe #taxExportar, .tax-detalhe [data-tax="exportar-excel"]').count() === 0, 'exportar fica em "Ações gerais da Taxonomia", fora do detalhe do conceito');
-    afirma(await page.locator('#taxAcoesGerais [data-tax="editar-conceito"], #taxAcoesGerais [data-tax="nova-versao"]').count() === 0 && await page.locator('#taxSecIdentAcoes [data-tax="editar-conceito"]').count() === 1 && /Editar identificação/i.test(await page.locator('#taxSecIdentAcoes [data-tax="editar-conceito"]').textContent()), 'as ações do conceito ficam no detalhe ("Editar identificação", separado da definição), não nas gerais');
+    afirma(await page.locator('#taxAcoesGerais [data-tax="editar-conceito"], #taxAcoesGerais [data-tax="nova-versao"]').count() === 0 && await page.locator('#taxSecPergunta [data-tax="editar-conceito"]').count() === 1 && /Editar informações/i.test(await page.locator('#taxSecPergunta [data-tax="editar-conceito"]').textContent()) && await page.locator('#taxSecIdentAcoes [data-tax="editar-conceito"]').count() === 0, 'editar nome, pergunta e critérios é "Editar informações", em "Como reconhecer" (não nas ações gerais nem no fim)');
     afirma((await page.locator('#taxCodigo').innerText()).trim() === 'Código: ALFA' && await page.locator('#taxCodigo').isVisible(), 'o detalhe mostra o código do conceito ("Código: ALFA")');
     t = await page.locator('#taxSecPergunta').innerText();
     afirma(/Pergunta fictícia sobre Alfa\?/.test(t) && /Critério fictício A1/.test(t) && /Observação fictícia de Alfa\./.test(t), 'pergunta discriminadora, critérios e observações');
     await abrirAtributos(page);
     t = await page.locator('#taxSecAtributos').innerText();
-    afirma(/Alcance de atuação/.test(t) && /transversal/.test(t) && /Papel: observado/.test(t) && /Origem: decisão/.test(t), 'perfil: "Alcance de atuação" com valor, "Papel: observado" e "Origem: decisão"');
-    afirma(/observado: valor presente na fonte ou registrado no perfil, mas ainda não curado como característica definidora ou típica do conceito/.test(await page.locator('#taxLegenda').innerText()), 'a tela DEFINE "observado": valor presente na fonte ou registrado no perfil, mas ainda não curado como definidor ou típico');
-    afirma(/definidor: ajuda a distinguir\/classificar o conceito/.test(await page.locator('#taxLegenda').innerText()) && /típico: característica frequente ou esperada/.test(await page.locator('#taxLegenda').innerText()), 'e define "definidor" e "típico"');
+    afirma(/Alcance de atuação/.test(t) && /transversal/.test(t) && /Papel: observado/.test(t) && /Origem: decisão/.test(t) && /3 de 4 atributos definidos/.test(t), 'perfil: "3 de 4 atributos definidos"; "Alcance de atuação" com valor, "Papel: observado" e "Origem: decisão"');
+    afirma(/observado: valor presente na fonte ou registrado no perfil, mas ainda não curado como característica definidora ou típica do conceito/.test(await page.locator('#taxLegenda').textContent()), 'a tela DEFINE "observado": valor presente na fonte ou registrado no perfil, mas ainda não curado como definidor ou típico');
+    afirma(/definidor: ajuda a distinguir\/classificar o conceito/.test(await page.locator('#taxLegenda').textContent()) && /típico: característica frequente ou esperada/.test(await page.locator('#taxLegenda').textContent()), 'e define "definidor" e "típico"');
     const linhaInf = page.locator('.tax-atributo[data-atributo="FORMA"]');
     afirma(/Origem: inferência/.test(await linhaInf.innerText()) && await linhaInf.locator('.tax-selo--origem-inferencia').count() === 1, 'valor com origem "inferência": exibe claramente "Origem: inferência", em destaque próprio');
-    afirma(/não é dado de fonte nem decisão aprovada/.test(await linhaInf.innerText()), 'e avisa que NÃO é dado de fonte nem decisão aprovada');
+    afirma(/inferência: leitura nossa, não é dado de fonte nem decisão aprovada/.test(await page.locator('#taxLegenda').textContent()), 'a ajuda contextual explica que inferência NÃO é dado de fonte nem decisão aprovada (sem repetir em cada linha)');
     afirma(await page.locator('.tax-atributo[data-atributo="ALCANCE"] .tax-inferencia-aviso').count() === 0 && await page.locator('.tax-atributo[data-atributo="ALCANCE"] .tax-selo--origem-decisao').count() === 1, 'a origem "decisão" não leva o aviso de inferência e tem selo próprio');
     afirma(/Consumidor direto principal[\s\S]*Não consta na fonte/i.test(t), 'estado "não consta na fonte" aparece como estado (não como vazio)');
-    afirma(/Beneficiário indireto[\s\S]*Ainda não definido/i.test(t), 'atributo sem registro: "Ainda não definido"');
+    afirma(/Beneficiário indireto[\s\S]*Sem registro/i.test(await page.locator('#taxPerfilPendentes').textContent()) && !/Beneficiário indireto/.test(t), 'atributo sem registro: fica em "Ainda não definidos" (recolhido), não ocupa a ficha');
     afirma(!/Abrangência/i.test(await page.locator('.tax-detalhe').innerText()), 'nenhuma "Abrangência"');
     t = await page.locator('#taxSecRelacoes').innerText();
     afirma(/Tipo Alfa|Alfa/.test(t) && /compõe/.test(t), 'relações exibidas ("compõe")');
-    afirma(/Relações de saída \(0\)/.test(await page.locator('#taxRelSaida h5').innerText()) && /Relações de entrada \(1\)/.test(await page.locator('#taxRelEntrada h5').innerText()), 'relações separadas e rotuladas: "Relações de saída (0)" e "Relações de entrada (1)"');
-    afirma(await page.locator('#taxRelEntrada li[data-relacao="BETA__compoe__ALFA"]').count() === 1 && /BETA/.test(await page.locator('#taxRelEntrada li[data-relacao="BETA__compoe__ALFA"]').innerText()) && /este conceito/.test(await page.locator('#taxRelEntrada li').first().innerText()), 'entrada: BETA compõe → este conceito (o outro conceito aparece com o código)');
+    afirma(/Relações entre conceitos \(1\)/.test(await page.locator('#taxSecRelacoes h4').innerText()) && await page.locator('#taxRelSaida, #taxRelEntrada').count() === 0, 'uma lista só, "Relações entre conceitos (1)", sem grupos vazios');
+    afirma(await page.locator('#taxRelLista li[data-relacao="BETA__compoe__ALFA"][data-direcao="entrada"]').count() === 1 && /Especialização Beta compõe Tipo Alfa/.test(await page.locator('#taxRelLista li[data-relacao="BETA__compoe__ALFA"]').innerText()) && !/BETA/.test(await page.locator('#taxRelLista').innerText()), 'a relação em frase, com os nomes (sem códigos técnicos)');
     if (movel) {
       afirma(await page.locator('.tax-voltar').isVisible() && /VOLTAR PARA A LISTA/.test(await page.locator('.tax-voltar').innerText()), '375 px: "← VOLTAR PARA A LISTA" é um botão visível no topo do detalhe');
       afirma(await page.locator('.tax-voltar-rodape [data-tax="voltar-lista"]').isVisible(), '375 px: o mesmo "VOLTAR" também no fim do detalhe (tela longa)');
@@ -325,7 +327,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     afirma(/Este conceito ainda não tem definição oficial vigente\./.test(await page.locator('#taxSemDefinicao').innerText()) && /^registrar definição$/i.test((await page.locator('#taxAtualizarDefinicaoBtn').textContent()).trim()), 'Beta: "ainda não tem definição oficial vigente" e "REGISTRAR DEFINIÇÃO"');
     afirma(!/Texto fictício (histórico|placeholder|NÃO LOCALIZADO) de Beta/.test(await page.locator('.tax-detalhe').innerText()), 'os textos não vigentes de Beta não foram importados nem aparecem');
     afirma(/Conceito pai:\s*Tipo Alfa\s*ALFA/.test(await page.locator('#taxIdentPai').innerText()), 'Identificação de Beta: o conceito pai (nome e código)');
-    afirma(/Relações de saída \(1\)/.test(await page.locator('#taxRelSaida h5').innerText()) && await page.locator('#taxRelSaida li[data-relacao="BETA__compoe__ALFA"]').count() === 1 && /ALFA/.test(await page.locator('#taxRelSaida li').first().innerText()), 'a mesma relação, vista de Beta, é de SAÍDA (→ ALFA)');
+    afirma(await page.locator('#taxRelLista li[data-relacao="BETA__compoe__ALFA"][data-direcao="saida"]').count() === 1 && /Especialização Beta compõe Tipo Alfa/.test(await page.locator('#taxRelLista').innerText()), 'a mesma relação, vista de Beta, é a mesma frase (sai de Beta)');
     t = await page.locator('#taxSecPergunta').innerText();
     afirma(/Pergunta fictícia sobre Beta\?/.test(t) && await page.locator('#taxNotaAplicacao').innerText().then((x) => /Nota de aplicação fictícia: Beta e Gama não se confundem\./.test(x)), 'a NOTA DE APLICAÇÃO aparece junto da pergunta discriminadora');
     if (movel) await page.click('[data-tax="voltar-lista"]');
@@ -372,11 +374,10 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
 
     console.log('\n== 5b. Inferência pode ser alterada sem mexer na definição ==');
     const defAntes = await page.evaluate(() => JSON.stringify([window.__CFG.__dbReal.taxonomia.organizacional.conceitos.ALFA.definicao, window.__CFG.__dbReal.taxonomia.organizacional.definicoes.ALFA]));
-    await abrirAtributos(page);
-    await page.click('[data-tax="editar-perfil"][data-atributo="FORMA"]');
-    afirma(await page.inputValue('#taxF_origem') === 'inferência' && await page.inputValue('#taxF_papel') === 'observado', 'o formulário abre com a origem "inferência" e o papel "observado" atuais');
-    await page.fill('#taxF_valor', 'Forma inferida fictícia, revisada');
-    await page.click('[data-tax="salvar-edicao"]');
+    await gerenciarPerfil(page);
+    afirma(await page.inputValue('#taxPL_FORMA_origem') === 'inferência' && await page.inputValue('#taxPL_FORMA_papel') === 'observado', '"Gerenciar perfil" abre com a origem "inferência" e o papel "observado" atuais');
+    await page.fill('#taxPL_FORMA_valor', 'Forma inferida fictícia, revisada');
+    await page.click('#taxSalvarPerfilBtn');
     await esperaDb(page, () => /revisada/.test(window.__CFG.__dbReal.taxonomia.organizacional.perfis.ALFA.FORMA.valor));
     b = (await banco(page)).taxonomia;
     afirma(/revisada/.test(b.organizacional.perfis.ALFA.FORMA.valor) && b.organizacional.perfis.ALFA.FORMA.origem === 'inferência', 'valor inferido alterado; a origem continua "inferência"');
@@ -384,27 +385,25 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     afirma(Object.values(b.organizacional.auditoria.ALFA).some((l) => l.tipo === 'alteracao_perfil' && l.campo === 'Forma de entrega/consumo'), 'a alteração do valor inferido foi auditada');
 
     console.log('\n== 6. Edição de perfil: ausência é estado ==');
-    await abrirAtributos(page);
-    await page.click('[data-tax="editar-perfil"][data-atributo="BENEFICIARIO"]');
-    await page.selectOption('#taxF_estado', 'ainda não definido');
-    afirma(await page.locator('#taxF_valor').count() === 0, 'em estado de ausência não há campo de valor');
-    await page.click('[data-tax="salvar-edicao"]');
+    await gerenciarPerfil(page);
+    await page.selectOption('#taxPL_BENEFICIARIO_estado', 'ainda não definido');
+    afirma(await page.locator('#taxPL_BENEFICIARIO_valor').count() === 0, 'em estado de ausência não há campo de valor');
+    await page.click('#taxSalvarPerfilBtn');
     await esperaDb(page, () => (window.__CFG.__dbReal.taxonomia.organizacional.perfis.ALFA || {}).BENEFICIARIO);
     b = (await banco(page)).taxonomia;
     afirma(JSON.stringify(Object.keys(b.organizacional.perfis.ALFA.BENEFICIARIO).sort()) === JSON.stringify(['atualizadoEm', 'estado']) && b.organizacional.perfis.ALFA.BENEFICIARIO.estado === 'ainda não definido', 'gravado só com o estado (sem valor, papel nem origem)');
-    await aparece(page, '[data-atributo="BENEFICIARIO"] .tax-valor--ausente');
-    await abrirAtributos(page);
-    await page.click('[data-tax="editar-perfil"][data-atributo="CONSUMIDOR"]');
-    await page.selectOption('#taxF_estado', 'registrado');
-    await page.click('[data-tax="salvar-edicao"]');
-    afirma(/exige o valor/.test(await page.locator('#taxFormPerfil').innerText()), '"registrado" sem valor → recusado na tela');
-    await page.fill('#taxF_valor', 'Times fictícios');
-    afirma(await page.inputValue('#taxF_origem') === '' && await page.inputValue('#taxF_papel') === 'observado', 'ao registrar um valor, a origem NÃO vem pré-marcada (nunca "fonte" por padrão) e o papel nasce neutro ("observado")');
-    await page.click('[data-tax="salvar-edicao"]');
-    afirma(/exige papel e origem/.test(await page.locator('#taxFormPerfil').innerText()), 'sem escolher a origem, não salva');
-    await page.selectOption('#taxF_papel', 'definidor');
-    await page.selectOption('#taxF_origem', 'inferência');
-    await page.click('[data-tax="salvar-edicao"]');
+    await aparece(page, '#taxPerfilContagem');
+    await gerenciarPerfil(page);
+    await page.selectOption('#taxPL_CONSUMIDOR_estado', 'registrado');
+    await page.click('#taxSalvarPerfilBtn');
+    afirma(/exige o valor/.test(await page.locator('#taxFormPerfilLote').innerText()), '"registrado" sem valor → recusado na tela');
+    await page.fill('#taxPL_CONSUMIDOR_valor', 'Times fictícios');
+    afirma(await page.inputValue('#taxPL_CONSUMIDOR_origem') === '' && await page.inputValue('#taxPL_CONSUMIDOR_papel') === 'observado', 'ao registrar um valor, a origem NÃO vem pré-marcada (nunca "fonte" por padrão) e o papel nasce neutro ("observado")');
+    await page.click('#taxSalvarPerfilBtn');
+    afirma(/exige papel e origem/.test(await page.locator('#taxFormPerfilLote').innerText()), 'sem escolher a origem, não salva');
+    await page.selectOption('#taxPL_CONSUMIDOR_papel', 'definidor');
+    await page.selectOption('#taxPL_CONSUMIDOR_origem', 'inferência');
+    await page.click('#taxSalvarPerfilBtn');
     await esperaDb(page, () => ((window.__CFG.__dbReal.taxonomia.organizacional.perfis.ALFA || {}).CONSUMIDOR || {}).estado === 'registrado');
     b = (await banco(page)).taxonomia;
     const pc = b.organizacional.perfis.ALFA.CONSUMIDOR;
@@ -442,7 +441,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     afirma(dB.versao === 2 && dB.texto === B2 && b.organizacional.definicoes.BETA.v1.texto === B1 && b.organizacional.definicoes.BETA.v2.texto === B2 && b.organizacional.definicoes.BETA.v2.motivo === 'Motivo fictício da revisão.', 'atualizar: versão 2; a v1 continua intacta no histórico');
     const audP = Object.values(b.organizacional.auditoria.BETA).filter((l) => l.tipo === 'definicao_publicada');
     afirma(audP.length === 2 && audP.some((l) => l.versao === 2 && l.valorAnterior === B1 && l.valorNovo === B2 && l.usuario.email === EMAIL), 'auditoria definicao_publicada: anterior → nova, versão e autor');
-    await esperarCondicao(page, () => /Histórico de alterações — 1 alteração$/.test(((document.querySelector('#taxHistDefinicao > summary') || {}).textContent || '').trim()), null, { limite: 6000, descricao: 'histórico da definição com 1 alteração' });
+    await esperarCondicao(page, () => /Histórico — 2 alterações$/.test(((document.querySelector('#taxHistoricoConceito > summary') || {}).textContent || '').trim()), null, { limite: 6000, descricao: 'histórico com o registro e a atualização da definição' });
     afirma(((await page.locator('#taxDefinicaoTexto').innerText()).trim() === B2) && /versão 2/.test(await page.locator('#taxDefAtualizacao').innerText()), 'a tela mostra a nova definição e "versão 2"');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     if (movel) await page.click('[data-tax="voltar-lista"]');
@@ -527,7 +526,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
     await aparece(page, '.tax-item[data-codigo="ALFA"]');
     await abrirConceito(page, 'ALFA');
-    const botoes = await page.locator('#adminTaxonomia [data-tax="editar-conceito"], #adminTaxonomia [data-tax="atualizar-definicao"], #adminTaxonomia [data-tax="publicar-definicao"], #adminTaxonomia [data-tax="editar-perfil"], #adminTaxonomia [data-tax="editar-fonte"], #adminTaxonomia [data-tax="nova-versao"]').count();
+    const botoes = await page.locator('#adminTaxonomia [data-tax="editar-conceito"], #adminTaxonomia [data-tax="atualizar-definicao"], #adminTaxonomia [data-tax="publicar-definicao"], #adminTaxonomia [data-tax="gerenciar-perfil"], #adminTaxonomia [data-tax="gerenciar-relacoes"], #adminTaxonomia [data-tax="inativar"], #adminTaxonomia [data-tax="nova-versao"]').count();
     afirma(botoes === 0, 'modo somente leitura: nenhum botão de edição (consulta de verdade)');
     afirma(/Texto fictício VIGENTE de Alfa\./.test(await page.locator('#taxSecDefinicao').innerText()), 'e a consulta continua completa');
     await ctx.close();
@@ -830,7 +829,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
     const nomeSq = (await banco(page)).taxonomia.organizacional.conceitos.SQ.nome;
     await esperarCondicao(page, (nome) => { const t = document.querySelector('.tax-detalhe .tax-titulo'); return !!t && t.textContent.trim() === nome && !!document.getElementById('taxDefinicaoTexto') && !document.querySelector('#taxSecDefinicao .loading-msg'); }, nomeSq, { limite: 6000, descricao: 'detalhe do SQ em modo leitura' });
-    afirma(await telaSq(page) === SQ1 && await page.locator('#taxHistDefinicao').count() === 1, 'somente leitura: a definição vigente e o histórico continuam à vista');
+    afirma(await telaSq(page) === SQ1 && await page.locator('#taxHistoricoConceito').count() === 1, 'somente leitura: a definição vigente e o histórico continuam à vista');
     afirma(await page.locator('.tax-detalhe [data-tax="atualizar-definicao"], .tax-detalhe [data-tax="publicar-definicao"], #taxFormDefinicao, .tax-detalhe [data-tax="editar-conceito"]').count() === 0, 'somente leitura: nenhum "ATUALIZAR DEFINIÇÃO", formulário ou "Editar identificação"');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     await ctx.close();
