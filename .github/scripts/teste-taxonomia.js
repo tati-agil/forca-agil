@@ -17,7 +17,7 @@
  *      hierarquia e "Administrar conceito" — sem código, perfil, relações, histórico nem ações de edição.
  *      Administração (abas Conteúdo / Perfil / Relações / Histórico e governança): "Última atualização",
  *      "Atualizar definição" e um histórico só ("Histórico — N alterações", recolhido); sem definição →
- *      "Registrar definição". Importação, exportação e histórico global ficam em Integridade e configurações.
+ *      "Registrar definição". Importação, exportação e histórico global ficam em Verificações do sistema › Dados e histórico.
  *   5. Pergunta discriminadora com a NOTA DE APLICAÇÃO junto; "Alcance de atuação" (nunca "Abrangência").
  *   6. Perfil: ausência é ESTADO (não consta na fonte, ainda não definido…), nunca campo vazio.
  *   7. Edição que de fato SALVA (conceito, perfil, definição), com auditoria na mesma gravação; recusa do banco
@@ -185,7 +185,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     afirma(!/A Taxonomia define os conceitos/i.test(t) && (await page.locator('#taxTituloArea').innerText()).trim() === 'Taxonomia', 'cabeçalho compacto ("Taxonomia"), sem texto explicativo fixo');
     await page.click('#taxVazioCarga [data-tax="integridade"]');
     await page.waitForSelector('#taxIntegridade', { timeout: 6000 });
-    afirma(await page.locator('#taxIntegridade #taxImportador').count() === 1, 'o importador aparece em Integridade e configurações (só admin, só antes da carga)');
+    afirma(await page.locator('#taxIntegridade #taxImportador').count() === 1, 'o importador aparece em Verificações do sistema › Dados e histórico (só admin, só antes da carga)');
     afirma(!/Abrangência/i.test(t), '"Abrangência" não aparece');
 
     console.log('\n== 2. Importação: arquivo inválido não grava NADA ==');
@@ -555,7 +555,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
     await aparece(page, '.tax-item[data-codigo="ALFA"]');
     await T.abrirConceito(page, 'ALFA');
-    afirma(await page.locator('#taxAdministrarBtn, #taxIntegridadeLink').count() === 0, 'modo somente leitura: sem "Administrar conceito" nem "Integridade e configurações"');
+    afirma(await page.locator('#taxAdministrarBtn, #taxVerificacoesLink').count() === 0, 'modo somente leitura: sem "Administrar conceito" nem "Verificações do sistema"');
     const botoes = await page.locator('#adminTaxonomia [data-tax="editar-conceito"], #adminTaxonomia [data-tax="atualizar-definicao"], #adminTaxonomia [data-tax="publicar-definicao"], #adminTaxonomia [data-tax="gerenciar-perfil"], #adminTaxonomia [data-tax="gerenciar-relacoes"], #adminTaxonomia [data-tax="inativar"], #adminTaxonomia [data-tax="nova-versao"]').count();
     afirma(botoes === 0, 'modo somente leitura: nenhum botão de edição (consulta de verdade)');
     afirma(/Texto fictício VIGENTE de Alfa\./.test(await page.locator('#taxSecDefinicao').innerText()), 'e a consulta continua completa');
@@ -770,7 +770,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
       afirma(/Carga inicial — Organizacional/.test(tCargaOrg) && /Hoje o domínio tem 1 conceito, 0 com definição vigente/.test(tCargaOrg), 'a outra linha: "Carga inicial — Organizacional", com a contagem do PRÓPRIO domínio (as duas linhas não são mais idênticas)', tCargaOrg.replace(/\s+/g, ' '));
       afirma(await page.evaluate(() => (window.__ESCRITAS || []).length) === escritas0, 'só leitura: nenhuma escrita (nada copiado para os conceitos, nenhuma auditoria nova)');
       if (movel) {
-        afirma(await page.locator('.tax-voltar-hg--topo [data-tax="voltar-dominio"]').isVisible() && await page.locator('.tax-voltar-hg--rodape [data-tax="voltar-dominio"]').isVisible() && /Voltar à Integridade/.test(await page.locator('.tax-voltar-hg--topo').innerText()), '375 px: "← Voltar à Integridade" visível no topo e no fim do histórico global');
+        afirma(await page.locator('.tax-voltar-hg--topo [data-tax="voltar-dominio"]').isVisible() && await page.locator('.tax-voltar-hg--rodape [data-tax="voltar-dominio"]').isVisible() && /Voltar às Verificações do sistema/.test(await page.locator('.tax-voltar-hg--topo').innerText()), '375 px: "← Voltar à Integridade" visível no topo e no fim do histórico global');
         await page.click('.tax-voltar-hg--rodape [data-tax="voltar-dominio"]');
         afirma(await page.locator('#taxHistoricoGlobal').count() === 0 && await page.locator('#taxAcoesGerais').isVisible(), '375 px: o Voltar do rodapé leva de volta à Integridade');
         await abaHG(page);
@@ -850,7 +850,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
       const { ctx, page } = await abrirHG(browser, viewport, 3, true);
       await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
       await aparece(page, '.tax-dominios');
-      afirma(await page.locator('[data-tax="aba-historico"], #taxIntegridadeLink, #taxIntegridade').count() === 0 && await page.locator('.tax-dominios [role="tab"]').count() === 2, 'somente leitura: nem Integridade nem histórico global');
+      afirma(await page.locator('[data-tax="aba-historico"], #taxVerificacoesLink, #taxIntegridade').count() === 0 && await page.locator('.tax-dominios [role="tab"]').count() === 2, 'somente leitura: nem Integridade nem histórico global');
       await ctx.close();
     }
   }

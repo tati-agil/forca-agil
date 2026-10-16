@@ -552,9 +552,15 @@
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-integridade.js",
-      "nome": "Taxonomia: Integridade — domínio dos comandos de vínculo, indicador do topo, releitura depois de salvar e contraste do tema escuro (desktop e celular)",
+      "nome": "Taxonomia: Verificações do sistema — domínio dos comandos de vínculo, indicador de estado, releitura depois de salvar e contraste do tema escuro (desktop e celular)",
       "duracao": 70,
-      "sobre": "Prévia, cancelar e confirmar vínculos atuam só no domínio do bloco acionado (a partir do Catálogo Organizacional nos vínculos da Avaliação e do Arquitetural nos do Posicionamento), com auditoria e sem tocar o outro; o atalho \"Integridade e configurações\" usa a mesma avaliação dos blocos e nunca fica verde durante leitura, erro de leitura, conceito ausente ou inativo ou vínculo sem código no motor; depois de salvar, a releitura mantém a Administração (\"Carregando o conceito…\"), nunca o Catálogo; tema escuro com texto ≥ 4,5:1, controles ≥ 3:1, nenhuma superfície clara e foco visível. Hermético."
+      "sobre": "Prévia, cancelar e confirmar vínculos atuam só no domínio do bloco acionado (a partir do Catálogo Organizacional nos vínculos da Avaliação e do Arquitetural nos do Posicionamento), com auditoria e sem tocar o outro; o acesso \"Verificações do sistema e dados\" (na Administração) e o resumo das Verificações usam a mesma avaliação dos blocos e nunca ficam verdes durante leitura, erro de leitura, conceito ausente ou inativo ou vínculo sem código no motor; depois de salvar, a releitura mantém a Administração (\"Carregando o conceito…\"), nunca o Catálogo; tema escuro com texto ≥ 4,5:1, controles ≥ 3:1, nenhuma superfície clara e foco visível. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-mapa-jornada-taxonomia.js",
+      "nome": "Mapa da Floresta como destino e retorno contextual da Taxonomia (desktop e celular)",
+      "duracao": 40,
+      "sobre": "ADMIN › Avaliações e Mapa abre com o destaque do Mapa da Floresta antes dos grupos: descrição, origem dos dados (demonstrativo sem cadastro, registros com cadastro), Abrir Mapa (#avaliacoes?mf=mapa), definição oficial existente (#admin?arq=documentacao) e jornada (#avaliacoes?mf=catalogo), sem sequência obrigatória e com a Squad opcional; o Início da Avaliação mostra o Mapa a quem não tem ADMIN; a Taxonomia aberta por \"Abrir a aba Taxonomia\" mostra \"← Voltar para Avaliações e Mapa\" no Catálogo, na Administração e nas Verificações, volta à mesma área, mantém a origem em Avançar e F5, preserva o que estava sendo editado e não inventa origem quando aberta pela própria aba; perfil restrito vê o Mapa e não o atalho. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",

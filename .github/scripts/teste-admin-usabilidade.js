@@ -181,7 +181,7 @@ async function larguras(browser) {
     const vp = { width: w, height: w <= 400 ? 812 : 900 };
     const { ctx, page, erros } = await abrir(browser, vp, '#avaliacoes');
     await esperar(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null; });
-    const ini = await page.evaluate(() => { const a = document.getElementById('avpInicioJornada').getBoundingClientRect(), h = document.querySelector('#page-avaliacoes .page-hero h1').getBoundingClientRect();
+    const ini = await page.evaluate(() => { const a = document.getElementById('avpInicioTrabalhos').getBoundingClientRect() /* a primeira ação do Início (a Jornada do Mapa agora fica no bloco do Mapa, logo abaixo) */, h = document.querySelector('#page-avaliacoes .page-hero h1').getBoundingClientRect();
       return { acao: Math.round(a.top + scrollY), tituloAcao: Math.round(a.top - h.bottom), alto: document.documentElement.scrollHeight, vh: innerHeight }; });
     const m = { w, inicioPrimeiraAcao: ini.acao, inicioTituloAteAcao: ini.tituloAcao, inicio: ini.alto, larguraInicio: await larguraOk(page) };
     afirma(ini.acao + 44 <= ini.vh && m.larguraInicio, w + ' px: Início — primeira ação visível sem rolar; sem rolagem lateral', JSON.stringify(ini));

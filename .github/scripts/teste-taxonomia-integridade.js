@@ -1,4 +1,4 @@
-/* TAXONOMIA — Integridade e configurações: domínio dos comandos de vínculo, indicador do topo, releitura depois de
+/* TAXONOMIA — Verificações do sistema: domínio dos comandos de vínculo, indicador de estado, releitura depois de
  * salvar e contraste do tema escuro. Firebase falso em persistência real; hermético; conteúdo 100% fictício
  * (semente-taxonomia-ficha.js). Desktop e 375 px.
  *
@@ -7,7 +7,7 @@
  *          avaliacao-classificacoes (+ auditoria ligacao_registrada) e nada do Posicionamento;
  *      A2. a partir do Catálogo ARQUITETURAL, o mesmo no bloco do POSICIONAMENTO → grava só
  *          posicionamento-classificacoes (+ auditoria) e nada da Avaliação.
- *   B. O atalho do topo usa a MESMA avaliação dos blocos e nunca fica verde durante leitura, erro de leitura, conceito
+ *   B. O acesso às Verificações (na Administração) usa a MESMA avaliação dos blocos e nunca fica verde durante leitura, erro de leitura, conceito
  *      ausente ou inativo, ou vínculo sem código no motor; o estado do atalho é sempre o "pior" dos dois blocos.
  *   C. Depois de salvar, a releitura do domínio mantém a Administração no lugar ("Carregando o conceito…"), nunca o
  *      Catálogo com o título "Administração".
@@ -52,7 +52,7 @@ async function abrir(browser, viewport, o) {
 }
 const db = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const escritasEm = (page, prefixo) => page.evaluate((p) => (window.__ESCRITAS || []).filter((e) => String(e.path || '').indexOf(p) === 0).length, prefixo);
-const atalho = (page) => page.evaluate(() => { const b = document.getElementById('taxIntegridadeLink'); return b ? b.getAttribute('data-estado') : null; });
+const atalho = (page) => page.evaluate(() => { const b = document.getElementById('taxVerificacoesLink'); return b ? b.getAttribute('data-estado') : null; });
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const estadoBloco = (page, id) => page.evaluate((i) => { const e = document.getElementById(i); return e ? e.getAttribute('data-estado') : null; }, id);
 
@@ -127,19 +127,24 @@ async function cenarioB(browser) {
   ];
   for (const c of casos) {
     const { ctx, page, erros } = await abrir(browser, DESKTOP, c.o);
+    afirma(await page.locator('#taxVerificacoesLink, #taxVerificacoesLink').count() === 0, c.nome + ': nada de atalho no Catálogo');
+    await T.abrirAdmin(page, 'ESTRATEGIA_CLIENTES');
     const fixo = c.esperado === 'conferindo';
-    if (fixo) await page.waitForSelector('#taxIntegridadeLink', { timeout: 8000 });
-    else await esperarCondicao(page, (e) => { const b = document.getElementById('taxIntegridadeLink'); return !!b && b.getAttribute('data-estado') === e; }, c.esperado, { descricao: c.nome + ': atalho "' + c.esperado + '"' });
+    if (fixo) await page.waitForSelector('#taxVerificacoesLink', { timeout: 8000 });
+    else await esperarCondicao(page, (e) => { const b = document.getElementById('taxVerificacoesLink'); return !!b && b.getAttribute('data-estado') === e; }, c.esperado, { descricao: c.nome + ': acesso "' + c.esperado + '"' });
     const e = await atalho(page);
-    const verde = await page.locator('#taxIntegridadeLink .tax-ponto--ok').count();
+    const verde = await page.locator('#taxVerificacoesLink .tax-ponto--ok').count();
     afirma(e === c.esperado && (c.esperado === 'ok' ? verde === 1 : verde === 0), c.nome + ': atalho "' + c.esperado + '"' + (c.esperado === 'ok' ? ' (verde)' : ' — nunca verde'), e);
-    if (c.esperado === 'problema') afirma(/requer atenção/.test(await page.locator('#taxIntegridadeLink').innerText()), c.nome + ': diz "requer atenção"');
-    if (c.esperado === 'erro') afirma(/não foi possível conferir/.test(await page.locator('#taxIntegridadeLink').innerText()), c.nome + ': diz "não foi possível conferir"');
+    if (c.esperado === 'problema') afirma(/requer atenção/.test(await page.locator('#taxVerificacoesLink').innerText()), c.nome + ': diz "requer atenção"');
+    if (c.esperado === 'erro') afirma(/não foi possível conferir/.test(await page.locator('#taxVerificacoesLink').innerText()), c.nome + ': diz "não foi possível conferir"');
     /* alinhado com os blocos: o atalho é o pior estado dos dois */
     await T.irIntegridade(page);
     const blocos = [await estadoBloco(page, 'taxConceitosBase'), await estadoBloco(page, 'taxConceitosBasePos')];
     const pior = blocos.indexOf('problema') !== -1 ? 'problema' : blocos.indexOf('erro') !== -1 ? 'erro' : blocos.indexOf('conferindo') !== -1 ? 'conferindo' : 'ok';
-    afirma(pior === e, c.nome + ': o atalho é o pior estado dos dois blocos (' + blocos.join(' / ') + ')', pior + ' ≠ ' + e);
+    afirma(pior === e && await estadoBloco(page, 'taxVerificacoes') === e, c.nome + ': o acesso e o resumo das Verificações são o pior estado dos dois blocos (' + blocos.join(' / ') + ')', pior + ' ≠ ' + e);
+    if (e === 'ok') afirma(/Nenhuma pendência/.test(await page.locator('#taxVerifOk').innerText()) && !(await page.evaluate(() => document.getElementById('taxVerifDetalhes').open)), c.nome + ': "Nenhuma pendência" e os detalhes técnicos recolhidos (sem os 11 + 10 à vista)');
+    else if (e === 'conferindo') afirma(/Conferindo as conexões/.test(await page.locator('#taxVerifResumo').innerText()) && await page.locator('#taxVerifOk').count() === 0, c.nome + ': "Conferindo as conexões…", nunca "Nenhuma pendência"');
+    else afirma(await page.locator('#taxVerifOk').count() === 0 && (e === 'problema' ? /Pendências em:/ : /Não foi possível conferir:/).test(await page.locator('#taxVerifResumo').innerText()), c.nome + ': o resumo diz qual conexão tem problema', await page.locator('#taxVerifResumo').innerText());
     afirma(erros.length === 0, c.nome + ': nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }
