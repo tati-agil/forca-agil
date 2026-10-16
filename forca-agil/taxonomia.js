@@ -977,7 +977,7 @@
     });
     var orfas = ok ? chaves(L.mapa).filter(function (k) { return cods.indexOf(k) === -1; }) : [];
     var problemas = itens.filter(function (i) { return i.problema; }), conectados = itens.filter(function (i) { return i.l && !i.problema; }).length;
-    if (L.estado === 'erro' || L.estado === 'sem-acesso' || D.estado === 'erro' || D.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button></p>';
+    if (L.estado === 'erro' || L.estado === 'sem-acesso' || D.estado === 'erro' || D.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar" data-dominio="' + dom + '">Tentar novamente</button></p>';
     else if (!ok) h += '<p class="loading-msg" id="taxIntegracaoResumo' + T.id + '" data-estado="conferindo">Conferindo a integração…</p>';
     else if (!problemas.length && !orfas.length) h += '<p class="tax-integracao-ok" id="taxIntegracaoResumo' + T.id + '" data-estado="ok"><span class="tax-integracao-marca" aria-hidden="true">✓</span> ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '</p>';
     else {
@@ -1922,17 +1922,25 @@
     while (c && c.pai && guarda++ < 6) { var p = D.conceitos[c.pai]; out.unshift({ codigo: c.pai, nome: p ? p.nome : c.pai, existe: !!p }); c = p; }
     return out;
   }
-  function problemaIntegracao() {
-    var r = resumoLigacoes('arquitetural'), rp = resumoLigacoes('organizacional');
-    return !!((r && r.ligadas < r.total) || (rp && rp.ligadas < rp.total));
+  /* estado da integração com os motores, para o atalho do topo: 'problema' (falta vínculo), 'erro' (não deu para
+     conferir), 'conferindo' (ainda lendo) ou 'ok' — "ok" só quando os dois lados foram lidos e estão completos */
+  function estadoIntegracao() {
+    var s = 'ok';
+    ['arquitetural', 'organizacional'].forEach(function (d) {
+      var L = L_(d), r = resumoLigacoes(d);
+      if (r && r.ligadas < r.total) s = 'problema';
+      else if (L.estado === 'erro' || L.estado === 'sem-acesso') { if (s !== 'problema') s = 'erro'; }
+      else if (!r && s === 'ok') s = 'conferindo';
+    });
+    return s;
   }
   function renderTopo() {
     var local = st.espaco === 'admin' ? 'Administração' : st.espaco === 'integridade' ? 'Integridade e configurações' : 'Catálogo de conceitos';
     var h = '<div class="tax-topo"><div class="tax-topo-titulo"><h3 class="tax-titulo-area" id="taxTituloArea">Taxonomia</h3><p class="tax-local" id="taxLocal">' + esc(local) + '</p></div>';
     if (st.espaco === 'catalogo' && podeVerHG()) {
-      var prob = problemaIntegracao();
-      h += '<button type="button" class="tax-lnk tax-integ-link" data-tax="integridade" id="taxIntegridadeLink"><span class="tax-ponto tax-ponto--' + (prob ? 'atencao' : 'ok') + '" aria-hidden="true"></span>Integridade e configurações' +
-        (prob ? '<span class="tax-integ-atencao"> · requer atenção</span>' : '') + '</button>';
+      var ei = estadoIntegracao();
+      h += '<button type="button" class="tax-lnk tax-integ-link" data-tax="integridade" id="taxIntegridadeLink" data-estado="' + ei + '"><span class="tax-ponto tax-ponto--' + (ei === 'ok' ? 'ok' : ei === 'conferindo' ? 'neutro' : 'atencao') + '" aria-hidden="true"></span>Integridade e configurações' +
+        (ei === 'problema' ? '<span class="tax-integ-atencao"> · requer atenção</span>' : ei === 'erro' ? '<span class="tax-integ-atencao"> · não foi possível conferir</span>' : '') + '</button>';
     }
     return h + '</div>';
   }
@@ -2171,7 +2179,11 @@
     else if (acao === 'indice-recarregar') carregarIndiceFilhos();
     else if (acao === 'cancelar-camada') { D.camadaMudando = null; render(); }
     else if (acao === 'confirmar-camada') { if (!st.salvando) alterarCamada(dom, D.selecionado); }
-    else if (acao === 'ligacoes-recarregar') carregarLigacoes(st.dominio);
+    else if (acao === 'ligacoes-recarregar') {
+      var dl = DOMINIOS[alvo.getAttribute('data-dominio')] ? alvo.getAttribute('data-dominio') : st.dominio;
+      carregarLigacoes(dl);
+      if (st.d[dl].estado === 'erro' || st.d[dl].estado === 'sem-acesso') carregarDominio(dl);
+    }
     else if (acao === 'nova-relacao') { D.gerenciandoRelacoes = D.selecionado; D.relForm = { modo: 'nova', direcao: 'saida', tipo: '', outro: '', nota: '', erro: null }; D.encerrando = null; render(); }
     else if (acao === 'alterar-relacao') {
       var kr = alvo.getAttribute('data-relacao'), rr = D.detalhe && D.detalhe.relacoes[kr];

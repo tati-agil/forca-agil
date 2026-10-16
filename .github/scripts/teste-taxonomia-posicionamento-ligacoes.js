@@ -2,20 +2,21 @@
  * CONTEÚDO FICTÍCIO. Firebase falso em persistência real; hermético (sem rede, sem segredo). A trava de verdade
  * (regras do banco) é provada no emulador em teste-rules-taxonomia-governanca.js, seção F.
  *
- *   1. Aviso "Proteção do Posicionamento incompleta: X de 10 conceitos conectados." enquanto faltar vínculo.
- *   2. No domínio organizacional: exatamente os 10 códigos do motor de Posicionamento (vindos do catálogo do
+ *   1. Catálogo: nada de integração; o atalho "Integridade e configurações" diz "requer atenção" enquanto faltar vínculo.
+ *   2. Em Integridade e configurações (os dois blocos juntos): exatamente os 10 códigos do motor de Posicionamento (vindos do catálogo do
  *      motor, nunca SQUAD/CAPITULO/DISCIPLINA); com falta, aviso destacado com o que falta e o impacto; a lista
  *      (conectado / sem vínculo / sem conceito / conceito inativo) fica em "Ver conceitos conectados" e códigos e datas
- *      em "Detalhes administrativos"; o arquitetural tem a "Integração com a Avaliação".
+ *      em "Detalhes administrativos"; ao lado, a "Integração com a Avaliação" (11).
  *   3. "Registrar ligações do Posicionamento…" mostra a prévia e NADA é gravado antes de confirmar (nem ao
  *      cancelar); confirmar grava, numa gravação só, as ligações válidas + auditoria (sem nome nem definição);
  *      depois não sobra nada a registrar e rodar de novo não grava nada (idempotente).
- *   4. Conceito ligado: "Inativar" e "Alterar camada" só explicam e não gravam; conceito não ligado segue normal.
+ *   4. Conceito ligado (Administração › Histórico e governança): "Inativar" e "Alterar camada" só explicam e não gravam; conceito não ligado segue normal.
  *   5. Sem rolagem horizontal; nenhum erro de JS. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
+const T = require('./taxonomia-tela');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -82,14 +83,14 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length);
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.innerText : ''; }, sel);
 async function dominio(page, dom) {
-  await page.click('[data-tax="dominio"][data-dominio="' + dom + '"]');
+  await T.dominio(page, dom);
   await esperarCondicao(page, (d) => !!document.querySelector('.tax-dominio--ativo[data-dominio="' + d + '"]') && !!document.querySelector('.tax-item'), dom, { descricao: 'domínio ' + dom + ' carregado' });
 }
+/* administração do conceito, na aba de governança (inativar, alterar camada) */
 async function abreConceito(page, cod) {
-  await esperarCondicao(page, (c) => !!document.querySelector('.tax-item[data-codigo="' + c + '"]') && !document.querySelector('.tax-lista .loading-msg, #taxCarregando'), cod, { descricao: 'lista do domínio montada' });
-  if (await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().isVisible() && !(await page.locator('.tax-item[data-codigo="' + cod + '"]').isVisible())) await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().click();
-  await page.click('.tax-item[data-codigo="' + cod + '"]');
-  await esperarCondicao(page, (c) => { const t = document.querySelector('#taxCodigo'); return !!t && t.innerText.indexOf(c) !== -1 && !document.querySelector('.tax-detalhe .loading-msg'); }, cod, { descricao: 'detalhe de ' + cod + ' carregado' });
+  if (!(await page.locator('#taxAdmin, #taxIntegridade').count())) await esperarCondicao(page, (c) => !!document.querySelector('.tax-item[data-codigo="' + c + '"]') && !document.querySelector('.tax-lista .loading-msg, #taxCarregando'), cod, { descricao: 'lista do domínio montada' });
+  await T.abrirAdmin(page, cod);
+  await esperarCondicao(page, () => !!document.getElementById('taxAdmin') && !document.querySelector('#taxAdmin .loading-msg'), null, { descricao: 'administração de ' + cod + ' carregada' });
 }
 const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#taxPreviaLigacoesPos [data-previa]')).reduce((o, li) => { o[li.dataset.previa] = li.dataset.situacao; return o; }, {}));
 
@@ -99,13 +100,14 @@ const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySe
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
 
-    console.log('\n== 1. Aviso de proteção incompleta do Posicionamento ==');
-    await esperarCondicao(page, () => !!document.getElementById('taxProtecaoIncompletaPos'), null, { descricao: 'aviso do Posicionamento' });
-    afirma(/^Proteção do Posicionamento incompleta: 1 de 10 conceitos conectados\./.test(await texto(page, '#taxProtecaoIncompletaPos')), 'aviso: "Proteção do Posicionamento incompleta: 1 de 10 conceitos conectados."', await texto(page, '#taxProtecaoIncompletaPos'));
-    afirma(!!(await texto(page, '#taxProtecaoIncompleta')), 'o aviso da Avaliação continua à parte');
+    console.log('\n== 1. Catálogo: integração fora; o atalho avisa ==');
+    await esperarCondicao(page, () => { const b = document.getElementById('taxIntegridadeLink'); return !!b && b.getAttribute('data-estado') === 'problema'; }, null, { descricao: 'atalho da integridade conferido' });
+    afirma(/requer atenção/.test(await texto(page, '#taxIntegridadeLink')), 'atalho: "Integridade e configurações · requer atenção"');
+    afirma(await page.locator('#taxConceitosBasePos, #taxIntegracaoResumoPos, #taxProtecaoIncompletaPos').count() === 0 && !/de 10 conceitos/.test(await texto(page, '#adminTaxonomia')), 'o Catálogo não mostra a integração do Posicionamento');
 
-    console.log('\n== 2. Conceitos-base do Posicionamento: os 10 códigos do motor ==');
+    console.log('\n== 2. Integridade: os 10 códigos do motor de Posicionamento ==');
     await dominio(page, 'organizacional');
+    await T.irIntegridade(page);
     await esperarCondicao(page, () => /conceitos conectados/.test((document.getElementById('taxIntegracaoResumoPos') || {}).innerText || ''), null, { descricao: 'integração conferida' });
     afirma(/^Integração com o Posicionamento$/.test((await texto(page, '#taxConceitosBasePos h4')).trim()) && /utiliza os nomes e as definições oficiais destes conceitos/.test(await texto(page, '#taxIntegracaoAjudaPos')), 'título "Integração com o Posicionamento" e a explicação simples');
     afirma(/Integração incompleta: 1 de 10 conceitos conectados/.test(await texto(page, '#taxIntegracaoResumoPos')) && await page.locator('#taxIntegracaoResumoPos[role="alert"]').count() === 1, 'falta de vínculo: aviso destacado "1 de 10 conceitos conectados"', await texto(page, '#taxIntegracaoResumoPos'));
@@ -113,7 +115,7 @@ const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySe
     const itens = await page.evaluate(() => Array.from(document.querySelectorAll('#taxConceitosBasePos [data-base]')).map((li) => li.dataset.base));
     afirma(itens.length === 10 && JSON.stringify(itens.slice().sort()) === JSON.stringify(DEZ.slice().sort()), 'exatamente os 10 códigos do motor (' + itens.join(', ') + ')');
     afirma(['SQUAD', 'CAPITULO', 'DISCIPLINA', 'A_VALIDAR'].every((c) => !itens.includes(c)), 'SQUAD, CAPITULO, DISCIPLINA e A_VALIDAR não aparecem');
-    afirma(await page.locator('#taxConceitosBase').count() === 0, 'no organizacional não aparece a área da Avaliação');
+    afirma(await page.locator('#taxConceitosBase').count() === 1 && await page.evaluate(() => document.getElementById('taxConceitosBase').getBoundingClientRect().top < document.getElementById('taxConceitosBasePos').getBoundingClientRect().top), 'os dois blocos em Integridade: Avaliação primeiro, depois Posicionamento');
     const it = (c) => texto(page, '#taxConceitosBasePos [data-base="' + c + '"]');
     afirma(/conectado/.test(await it(JA_LIGADO)) && !/desde |ligado ao Posicionamento/.test(await it(JA_LIGADO)) && await page.locator('#taxConceitosBasePos [data-base="' + JA_LIGADO + '"][data-ligado="1"]').count() === 1, 'COE: "conectado", sem repetir selo nem data em cada item');
     await page.click('#taxIntegracaoAdmPos > summary');
@@ -149,7 +151,7 @@ const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySe
     const multi = await page.evaluate(() => (window.__ESCRITAS || []).filter((e) => /^posicionamento-classificacoes(-auditoria)?\//.test(e.path)).length);
     afirma(multi === 14, 'uma gravação multipath com 7 ligações + 7 auditorias (' + multi + ' caminhos)');
     afirma(Object.keys(db['avaliacao-classificacoes'] || {}).length === 1, 'as ligações da Avaliação não foram tocadas');
-    afirma(/8 de 10 conceitos conectados/.test(await texto(page, '#taxProtecaoIncompletaPos')), 'aviso atualizado: 8 de 10');
+    afirma(/8 de 10 conceitos conectados/.test(await texto(page, '#taxIntegracaoResumoPos')), 'resumo atualizado: 8 de 10');
     afirma(await page.locator('#taxRegistrarLigacoesBtnPos').count() === 0, 'idempotente: não sobra nada a registrar (botão some)');
     const e1 = await escritas(page);
     const nada = await page.evaluate(() => { const I = window.faTaxonomia._interno; I.st.cargaLigPos = { erro: null }; I.registrarLigacoes('organizacional'); return I.st.cargaLigPos.erro; });
@@ -158,7 +160,8 @@ const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySe
 
     console.log('\n== 4. Conceito ligado: nem inativar nem trocar de camada ==');
     await abreConceito(page, 'AREA_ESPECIALIZADA');
-    afirma(/ligado ao Posicionamento/.test(await texto(page, '#taxIdentLigadoPos')), 'identificação: "ligado ao Posicionamento"');
+    afirma(/ligado ao Posicionamento/.test(await texto(page, '#taxIdentLigadoPos')), 'identificação (Administração › Conteúdo): "ligado ao Posicionamento"');
+    await T.abaAdmin(page, 'historico');
     let e2 = await escritas(page);
     await page.click('#taxInativarBtn');
     await page.waitForSelector('#taxInativarBloqueado');
@@ -172,14 +175,17 @@ const situacaoPrevia = (page) => page.evaluate(() => Array.from(document.querySe
     await page.click('[data-tax="cancelar-camada"]');
     afirma((await escritas(page)) === e2, 'nada gravado');
     await abreConceito(page, 'SQUAD');
+    await T.abaAdmin(page, 'historico');
     await page.click('#taxCamadaBtn');
     await page.waitForSelector('#taxCamadaPrevia');
     afirma(await page.locator('#taxCamadaBloqueada').count() === 0 && await page.locator('#taxPainelCamada textarea').count() === 1, 'não ligado (SQUAD): Alterar camada segue normal (prévia + motivo)');
     await page.click('[data-tax="cancelar-camada"]');
 
-    console.log('\n== 5. O arquitetural continua como era ==');
+    console.log('\n== 5. A integração com a Avaliação continua como era ==');
+    await T.irIntegridade(page);
+    afirma(/^Integração com a Avaliação$/.test((await texto(page, '#taxConceitosBase h4')).trim()) && await page.locator('#taxConceitosBase [data-base]').count() === 11 && await page.locator('#taxConceitosBase [data-base="LINHA"]').count() === 0, '"Integração com a Avaliação" (11 classificações), separada do Posicionamento');
+    await T.voltarCatalogo(page);
     await dominio(page, 'arquitetural');
-    afirma(/^Integração com a Avaliação$/.test((await texto(page, '#taxConceitosBase h4')).trim()) && await page.locator('#taxConceitosBase [data-base]').count() === 11 && await page.locator('#taxConceitosBasePos').count() === 0, 'arquitetural: "Integração com a Avaliação" (11 classificações), sem a área do Posicionamento');
     afirma(await larguraOk(page), 'sem rolagem horizontal ao final');
     await ctx.close();
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');

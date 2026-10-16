@@ -3805,6 +3805,7 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .tax-ui .tax-ponto { width: 9px; height: 9px; border-radius: 999px; display: inline-block; flex: none; }
 .tax-ui .tax-ponto--ok { background: #15803D; }
 .tax-ui .tax-ponto--atencao { background: #D97706; }
+.tax-ui .tax-ponto--neutro { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong, #94A3B8); }
 .tax-ui .tax-integ-atencao { color: #8A4B00; text-decoration: none; }
 .tax-ui .tax-dominios { display: inline-flex; gap: 4px; padding: 4px; background: #E9ECF1; border-radius: 10px; margin: 0 0 10px; flex-wrap: wrap; }
 .tax-ui .tax-dominio { font-family: var(--font-body); background: transparent; border: 0; color: var(--ink-2); border-radius: 8px; padding: 8px 16px; min-height: 40px; font-size: .92rem; }
