@@ -145,7 +145,7 @@
     [/^#avaliacoes\?(.*&)?(avp|editar)=/, 'a avaliação de Produto/Serviço'],
     [/^#avaliacoes\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],
     [/^#avaliacoes$/, 'o Início da Avaliação'],
-    [/^#admin\?arq=estruturas/, 'as Estruturas Organizacionais'],
+    [/^#admin\?arq=estruturas/, 'as Estruturas do Mapa da Floresta'],
     [/^#admin\?arq=documentacao/, 'Documentação e mapas'],
     [/^#admin/, 'Avaliações e Mapa']
   ];

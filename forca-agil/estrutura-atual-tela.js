@@ -25,11 +25,12 @@
   function perfilManter() { return !!(A() && A().podeArquitetura && A().podeArquitetura()); }
   function perfilConsultar() { return !!(A() && A().podeAvaliacao && A().podeAvaliacao()); }
   function habilitacao() { return D.hab === undefined ? undefined : D.hab || 'DESLIGADO'; }
+  function ultimaAlteracaoHab() { return D.habReg || null; } /* o próprio registro do marcador (motivo, quando, quem) */
   function podeManter() { return perfilManter() && habilitacao() === 'LIBERADO'; }
   function avisar() { aoMudarFns.forEach(function (f) { try { f(); } catch (e) { /* uma tela não derruba a outra */ } }); }
   function ligar() {
     if (!S() || !N() || !sessao()) return;
-    if (!ouvintes.cfg) ouvintes.cfg = S().ouvir(N().NOS.config, function (v) { D.hab = v && v.habilitacao ? v.habilitacao : null; avisar(); }, function () { D.hab = null; avisar(); });
+    if (!ouvintes.cfg) ouvintes.cfg = S().ouvir(N().NOS.config, function (v) { D.hab = v && v.habilitacao ? v.habilitacao : null; D.habReg = v && v.habilitacao && v.alteradoEm ? v : null; avisar(); }, function () { D.hab = null; D.habReg = null; avisar(); });
     if (!ouvintes.un && perfilConsultar()) ouvintes.un = S().ouvir(N().NOS.unidades, function (v) { D.unidades = v || {}; D.erro = null; avisar(); }, function () { D.unidades = null; D.erro = 'RECUSADA'; avisar(); });
   }
   function desligar() { if (ouvintes.cfg) ouvintes.cfg(); if (ouvintes.un) ouvintes.un(); ouvintes.cfg = ouvintes.un = null; D.hab = undefined; D.unidades = undefined; D.erro = null; }
@@ -93,10 +94,13 @@
   }
   function marcadorHtml() {
     var h = habilitacao(), lib = h === 'LIBERADO';
-    var t = '<div class="ea-marcador" id="eaMarcador"><p><strong>Gravação:</strong> <span class="an-chip an-chip--' + (lib ? 'ok' : 'pend') + '" id="eaMarcadorValor">' + (lib ? 'Liberada' : 'Desligada') + '</span> ' +
-      (lib ? (perfilManter() ? '' : '<span class="an-det">Manter o cadastro é do admin geral e do perfil Avaliação + Configuração.</span>') : '<span class="an-det">Cadastro só para consulta até a liberação pelo admin geral.</span>') + '</p>';
+    var reg = ultimaAlteracaoHab();
+    var t = '<div class="ea-marcador" id="eaMarcador"><p><strong>Gravação do cadastro:</strong> <span class="an-chip an-chip--' + (lib ? 'ok' : 'pend') + '" id="eaMarcadorValor">' + (lib ? 'Liberada' : 'Desligada') + '</span> ' +
+      (lib ? (perfilManter() ? '' : '<span class="an-det">Manter o cadastro é do admin geral e do perfil Avaliação + Configuração.</span>') : '<span class="an-det">Cadastro só para consulta.</span>') + '</p>' +
+      '<p class="an-det" id="eaMarcadorQuem">Liberar ou desligar: só o admin geral.</p>' +
+      (reg ? '<details class="an-hab-ultima" id="eaMarcadorUltima"><summary>Última alteração</summary><p class="an-det">' + esc(fmtData(reg.alteradoEm)) + ' · ' + esc((reg.alteradoPor || {}).email || '') + (reg.motivo ? ' · motivo: ' + esc(reg.motivo) : '') + '</p></details>' : '');
     if (adminGeral()) t += '<details class="an-conceitos" id="eaMarcadorDet"><summary>' + (lib ? 'Desligar a gravação' : 'Liberar a gravação') + '</summary><form class="an-form" id="eaFormMarcador" data-nova="' + (lib ? 'DESLIGADO' : 'LIBERADO') + '">' +
-      '<div class="avp-field"><label for="eaMarcadorMotivo">Motivo</label><input type="text" id="eaMarcadorMotivo" maxlength="500"></div><p class="an-nota">Fica no histórico do marcador. Independe da disponibilidade da Análise Organizacional (ADMIN › Acessos).</p>' +
+      '<div class="avp-field"><label for="eaMarcadorMotivo">Motivo (obrigatório)</label><input type="text" id="eaMarcadorMotivo" maxlength="500"></div><p class="an-nota">Fica no histórico. Não depende da disponibilidade da Análise Organizacional.</p>' +
       '<div class="avp-actions-footer"><button type="submit" class="btn btn--sm btn--primary" id="eaMarcadorGravar">' + (lib ? 'Desligar' : 'Liberar') + '</button></div></form></details>';
     return t + '</div>';
   }
@@ -108,7 +112,7 @@
   }
   function renderLista() {
     var h = cabecalho('Estrutura Organizacional Atual', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'sair') +
-      '<p class="an-intro">As unidades como existem hoje — diretorias, gerências, núcleos — com a unidade superior. Serve para escolher a área analisada e quem executa cada responsabilidade na Porta 2. <strong>Não é a Estrutura Organizacional do Mapa</strong>: não tem tipo arquitetural nem vínculo formal.</p>' +
+      '<p class="an-intro">Unidades que existem hoje — diretorias, gerências, núcleos —, com a unidade superior. Usadas na Análise Organizacional para identificar a unidade analisada e quem executa cada responsabilidade. <strong>Não é o cadastro das Estruturas do Mapa da Floresta</strong>: não tem tipo arquitetural nem vínculo formal.</p>' +
       marcadorHtml() + avisos();
     if (D.unidades === undefined) return h + '<p class="loading-msg" id="eaCarregando">Carregando…</p>';
     if (D.unidades === null) return h + '<p class="avp-error-msg" id="eaIndisponivel">Não foi possível ler o cadastro agora.</p>';

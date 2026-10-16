@@ -81,13 +81,15 @@
   };
   /* estados gravados no banco (códigos, inalterados) → rótulos mostrados em ADMIN › Acessos › Disponibilidade de funcionalidades */
   var HAB = { DESLIGADO: 'Desativada', SOMENTE_ADMIN_GERAL: 'Ativada só para o admin geral (homologação)', LIBERADO_PARA_PERFIS_AUTORIZADOS: 'Ativada para os perfis autorizados' };
+  /* uma linha por estado, só no formulário de alteração (a mesma regra vale no banco) */
+  var HAB_DICA = { DESLIGADO: 'Não aparece para ninguém. Nenhum dado é apagado.', SOMENTE_ADMIN_GERAL: 'Só o admin geral usa, para homologar.', LIBERADO_PARA_PERFIS_AUTORIZADOS: 'Os perfis autorizados consultam; Avaliação + Configuração e admin geral registram.' };
   /* textos de tela de algumas perguntas (a matriz F1–F17 do núcleo continua a fonte da pergunta e do porquê) */
   var TEXTO_PERGUNTA = {
     F2a: { curta: 'Um só resultado e um só destinatário?' },
-    F2b: { curta: 'No cadastro de Estruturas Organizacionais (ADMIN)',
+    F2b: { curta: 'No cadastro de Estruturas do Mapa da Floresta (ADMIN)',
       pergunta: 'Essa estrutura já está cadastrada no ADMIN para representação no Mapa da Floresta?',
-      ajuda: 'Consulte em ADMIN → Avaliações e Mapa → Estruturas Organizacionais. Esse cadastro registra estruturas concretas da organização e não deve ser confundido com o cadastro de Responsabilidades Organizacionais da Porta 2. Não é necessário cadastrar uma estrutura para continuar esta análise.',
-      valores: { cadastrada: 'Existe no cadastro de Estruturas Organizacionais do ADMIN.', 'nao-cadastrada': 'É uma estrutura formal que ainda não consta naquele cadastro.', informal: 'É um agrupamento ou atuação sem formalização como estrutura organizacional.' } },
+      ajuda: 'Consulte em ADMIN → Avaliações e Mapa → Estruturas do Mapa da Floresta. Esse cadastro registra estruturas concretas da organização e não deve ser confundido com o cadastro de Responsabilidades Organizacionais da Porta 2. Não é necessário cadastrar uma estrutura para continuar esta análise.',
+      valores: { cadastrada: 'Existe no cadastro de Estruturas do Mapa da Floresta (ADMIN).', 'nao-cadastrada': 'É uma estrutura formal que ainda não consta naquele cadastro.', informal: 'É um agrupamento ou atuação sem formalização como estrutura organizacional.' } },
     F2c: { curta: 'Entregas da capacidade' }
   };
   var PRAZO = 15000;
@@ -351,7 +353,7 @@
           '<label class="an-opcao"><input type="radio" name="anTemAtuacao" value="sim"' + (f.objetoAmploId ? ' checked' : '') + (atuacoes.length ? '' : ' disabled') + '><span><strong>Sim — aprofundar uma responsabilidade já registrada</strong><span class="an-exemplo">' + (atuacoes.length ? 'Para uma responsabilidade ampla demais: ela continua como está e passa a aparecer como "delimitada em N responsabilidades".' : 'Ainda não há responsabilidade registrada na Porta 2.') + '</span></span></label>' +
           (atuacoes.length ? '<div class="avp-field an-dependente"><label for="anObjetoAmplo">Qual responsabilidade? <span class="an-opc" id="anObjetoAmploDica">' + (f.objetoAmploId ? '(obrigatória)' : '(só para "Sim")') + '</span></label><select id="anObjetoAmplo" aria-describedby="anObjetoAmploDica"' + (f.objetoAmploId ? '' : ' disabled') + '><option value="">—</option>' +
             atuacoes.map(function (k) { return '<option value="' + esc(k) + '"' + (f.objetoAmploId === k ? ' selected' : '') + '>' + esc(D.objetos[k].nome) + '</option>'; }).join('') + '</select></div>' : '') +
-          '<p class="an-nota">Isto se refere às Responsabilidades Organizacionais da Porta 2 (área Avaliação), e não às Estruturas Organizacionais cadastradas no ADMIN.</p></fieldset></details></form>';
+          '<p class="an-nota">Isto se refere às Responsabilidades Organizacionais da Porta 2 (área Avaliação), e não às Estruturas do Mapa da Floresta cadastradas no ADMIN.</p></fieldset></details></form>';
     }
 
     /* ---------- a área e as suas responsabilidades: registrar (uma ou várias) → lista única com o andamento de cada uma → O1–O9 ---------- */
@@ -688,7 +690,7 @@
       return '<form class="an-form an-linha-form" id="anFormNucleos" data-recorte="' + esc(k) + '"><h4>Qual núcleo ou quais núcleos executam esta responsabilidade hoje?</h4>' +
         '<p class="an-nota">Opcional. Informe só o que se sabe — nada é associado pelo nome. É informação declarada: não cria estrutura, não cria vínculo formal e não muda o Mapa nem o O1–O9.</p>' +
         blocoUA + blocoRel +
-        (ests.length ? '<fieldset class="an-opcoes"><legend>Cadastrados em ADMIN › Avaliações e Mapa › Estruturas Organizacionais</legend>' + ests.map(function (x) { return '<label class="an-opcao"><input type="checkbox" name="anNucEst" value="' + esc(x) + '"' + (ids[x] ? ' checked' : '') + '><span>' + esc(D.estruturas[x].nome) + '</span></label>'; }).join('') + '</fieldset>'
+        (ests.length ? '<fieldset class="an-opcoes"><legend>Cadastrados em ADMIN › Avaliações e Mapa › Estruturas do Mapa da Floresta</legend>' + ests.map(function (x) { return '<label class="an-opcao"><input type="checkbox" name="anNucEst" value="' + esc(x) + '"' + (ids[x] ? ' checked' : '') + '><span>' + esc(D.estruturas[x].nome) + '</span></label>'; }).join('') + '</fieldset>'
           : '') +
         '<div class="avp-field"><label for="anNucOutros">Núcleos que não estão em nenhum cadastro <span class="an-opc">(um por linha)</span></label><textarea id="anNucOutros" rows="3" maxlength="2000" placeholder="Ex.: CONTA — Núcleo de Contabilidade">' + esc(textos.join('\n')) + '</textarea></div>' +
         '<div class="avp-field"><label for="anNucFonte">Fonte <span class="an-opc">(opcional)</span></label><input id="anNucFonte" maxlength="2000" placeholder="Ex.: regimento da gerência"></div>' +
@@ -850,7 +852,7 @@
     function campoEstruturaCadastrada(atual) {
       var ests = D.estruturas ? Object.keys(D.estruturas).filter(function (k) { return D.estruturas[k].situacao === 'ativa'; }).sort(function (x, y) { return String(D.estruturas[x].nome).localeCompare(D.estruturas[y].nome); }) : [];
       var ligado = !!(atual && atual.valor === 'cadastrada'), sel = ligado ? atual.estruturaId : '';
-      if (!ests.length) return '<p class="an-nota" id="anEstruturaCadastradaAviso">' + (D.estruturas === undefined ? 'Lendo o cadastro de Estruturas Organizacionais…' : 'O cadastro de Estruturas Organizacionais não está disponível agora (ou ainda não tem estruturas ativas). Se a estrutura está cadastrada, volte a esta pergunta depois; se não está, escolha outra resposta.') + '</p>';
+      if (!ests.length) return '<p class="an-nota" id="anEstruturaCadastradaAviso">' + (D.estruturas === undefined ? 'Lendo o cadastro de Estruturas do Mapa da Floresta…' : 'O cadastro de Estruturas do Mapa da Floresta não está disponível agora (ou ainda não tem estruturas ativas). Se a estrutura está cadastrada, volte a esta pergunta depois; se não está, escolha outra resposta.') + '</p>';
       return '<div class="avp-field an-dependente" id="anEstruturaCadastradaCampo"><label for="anEstruturaCadastrada">Qual estrutura cadastrada? <span class="an-opc" id="anEstruturaCadastradaDica">' + (ligado ? '(obrigatória)' : '(só para "Está cadastrada")') + '</span></label>' +
         '<select id="anEstruturaCadastrada" aria-describedby="anEstruturaCadastradaDica"' + (ligado ? ' required' : ' disabled') + '><option value="">—</option>' + ests.map(function (k) { return '<option value="' + esc(k) + '"' + (k === sel ? ' selected' : '') + '>' + esc(D.estruturas[k].nome) + '</option>'; }).join('') + '</select></div>';
     }
@@ -1454,12 +1456,11 @@
       var p = perfil();
       if (!p.adminGeral) { el.innerHTML = ''; return; }
       var atual = D.hab === undefined ? null : D.hab, reg = D.habRegistro;
-      el.innerHTML = '<div class="an-habilitacao" id="anHabilitacao"><p><strong>Situação:</strong> <span id="anHabAtual">' + (atual ? esc(HAB[atual] || atual) : 'Carregando…') + '</span>' +
-        (reg ? ' <span class="an-det">(' + esc(fmtData(reg.alteradoEm)) + ' · ' + esc((reg.alteradoPor || {}).email || '') + ' · ' + esc(reg.motivo) + ')</span>' : '') + '</p>' +
-        '<p class="an-nota">Desativada: nada da Análise Organizacional aparece e a Porta 2 continua igual. Ativada só para o admin geral: para homologar. Ativada para os perfis autorizados: os perfis autorizados consultam; Avaliação + Configuração e admin geral registram. O banco aplica a mesma regra; desativar não apaga nenhum dado.</p>' +
+      el.innerHTML = '<div class="an-habilitacao" id="anHabilitacao"><p><strong>Situação:</strong> <span id="anHabAtual">' + (atual ? esc(HAB[atual] || atual) : 'Carregando…') + '</span></p>' +
+        (reg ? '<details class="an-hab-ultima" id="anHabUltima"><summary>Última alteração</summary><p class="an-det">' + esc(fmtData(reg.alteradoEm)) + ' · ' + esc((reg.alteradoPor || {}).email || '') + ' · motivo: ' + esc(reg.motivo) + '</p></details>' : '') +
         (ok ? '<p class="avp-flash-success" role="status">' + esc(ok) + '</p>' : '') + (erro ? '<p class="avp-error-msg" role="alert">' + esc(erro) + '</p>' : '') +
-        (formAberto ? '<form class="an-form" id="anFormHabilitacao"><fieldset class="an-opcoes"><legend>Nova disponibilidade</legend>' + Object.keys(HAB).map(function (k) { return '<label class="an-opcao"><input type="radio" name="anHab" value="' + k + '"' + (k === atual ? ' checked' : '') + '><span>' + esc(HAB[k]) + '</span></label>'; }).join('') + '</fieldset>' +
-          '<div class="avp-field"><label for="anHabMotivo">Motivo</label><input type="text" id="anHabMotivo" maxlength="500"></div><div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anHabSalvar"' + (gravando ? ' disabled' : '') + '>Salvar</button><button type="button" class="btn btn--sm" id="anHabCancelar">Cancelar</button></div></form>'
+        (formAberto ? '<form class="an-form" id="anFormHabilitacao"><fieldset class="an-opcoes"><legend>Nova disponibilidade</legend>' + Object.keys(HAB).map(function (k) { return '<label class="an-opcao"><input type="radio" name="anHab" value="' + k + '"' + (k === atual ? ' checked' : '') + '><span>' + esc(HAB[k]) + '<small class="an-hab-dica">' + esc(HAB_DICA[k]) + '</small></span></label>'; }).join('') + '</fieldset>' +
+          '<div class="avp-field"><label for="anHabMotivo">Motivo (obrigatório)</label><input type="text" id="anHabMotivo" maxlength="500"></div><div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anHabSalvar"' + (gravando ? ' disabled' : '') + '>Salvar</button><button type="button" class="btn btn--sm" id="anHabCancelar">Cancelar</button></div></form>'
           : '<button type="button" class="btn btn--sm" id="anHabAlterar">Alterar disponibilidade</button>') + '</div>';
     }
     el.addEventListener('click', function (ev) {

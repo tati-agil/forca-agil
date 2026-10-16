@@ -1,6 +1,6 @@
 /* Navegação do Admin da Avaliação de Produto/Serviço (PR 3 do prompt consolidado):
  *   - tela inicial organizada em grupos: Questionários e versões / Motores de classificação (P1–P16, O1–O9, S1–S8 num
- *     só lugar) / Naturezas complementares (com a finalidade: não entra em motor) / … / Referências / Acessos (Permissões
+ *     só lugar, dentro de Configuração das Avaliações) / Cadastros de Estruturas Organizacionais / Configurações complementares (Naturezas) / Acessos (Permissões
  *     de usuários e Disponibilidade de funcionalidades, com a Análise Organizacional) — só organização, as mesmas telas;
  *   - TODA subtela tem um "← Voltar para <tela pai>" explícito, que sobe UM nível;
  *   - sair de uma tela de edição com alteração não salva pede confirmação
@@ -60,19 +60,24 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
 
-    console.log('\n== Tela inicial: grupos (questionários, os três motores juntos, naturezas, Referências e Acessos) ==');
+    console.log('\n== Tela inicial: Configuração das Avaliações, Cadastros de Estruturas, complementares, Acessos e Referências ==');
     const titulos = await page.locator('#adminAvaliacaoProduto .avp-admin-grupo > h4').allTextContents();
-    afirma(JSON.stringify(titulos) === JSON.stringify(['Questionários e versões', 'Motores de classificação', 'Naturezas complementares', 'Estrutura organizacional atual', 'Referências', 'Acessos']), 'grupos: ' + titulos.join(' | '));
+    afirma(JSON.stringify(titulos) === JSON.stringify(['Configuração das Avaliações', 'Cadastros de Estruturas Organizacionais', 'Configurações complementares', 'Acessos', 'Referências']), 'grupos: ' + titulos.join(' | '));
     const grupo = (n) => page.locator('#adminAvaliacaoProduto .avp-admin-grupo').nth(n);
-    afirma(await grupo(0).locator('#avpConfigQuestionariosBtn').count() === 1 && await grupo(0).locator('.avp-admin-card').count() === 1, 'Questionários e versões: só os questionários');
-    afirma(JSON.stringify(await grupo(1).locator('.avp-admin-card strong').allTextContents()) === JSON.stringify(['Produto/Serviço (P1–P16)', 'Posicionamento Organizacional (O1–O9)', 'Adequação à gestão por Squad (S1–S8)']) &&
-      await grupo(1).locator('#avpConfigMotoresBtn, #avpMotorPosicionamentoInicioBtn, #avpMotorSquadInicioBtn').count() === 3, 'Motores de classificação: os três motores num só lugar');
-    afirma(await grupo(2).locator('#avpConfigNaturezasBtn').count() === 1 && /não entra em nenhum motor e não muda respostas nem resultados/.test(await grupo(2).innerText()) && /Não é tipo organizacional nem classificação/.test(await grupo(2).innerText()), 'Naturezas complementares: separada dos motores, dizendo o que é e que não muda resultados');
-    afirma(await page.locator('#adminAvaliacaoProduto .avp-admin-grupo-uso').count() >= 2 && /configurar/.test(await page.locator('#avpAdminPapel').innerText()) &&
-      /ADMIN › Taxonomia/.test(await page.locator('#avpAdminPapel').innerText()), 'I1: configuração × cadastro de estruturas × Taxonomia explicados, com "Onde aparece" em cada grupo');
-    afirma(await grupo(3).locator('#avpEstruturaAtualBtn').count() === 1, 'Estrutura organizacional atual: o cadastro das unidades de hoje (separado das Estruturas do Mapa)');
+    afirma(await grupo(0).locator('#avpConfigQuestionariosBtn').count() === 1 && (await grupo(0).locator('h5').allTextContents()).join('|') === 'Motores de classificação', 'Configuração das Avaliações: os questionários e, num subgrupo, os motores');
+    afirma(JSON.stringify(await grupo(0).locator('#avpSubMotores ~ .avp-admin-cards .avp-admin-card strong').allTextContents()) === JSON.stringify(['Produto/Serviço (P1–P16)', 'Posicionamento Organizacional (O1–O9)', 'Adequação à gestão por Squad (S1–S8)']) &&
+      await grupo(0).locator('#avpConfigMotoresBtn, #avpMotorPosicionamentoInicioBtn, #avpMotorSquadInicioBtn').count() === 3, 'Motores de classificação: os três motores juntos (organização da PR #386)');
+    afirma(await grupo(1).locator('#avpEstruturaAtualBtn').count() === 1 && (await grupo(1).locator('#avpEstruturaAtualBtn strong').innerText()) === 'Estrutura Organizacional Atual' &&
+      /unidades que existem hoje/.test(await grupo(1).locator('#avpEstruturaAtualBtn').innerText()), 'Cadastros de Estruturas Organizacionais: a Estrutura Organizacional Atual, com descrição curta');
+    afirma(await grupo(2).locator('#avpConfigNaturezasBtn').count() === 1 && (await grupo(2).getAttribute('class')).includes('avp-admin-grupo--discreto') &&
+      (await grupo(2).locator('#avpConfigNaturezasBtn').innerText()).includes('Opções utilizadas para descrever características adicionais dos itens da Avaliação de Produto/Serviço'), 'Naturezas Complementares: configuração auxiliar, em grupo discreto, com a descrição curta');
+    /* sem repetição: nenhum grupo com um único cartão de mesmo nome; nenhum "Onde aparece" repetindo o que o cartão diz */
+    const repetidos = await page.evaluate(() => [...document.querySelectorAll('#adminAvaliacaoProduto .avp-admin-grupo')].filter((g) => { const t = g.querySelector('h4').textContent.trim().toLowerCase(); return [...g.querySelectorAll('.avp-admin-card strong')].some((c) => c.textContent.trim().toLowerCase() === t); }).map((g) => g.querySelector('h4').textContent));
+    afirma(!repetidos.length && await page.locator('#adminAvaliacaoProduto .avp-admin-grupo-uso').count() === 0, 'sem título repetido entre grupo e cartão, sem "Onde aparece" repetido', repetidos);
+    afirma(/configurar/.test(await page.locator('#avpAdminPapel').innerText()) && /ADMIN › Taxonomia/.test(await page.locator('#avpAdminPapel').innerText()), 'I1: configuração × cadastro × Taxonomia explicados numa frase');
+    afirma(await grupo(3).locator('#avpUsuariosBtn').count() === 1 && await grupo(3).locator('#anHabilitacaoAdmin').count() === 1 && await page.locator('#anHabilitacaoAdmin').count() === 1 &&
+      /Permissão define quem pode acessar/.test(await grupo(3).innerText()) && /Disponibilidade define se a funcionalidade está liberada para quem tem permissão/.test(await grupo(3).innerText()), 'Acessos: permissão × disponibilidade explicadas, Usuários autorizados e a Análise Organizacional, uma vez só');
     afirma(await grupo(4).locator('#avpDocumentacaoBtn').count() === 1, 'Referências: Documentação e mapas');
-    afirma(await grupo(5).locator('#avpUsuariosBtn').count() === 1 && await grupo(5).locator('#anHabilitacaoAdmin').count() === 1 && await page.locator('#anHabilitacaoAdmin').count() === 1, 'Acessos: Usuários autorizados (permissões) e a Análise Organizacional (disponibilidade), uma vez só');
     /* O1–O9: o atalho abre a MESMA área dos motores, já no cartão do Posicionamento; o Voltar dela volta ao início */
     await page.click('#avpMotorPosicionamentoInicioBtn');
     await page.waitForSelector('#avpMotorPosicionamento', { timeout: 8000 });

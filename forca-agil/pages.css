@@ -4036,3 +4036,26 @@ button.est-voltar-jornada:focus-visible { outline: 3px solid var(--cyan-soft); o
 :where(#adminContent, #page-avaliacoes) :where(input:disabled, select:disabled, textarea:disabled):where(:not(.tax-ui *, .mfm-painel *)) { opacity: .55; cursor: not-allowed; }
 :where(#adminContent, #page-avaliacoes) :where(input[readonly], textarea[readonly]):where(:not(.tax-ui *, .mfm-painel *)) { background: var(--panel-2); }
 :where(#adminContent, #page-avaliacoes) :where(input[type="checkbox"], input[type="radio"]):where(:not(.tax-ui *, .mfm-painel *)) { accent-color: var(--accent); }
+
+/* ===== ADMIN › Avaliações e Mapa: simplificação final (título do grupo → cartões → descrição curta) ===== */
+.avp-admin-subgrupo { margin: 16px 0 0; font-size: .92rem; color: var(--ink); }
+.avp-admin-papel { margin: 0 0 14px; }
+/* configuração auxiliar: mesmo padrão, menos destaque */
+.avp-admin-grupo--discreto { background: transparent; border-style: dashed; padding-top: 12px; padding-bottom: 12px; }
+.avp-admin-grupo--discreto h4 { font-size: .9rem; color: var(--ink-2); }
+.avp-admin-grupo--discreto .avp-admin-cards { margin-top: 8px; }
+/* Mapa: uma ação principal; os outros destinos como links secundários */
+.avp-mapa-secundarias { display: inline-flex; flex-wrap: wrap; gap: 6px 18px; }
+/* .avp-mapa-link já existe (o mesmo link secundário da área Avaliação, 44 px de toque); aqui só o botão sem cara de botão */
+button.avp-mapa-link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.avp-mapa-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 640px) { .avp-mapa-secundarias { flex-direction: column; align-items: flex-start; } }
+/* Documentação: a definição oficial do Mapa como registro (sem o tom de destaque do Mapa da tela inicial) */
+.avp-docs-definicao { border: 1px solid var(--line-strong); border-left-width: 1px; background: var(--panel); }
+.avp-docs-definicao-rotulo { margin: 0 0 2px; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.avp-docs-definicao .avp-doc-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+/* disponibilidade (Porta 2) e gravação (Estrutura Atual): dica por estado e última alteração recolhida */
+.an-hab-dica { display: block; margin-top: 2px; font-size: .78rem; color: var(--ink-3); }
+.an-hab-ultima { margin: 4px 0 8px; font-size: .84rem; }
+.an-hab-ultima > summary { cursor: pointer; color: var(--ink-2); }
+.an-hab-ultima .an-det { margin: 4px 0 0; }

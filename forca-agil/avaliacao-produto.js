@@ -5131,7 +5131,7 @@
        Mapa (mapa-floresta.js): com o cadastro de estruturas disponível, registros reais; sem ele, modo demonstrativo, com
        exemplos fictícios — nunca apresentados como relações concluídas; enquanto o marcador não chegou, "conferindo". */
     var MAPA_DESCRICAO = 'Visualize as estruturas organizacionais e os produtos, serviços e responsabilidades associados a elas, conforme os registros disponíveis.';
-    var MAPA_DESCRICAO_ADMIN = 'O Mapa da Floresta reúne a visão das estruturas organizacionais e de suas responsabilidades. As avaliações, o posicionamento e os vínculos com as estruturas fornecem as informações utilizadas nessa representação.';
+    var MAPA_DESCRICAO_ADMIN = 'O Mapa da Floresta reúne a visão das estruturas organizacionais e de suas responsabilidades.';
     /* COMO CADA PARTE CONTRIBUI — uma linha por parte, cada uma levando à funcionalidade que JÁ existe, só para quem entra nela
        (sem permissão: o nome sem link). Lista, não sequência: nenhuma parte é etapa obrigatória da outra; classificação do item,
        posicionamento da responsabilidade, estrutura concreta e vínculo são informações diferentes. */
@@ -5145,9 +5145,9 @@
       var partes = [
         ['Avaliação de Produto/Serviço', 'Identifica a natureza arquitetural do item (P1–P16).', acesso('avpParteProduto', 'Ver avaliações', '#avaliacoes?av=lista')],
         ['Posicionamento Organizacional', 'Identifica o tipo de estrutura adequado à responsabilidade avaliada (O1–O9).', acesso('avpPartePosicionamento', 'Ver posicionamentos', '#avaliacoes?po=lista')],
-        ['Estruturas Organizacionais', 'Cadastra as estruturas concretas.', estruturasDisponiveis() ? acesso('avpParteEstruturas', 'Abrir o cadastro', 'estruturas') : '<span class="avp-parte-sem" id="avpParteEstruturasSem">' + (habilitacaoEstruturasPendente() ? 'Conferindo…' : 'Cadastro ainda não habilitado') + '</span>'],
+        ['Estruturas do Mapa da Floresta', 'Cadastra as estruturas concretas.', estruturasDisponiveis() ? acesso('avpParteEstruturas', 'Abrir o cadastro', 'estruturas') : '<span class="avp-parte-sem" id="avpParteEstruturasSem">' + (habilitacaoEstruturasPendente() ? 'Conferindo…' : 'Cadastro ainda não habilitado') + '</span>'],
         ['Vínculo de responsabilidade', 'Associa o item à estrutura responsável, quando registrado — na ficha do Posicionamento.', acesso('avpParteVinculo', 'Ver na ficha do Posicionamento', '#avaliacoes?po=lista')],
-        ['Mapa da Floresta', 'Apresenta a visão integrada disponível.', acesso('avpParteMapa', 'Abrir o Mapa', 'mapa')],
+        ['Mapa da Floresta', 'Apresenta a visão integrada disponível (acesso no destaque acima).', ''],
         ['Taxonomia', 'Fornece os conceitos e definições oficiais usados nas classificações e nos tipos organizacionais.', taxDisponivel ? acesso('avpParteTaxonomia', 'Abrir a Taxonomia', 'taxonomia') : '<span class="avp-parte-sem">Mantida na aba Taxonomia (admin geral)</span>'],
         ['Adequação à Squad', 'Avaliação complementar, só quando aplicável; não é etapa obrigatória para todos os itens (S1–S8).', acesso('avpParteSquad', 'Ver adequações', '#avaliacoes?sq=lista')]
       ];
@@ -5191,16 +5191,14 @@
        Só parametrização e governança — nada de avaliar aqui. O trabalho do dia
        a dia (consultar, avaliar, reavaliar) fica na área AVALIAÇÃO do menu. */
     function renderAdminInicio() {
-      /* Três grupos, só de organização visual — cada cartão leva à mesma tela
-         de antes. Rótulos dos grupos descrevem o que o administrador faz ali. */
-      function grupo(titulo, descricao, cartoes, uso) {
-        var h = '<section class="avp-form-card avp-admin-inicio avp-admin-grupo" aria-label="' + esc(titulo) + '">';
-        h += '<h4>' + esc(titulo) + '</h4>';
-        h += '<p class="avp-admin-grupo-desc">' + esc(descricao) + '</p>';
-        if (uso) h += '<p class="avp-admin-grupo-uso"><strong>Onde aparece:</strong> ' + esc(uso) + '</p>';
-        h += '<div class="avp-admin-cards">' + cartoes + '</div></section>';
-        return h;
+      /* Grupos só de organização visual — cada cartão leva à mesma tela de antes. Padrão único: título do grupo →
+         cartões (nome + descrição curta); a explicação detalhada fica na tela de destino. */
+      function grupo(id, titulo, descricao, conteudo, classe) {
+        return '<section class="avp-form-card avp-admin-inicio avp-admin-grupo' + (classe ? ' ' + classe : '') + '" id="' + id + '" aria-labelledby="' + id + 'Titulo">' +
+          '<h4 id="' + id + 'Titulo">' + esc(titulo) + '</h4>' + (descricao ? '<p class="avp-admin-grupo-desc">' + esc(descricao) + '</p>' : '') + conteudo + '</section>';
       }
+      function cartoes(c) { return '<div class="avp-admin-cards">' + c + '</div>'; }
+      function subgrupo(id, titulo) { return '<h5 class="avp-admin-subgrupo" id="' + id + '">' + esc(titulo) + '</h5>'; }
       function cartao(id, titulo, texto) {
         return '<button type="button" class="avp-admin-card" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
       }
@@ -5208,53 +5206,42 @@
         '<p class="avp-mapa-rotulo">Destino da jornada</p><h4 id="avpAdminMapaTitulo">Mapa da Floresta</h4><p class="avp-mapa-desc">' + esc(MAPA_DESCRICAO_ADMIN) + '</p>' +
         situacaoDadosMapaHtml('avpAdminMapaSituacao') +
         '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a>' +
-        '<a class="btn" id="avpAdminJornadaMapa" href="#avaliacoes?mf=catalogo" data-mapa-admin="#avaliacoes?mf=catalogo">Consultar jornada até o Mapa</a>' +
-        '<button type="button" class="btn" id="avpAdminDefinicaoMapa">Consultar definição e documentação</button></div></section>' +
+        '<span class="avp-mapa-secundarias"><a class="avp-mapa-link" id="avpAdminJornadaMapa" href="#avaliacoes?mf=catalogo" data-mapa-admin="#avaliacoes?mf=catalogo">Consultar jornada até o Mapa</a>' +
+        '<button type="button" class="avp-mapa-link" id="avpAdminDefinicaoMapa">Consultar definição e documentação</button></span></div></section>' +
         partesDaJornadaHtml();
-      html += '<div class="avp-form-card avp-admin-inicio">';
-      html += '<p class="avp-decisao-aviso" id="avpAdminPapel">Duas responsabilidades diferentes: <strong>configurar</strong> como as avaliações perguntam e classificam, e <strong>cadastrar as estruturas concretas</strong> que recebem as responsabilidades e aparecem no Mapa. Conceitos, definições e relações oficiais ficam em <strong>ADMIN › Taxonomia</strong> (admin geral). Consultar e realizar avaliações (inclusive as de Squad) é feito na área <strong>Avaliação</strong> do menu principal.</p>';
-      html += '</div>';
-      /* Três agrupamentos, só de organização (cada cartão leva à MESMA tela de antes): o que as perguntas dizem
-         (questionários), as regras que transformam respostas em resultado (os três motores, juntos) e uma configuração
-         auxiliar que não entra em motor nenhum (naturezas complementares — naturezas-config.js). */
-      html += grupo('Questionários e versões', 'O que as perguntas dizem: textos, ajudas, interpretações, versões e histórico dos questionários das avaliações.',
-        cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Redação das perguntas e justificativas, com versões e auditoria.'),
-        'nas avaliações da área Avaliação (Produto/Serviço, Posicionamento e Adequação à Squad).');
-      /* os três motores num só lugar; a avaliação de Squad em si continua na área Avaliação */
-      html += grupo('Motores de classificação', 'As regras que transformam as respostas de cada avaliação num resultado. Cada motor tem as suas versões e o seu histórico; nenhum decide por pontuação.',
-        cartao('avpConfigMotoresBtn', 'Produto/Serviço (P1–P16)', 'Regras que classificam o item, com simulação, versões e histórico de alterações.') +
-        cartao('avpMotorPosicionamentoInicioBtn', 'Posicionamento Organizacional (O1–O9)', 'Versões do motor, prontidão, simulação e impacto — só consulta (a regra é fixa e a entrada em vigor é governada).') +
-        (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Adequação à gestão por Squad (S1–S8)', 'Regras da adequação à gestão por squad, com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''),
-        'na conclusão de cada avaliação da área Avaliação.');
-      html += grupo('Naturezas complementares', 'Lista de opções do campo opcional "Natureza complementar" da ficha da Avaliação de Produto/Serviço: uma descrição manual de que tipo de item é (por exemplo, um programa transversal). Não é tipo organizacional nem classificação: não entra em nenhum motor e não muda respostas nem resultados.',
-        cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções oferecidas no campo, com ativação, ordem e histórico.'),
-        'na ficha da Avaliação de Produto/Serviço (campo opcional, preenchido na curadoria).');
-      if (estruturasDisponiveis()) {
-        html += grupo('Cadastro de estruturas concretas', 'As estruturas reais — por exemplo, uma Linha de Negócios específica — que recebem responsabilidades. O tipo vem do Posicionamento; a estrutura é cadastrada aqui; o vínculo de cada item é registrado na ficha do Posicionamento.',
-          cartao('avpEstruturasBtn', 'Estruturas Organizacionais', 'Cadastro das Linhas, Áreas Especializadas e Centros de Excelência, com histórico.'),
-          'na etapa "Estrutura concreta" da Jornada, na estrutura responsável da ficha do Posicionamento e no Mapa da Floresta.');
-      }
-      if (estruturaAtualDisponivel()) {
-        html += grupo('Estrutura organizacional atual', 'As unidades como existem hoje — diretorias, gerências, núcleos —, com a unidade superior. Não é a Estrutura Organizacional do Mapa: não tem tipo arquitetural nem vínculo formal.',
-          cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Árvore das unidades, ficha com histórico, subordinadas e encerramento com motivo.'),
-          'na Porta 2: para escolher a área analisada e quem executa cada responsabilidade hoje.');
-      }
-      html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
-        cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
-      /* ACESSOS (só admin geral): duas seções distintas — quem pode usar (permissões) e o que está ativado (disponibilidade).
-         O controle da Análise Organizacional (Porta 2) mora aqui, uma vez só (analises-organizacionais.js: mesma lógica, mesmo
-         estado gravado, mesmo histórico; desativar não apaga dados). */
+      html += '<p class="avp-decisao-aviso avp-admin-papel" id="avpAdminPapel">Aqui você pode <strong>configurar</strong> como as avaliações perguntam e classificam e <strong>cadastrar</strong> as estruturas organizacionais. Realizar avaliações (inclusive as de Squad) é na área <strong>Avaliação</strong> do menu; conceitos e definições oficiais ficam em <strong>ADMIN › Taxonomia</strong>.</p>';
+      /* 1. Configuração das Avaliações: o que as perguntas dizem (questionários) e as regras que transformam as respostas
+         em resultado (os três motores, juntos — organização da PR #386, preservada) */
+      html += grupo('avpGrupoConfiguracao', 'Configuração das Avaliações', 'Como as avaliações perguntam e como as respostas viram resultado.',
+        cartoes(cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Textos, ajudas e interpretações das perguntas das avaliações, com versões e histórico.')) +
+        subgrupo('avpSubMotores', 'Motores de classificação') +
+        cartoes(cartao('avpConfigMotoresBtn', 'Produto/Serviço (P1–P16)', 'Regras que classificam o item, com simulação, versões e histórico de alterações.') +
+          cartao('avpMotorPosicionamentoInicioBtn', 'Posicionamento Organizacional (O1–O9)', 'Versões do motor, prontidão, simulação e impacto — só consulta (a regra é fixa e a entrada em vigor é governada).') +
+          (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Adequação à gestão por Squad (S1–S8)', 'Regras da adequação à gestão por squad, com simulação e versões. As avaliações de squad ficam na área Avaliação.') : '')));
+      /* 2. Cadastros de Estruturas Organizacionais: dois cadastros DIFERENTES (dados e finalidades separados), lado a lado */
+      var cadAtual = estruturaAtualDisponivel() ? cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Cadastro das unidades que existem hoje, como diretorias, gerências e núcleos. Utilizado para identificar a unidade analisada e as responsabilidades executadas na Análise Organizacional.') : '';
+      var cadMapa = estruturasDisponiveis() ? cartao('avpEstruturasBtn', 'Estruturas do Mapa da Floresta', 'Cadastro das estruturas arquiteturais utilizadas nos posicionamentos e vínculos do Mapa, conforme os tipos organizacionais existentes no sistema.') : '';
+      if (cadAtual || cadMapa) html += grupo('avpGrupoEstruturas', 'Cadastros de Estruturas Organizacionais', 'Dois cadastros com finalidades diferentes; os dados de um não aparecem no outro.', cartoes(cadAtual + cadMapa));
+      /* 3. Configurações complementares (discreto): Naturezas Complementares — opções de um campo opcional da ficha de
+         Produto/Serviço; não entram em nenhum motor (naturezas-config.js; a tela de destino explica) */
+      html += grupo('avpGrupoComplementares', 'Configurações complementares', '',
+        cartoes(cartao('avpConfigNaturezasBtn', 'Naturezas Complementares', 'Opções utilizadas para descrever características adicionais dos itens da Avaliação de Produto/Serviço.')), 'avp-admin-grupo--discreto');
+      /* 4. ACESSOS (só admin geral): permissão (quem pode acessar) × disponibilidade (se a funcionalidade está liberada
+         para quem tem permissão). O controle da Análise Organizacional (Porta 2) mora aqui, uma vez só
+         (analises-organizacionais.js: mesma lógica, mesmo estado gravado, mesmo histórico; desativar não apaga dados). */
       if (souAdminGeral()) {
         var temDisp = !!(window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao);
         html += '<section class="avp-form-card avp-admin-inicio avp-admin-grupo avp-acessos" id="avpAdminAcessos" aria-labelledby="avpAdminAcessosTitulo"><h4 id="avpAdminAcessosTitulo">Acessos</h4>' +
-          '<p class="avp-admin-grupo-desc">Quem pode usar cada funcionalidade e quais funcionalidades estão ativadas. Só o administrador geral altera.</p>' +
-          '<h5 class="avp-acessos-secao" id="avpAcessosPermissoes">Permissões de usuários</h5>' +
-          '<div class="avp-admin-cards">' + cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a área Avaliações e Mapa do ADMIN), com histórico.') + '</div>' +
-          (temDisp ? '<h5 class="avp-acessos-secao" id="avpAcessosDisponibilidade">Disponibilidade de funcionalidades</h5>' +
+          '<p class="avp-admin-grupo-desc"><strong>Permissão</strong> define quem pode acessar. <strong>Disponibilidade</strong> define se a funcionalidade está liberada para quem tem permissão. Só o administrador geral altera.</p>' +
+          '<h5 class="avp-admin-subgrupo avp-acessos-secao" id="avpAcessosPermissoes">Permissões de usuários</h5>' +
+          cartoes(cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação e quem também acessa esta área do ADMIN, com histórico.')) +
+          (temDisp ? '<h5 class="avp-admin-subgrupo avp-acessos-secao" id="avpAcessosDisponibilidade">Disponibilidade de funcionalidades</h5>' +
             '<div class="avp-disponibilidade" id="avpDispPorta2"><p class="avp-disp-nome"><strong>Análise Organizacional (Porta 2)</strong></p>' +
-            '<p class="avp-admin-grupo-desc">Jornada para descobrir e delimitar responsabilidades num escopo amplo. Onde aparece: nas atuações organizacionais da área Avaliação. Começa desativada; a disponibilidade vale também no banco.</p>' +
             '<div id="anHabilitacaoAdmin"></div></div>' : '') + '</section>';
       }
+      /* 5. demais recursos */
+      html += grupo('avpGrupoReferencias', 'Referências', '',
+        cartoes(cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Definição oficial do Mapa da Floresta e outros artefatos de referência, com link, autor e data.')));
       wrap.innerHTML = html;
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
@@ -5463,7 +5450,7 @@
     }
     function renderDefinicaoMapa(d) {
       var m = d.mapa, e = d.editandoMapa;
-      var h = '<section class="avp-docs-definicao" id="avpDocsMapaFloresta" aria-labelledby="avpDocsMapaFlorestaTitulo">';
+      var h = '<section class="avp-docs-definicao" id="avpDocsMapaFloresta" aria-labelledby="avpDocsMapaFlorestaTitulo"><p class="avp-docs-definicao-rotulo">Definição oficial</p>';
       if (d.flashMapa) h += '<p class="avp-flash-success avp-flash-success--inline" id="avpMapaFlash">' + esc(d.flashMapa) + '</p>';
       if (e) {
         h += '<h4 id="avpDocsMapaFlorestaTitulo">' + (m ? 'Editar definição' : 'Registrar definição') + ' <span class="avp-docs-definicao-id">' + esc(ID_MAPA_FLORESTA) + '</span></h4>';
@@ -5481,7 +5468,7 @@
         if (m.link) h += '<p class="avp-doc-link"><a href="' + esc(m.link) + '" target="_blank" rel="noopener noreferrer">Link de referência do mapa ↗</a></p>';
         h += '<p class="avp-doc-meta">Registrada por ' + esc(autorDe(m.criadoPor) || '—') + ' em ' + esc(fmtData(m.criadoEm)) +
           (m.atualizadoEm && m.atualizadoEm !== m.criadoEm ? ' · Atualizada em ' + esc(fmtData(m.atualizadoEm)) + ' por ' + esc(autorDe(m.atualizadoPor) || '—') : '') + '</p>';
-        h += '<div class="avp-doc-acoes"><a class="btn btn--sm" id="avpMapaAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button></div>';
+        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button><a class="avp-mapa-link" id="avpMapaAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a></div>';
       } else {
         /* nó ainda não existe: valor inicial de fábrica, dito como tal */
         var f = PADRAO_MAPA_FLORESTA;
@@ -5489,7 +5476,7 @@
         h += '<p class="avp-docs-definicao-texto">' + esc(f.definicao) + '</p>';
         h += '<p class="avp-docs-definicao-nota">' + esc(f.nota) + '</p>';
         h += '<p class="avp-doc-meta" id="avpMapaFabrica">Valor inicial — ainda não salvo no banco. Ao editar e salvar, passa a valer a versão gravada, com histórico.</p>';
-        h += '<div class="avp-doc-acoes"><a class="btn btn--sm" id="avpMapaAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button></div>';
+        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button><a class="avp-mapa-link" id="avpMapaAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a></div>';
       }
       h += renderHistoricoRecolhido('avpMapaHistorico', d.mapaHistorico.map(function (l) {
         return { data: l.dataHora, autor: autorDe(l.usuario), tipo: ROTULO_ACAO_DEF[l.tipo] || l.tipo, resumo: l.titulo || '',
@@ -6021,7 +6008,7 @@
       var catalogo = window.faNaturezas.estado();
       var todas = window.faNaturezas.todas();
       var html = linkVoltar('avpNaturezasVoltar', ROTULO_ADMIN);
-      html += '<div class="avp-form-card"><h3>⚙ Naturezas complementares</h3>';
+      html += '<div class="avp-form-card"><h3>⚙ Naturezas Complementares</h3>';
       html += '<p class="avp-decisao-aviso">Opções oferecidas no campo "Natureza complementar" de cada avaliação. É só uma descrição manual do item: não entra no motor, não muda respostas nem classificação e não exige reprocessamento. Renomear ou desativar uma opção não altera as avaliações que já a usam — elas guardam o nome da época.</p>';
       if (catalogo === 'carregando') html += '<p class="loading-msg">Carregando opções…</p>';
       html += avisoCatalogoNaturezas('avpNaturezasTentarNovamente');
