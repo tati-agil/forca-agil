@@ -665,10 +665,25 @@
       var st = history.state;
       if (st && st.poAnterior === desejado) { history.back(); return; }
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
-      history.pushState({ avp: 1, seq: Date.now(), origem: null, poAnterior: location.hash || '#avaliacoes' }, '', desejado);
+      var est = { avp: 1, seq: Date.now(), origem: null, poAnterior: location.hash || '#avaliacoes' };
+      history.pushState(window.faNav ? window.faNav.comOrigem(est) : est, '', desejado); /* a origem externa acompanha */
     }
+    /* Para onde o "← Voltar" do topo leva: a tela que abriu o Posicionamento (ficha de Produto/Serviço, Jornada, Mapa,
+       Trabalhos, ADMIN — navOrigem), a lista de posicionamentos quando veio dela, ou a Avaliação (sem origem: F5, link). */
+    function origemPo() { var o = window.faNav && window.faNav.origem(); return o && o.hash !== location.hash ? o : null; }
+    var RE_LISTA_PO = /^#avaliacoes\?(.*&)?po=(lista|todas|atuacoes)(&|$)/;
+    /* a tela de baixo é uma lista de posicionamentos: a anterior desta entrada — ou, no desenho que ainda vai empilhar a
+       ficha, o próprio endereço atual */
+    function poAnteriorEhLista() {
+      var st = history.state;
+      if (st && st.poAnterior && RE_LISTA_PO.test(st.poAnterior)) return true;
+      return RE_LISTA_PO.test(location.hash || '') && state.tela !== 'lista' && state.tela !== 'todas' && state.tela !== 'atuacoes';
+    }
+    function rotuloVoltarPo() { if (poAnteriorEhLista()) return '← Voltar para os Posicionamentos'; var o = origemPo(); return '← Voltar para ' + (o ? o.rotulo : 'Avaliações'); }
     function sairParaAvaliacoes() {
       if (!confirmarSaida()) return;
+      if (poAnteriorEhLista()) { history.back(); return; } /* veio da lista: volta para ela */
+      if (origemPo()) { window.faNav.voltar(); return; }
       var st = history.state;
       if (st && st.poAnterior && st.poAnterior.split('?')[0] === '#avaliacoes' && !/[?&](po|sq)=/.test(st.poAnterior)) { history.back(); return; }
       history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#avaliacoes');
@@ -774,7 +789,7 @@
       else if (state.tela === 'descartado') h = renderDescartado();
       else if (state.tela === 'carregando') h = '<p class="loading-msg">Carregando…</p>';
       else if (state.tela === 'nao-encontrada') h = '<p class="admin-empty" id="poNaoEncontrada">Avaliação de posicionamento não encontrada.</p>' + rodapeVoltar();
-      wrap.innerHTML = '<button type="button" class="avp-voltar-link" id="poVoltar">← Voltar para Avaliações</button>' + jornadaFichaHtml() + avisoNaoConfirmada() + h;
+      wrap.innerHTML = '<button type="button" class="avp-voltar-link" id="poVoltar">' + esc(rotuloVoltarPo()) + '</button>' + jornadaFichaHtml() + avisoNaoConfirmada() + h;
       bind();
       if (P()) P().atualizarDom(wrap);
       rolarParaBloco();

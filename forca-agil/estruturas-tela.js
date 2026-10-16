@@ -755,6 +755,8 @@
       /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
       if (voltaPo) h = '<a class="est-voltar-jornada" id="estVoltarPosicionamento" href="#avaliacoes?po=' + encodeURIComponent(voltaPo) + '&bloco=responsavel">← Voltar ao Posicionamento (estrutura responsável)</a>' + h;
       else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
+      /* aberta de fora do ADMIN (o Mapa, por exemplo): o retorno à tela de origem fica à vista em qualquer vista do cadastro */
+      else if (origem && origem.origemNav) h = '<button type="button" class="est-voltar-jornada" id="estVoltarOrigemNav">← Voltar para ' + esc(origem.origemNav.rotulo) + '</button>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';
       bind();
       if (P()) P().atualizarDom && P().atualizarDom(wrap);
@@ -763,6 +765,7 @@
     function bind() {
       function em(id, ev, fn) { var el = byId(id); if (el) el.addEventListener(ev, fn); }
       em('estVoltarOrigem', 'click', function () { if (confirmarDescarte()) sair(); });
+      em('estVoltarOrigemNav', 'click', function () { if (confirmarDescarte()) sair(); });
       em('estVoltarLista', 'click', function () { if (confirmarDescarte()) irPara('lista'); });
       em('estVoltarFicha', 'click', function () { if (confirmarDescarte()) irPara('detalhe', st.id); });
       em('estCancelar', 'click', function () { if (!confirmarDescarte()) return; if (st.vista === 'nova') irPara('lista'); else irPara('detalhe', st.id); });

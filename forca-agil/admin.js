@@ -128,6 +128,67 @@
     history.back();
     setTimeout(function () { if (!chegou) { chegou = true; conferir(); } }, 700); /* sem entrada anterior: nada voltou */
   };
+  /* NAVEGAÇÃO COM ORIGEM (faNav) — uma tela aberta a partir de outra guarda, na entrada do histórico, de onde veio
+     (navOrigem: endereço, rótulo e, no ADMIN, a aba). O botão de retorno da tela usa essa origem quando ela existe
+     ("← Voltar para o Posicionamento", "← Voltar para Trabalhos de avaliação"…) e volta pelo retorno conferido acima;
+     sem marca (link direto, F5 de entrada sem origem, entrada pela própria tela), cada tela mantém o retorno de sempre.
+     As telas que empilham entradas próprias copiam a marca (faNav.comOrigem), para a origem não se perder no caminho.
+     avp:1 nas entradas criadas aqui: a área Avaliação não as reescreve. */
+  var ROTULOS_ORIGEM = [
+    [/^#avaliacoes\?(.*&)?tr=1/, 'Trabalhos de avaliação'],
+    [/^#avaliacoes\?(.*&)?po=(lista|todas|atuacoes)(&|$)/, 'os Posicionamentos'],
+    [/^#avaliacoes\?(.*&)?po=/, 'o Posicionamento'],
+    [/^#avaliacoes\?(.*&)?sq=/, 'a Adequação à Squad'],
+    [/^#avaliacoes\?(.*&)?mf=mapa/, 'o Mapa da Floresta'],
+    [/^#avaliacoes\?(.*&)?mf=catalogo/, 'a Jornada do Mapa'],
+    [/^#avaliacoes\?(.*&)?an=/, 'a Análise Organizacional'],
+    [/^#avaliacoes\?(.*&)?(avp|editar)=/, 'a avaliação de Produto/Serviço'],
+    [/^#avaliacoes\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],
+    [/^#avaliacoes$/, 'o Início da Avaliação'],
+    [/^#admin\?arq=estruturas/, 'as Estruturas Organizacionais'],
+    [/^#admin\?arq=documentacao/, 'Documentação e mapas'],
+    [/^#admin/, 'Avaliações e Mapa']
+  ];
+  function rotuloOrigem(hash) { for (var i = 0; i < ROTULOS_ORIGEM.length; i++) if (ROTULOS_ORIGEM[i][0].test(hash || '')) return ROTULOS_ORIGEM[i][1]; return 'a tela anterior'; }
+  function origemValida(o) { return !!(o && typeof o.hash === 'string' && /^#(avaliacoes|admin)(\?|$)/.test(o.hash)); }
+  window.faNav = {
+    rotuloOrigem: rotuloOrigem,
+    /* a origem registrada na entrada atual (ou null) */
+    origem: function () { var st = history.state; return st && origemValida(st.navOrigem) ? st.navOrigem : null; },
+    /* "← Voltar para …" da origem atual, ou o rótulo padrão da tela */
+    rotuloVoltar: function (padrao) { var o = window.faNav.origem(); return o ? '← Voltar para ' + o.rotulo : padrao; },
+    /* abre o destino guardando a tela atual como origem (opts.rotulo/opts.aba opcionais; opts.estado: chaves a mais) */
+    ir: function (destino, opts) {
+      opts = opts || {};
+      var aqui = location.hash || '#home';
+      var o = { hash: aqui, rotulo: opts.rotulo || rotuloOrigem(aqui) };
+      if (opts.aba) o.aba = opts.aba; else if (/^#admin/.test(aqui)) { var at = document.querySelector('.admin-tab-btn.active'); if (at) o.aba = at.dataset.panel; }
+      var st = { avp: 1, seq: Date.now(), origem: null, navOrigem: o };
+      if (opts.estado) Object.keys(opts.estado).forEach(function (k) { st[k] = opts.estado[k]; });
+      /* a entrada nasce JÁ com a origem (pushState) e só então as telas são avisadas, como o navegador faria numa troca de
+         endereço — trocar location.hash avisava as telas (popstate) antes de a marca existir e o rótulo saía sem origem */
+      var antes = location.href, ev = null;
+      try { ev = new HashChangeEvent('hashchange', { oldURL: antes, newURL: antes.split('#')[0] + destino }); } catch (e) { ev = null; }
+      if (ev) { history.pushState(st, '', destino); window.dispatchEvent(ev); }
+      else { location.hash = destino; history.replaceState(st, '', location.href); } /* navegador sem HashChangeEvent */
+    },
+    /* estado novo para um pushState da própria tela, levando a origem da entrada atual */
+    comOrigem: function (estado) { var o = window.faNav.origem(); if (o && !estado.navOrigem) estado.navOrigem = o; return estado; },
+    /* volta à origem registrada (conferido); devolve false se não há origem */
+    voltar: function () { var o = window.faNav.origem(); if (!o) return false; window.faVoltarParaOrigem(o.hash, o.aba); return true; },
+    /* liga cliques em links simples (<a href="#…">) para abrirem com origem — Ctrl/Cmd/Shift continuam abrindo em outra aba */
+    ligarLinks: function (raiz, seletor, opts) {
+      if (!raiz) return;
+      Array.prototype.forEach.call(raiz.querySelectorAll(seletor), function (a) {
+        if (a._faNav) return; a._faNav = true;
+        a.addEventListener('click', function (ev) {
+          if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.defaultPrevented) return;
+          var h = a.getAttribute('href'); if (!h || h.charAt(0) !== '#') return;
+          ev.preventDefault(); window.faNav.ir(h, opts);
+        });
+      });
+    }
+  };
   window.faAdminVoltarDaTaxonomia = function () { var o = window.faAdminOrigemTaxonomia(); if (o) window.faVoltarParaOrigem(o.hash, o.aba); };
   /* Voltar/Avançar e F5 numa entrada marcada: reabre a aba registrada (e, na origem, a posição em que a pessoa estava) */
   function aplicarAbaDoHistorico() {

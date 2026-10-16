@@ -3990,3 +3990,7 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .tax-ui .tax-correcao { margin: 6px 0 10px; color: var(--tx-texto-2); }
 .tax-ui .tax-verif-ok p { margin: 0 0 4px; }
 .tax-ui .tax-verif-ok p:last-child { color: var(--tx-texto-2); }
+
+/* retorno à origem como botão (Estruturas aberta pelo Mapa): mesma aparência do link "← Voltar …" vizinho */
+button.est-voltar-jornada { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--cyan-soft); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-align: left; margin: 0 0 8px; }
+button.est-voltar-jornada:focus-visible { outline: 3px solid var(--cyan-soft); outline-offset: 2px; }

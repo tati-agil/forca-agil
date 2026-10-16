@@ -563,6 +563,12 @@
       "sobre": "ADMIN › Avaliações e Mapa: destaque do Mapa (destino da jornada) antes das configurações, com Abrir Mapa, jornada e definição/documentação, origem dos dados (demonstrativo × cadastro) e as sete partes da jornada em lista, cada uma levando à funcionalidade existente; Abrir Mapa e o Mapa aberto pela Documentação voltam para Avaliações e Mapa; a definição não gravada continua avisada e nada é gravado; do Mapa, a documentação só para quem entra na área; o Início da Avaliação mostra o Mapa a quem não tem ADMIN; a Taxonomia aberta por \"Abrir a aba Taxonomia\" mostra o retorno nos três espaços, pede confirmação com edição aberta, mantém a origem em Avançar e F5, confere o destino do retorno e não inventa origem pela própria aba; perfil restrito vê o Mapa e não o atalho. Hermético."
     },
     {
+      "arquivo": ".github/scripts/teste-navegacao-retornos.js",
+      "nome": "Navegação de ida e volta entre as telas (origem preservada; desktop e celular)",
+      "duracao": 120,
+      "sobre": "Cada tela aberta a partir de outra volta para ELA, com o rótulo da origem real e o retorno conferido: Posicionamento → Squad (nova e em andamento, com F5) → Posicionamento; Jornada → Posicionamento (Voltar/Avançar do navegador); ficha de Produto/Serviço → Posicionar → ficha; Trabalhos → Jornada → Trabalhos → Início sem ciclo; ADMIN › Avaliações e Mapa → Squad → ADMIN; Mapa → estrutura → objeto → a mesma estrutura; Jornada lista → item → lista sem empilhar; Mapa → cadastro/ficha de estrutura → Mapa; Mapa → Documentação → Mapa; lista de Posicionamentos → ficha → lista. Sem erro de JS, sem rolagem lateral, nada gravado. Hermético."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 8,
