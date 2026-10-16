@@ -516,15 +516,15 @@
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-atributos.js",
-      "nome": "Taxonomia: perfil do conceito compacto e \"Gerenciar perfil\" integrado (desktop e celular)",
+      "nome": "Taxonomia: Administração › Perfil — atributos agrupados e \"Gerenciar perfil\" integrado (desktop e celular)",
       "duracao": 40,
-      "sobre": "Na ficha do conceito, o perfil mostra só os atributos definidos (\"3 de 13 atributos definidos\"), os sem registro recolhidos e Papel/Origem em ajuda contextual; UMA ação, \"Gerenciar perfil\": altera vários atributos e salva uma vez (só os alterados, um evento de auditoria por atributo, nenhum registro vazio), com validação por atributo, cancelar com confirmação, concorrência (outra pessoa mudou → nada gravado) e clique repetido; somente leitura sem edição; perfis lentos/recusados nunca viram \"0 de 13\". Hermético."
+      "sobre": "Na Administração › Perfil (o Catálogo não mostra perfil), os 13 atributos numa tabela agrupada com Estado, Valor, Papel e Origem (\"3 de 13 atributos definidos\"; os sem registro aqui, para preenchimento) e Papel/Origem em ajuda contextual; UMA ação, \"Gerenciar perfil\": altera vários atributos e salva uma vez (só os alterados, um evento de auditoria por atributo, nenhum registro vazio), com validação por atributo, cancelar com confirmação, concorrência (outra pessoa mudou → nada gravado) e clique repetido; somente leitura sem edição; perfis lentos/recusados nunca viram \"0 de 13\". Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-ficha.js",
-      "nome": "Taxonomia: ficha simplificada do conceito nos dois domínios (desktop e celular)",
+      "nome": "Taxonomia: Catálogo, comparação, Administração e Integridade (desktop e celular)",
       "duracao": 45,
-      "sobre": "Cabeçalho único (código, camada, hierarquia, situação, proteção em linguagem simples), \"Como reconhecer\" editado no lugar, histórico único (registro inicial ≠ alteração; modelo antigo em detalhes técnicos; definição sem repetição), relações entre conceitos em frase (zero, uma, várias) com \"Gerenciar relações\" (nova, substituir com efeito explicado, encerrar; cancelar; concorrência; clique repetido), integração completa \"10 de 10\" / \"11 de 11\" e somente leitura. Conteúdo fictício. Hermético."
+      "sobre": "Catálogo: busca por nome ou código, troca de domínio, ficha só com nome, localização, \"O que é?\" (com e sem definição), hierarquia clicável e \"Administrar conceito\" — sem código, perfil, relações, histórico ou integração; comparação de dois conceitos (sem inventar diferença, frase exata quando as definições não bastam, nunca grava); Administração com abas (Conteúdo com \"Editar informações\" separado de \"Atualizar definição\", Perfil, \"Relações registradas entre conceitos\" em frase A — tipo — B com nova/substituir/encerrar, cancelar e concorrência, Histórico e governança com registro inicial ≠ alteração e detalhes técnicos sob demanda); Integridade com \"11 de 11\" / \"10 de 10\" discretos e falha destacada; somente leitura; computador e 375 px. Conteúdo fictício. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-orientacao-o1-o9.js",
@@ -536,7 +536,7 @@
       "arquivo": ".github/scripts/teste-taxonomia-governanca.js",
       "nome": "Taxonomia: ligações da Avaliação, inativação e relações (desktop e celular)",
       "duracao": 10,
-      "sobre": "Aviso \"Proteção da Avaliação incompleta: X de 11\"; Conceitos-base com a situação de cada código do motor e registro das ligações com prévia (já ligado / será ligado / não pode ser ligado), idempotente, com recusa do banco visível; conceito ligado: \"Inativar\" só explica, nada é gravado; ligações sem resposta: \"Conferindo…\", nunca \"pode inativar\"; inativar com motivo, mostrando filhos e relações afetados, e reativar, tudo no histórico; relações: criar com histórico nas duas pontas (mesmo operacaoId), idêntica a uma encerrada bloqueada, encerrar com motivo (fica em \"Relações encerradas\"), alterar = encerrar + criar. Hermético; as travas de verdade, no banco, são provadas por teste-rules-taxonomia-governanca.js no emulador."
+      "sobre": "Atalho do Catálogo \"Integridade e configurações · requer atenção\" (nunca \"ok\" antes de conferir); em Integridade, Conceitos-base com a situação de cada código do motor e registro das ligações com prévia (já ligado / será ligado / não pode ser ligado), idempotente, com recusa do banco visível; conceito ligado: \"Inativar\" só explica, nada é gravado; ligações sem resposta: \"Conferindo…\", nunca \"pode inativar\"; inativar com motivo, mostrando filhos e relações afetados, e reativar, tudo no histórico; relações: criar com histórico nas duas pontas (mesmo operacaoId), idêntica a uma encerrada bloqueada, encerrar com motivo (fica em \"Relações encerradas\"), alterar = encerrar + criar. Hermético; as travas de verdade, no banco, são provadas por teste-rules-taxonomia-governanca.js no emulador."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-camada-trabalho.js",
@@ -546,9 +546,9 @@
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-posicionamento-ligacoes.js",
-      "nome": "Taxonomia: Conceitos-base do Posicionamento Organizacional — ligações e proteção (desktop e celular)",
+      "nome": "Taxonomia: Integração com o Posicionamento — ligações e proteção (desktop e celular)",
       "duracao": 7,
-      "sobre": "No domínio organizacional, exatamente os 10 códigos do motor de Posicionamento com os estados ligado/sem ligação/sem conceito/inativo e o aviso \"Proteção do Posicionamento incompleta: X de 10\"; prévia sem gravar nada (nem ao cancelar), confirmação grava ligações + auditoria numa gravação só (sem nome nem definição), idempotente; conceito ligado não inativa nem troca de camada pela tela; o arquitetural continua com os Conceitos-base da Avaliação."
+      "sobre": "Em Integridade e configurações (fora do Catálogo), exatamente os 10 códigos do motor de Posicionamento com os estados ligado/sem ligação/sem conceito/inativo e o aviso \"Integração incompleta: X de 10\"; prévia sem gravar nada (nem ao cancelar), confirmação grava ligações + auditoria numa gravação só (sem nome nem definição), idempotente; conceito ligado não inativa nem troca de camada pela tela; o arquitetural continua com os Conceitos-base da Avaliação."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",

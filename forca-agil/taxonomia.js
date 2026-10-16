@@ -1084,13 +1084,11 @@
       detalhesAud(l, idDetalhe, cortou) + '</li>';
   }
 
-  /* ---------- ficha do conceito, NESTA ordem ----------
-     A) Cabeçalho (código, camada, hierarquia, situação, proteções) · B) Definição oficial, com "Atualizar definição"
-     · C) Como reconhecer este conceito? (Editar informações) · D) Perfil (Gerenciar perfil) · E) Relações entre conceitos
-     (Gerenciar relações) · administração discreta (inativar, camada) · F) Histórico único (recolhido, por último).
-     Tudo indexado pelo CÓDIGO do conceito. */
-  /* A) CABEÇALHO — nome (no título), código, camada, hierarquia, situação e proteções, numa área só. Não há outra
-     "identificação" no fim da ficha: editar o nome fica em "Como reconhecer" (Editar informações). */
+  /* ---------- blocos da ADMINISTRAÇÃO do conceito (abas) ----------
+     Conteúdo: identificação · definição oficial ("Atualizar definição") · pergunta, critérios e observações ("Editar
+     informações") — Perfil ("Gerenciar perfil") — Relações registradas — Histórico e governança (histórico único,
+     inativar, camada). A ficha do CATÁLOGO é outra (renderFicha). Tudo indexado pelo CÓDIGO do conceito. */
+  /* IDENTIFICAÇÃO — código, camada, hierarquia, situação e proteções, numa área só; o nome muda em "Editar informações". */
   function renderIdentificacao(dom, codigo) {
     var D = st.d[dom], c = D.conceitos[codigo], org = dom === 'organizacional';
     var html = '<section class="tax-sec tax-sec--ident tax-cabecalho" id="taxSecIdent" aria-label="Identificação do conceito"><h4>Identificação</h4><div class="tax-ident-meta">';
