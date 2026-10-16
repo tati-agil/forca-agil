@@ -954,6 +954,7 @@
         ' <span class="avp-ficha-meta">(as perguntas seguintes aparecem conforme as respostas)</span></p>' +
         '<p id="poProgressoProximo"><strong>Próximo passo:</strong> ' + (fz ? esc(fz.texto) + '.' : 'tudo respondido — conclua a avaliação.') + '</p></div>' +
         '<p class="avp-intro">Responda considerando a responsabilidade organizacional associada a este objeto. As perguntas de cada nível aparecem conforme o caminho.</p>' +
+        (a.status === 'rascunho' && podeEscrever() ? '<p class="avp-ficha-meta po-sem-evidencia" id="poSemEvidencia"><strong>Ainda não sabe responder?</strong> Deixe a pergunta sem resposta, use SALVAR RASCUNHO e volte depois de investigar. Pergunta sem resposta não conta como NÃO, e a avaliação só é concluída com todas as perguntas do caminho respondidas. Depois de marcada, uma resposta pode ser trocada, mas não apagada.</p>' : '') +
         (ehPorta2(a) ? objetoHtml(a) : '');
       /* versão de motor sem a redação publicada que ela exige: nada de texto de outra versão nem de fábrica — trava */
       if (!redacaoDisponivel(a)) {
@@ -969,7 +970,7 @@
         '<p class="avp-ficha-meta">As respostas da versão anterior vieram preenchidas; perguntas cuja redação mudou precisam ser respondidas de novo.</p></div>';
       h += '<p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
       /* consulta aos tipos de estrutura (e ao apoio O7 × O9) desde o começo, sem responder nada */
-      h += tiposEstruturaHtml(edita && !state.naoConfirmada, conteudo('O9', versao, vm).ajudaExtra);
+      h += tiposEstruturaHtml(edita && !state.naoConfirmada, conteudo('O9', versao, vm).ajudaExtra, conteudo('O7', versao, vm).texto, conteudo('O9', versao, vm).texto);
       /* gravação não confirmada: as respostas ficam à vista, travadas até a resposta do servidor */
       var cam = caminho(a);
       ORDEM_NIVEIS.forEach(function (n) {
@@ -1001,14 +1002,17 @@
       }
       return h + rodapeVoltar();
     }
+    /* Ajuda no padrão compacto (O que estamos investigando? / Quando SIM é defensável? / Quando NÃO é defensável? / Para não
+       confundir — o que não determina a resposta), recolhida; o texto é a Ajuda OFICIAL da versão do questionário desta avaliação. A evidência
+       a procurar fica ao lado ("Que evidência devo procurar?"). */
     function renderAjuda(c) {
       var ajuda = c.textoAjuda || {}, partes = [];
-      if (ajuda.significado) partes.push('<p><strong>O que significa:</strong> ' + esc(ajuda.significado) + '</p>');
-      if (ajuda.quandoSim) partes.push('<p><strong>Quando SIM:</strong> ' + esc(ajuda.quandoSim) + '</p>');
-      if (ajuda.quandoNao) partes.push('<p><strong>Quando NÃO:</strong> ' + esc(ajuda.quandoNao) + '</p>');
+      if (ajuda.significado) partes.push('<p><strong>O que estamos investigando?</strong> ' + esc(ajuda.significado) + '</p>');
+      if (ajuda.quandoSim) partes.push('<p><strong>Quando SIM é defensável?</strong> ' + esc(ajuda.quandoSim) + '</p>');
+      if (ajuda.quandoNao) partes.push('<p><strong>Quando NÃO é defensável?</strong> ' + esc(ajuda.quandoNao) + '</p>');
       if (ajuda.quandoMesma) partes.push('<p><strong>Quando "' + esc(c.rotuloMesma || 'mesma') + '":</strong> ' + esc(ajuda.quandoMesma) + '</p>');
       if (ajuda.quandoDistintas) partes.push('<p><strong>Quando "' + esc(c.rotuloDistintas || 'distintas') + '":</strong> ' + esc(ajuda.quandoDistintas) + '</p>');
-      if (c.ajudaExtra) partes.push('<p class="po-ajuda-extra">' + esc(c.ajudaExtra).replace(/\n/g, '<br>') + '</p>');
+      if (c.ajudaExtra) partes.push('<p class="po-ajuda-extra"><strong>Para não confundir — o que não determina a resposta</strong><br>' + esc(c.ajudaExtra).replace(/\n/g, '<br>') + '</p>');
       return partes.length ? '<details class="avp-ajuda-det"><summary>Ajuda</summary>' + partes.join('') + '</details>' : '';
     }
     function renderPergunta(q, versao, edita, vm) {
@@ -1126,13 +1130,14 @@
        financeiro nem que a entrega chegue ao participante; ser indispensável não basta. Nada aqui responde pela pessoa,
        grava resposta ou cria estado novo; "Ainda não tenho informações suficientes" só salva o rascunho como está. */
     /* ajudaO9: a Ajuda oficial da O9 na redação DESTA avaliação (versão do questionário), citada como está */
-    function apoioO7O9Html(edita, ajudaO9) {
+    function apoioO7O9Html(edita, ajudaO9, textoO7, textoO9) {
       var aberto = !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
       return '<details class="po-apoio" id="poApoioO7O9"' + (aberto ? ' open' : '') + '><summary>Está em dúvida entre Habilitadora de Negócios (O7) e Gestão Corporativa (O9)?</summary>' +
         '<p class="avp-ficha-meta" id="poApoioNatureza">Orientações para investigar, não novos critérios oficiais: valem a pergunta e a Ajuda oficial de cada uma. Os exemplos são hipotéticos e não classificam nenhuma área da PREVI.</p>' +
         '<h5>O que cada pergunta descreve</h5>' +
-        '<p><strong>O7 — Habilitadora de Negócios:</strong> desenvolver e fornecer capacidades, serviços ou soluções de negócio compartilhados, consumidos em escala por diferentes Linhas e times.</p>' +
-        '<p><strong>O9 — Gestão Corporativa:</strong> oferecer serviços corporativos ao cliente interno, preferencialmente por soluções digitais e autosserviço padronizados, buscando escala e previsibilidade.</p>' +
+        '<p id="poApoioTextoO7"><strong>O7 — Habilitadora de Negócios:</strong> ' + esc(textoO7 || '') + '</p>' +
+        '<p id="poApoioTextoO9"><strong>O9 — Gestão Corporativa:</strong> ' + esc(textoO9 || '') + '</p>' +
+        '<p id="poApoioAutosservico"><strong>Autosserviço é forma, não condição.</strong> A pergunta O9 fala em soluções digitais e autosserviço como forma <em>preferencial</em> de prestar o serviço corporativo. Um gestor que consulta um relatório direto no sistema (com autosserviço) e um gestor que pede o relatório à equipe (sem autosserviço) podem estar diante do mesmo serviço corporativo: a ausência de autosserviço, sozinha, não leva a O9 = NÃO.</p>' +
         '<p id="poApoioNaoParticipante"><strong>A O7 não exige entrega direta ao participante.</strong> A Ajuda oficial da O7 diz que não é necessário que o objeto seja previdenciário ou financeiro. Por isso, "não chega ao participante" não decide, sozinho, entre O7 e O9.</p>' +
         (ajudaO9 ? '<div id="poApoioAjudaOficial"><p>A Ajuda oficial da O9, na redação desta avaliação, orienta:</p><blockquote class="po-apoio-citacao">' + esc(ajudaO9).replace(/\n/g, '<br>') + '</blockquote><p>Os pontos abaixo detalham o que verificar, sem substituí-la.</p></div>' : '') +
         '<h5>O que verificar</h5><ol class="po-apoio-perguntas" id="poApoioPerguntas">' +
@@ -1163,19 +1168,20 @@
     /* CONSULTA aos tipos de estrutura, disponível em qualquer ponto da avaliação: nomes e definições vigentes vêm da
        Taxonomia (faPosicionamentos, sem texto de fábrica); a estrutura Linha → especializações → Plataformas vem dos
        códigos do próprio motor. Só leitura: não mostra perguntas fora do caminho, não responde, não muda nada */
-    function tiposEstruturaHtml(edita, ajudaO9) {
+    function tiposEstruturaHtml(edita, ajudaO9, textoO7, textoO9) {
       var aberto = !!state.tiposAberto || !!state.apoioO7O9Aberto || !!state.apoioSemInfo;
       var item = function (c, filhos) { return '<li class="po-tipo" data-tipo="' + c + '"><strong>' + spanNome(c) + '</strong>' + (P() ? P().definicaoHtml(c, null, { comEstado: true }) : '') + (filhos ? '<ul class="po-tipos-filhos">' + filhos + '</ul>' : '') + '</li>'; };
       var plats = ['PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA', 'PLATAFORMA_CORPORATIVA'].map(function (c) { return item(c); }).join('');
       return '<details class="po-apoio po-tipos" id="poTiposEstrutura"' + (aberto ? ' open' : '') + '><summary>Entenda os tipos de estrutura antes de responder</summary>' +
         '<p class="avp-ficha-meta" id="poTiposNatureza">Consulta: nomes e definições vêm da Taxonomia oficial. Abrir esta consulta não muda respostas, hipótese nem resultado; as perguntas continuam na ordem do caminho.</p>' +
         '<ul class="po-tipos-lista" id="poTiposLista">' + item('AREA_ESPECIALIZADA') + item('COE') +
-        item('LINHA', item('NEGOCIOS') + item('ESTRATEGIA_CLIENTES') + item('PLATAFORMA', plats)) + '</ul>' + apoioO7O9Html(edita, ajudaO9) + '</details>';
+        item('LINHA', item('NEGOCIOS') + item('ESTRATEGIA_CLIENTES') + item('PLATAFORMA', plats)) + '</ul>' + apoioO7O9Html(edita, ajudaO9, textoO7, textoO9) + '</details>';
     }
-    /* O1–O5: o que verificar na responsabilidade concreta. Orientação para investigar, alinhada à pergunta e à Ajuda
+    /* O1–O9: que evidência procurar na responsabilidade concreta. Orientação para investigar, alinhada à pergunta e à Ajuda
        oficial (não é critério novo nem precedência); o nome da responsabilidade não decide */
     var INVESTIGAR = {
       O1: ['Pelo que esta responsabilidade responde, continuamente: um propósito ou proposta de valor, com objetivos, entregas e resultados?',
+        'Quem recebe esse resultado, acompanha e cobra quando ele não sai? Responder SIM não cria uma Linha: só leva às perguntas seguintes.',
         'Ou o que ela entrega, na maior parte do tempo, são análises, pareceres e validações técnicas (isso é a O2), ou a evolução de padrões e práticas de uma disciplina (isso é a O3)?',
         'Exemplo hipotético: "Gerir o processo contábil" pode responder por um resultado contínuo (fechamentos e demonstrações no prazo e com qualidade) ou consistir sobretudo em pareceres técnicos. Verifique o que predomina.'],
       O2: ['A entrega principal é um julgamento técnico — análise, parecer, validação ou orientação — cuja qualidade esta estrutura assume?',
@@ -1187,13 +1193,25 @@
       O4: ['O trabalho predominante é compreender públicos, necessidades, comportamentos e experiência, e organizá-los em segmentos?',
         'Esse conhecimento orienta decisões, portfólio e atuação da organização, sem ser dedicado à entrega de uma solução específica?'],
       O5: ['A responsabilidade é dedicada a um Produto/Serviço, a um conjunto coerente deles ou a um resultado de negócio específico para o cliente?',
+        'Ela responde pela entrega e evolução desse Produto/Serviço (prioridades, resultado), ou participa dele com uma atividade própria, como definir regras ou parametrizações? Participar não é responder por ele.',
         'Ou disponibiliza uma capacidade, serviço ou meio compartilhado usado por diferentes Linhas?',
-        'Atender cliente externo, isoladamente, não basta; usar plataformas compartilhadas não transforma uma Linha de Negócios em Plataforma.']
+        'Atender cliente externo, isoladamente, não basta; usar plataformas compartilhadas não transforma uma Linha de Negócios em Plataforma.'],
+      O6: ['A responsabilidade é o meio de interação (o canal) ou o serviço que se acessa por ele?',
+        'Ela busca uma experiência integrada e consistente para quem usa vários canais, clientes ou funcionários?'],
+      O7: ['Quem consome a entrega: diferentes Linhas e times, para fazer as suas soluções funcionarem, ou a organização, para se administrar?',
+        'A entrega é usada do mesmo jeito por várias soluções (capacidade ou serviço compartilhado, em escala)? Quem define as regras dela?',
+        'Atender clientes internos, não atender participantes, ser transversal ou importante para as Linhas não decidem, sozinhos: O7 e O9 podem ter essas características.'],
+      O8: ['A estrutura disponibiliza e evolui uma capacidade tecnológica usada por outros (ferramenta, infraestrutura, serviço técnico, automação)?',
+        'Ou usa tecnologia, ou define as regras que são parametrizadas num sistema? Usar ou parametrizar não é fornecer a capacidade tecnológica.'],
+      O9: ['O serviço atende à administração e ao controle da própria organização? Quem é o cliente interno (gestores, áreas, empregados, governança)?',
+        'O serviço é padronizado (mesmas regras, formatos e prazos), com escala e previsibilidade? Ele pode ser prestado com ou sem autosserviço: a forma de prestação, sozinha, não decide.',
+        'Dúvida entre O7 e O9? Veja a Ajuda da O9 e o apoio O7 × O9.']
     };
     function comoInvestigarHtml(q) {
       var l = INVESTIGAR[q]; if (!l) return '';
-      return '<details class="po-investigar" id="poInvestigar_' + q + '"><summary>O que verificar para responder</summary><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
-        '<p class="avp-ficha-meta">Orientação para investigar; o critério é a pergunta e a Ajuda oficial.</p></details>';
+      return '<details class="po-investigar" id="poInvestigar_' + q + '"><summary>Que evidência devo procurar?</summary><ul>' + l.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
+        '<p class="avp-ficha-meta">Orientação para investigar; o critério é a pergunta e a Ajuda oficial.</p>' +
+        '<p class="avp-ficha-meta po-investigar-sem-evidencia">Ainda sem evidência? Não responda agora: salve o rascunho e volte depois. Não marque NÃO só por insegurança.</p></details>';
     }
     function objetoDadosHtml(ob, nomeRegistrado) {
       /* registro de uma descrição só (cadastro simplificado): mostra a responsabilidade uma vez — nome, descrição e

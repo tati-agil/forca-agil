@@ -345,7 +345,7 @@
       function situacaoRef(c) {
         if (!refs) return null;
         if (trabalho.indexOf(c) !== -1) return refs.conceitos && refs.conceitos[c] && refs.conceitos[c].ativo === true ? null : 'conceito inativo na Taxonomia (resolvido em ADMIN › Taxonomia, pelo admin geral)';
-        if (!refs.ligacoes || !refs.ligacoes[c]) return 'ligação oficial não registrada (resolvida em ADMIN › Taxonomia › Conceitos-base do Posicionamento, pelo admin geral)';
+        if (!refs.ligacoes || !refs.ligacoes[c]) return 'ligação oficial não registrada (resolvida em ADMIN › Taxonomia › Integração com o Posicionamento, pelo admin geral)';
         if (!refs.conceitos || !refs.conceitos[c] || refs.conceitos[c].ativo !== true) return 'conceito inativo na Taxonomia (resolvido em ADMIN › Taxonomia, pelo admin geral)';
         return null;
       }

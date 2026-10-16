@@ -16,8 +16,8 @@
  *      respostas e versões IGUAIS às de uma conclusão com a Taxonomia disponível (comparação dos
  *      registros gravados no banco).
  *   7. MOTOR: "Editar textos" do motor arquitetural não existe mais; o histórico antigo continua legível.
- *   8. TAXONOMIA: "Conceitos-base da Avaliação" lista os 11 códigos do motor, acusa o que não tem
- *      conceito e abre o conceito ao clicar.
+ *   8. TAXONOMIA: "Integração com a Avaliação" (antes "Conceitos-base") lista os 11 códigos do motor em "Ver
+ *      classificações conectadas", acusa no aviso o que não tem conceito e abre o conceito ao clicar.
  *
  * Provas inversas (fora da suíte; cada uma tem de FAZER O TESTE FALHAR):
  *   FA_PROVA_INVERSA=fabrica            resolvedor sempre devolve o rótulo de fábrica
@@ -445,12 +445,15 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     await page.waitForSelector('#taxPergunta');
     await page.click('.tax-dominio[data-dominio="arquitetural"]');
     await page.waitForSelector('#taxConceitosBase', { timeout: 10000 });
+    await page.click('#taxIntegracaoLista > summary');
     const itens = await page.locator('#taxConceitosBase .tax-base-item').evaluateAll((ls) => ls.map((l) => l.getAttribute('data-base')));
     afirma(itens.length === 11 && CODIGOS.every((c) => itens.indexOf(c) !== -1), 'bloco "Conceitos-base da Avaliação" com os 11 códigos do motor (' + itens.length + ')');
     afirma(await page.locator('#taxConceitosBase .tax-base-item--sem').count() === 1 &&
-      /sem conceito — a Avaliação usa o rótulo de contingência/.test(await texto(page, '#taxConceitosBase .tax-base-item--sem[data-base="' + SEM_CONCEITO + '"]')),
+      /sem conceito nesta Taxonomia — a Avaliação usa o rótulo de contingência/.test(await texto(page, '#taxConceitosBase .tax-base-item--sem[data-base="' + SEM_CONCEITO + '"]')) && /Integração incompleta/.test(await texto(page, '#taxIntegracaoResumo')) && /sem conceito nesta Taxonomia/.test(await texto(page, '#taxIntegracaoResumo')),
       'o código sem conceito (' + SEM_CONCEITO + ') é acusado — e só ele');
-    afirma((await texto(page, '#taxConceitosBase .tax-base-item[data-base="produto-principal"]')).indexOf(NOVO_PP + ' produto-principal') !== -1, 'cada código mostra o nome atual e o código');
+    afirma((await texto(page, '#taxConceitosBase .tax-base-item[data-base="produto-principal"]')).indexOf(NOVO_PP) !== -1, 'cada classificação mostra o nome atual (o código fica nos detalhes administrativos)');
+    await page.click('#taxIntegracaoAdm > summary');
+    afirma(/produto-principal/.test(await texto(page, '#taxIntegracaoAdm')), 'os códigos aparecem nos detalhes administrativos');
     afirma(await larguraOk(page), 'Taxonomia sem rolagem horizontal');
     await foto(page, 'conceitos-base-' + sufixo, '#taxConceitosBase');
     await page.click('#taxConceitosBase .tax-base-abrir[data-codigo="produto-principal"]');

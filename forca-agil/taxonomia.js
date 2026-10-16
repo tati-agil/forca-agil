@@ -327,7 +327,7 @@
   }
   function aposSalvar(dom, codigo, mensagem) {
     var D = st.d[dom];
-    D.edicao = null; D.atualizando = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null;
+    D.edicao = null; D.atualizando = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; D.perfilLote = null;
     st.flash = { erro: false, texto: mensagem };
     carregarDominio(dom);
     if (codigo) { D.selecionado = codigo; carregarDetalhe(dom, codigo); }
@@ -383,25 +383,47 @@
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito salvo.'); });
   }
 
-  function salvarPerfil(dom, codigo) {
-    var D = st.d[dom], e = D.edicao, v = e.valores, atr = e.chave;
-    var estado = v.estado;
-    if (ESTADOS.indexOf(estado) === -1) { e.erro = 'Escolha o estado.'; render(); return; }
-    var dado = { estado: estado };
-    if (estado === 'registrado') {
+  /* GERENCIAR PERFIL — salva de uma vez só os atributos alterados. Antes de gravar, relê o perfil no servidor: se outra
+     pessoa mudou algum dos atributos alterados aqui, nada é gravado (concorrência). Um evento de auditoria por atributo
+     alterado, tudo numa gravação. Clique repetido: o botão trava enquanto confere e grava. */
+  function salvarPerfilLote(dom, codigo) {
+    var D = st.d[dom], L = D.perfilLote;
+    if (!L || L.codigo !== codigo || st.salvando || L.verificando) return;
+    L.erro = null; L.erros = {};
+    var mud = alteracoesPerfil(L);
+    if (!mud.length) { L.erro = 'Nada foi alterado.'; render(); return; }
+    mud.forEach(function (a) {
+      var v = L.valores[a];
+      if (ESTADOS.indexOf(v.estado) === -1) { L.erros[a] = 'Escolha o estado.'; return; }
+      if (v.estado !== 'registrado') return;
       var valor = String(v.valor || '').trim();
-      if (!valor) { e.erro = 'Estado "registrado" exige o valor.'; render(); return; }
-      if (PAPEIS.indexOf(v.papel) === -1 || ORIGENS.indexOf(v.origem) === -1) { e.erro = 'Estado "registrado" exige papel e origem.'; render(); return; }
-      dado.valor = valor; dado.papel = v.papel; dado.origem = v.origem;
-    }
-    var atual = (D.detalhe && D.detalhe.perfis && D.detalhe.perfis[atr]) || null;
-    if (atual && JSON.stringify(rotuloPerfilCompleto(atual)) === JSON.stringify(rotuloPerfilCompleto(dado))) { e.erro = 'Nada foi alterado.'; render(); return; }
-    dado.atualizadoEm = agora();
-    var caminhos = {}, base = RAIZ + '/' + dom;
-    caminhos[base + '/perfis/' + codigo + '/' + atr] = dado;
-    marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'alteracao_perfil', (D.atributos[atr] && D.atributos[atr].nome) || atr, atual ? textoPerfil(atual) : null, textoPerfil(dado));
-    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Atributo salvo.'); });
+      if (!valor) L.erros[a] = 'Estado "registrado" exige o valor.';
+      else if (valor.length > 1000) L.erros[a] = 'O valor tem no máximo 1000 caracteres.';
+      else if (PAPEIS.indexOf(v.papel) === -1 || ORIGENS.indexOf(v.origem) === -1) L.erros[a] = 'Estado "registrado" exige papel e origem.';
+    });
+    if (chaves(L.erros).length) { L.erro = 'Corrija ' + plural(chaves(L.erros).length, 'atributo indicado', 'atributos indicados') + '. Nada foi salvo.'; render(); return; }
+    L.verificando = true; render();
+    lerNo(RAIZ + '/' + dom + '/perfis/' + codigo, function (r) {
+      if (D.perfilLote !== L) return;
+      L.verificando = false;
+      if (!r.ok) { L.erro = 'Não foi possível conferir o perfil no servidor agora. Nada foi salvo; tente de novo.'; render(); return; }
+      var srv = r.valor || {};
+      var conflito = mud.filter(function (a) { return JSON.stringify(srv[a] ? rotuloPerfilCompleto(srv[a]) : null) !== JSON.stringify(L.base[a]); });
+      if (conflito.length) {
+        L.erro = 'Outra pessoa alterou ' + conflito.map(function (a) { return (D.atributos[a] && D.atributos[a].nome) || a; }).join(', ') + ' enquanto você editava. Nada foi salvo: cancele, confira os valores atuais e edite de novo.';
+        render(); return;
+      }
+      var caminhos = {}, base = RAIZ + '/' + dom, quando = agora();
+      mud.forEach(function (a) {
+        var f = perfilDoFormulario(L.valores[a]), dado = { estado: f.estado };
+        if (f.estado === 'registrado') { dado.valor = f.valor; dado.papel = f.papel; dado.origem = f.origem; }
+        dado.atualizadoEm = quando;
+        caminhos[base + '/perfis/' + codigo + '/' + a] = dado;
+        addAud(caminhos, dom, codigo, 'alteracao_perfil', (D.atributos[a] && D.atributos[a].nome) || a, L.base[a] ? textoPerfil(L.base[a]) : null, textoPerfil(dado));
+      });
+      marcaConceito(caminhos, dom, codigo);
+      gravar(caminhos, function () { aposSalvar(dom, codigo, mud.length === 1 ? '1 atributo salvo.' : mud.length + ' atributos salvos.'); });
+    });
   }
   /* ---------- GOVERNANÇA (Etapa 5): ligações da Avaliação, inativação, relações ----------
      Cada operação = UM update multipath com o dado + a(s) linha(s) de auditoria. As regras do banco exigem
@@ -580,9 +602,26 @@
     return r;
   }
   /* "+ Nova relação" e "Alterar" (= encerrar a antiga + criar a nova, numa gravação só) */
+  /* Antes de gravar uma relação, confere no servidor o estado das relações envolvidas (concorrência: outra pessoa pode
+     ter criado a mesma relação ou encerrado a atual enquanto o formulário estava aberto). As regras do banco recusam do
+     mesmo jeito; aqui a pessoa recebe a explicação, e nada é gravado. cb(erro|null). */
+  function conferirRelacoesNoServidor(conferir, cb) {
+    var pend = conferir.length, erro = null;
+    if (!pend) { cb(null); return; }
+    conferir.forEach(function (c) {
+      lerNo(RAIZ + '/organizacional/relacoes/' + c.chave, function (r) {
+        if (!erro) {
+          if (!r.ok) erro = 'Não foi possível conferir as relações no servidor agora. Nada foi gravado; tente de novo.';
+          else if (c.deveExistirAtiva && (!r.valor || r.valor.encerrada)) erro = 'A relação atual foi encerrada por outra pessoa enquanto você editava. Nada foi gravado.';
+          else if (c.naoPodeExistir && r.valor) erro = r.valor.encerrada ? 'Esta relação já existiu e foi encerrada (por outra pessoa, enquanto você editava): ela não pode ser recriada. Nada foi gravado.' : 'Outra pessoa já registrou esta relação enquanto você editava. Nada foi gravado.';
+        }
+        if (--pend === 0) cb(erro);
+      });
+    });
+  }
   function salvarRelacao(codigo) {
     var D = st.d.organizacional, f = D.relForm;
-    if (!f) return;
+    if (!f || f.conferindo || st.salvando) return;
     function recusa(msg) { f.erro = msg; render(); }
     var det = D.detalhe;
     if (!det || det.codigo !== codigo || det.carregando || det.erros.relacoes) return recusa('Aguarde: as relações deste conceito ainda não foram carregadas.');
@@ -593,7 +632,7 @@
       antiga = det.relacoes[f.base];
       if (!antiga || antiga.encerrada) return recusa('A relação original não está mais ativa.');
       motivo = String(f.motivo || '').trim();
-      if (!motivo) return recusa('Informe o motivo da alteração (a relação antiga é encerrada com ele).');
+      if (!motivo) return recusa('Informe o motivo da substituição (a relação atual é encerrada com ele).');
       if (motivo.length > MAX_MOTIVO) return recusa('O motivo pode ter até ' + MAX_MOTIVO + ' caracteres.');
       if (chaveRelacao(r.de, r.tipo, r.para) === f.base) return recusa(String(antiga.nota || '') === String(r.nota || '') ? 'Nada foi alterado.' : 'Só a nota mudou: a mesma relação não pode ser encerrada e criada de novo (reabrir não está disponível). Para corrigir só a nota, não há alteração possível nesta versão.');
     }
@@ -609,11 +648,19 @@
     }
     caminhos[base + chave] = Object.assign({}, r, { criadaEm: agora(), criadaPor: emailAutor(), auditoriaId: kNova });
     audRelacao(caminhos, kNova, operacao, 'relacao_criada', r, chave, antiga ? { substitui: f.base, motivo: motivo } : null);
-    gravar(caminhos, function () { D.relForm = null; aposSalvar('organizacional', codigo, antiga ? 'Relação alterada: a anterior foi encerrada e a nova, criada.' : 'Relação criada.'); });
+    var conferir = [{ chave: chave, naoPodeExistir: true }];
+    if (antiga) conferir.push({ chave: f.base, deveExistirAtiva: true });
+    f.conferindo = true; f.erro = null; render();
+    conferirRelacoesNoServidor(conferir, function (erroSrv) {
+      if (D.relForm !== f) return;
+      f.conferindo = false;
+      if (erroSrv) { f.erro = erroSrv; render(); return; }
+      gravar(caminhos, function () { D.relForm = null; aposSalvar('organizacional', codigo, antiga ? 'Relação substituída: a anterior foi encerrada e a nova, criada.' : 'Relação criada.'); });
+    });
   }
   function encerrarRelacao(codigo) {
     var D = st.d.organizacional, f = D.encerrando, det = D.detalhe;
-    if (!f) return;
+    if (!f || f.conferindo || st.salvando) return;
     function recusa(msg) { f.erro = msg; render(); }
     var r = det && det.relacoes[f.chave];
     if (!r || r.encerrada) return recusa('Esta relação não está mais ativa.');
@@ -623,7 +670,13 @@
     var caminhos = {}, k = novaChave(caminhoAud('organizacional', r.de));
     caminhos[RAIZ + '/organizacional/relacoes/' + f.chave + '/encerrada'] = { motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: k };
     audRelacao(caminhos, k, k, 'relacao_encerrada', r, f.chave, { motivo: motivo });
-    gravar(caminhos, function () { D.encerrando = null; aposSalvar('organizacional', codigo, 'Relação encerrada. Ela continua registrada, como encerrada.'); });
+    f.conferindo = true; f.erro = null; render();
+    conferirRelacoesNoServidor([{ chave: f.chave, deveExistirAtiva: true }], function (erroSrv) {
+      if (D.encerrando !== f) return;
+      f.conferindo = false;
+      if (erroSrv) { f.erro = erroSrv.replace('A relação atual foi encerrada', 'Esta relação foi encerrada'); render(); return; }
+      gravar(caminhos, function () { D.encerrando = null; aposSalvar('organizacional', codigo, 'Relação encerrada. Ela continua registrada, como encerrada.'); });
+    });
   }
 
   /* Ligações da Avaliação — carga inicial controlada e idempotente: a prévia lê o banco; só entra o que falta. */
@@ -884,66 +937,77 @@
   }
   function avisoProtecao() {
     var r = resumoLigacoes('arquitetural'), rp = resumoLigacoes('organizacional'), h = '';
-    if (r && r.ligadas < r.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompleta" role="status"><strong>Proteção da Avaliação incompleta:</strong> ' + r.ligadas + ' de ' + r.total + ' classificações ligadas. ' +
-      'Enquanto a ligação não for registrada, o conceito correspondente pode ser inativado. Registre em Taxonomia › Arquitetural › “Conceitos-base da Avaliação”.</p>';
-    if (rp && rp.ligadas < rp.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompletaPos" role="status"><strong>Proteção do Posicionamento incompleta:</strong> ' + rp.ligadas + ' de ' + rp.total + ' conceitos ligados. ' +
-      'Enquanto a ligação não for registrada, o conceito correspondente pode ser inativado ou trocar de camada. Registre em Taxonomia › Organizacional › “Conceitos-base do Posicionamento Organizacional”.</p>';
+    if (r && r.ligadas < r.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompleta" role="status"><strong>Proteção da Avaliação incompleta:</strong> ' + r.ligadas + ' de ' + r.total + ' classificações conectadas. ' +
+      'Enquanto o vínculo não for registrado, o conceito correspondente pode ser inativado. Registre em Taxonomia › Arquitetural › “Integração com a Avaliação”.</p>';
+    if (rp && rp.ligadas < rp.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompletaPos" role="status"><strong>Proteção do Posicionamento incompleta:</strong> ' + rp.ligadas + ' de ' + rp.total + ' conceitos conectados. ' +
+      'Enquanto o vínculo não for registrado, o conceito correspondente pode ser inativado ou trocar de camada. Registre em Taxonomia › Organizacional › “Integração com o Posicionamento”.</p>';
     return h;
   }
-  /* Textos e ids da área de Conceitos-base por domínio (os do arquitetural são os de sempre). */
+  /* Textos da área de integração por domínio. */
   var BASE_TXT = {
-    arquitetural: { id: '', titulo: 'Conceitos-base da Avaliação', ligadas: ' ligadas', selo: 'ligado à Avaliação', alvo: 'da Avaliação',
-      ajuda: 'A Avaliação mostra, para cada classificação do motor, o nome e a definição vigente do conceito de mesmo código desta Taxonomia. ' +
-        'A <strong>ligação</strong> (registrada uma vez, nunca apagada) protege o conceito: enquanto ela existir, ele não pode ser inativado.',
-      semConceito: 'sem conceito — a Avaliação usa o rótulo de contingência; não pode ser ligado', orfas: 'Ligações sem classificação correspondente no motor: ',
-      botao: 'Registrar ligações da Avaliação…' },
-    organizacional: { id: 'Pos', titulo: 'Conceitos-base do Posicionamento Organizacional', ligadas: ' ligados', selo: 'ligado ao Posicionamento', alvo: 'do Posicionamento',
-      ajuda: 'O Posicionamento Organizacional mostra, para cada código do motor de Posicionamento, o nome e a definição vigente do conceito organizacional de mesmo código desta Taxonomia. ' +
-        'A <strong>ligação</strong> (registrada uma vez, nunca apagada) protege o conceito: enquanto ela existir, ele não pode ser inativado nem trocar entre "' + CAMADA_ROTULO.A + '" e "' + CAMADA_ROTULO.trabalho + '".',
-      semConceito: 'sem conceito — o Posicionamento usa o rótulo de contingência; não pode ser ligado', orfas: 'Ligações sem código correspondente no motor de Posicionamento: ',
-      botao: 'Registrar ligações do Posicionamento…' }
+    arquitetural: { id: '', titulo: 'Integração com a Avaliação', alvo: 'da Avaliação', itens: ['classificação conectada', 'classificações conectadas'],
+      ajuda: 'A Avaliação utiliza os nomes e as definições oficiais destes conceitos. Enquanto estiverem vinculados, não podem ser inativados.',
+      impacto: 'Enquanto o vínculo não for registrado, o conceito pode ser inativado e a Avaliação pode passar a mostrar o rótulo de contingência no lugar do nome oficial.',
+      ver: 'Ver classificações conectadas', semConceito: 'sem conceito nesta Taxonomia — a Avaliação usa o rótulo de contingência', orfas: 'Vínculos sem classificação correspondente no motor: ',
+      botao: 'Registrar vínculos da Avaliação…' },
+    organizacional: { id: 'Pos', titulo: 'Integração com o Posicionamento', alvo: 'do Posicionamento', itens: ['conceito conectado', 'conceitos conectados'],
+      ajuda: 'O Posicionamento Organizacional utiliza os nomes e as definições oficiais destes conceitos. Enquanto estiverem vinculados, não podem ser inativados nem mudar entre "' + CAMADA_ROTULO.A + '" e "' + CAMADA_ROTULO.trabalho + '".',
+      impacto: 'Enquanto o vínculo não for registrado, o conceito pode ser inativado ou mudar de camada, e o Posicionamento pode passar a mostrar o rótulo de contingência no lugar do nome oficial.',
+      ver: 'Ver conceitos conectados', semConceito: 'sem conceito nesta Taxonomia — o Posicionamento usa o rótulo de contingência', orfas: 'Vínculos sem código correspondente no motor de Posicionamento: ',
+      botao: 'Registrar vínculos do Posicionamento…' }
   };
+  /* INTEGRAÇÃO COM A AVALIAÇÃO / COM O POSICIONAMENTO — comunica o ESTADO da integração (não é lista de configurações):
+     tudo certo → só o resumo "N de N … conectados"; qualquer falha real (vínculo ausente, conceito ausente ou inativo,
+     vínculo sem código no motor, leitura indisponível) → aviso destacado com o impacto, nunca um resumo positivo. Os nomes
+     ficam em "Ver …" (recolhido); códigos e datas, nos detalhes administrativos. Nada aqui muda vínculo nem conceito:
+     registrar vínculos continua com prévia e confirmação, como antes. */
   function renderConceitosBase(dom) {
     var cods = codigosMotor(dom);
     if (!LIG_CFG[dom] || !cods.length) return '';
     var T = BASE_TXT[dom], cfg = LIG_CFG[dom];
-    var D = st.d[dom], L = L_(dom), ok = L.estado === 'ok', r = resumoLigacoes(dom);
-    var idB = 'base:' + dom, P = st[cfg.carga];
-    var aberto = !!P || !r || r.ligadas < r.total;
-    var h = '<section class="tax-base" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '" data-vista="' + esc(st.vista) + '"><details class="tax-recolhivel" data-det="' + idB + '"' + detAberto(idB, aberto) + '>' +
-      '<summary class="tax-recolhivel-cab">' + T.titulo + ' — ' + plural(cods.length, 'código', 'códigos') +
-      (r ? ' · ' + r.ligadas + ' de ' + r.total + T.ligadas : (L.estado === 'erro' || L.estado === 'sem-acesso' ? ' · ligações indisponíveis' : ' · conferindo ligações…')) + '</summary>' +
-      '<p class="tax-ajuda">' + T.ajuda + '</p>';
-    if (L.estado === 'erro' || L.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '">' + (L.estado === 'sem-acesso' ? 'Sem acesso às ligações ' + T.alvo + '.' : 'Não foi possível ler as ligações ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button></p>';
-    h += '<ul class="tax-base-lista">';
-    cods.forEach(function (cod) {
+    var D = st.d[dom], L = L_(dom), ok = L.estado === 'ok', P = st[cfg.carga];
+    var h = '<section class="tax-base tax-integracao" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '" data-vista="' + esc(st.vista) + '"><h4 class="tax-integracao-titulo">' + T.titulo + '</h4>' +
+      '<p class="tax-ajuda" id="taxIntegracaoAjuda' + T.id + '">' + T.ajuda + '</p>';
+    var itens = cods.map(function (cod) {
       var c = D.conceitos[cod], l = ok ? L.mapa[cod] : null;
-      var sit = !ok ? '<span class="tax-ajuda">conferindo…</span>' : l ? selo(T.selo, 'tax-selo--ligado') + ' <span class="tax-ajuda">desde ' + esc(fmtData(l.registradoEm)) + '</span>'
-        : !c ? '<span class="tax-base-falta">' + T.semConceito + '</span>'
-        : c.ativo === false ? '<span class="tax-base-falta">conceito inativo — não pode ser ligado</span>'
-        : '<span class="tax-base-falta">sem ligação</span>';
-      if (c) h += '<li class="tax-base-item" data-base="' + esc(cod) + '" data-ligado="' + (l ? '1' : '0') + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-codigo="' + esc(cod) + '">' +
-        '<span class="tax-base-nome">' + esc(c.nome) + '</span> <code class="tax-base-codigo">' + esc(cod) + '</code>' + (c.ativo === false ? ' ' + selo('desativado') : '') + '</button> ' + sit + '</li>';
-      else h += '<li class="tax-base-item tax-base-item--sem" data-base="' + esc(cod) + '" data-ligado="' + (l ? '1' : '0') + '"><code class="tax-base-codigo">' + esc(cod) + '</code> ' + sit + '</li>';
+      var problema = !ok ? null : !c ? T.semConceito : c.ativo === false ? (l ? 'vinculado, mas o conceito está inativo' : 'conceito inativo — não pode ser vinculado') : !l ? 'sem vínculo registrado' : null;
+      return { cod: cod, c: c, l: l, problema: problema };
     });
-    h += '</ul>';
-    if (ok) {
-      var orfas = chaves(L.mapa).filter(function (k) { return cods.indexOf(k) === -1; });
-      if (orfas.length) h += '<p class="tax-aviso-erro" id="taxLigacoesOrfas' + T.id + '">' + T.orfas + orfas.map(function (k) { return '<code>' + esc(k) + '</code>'; }).join(', ') + '.</p>';
+    var orfas = ok ? chaves(L.mapa).filter(function (k) { return cods.indexOf(k) === -1; }) : [];
+    var problemas = itens.filter(function (i) { return i.problema; }), conectados = itens.filter(function (i) { return i.l && !i.problema; }).length;
+    if (L.estado === 'erro' || L.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button></p>';
+    else if (!ok) h += '<p class="loading-msg" id="taxIntegracaoResumo' + T.id + '" data-estado="conferindo">Conferindo a integração…</p>';
+    else if (!problemas.length && !orfas.length) h += '<p class="tax-integracao-ok" id="taxIntegracaoResumo' + T.id + '" data-estado="ok"><span class="tax-integracao-marca" aria-hidden="true">✓</span> ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '</p>';
+    else {
+      h += '<div class="tax-aviso-erro tax-integracao-alerta" id="taxIntegracaoResumo' + T.id + '" data-estado="problema" role="alert"><p><strong>Integração incompleta: ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '.</strong> ' + T.impacto + '</p>';
+      if (problemas.length) h += '<ul class="tax-integracao-problemas">' + problemas.map(function (i) { return '<li data-problema="' + esc(i.cod) + '"><strong>' + esc(i.c ? i.c.nome : i.cod) + '</strong> — ' + esc(i.problema) + '</li>'; }).join('') + '</ul>';
+      if (orfas.length) h += '<p id="taxLigacoesOrfas' + T.id + '">' + T.orfas + orfas.map(function (k) { return '<code>' + esc(k) + '</code>'; }).join(', ') + '.</p>';
+      h += '</div>';
     }
     if (ok && podeEditar() && D.estado === 'ok') {
       var prev = previaLigacoes(dom), aLigar = prev.filter(function (i) { return i.situacao === 'ligar'; });
       if (P) {
         h += '<div class="tax-previa" id="taxPreviaLigacoes' + T.id + '"><strong>Prévia — nada foi gravado ainda</strong><ul>' + prev.map(function (i) {
-          var rot = { ligado: 'já ligado (não muda)', ligar: 'será ligado', 'sem-conceito': 'não pode ser ligado — conceito ausente', inativo: 'não pode ser ligado — conceito inativo' }[i.situacao];
-          return '<li data-previa="' + esc(i.codigo) + '" data-situacao="' + i.situacao + '"><code>' + esc(i.codigo) + '</code> — ' + rot + '</li>';
+          var rot = { ligado: 'já vinculado (não muda)', ligar: 'será vinculado', 'sem-conceito': 'não pode ser vinculado — conceito ausente', inativo: 'não pode ser vinculado — conceito inativo' }[i.situacao];
+          var c = D.conceitos[i.codigo];
+          return '<li data-previa="' + esc(i.codigo) + '" data-situacao="' + i.situacao + '">' + esc(c ? c.nome : i.codigo) + ' <code>' + esc(i.codigo) + '</code> — ' + rot + '</li>';
         }).join('') + '</ul>' + (P.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(P.erro) + '</p>' : '') +
-          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes' + T.id + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Registrar ' + plural(aLigar.length, 'ligação', 'ligações')) + '</button>' : '') +
+          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes' + T.id + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Registrar ' + plural(aLigar.length, 'vínculo', 'vínculos')) + '</button>' : '') +
           '<button type="button" class="btn btn--sm" data-tax="cancelar-ligacoes"' + (st.salvando ? ' disabled' : '') + '>' + (aLigar.length ? 'Cancelar' : 'Fechar') + '</button></div></div>';
       } else if (aLigar.length) {
         h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" id="taxRegistrarLigacoesBtn' + T.id + '">' + T.botao + '</button></div>';
       }
     }
+    var idB = 'base:' + dom, idA = 'baseadm:' + dom;
+    h += '<details class="tax-recolhivel tax-integracao-lista" id="taxIntegracaoLista' + T.id + '" data-det="' + idB + '"' + detAberto(idB, false) + '><summary class="tax-recolhivel-cab">' + T.ver + '</summary><ul class="tax-base-lista">';
+    itens.forEach(function (i) {
+      var marca = !ok ? '<span class="tax-ajuda">conferindo…</span>' : i.problema ? '<span class="tax-base-falta">' + esc(i.problema) + '</span>' : '<span class="tax-integracao-item-ok">conectado</span>';
+      if (i.c) h += '<li class="tax-base-item" data-base="' + esc(i.cod) + '" data-ligado="' + (i.l ? '1' : '0') + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-codigo="' + esc(i.cod) + '"><span class="tax-base-nome">' + esc(i.c.nome) + '</span></button> ' + marca + '</li>';
+      else h += '<li class="tax-base-item tax-base-item--sem" data-base="' + esc(i.cod) + '" data-ligado="' + (i.l ? '1' : '0') + '"><code class="tax-base-codigo">' + esc(i.cod) + '</code> ' + marca + '</li>';
+    });
+    h += '</ul>';
+    if (ok) h += '<details class="tax-hist-detalhe tax-integracao-adm" id="taxIntegracaoAdm' + T.id + '" data-det="' + idA + '"' + detAberto(idA, false) + '><summary>Detalhes administrativos (códigos e datas)</summary><dl class="tax-dl tax-integracao-dl">' +
+      itens.map(function (i) { return '<dt><code>' + esc(i.cod) + '</code></dt><dd>' + (i.l ? 'vínculo registrado em ' + esc(fmtData(i.l.registradoEm)) + ' por ' + esc(i.l.registradoPor || '—') : 'sem vínculo') + '</dd>'; }).join('') + '</dl></details>';
     return h + '</details></section>';
   }
   function caminhoDo(dom, codigo) {
@@ -971,7 +1035,7 @@
   function idDet(tipo, dom, codigo) { return tipo + ':' + dom + ':' + codigo; }
   /* trocar de conceito volta os históricos (e as fontes) ao padrão: históricos sempre começam fechados */
   function zerarDetConceito() {
-    chaves(st.detAbertos).forEach(function (k) { if (/^(hist|audd|outras|atr):/.test(k)) delete st.detAbertos[k]; });
+    chaves(st.detAbertos).forEach(function (k) { if (/^(hist|histini|histleg|audd|outras|atr|perfpend|ajpo|relenc):/.test(k)) delete st.detAbertos[k]; });
   }
 
   /* ---------- histórico: o MESMO formato no conceito e no histórico global ----------
@@ -1001,64 +1065,61 @@
     extras.forEach(function (k) { h += '<dt>' + esc(k) + '</dt><dd class="tax-hist-integral">' + esc(valorAud(l[k])) + '</dd>'; });
     return h + '</dl></details>';
   }
-  function linhaHistoricoConceito(l, idDetalhe) {
+  /* nomes técnicos dos campos do conceito, só para mostrar (a auditoria guarda o nome técnico, intacto) */
+  var CAMPO_ROTULO = { nome: 'Nome', observacoes: 'Observações', criterios: 'Critérios', perguntaDiscriminadora: 'Pergunta discriminadora', notaDeAplicacao: 'Nota de aplicação' };
+  function tipoHistorico(l) {
+    if (l.tipo === 'definicao_publicada') return l.versao > 1 ? 'Definição atualizada (versão ' + l.versao + ')' : 'Definição registrada (versão 1)';
+    return HG_TIPOS[l.tipo] || l.tipo || '—';
+  }
+  function linhaHistoricoConceito(l, idDetalhe, extraHtml) {
     var ant = valorAud(l.valorAnterior), nov = valorAud(l.valorNovo);
     var cortou = curto(ant) !== ant || curto(nov) !== nov;
     return '<li class="tax-aud tax-hist-item" data-chave="' + esc(l._chave) + '" data-datahora="' + esc(l.dataHora || '') + '">' +
       '<div class="tax-hist-meta"><span class="tax-hist-quando">' + esc(fmtData(l.dataHora)) + '</span><span class="tax-hist-autor">por ' + esc(autorAud(l.usuario)) + '</span>' +
-      '<strong class="tax-hist-tipo">' + esc(HG_TIPOS[l.tipo] || l.tipo || '—') + '</strong></div>' +
-      '<p class="tax-hist-resumo">' + (l.campo ? '<strong>' + esc(txt(l.campo)) + '</strong>: ' : '') + esc(curto(ant)) + ' → ' + esc(curto(nov)) + '</p>' +
+      '<strong class="tax-hist-tipo">' + esc(tipoHistorico(l)) + '</strong></div>' +
+      '<p class="tax-hist-resumo">' + (l.campo && l.tipo !== 'definicao_publicada' ? '<strong>' + esc(CAMPO_ROTULO[l.campo] || txt(l.campo)) + '</strong>: ' : '') + esc(curto(ant)) + ' → ' + esc(curto(nov)) + '</p>' +
+      (l.motivo ? '<p class="tax-hist-motivo"><strong>Motivo:</strong> ' + esc(txt(l.motivo)) + '</p>' : '') + (extraHtml || '') +
       detalhesAud(l, idDetalhe, cortou) + '</li>';
   }
 
-  /* ---------- detalhe do conceito, NESTA ordem ----------
-     a) Identificação essencial · b) Definição oficial vigente, com "Atualizar definição" e o histórico dela (recolhido)
-     · c) Pergunta discriminadora · d) Atributos / perfil · e) Relações · f) Identificação do conceito (editar, inativar,
-     camada) · g) Histórico completo do conceito (recolhido, por último). Tudo indexado pelo CÓDIGO do conceito. */
+  /* ---------- ficha do conceito, NESTA ordem ----------
+     A) Cabeçalho (código, camada, hierarquia, situação, proteções) · B) Definição oficial, com "Atualizar definição"
+     · C) Como reconhecer este conceito? (Editar informações) · D) Perfil (Gerenciar perfil) · E) Relações entre conceitos
+     (Gerenciar relações) · administração discreta (inativar, camada) · F) Histórico único (recolhido, por último).
+     Tudo indexado pelo CÓDIGO do conceito. */
+  /* A) CABEÇALHO — nome (no título), código, camada, hierarquia, situação e proteções, numa área só. Não há outra
+     "identificação" no fim da ficha: editar o nome fica em "Como reconhecer" (Editar informações). */
   function renderIdentificacao(dom, codigo) {
-    var D = st.d[dom], c = D.conceitos[codigo], e = D.edicao, ed = podeEditar(), org = dom === 'organizacional';
-    var html = '<section class="tax-sec tax-sec--ident" id="taxSecIdent"><h4>Identificação</h4><div class="tax-ident">';
-    html += '<p class="tax-ident-linha" id="taxCodigo"><span class="tax-ident-k">Código:</span> <code>' + esc(codigo) + '</code></p>';
-    if (c.ativo === false) html += '<p class="tax-ident-linha" id="taxIdentSituacao"><span class="tax-ident-k">Situação:</span> ' + selo('desativado') + '</p>';
-    if (org) html += '<p class="tax-ident-linha"><span class="tax-ident-k">Camada:</span> ' + (c.camada ? esc(CAMADA_ROTULO[c.camada] || c.camada) : '<span class="tax-ausencia">sem camada</span>') + '</p>';
+    var D = st.d[dom], c = D.conceitos[codigo], org = dom === 'organizacional';
+    var html = '<section class="tax-sec tax-sec--ident tax-cabecalho" id="taxSecIdent" aria-label="Identificação do conceito"><div class="tax-ident-meta">';
+    html += '<span class="tax-ident-item" id="taxCodigo"><span class="tax-ident-k">Código:</span> <code>' + esc(codigo) + '</code></span>';
+    if (org) html += '<span class="tax-ident-item" id="taxIdentCamada"><span class="tax-ident-k">Camada:</span> ' + (c.camada ? esc(CAMADA_ROTULO[c.camada] || c.camada) : '<span class="tax-ausencia">sem camada</span>') + '</span>';
+    html += '<span class="tax-ident-item" id="taxIdentSituacao"><span class="tax-ident-k">Situação:</span> ' + (c.ativo === false ? selo('desativado') : 'ativo') + '</span></div>';
     if (c.pai) {
       var pai = D.conceitos[c.pai];
       html += '<p class="tax-ident-linha" id="taxIdentPai"><span class="tax-ident-k">Conceito pai:</span> ' + esc(pai ? pai.nome : c.pai) + ' <code>' + esc(c.pai) + '</code>' +
         (pai ? '' : ' <span class="tax-aviso-erro">(não encontrado)</span>') + '</p>';
-      html += '<p class="tax-caminho">' + caminhoDo(dom, codigo).map(esc).join(' › ') + '</p>';
+      html += '<p class="tax-caminho" id="taxIdentHierarquia"><span class="tax-ident-k">Hierarquia:</span> ' + caminhoDo(dom, codigo).map(esc).join(' › ') + '</p>';
     }
+    if (org && codigoLigavel(dom, codigo) && estaLigado(codigo, dom)) html += '<p class="tax-ident-linha tax-protecao" id="taxIdentLigadoPos">' + selo('ligado ao Posicionamento', 'tax-selo--ligado') + ' <span class="tax-ajuda">Protegido: é um tipo de estrutura do Posicionamento Organizacional, por isso não pode ser inativado nem mudar de camada.</span></p>';
+    if (dom === 'arquitetural' && estaLigado(codigo)) html += '<p class="tax-ident-linha tax-protecao" id="taxIdentLigado">' + selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">Protegido: é uma classificação da Avaliação de Produto/Serviço, por isso não pode ser inativado.</span></p>';
     if (org && c.camadaAlteracao) html += '<p class="tax-ident-linha" id="taxIdentCamadaAlteracao"><span class="tax-ident-k">Camada alterada:</span> de ' + esc(CAMADA_ROTULO[c.camadaAlteracao.de] || c.camadaAlteracao.de) + ' para ' + esc(CAMADA_ROTULO[c.camadaAlteracao.para] || c.camadaAlteracao.para) + ' em ' + esc(fmtData(c.camadaAlteracao.em)) + ' por ' + esc(c.camadaAlteracao.por || '—') + ' — motivo: ' + esc(c.camadaAlteracao.motivo || '—') + '</p>';
     if (c.ativo === false && c.inativacao) html += '<p class="tax-ident-linha" id="taxIdentInativacao"><span class="tax-ident-k">Inativado:</span> ' + esc(fmtData(c.inativacao.em)) + ' por ' + esc(c.inativacao.por || '—') + ' — motivo: ' + esc(c.inativacao.motivo || '—') + '</p>';
-    if (dom === 'organizacional' && codigoLigavel(dom, codigo) && estaLigado(codigo, dom)) html += '<p class="tax-ident-linha" id="taxIdentLigadoPos"><span class="tax-ident-k">Posicionamento:</span> ' + selo('ligado ao Posicionamento', 'tax-selo--ligado') + ' <span class="tax-ajuda">código de mesmo nome do motor de Posicionamento Organizacional; não pode ser inativado nem trocar de camada.</span></p>';
-    if (dom === 'arquitetural' && estaLigado(codigo)) html += '<p class="tax-ident-linha" id="taxIdentLigado"><span class="tax-ident-k">Avaliação:</span> ' + selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">classificação de mesmo código do motor; não pode ser inativado.</span></p>';
-    html += '</div>';
     return html + '</section>';
   }
-  /* identificação editável (nome e dados cadastrais), inativar e camada: secundários, depois da definição */
+  /* ADMINISTRAÇÃO do conceito (inativar/reativar, trocar de camada): discreta, no fim, sem competir com as tarefas
+     principais. Só aparece para quem pode gravar. */
   function renderAcoesConceito(dom, codigo) {
-    var D = st.d[dom], c = D.conceitos[codigo], e = D.edicao, ed = podeEditar(), org = dom === 'organizacional';
+    var D = st.d[dom], c = D.conceitos[codigo], ed = podeEditar(), org = dom === 'organizacional';
     if (!ed) return '';
-    var html = '<section class="tax-sec tax-sec--ident-acoes" id="taxSecIdentAcoes"><h4>Identificação do conceito</h4>';
-    if (e && e.tipo === 'conceito' && e.chave === codigo) {
-      var v = e.valores;
-      html += '<div class="tax-form" id="taxFormConceito"><p class="tax-form-titulo"><strong>Editar identificação</strong></p><label for="taxF_nome">Nome *</label><input type="text" id="taxF_nome" data-campo="nome" value="' + esc(v.nome) + '" maxlength="120">';
-      if (org) {
-        html += '<label for="taxF_perguntaDiscriminadora">Pergunta discriminadora</label><textarea id="taxF_perguntaDiscriminadora" data-campo="perguntaDiscriminadora" rows="3">' + esc(v.perguntaDiscriminadora) + '</textarea>';
-        html += '<label for="taxF_notaDeAplicacao">Nota de aplicação</label><textarea id="taxF_notaDeAplicacao" data-campo="notaDeAplicacao" rows="4">' + esc(v.notaDeAplicacao) + '</textarea>';
-      }
-      html += '<label for="taxF_criterios">Critérios (um por linha)</label><textarea id="taxF_criterios" data-campo="criterios" rows="4">' + esc(v.criterios) + '</textarea>';
-      html += '<label for="taxF_observacoes">Observações</label><textarea id="taxF_observacoes" data-campo="observacoes" rows="3">' + esc(v.observacoes) + '</textarea>';
-      if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
-      html += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
-    } else if (ed) {
-      html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito"><button type="button" class="btn btn--sm" data-tax="editar-conceito">Editar identificação</button>' +
-        (c.ativo === false ? '<button type="button" class="btn btn--sm" data-tax="reativar" id="taxReativarBtn"' + (st.salvando ? ' disabled' : '') + '>Reativar conceito</button>'
-          : '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="inativar" id="taxInativarBtn">Inativar conceito</button>') +
-        (org && CAMADAS_TROCAVEIS[c.camada] ? '<button type="button" class="btn btn--sm" data-tax="alterar-camada" id="taxCamadaBtn">Alterar camada</button>' : '') + '</div>' +
-        '<p class="tax-ajuda">Nome, critérios e dados cadastrais. A definição muda por “Atualizar definição”, acima.</p>';
-      if (D.inativando && D.inativando.codigo === codigo && c.ativo !== false) html += painelInativar(dom, codigo, c);
-      if (D.camadaMudando && D.camadaMudando.codigo === codigo) html += painelCamada(dom, codigo, c);
-    }
+    var html = '<section class="tax-sec tax-sec--governanca" id="taxSecIdentAcoes" aria-label="Administração do conceito"><p class="tax-governanca-titulo">Administração do conceito</p>';
+    html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito">' +
+      (c.ativo === false ? '<button type="button" class="btn btn--sm" data-tax="reativar" id="taxReativarBtn"' + (st.salvando ? ' disabled' : '') + '>Reativar conceito</button>'
+        : '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="inativar" id="taxInativarBtn">Inativar conceito</button>') +
+      (org && CAMADAS_TROCAVEIS[c.camada] ? '<button type="button" class="btn btn--sm" data-tax="alterar-camada" id="taxCamadaBtn">Alterar camada</button>' : '') + '</div>' +
+      '<p class="tax-ajuda">Inativar ou trocar de camada fica no histórico, com o motivo. Nada é apagado.</p>';
+    if (D.inativando && D.inativando.codigo === codigo && c.ativo !== false) html += painelInativar(dom, codigo, c);
+    if (D.camadaMudando && D.camadaMudando.codigo === codigo) html += painelCamada(dom, codigo, c);
     return html + '</section>';
   }
 
@@ -1133,7 +1194,6 @@
     else h += '<p class="tax-ausencia" id="taxSemDefinicao">Este conceito ainda não tem definição oficial vigente.</p>';
     if (ed && !(a && a.codigo === codigo)) h += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="atualizar-definicao" id="taxAtualizarDefinicaoBtn"' + (st.salvando ? ' disabled' : '') + '>' + (def ? 'ATUALIZAR DEFINIÇÃO' : 'REGISTRAR DEFINIÇÃO') + '</button></div>';
     if (ed && a && a.codigo === codigo) h += a.etapa === 'conferir' ? painelConferir(def, a) : painelEditarDefinicao(def, a);
-    h += renderHistoricoDefinicao(dom, codigo, det);
     return h + '</section>';
   }
   function painelEditarDefinicao(def, a) {
@@ -1156,139 +1216,176 @@
       '<button type="button" class="btn btn--sm" data-tax="voltar-definicao"' + (st.salvando ? ' disabled' : '') + '>Voltar e editar</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-definicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
   }
-  /* histórico da definição: as versões publicadas (com o texto anterior) e, quando houver, as trocas de definição do
-     modelo antigo (auditoria 'definicao_vigente'). Recolhido por padrão; a contagem vem só de registros reais */
-  function renderHistoricoDefinicao(dom, codigo, det) {
-    if (det.erros.versoes) return '<p class="tax-aviso-erro" id="taxHistDefErro">Histórico da definição indisponível agora.</p>';
-    if (det.carregando && !chaves(det.versoes).length) return '<p class="loading-msg">Carregando o histórico…</p>';
-    var H = window.faTaxonomiaDefinicao.historico(det.versoes, det.auditoria, det.arquivo), id = idDet('histdef', dom, codigo);
-    var h = '<details class="tax-recolhivel tax-hist" id="taxHistDefinicao" data-det="' + esc(id) + '"' + detAberto(id, false) + '><summary class="tax-recolhivel-cab">Histórico de alterações — ' + H.alteracoes + (H.alteracoes === 1 ? ' alteração' : ' alterações') + '</summary>';
-    if (!H.publicacoes.length && !H.legado.length) return h + '<p class="tax-ausencia">Nenhuma alteração registrada.</p></details>';
-    h += '<ol class="tax-hist-def" id="taxHistDefLista">' + H.publicacoes.map(function (p) {
-      return '<li class="tax-hist-def-item" data-versao="' + esc(p.versao) + '"><p class="tax-hist-def-cab"><strong>Versão ' + esc(p.versao) + '</strong> · ' + esc(fmtData(p.publicadaEm)) + ' · ' + esc(p.publicadaPor || '—') +
-        (p.origem === 'migracao' ? ' · <span class="tax-ajuda">definição vigente na simplificação da Taxonomia</span>' : p.origem === 'carga-inicial' ? ' · <span class="tax-ajuda">carga inicial</span>' : '') + '</p>' +
-        (p.textoAnterior !== null ? '<p class="tax-confirma-rotulo">Texto anterior</p><p class="tax-fonte-texto">' + esc(p.textoAnterior) + '</p>' : '') +
-        '<p class="tax-confirma-rotulo">' + (p.textoAnterior !== null ? 'Texto novo' : 'Texto') + '</p><p class="tax-fonte-texto">' + esc(p.texto) + '</p>' +
-        (p.motivo ? '<p class="tax-confirma-rotulo">Motivo</p><p class="tax-fonte-texto">' + esc(p.motivo) + '</p>' : '') + '</li>';
-    }).join('') + '</ol>';
-    if (H.legado.length) h += '<p class="tax-confirma-rotulo" id="taxHistDefLegadoTitulo">Antes da simplificação da Taxonomia</p><ul class="tax-hist-def" id="taxHistDefLegado">' + H.legado.map(function (e) {
-      return '<li class="tax-hist-def-item"><p class="tax-hist-def-cab">' + esc(fmtData(e.dataHora)) + ' · ' + esc(e.por || '—') + '</p>' +
-        '<p class="tax-confirma-rotulo">Texto anterior</p><p class="tax-fonte-texto">' + esc(e.textoAnterior !== null ? e.textoAnterior : (e.rotuloAnterior ? '(' + e.rotuloAnterior + ')' : '(nenhum)')) + '</p>' +
-        '<p class="tax-confirma-rotulo">Texto novo</p><p class="tax-fonte-texto">' + esc(e.textoNovo !== null ? e.textoNovo : (e.rotuloNovo ? '(' + e.rotuloNovo + ')' : '(sem definição)')) + '</p></li>';
-    }).join('') + '</ul>';
-    return h + '</details>';
-  }
-
-  /* c) Critérios e pergunta discriminadora (só leitura aqui; a edição é "Editar dados do conceito", na Identificação) */
+  /* C) COMO RECONHECER ESTE CONCEITO? — pergunta discriminadora, critérios, nota de aplicação e observações, editados
+     AQUI MESMO ("Editar informações", que também altera o nome). Definição, pergunta, critérios e observações têm funções
+     distintas: nada é fundido nem apagado só porque os textos se parecem. */
   function renderPergunta(dom, codigo) {
-    var c = st.d[dom].conceitos[codigo], org = dom === 'organizacional';
-    var html = '<section class="tax-sec" id="taxSecPergunta"><h4>' + (org ? 'Critérios e pergunta discriminadora' : 'Critérios e observações') + '</h4>';
-    if (org) {
-      if (c.perguntaDiscriminadora) {
-        html += '<p class="tax-pergunta-disc"><span class="tax-rotulo">Pergunta</span> ' + esc(c.perguntaDiscriminadora) + '</p>';
-        if (c.notaDeAplicacao) html += '<p class="tax-nota-aplicacao" id="taxNotaAplicacao"><span class="tax-rotulo">Nota de aplicação</span> ' + esc(c.notaDeAplicacao) + '</p>';
-      } else html += '<p class="tax-ausencia">Pergunta discriminadora ainda não definida.</p>';
-    }
-    var crit = listaCriterios(c);
-    if (crit.length) html += '<p class="tax-rotulo">Critérios</p><ul class="tax-criterios">' + crit.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
-    else if (org) html += '<p class="tax-ausencia">Sem critérios registrados.</p>';
-    if (c.observacoes) html += '<p><span class="tax-rotulo">Observações</span> ' + esc(c.observacoes) + '</p>';
-    if (!crit.length && !c.observacoes && !org) html += '<p class="tax-ausencia">Sem critérios nem observações registrados.</p>';
+    var D = st.d[dom], c = D.conceitos[codigo], org = dom === 'organizacional', e = D.edicao, ed = podeEditar();
+    var html = '<section class="tax-sec tax-sec--reconhecer" id="taxSecPergunta"><h4>Como reconhecer este conceito?</h4>';
+    if (ed && e && e.tipo === 'conceito' && e.chave === codigo) return html + formConceito(dom, e) + '</section>';
+    var crit = listaCriterios(c), algo = false;
+    if (org && c.perguntaDiscriminadora) { algo = true; html += '<p class="tax-pergunta-disc"><span class="tax-rotulo">Pergunta</span> ' + esc(c.perguntaDiscriminadora) + '</p>'; }
+    if (crit.length) { algo = true; html += '<p class="tax-rotulo">Critérios</p><ul class="tax-criterios">' + crit.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>'; }
+    if (org && c.notaDeAplicacao) { algo = true; html += '<p class="tax-nota-aplicacao" id="taxNotaAplicacao"><span class="tax-rotulo">Nota de aplicação</span> ' + esc(c.notaDeAplicacao) + '</p>'; }
+    if (c.observacoes) { algo = true; html += '<p class="tax-observacoes"><span class="tax-rotulo">Observações</span> ' + esc(c.observacoes) + '</p>'; }
+    if (!algo) html += '<p class="tax-ausencia" id="taxReconhecerVazio">' + (org ? 'Pergunta discriminadora, critérios e observações ainda não registrados.' : 'Critérios e observações ainda não registrados.') + '</p>';
+    else if (org && !c.perguntaDiscriminadora) html += '<p class="tax-ausencia">Pergunta discriminadora ainda não definida.</p>';
+    if (ed) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="editar-conceito" id="taxEditarInfoBtn">Editar informações</button></div>' +
+      '<p class="tax-ajuda">' + (org ? 'Nome, pergunta, critérios, nota de aplicação e observações.' : 'Nome, critérios e observações.') + ' A definição muda em “Atualizar definição”.</p>';
     return html + '</section>';
   }
-
-  function renderAtributos(dom, codigo, det) {
-    var D = st.d[dom], e = D.edicao, ed = podeEditar();
-    var atrs = ordenaPor(chaves(D.atributos).map(function (k) { return Object.assign({ _cod: k }, D.atributos[k]); }), 'ordem');
-    /* RECOLHÍVEL (começa fechado; trocar de conceito fecha de novo). "Definidos" = atributos com estado já decidido —
-       tudo que não é "ainda não definido" nem está sem registro. Só apresentação: nenhum dado muda. */
-    var definidos = atrs.filter(function (a) { var p = det.perfis[a._cod]; return p && p.estado && p.estado !== 'ainda não definido'; }).length;
-    var resumo = det.erros.perfis ? ' — indisponível agora' : (det.carregando && !chaves(det.perfis).length ? ' — carregando…' : ' — ' + plural(definidos, 'definido', 'definidos') + (atrs.length ? ' de ' + atrs.length : ''));
-    var idA = idDet('atr', dom, codigo), editandoPerfil = !!(e && e.tipo === 'perfil');
-    var html = '<section class="tax-sec tax-sec--atributos" id="taxSecAtributos"><details class="tax-recolhivel tax-atributos" id="taxAtributosRecolhivel" data-det="' + esc(idA) + '"' + detAberto(idA, editandoPerfil) + '>' +
-      '<summary class="tax-recolhivel-cab tax-atributos-cab" id="taxAtributosResumo"><span class="tax-atributos-titulo">Atributos / perfil</span><span class="tax-atributos-contagem">' + esc(resumo) + '</span></summary>';
-    html += '<p class="tax-ajuda">Descrevem e confirmam. Nenhum atributo, sozinho, define o tipo.</p>';
-    html += '<div class="tax-legenda" id="taxLegenda"><p class="tax-ajuda"><strong>Papel</strong> — <strong>definidor</strong>: ' + PAPEL_SIGNIFICADO['definidor'] + ' · <strong>típico</strong>: ' + PAPEL_SIGNIFICADO['típico'] + ' · <strong>observado</strong>: ' + PAPEL_SIGNIFICADO['observado'] + '.</p>' +
-      '<p class="tax-ajuda"><strong>Origem</strong> — <strong>fonte</strong>: está nos textos-fonte · <strong>inferência</strong>: leitura nossa, nunca dado de fonte nem decisão aprovada · <strong>decisão</strong>: escolha aprovada.</p></div>';
-    if (det.erros.perfis) html += '<p class="tax-aviso-erro">Não foi possível carregar os atributos agora.</p>';
-    else if (!atrs.length) html += '<p class="tax-ausencia">O catálogo de atributos está vazio.</p>';
-    atrs.forEach(function (a) {
-      var p = det.perfis[a._cod], editandoEste = e && e.tipo === 'perfil' && e.chave === a._cod;
-      html += '<div class="tax-atributo" data-atributo="' + esc(a._cod) + '"><div class="tax-atributo-nome">' + esc(a.nome) + ' ' + selo(GRUPO_ROTULO[a.grupo] || a.grupo) + '</div>';
-      if (editandoEste) {
-        var v = e.valores;
-        html += '<div class="tax-form" id="taxFormPerfil"><label for="taxF_estado">Estado</label>' + campoSelect('taxF_estado', v.estado, ESTADOS);
-        if (v.estado === 'registrado') {
-          var perm = a.valoresPermitidos ? ordenaPor(chaves(a.valoresPermitidos).map(function (k) { return a.valoresPermitidos[k]; }), 'ordem').map(function (x) { return x.texto; }) : null;
-          html += '<label for="taxF_valor">Valor *</label>';
-          if (perm && perm.length) html += '<select id="taxF_valor" data-campo="valor"><option value="">— escolha —</option>' + perm.map(function (t) { return '<option value="' + esc(t) + '"' + (t === v.valor ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + (v.valor && perm.indexOf(v.valor) === -1 ? '<option value="' + esc(v.valor) + '" selected>' + esc(v.valor) + '</option>' : '') + '</select>';
-          else html += '<input type="text" id="taxF_valor" data-campo="valor" value="' + esc(v.valor) + '" maxlength="1000">';
-          html += '<div class="tax-form-linha"><div><label for="taxF_papel">Papel</label>' + campoSelect('taxF_papel', v.papel, PAPEIS, { observado: 'observado (neutro: sem julgamento classificatório)' }) + '</div><div><label for="taxF_origem">Origem</label>' + campoSelect('taxF_origem', v.origem, ORIGENS, null, '— escolha a origem —') + '</div></div>';
-        } else html += '<p class="tax-ajuda">Neste estado não há valor, papel nem origem: a ausência é registrada pelo estado.</p>';
-        if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
-        html += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
-      } else {
-        if (!p) html += '<p class="tax-valor tax-valor--ausente">Ainda não definido <span class="tax-ajuda">(sem registro)</span></p>';
-        else if (p.estado === 'registrado') {
-          html += '<p class="tax-valor">' + esc(p.valor) + ' ' + selo('Papel: ' + p.papel, 'tax-selo--papel-' + String(p.papel).replace(/[^a-z]/gi, '')) +
-            selo('Origem: ' + p.origem, 'tax-selo--origem tax-selo--origem-' + (ORIGEM_CLASSE[p.origem] || 'fonte')) + '</p>';
-          if (p.origem === 'inferência') html += '<p class="tax-inferencia-aviso">Inferência — leitura nossa; não é dado de fonte nem decisão aprovada. Pode ser alterada sem mexer no texto-fonte.</p>';
-        }
-        else html += '<p class="tax-valor tax-valor--ausente">' + esc(p.estado.charAt(0).toUpperCase() + p.estado.slice(1)) + '</p>';
-        if (ed) html += '<button type="button" class="btn btn--sm" data-tax="editar-perfil" data-atributo="' + esc(a._cod) + '">Editar</button>';
-      }
-      html += '</div>';
-    });
-    return html + '</details></section>';
+  function formConceito(dom, e) {
+    var v = e.valores, org = dom === 'organizacional';
+    var html = '<div class="tax-form" id="taxFormConceito"><p class="tax-form-titulo"><strong>Editar informações</strong></p><label for="taxF_nome">Nome *</label><input type="text" id="taxF_nome" data-campo="nome" value="' + esc(v.nome) + '" maxlength="120">';
+    if (org) html += '<label for="taxF_perguntaDiscriminadora">Pergunta discriminadora</label><textarea id="taxF_perguntaDiscriminadora" data-campo="perguntaDiscriminadora" rows="3">' + esc(v.perguntaDiscriminadora) + '</textarea>';
+    html += '<label for="taxF_criterios">Critérios (um por linha)</label><textarea id="taxF_criterios" data-campo="criterios" rows="4">' + esc(v.criterios) + '</textarea>';
+    if (org) html += '<label for="taxF_notaDeAplicacao">Nota de aplicação</label><textarea id="taxF_notaDeAplicacao" data-campo="notaDeAplicacao" rows="4">' + esc(v.notaDeAplicacao) + '</textarea>';
+    html += '<label for="taxF_observacoes">Observações</label><textarea id="taxF_observacoes" data-campo="observacoes" rows="3">' + esc(v.observacoes) + '</textarea>';
+    if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
+    return html + '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
   }
 
-  /* e) Relações: SAÍDA (este conceito → outro) e ENTRADA (outro → este conceito), separadas e rotuladas.
-     O outro conceito aparece pelo nome ATUAL e pelo código (a chave). */
+  /* D) PERFIL DO CONCEITO — na consulta, só os atributos efetivamente definidos e "N de M atributos definidos"; os ainda
+     sem registro ficam num recolhível. UMA ação, "Gerenciar perfil": todos os atributos num formulário só, salvos de uma
+     vez (só os que mudaram; um evento de auditoria por atributo alterado; nenhum registro vazio criado). Papel e Origem
+     explicados por ajuda contextual, não repetidos em cada linha. "Definido" = há registro com estado decidido (tudo
+     que não é "ainda não definido"). */
+  function atributosOrdenados(D) { return ordenaPor(chaves(D.atributos).map(function (k) { return Object.assign({ _cod: k }, D.atributos[k]); }), 'ordem'); }
+  function perfilDefinido(p) { return !!(p && p.estado && p.estado !== 'ainda não definido'); }
+  function rotuloEstado(estado) { return estado ? estado.charAt(0).toUpperCase() + estado.slice(1) : ''; }
+  function ajudaPapelOrigem(idDetalhe) {
+    return '<details class="tax-ajuda-ctx" id="taxLegenda" data-det="' + esc(idDetalhe) + '"' + detAberto(idDetalhe, false) + '><summary>O que significam Estado, Papel e Origem?</summary>' +
+      '<p class="tax-ajuda"><strong>Estado</strong> — "registrado" tem valor; os demais registram a ausência (não consta na fonte, não aplicável, ainda não definido, fonte não localizada): ausência é estado, nunca campo vazio.</p>' +
+      '<p class="tax-ajuda"><strong>Papel</strong> — <strong>definidor</strong>: ' + PAPEL_SIGNIFICADO['definidor'] + ' · <strong>típico</strong>: ' + PAPEL_SIGNIFICADO['típico'] + ' · <strong>observado</strong>: ' + PAPEL_SIGNIFICADO['observado'] + '.</p>' +
+      '<p class="tax-ajuda"><strong>Origem</strong> — <strong>fonte</strong>: está nos textos-fonte · <strong>inferência</strong>: leitura nossa, não é dado de fonte nem decisão aprovada · <strong>decisão</strong>: escolha aprovada.</p>' +
+      '<p class="tax-ajuda">Nenhum atributo, sozinho, define o tipo: eles descrevem e confirmam.</p></details>';
+  }
+  function valorPerfilHtml(p) {
+    if (!p) return '<span class="tax-valor tax-valor--ausente">Sem registro</span>';
+    if (p.estado !== 'registrado') return '<span class="tax-valor tax-valor--ausente">' + esc(rotuloEstado(p.estado)) + '</span>';
+    return '<span class="tax-valor">' + esc(p.valor) + '</span> ' + selo('Papel: ' + p.papel, 'tax-selo--papel-' + String(p.papel).replace(/[^a-z]/gi, '')) +
+      selo('Origem: ' + p.origem, 'tax-selo--origem tax-selo--origem-' + (ORIGEM_CLASSE[p.origem] || 'fonte'));
+  }
+  function renderAtributos(dom, codigo, det) {
+    var D = st.d[dom], ed = podeEditar(), L = D.perfilLote && D.perfilLote.codigo === codigo ? D.perfilLote : null;
+    var atrs = atributosOrdenados(D);
+    var html = '<section class="tax-sec tax-sec--atributos" id="taxSecAtributos"><h4>Perfil do conceito</h4>';
+    if (det.erros.perfis) return html + '<p class="tax-aviso-erro" id="taxPerfilErro">Não foi possível carregar o perfil agora.</p></section>';
+    if (det.carregando && !chaves(det.perfis).length) return html + '<p class="loading-msg" id="taxPerfilCarregando">Carregando o perfil…</p></section>';
+    if (!atrs.length) return html + '<p class="tax-ausencia">O catálogo de atributos está vazio.</p></section>';
+    if (ed && L) return html + formPerfilLote(dom, codigo, det, atrs, L) + '</section>';
+    var defs = atrs.filter(function (a) { return perfilDefinido(det.perfis[a._cod]); });
+    var pend = atrs.filter(function (a) { return !perfilDefinido(det.perfis[a._cod]); });
+    html += '<p class="tax-perfil-contagem" id="taxPerfilContagem">' + defs.length + ' de ' + atrs.length + ' atributos definidos</p>';
+    if (defs.length) html += '<ul class="tax-perfil-lista" id="taxPerfilDefinidos">' + defs.map(function (a) {
+      return '<li class="tax-atributo" data-atributo="' + esc(a._cod) + '"><span class="tax-atributo-nome">' + esc(a.nome) + '</span> ' + valorPerfilHtml(det.perfis[a._cod]) + '</li>';
+    }).join('') + '</ul>';
+    else html += '<p class="tax-ausencia" id="taxPerfilVazio">Nenhum atributo definido ainda.</p>';
+    if (pend.length) {
+      var idP = idDet('perfpend', dom, codigo);
+      html += '<details class="tax-recolhivel tax-perfil-pendentes" id="taxPerfilPendentes" data-det="' + esc(idP) + '"' + detAberto(idP, false) + '><summary class="tax-recolhivel-cab">Ainda não definidos (' + pend.length + ')</summary><ul class="tax-perfil-lista tax-perfil-lista--pendentes">' +
+        pend.map(function (a) { return '<li class="tax-atributo" data-atributo="' + esc(a._cod) + '"><span class="tax-atributo-nome">' + esc(a.nome) + '</span> ' + valorPerfilHtml(det.perfis[a._cod]) + '</li>'; }).join('') + '</ul></details>';
+    }
+    html += ajudaPapelOrigem(idDet('ajpo', dom, codigo));
+    if (ed) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="gerenciar-perfil" id="taxGerenciarPerfilBtn"' + (det.carregando ? ' disabled' : '') + '>Gerenciar perfil</button></div>';
+    return html + '</section>';
+  }
+  /* valores do formulário integrado: '' = sem registro (só para atributo que ainda não tem registro) */
+  function novoPerfilLote(codigo, det, atrs) {
+    var base = {}, valores = {};
+    atrs.forEach(function (a) {
+      var p = det.perfis[a._cod] || null;
+      base[a._cod] = p ? rotuloPerfilCompleto(p) : null;
+      valores[a._cod] = { estado: p ? p.estado : '', valor: (p && p.valor) || '', papel: (p && p.papel) || 'observado', origem: (p && p.origem) || '' };
+    });
+    return { codigo: codigo, base: base, valores: valores, erros: {}, erro: null, verificando: false, confirmandoCancelar: false };
+  }
+  /* o que o formulário gravaria para o atributo (null = nada: sem registro) */
+  function perfilDoFormulario(v) {
+    if (!v.estado) return null;
+    if (v.estado !== 'registrado') return { estado: v.estado, valor: null, papel: null, origem: null };
+    return { estado: 'registrado', valor: String(v.valor || '').trim() || null, papel: v.papel || null, origem: v.origem || null };
+  }
+  function perfilAlterado(L, atr) { return JSON.stringify(perfilDoFormulario(L.valores[atr])) !== JSON.stringify(L.base[atr]); }
+  function alteracoesPerfil(L) { return chaves(L.valores).filter(function (a) { return perfilAlterado(L, a); }); }
+  function formPerfilLote(dom, codigo, det, atrs, L) {
+    var n = alteracoesPerfil(L).length, ocupado = st.salvando || L.verificando;
+    var h = '<div class="tax-form tax-perfil-lote" id="taxFormPerfilLote" role="group" aria-label="Gerenciar perfil">' +
+      '<p class="tax-form-titulo"><strong>Gerenciar perfil</strong> <span class="tax-ajuda">— altere os atributos que quiser e salve uma vez. Só o que mudar é gravado.</span></p>' + ajudaPapelOrigem(idDet('ajpo', dom, codigo));
+    atrs.forEach(function (a) {
+      var v = L.valores[a._cod], id = 'taxPL_' + a._cod, alt = perfilAlterado(L, a._cod), erro = L.erros[a._cod];
+      var perm = a.valoresPermitidos ? ordenaPor(chaves(a.valoresPermitidos).map(function (k) { return a.valoresPermitidos[k]; }), 'ordem').map(function (x) { return x.texto; }) : null;
+      h += '<fieldset class="tax-perfil-linha' + (alt ? ' tax-perfil-linha--alterada' : '') + (erro ? ' tax-perfil-linha--erro' : '') + '" data-atributo="' + esc(a._cod) + '"><legend>' + esc(a.nome) + (alt ? ' <span class="tax-perfil-alterado">alterado</span>' : '') + '</legend>' +
+        '<label for="' + id + '_estado">Estado</label><select id="' + id + '_estado" data-perfil="estado" data-atributo="' + esc(a._cod) + '"' + (ocupado ? ' disabled' : '') + '>' +
+        (L.base[a._cod] ? '' : '<option value=""' + (v.estado ? '' : ' selected') + '>— sem registro —</option>') +
+        ESTADOS.map(function (s) { return '<option value="' + esc(s) + '"' + (v.estado === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select>';
+      if (v.estado === 'registrado') {
+        h += '<label for="' + id + '_valor">Valor *</label>';
+        if (perm && perm.length) h += '<select id="' + id + '_valor" data-perfil="valor" data-atributo="' + esc(a._cod) + '"' + (ocupado ? ' disabled' : '') + '><option value="">— escolha —</option>' + perm.map(function (t) { return '<option value="' + esc(t) + '"' + (t === v.valor ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + (v.valor && perm.indexOf(v.valor) === -1 ? '<option value="' + esc(v.valor) + '" selected>' + esc(v.valor) + '</option>' : '') + '</select>';
+        else h += '<input type="text" id="' + id + '_valor" data-perfil="valor" data-atributo="' + esc(a._cod) + '" value="' + esc(v.valor) + '" maxlength="1000"' + (ocupado ? ' disabled' : '') + '>';
+        h += '<div class="tax-form-linha"><div><label for="' + id + '_papel">Papel</label><select id="' + id + '_papel" data-perfil="papel" data-atributo="' + esc(a._cod) + '"' + (ocupado ? ' disabled' : '') + '>' +
+          PAPEIS.map(function (s) { return '<option value="' + esc(s) + '"' + (v.papel === s ? ' selected' : '') + '>' + esc(s === 'observado' ? 'observado (neutro)' : s) + '</option>'; }).join('') + '</select></div>' +
+          '<div><label for="' + id + '_origem">Origem</label><select id="' + id + '_origem" data-perfil="origem" data-atributo="' + esc(a._cod) + '"' + (ocupado ? ' disabled' : '') + '><option value="">— escolha a origem —</option>' +
+          ORIGENS.map(function (s) { return '<option value="' + esc(s) + '"' + (v.origem === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></div></div>';
+      }
+      if (erro) h += '<p class="tax-aviso-erro tax-perfil-erro" role="alert">' + esc(erro) + '</p>';
+      h += '</fieldset>';
+    });
+    if (L.erro) h += '<p class="tax-aviso-erro" role="alert" id="taxPerfilLoteErro">' + esc(L.erro) + '</p>';
+    if (L.confirmandoCancelar) return h + '<div class="tax-confirma" id="taxPerfilDescartar" role="group" aria-label="Descartar alterações"><p><strong>Descartar ' + plural(n, 'alteração não salva', 'alterações não salvas') + '?</strong> Nada foi gravado.</p>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="descartar-perfil">Descartar</button><button type="button" class="btn btn--sm" data-tax="continuar-perfil">Continuar editando</button></div></div></div>';
+    return h + '<p class="tax-ajuda" id="taxPerfilResumo">' + (n ? plural(n, 'atributo alterado', 'atributos alterados') + ', ainda não salvo' + (n === 1 ? '' : 's') + '.' : 'Nenhuma alteração ainda.') + '</p>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-perfil" id="taxSalvarPerfilBtn"' + (ocupado ? ' disabled' : '') + '>' + (L.verificando ? 'CONFERINDO…' : st.salvando ? 'SALVANDO…' : 'SALVAR PERFIL') + '</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="cancelar-perfil" id="taxCancelarPerfilBtn"' + (ocupado ? ' disabled' : '') + '>Cancelar</button></div></div>';
+  }
+
+  /* E) RELAÇÕES ENTRE CONCEITOS — vínculos entre conceitos da Taxonomia (não relações operacionais entre áreas concretas).
+     Consulta: uma lista só, em frase ("A atende B"), sem grupos vazios nem códigos. Edição: UMA ação, "Gerenciar
+     relações" — nova relação, substituir (encerra a atual e cria a nova, numa gravação) e encerrar, como antes.
+     Só o domínio organizacional registra relações (as regras do banco não têm relações no arquitetural). */
   function renderRelacoes(dom, codigo, det) {
-    var D = st.d[dom], ed = podeEditar(), html = '<section class="tax-sec" id="taxSecRelacoes"><h4>Relações</h4>';
+    var D = st.d[dom], ed = podeEditar(), gerenciando = ed && D.gerenciandoRelacoes === codigo;
     function nome(cod) { return (D.conceitos[cod] && D.conceitos[cod].nome) || cod; }
-    function outro(cod) { return esc(nome(cod)) + ' <code>' + esc(cod) + '</code>' + (D.conceitos[cod] && D.conceitos[cod].ativo === false ? ' ' + selo('desativado') : ''); }
-    function nota(r) { return r.nota ? ' <span class="tax-ajuda">— ' + esc(r.nota) + '</span>' : ''; }
-    var este = '<strong>' + esc(nome(codigo)) + '</strong> <span class="tax-ajuda">(este conceito)</span>';
-    if (det.erros.relacoes) return html + '<p class="tax-aviso-erro">Não foi possível carregar as relações agora.</p></section>';
-    if (det.carregando && !chaves(det.relacoes).length) return html + '<p class="loading-msg">Carregando relações…</p></section>';
+    function outro(cod) { return '<strong>' + esc(nome(cod)) + '</strong>' + (D.conceitos[cod] && D.conceitos[cod].ativo === false ? ' ' + selo('desativado') : ''); }
+    function nota(r) { return r.nota ? '<span class="tax-rel-nota">' + esc(r.nota) + '</span>' : ''; }
+    var html = '<section class="tax-sec tax-sec--relacoes" id="taxSecRelacoes">';
+    if (det.erros.relacoes) return html + '<h4>Relações entre conceitos</h4><p class="tax-aviso-erro">Não foi possível carregar as relações agora.</p></section>';
+    if (det.carregando && !chaves(det.relacoes).length) return html + '<h4>Relações entre conceitos</h4><p class="loading-msg">Carregando relações…</p></section>';
     var ids = chaves(det.relacoes).sort();
     var abertas = ids.filter(function (k) { return !det.relacoes[k].encerrada; });
     var encerradas = ids.filter(function (k) { return !!det.relacoes[k].encerrada; });
-    var saida = abertas.filter(function (k) { return det.relacoes[k].de === codigo; });
-    var entrada = abertas.filter(function (k) { return det.relacoes[k].para === codigo; });
+    /* primeiro as que saem deste conceito, depois as que chegam a ele; a frase já diz a direção */
+    abertas.sort(function (a, b) { var sa = det.relacoes[a].de === codigo ? 0 : 1, sb = det.relacoes[b].de === codigo ? 0 : 1; return sa - sb || (a < b ? -1 : 1); });
     var ocupado = !!(D.relForm || D.encerrando);
-    function acoes(k) {
-      if (!ed || ocupado || D.conceitos[codigo].ativo === false) return '';
-      return ' <span class="tax-rel-acoes"><button type="button" class="btn btn--sm" data-tax="alterar-relacao" data-relacao="' + esc(k) + '">Alterar</button>' +
+    html += '<h4>Relações entre conceitos (' + abertas.length + ')</h4>' +
+      '<p class="tax-ajuda" id="taxRelNatureza">Vínculos entre conceitos da Taxonomia — não são relações operacionais entre áreas concretas da PREVI.</p>';
+    function frase(r) { return outro(r.de) + ' <em class="tax-rel-tipo">' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> ' + outro(r.para); }
+    function item(k) {
+      var r = det.relacoes[k], h = '<li class="tax-rel-item" data-relacao="' + esc(k) + '" data-direcao="' + (r.de === codigo ? 'saida' : 'entrada') + '"><span class="tax-rel-frase">' + frase(r) + '</span>' + nota(r);
+      if (gerenciando && !ocupado && D.conceitos[codigo].ativo !== false) h += '<span class="tax-rel-acoes"><button type="button" class="btn btn--sm" data-tax="alterar-relacao" data-relacao="' + esc(k) + '">Substituir</button>' +
         '<button type="button" class="btn btn--sm" data-tax="encerrar-relacao" data-relacao="' + esc(k) + '">Encerrar</button></span>';
-    }
-    function item(k, lado) {
-      var r = det.relacoes[k];
-      var txt = lado === 'saida' ? este + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + outro(r.para) : outro(r.de) + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + este;
-      var h = '<li data-relacao="' + esc(k) + '">' + txt + nota(r) + acoes(k);
-      if (D.encerrando && D.encerrando.chave === k) h += painelEncerrar(k);
-      if (D.relForm && D.relForm.modo === 'alterar' && D.relForm.base === k) h += formRelacao(dom, codigo);
+      if (gerenciando && D.encerrando && D.encerrando.chave === k) h += painelEncerrar(k);
+      if (gerenciando && D.relForm && D.relForm.modo === 'alterar' && D.relForm.base === k) h += formRelacao(dom, codigo);
       return h + '</li>';
     }
-    html += '<div class="tax-rel-grupo" id="taxRelSaida"><h5>Relações de saída (' + saida.length + ') <span class="tax-ajuda">este conceito → outro</span></h5>';
-    if (!saida.length) html += '<p class="tax-ausencia">Nenhuma relação de saída.</p>';
-    else html += '<ul class="tax-relacoes">' + saida.map(function (k) { return item(k, 'saida'); }).join('') + '</ul>';
-    html += '</div><div class="tax-rel-grupo" id="taxRelEntrada"><h5>Relações de entrada (' + entrada.length + ') <span class="tax-ajuda">outro → este conceito</span></h5>';
-    if (!entrada.length) html += '<p class="tax-ausencia">Nenhuma relação de entrada.</p>';
-    else html += '<ul class="tax-relacoes">' + entrada.map(function (k) { return item(k, 'entrada'); }).join('') + '</ul>';
-    html += '</div>';
+    if (!abertas.length) html += '<p class="tax-ausencia" id="taxRelVazio">Nenhuma relação cadastrada.</p>';
+    else html += '<ul class="tax-relacoes" id="taxRelLista">' + abertas.map(item).join('') + '</ul>';
     if (ed && D.conceitos[codigo].ativo !== false) {
-      if (D.relForm && D.relForm.modo === 'nova') html += formRelacao(dom, codigo);
-      else if (!ocupado) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="nova-relacao" id="taxNovaRelacaoBtn">+ Nova relação</button></div>';
+      if (!gerenciando) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="gerenciar-relacoes" id="taxGerenciarRelacoesBtn">Gerenciar relações</button></div>';
+      else {
+        if (D.relForm && D.relForm.modo === 'nova') html += formRelacao(dom, codigo);
+        html += '<div class="tax-acoes tax-rel-gerenciar" id="taxRelGerenciar">' + (ocupado ? '' : '<button type="button" class="btn btn--sm" data-tax="nova-relacao" id="taxNovaRelacaoBtn">+ Nova relação</button>') +
+          '<button type="button" class="btn btn--sm" data-tax="fechar-relacoes" id="taxFecharRelacoesBtn"' + (st.salvando ? ' disabled' : '') + '>Concluir</button></div>' +
+          '<p class="tax-ajuda">Substituir encerra a relação atual (com o motivo) e cria a nova. Encerrar mantém a relação registrada como encerrada. Nada é apagado.</p>';
+      }
     }
     if (encerradas.length) {
       var idE = idDet('relenc', dom, codigo);
       html += '<details class="tax-recolhivel" id="taxRelEncerradas" data-det="' + esc(idE) + '"' + detAberto(idE, false) + '><summary class="tax-recolhivel-cab">Relações encerradas (' + encerradas.length + ')</summary><ul class="tax-relacoes tax-relacoes--encerradas">' +
         encerradas.map(function (k) {
           var r = det.relacoes[k], e = r.encerrada;
-          return '<li data-relacao="' + esc(k) + '">' + outro(r.de) + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + outro(r.para) + nota(r) +
-            '<br><span class="tax-ajuda">Encerrada em ' + esc(fmtData(e.em)) + ' por ' + esc(e.por || '—') + ' — motivo: ' + esc(e.motivo || '—') + '</span></li>';
+          return '<li data-relacao="' + esc(k) + '"><span class="tax-rel-frase">' + frase(r) + '</span>' + nota(r) +
+            '<span class="tax-ajuda">Encerrada em ' + esc(fmtData(e.em)) + ' por ' + esc(e.por || '—') + ' — motivo: ' + esc(e.motivo || '—') + '</span></li>';
         }).join('') + '</ul></details>';
     }
     return html + '</section>';
@@ -1299,36 +1396,69 @@
       '<p class="tax-ajuda">Ela não é apagada: continua registrada como encerrada, com o motivo. Uma relação idêntica não poderá ser criada de novo.</p>' +
       '<label for="taxE_motivo">Motivo *</label><textarea id="taxE_motivo" data-enc="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
       (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
-      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-encerrar"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Encerrar relação') + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-encerrar"' + (st.salvando || f.conferindo ? ' disabled' : '') + '>' + (f.conferindo ? 'CONFERINDO…' : st.salvando ? 'SALVANDO…' : 'Encerrar relação') + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-relacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
   }
   function formRelacao(dom, codigo) {
     var D = st.d[dom], f = D.relForm, alterar = f.modo === 'alterar';
     var outros = ordenaPor(chaves(D.conceitos).filter(function (k) { return k !== codigo && D.conceitos[k].ativo !== false; }).map(function (k) { return { k: k, nome: D.conceitos[k].nome || k }; }), 'nome');
-    var h = '<div class="tax-form tax-form-relacao" id="taxFormRelacao" role="group" aria-label="' + (alterar ? 'Alterar relação' : 'Nova relação') + '">' +
-      '<p class="tax-form-titulo"><strong>' + (alterar ? 'Alterar relação' : 'Nova relação') + '</strong></p>' +
-      (alterar ? '<p class="tax-ajuda">Alterar = encerrar a relação atual (com o motivo) e criar a nova, numa gravação só. A atual continua registrada como encerrada.</p>' : '') +
+    var h = '<div class="tax-form tax-form-relacao" id="taxFormRelacao" role="group" aria-label="' + (alterar ? 'Substituir relação' : 'Nova relação') + '">' +
+      '<p class="tax-form-titulo"><strong>' + (alterar ? 'Substituir relação' : 'Nova relação') + '</strong></p>' +
+      (alterar ? '<p class="tax-ajuda" id="taxSubstituirEfeito"><strong>O que acontece:</strong> a relação atual é encerrada, com o motivo, e a nova é criada — numa gravação só. A atual continua registrada como encerrada e uma relação idêntica a ela não poderá ser criada de novo.</p>' : '') +
       '<label for="taxR_direcao">Direção *</label><select id="taxR_direcao" data-rel="direcao"><option value="saida"' + (f.direcao !== 'entrada' ? ' selected' : '') + '>este conceito → outro</option><option value="entrada"' + (f.direcao === 'entrada' ? ' selected' : '') + '>outro → este conceito</option></select>' +
       '<label for="taxR_tipo">Tipo *</label><select id="taxR_tipo" data-rel="tipo"><option value="">— escolha —</option>' + TIPOS_RELACAO.map(function (t) { return '<option value="' + esc(t) + '"' + (f.tipo === t ? ' selected' : '') + '>' + esc(RELACAO_ROTULO[t]) + '</option>'; }).join('') + '</select>' +
       '<label for="taxR_outro">Outro conceito * <span class="tax-ajuda">(só conceitos ativos)</span></label><select id="taxR_outro" data-rel="outro"><option value="">— escolha —</option>' + outros.map(function (o) { return '<option value="' + esc(o.k) + '"' + (f.outro === o.k ? ' selected' : '') + '>' + esc(o.nome) + ' (' + esc(o.k) + ')</option>'; }).join('') + '</select>' +
       '<label for="taxR_nota">Nota</label><textarea id="taxR_nota" data-rel="nota" rows="2" maxlength="2000">' + esc(f.nota || '') + '</textarea>' +
-      (alterar ? '<label for="taxR_motivo">Motivo da alteração *</label><textarea id="taxR_motivo" data-rel="motivo" rows="2" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' : '') +
+      (alterar ? '<label for="taxR_motivo">Motivo da substituição *</label><textarea id="taxR_motivo" data-rel="motivo" rows="2" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' : '') +
       (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
-      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-relacao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : (alterar ? 'Encerrar a atual e criar a nova' : 'Criar relação')) + '</button>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-relacao"' + (st.salvando || f.conferindo ? ' disabled' : '') + '>' + (f.conferindo ? 'CONFERINDO…' : st.salvando ? 'SALVANDO…' : (alterar ? 'Substituir relação' : 'Criar relação')) + '</button>' +
       '<button type="button" class="btn btn--sm" data-tax="cancelar-relacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
     return h;
   }
 
-  /* f) Histórico do conceito — recolhido por padrão, inclusive com 0 alterações */
+  /* F) HISTÓRICO — uma entrada só, recolhida. Mostra o que mudou (anterior → novo), quem, quando e o motivo. A versão 1
+     da definição vinda da migração (ou da carga) é o REGISTRO INICIAL, não uma edição. Os registros do modelo antigo
+     (criação de fontes, troca de vigência, arquivamento) ficam em "Detalhes técnicos anteriores à simplificação". Nada
+     é apagado nem reescrito no banco: é só a forma de mostrar. */
+  var TIPOS_LEGADO = { alteracao_fonte: true, definicao_vigente: true, fonte_arquivada: true, fonte_restaurada: true };
   function renderHistorico(dom, codigo, det) {
     var html = '<section class="tax-sec tax-sec--historico" id="taxSecHistorico">';
     if (det.erros.auditoria) return html + '<p class="tax-recolhivel-cab tax-recolhivel-cab--fixo">Histórico</p><p class="tax-aviso-erro">Histórico indisponível agora.</p></section>';
     if (det.carregando && !chaves(det.auditoria).length) return html + '<p class="tax-recolhivel-cab tax-recolhivel-cab--fixo">Histórico</p><p class="loading-msg">Carregando histórico…</p></section>';
     var ev = ordenaPor(chaves(det.auditoria).map(function (k) { return Object.assign({ _chave: k }, det.auditoria[k]); }), 'dataHora').reverse();
+    var principais = ev.filter(function (e) { return !TIPOS_LEGADO[e.tipo]; }), legado = ev.filter(function (e) { return TIPOS_LEGADO[e.tipo]; });
+    var versoes = chaves(det.versoes || {}).map(function (k) { return det.versoes[k]; }).filter(function (x) { return x && typeof x.versao === 'number'; }).sort(function (a, b) { return a.versao - b.versao; });
+    var comEvento = {}; principais.forEach(function (e) { if (e.tipo === 'definicao_publicada') comEvento[e.versao] = true; });
+    /* publicação sem o evento de auditoria (não deveria existir): aparece a partir do histórico versionado */
+    versoes.forEach(function (v, i) {
+      if (v.origem !== 'publicacao' || comEvento[v.versao]) return;
+      principais.push({ _chave: 'v' + v.versao, tipo: 'definicao_publicada', campo: 'definição', versao: v.versao, valorAnterior: i ? versoes[i - 1].texto : null, valorNovo: v.texto, motivo: v.motivo || null, usuario: { email: v.publicadaPor }, dataHora: v.publicadaEm });
+    });
+    principais = ordenaPor(principais, 'dataHora').reverse();
+    var inicial = versoes.filter(function (v) { return v.versao === 1 && v.origem !== 'publicacao'; })[0] || null;
     var id = idDet('hist', dom, codigo);
-    html += '<details class="tax-recolhivel tax-hist" id="taxHistoricoConceito" data-det="' + esc(id) + '"' + detAberto(id, false) + '><summary class="tax-recolhivel-cab">' + esc(tituloHistorico(ev.length)) + '</summary>';
-    if (!ev.length) html += '<p class="tax-ausencia">Nenhuma alteração registrada.</p>';
-    else html += '<ul class="tax-hist-lista">' + ev.map(function (l) { return linhaHistoricoConceito(l, 'audd:' + dom + ':' + codigo + ':' + l._chave); }).join('') + '</ul>';
+    html += '<details class="tax-recolhivel tax-hist" id="taxHistoricoConceito" data-det="' + esc(id) + '"' + detAberto(id, false) + '><summary class="tax-recolhivel-cab">' + esc(tituloHistorico(principais.length)) + '</summary>';
+    if (!principais.length && !inicial && !legado.length) return html + '<p class="tax-ausencia">Nenhuma alteração registrada.</p></details></section>';
+    if (principais.length) html += '<ul class="tax-hist-lista">' + principais.map(function (l) { return linhaHistoricoConceito(l, 'audd:' + dom + ':' + codigo + ':' + l._chave); }).join('') + '</ul>';
+    else html += '<p class="tax-ausencia">Nenhuma alteração depois do registro inicial.</p>';
+    if (inicial) {
+      var idI = idDet('histini', dom, codigo);
+      html += '<div class="tax-hist-item tax-hist-inicial" id="taxHistInicial"><div class="tax-hist-meta"><span class="tax-hist-quando">' + esc(fmtData(inicial.publicadaEm)) + '</span><span class="tax-hist-autor">por ' + esc(inicial.publicadaPor || '—') + '</span>' +
+        '<strong class="tax-hist-tipo">Registro inicial da definição (versão 1)</strong></div>' +
+        '<p class="tax-ajuda">' + (inicial.origem === 'migracao' ? 'Definição oficial que estava vigente quando a Taxonomia foi simplificada.' : 'Definição registrada na carga inicial.') + ' Não é uma alteração.</p>' +
+        '<details class="tax-hist-detalhe" data-det="' + esc(idI) + '"' + detAberto(idI, false) + '><summary>Ver texto</summary><p class="tax-fonte-texto">' + esc(inicial.texto) + '</p></details></div>';
+    }
+    if (legado.length) {
+      var idL = idDet('histleg', dom, codigo), fontes = det.arquivo || {};
+      var txtFonte = function (fid) { return fid && fontes[fid] && typeof fontes[fid].texto === 'string' ? fontes[fid].texto : null; };
+      html += '<details class="tax-recolhivel tax-hist-legado" id="taxHistLegado" data-det="' + esc(idL) + '"' + detAberto(idL, false) + '><summary class="tax-recolhivel-cab">Detalhes técnicos anteriores à simplificação (' + legado.length + ')</summary>' +
+        '<p class="tax-ajuda">Registros do modelo antigo (catálogo de fontes e troca de vigência), preservados como estavam. Não mudam a definição atual.</p><ul class="tax-hist-lista">' +
+        legado.map(function (l) {
+          var extra = l.tipo === 'definicao_vigente' && (txtFonte(l.fonteAnteriorId) || txtFonte(l.fonteNovaId))
+            ? '<p class="tax-ajuda tax-hist-legado-textos">Texto que deixou de valer: ' + esc(txtFonte(l.fonteAnteriorId) || '(nenhum)') + '<br>Texto que passou a valer: ' + esc(txtFonte(l.fonteNovaId) || '(nenhum)') + '</p>' : '';
+          return linhaHistoricoConceito(l, 'audd:' + dom + ':' + codigo + ':' + l._chave, extra);
+        }).join('') + '</ul></details>';
+    }
     return html + '</details></section>';
   }
 
@@ -1867,7 +1997,7 @@
       var cod = alvo.getAttribute('data-codigo');
       if (window.innerWidth <= 720) st.rolagemLista = window.pageYOffset || document.documentElement.scrollTop || 0;
       zerarDetConceito(); /* abrir um conceito (mesmo o mesmo, de novo) começa com os históricos fechados */
-      D.selecionado = cod; D.edicao = null; D.atualizando = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; st.vista = 'detalhe'; st.flash = null;
+      D.selecionado = cod; D.edicao = null; D.atualizando = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; D.perfilLote = null; D.gerenciandoRelacoes = null; st.vista = 'detalhe'; st.flash = null;
       carregarDetalhe(dom, cod);
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') {
@@ -1897,12 +2027,20 @@
     else if (acao === 'cancelar-definicao') { if (!st.salvando) { D.atualizando = null; render(); } }
     else if (acao === 'publicar-definicao') publicarDefinicao(dom, D.selecionado);
     else if (acao === 'editar-conceito') iniciaEdicao('conceito', D.selecionado);
-    else if (acao === 'editar-perfil') iniciaEdicao('perfil', alvo.getAttribute('data-atributo'));
+    else if (acao === 'gerenciar-perfil') {
+      var dp = D.detalhe; if (!dp || dp.codigo !== D.selecionado || dp.carregando || dp.erros.perfis) return;
+      D.perfilLote = novoPerfilLote(D.selecionado, dp, atributosOrdenados(D)); render();
+    }
+    else if (acao === 'salvar-perfil') salvarPerfilLote(dom, D.selecionado);
+    else if (acao === 'cancelar-perfil') { var Lc = D.perfilLote; if (!Lc || st.salvando || Lc.verificando) return; if (alteracoesPerfil(Lc).length) Lc.confirmandoCancelar = true; else D.perfilLote = null; render(); }
+    else if (acao === 'descartar-perfil') { if (!st.salvando) { D.perfilLote = null; render(); } }
+    else if (acao === 'continuar-perfil') { if (D.perfilLote) { D.perfilLote.confirmandoCancelar = false; render(); } }
+    else if (acao === 'gerenciar-relacoes') { D.gerenciandoRelacoes = D.selecionado; D.relForm = null; D.encerrando = null; render(); }
+    else if (acao === 'fechar-relacoes') { if (!st.salvando) { D.gerenciandoRelacoes = null; D.relForm = null; D.encerrando = null; render(); } }
     else if (acao === 'cancelar-edicao') { D.edicao = null; render(); }
     else if (acao === 'salvar-edicao') {
       var e = D.edicao; if (!e || st.salvando) return;
       if (e.tipo === 'conceito') salvarConceito(dom, D.selecionado);
-      else salvarPerfil(dom, D.selecionado);
     }
     else if (acao === 'inativar') { D.inativando = { codigo: D.selecionado, motivo: '', erro: null }; D.camadaMudando = null; D.edicao = null; D.confirmacao = null; D.arquivando = null; render(); }
     else if (acao === 'cancelar-inativar') { D.inativando = null; render(); }
@@ -1913,7 +2051,7 @@
     else if (acao === 'cancelar-camada') { D.camadaMudando = null; render(); }
     else if (acao === 'confirmar-camada') { if (!st.salvando) alterarCamada(dom, D.selecionado); }
     else if (acao === 'ligacoes-recarregar') carregarLigacoes(st.dominio);
-    else if (acao === 'nova-relacao') { D.relForm = { modo: 'nova', direcao: 'saida', tipo: '', outro: '', nota: '', erro: null }; D.encerrando = null; render(); }
+    else if (acao === 'nova-relacao') { D.gerenciandoRelacoes = D.selecionado; D.relForm = { modo: 'nova', direcao: 'saida', tipo: '', outro: '', nota: '', erro: null }; D.encerrando = null; render(); }
     else if (acao === 'alterar-relacao') {
       var kr = alvo.getAttribute('data-relacao'), rr = D.detalhe && D.detalhe.relacoes[kr];
       if (!rr) return;
@@ -1943,6 +2081,15 @@
     if (campoCam && D.camadaMudando) { D.camadaMudando[campoCam] = el.value; D.camadaMudando.erro = null; return; }
     var campoEnc = el.getAttribute && el.getAttribute('data-enc');
     if (campoEnc && D.encerrando) { D.encerrando[campoEnc] = el.value; D.encerrando.erro = null; return; }
+    var campoPerfil = el.getAttribute && el.getAttribute('data-perfil');
+    if (campoPerfil && D.perfilLote) {
+      var atrP = el.getAttribute('data-atributo'), vp = D.perfilLote.valores[atrP]; if (!vp) return;
+      vp[campoPerfil] = el.value; delete D.perfilLote.erros[atrP]; D.perfilLote.erro = null;
+      /* listas (estado, valor de lista, papel, origem) mudam o formulário: redesenha. Texto livre NÃO: o 'change' dele chega
+         no blur, e redesenhar ali trocaria o botão que a pessoa está clicando (o clique se perderia) */
+      if (el.tagName === 'SELECT' && ev.type === 'change') render();
+      return;
+    }
     var campoRel = el.getAttribute && el.getAttribute('data-rel');
     if (campoRel && D.relForm) { D.relForm[campoRel] = el.value; D.relForm.erro = null; return; }
     if (!campo || !D.edicao) return;
@@ -2012,7 +2159,7 @@
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
       st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, lerTudoParaExportar: lerTudoParaExportar, linhasExportacao: linhasExportacao, consolidarConceitos: consolidarConceitos, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe,
-      publicarDefinicao: publicarDefinicao, salvarConceito: salvarConceito, salvarPerfil: salvarPerfil,
+      publicarDefinicao: publicarDefinicao, salvarConceito: salvarConceito, salvarPerfilLote: salvarPerfilLote, novoPerfilLote: novoPerfilLote, atributosOrdenados: atributosOrdenados,
       carregarLigacoes: carregarLigacoes, previaLigacoes: previaLigacoes, registrarLigacoes: registrarLigacoes, inativarConceito: inativarConceito, reativarConceito: reativarConceito, alterarCamada: alterarCamada, carregarIndiceFilhos: carregarIndiceFilhos,
       salvarRelacao: salvarRelacao, encerrarRelacao: encerrarRelacao
     }
