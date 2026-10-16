@@ -152,9 +152,20 @@ async function tela(browser, viewport, rotulo) {
   /* A2 na tela: a proposta didática, aplicada DEPOIS da anterior (cujos textos contam como anteriores conhecidos) */
   const cDid = await texto(page, '#avpCorrecao-' + DID);
   afirma(/Correção editorial disponível/.test(cDid) && /15 ajustes/.test(cDid) && !/divergente/.test(cDid), 'A2. cartão da proposta didática: 15 ajustes pendentes, nada divergente, com a anterior já aplicada', cDid.slice(0, 200));
+  const versoesAntesDid = JSON.stringify([1, 2, 3, 4].map((n) => q.versoes[n]));
   await aplicar(page, DID);
   db = await banco(page);
   q = db['questionarios-config'][QCOD];
+  /* sobreposição: aplicadas em sequência, cada proposta deixa os seus textos e nenhuma versão anterior muda */
+  {
+    const props = Q.listarCorrecoesEditoriais(QCOD), v5 = q.versoes[5].perguntas;
+    const em = (lista, aj) => lerCampo(lista.find((x) => x.codigoEstavel === aj.pergunta), aj.campo);
+    const pAj = props.find((x) => x.id === AJ), pRo = props.find((x) => x.id === RO9), pDid = props.find((x) => x.id === DID);
+    afirma(JSON.stringify([1, 2, 3, 4].map((n) => q.versoes[n])) === versoesAntesDid, 'Sobreposição: as versões 1 a 4 (histórico) continuam idênticas depois da versão 5');
+    afirma(pAj.ajustes.filter((x) => x.pergunta !== 'O5').every((x) => em(v5, x) === x.para), 'Sobreposição: na versão 5, as ajudas de O1, O7, O8 e O9 continuam as da homologação');
+    afirma(pRo.ajustes.every((x) => em(v5, x) === x.para), 'Sobreposição: na versão 5, a pergunta O9 continua a redação aprovada');
+    afirma(pDid.ajustes.every((x) => em(v5, x) === x.para) && pAj.ajustes.filter((x) => x.pergunta === 'O5').every((x) => em(q.versoes[3].perguntas, x) === x.para), 'Sobreposição: O5 da versão 5 = didática; a versão 3 guarda a O5 da homologação');
+  }
   afirma(q.versaoPublicada === 5 && JSON.stringify(diferencas(Q, q.versoes[4].perguntas, q.versoes[5].perguntas)) === JSON.stringify(['O2.textoAjuda.quandoNao', 'O2.textoAjuda.quandoSim', 'O2.textoAjuda.significado', 'O3.textoAjuda.quandoNao', 'O3.textoAjuda.quandoSim', 'O3.textoAjuda.significado', 'O4.textoAjuda.quandoNao', 'O4.textoAjuda.quandoSim', 'O5.ajudaExtra', 'O5.textoAjuda.quandoNao', 'O5.textoAjuda.quandoSim', 'O5.textoAjuda.significado', 'O6.textoAjuda.quandoNao', 'O6.textoAjuda.quandoSim', 'O6.textoAjuda.significado']), 'A2. aplicar a proposta didática cria a versão 5 só com as ajudas de O2–O6', diferencas(Q, q.versoes[4].perguntas, q.versoes[5].perguntas));
   afirma(q.versoes[5].perguntas.every((x) => { const a = q.versoes[4].perguntas.find((y) => y.codigoEstavel === x.codigoEstavel); return a.texto === x.texto && a.justSim === x.justSim && a.justNao === x.justNao; }), 'A2. nenhuma pergunta nem interpretação (SIM/NÃO) mudou');
 
@@ -163,7 +174,7 @@ async function tela(browser, viewport, rotulo) {
   await ateN3(page);
   const aj = async (qq) => texto(page, '.po-pergunta[data-q="' + qq + '"] .avp-ajuda-det');
   afirma(/Responder SIM não cria uma nova Linha/.test(await aj('O1')) && /Atenção — o que não determina a resposta/.test(await aj('O1')), 'C. O1: SIM não cria Linha; o que não determina');
-  afirma(/participa de um Produto\/Serviço com uma atividade própria/.test(await aj('O5')) && /Atender clientes internos não significa, por si só, possuir um Produto\/Serviço dedicado/.test(await aj('O5')) && /Chamar uma atividade de "serviço" também não basta/.test(await aj('O5')) && /disponibilizar uma capacidade é oferecer algo que outros usam/.test(await aj('O5')), 'C. O5: dedicado × compartilhado; cliente interno e "serviço" não bastam; entregar × disponibilizar capacidade');
+  afirma(/participa de um Produto\/Serviço com uma atividade própria/.test(await aj('O5')) && /Atender clientes internos não significa, por si só, possuir um Produto\/Serviço dedicado/.test(await aj('O5')) && /Chamar uma atividade de "serviço" também não basta/.test(await aj('O5')) && /disponibilizar uma capacidade é oferecer algo que outros usam/.test(await aj('O5')) && /Exemplo ilustrativo: definir roteiros contábeis/.test(await aj('O5')), 'C. O5: dedicado × compartilhado; cliente interno e "serviço" não bastam; entregar × disponibilizar capacidade');
   afirma(/resposta técnica especializada/.test(await aj('O2')) && /Quando SIM é defensável\?/.test(await aj('O2')) && /desenvolve, mantém e dissemina/.test(await aj('O3')) && /Quando NÃO é defensável\?/.test(await aj('O3')), 'C. O2 e O3: Ajuda completa no padrão (antes, só uma frase)');
   for (const qq of ['O1', 'O2', 'O3', 'O4', 'O5']) {
     const ex = await page.evaluate((x) => { const d = document.getElementById('poExemplos_' + x); return d ? { aberto: d.open, t: d.textContent } : null; }, qq);
@@ -205,6 +216,8 @@ async function tela(browser, viewport, rotulo) {
   afirma(did.ajustes.every((x) => ['O2', 'O3', 'O4', 'O5', 'O6'].includes(x.pergunta) && /^(textoAjuda\.(significado|quandoSim|quandoNao)|ajudaExtra)$/.test(x.campo)), 'A2. só textoAjuda.* e ajudaExtra de O2, O3, O4, O5 e O6');
   afirma(did.ajustes.every((x) => (x.de === null ? lerCampo(fab(x.pergunta), x.campo) == null : lerCampo(fab(x.pergunta), x.campo) === x.de)), 'A2. todo "de" é o texto de fábrica; os campos criados não existem de fábrica');
   afirma(did.ajustes.every((x) => !/GECON|PREVI|autosservi/i.test(x.para || '')), 'A2. nenhum texto cita a área homologada nem fala de autosserviço');
+  const naoO5 = did.ajustes.find((x) => x.pergunta === 'O5' && x.campo === 'textoAjuda.quandoNao').para;
+  afirma(/definir regras ou parametrizações/.test(naoO5) && /Exemplo ilustrativo: definir roteiros contábeis e parametrizações para um produto novo/.test(naoO5) && /não significa, por si só, ser responsável pelo resultado próprio/.test(naoO5), 'A2. O5 (quando NÃO): a explicação geral e o exemplo dos roteiros contábeis da homologação, marcado como ilustrativo');
   const extraO5 = did.ajustes.find((x) => x.pergunta === 'O5' && x.campo === 'ajudaExtra').para;
   afirma(/Atender clientes internos não significa, por si só, possuir um Produto\/Serviço dedicado/.test(extraO5) && /Chamar uma atividade de "serviço" também não basta/.test(extraO5), 'A2. O5: cliente interno e o nome "serviço", sozinhos, não bastam');
   const browser = await chromium.launch();

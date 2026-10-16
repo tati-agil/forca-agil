@@ -759,7 +759,9 @@
         { pergunta: 'O5', campo: 'textoAjuda.quandoSim', de: null,
           para: 'A estrutura responde pela entrega e pela evolução do Produto/Serviço: decide as prioridades dele, acompanha o resultado dele para o público que o recebe e responde quando ele não entrega. O público pode ser externo ou interno.' },
         { pergunta: 'O5', campo: 'textoAjuda.quandoNao', de: null,
-          para: 'A estrutura oferece a mesma capacidade, serviço ou atividade a vários Produtos/Serviços e Linhas, ou participa de um Produto/Serviço com uma atividade própria (por exemplo, definir regras ou parametrizações), sem responder pelo resultado dele.' },
+          para: 'A estrutura oferece a mesma capacidade, serviço ou atividade a vários Produtos/Serviços e Linhas, ou participa de um Produto/Serviço com uma atividade própria (por exemplo, definir regras ou parametrizações), sem responder pelo resultado dele. ' +
+            'Exemplo ilustrativo: definir roteiros contábeis e parametrizações para um produto novo é participar do desenvolvimento dele, não responder pela entrega e evolução desse produto. ' +
+            'Participar do desenvolvimento ou da operação de um Produto/Serviço não significa, por si só, ser responsável pelo resultado próprio dele.' },
         { pergunta: 'O5', campo: 'ajudaExtra',
           de: 'Uma função ou canal exclusivo de determinada solução pode responder SIM. Atender cliente externo, isoladamente, não basta.\n' +
             'Utilizar plataformas compartilhadas também não transforma uma Linha de Negócios em Plataforma.',
