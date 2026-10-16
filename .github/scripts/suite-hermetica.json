@@ -551,6 +551,12 @@
       "sobre": "Em Integridade e configurações (fora do Catálogo), exatamente os 10 códigos do motor de Posicionamento com os estados ligado/sem ligação/sem conceito/inativo e o aviso \"Integração incompleta: X de 10\"; prévia sem gravar nada (nem ao cancelar), confirmação grava ligações + auditoria numa gravação só (sem nome nem definição), idempotente; conceito ligado não inativa nem troca de camada pela tela; o arquitetural continua com os Conceitos-base da Avaliação."
     },
     {
+      "arquivo": ".github/scripts/teste-taxonomia-integridade.js",
+      "nome": "Taxonomia: Integridade — domínio dos comandos de vínculo, indicador do topo, releitura depois de salvar e contraste do tema escuro (desktop e celular)",
+      "duracao": 70,
+      "sobre": "Prévia, cancelar e confirmar vínculos atuam só no domínio do bloco acionado (a partir do Catálogo Organizacional nos vínculos da Avaliação e do Arquitetural nos do Posicionamento), com auditoria e sem tocar o outro; o atalho \"Integridade e configurações\" usa a mesma avaliação dos blocos e nunca fica verde durante leitura, erro de leitura, conceito ausente ou inativo ou vínculo sem código no motor; depois de salvar, a releitura mantém a Administração (\"Carregando o conceito…\"), nunca o Catálogo; tema escuro com texto ≥ 4,5:1, controles ≥ 3:1, nenhuma superfície clara e foco visível. Hermético."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 8,

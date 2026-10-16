@@ -80,7 +80,9 @@ async function rodada(browser, viewport, rotulo) {
   await esperarCarregada(page);
   await page.waitForTimeout(600);
   const depoisDoClique = await leiturasConceitos(page);
-  afirma(depoisDoClique === 1, 'clique: uma única leitura dos conceitos (sem inicialização duplicada)', String(depoisDoClique) + ' ' + JSON.stringify(await page.evaluate(() => window.__leiturasTax)));
+  /* uma leitura por domínio: o atalho "Integridade e configurações" confere os conceitos dos dois (admin) */
+  const porDominio = await page.evaluate(() => [window.__leiturasTax['taxonomia/organizacional/conceitos'] || 0, window.__leiturasTax['taxonomia/arquitetural/conceitos'] || 0]);
+  afirma(depoisDoClique === 2 && porDominio[0] === 1 && porDominio[1] === 1, 'clique: uma única leitura dos conceitos de cada domínio (sem inicialização duplicada)', String(depoisDoClique) + ' ' + JSON.stringify(await page.evaluate(() => window.__leiturasTax)));
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
   await esperarCarregada(page); await page.waitForTimeout(600);

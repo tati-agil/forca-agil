@@ -937,14 +937,6 @@
      (window.faClassificacoes.codigos() — o catálogo do motor, sem lista nova nem campo novo no banco). A
      Avaliação mostra, para cada código, o NOME e a DEFINIÇÃO VIGENTE do conceito de MESMO código desta
      Taxonomia; código sem conceito aqui faz a Avaliação usar o rótulo de contingência. Clicar abre o conceito. */
-  /* Conceitos-base da Avaliação: para cada código do catálogo do MOTOR (CAMADAS, via faClassificacoes),
-     a situação da ligação canônica em avaliacao-classificacoes. Nenhuma lista própria aqui. */
-  function resumoLigacoes(dom) {
-    var cods = codigosMotor(dom), L = L_(dom);
-    if (!cods.length || L.estado !== 'ok') return null;
-    var n = cods.filter(function (c) { return !!L.mapa[c]; }).length;
-    return { total: cods.length, ligadas: n };
-  }
   /* Textos da área de integração por domínio. */
   var BASE_TXT = {
     arquitetural: { id: '', titulo: 'Integração com a Avaliação', alvo: 'da Avaliação', itens: ['classificação conectada', 'classificações conectadas'],
@@ -963,21 +955,33 @@
      vínculo sem código no motor, leitura indisponível) → aviso destacado com o impacto, nunca um resumo positivo. Os nomes
      ficam em "Ver …" (recolhido); códigos e datas, nos detalhes administrativos. Nada aqui muda vínculo nem conceito:
      registrar vínculos continua com prévia e confirmação, como antes. */
-  function renderConceitosBase(dom) {
-    var cods = codigosMotor(dom);
-    if (!LIG_CFG[dom] || !cods.length) return '';
-    var T = BASE_TXT[dom], cfg = LIG_CFG[dom];
-    var D = st.d[dom], L = L_(dom), ok = L.estado === 'ok' && D.estado === 'ok', P = st[cfg.carga];
-    var h = '<section class="tax-base tax-integracao" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '"><h4 class="tax-integracao-titulo">' + T.titulo + '</h4>' +
-      '<p class="tax-ajuda" id="taxIntegracaoAjuda' + T.id + '">' + T.ajuda + '</p>';
+  /* Avaliação da integração de um domínio com o seu motor — a MESMA para o bloco de Integridade e para o atalho do topo:
+     cada código do catálogo do motor precisa de conceito existente, ativo e vinculado; vínculo sem código no motor é
+     problema; leitura recusada ou falha (vínculos ou conceitos) é 'erro'; leitura em curso é 'conferindo'. "ok" só com
+     tudo lido e completo. */
+  function avaliarIntegracao(dom) {
+    var cods = codigosMotor(dom), T = BASE_TXT[dom], D = st.d[dom], L = L_(dom);
+    var ok = L.estado === 'ok' && D.estado === 'ok';
+    var falhaLeitura = L.estado === 'erro' || L.estado === 'sem-acesso' || D.estado === 'erro' || D.estado === 'sem-acesso';
     var itens = cods.map(function (cod) {
       var c = D.conceitos[cod], l = ok ? L.mapa[cod] : null;
       var problema = !ok ? null : !c ? T.semConceito : c.ativo === false ? (l ? 'vinculado, mas o conceito está inativo' : 'conceito inativo — não pode ser vinculado') : !l ? 'sem vínculo registrado' : null;
       return { cod: cod, c: c, l: l, problema: problema };
     });
     var orfas = ok ? chaves(L.mapa).filter(function (k) { return cods.indexOf(k) === -1; }) : [];
-    var problemas = itens.filter(function (i) { return i.problema; }), conectados = itens.filter(function (i) { return i.l && !i.problema; }).length;
-    if (L.estado === 'erro' || L.estado === 'sem-acesso' || D.estado === 'erro' || D.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar" data-dominio="' + dom + '">Tentar novamente</button></p>';
+    var problemas = itens.filter(function (i) { return i.problema; });
+    var estado = !cods.length || falhaLeitura ? 'erro' : !ok ? 'conferindo' : problemas.length || orfas.length ? 'problema' : 'ok';
+    return { estado: estado, ok: ok, itens: itens, orfas: orfas, problemas: problemas, conectados: itens.filter(function (i) { return i.l && !i.problema; }).length, total: cods.length };
+  }
+  function renderConceitosBase(dom) {
+    var cods = codigosMotor(dom);
+    if (!LIG_CFG[dom] || !cods.length) return '';
+    var T = BASE_TXT[dom], cfg = LIG_CFG[dom];
+    var D = st.d[dom], L = L_(dom), P = st[cfg.carga];
+    var A = avaliarIntegracao(dom), ok = A.ok, itens = A.itens, orfas = A.orfas, problemas = A.problemas, conectados = A.conectados;
+    var h = '<section class="tax-base tax-integracao" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '" data-estado="' + A.estado + '"><h4 class="tax-integracao-titulo">' + T.titulo + '</h4>' +
+      '<p class="tax-ajuda" id="taxIntegracaoAjuda' + T.id + '">' + T.ajuda + '</p>';
+    if (A.estado === 'erro') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '" role="alert"><strong>Não foi possível conferir a integração.</strong> ' + (L.estado === 'sem-acesso' ? 'Sem acesso aos vínculos ' + T.alvo + '.' : 'Não foi possível ler os vínculos ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar" data-dominio="' + dom + '">Tentar novamente</button></p>';
     else if (!ok) h += '<p class="loading-msg" id="taxIntegracaoResumo' + T.id + '" data-estado="conferindo">Conferindo a integração…</p>';
     else if (!problemas.length && !orfas.length) h += '<p class="tax-integracao-ok" id="taxIntegracaoResumo' + T.id + '" data-estado="ok"><span class="tax-integracao-marca" aria-hidden="true">✓</span> ' + conectados + ' de ' + cods.length + ' ' + T.itens[1] + '</p>';
     else {
@@ -994,10 +998,10 @@
           var c = D.conceitos[i.codigo];
           return '<li data-previa="' + esc(i.codigo) + '" data-situacao="' + i.situacao + '">' + esc(c ? c.nome : i.codigo) + ' <code>' + esc(i.codigo) + '</code> — ' + rot + '</li>';
         }).join('') + '</ul>' + (P.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(P.erro) + '</p>' : '') +
-          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes' + T.id + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : 'Registrar ' + plural(aLigar.length, 'vínculo', 'vínculos')) + '</button>' : '') +
-          '<button type="button" class="btn btn--sm" data-tax="cancelar-ligacoes"' + (st.salvando ? ' disabled' : '') + '>' + (aLigar.length ? 'Cancelar' : 'Fechar') + '</button></div></div>';
+          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" data-dominio="' + dom + '" id="taxConfirmarLigacoes' + T.id + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : 'Registrar ' + plural(aLigar.length, 'vínculo', 'vínculos')) + '</button>' : '') +
+          '<button type="button" class="btn btn--sm" data-tax="cancelar-ligacoes" data-dominio="' + dom + '"' + (st.salvando ? ' disabled' : '') + '>' + (aLigar.length ? 'Cancelar' : 'Fechar') + '</button></div></div>';
       } else if (aLigar.length) {
-        h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" id="taxRegistrarLigacoesBtn' + T.id + '">' + T.botao + '</button></div>';
+        h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" data-dominio="' + dom + '" id="taxRegistrarLigacoesBtn' + T.id + '">' + T.botao + '</button></div>';
       }
     }
     var idB = 'base:' + dom, idA = 'baseadm:' + dom;
@@ -1920,17 +1924,12 @@
     while (c && c.pai && guarda++ < 6) { var p = D.conceitos[c.pai]; out.unshift({ codigo: c.pai, nome: p ? p.nome : c.pai, existe: !!p }); c = p; }
     return out;
   }
-  /* estado da integração com os motores, para o atalho do topo: 'problema' (falta vínculo), 'erro' (não deu para
-     conferir), 'conferindo' (ainda lendo) ou 'ok' — "ok" só quando os dois lados foram lidos e estão completos */
+  /* estado da integração com os motores, para o atalho do topo — o mesmo avaliarIntegracao() dos dois blocos de
+     Integridade: 'problema' (vínculo ausente, conceito ausente ou inativo, vínculo sem código no motor), 'erro' (não deu
+     para conferir), 'conferindo' (ainda lendo) ou 'ok' — "ok" só quando os dois lados foram lidos e estão completos */
   function estadoIntegracao() {
-    var s = 'ok';
-    ['arquitetural', 'organizacional'].forEach(function (d) {
-      var L = L_(d), r = resumoLigacoes(d);
-      if (r && r.ligadas < r.total) s = 'problema';
-      else if (L.estado === 'erro' || L.estado === 'sem-acesso') { if (s !== 'problema') s = 'erro'; }
-      else if (!r && s === 'ok') s = 'conferindo';
-    });
-    return s;
+    var e = ['arquitetural', 'organizacional'].map(function (d) { return avaliarIntegracao(d).estado; });
+    return e.indexOf('problema') !== -1 ? 'problema' : e.indexOf('erro') !== -1 ? 'erro' : e.indexOf('conferindo') !== -1 ? 'conferindo' : 'ok';
   }
   function renderTopo() {
     var local = st.espaco === 'admin' ? 'Administração' : st.espaco === 'integridade' ? 'Integridade e configurações' : 'Catálogo de conceitos';
@@ -2193,9 +2192,15 @@
     else if (acao === 'cancelar-relacao') { D.relForm = null; D.encerrando = null; render(); }
     else if (acao === 'salvar-relacao') { if (!st.salvando) salvarRelacao(D.selecionado); }
     else if (acao === 'confirmar-encerrar') { if (!st.salvando) encerrarRelacao(D.selecionado); }
-    else if (acao === 'previa-ligacoes') { st[LIG_CFG[domLig(st.dominio)].carga] = { erro: null }; render(); }
-    else if (acao === 'cancelar-ligacoes') { st[LIG_CFG[domLig(st.dominio)].carga] = null; render(); }
-    else if (acao === 'confirmar-ligacoes') { if (!st.salvando) registrarLigacoes(st.dominio); }
+    else if (acao === 'previa-ligacoes' || acao === 'cancelar-ligacoes' || acao === 'confirmar-ligacoes') {
+      /* o domínio vem do BLOCO acionado (Integridade mostra Avaliação e Posicionamento juntos), nunca do domínio aberto
+         no Catálogo; botão sem domínio válido não faz nada */
+      var dlg = alvo.getAttribute('data-dominio');
+      if (!LIG_CFG[dlg]) return;
+      if (acao === 'previa-ligacoes') { st[LIG_CFG[dlg].carga] = { erro: null }; render(); }
+      else if (acao === 'cancelar-ligacoes') { st[LIG_CFG[dlg].carga] = null; render(); }
+      else if (!st.salvando) registrarLigacoes(dlg);
+    }
     else if (acao === 'confirmar-importacao') confirmarImportacao();
     else if (acao === 'cancelar-importacao') { st.importacao = null; render(); }
   }
@@ -2277,6 +2282,8 @@
     if (st.meta.estado === 'ocioso' || st.meta.estado === 'erro') carregarMeta();
     if (st.lig.estado === 'ocioso' || st.lig.estado === 'erro') carregarLigacoes('arquitetural');
     if (st.ligPos.estado === 'ocioso' || st.ligPos.estado === 'erro') carregarLigacoes('organizacional');
+    /* o atalho "Integridade e configurações" confere os conceitos dos DOIS domínios: quem o vê lê os dois */
+    if (podeVerHG()) ORDEM_DOMINIOS.forEach(function (d) { if (d !== st.dominio && st.d[d].estado === 'ocioso') carregarDominio(d); });
     var D = st.d[st.dominio];
     if (D.estado === 'ocioso' || D.estado === 'erro') carregarDominio(st.dominio); else render();
   }
@@ -2293,7 +2300,7 @@
     _interno: {
       st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, lerTudoParaExportar: lerTudoParaExportar, linhasExportacao: linhasExportacao, consolidarConceitos: consolidarConceitos, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe,
       publicarDefinicao: publicarDefinicao, salvarConceito: salvarConceito, salvarPerfilLote: salvarPerfilLote, novoPerfilLote: novoPerfilLote, atributosOrdenados: atributosOrdenados,
-      carregarLigacoes: carregarLigacoes, previaLigacoes: previaLigacoes, registrarLigacoes: registrarLigacoes, inativarConceito: inativarConceito, reativarConceito: reativarConceito, alterarCamada: alterarCamada, carregarIndiceFilhos: carregarIndiceFilhos,
+      carregarLigacoes: carregarLigacoes, previaLigacoes: previaLigacoes, avaliarIntegracao: avaliarIntegracao, estadoIntegracao: estadoIntegracao, registrarLigacoes: registrarLigacoes, inativarConceito: inativarConceito, reativarConceito: reativarConceito, alterarCamada: alterarCamada, carregarIndiceFilhos: carregarIndiceFilhos,
       salvarRelacao: salvarRelacao, encerrarRelacao: encerrarRelacao
     }
   };
