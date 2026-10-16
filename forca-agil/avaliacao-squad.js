@@ -352,6 +352,7 @@
       trocarIdentidade(true);
     }
     function voltarParaArquitetura() {
+      state.origemExterna = null;
       wrap.hidden = true;
       noProprioEndereco = false;
       var arqWrap = vizinho();
@@ -408,12 +409,32 @@
       var st = history.state;
       if (st && st.sqAnterior === desejado) { history.back(); return; }
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
-      history.pushState({ avp: 1, seq: Date.now(), origem: null, sqAnterior: location.hash || '#avaliacoes' }, '', desejado);
+      var est = { avp: 1, seq: Date.now(), origem: null, sqAnterior: location.hash || '#avaliacoes' };
+      var oe = origemSquad(); if (oe) est.navOrigem = oe; /* a origem externa acompanha as telas da Squad (F5 incluído) */
+      history.pushState(est, '', desejado);
       noProprioEndereco = true;
+    }
+    /* ORIGEM EXTERNA — a Squad aberta a partir de outra tela (ficha do Posicionamento, Jornada do Mapa, ADMIN): o retorno
+       das telas da Squad (lista, checklist, resultado) leva de volta a essa tela, não à lista da Squad nem ao Início. Guardada
+       ao abrir (iniciarOuAbrirParaItem) e também na entrada do histórico (navOrigem), para valer depois de um F5. Aberta pelo
+       Início ou pela própria lista, não há origem externa e tudo continua como antes. */
+    function origemSquad() {
+      if (state.origemExterna) return state.origemExterna;
+      var o = window.faNav && window.faNav.origem();
+      return o && !/[?&]sq=/.test(o.hash) ? o : null;
+    }
+    function rotuloSquad(padrao) { var o = origemSquad(); return o ? o.rotulo : padrao; }
+    function voltarParaOrigemExterna() {
+      var o = origemSquad();
+      if (!o) return false;
+      state.origemExterna = null; state.atual = null; state.flashResultado = null; state.tela = 'lista';
+      if (window.faVoltarParaOrigem) window.faVoltarParaOrigem(o.hash, o.aba); else location.hash = o.hash;
+      return true;
     }
     /* "← Voltar para Avaliações": com a lista de avaliações logo atrás no histórico, é o Voltar do
        navegador; sem ela (F5, link direto), substitui a entrada por #avaliacoes e fecha a Squad. */
     function sairParaAvaliacoes() {
+      if (voltarParaOrigemExterna()) return;
       var st = history.state;
       if (st && st.sqAnterior && st.sqAnterior.split('?')[0] === '#avaliacoes' && !/[?&]sq=/.test(st.sqAnterior)) { history.back(); return; }
       history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#avaliacoes');
@@ -480,7 +501,7 @@
          arquivos exportados trazem as avaliações. */
       var ordenados = filtrados.slice().sort(function (a, b) { return (b.atualizadoEm || '').localeCompare(a.atualizadoEm || ''); });
       var chavesSel = Object.keys(state.selecionados).filter(function (k) { return state.selecionados[k] && buscarItem(k) && !buscarItem(k).excluido; });
-      var html = sqLinkVoltar('sqVoltarArquitetura', 'Avaliações');
+      var html = sqLinkVoltar('sqVoltarArquitetura', rotuloSquad('Avaliações'));
       html += '<div class="avp-intro"><p><strong>Adequação à gestão por Squad:</strong> registra evidências (S1 a S8) sobre demanda, evolução, ' +
         'autonomia, complexidade e ownership de um item — completamente independente da classificação arquitetural (P1-P16) do mesmo item. ' +
         'Nenhuma das duas decide a outra.</p></div>';
@@ -532,7 +553,7 @@
         });
         html += '</tbody></table></div>';
       }
-      html += '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="sqVoltarArquiteturaRodape">← Voltar para Avaliações</button></div>';
+      html += '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="sqVoltarArquiteturaRodape">← Voltar para ' + esc(rotuloSquad('Avaliações')) + '</button></div>';
       wrap.innerHTML = html;
 
       byId('sqVoltarArquitetura').addEventListener('click', sairParaAvaliacoes);
@@ -620,6 +641,8 @@
     } : {
       abrirLista: function () { mostrarPainel(); state.tela = 'lista'; render(); },
       iniciarOuAbrirParaItem: function (opts) {
+        /* a tela de onde veio (Posicionamento, Jornada…) é a origem: o retorno da Squad volta para ela */
+        state.origemExterna = window.faNav && /^#avaliacoes\?/.test(location.hash || '') && !/[?&]sq=/.test(location.hash) ? { hash: location.hash, rotulo: window.faNav.rotuloOrigem(location.hash) } : null;
         mostrarPainel();
         /* proteção contra duplicar: sem as avaliações de squad lidas não dá para saber se já há uma em andamento */
         if (!state.itensCarregados) { state.pendenteItem = opts; state.tela = 'carregando'; render(); return; }
@@ -774,7 +797,7 @@
     function renderChecklist() {
       var a = state.atual;
       var perguntas = perguntasOrdenadas(a.questionnaireContentVersion);
-      var html = sqLinkVoltar('sqVoltarListaChecklist', 'Adequação à Squad');
+      var html = sqLinkVoltar('sqVoltarListaChecklist', rotuloSquad('Adequação à Squad'));
       html += '<div class="avp-form-card"><h3>' + esc(a.itemNome) + '</h3>';
       html += '<p class="avp-decisao-aviso">Esta avaliação não altera a classificação arquitetural do item. Seu objetivo é registrar evidências ' +
         'sobre demanda, evolução, autonomia, complexidade e ownership para apoiar a decisão organizacional sobre gestão por squad.</p>';
@@ -891,6 +914,7 @@
     function cancelarChecklist() {
       if (state.salvando) return;
       sqConfirm('Sair sem salvar as alterações desta visita?', function () {
+        if (voltarParaOrigemExterna()) return; /* aberta de outra tela: volta para ela */
         state.atual = null;
         state.tela = 'lista';
         render();
@@ -1148,7 +1172,7 @@
     function renderResultadoSquad() {
       var a = state.atual;
       var perguntas = perguntasOrdenadas(a.questionnaireContentVersion);
-      var html = sqLinkVoltar('sqVoltarListaResultado', 'Adequação à Squad');
+      var html = sqLinkVoltar('sqVoltarListaResultado', rotuloSquad('Adequação à Squad'));
       if (state.flashResultado) {
         html += '<div class="avp-flash-success" id="sqFlashResultado">' + esc(state.flashResultado) +
           ' <button type="button" class="avp-flash-close" id="sqFlashResultadoClose" aria-label="Fechar">×</button></div>';
@@ -1182,7 +1206,7 @@
       html += '</tbody></table></div></div>';
 
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
-      html += '<button class="btn" id="sqVoltarListaRodape">← Voltar para Adequação à Squad</button>';
+      html += '<button class="btn" id="sqVoltarListaRodape">← Voltar para ' + esc(rotuloSquad('Adequação à Squad')) + '</button>';
       html += '<button class="btn btn--sm" id="sqGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
         (state.exportando ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
       html += '</div>';
@@ -1191,7 +1215,7 @@
       }
       wrap.innerHTML = html;
 
-      function voltar() { state.tela = 'lista'; state.atual = null; state.flashResultado = null; render(); }
+      function voltar() { if (voltarParaOrigemExterna()) return; state.tela = 'lista'; state.atual = null; state.flashResultado = null; render(); }
       byId('sqVoltarListaResultado').addEventListener('click', voltar);
       byId('sqVoltarListaRodape').addEventListener('click', voltar);
       var flashClose = byId('sqFlashResultadoClose');

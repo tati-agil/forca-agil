@@ -2718,6 +2718,7 @@
       if (area === 'questionarios' && /^#admin\?arq=questionarios&q=[a-z0-9]+$/.test(location.hash || '')) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
       var volta = history.state && history.state.faVoltaInicio ? { faVoltaInicio: true } : {}; /* atalho do Início: a marca segue */
+      if (history.state && history.state.navOrigem) volta.navOrigem = history.state.navOrigem; /* origem de fora (Mapa…): segue */
       if (!areaDoEndereco()) { history.replaceState(Object.assign({ arq: area, seqArq: seqArqAtual() }, volta), '', desejado); politicaRolagemAdmin(); return; }
       /* "← Voltar" da tela para a área de onde a pessoa veio = o Voltar do navegador (não empilha
          uma entrada nova; o Avançar continua funcionando). */
@@ -2828,7 +2829,10 @@
     });
     function abrirEstruturasDoInicio() {
       state.rolagemInicio = window.pageYOffset || 0;
-      window.faEstruturasAdmin.abrir({ rotulo: ROTULO_ADMIN, voltar: function () {
+      var oe = window.faNav && window.faNav.origem();
+      oe = oe && !/^#admin/.test(oe.hash) ? oe : null; /* aberta do Mapa (ou outra tela fora do ADMIN): volta para lá */
+      window.faEstruturasAdmin.abrir({ rotulo: oe ? oe.rotulo : ROTULO_ADMIN, origemNav: oe, voltar: function () {
+        if (oe && window.faVoltarParaOrigem) { state.tela = telaInicial(); window.faVoltarParaOrigem(oe.hash, oe.aba); return; }
         state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0);
       } });
       sincronizarEnderecoAdmin();
@@ -3023,6 +3027,8 @@
       if (o && o.t === 'lista') return { historico: true, hash: hashLista(), rotulo: 'avaliações' };
       if (o && o.t === 'inicio') return { historico: true, hash: hashInicio(), rotulo: 'o Início da Avaliação' };
       if (o && o.t === 'avaliacao') return { historico: true, hash: hashAvaliacao(o.key), rotulo: 'a avaliação (v' + (o.v || 1) + ')' };
+      var no = window.faNav && window.faNav.origem();
+      if (no && no.hash !== location.hash) return { navOrigem: true, hash: no.hash, rotulo: no.rotulo };
       var d = destinoDaUrl();
       if (d.t === 'reavaliar') {
         var it = buscarItem(d.key);
@@ -3033,6 +3039,7 @@
     function rotuloVoltar() { return '← Voltar para ' + destinoDeVoltar().rotulo; }
     function voltar() {
       var d = destinoDeVoltar();
+      if (d.navOrigem) { window.faNav.voltar(); return; }
       if (d.historico) history.back();
       else irPara(d.hash, { replace: true });
     }
@@ -3471,7 +3478,7 @@
       var acAO = AO && AO.acesso ? AO.acesso() : { ler: false };
       var num = function (v) { return v === null || v === undefined ? '…' : String(v); };
       var lin = function (rot, v, id) { return '<li><span class="avp-trab-num" id="' + id + '">' + num(v) + '</span> ' + rot + '</li>'; };
-      var h = '<div class="avp-trabalhos" id="avpTrabalhos"><button type="button" class="avp-voltar-link" id="avpTrabVoltar">← Voltar para Avaliações</button>' +
+      var h = '<div class="avp-trabalhos" id="avpTrabalhos"><button type="button" class="avp-voltar-link" id="avpTrabVoltar">' + esc(window.faNav && window.faNav.origem() ? '← Voltar para ' + window.faNav.origem().rotulo : '← Voltar para Avaliações') + '</button>' +
         '<h2 class="avp-inicio-titulo">Trabalhos de avaliação</h2><p class="avp-intro">Encontre um trabalho anterior e continue de onde parou. Os registros são compartilhados com quem tem acesso à Avaliação.</p>';
       /* continuar de onde parou: os rascunhos (P1–P16 e O1–O9), com link direto */
       var pend = [];
@@ -3518,7 +3525,13 @@
         '<section class="avp-trab-secao" id="avpTrabJornada"><h3>Jornadas e Mapa</h3><p class="avp-ficha-meta">Consulta da ligação entre os resultados das avaliações e as estruturas responsáveis. Não é onde se cadastra nem se avalia.</p>' +
           '<a class="btn btn--sm" id="avpTrabIrJornada" href="#avaliacoes?mf=catalogo">Consultar a Jornada do Mapa</a></section></div></div>';
       wrap.innerHTML = h;
-      var v = document.getElementById('avpTrabVoltar'); if (v) v.addEventListener('click', function () { irPara(hashInicio()); });
+      var v = document.getElementById('avpTrabVoltar'); if (v) v.addEventListener('click', function () {
+        var e = estadoDaEntrada();
+        if (e && e.origem && e.origem.t === 'inicio') { history.back(); return; } /* veio do Início: volta, sem ciclo */
+        if (window.faNav && window.faNav.voltar()) return;
+        irPara(hashInicio(), { replace: true });
+      });
+      if (window.faNav) window.faNav.ligarLinks(wrap, '#avpTrabalhos a[href^="#avaliacoes"]', { rotulo: 'Trabalhos de avaliação' });
     }
     /* os números chegam depois (Posicionamento e análises): redesenha no lugar */
     window.addEventListener('fa-posicionamento-dados', function () { if (state.tela === 'trabalhos' && !wrap.hidden) renderTrabalhos(); });
@@ -3588,7 +3601,7 @@
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
       var html = '';
-      if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="btn btn--sm" id="avpVoltarInicio">← Início da Avaliação</button>' +
+      if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="btn btn--sm" id="avpVoltarInicio">' + esc(window.faNav && window.faNav.origem() && window.faNav.origem().hash !== location.hash ? '← Voltar para ' + window.faNav.origem().rotulo : '← Início da Avaliação') + '</button>' +
         '<h2 class="avp-lista-titulo" id="avpListaTitulo">Avaliações de Produto/Serviço ou outra natureza (P1–P16)</h2></div>';
       if (state.flashLista) {
         html += '<div class="avp-flash-success" id="avpFlashLista">' + esc(state.flashLista) +
@@ -3810,6 +3823,7 @@
       if (voltarInicioBtn) voltarInicioBtn.addEventListener('click', function () {
         var e = estadoDaEntrada();
         if (e && e.origem && e.origem.t === 'inicio') history.back();
+        else if (window.faNav && window.faNav.origem() && window.faNav.origem().hash !== location.hash) window.faNav.voltar();
         else irPara(hashInicio(), { replace: true });
       });
       var buscaEl = document.getElementById('avpBusca');
@@ -5142,11 +5156,13 @@
        volta para cá (mesmo padrão do atalho do Início para o ADMIN) */
     function abrirMapaDoAdmin(destino) {
       var origem = location.hash || '#admin';
+      if (window.faNav) { window.faNav.ir(destino, { aba: 'adminPanelArquitetura', rotulo: 'Avaliações e Mapa', estado: { mfAnterior: origem, mfVoltaAdmin: { hash: origem, aba: 'adminPanelArquitetura', rotulo: 'Avaliações e Mapa' } } }); return; }
       location.hash = destino;
       /* avp:1 — a entrada é da área Avaliação (avaliacao-produto.js não a reescreve, e a marca de origem sobrevive) */
       history.replaceState({ avp: 1, seq: Date.now(), origem: null, mfAnterior: origem, mfVoltaAdmin: { hash: origem, aba: 'adminPanelArquitetura', rotulo: 'Avaliações e Mapa' } }, '', location.href);
     }
     function ligarAcessosDaJornada(raiz) {
+      if (window.faNav) window.faNav.ligarLinks(raiz, 'a.avp-parte-acesso[href^="#avaliacoes"]', { aba: 'adminPanelArquitetura', rotulo: 'Avaliações e Mapa' });
       Array.prototype.forEach.call(raiz.querySelectorAll('[data-mapa-admin]'), function (el) {
         el.addEventListener('click', function (ev) { if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey) return; ev.preventDefault(); abrirMapaDoAdmin(el.getAttribute('data-mapa-admin')); });
       });
@@ -5315,6 +5331,8 @@
       link: null
     };
     function abrirDocumentacao() {
+      var origemDocs = window.faNav && window.faNav.origem();
+      state.docsOrigem = origemDocs && !/^#admin/.test(origemDocs.hash) ? origemDocs : null; /* aberta do Mapa (ou outra tela fora do ADMIN) */
       state.documentacao = { carregando: true, erro: null, itens: {}, historico: [], editando: null, salvando: false, erroForm: null, flash: null, sujo: false, verArquivados: false,
         mapa: null, mapaHistorico: [], editandoMapa: null, salvandoMapa: false, erroMapa: null, flashMapa: null };
       state.tela = 'admin-documentacao';
@@ -5360,7 +5378,7 @@
     var ROTULO_ACAO_DOC = { criado: 'Documento adicionado', alterado: 'Documento alterado', arquivado: 'Documento arquivado', restaurado: 'Documento restaurado' };
     function renderDocumentacao() {
       var d = state.documentacao;
-      var html = linkVoltar('avpDocsVoltar', ROTULO_ADMIN);
+      var html = linkVoltar('avpDocsVoltar', state.docsOrigem ? state.docsOrigem.rotulo : ROTULO_ADMIN);
       html += '<div class="avp-form-card avp-docs"><h3>Documentação e mapas</h3>';
       html += '<p class="avp-docs-intro">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro).</p>';
       /* Definição do Mapa da Floresta: lida do banco (arquitetura-definicoes/MAPA_FLORESTA), em destaque */
@@ -5389,11 +5407,15 @@
         }));
       }
       html += '</div>';
-      html += rodapeVoltar('avpDocsVoltarRodape', ROTULO_ADMIN);
+      html += rodapeVoltar('avpDocsVoltarRodape', state.docsOrigem ? state.docsOrigem.rotulo : ROTULO_ADMIN);
       wrap.innerHTML = html;
       ['avpDocsVoltar', 'avpDocsVoltarRodape'].forEach(function (id) {
         document.getElementById(id).addEventListener('click', function () {
-          sairComAviso(d, function () { state.tela = telaInicial(); state.documentacao = null; render(); });
+          sairComAviso(d, function () {
+            var od = state.docsOrigem; state.docsOrigem = null;
+            if (od && window.faVoltarParaOrigem) { state.tela = telaInicial(); state.documentacao = null; window.faVoltarParaOrigem(od.hash, od.aba); return; }
+            state.tela = telaInicial(); state.documentacao = null; render();
+          });
         });
       });
       var tentar = document.getElementById('avpDocsTentar');
@@ -8092,7 +8114,10 @@
       var reavaliarBtn = document.getElementById('avpReavaliarBtn');
       if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { pedirReavaliacao(a._key); });
       var posicionarBtn = document.getElementById('avpPosicionarBtn');
-      if (posicionarBtn) posicionarBtn.addEventListener('click', function () { irPara('#avaliacoes?po=escolher&item=' + encodeURIComponent(a.itemId || a._key)); });
+      if (posicionarBtn) posicionarBtn.addEventListener('click', function () {
+        var dest = '#avaliacoes?po=escolher&item=' + encodeURIComponent(a.itemId || a._key);
+        if (window.faNav) window.faNav.ir(dest); else irPara(dest);
+      });
 
       document.getElementById('avpVoltarListaResultado').addEventListener('click', voltar);
       document.getElementById('avpVoltarListaRodape').addEventListener('click', voltar);

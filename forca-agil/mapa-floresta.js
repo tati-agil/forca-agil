@@ -394,10 +394,35 @@
       if (wrap.hidden || location.hash === desejado || (location.hash || '').split('?')[0] !== '#avaliacoes') return;
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
       var volta = history.state && history.state.mfVoltaAdmin; /* aberto pelo ADMIN: a origem acompanha as trocas Mapa ↔ jornada */
-      history.pushState({ avp: 1, seq: Date.now(), origem: null, mfAnterior: location.hash || '#avaliacoes', mfVoltaAdmin: volta || undefined }, '', desejado);
+      var est = { avp: 1, seq: Date.now(), origem: null, mfAnterior: location.hash || '#avaliacoes', mfVoltaAdmin: volta || undefined };
+      history.pushState(window.faNav ? window.faNav.comOrigem(est) : est, '', desejado);
     }
     /* Mapa (ou jornada) aberto a partir de ADMIN › Avaliações e Mapa: o "← Voltar" volta para lá, conferido */
-    function voltaAdmin() { var st = history.state; return st && st.mfVoltaAdmin && st.mfVoltaAdmin.hash ? st.mfVoltaAdmin : null; }
+    /* a origem EXTERNA do Mapa/Jornada (ADMIN, Posicionamento, Trabalhos…): mfVoltaAdmin ou a marca navOrigem que não seja
+       do próprio Mapa — as idas e vindas dentro do Mapa têm o seu próprio "Voltar" */
+    function voltaAdmin() {
+      var st = history.state;
+      if (st && st.mfVoltaAdmin && st.mfVoltaAdmin.hash) return st.mfVoltaAdmin;
+      var o = window.faNav && window.faNav.origem();
+      return o && !/[?&]mf=/.test(o.hash) ? o : null;
+    }
+    /* origem DENTRO do Mapa (o Mapa ao abrir um objeto, a lista ao abrir um item): o "Voltar" da tela volta para ela */
+    function origemInterna() { var o = window.faNav && window.faNav.origem(); return o && /[?&]mf=/.test(o.hash) && o.hash !== location.hash ? o : null; }
+    /* links simples dentro do Mapa e da Jornada abrem guardando de onde vieram (e a origem externa segue junto) */
+    function ligarLinksMapa() {
+      if (!window.faNav) return;
+      Array.prototype.forEach.call(wrap.querySelectorAll('a[href^="#avaliacoes?"], a[href^="#admin?"]'), function (a) {
+        if (a._faNav || a.id === 'mfmVoltarJornada' || a.id === 'mfmDetalheVoltarJornada') return;
+        a._faNav = true;
+        a.addEventListener('click', function (ev) {
+          if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.defaultPrevented) return;
+          var h = a.getAttribute('href'); if (!h) return;
+          ev.preventDefault();
+          var ext = voltaAdmin();
+          window.faNav.ir(h, /[?&]mf=/.test(h) && ext ? { estado: { mfVoltaAdmin: ext } } : undefined);
+        });
+      });
+    }
     function rotuloVoltar() { var v = voltaAdmin(); return v ? '← Voltar para ' + esc(v.rotulo || 'Avaliações e Mapa') : '← Voltar para Avaliações'; }
     function sairParaAvaliacoes() {
       var va = voltaAdmin();
@@ -537,7 +562,7 @@
       /* detalhe de UM objeto (&item=): a jornada completa dele, com o caminho de volta para a lista */
       if (focoItem) {
         var alvo = itens.filter(function (x) { return x.itemId === focoItem; })[0];
-        return '<section class="mf-secao mf-detalhe-objeto" aria-labelledby="mfCatalogoTitulo"><button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">← Voltar para a lista</button>' +
+        return '<section class="mf-secao mf-detalhe-objeto" aria-labelledby="mfCatalogoTitulo"><button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">' + (origemInterna() && /[?&]mf=mapa/.test(origemInterna().hash) ? '← Voltar para o Mapa da Floresta' : '← Voltar para a lista') + '</button>' +
           '<h4 id="mfCatalogoTitulo" class="mf-sr">Jornada do objeto</h4>' +
           (alvo ? '<ul class="mf-itens" id="mfItens">' + renderItem(alvo) + '</ul>' : '<p class="admin-empty" id="mfObjetoNaoEncontrado">Objeto não encontrado no catálogo.</p>') + '</section>';
       }
@@ -803,7 +828,11 @@
       var blocoPosic = byId('mfFiltroPosicionamentoBloco'); if (blocoPosic) blocoPosic.addEventListener('toggle', function () { state.posicionamentoAberto = blocoPosic.open; });
       var b = byId('mfBusca'); if (b) b.addEventListener('input', function () { state.filtros.busca = b.value; render(); });
       Array.prototype.forEach.call(wrap.querySelectorAll('.mf-abrir-squad'), function (b) { b.addEventListener('click', function () { acessarSquad(b.getAttribute('data-item')); }); });
-      var vlt = byId('mfVoltarLista'); if (vlt) vlt.addEventListener('click', function () { focoItem = null; render(); sincronizarEndereco(); restaurarPosicaoLista(); });
+      var vlt = byId('mfVoltarLista'); if (vlt) vlt.addEventListener('click', function () {
+        if (origemInterna()) { window.faNav.voltar(); return; } /* veio da lista (ou do Mapa): volta de verdade, sem empilhar */
+        focoItem = null; render(); sincronizarEndereco(); restaurarPosicaoLista();
+      });
+      ligarLinksMapa();
       Array.prototype.forEach.call(wrap.querySelectorAll('.mf-linha-abrir'), function (a) { a.addEventListener('click', function () { state.posicaoLista = window.scrollY || 0; }); });
       var fav = byId('mfFiltrosAvancados'); if (fav) fav.addEventListener('toggle', function () { state.filtrosAbertos = fav.open; });
       var sa = byId('mfSoAcao'); if (sa) sa.addEventListener('click', function () { state.filtros.soAcao = !state.filtros.soAcao; render(); });
@@ -1088,6 +1117,7 @@
       var no = antes && byId('mfmNo-' + antes); if (no) { no.focus({ preventScroll: true }); if (no.scrollIntoView) no.scrollIntoView({ block: 'center' }); }
     }
     function bindMapa() {
+      ligarLinksMapa();
       var v = byId('mfVoltar'); if (v) v.addEventListener('click', sairParaAvaliacoes);
       var ic = byId('mfmIrCatalogo'); if (ic) ic.addEventListener('click', function () { irPara('catalogo'); });
       Array.prototype.forEach.call(wrap.querySelectorAll('.mfm-fonte'), function (b) {
