@@ -584,7 +584,7 @@
       "arquivo": ".github/scripts/teste-padrao-visual.js",
       "nome": "Padrão Visual Oficial — Arquitetura: tipografia legível com a identidade do Força Ágil (desktop e celular)",
       "duracao": 110,
-      "sobre": "Critérios explícitos sobre os estilos calculados (sem comparação de pixels), em 10 telas da Avaliação e do ADMIN › Avaliações e Mapa mais a Taxonomia: nenhum texto abaixo de 12,8 px, nenhum negrito sintético da Anton, Space Mono só em botões/sobretítulo/códigos, nada na Arial padrão, Anton e Oswald mantidas nos títulos, botões na Space Mono; fundo espacial intacto e campos escuros; fora do domínio nada muda; sem rolagem lateral. Ver docs/padrao-visual.md."
+      "sobre": "Critérios explícitos sobre os estilos calculados (sem comparação de pixels), em 10 telas da Avaliação e do ADMIN › Avaliações e Mapa mais a Taxonomia: nenhum texto abaixo de 12,8 px, nenhum negrito sintético da Anton, Space Mono só em botões/sobretítulo/códigos, nada na Arial padrão, Anton e Oswald mantidas nos títulos, botões na Space Mono; fundo espacial intacto e campos escuros; raiz com color-scheme escuro (barra de rolagem no tema) e foco por teclado visível em todos os controles percorridos; fora do domínio nada muda (inclusive a raiz); sem rolagem lateral. Ver docs/padrao-visual.md."
     },
     {
       "arquivo": ".github/scripts/teste-config-avaliacoes-grupos.js",

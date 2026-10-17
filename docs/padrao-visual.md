@@ -2,7 +2,7 @@
 
 > **Toda funcionalidade nova ou modificada deve seguir o Padrão Visual Oficial do FORÇA ÁGIL.**
 
-Versão 1 — 17/10/2026 (PR de tipografia da Arquitetura Organizacional). Decisão da responsável: a identidade visual
+Versão 2 — 17/10/2026: foco por teclado e barra de rolagem (PR de campos, listas, rolagem e foco). Versão 1 — 17/10/2026: tipografia da Arquitetura Organizacional (PR #396). Decisão da responsável: a identidade visual
 atual está aprovada e deve ser preservada; mudanças visuais só corrigem problemas comprovados de leitura ou uso. Este
 documento é a referência verificável — e acompanha a futura extração do Núcleo de Arquitetura Organizacional (a área
 herda esta identidade; não ganha um design próprio).
@@ -73,17 +73,40 @@ compartilhadas com o resto do site (`.btn`, `.admin-table`) só ganham ajuste es
 - Barras de rolagem: seguir o tema escuro via `color-scheme: dark`; barras customizadas (`::-webkit-scrollbar`) só em
   contêineres próprios (modal, listas suspensas), nunca em controles nativos.
 
-### Achados da auditoria de 17/10/2026 (pendentes — PR específica "campos, listas e rolagem")
+### Foco por teclado (versão 2, PR "campos, listas, rolagem e foco")
 
-1. **A página não declara `color-scheme: dark`** (`html` = `normal`): no Chrome/Edge para Windows, a barra de rolagem
-   da página e as das áreas internas saem claras, destoando do fundo espacial. Correção prevista: `color-scheme: dark`
-   no `:root` (afeta o site todo — exige validação visual em todas as páginas).
-2. **`.btn` não tem indicação de foco por teclado** (`:focus-visible`), exceto nas Estruturas do Mapa
-   (`.est-painel .btn:focus-visible`). Ex.: lista P1–P16 a 375 px. Correção prevista: um `:focus-visible` com o
-   `--accent`, igual ao das Estruturas.
-3. Campos do domínio auditados (Nova avaliação, filtros das listas, O1–O9, responsabilidade, análise, Jornada,
-   Usuários autorizados): **todos escuros** — nenhum fundo branco encontrado.
-4. Nenhuma rolagem interna aninhada nem rolagem lateral nas telas auditadas (desktop e 375 px).
+- **Todo controle interativo da Arquitetura mostra o foco por teclado** (`:focus-visible`): contorno de 2 px no acento
+  do tema, afastado 2 px (dourado no site; na Taxonomia, o ciano dela, porque lá `--accent` já é `--tx-link`). Só para
+  teclado — clique e toque não ganham contorno.
+- O **Mapa da Floresta** mantém o contorno azul-escuro próprio (`#1f3b73`, 3 px), legível na folha clara.
+- Não remover o contorno sem uma alternativa visível: a regra antiga `#adminContent input:focus { outline: none }` (do
+  ADMIN do site) apagava o foco da Taxonomia e das caixas de seleção; dentro do domínio, a regra de foco a sobrepõe.
+
+### Barra de rolagem da página
+
+- A barra principal pertence ao `<html>`: enquanto uma tela da Arquitetura está aberta (Avaliação, ADMIN › Avaliações
+  e Mapa, ADMIN › Taxonomia), a raiz usa `color-scheme: dark` e a barra sai escura. As demais páginas do site
+  continuam como estavam (decisão de escopo: a troca global fica para quando todas as páginas forem validadas).
+- Os contêineres do domínio já usavam `color-scheme: dark` (barras internas, seletores, calendário dos campos de
+  data, caixa de busca).
+
+### Auditoria de 17/10/2026 (Chromium e Edge no Windows, desktop e 375 px)
+
+Telas: Início, listas P1–P16 e O1–O9 (com filtros), Nova avaliação preenchida, ficha P1–P16, O1–O9 escolher item, nova
+responsabilidade, nova análise de área (campo de data), Jornada com busca, Mapa, Squad (nova, com busca), ADMIN ›
+Avaliações e Mapa, editor de questionário com modal aberto, Usuários autorizados, Documentos, Estrutura Atual,
+Taxonomia (catálogo e formulário do conceito).
+
+| Achado | Situação |
+|---|---|
+| Campos, áreas de texto, seletores, data e busca com fundo claro | nenhum — todos escuros, `color-scheme: dark` |
+| Rolagem interna desnecessária, aninhada ou lateral | nenhuma |
+| Barra de rolagem da página clara no Windows (raiz sem `color-scheme`) | **corrigido** (só nas telas da Arquitetura) |
+| Foco invisível: `.btn` (anel nativo de 1 px quase preto), caixa "Mostrar encerradas", busca e formulário da Taxonomia | **corrigido** |
+| Foco no Mapa (contorno azul-escuro próprio) e nos modais | já conforme |
+
+Limites: a barra de rolagem foi conferida no **Chromium e no Edge para Windows**; Firefox e Safari não foram testados
+nesta auditoria. Barras customizadas (`::-webkit-scrollbar`) não foram criadas — o esquema escuro do navegador basta.
 
 ## 5. Inconsistências que não devem voltar
 
@@ -94,13 +117,15 @@ compartilhadas com o resto do site (`.btn`, `.admin-table`) só ganham ajuste es
 - Controles (`button`, `input`) sem herdar a fonte — caíam na Arial padrão (ex.: lista da Taxonomia).
 - Campos, listas ou cartões com fundo branco/cinza claro fora das exceções aprovadas.
 - Sobrescritas geradas em massa por contêiner: corrigir a causa (token na regra do componente), não empilhar regras.
+- Controle interativo sem foco visível por teclado, ou `outline: none` sem alternativa.
+- Barra de rolagem clara sobre o fundo espacial (raiz sem `color-scheme: dark` numa tela da Arquitetura).
 
 ## 6. Como validar uma tela nova ou alterada
 
 1. Rodar `node .github/scripts/teste-padrao-visual.js` (servindo a raiz em `127.0.0.1:8811`): critérios explícitos
    sobre os estilos calculados — piso de 12,8 px, sem negrito sintético, Space Mono só em botões/sobretítulo/códigos,
-   nada na Arial, Anton/Oswald nos títulos, fundo espacial presente, campos escuros, sem rolagem lateral, e nada
-   mudado fora do domínio. Tela nova do domínio: acrescentar à lista `TELAS` do teste.
+   nada na Arial, Anton/Oswald nos títulos, fundo espacial presente, campos escuros, raiz com color-scheme escuro,
+   foco visível em todo controle percorrido pelo Tab, sem rolagem lateral, e nada mudado fora do domínio. Tela nova do domínio: acrescentar à lista `TELAS` do teste.
 2. Comparar com as capturas de referência em `screenshots/padrao-visual/` (desktop 1280 e 375 px, escala 1×, fontes
    reais): a tela deve parecer o mesmo FORÇA ÁGIL. Capturas sempre na mesma escala e enquadramento — imagem reduzida
    funde traços finos e dá falsa impressão de borrado.
@@ -116,4 +141,6 @@ registrada aqui com nova versão deste documento.
 ## 8. Capturas de referência
 
 `screenshots/padrao-visual/` (fora do deploy): Início da Avaliação, lista P1–P16, ADMIN › Avaliações e Mapa — desktop
-e 375 px —, lista O1–O9 (desktop) e Jornada (375 px), já com a tipografia corrigida.
+e 375 px —, lista O1–O9 (desktop) e Jornada (375 px), já com a tipografia corrigida; barra de rolagem escura no
+Edge para Windows (`barra-rolagem-escura-edge.jpg`) e foco por teclado num botão e num campo da Taxonomia
+(`foco-botao.jpg`, `foco-campo-taxonomia.jpg`).
