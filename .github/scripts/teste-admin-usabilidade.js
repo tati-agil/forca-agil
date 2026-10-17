@@ -2,10 +2,10 @@
  * Prova, nos três perfis e em várias larguras (375, 640, 768, 1280, 1440, 1920 px — 640 e 1920 equivalem a 1280 px com
  * zoom de 200% e de 67%):
  *   A. Questionários: um cartão por questionário (P1–P16, S1–S8, O1–O9 "9 perguntas + diagnóstico") com versão,
- *      situação e Editar / Histórico / Exportar; correções editoriais e a redação da v2 (inativa) recolhidas DENTRO do
+ *      situação e Editar / Histórico / Exportar; correções editoriais recolhidas DENTRO do (a redação da v2 está dormente)
  *      cartão, sem perder nada; &q=p1p16|s1s8|o1o9 localiza o cartão sem abrir a edição (F5, Voltar/Avançar).
- *   B. Motores (aba O1–O9): resumo "v2 preparada e inativa — existem requisitos pendentes para entrada em vigor"; a governança numa seção
- *      avançada recolhida; nenhum botão de ativar; D2 — os marcadores da prontidão ficam dentro do cartão.
+ *   B. Motores (O1–O9): resumo "v2 preparada e inativa — existem requisitos pendentes para entrada em vigor"; a governança da v2
+ *      dormente (sem proposta, aprovação, validação, ativação, redação da v2 nem suspensão); simulação e impacto recolhidos.
  *   C. Motor de Squad: o esqueleto comum dos motores (nome, sigla, versão · situação), sem uma segunda seleção dos três.
  *   D. Estruturas no tema escuro: superfícies escuras, contraste ≥ 4,5:1, lista/ficha/histórico/formulário.
  *   E. Início: título compacto, primeira ação visível sem rolar; nenhuma tela com rolagem lateral.
@@ -69,7 +69,7 @@ async function questionarios(browser, viewport) {
   afirma(q.every((x) => x.editar && x.hist && x.exp && /Versão publicada:/.test(x.txt) && /Situação:/.test(x.txt)), 'cada cartão: versão, situação e Editar / Histórico / Exportar à vista');
   afirma(/9 perguntas \+ diagnóstico/.test(q[2].txt), 'O1–O9: "9 perguntas + diagnóstico" (o diagnóstico não conta como pergunta)', q[2].txt.slice(0, 120));
   const v2 = q[2].subs.split(',').find((s) => /avpCfgMotorV2/.test(s));
-  afirma(v2 === 'avpCfgMotorV2:fechada' && /Versão futura inativa/.test(await texto(page, '#avpCfgMotorV2 > summary')), 'a redação da v2 fica numa seção secundária, recolhida e identificada como inativa', q[2].subs);
+  afirma(!v2 && await page.locator('#avpCfgMotorV2').count() === 0, 'a redação da v2 (dormente) não aparece no cartão do O1–O9', q[2].subs);
   const corr = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('details[id^="avpCfgCorrecoes-"]'), (d) => ({ dentro: !!d.closest('.avp-config-item-card'), titulo: d.querySelector('summary').textContent, itens: d.querySelectorAll('.avp-config-sub-corpo > *').length })));
   afirma(corr.length >= 1 && corr.every((c) => c.dentro && /^Correções editoriais \(\d+\) — /.test(c.titulo) && c.itens >= 1), 'correções editoriais recolhíveis DENTRO do cartão, com o total e a situação — todos os registros continuam na página', JSON.stringify(corr));
   /* recolher uma seção sobrevive a um redesenho (escolha lembrada) */
@@ -111,17 +111,18 @@ async function motores(browser, viewport) {
   await esperar(page, () => !!document.getElementById('avpPosResumo'), undefined, 20000);
   const resumo = (await texto(page, '#avpPosResumo')).trim();
   afirma(/^v2 preparada e inativa — existem requisitos pendentes para entrada em vigor\. A v1 continua em vigor\.$/.test(resumo), 'resumo exato, à vista: "v2 preparada e inativa — existem requisitos pendentes para entrada em vigor"', resumo);
-  afirma(await page.evaluate(() => { const d = document.getElementById('avpPosAvancado'); return !!d && !d.open && d.tagName === 'DETAILS'; }), 'governança da v2 (prontidão, simulação, impacto, aprovação) numa seção avançada recolhida');
-  afirma(await page.evaluate(() => !!document.querySelector('#avpPosAvancado #avpPosProntidao')), 'a prontidão continua na página, dentro da seção avançada (nada removido)');
-  afirma(await page.evaluate(() => !Array.prototype.some.call(document.querySelectorAll('#adminPanelArquitetura button'), (b) => /^\s*Ativar/i.test(b.textContent))), 'bloqueio preservado: nenhum botão "Ativar"');
+  /* governança da v2 dormente na apresentação: só a análise (simulação e impacto, só leitura), recolhida */
+  afirma(await page.evaluate(() => { const d = document.getElementById('avpPosAvancado'); return !!d && !d.open && d.tagName === 'DETAILS' && /Simulação e impacto da v2 \(só leitura\)/.test(d.querySelector('summary').textContent); }),
+    'v2: só "Simulação e impacto (só leitura)", recolhida');
+  afirma(await page.evaluate(() => !document.querySelector('#avpPosProntidao, #avpPosNaoAutoriza, #avpPosProporBtn, [id^="avpPosAprovar"], [id^="avpPosValidar"], #avpCfgMotorV2') &&
+    !Array.prototype.some.call(document.querySelectorAll('#adminPanelArquitetura button'), (b) => /^\s*(Ativar|Propor|Aprovar|Validar|Suspender)/i.test(b.textContent))),
+    'sem os controles dormentes: proposta, aprovação, validação, ativação, redação da v2 e suspensão de publicações');
   await page.evaluate(() => { const d = document.getElementById('avpPosAvancado'); d.open = true; d.dispatchEvent(new Event('toggle')); });
   await page.waitForTimeout(300);
-  const d2 = await page.evaluate(() => {
-    const card = document.getElementById('avpMotorPosicionamento').getBoundingClientRect(), ul = document.getElementById('avpPosProntidao');
-    const lis = Array.prototype.map.call(ul.querySelectorAll(':scope > li'), (li) => li.getBoundingClientRect().left);
-    return { n: lis.length, pad: parseFloat(getComputedStyle(ul).paddingLeft), estilo: getComputedStyle(ul).listStyleType, dentro: lis.every((l) => l - 14 > card.left) };
-  });
-  afirma(d2.n > 0 && d2.pad >= 18 && d2.estilo === 'disc' && d2.dentro, 'D2: os marcadores da prontidão ficam dentro do cartão', JSON.stringify(d2));
+  afirma(await page.locator('#avpPosSimularBtn').isVisible() && await page.locator('#avpPosImpactoBtn').isVisible() && /nada é gravado/.test(await texto(page, '#avpPosSoLeitura')), 'aberta: "Simular" e "Calcular impacto", ditos só leitura');
+  await page.click('#avpPosSimularBtn');
+  await esperar(page, () => !!document.getElementById('avpPosSimulacao'));
+  afirma(/estados/.test(await texto(page, '#avpPosSimulacao')), 'a simulação funciona (sem gravar)');
   afirma(await larguraOk(page), 'Motores sem rolagem lateral (seção aberta)');
   console.log('C. Motor de Squad');
   await page.evaluate(() => { location.hash = '#admin?arq=motor-squad'; });

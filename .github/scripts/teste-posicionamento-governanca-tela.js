@@ -114,6 +114,9 @@ async function abrir(browser, viewport, hash, comRedacaoV2, email, dbInicial, ex
   const erros = [];
   page.on('pageerror', (e) => { erros.push(String(e)); console.log('[PAGEERROR]', String(e)); });
   await ctx.addInitScript('window.__CFG = ' + JSON.stringify(cfg) + ';');
+  /* a governança da v2 está DORMENTE na apresentação (GOVERNANCA_V2_VISIVEL = false, avaliacao-produto.js); este teste prova o
+     código dela, que continua no site, ligando-a como seria ao autorizar a v2 */
+  await ctx.addInitScript('window.FA_GOVERNANCA_V2 = true;');
   /* seções recolhidas do ADMIN (governança da v2, correções editoriais, redação da v2): abertas como a pessoa faria */
   await ctx.addInitScript(abrirRecolhidas(['details.avp-config-sub']));
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
