@@ -1533,7 +1533,7 @@
       var destinoVoltar = c.sub === 'painel' ? ((origemMotor && origemMotor.rotulo) || 'Avaliações e Mapa')
         : c.sub === 'simulacao' || c.sub === 'conflito-publicacao' ? 'Editar regras'
         : c.sub === 'comparar-alteracoes' ? 'o conflito de publicação'
-        : 'Configuração do Motor de Squad';
+        : 'Adequação à Gestão por Squad (S1–S8)';
       var html = sqLinkVoltar('sqMotorVoltarLista', destinoVoltar);
       html += '<div class="sq-motor-config">';
       if (c.sub === 'painel') html += renderMotorPainel();
@@ -1558,7 +1558,7 @@
       else if (c.sub === 'editar-textos') bindMotorEditarTextos();
     }
 
-    /* ---- PAINEL: o mesmo cabeçalho (com o seletor dos três motores) e o mesmo esqueleto de Configuração dos Motores
+    /* ---- PAINEL: o mesmo esqueleto dos outros motores
        (window.faMotoresUI, avaliacao-produto.js): situação → como decide (recolhido) → configurações e ações, separadas
        em regras, textos dos vereditos e exigência de Posicionamento → versões anteriores e histórico (recolhidos) ---- */
     function renderMotorPainel() {
@@ -1584,7 +1584,7 @@
         historico: U ? U.historico('sqMotorHistorico', c.hist, !!ab.sqMotorHistorico) : ''
       };
       if (!U) return flash + '<p class="admin-empty">Configuração dos Motores indisponível.</p>';
-      return U.cabecalho('s') + U.bloco(bloco);
+      return U.bloco(bloco);
     }
     /* ---- I2: interruptor exigirParaSquad — só admin geral altera, com motivo, numa gravação com a auditoria ---- */
     function souAdminGeralSq() {
@@ -1652,9 +1652,6 @@
     }
     function bindMotorPainel() {
       var c = state.motorConfig;
-      Array.prototype.forEach.call(wrap.querySelectorAll('.avp-motores-aba'), function (b) {
-        b.addEventListener('click', function () { if (window.faMotoresIr) window.faMotoresIr(b.getAttribute('data-motor')); });
-      });
       c.abertos = c.abertos || {};
       Array.prototype.forEach.call(wrap.querySelectorAll('details[data-motor-det]'), function (d) {
         d.addEventListener('toggle', function () {
@@ -1795,7 +1792,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqMotorSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
       html += '<button class="btn btn--primary" id="sqMotorSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
-      html += '<button class="btn" id="sqMotorCancelarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração do Motor de Squad</button>';
+      html += '<button class="btn" id="sqMotorCancelarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Adequação à Gestão por Squad (S1–S8)</button>';
       html += '</div>';
       return html;
     }
@@ -2003,7 +2000,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--primary" id="sqMotorPublicarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>' +
         (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR TEXTOS') + '</button>';
-      html += '<button class="btn" id="sqMotorCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração do Motor de Squad</button>';
+      html += '<button class="btn" id="sqMotorCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Adequação à Gestão por Squad (S1–S8)</button>';
       html += '</div>';
       return html;
     }

@@ -127,30 +127,31 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.click('#avpConfigMotoresBtn');
     await page.waitForSelector('#avpMotorArqEditarBtn');
     await conferirVoltar(page, '#avpMotoresVoltarLista', 'Avaliações e Mapa', 'painel dos motores');
-    await conferirVoltar(page, '#avpMotoresVoltarRodape', 'Avaliações e Mapa', 'painel dos motores (rodapé)');
+    afirma(await page.locator('#avpMotoresVoltarRodape').count() === 0, 'um "← Voltar" só (o do topo): o painel do motor é curto, com os detalhes recolhidos');
     /* os três motores no mesmo cabeçalho; versões anteriores e histórico recolhidos na própria tela (sem subtelas) */
-    afirma(JSON.stringify(await page.locator('.avp-motores-aba strong').allTextContents()) === JSON.stringify(['Produto/Serviço', 'Posicionamento Organizacional', 'Adequação à Gestão por Squad']) &&
-      await page.locator('.avp-motores-aba[aria-selected="true"]').getAttribute('data-motor') === 'p', 'Configuração dos Motores: os três motores no seletor, P1–P16 selecionado');
+    afirma(await page.locator('.avp-motores-aba, [role="tablist"]').count() === 0 && (await page.locator('#avpMotorArquiteturalTitulo').innerText()).startsWith('Produto/Serviço'),
+      'o cartão abre direto o motor escolhido: sem uma segunda seleção dos três motores; o título é o do motor');
     afirma(!(await page.evaluate(() => document.getElementById('avpMotorArquiteturalDecide').open)) && /O que classifica/.test(await page.locator('#avpMotorArquiteturalDecide').textContent()), '"Como este motor decide" (P1–P16) recolhido, com a explicação do próprio motor');
     afirma(await page.locator('#avpMotorArqVersoes').count() === 0, 'só a versão vigente: sem a seção "Versões anteriores"');
     await page.click('#avpMotorArqHistorico > summary');
     await page.waitForFunction(() => /Histórico de alterações — /.test((document.querySelector('#avpMotorArqHistorico > summary') || {}).textContent || ''), null, { timeout: 8000 });
     afirma(await page.evaluate(() => document.getElementById('avpMotorArqHistorico').open), 'Histórico de alterações: recolhido, lido ao abrir, continua aberto depois de carregar');
-    /* alternar entre os motores sem voltar ao início, com o endereço acompanhando */
-    await page.click('#avpMotorAba_o');
+    /* para outro motor: Voltar ao início e escolher o cartão dele (uma escolha só) */
+    await page.click('#avpMotoresVoltarLista');
+    await page.waitForSelector('#avpMotorPosicionamentoInicioBtn', { state: 'visible' });
+    afirma(await page.evaluate(() => document.getElementById('avpGrupoConfiguracao').open), '"← Voltar": Avaliações e Mapa, com o grupo dos três motores aberto');
+    await page.click('#avpMotorPosicionamentoInicioBtn');
     await page.waitForSelector('#avpMotorPosicionamento');
-    afirma(await page.evaluate(() => location.hash) === '#admin?arq=motores&m=o' && await page.locator('#avpMotorArquitetural').count() === 0, 'O1–O9: #admin?arq=motores&m=o, só o motor escolhido na tela');
-    await page.click('#avpMotorAba_s');
-    await page.waitForSelector('#adminAvaliacaoSquad #sqMotorSquad', { state: 'visible' });
-    afirma(await page.evaluate(() => location.hash) === '#admin?arq=motor-squad' && await page.locator('#adminAvaliacaoSquad .avp-motores-aba[aria-selected="true"]').getAttribute('data-motor') === 's', 'S1–S8: o mesmo cabeçalho e seletor, no endereço de sempre (#admin?arq=motor-squad)');
-    await page.click('#adminAvaliacaoSquad #avpMotorAba_p');
-    await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible' });
-    afirma(await page.evaluate(() => location.hash) === '#admin?arq=motores' && await page.locator('#adminAvaliacaoSquad').isHidden(), 'do S1–S8 de volta ao P1–P16 pelo seletor');
+    afirma(await page.evaluate(() => location.hash) === '#admin?arq=motores&m=o' && await page.locator('#avpMotorArquitetural').count() === 0, 'cartão O1–O9: só o Posicionamento, em #admin?arq=motores&m=o');
+    await page.click('#avpMotoresVoltarLista');
+    await page.waitForSelector('#avpConfigMotoresBtn', { state: 'visible' });
+    await page.click('#avpConfigMotoresBtn');
+    await page.waitForSelector('#avpMotorArqEditarBtn');
     /* editar regras → simular → voltar para editar → voltar */
     await page.click('#avpMotorArqEditarBtn');
     await page.waitForSelector('#avpMotorArqSimularBtn');
-    await conferirVoltar(page, '#avpMotoresVoltarLista', 'Configuração dos Motores', 'editar regras (topo)');
-    await conferirVoltar(page, '#avpMotorArqCancelarBtn', 'Configuração dos Motores', 'editar regras (rodapé)');
+    await conferirVoltar(page, '#avpMotoresVoltarLista', 'Produto/Serviço (P1–P16)', 'editar regras (topo)');
+    await conferirVoltar(page, '#avpMotorArqCancelarBtn', 'Produto/Serviço (P1–P16)', 'editar regras (rodapé)');
     await page.click('#avpMotoresVoltarLista');
     afirma(await page.locator('.avp-modal-confirm-btn').count() === 0 && await page.locator('#avpMotorArqEditarBtn').count() === 1, 'editar regras sem alteração: sai sem perguntar, para o painel dos motores');
     await page.click('#avpMotorArqEditarBtn');
@@ -234,8 +235,8 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(await page.evaluate(() => document.getElementById('sqMotorHistorico').open), 'S1–S8: histórico recolhido, lido ao abrir');
     await page.click('#sqMotorEditarRegrasBtn');
     await page.waitForSelector('#sqMotorSimularBtn');
-    await conferirVoltar(page, '#sqMotorVoltarLista', 'Configuração do Motor de Squad', 'squad editar regras (topo)');
-    await conferirVoltar(page, '#sqMotorCancelarEdicaoBtn', 'Configuração do Motor de Squad', 'squad editar regras (rodapé)');
+    await conferirVoltar(page, '#sqMotorVoltarLista', 'Adequação à Gestão por Squad (S1–S8)', 'squad editar regras (topo)');
+    await conferirVoltar(page, '#sqMotorCancelarEdicaoBtn', 'Adequação à Gestão por Squad (S1–S8)', 'squad editar regras (rodapé)');
     await page.click('#sqMotorVoltarLista');
     afirma(await page.locator('.sq-modal-confirm-btn').count() === 0 && await page.locator('#sqMotorEditarRegrasBtn').count() === 1, 'squad: editar regras sem alteração sai sem perguntar');
     await page.click('#sqMotorEditarRegrasBtn');
@@ -258,8 +259,8 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.waitForSelector('#sqMotorEditarRegrasBtn');
     await page.click('#sqMotorEditarTextosBtn');
     await page.waitForSelector('#sqMotorPublicarTextosBtn');
-    await conferirVoltar(page, '#sqMotorVoltarLista', 'Configuração do Motor de Squad', 'squad editar textos (topo)');
-    await conferirVoltar(page, '#sqMotorCancelarTextosBtn', 'Configuração do Motor de Squad', 'squad editar textos (rodapé)');
+    await conferirVoltar(page, '#sqMotorVoltarLista', 'Adequação à Gestão por Squad (S1–S8)', 'squad editar textos (topo)');
+    await conferirVoltar(page, '#sqMotorCancelarTextosBtn', 'Adequação à Gestão por Squad (S1–S8)', 'squad editar textos (rodapé)');
     await page.locator('.sq-texto-rotulo').first().fill('rótulo alterado');
     await page.click('#sqMotorCancelarTextosBtn');
     afirma(await page.locator('.sq-modal-confirm-btn').count() === 1, 'squad: editar textos com alteração pede confirmação');
