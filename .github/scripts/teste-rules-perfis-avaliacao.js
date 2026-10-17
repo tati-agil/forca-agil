@@ -145,7 +145,7 @@ async function main() {
     await naoPode(quem + ': NÃO altera a natureza registrada', db(email).ref(NODE + '/v1').update({ naturezaComplementarNomeNaEpoca: 'Outra' }));
     await naoPode(quem + ': NÃO troca o código da natureza', db(email).ref(NODE + '/v1/naturezaComplementarCodigo').set('OUTRO'));
     await naoPode(quem + ': NÃO apaga a natureza registrada', db(email).ref(NODE + '/v1/naturezaComplementarCodigo').remove());
-    await naoPode(quem + ': NÃO troca quem registrou', db(email).ref(NODE + '/v1/naturezaComplementarDefinidaPor/email').set(email));
+    await naoPode(quem + ': NÃO troca quem registrou', db(email).ref(NODE + '/v1/naturezaComplementarDefinidaPor/email').set('outra.pessoa@previ.com.br'));
     await naoPode(quem + ': NÃO regrava o registro inteiro sem a natureza (limpar)', db(email).ref(NODE + '/v1').set(concluida(CURADORIA)));
     await naoPode(quem + ': NÃO migra o formato antigo para o novo', db(email).ref(NODE + '/leg').update({ naturezaComplementar: null, naturezaComplementarCodigo: 'PROGRAMA_TRANSVERSAL', naturezaComplementarNomeNaEpoca: 'Programa transversal' }));
     await naoPode(quem + ': NÃO altera o rótulo do formato antigo', db(email).ref(NODE + '/leg/naturezaComplementar/rotulo').set('Outro'));
