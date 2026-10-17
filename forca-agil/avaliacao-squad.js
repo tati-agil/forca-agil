@@ -1496,7 +1496,7 @@
     }
     function renderMotorConfig() {
       var c = state.motorConfig;
-      var destinoVoltar = c.sub === 'painel' ? ((origemMotor && origemMotor.rotulo) || 'Avaliações e Mapa')
+      var destinoVoltar = c.sub === 'painel' ? ((origemMotor && origemMotor.rotulo) || 'a Gestão da Floresta')
         : c.sub === 'simulacao' || c.sub === 'conflito-publicacao' ? 'Editar regras'
         : c.sub === 'comparar-alteracoes' ? 'o conflito de publicação'
         : 'Adequação à Gestão por Squad (S1–S8)';

@@ -1,5 +1,5 @@
 /* ═════════════════════════════════════════════════════════════════
-   ESTRUTURA ORGANIZACIONAL ATUAL — tela do ADMIN › Avaliações e Mapa (#admin?arq=estrutura-atual) e a leitura que a
+   ESTRUTURA ORGANIZACIONAL ATUAL — tela do ADMIN › Avaliações e Mapa (#arquitetura?arq=estrutura-atual) e a leitura que a
    Porta 2 usa para escolher a área e quem executa hoje (window.faEstruturaAtualAdmin).
    Só cadastro do que existe hoje: árvore, ficha com histórico, criar (também subordinada, pela ficha da superior),
    editar, mudar a unidade superior e encerrar (com motivo). Nada se apaga; nada daqui vira estrutura do Mapa, vínculo
@@ -134,7 +134,7 @@
       '<span class="an-chip an-chip--neu">' + esc(N().rotuloNivel(u)) + '</span>' + (u.situacao === 'encerrada' ? '<span class="an-chip an-chip--pend">Encerrada</span>' : '') + '</button></li>';
   }
   function renderLista() {
-    var h = cabecalho('Estrutura Organizacional Atual', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'sair') +
+    var h = cabecalho('Estrutura Organizacional Atual', 'Voltar para ' + ((origem && origem.rotulo) || 'a Gestão da Floresta'), 'sair') +
       '<p class="an-intro">Unidades que existem hoje — diretorias, gerências, núcleos —, com a unidade superior. Usadas na Análise Organizacional para identificar a unidade analisada e quem executa cada responsabilidade. <strong>Não é o cadastro das Estruturas do Mapa da Floresta</strong>: não tem tipo arquitetural nem vínculo formal.</p>' +
       marcadorHtml() + avisos();
     if (D.unidades === undefined) return h + '<p class="loading-msg" id="eaCarregando">Carregando…</p>';

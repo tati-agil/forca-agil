@@ -79,9 +79,8 @@ async function abrir(browser, viewport) {
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible' });
-  afirma((await page.locator('.admin-tab-btn[data-panel="adminPanelArquitetura"]').textContent()).trim() === 'Avaliações e Mapa', '7. aba "Avaliações e Mapa" ao lado da Taxonomia');
-  await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+  afirma(await page.locator('.admin-tab-btn[data-panel="adminPanelArquitetura"], .admin-tab-btn[data-panel="adminPanelTaxonomia"]').count() === 0, '7. Avaliações e Mapa e Taxonomia ficam na Gestão da Floresta (não são abas do ADMIN)');
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=taxonomia'; }); /* a Taxonomia é área da Gestão da Floresta */
   await page.waitForSelector('#taxPergunta');
   return { ctx, page, erros };
 }

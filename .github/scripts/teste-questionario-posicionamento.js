@@ -176,20 +176,19 @@ async function abrir(browser, viewport) {
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
   await page.click('#avpQuestP1P16Btn');
   await page.waitForSelector('#avpIntroQuestionarios');
   return { ctx, page, erros };
 }
-/* cada questionário abre na própria tela (grupo da avaliação no Início ou link direto #admin?arq=questionarios&q=…):
+/* cada questionário abre na própria tela (grupo da avaliação no Início ou link direto #arquitetura?arq=questionarios&q=…):
    para usar outro, vai pelo endereço dele */
 const ALIAS_Q = { CLASSIFICACAO_ARQUITETURAL: 'p1p16', ADEQUACAO_SQUAD: 's1s8', POSICIONAMENTO_ORGANIZACIONAL: 'o1o9' };
 async function garantirQuestionario(page, codigo) {
   const sel = '.avp-config-editar-btn[data-codigo="' + codigo + '"]';
   if (await page.locator(sel).count()) return;
-  await page.evaluate((h) => { location.hash = h; }, '#admin?arq=questionarios&q=' + ALIAS_Q[codigo]);
+  await page.evaluate((h) => { location.hash = h; }, '#arquitetura?arq=questionarios&q=' + ALIAS_Q[codigo]);
   await page.waitForSelector(sel, { timeout: 8000 });
 }
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
@@ -234,7 +233,7 @@ async function parte2(browser, fq, nomeTela, viewport) {
 
   console.log('\n== Lista: o terceiro questionário aparece ==');
   /* os três juntos: o endereço sem &q= (links antigos) — o Início abre cada um pelo grupo da sua avaliação */
-  await page.evaluate(() => { location.hash = '#admin?arq=questionarios'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=questionarios'; });
   await esperarCondicao(page, () => document.querySelectorAll('.avp-config-item-card[data-q]').length === 3, null, { descricao: 'os três questionários no endereço sem &q=' });
   /* o título de cada cartão (sem a sigla); as seções recolhidas dentro dele têm cartões próprios, que não contam */
   const cartoes = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.avp-config-item-card[data-q] > h4'), (h) => { const c = h.cloneNode(true); c.querySelectorAll('.avp-config-sigla').forEach((x) => x.remove()); return c.textContent.trim(); }));

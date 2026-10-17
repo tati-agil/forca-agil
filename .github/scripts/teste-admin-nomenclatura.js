@@ -1,11 +1,12 @@
-/* ADMIN: nomenclatura das abas "Avaliações e Mapa" e "Taxonomia" — hermético (Firebase falso), nada é gravado.
+/* ADMIN e GESTÃO DA FLORESTA: nomenclatura — hermético (Firebase falso), nada é gravado. As abas "Avaliações e Mapa" e
+ *   "Taxonomia" saíram do ADMIN: são a Gestão da Floresta, dentro de A FLORESTA (#arquitetura?arq=…).
  *   1. Descrição geral do Painel Admin: "Área de administração do FORÇA ÁGIL…" (sem citar perfis nem áreas).
  *   2. Admin geral: abas "Avaliações e Mapa" e "Taxonomia", lado a lado; título "Administração das Avaliações e do Mapa
  *      da Floresta" com a descrição da área e a relação com a Taxonomia (usar × manter); o atalho "Abrir a aba
  *      Taxonomia" abre a aba, que diz "Administração dos conceitos, definições e relações…".
  *   3. Avaliação + Configuração: continua só com a área Avaliações e Mapa (sem barra de abas, sem a Taxonomia) e NÃO vê
  *      o atalho para a Taxonomia (nenhum link para área inacessível); a relação continua explicada em texto.
- *   4. F5 numa subtela (#admin?arq=motores) e Voltar/Avançar continuam como antes.
+ *   4. F5 numa subtela (#arquitetura?arq=motores) e Voltar/Avançar continuam como antes.
  *   Desktop e 375 px, sem rolagem lateral. */
 const { chromium } = require('playwright');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
@@ -47,44 +48,40 @@ async function rodada(browser, viewport, rotulo) {
   console.log('\n== ' + rotulo + ' ==');
   /* admin geral */
   let { ctx, page, erros } = await abrir(browser, viewport, ADM);
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   afirma(await texto(page, '.admin-hero p') === 'Área de administração do FORÇA ÁGIL. As abas disponíveis e as ações permitidas dependem do perfil de acesso.', '1. descrição geral do Painel Admin');
   const abas = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).map((b) => b.textContent.trim()));
-  afirma(abas.indexOf('Avaliações e Mapa') !== -1 && abas.indexOf('Taxonomia') === abas.indexOf('Avaliações e Mapa') + 1 && abas.indexOf('Avaliação e Mapa') === -1, '2. abas "Avaliações e Mapa" e "Taxonomia", lado a lado', abas);
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  afirma(abas.length > 0 && abas.indexOf('Avaliações e Mapa') === -1 && abas.indexOf('Taxonomia') === -1, '2. ADMIN sem as abas "Avaliações e Mapa" e "Taxonomia" (elas são a Gestão da Floresta)', abas);
+  afirma(/A FLORESTA › Gestão da Floresta/.test(await texto(page, '#adminNotaFloresta')), '2. o ADMIN diz onde elas ficam agora');
+  await page.click('#adminNotaFloresta a');
   await page.waitForSelector('#avpQuestP1P16Btn');
-  afirma(await texto(page, '#adminPanelArquitetura .avp-panel-titulo') === 'Administração das Avaliações e do Mapa da Floresta', '2. título da área');
-  afirma(/Configurações e cadastros governados das avaliações e do Mapa da Floresta/.test(await texto(page, '#admArqDescricao')), '2. o que a área reúne');
-  const rel = await texto(page, '#admArqRelacaoTaxonomia');
-  afirma(/As avaliações e o Mapa utilizam conceitos da Taxonomia\. A manutenção desses conceitos é realizada na aba Taxonomia, conforme as permissões do usuário\./.test(rel), '2. relação: usar (avaliações e Mapa) × manter (aba Taxonomia)');
-  afirma(await visivel(page, '#admArqIrTaxonomia'), '2. admin geral: atalho "Abrir a aba Taxonomia" visível');
+  afirma(await texto(page, '#page-avaliacoes .page-hero h1') === 'Gestão da Floresta' && /questionários, motores, estruturas/.test(await texto(page, '#page-avaliacoes .page-hero p')), '2. título e descrição da área: Gestão da Floresta');
+  afirma(await texto(page, '#avpGrupoDocumentacaoTitulo') === 'Referências' && await visivel(page, '#avpTaxonomiaBtn'), '2. Referências: Documentação e Taxonomia (admin geral)');
   afirma(await larguraOk(page), '2. área sem rolagem lateral');
-  await page.click('#admArqIrTaxonomia');
-  await esperar(page, () => document.getElementById('adminPanelTaxonomia').classList.contains('active') && !!document.getElementById('taxTituloArea'));
-  afirma(await texto(page, '#taxTituloArea') === 'Taxonomia' && await texto(page, '#taxLocal') === 'Catálogo de conceitos', '2. o atalho abre a aba Taxonomia, no Catálogo (cabeçalho compacto)');
+  await page.evaluate(() => { document.getElementById('avpGrupoDocumentacao').open = true; }); /* a seção Referências abre recolhida */
+  await page.click('#avpTaxonomiaBtn');
+  await esperar(page, () => !document.getElementById('adminPanelTaxonomia').hidden && !!document.getElementById('taxTituloArea'));
+  afirma(await texto(page, '#taxTituloArea') === 'Taxonomia' && await texto(page, '#taxLocal') === 'Catálogo de conceitos', '2. o cartão abre a Taxonomia, no Catálogo (cabeçalho compacto)');
   afirma(await larguraOk(page), '2. Taxonomia sem rolagem lateral');
   afirma(!erros.length, 'sem erro de página (admin geral)', erros);
   await ctx.close();
 
-  /* Avaliação + Configuração: o acesso de sempre */
+  /* Avaliação + Configuração: a mesma área, agora dentro de A FLORESTA */
   ({ ctx, page, erros } = await abrir(browser, viewport, ARQ));
   await page.waitForSelector('#avpQuestP1P16Btn');
-  const restr = await page.evaluate(() => ({
-    abasVisiveis: Array.from(document.querySelectorAll('.admin-tab-btn')).filter((b) => !b.hidden).map((b) => b.dataset.panel),
-    barra: (document.querySelector('.admin-tabs-bar') || {}).hidden, tax: document.getElementById('adminPanelTaxonomia').hidden,
-    atalho: document.getElementById('admArqIrTaxonomia').hidden }));
-  afirma(JSON.stringify(restr.abasVisiveis) === '["adminPanelArquitetura"]' && restr.barra === true && restr.tax === true, '3. Avaliação + Configuração: só a área Avaliações e Mapa, como antes', restr);
-  afirma(restr.atalho === true && /aba Taxonomia, conforme as permissões do usuário/.test(await texto(page, '#admArqRelacaoTaxonomia')), '3. sem atalho para a Taxonomia (área inacessível); a relação continua em texto');
-  afirma(await texto(page, '#adminPanelArquitetura .avp-panel-titulo') === 'Administração das Avaliações e do Mapa da Floresta', '3. o mesmo título');
+  const restr = await page.evaluate(() => ({ hash: location.hash, navAdmin: document.getElementById('navAdmin').hidden, tax: document.getElementById('adminPanelTaxonomia').hidden,
+    cartaoTax: !!document.getElementById('avpTaxonomiaBtn'), usuarios: !!document.getElementById('avpUsuariosBtn') }));
+  afirma(restr.hash === '#arquitetura?arq=inicio' && restr.navAdmin === true && restr.tax === true, '3. Avaliação + Configuração: #admin leva à Gestão da Floresta; sem o menu ADMIN', restr);
+  afirma(!restr.cartaoTax && !restr.usuarios, '3. sem a Taxonomia e sem Usuários autorizados (áreas do admin geral)', restr);
+  afirma(await texto(page, '#page-avaliacoes .page-hero h1') === 'Gestão da Floresta', '3. o mesmo título');
   /* 4. F5 numa subtela e Voltar */
   await page.click('#avpConfigMotoresBtn');
-  await esperar(page, () => location.hash === '#admin?arq=motores');
+  await esperar(page, () => location.hash === '#arquitetura?arq=motores');
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
-  await esperar(page, () => location.hash === '#admin?arq=motores' && document.getElementById('adminPanelArquitetura').classList.contains('active'));
-  afirma(true, '4. F5 em #admin?arq=motores: continua na subtela');
-  await page.goBack(); await esperar(page, () => location.hash !== '#admin?arq=motores');
+  await esperar(page, () => location.hash === '#arquitetura?arq=motores' && !document.getElementById('adminPanelArquitetura').hidden);
+  afirma(true, '4. F5 em #arquitetura?arq=motores: continua na subtela');
+  await page.goBack(); await esperar(page, () => location.hash !== '#arquitetura?arq=motores');
   afirma(true, '4. Voltar sai da subtela');
-  await page.goForward(); await esperar(page, () => location.hash === '#admin?arq=motores');
+  await page.goForward(); await esperar(page, () => location.hash === '#arquitetura?arq=motores');
   afirma(true, '4. Avançar volta à subtela');
   afirma(await larguraOk(page), '3/4. sem rolagem lateral');
   afirma(!erros.length, 'sem erro de página (Avaliação + Configuração)', erros);

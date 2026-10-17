@@ -1696,7 +1696,7 @@
       if (a.status === 'concluido' && sit === 'vigente') et.push(['Estrutura e vínculo', 'futuro', 'Veja "Estrutura responsável" abaixo']);
       var sim = { ok: '✓', atual: '●', futuro: '○', na: '—', analise: '⚖', opcional: '◇', carregando: '…' };
       /* veio de uma análise de área: a volta é a da área (não concorre com a lista de jornadas) */
-      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada de Avaliação e Posicionamento">' + (origemAreaDe(a) ? '' : '<a class="po-jornada-voltar" id="poVoltarJornada" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Voltar à lista de jornadas</a>') +
+      return '<nav class="po-jornada" id="poJornada" aria-label="Situação do registro">' + (origemAreaDe(a) ? '' : '<a class="po-jornada-voltar" id="poVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(a.itemId) + '">Ver o registro completo deste item</a>') +
         '<ol class="mf-trilha mf-trilha--compacta">' + et.map(function (e) {
           return '<li class="mf-etapa mf-etapa--' + e[1] + '" data-estado="' + e[1] + '"><span class="mf-etapa-simbolo" aria-hidden="true">' + sim[e[1]] + '</span><span class="mf-etapa-texto"><span class="mf-etapa-rotulo">' + esc(e[0]) + '</span>' +
             (e[2] ? '<span class="mf-etapa-detalhe">' + esc(e[2]) + '</span>' : '') + '</span></li>';

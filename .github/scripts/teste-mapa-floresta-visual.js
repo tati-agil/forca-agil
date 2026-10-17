@@ -129,7 +129,7 @@ async function rodada(browser, viewport, rotulo) {
   /* atalhos Mapa ↔ Catálogo */
   await page.click('#mfmIrCatalogo');
   await page.waitForSelector('#mfCatalogo');
-  afirma(await page.evaluate(() => location.hash) === '#arquitetura?mf=catalogo', 'atalho para o Catálogo');
+  afirma(await page.evaluate(() => location.hash) === '#arquitetura?tr=1', 'atalho para o Catálogo');
   await page.click('#mfIrMapa');
   await page.waitForSelector('#mfmMapa');
   afirma(await page.evaluate(() => location.hash) === '#arquitetura?mf=mapa', 'atalho do Catálogo para o Mapa');

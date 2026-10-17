@@ -756,7 +756,8 @@
         if (avatarEl) avatarEl.textContent = sess.name.charAt(0).toUpperCase();
       }
     }
-    if (adminLink) adminLink.hidden = !sess || !(isAdmin((sess || {}).email) || podeArquitetura());
+    /* ADMIN é do admin geral; "Avaliação + Configuração" faz a gestão dentro de A FLORESTA (Gestão da Floresta) */
+    if (adminLink) adminLink.hidden = !sess || !isAdmin((sess || {}).email);
 
     /* Nav links visibility by access level */
     document.querySelectorAll('.nav-link-member').forEach(function (el) {

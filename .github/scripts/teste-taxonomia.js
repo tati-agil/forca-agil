@@ -128,8 +128,7 @@ async function abrir(browser, o) {
   return { ctx, page, erros };
 }
 async function irParaTaxonomia(page) {
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 12000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=taxonomia'; }); /* a Taxonomia é área da Gestão da Floresta */
   await page.waitForSelector('#taxPergunta', { timeout: 8000 });
 }
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));

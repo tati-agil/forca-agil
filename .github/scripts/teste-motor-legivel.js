@@ -37,8 +37,7 @@ async function abrir(browser, viewport) {
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
   return { ctx, page, erros };
 }

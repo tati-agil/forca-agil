@@ -71,7 +71,7 @@ async function esperarDecisaoTardia(page, ev) {
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
 
-    console.log('\n== 1. #admin › Arquitetura: perfil da Avaliação chega tarde ==');
+    console.log('\n== 1. Gestão da Floresta (antes #admin › Arquitetura): perfil da Avaliação chega tarde ==');
     {
       const { ctx, page, erros } = await abrir(browser, viewport, ADM, 'admin?arq=inicio', { 'fa-avaliacao-autorizados': TARDE }, true);
       await page.waitForSelector('#avpDocumentacaoBtn', { state: 'visible', timeout: 12000 });
@@ -81,7 +81,7 @@ async function esperarDecisaoTardia(page, ev) {
       await esperarDecisaoTardia(page, 'fa-avaliacao-ready');
       const y1 = await y(page);
       afirma(y1 === y0, 'decisão tardia na MESMA página: a posição foi preservada (' + y0 + ' → ' + y1 + ' px)');
-      afirma(/#admin/.test(page.url()), 'continua em #admin');
+      afirma(/#arquitetura\?arq=inicio/.test(page.url()), 'continua na Gestão da Floresta');
 
       console.log('\n== 3. Mudança real de página continua começando no topo ==');
       await page.evaluate(() => { location.hash = '#ajuda'; });

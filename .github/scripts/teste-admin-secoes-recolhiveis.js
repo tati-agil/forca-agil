@@ -44,7 +44,7 @@ const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limit
   try {
     for (const [nome, vp] of [['computador', { width: 1280, height: 900 }], ['375 px', { width: 375, height: 812 }]]) {
       console.log('\n== ' + nome + ': estado inicial e Mapa único ==');
-      let r = await abrir(browser, vp, '#admin?arq=inicio');
+      let r = await abrir(browser, vp, '#arquitetura?arq=inicio');
       let page = r.page;
       await page.waitForSelector('#avpAdminMapa #avpDocsMapaFloresta .avp-docs-definicao-texto', { timeout: 20000 });
       await page.waitForSelector('#avpAdminAcessos', { timeout: 15000 });
@@ -76,13 +76,13 @@ const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limit
       await page.click('#avpUsuariosBtn');
       await page.waitForSelector('#avpUsuariosVoltar', { timeout: 15000 });
       await page.goBack();
-      await ate(page, () => !!document.getElementById('avpAdminAcessos') && location.hash === '#admin?arq=inicio', null, 'início depois do Voltar do navegador');
+      await ate(page, () => !!document.getElementById('avpAdminAcessos') && location.hash === '#arquitetura?arq=inicio', null, 'início depois do Voltar do navegador');
       afirma(await page.evaluate(() => document.getElementById('avpAdminAcessos').open) && await visivel(page, '#avpUsuariosBtn'), 'Voltar do navegador: Acessos aberta, com o item de origem à vista');
       afirma(r.erros.length === 0, 'nenhum erro de JS', r.erros);
       await r.ctx.close();
 
       console.log('\n== ' + nome + ': link direto numa área e volta ==');
-      r = await abrir(browser, vp, '#admin?arq=documentacao'); page = r.page;
+      r = await abrir(browser, vp, '#arquitetura?arq=documentacao'); page = r.page;
       await page.waitForSelector('#avpDocsVoltar', { timeout: 20000 });
       await page.click('#avpDocsVoltar');
       await page.waitForSelector('#avpGrupoDocumentacao', { timeout: 15000 });
@@ -91,7 +91,7 @@ const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limit
       await r.ctx.close();
 
       console.log('\n== ' + nome + ': permissões e nenhuma seção vazia ==');
-      r = await abrir(browser, vp, '#admin?arq=inicio', { restrito: true }); page = r.page;
+      r = await abrir(browser, vp, '#arquitetura?arq=inicio', { restrito: true }); page = r.page;
       await page.waitForSelector('#avpAdminMapa', { timeout: 20000 });
       afirma(await page.locator('#avpAdminAcessos, #avpUsuariosBtn').count() === 0, 'Avaliação + Configuração: sem a seção Acessos (só admin geral, como antes)');
       afirma(await page.evaluate(() => [...document.querySelectorAll('#adminAvaliacaoProduto details.avp-admin-secao .avp-admin-secao-corpo')].every((c) => c.querySelector('.avp-admin-card, a, button'))), 'toda seção mostrada tem ao menos uma funcionalidade');

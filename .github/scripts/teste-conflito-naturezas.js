@@ -427,8 +427,7 @@ async function abrir(browser, viewport, configMotor, avaliacoes, rota) {
   return { ctx, page, erros };
 }
 async function abrirConfigMotores(page) {
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpConfigMotoresBtn', { timeout: 8000 });
   await page.click('#avpConfigMotoresBtn');
   await page.waitForSelector('#avpMotorArqEditarBtn');

@@ -96,8 +96,7 @@ const regrasHoje = (page) => page.evaluate(() => JSON.stringify({ v: window.faMo
 
     console.log('\n== Motor de squad legível ==');
     await page.evaluate(() => { location.hash = '#admin'; });
-    await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
     await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 8000 });
     await page.click('#avpMotorSquadInicioBtn');
     await page.waitForSelector('#sqMotorEditarRegrasBtn');

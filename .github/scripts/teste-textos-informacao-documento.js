@@ -352,8 +352,7 @@ async function parteB(browser) {
    área Avaliação. Estes dois passos levam até lá e de volta. */
 async function irAoAdmin(page) {
   await page.evaluate(() => { location.hash = '#admin'; });
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   /* o Admin lembra a subtela em que ficou: se não caiu no início, volta até ele */
   await page.waitForSelector('#avpQuestP1P16Btn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
   for (var nivel = 0; nivel < 6 && !(await page.locator('#avpQuestP1P16Btn').count()); nivel++) {

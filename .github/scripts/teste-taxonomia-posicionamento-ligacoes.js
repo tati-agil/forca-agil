@@ -73,8 +73,7 @@ async function abrir(browser, viewport) {
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 12000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=taxonomia'; }); /* a Taxonomia é área da Gestão da Floresta */
   await page.waitForSelector('.tax-item[data-codigo="LINHA"]', { timeout: 8000 });
   return { ctx, page, erros };
 }

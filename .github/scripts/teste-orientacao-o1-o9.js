@@ -121,8 +121,7 @@ async function tela(browser, viewport, rotulo) {
 
   /* B. ADMIN: as propostas aparecem, nada aplicado */
   await ir(page, '#admin');
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpQuestO1O9Btn'); await page.click('#avpQuestO1O9Btn');
   await page.waitForSelector('#avpCorrecao-' + AJ);
   const cAj = await texto(page, '#avpCorrecao-' + AJ), cRo = await texto(page, '#avpCorrecao-' + RO9);

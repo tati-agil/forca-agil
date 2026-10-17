@@ -274,13 +274,18 @@ async function smokeComoAdmin(page) {
     await esperar(() => { const t = document.getElementById('certTurmaSelect'); return !!t && (!t.disabled || /nenhuma turma neste evento/.test((t.options[0] || {}).textContent || '')); }, null, 'a escolha de turma destravar (ou avisar que o evento não tem turma)');
   });
 
-  await checar('ADMIN › Avaliações e Mapa abre a tela inicial', async () => {
-    await abrirAba('adminPanelArquitetura');
+  /* Avaliações e Mapa e Taxonomia: na Gestão da Floresta, dentro de A FLORESTA (#arquitetura?arq=…) */
+  async function abrirGestao(area) {
+    await page.evaluate((a) => { location.hash = '#arquitetura?arq=' + a; }, area);
+    await esperar(() => { const g = document.getElementById('avaliacoesGestao'); return !!g && !g.hidden; }, null, 'a Gestão da Floresta abrir');
+  }
+  await checar('Gestão da Floresta abre a tela inicial', async () => {
+    await abrirGestao('inicio');
     await esperar(() => !!document.getElementById('avpQuestP1P16Btn'), null, 'os cartões da Arquitetura');
   });
 
-  await checar('ADMIN › Taxonomia carrega os conceitos do banco real', async () => {
-    await abrirAba('adminPanelTaxonomia');
+  await checar('Gestão da Floresta › Taxonomia carrega os conceitos do banco real', async () => {
+    await abrirGestao('taxonomia');
     await esperar(() => !!document.getElementById('taxPergunta') || !!document.getElementById('taxErro'), null, 'a Taxonomia terminar de carregar');
     const erro = await page.evaluate(() => { const e = document.getElementById('taxErro'); return e ? e.textContent.trim() : ''; });
     if (erro) throw new Error('a Taxonomia mostrou erro: ' + erro.slice(0, 120));

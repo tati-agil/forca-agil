@@ -587,6 +587,18 @@
       "sobre": "Endereço oficial #arquitetura com os subendereços da área; #avaliacoes… antigo (com parâmetros) reescrito na carga, na navegação e no Voltar, sem entrada extra no histórico; #admin?avp= abre a ficha; F5, Voltar e Avançar; ADMIN › Abrir Mapa → Voltar; menu \"A Floresta\" para os perfis da Avaliação e escondido sem perfil; título A Floresta."
     },
     {
+      "arquivo": ".github/scripts/teste-floresta-trabalhos.js",
+      "nome": "A FLORESTA: Início (Continuar → Começar → Mapa) e Trabalhos com a Jornada integrada (desktop e celular)",
+      "duracao": 70,
+      "sobre": "Início na ordem Continuar, Começar (Produto/Serviço, responsabilidade, área, Adequação à Squad) e Mapa; Trabalhos (#arquitetura?tr=1) numa tela só — Continuar de onde parou, registros (a antiga Jornada) e listas completas; registro de um item com um só Voltar coerente com a origem; links antigos ?mf=catalogo; perfil Avaliação. Hermético (Firebase falso), nada é gravado."
+    },
+    {
+      "arquivo": ".github/scripts/teste-floresta-gestao.js",
+      "nome": "A FLORESTA: Gestão da Floresta (ex-ADMIN › Avaliações e Mapa e Taxonomia), permissões e links antigos (desktop e celular)",
+      "duracao": 70,
+      "sobre": "As áreas de ADMIN › Avaliações e Mapa e ADMIN › Taxonomia dentro de A Floresta (#arquitetura?arq=<área>), com os mesmos módulos e permissões: admin geral (com Taxonomia e Usuários autorizados), Avaliação + Configuração (sem ADMIN, #admin leva à Gestão), Avaliação (sem acesso); #admin?arq= antigo reescrito; Voltar/F5. Hermético (Firebase falso), nada é gravado."
+    },
+    {
       "arquivo": ".github/scripts/teste-padrao-visual.js",
       "nome": "Padrão Visual Oficial — Arquitetura: tipografia legível com a identidade do Força Ágil (desktop e celular)",
       "duracao": 110,

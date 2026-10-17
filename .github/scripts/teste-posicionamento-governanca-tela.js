@@ -1,6 +1,6 @@
 /* H2-a / H3-a — a tela da governança do motor de Posicionamento. Desktop e celular 375 px; Firebase falso em
  * persistência real; hermético. A lógica pura está em teste-governanca-posicionamento.js; aqui:
- *   1. ADMIN › Motores (aba O1–O9, #admin?arq=motores&m=o): o Motor de Posicionamento mostra v1 em vigor e v2 inativa; a prontidão marca o que
+ *   1. ADMIN › Motores (aba O1–O9, #arquitetura?arq=motores&m=o): o Motor de Posicionamento mostra v1 em vigor e v2 inativa; a prontidão marca o que
  *      falta (redação publicada, aprovação, fronteira confiável) e diz que prontidão não é autorização; não há
  *      ação de ativar; "Simular" mostra os estados e 0 violações de Linha × Squad; "Calcular impacto" separa iguais,
  *      alterados, incomparáveis (com motivo) e violações, contra o RASCUNHO (identificado), e não grava nada.
@@ -87,7 +87,7 @@ function semente(comRascunho) {
   const users = {}; users[chave(ARQ)] = { name: 'Pessoa', email: ARQ, area: 'INFOR' }; users[chave(ADM)] = { name: 'Admin', email: ADM, area: 'INFOR' };
   const conceitos = {}, fontes = {};
   ['AREA_ESPECIALIZADA', 'COE', 'ESTRATEGIA_CLIENTES', 'NEGOCIOS', 'PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA', 'PLATAFORMA_CORPORATIVA', 'LINHA', 'PLATAFORMA'].forEach((c, i) => {
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
   });
   const qc = {};
   if (comRascunho) qc[QCOD] = { motores: { 2: { rascunho: { perguntas: REDACAO_V2_SEED, motorCompativel: 2, origem: 'carga-inicial', atualizadoEm: QUANDO, atualizadoPor: outra } } } };
@@ -132,7 +132,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 
 async function motores(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + '] 1. ADMIN › Motores — Motor de Posicionamento');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores&m=o', true);
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=motores&m=o', true);
   await page.waitForSelector('#avpMotorPosicionamento');
   const antes = await banco(page);
   const card = page.locator('#avpMotorPosicionamento');
@@ -163,7 +163,7 @@ async function motores(browser, viewport, rotulo) {
 }
 async function redacao(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 2. ADMIN › Questionários — editar o rascunho da redação v2');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', true);
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=questionarios', true);
   await page.waitForSelector('#avpConteudoMotorEditarBtn');
   afirma(/— 0/.test(await page.locator('#avpConteudoMotorPublicadas summary').innerText()), 'histórico de versões publicadas: 0');
   afirma(/Publicar como versão 1/i.test(await page.locator('#avpConteudoMotorPublicarBtn').innerText()), 'B2: rascunho compatível → "Publicar como versão 1"');
@@ -195,7 +195,7 @@ async function redacao(browser, viewport, rotulo) {
 }
 async function publicar(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 2b. B2 — publicar a redação v2 (não ativa nada)');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', true);
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=questionarios', true);
   await page.waitForSelector('#avpConteudoMotorPublicarBtn');
   const antes = await banco(page);
   await page.click('#avpConteudoMotorPublicarBtn');
@@ -215,7 +215,7 @@ async function publicar(browser, viewport, rotulo) {
   await page.click('#avpConteudoMotorPublicadas summary');
   afirma(/Versão 1/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()) && /Validada para ativação: não/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()), 'histórico: versão 1, "Validada para ativação: não"');
   afirma(await page.locator('#avpConteudoMotorPublicarBtn').count() === 0, 'sem rascunho, não há o que publicar');
-  await page.evaluate(() => { window.__detAntigo = document.getElementById('avpConteudoMotorPublicadas'); location.hash = '#admin?arq=motores&m=o'; });
+  await page.evaluate(() => { window.__detAntigo = document.getElementById('avpConteudoMotorPublicadas'); location.hash = '#arquitetura?arq=motores&m=o'; });
   await page.waitForSelector('#avpMotorPosicionamento');
   /* "toggle" é uma tarefa à parte: na máquina lenta chega depois que a tela já trocou (CI, 375 px) */
   await page.evaluate(() => { window.__detAntigo.dispatchEvent(new Event('toggle')); });
@@ -230,7 +230,7 @@ async function publicar(browser, viewport, rotulo) {
 }
 async function suspensao(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 2c. B2 — admin geral suspende e retoma novas publicações');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', true, ADM);
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=questionarios', true, ADM);
   await page.waitForSelector('#avpConteudoMotorSuspensaoBtn');
   page.once('dialog', (d) => d.accept('Revisar a redação antes de publicar'));
   await page.click('#avpConteudoMotorSuspensaoBtn');
@@ -281,7 +281,7 @@ async function calcularImpacto(page) {
   await page.waitForSelector('#avpPosImpacto');
 }
 async function abrirMotores(browser, viewport, email, db, extra) {
-  const r = await abrir(browser, viewport, '#admin?arq=motores&m=o', false, email, db, extra);
+  const r = await abrir(browser, viewport, '#arquitetura?arq=motores&m=o', false, email, db, extra);
   await r.page.waitForSelector('#avpPosGovernanca #avpPosVigenciaRegistrada');
   return r;
 }
@@ -490,7 +490,7 @@ async function fronteiraTela(browser, viewport, rotulo) {
   /* Questionários: o histórico diz que a versão publicada foi validada */
   const dbV = clone(dbAprovado);
   dbV['posicionamento-motor-redacao-validada'] = { 2: { 1: { digestRedacao: G.digestRedacao(REDACAO_V2_SEED), validadoEm: 1760000000000, solicitadoPor: { uid: 'u', email: ADM }, auditoriaId: 'a' } } };
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', false, ADM, dbV));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=questionarios', false, ADM, dbV));
   await page.waitForSelector('#avpConteudoMotorPublicadas');
   await page.click('#avpConteudoMotorPublicadas summary');
   await esperarCondicao(page, () => /Validada para ativação: sim/.test((document.getElementById('avpConteudoMotorPublicadas') || {}).textContent || ''), undefined, { limite: 8000 }).catch(() => {});
@@ -589,7 +589,7 @@ async function ativacaoTela(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* 6g. ADMIN com a v2 em vigor: a tabela diz isso e o alvo passa a ser o retorno à v1 */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores&m=o', false, ADM, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=motores&m=o', false, ADM, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
   await page.waitForSelector('#avpPosVerificandoVigencia');
   afirma(await page.locator('#avpPosGovernanca').count() === 0, 'ADMIN com vigência lenta: "Verificando a versão em vigor…", sem governança');
   await page.waitForSelector('#avpPosGovernanca #avpPosVigenciaRegistrada', { timeout: 10000 });

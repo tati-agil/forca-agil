@@ -1250,6 +1250,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
       <span class="eyebrow" style="color:var(--gold)">Área Restrita</span>
       <h1>Painel Admin</h1>
       <p>Área de administração do FORÇA ÁGIL. As abas disponíveis e as ações permitidas dependem do perfil de acesso.</p>
+      <p class="adm-area-desc" id="adminNotaFloresta">Avaliações e Mapa e Taxonomia ficam agora em <a href="#arquitetura?arq=inicio">A FLORESTA › Gestão da Floresta</a>.</p>
     </div>
 
     <div id="adminGuard" hidden>
@@ -1278,8 +1279,6 @@ body.aguardando-auth>#bootStatus{z-index:900}
         <button class="admin-tab-btn" data-panel="adminPanelManual">Manual</button>
         <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
         <button class="admin-tab-btn" data-panel="adminPanelSorteios">Sorteios</button>
-        <button class="admin-tab-btn" data-panel="adminPanelArquitetura">Avaliações e Mapa</button>
-        <button class="admin-tab-btn" data-panel="adminPanelTaxonomia">Taxonomia</button>
       </div>
 
       <div class="admin-tab-panel" id="adminPanelDashboard">
@@ -1351,27 +1350,6 @@ body.aguardando-auth>#bootStatus{z-index:900}
       <div class="admin-tab-panel" id="adminPanelSorteios">
         <div id="adminSorteios">
           <p class="loading-msg">Carregando sorteios…</p>
-        </div>
-      </div>
-
-      <div class="admin-tab-panel" id="adminPanelArquitetura">
-        <h3 class="avp-panel-titulo">Administração das Avaliações e do Mapa da Floresta</h3>
-        <p class="adm-area-desc" id="admArqDescricao">Configurações e cadastros governados das avaliações e do Mapa da Floresta: questionários, motores, estruturas e documentação.</p>
-        <!-- o atalho só aparece quando a aba Taxonomia está disponível para a pessoa (admin.js) -->
-        <p class="adm-area-desc" id="admArqRelacaoTaxonomia">As avaliações e o Mapa utilizam conceitos da Taxonomia. A manutenção desses conceitos é realizada na aba Taxonomia, conforme as permissões do usuário. <button type="button" class="adm-link-aba" id="admArqIrTaxonomia" hidden>Abrir a aba Taxonomia</button></p>
-        <div id="adminAvaliacaoProduto">
-          <p class="loading-msg">Carregando avaliações…</p>
-        </div>
-        <div id="adminAvaliacaoSquad" hidden>
-          <p class="loading-msg">Carregando avaliações de squad…</p>
-        </div>
-        <div id="adminEstruturas" hidden></div>
-        <div id="adminEstruturaAtual" hidden></div>
-      </div>
-
-      <div class="admin-tab-panel" id="adminPanelTaxonomia">
-        <div id="adminTaxonomia">
-          <p class="loading-msg">Carregando a Taxonomia…</p>
         </div>
       </div>
 
@@ -1694,6 +1672,29 @@ body.aguardando-auth>#bootStatus{z-index:900}
       <div id="avaliacoesPosicionamento" hidden><p class="loading-msg">Carregando avaliações de posicionamento…</p></div>
       <div id="avaliacoesMapa" hidden><p class="loading-msg">Carregando o catálogo do Mapa da Floresta…</p></div>
       <div id="avaliacoesAnalise" hidden><p class="loading-msg">Carregando…</p></div>
+      <!-- GESTÃO DA FLORESTA (#arquitetura?arq=<área>): as telas que eram de ADMIN › Avaliações e Mapa e ADMIN › Taxonomia,
+           com os mesmos módulos, ids e permissões (avaliacao-produto.js abre; quem pode: admin geral e "Avaliação +
+           Configuração"; Taxonomia e Usuários autorizados, só admin geral). As regras do banco não mudaram. -->
+      <div id="avaliacoesGestao" class="fl-gestao" hidden>
+        <div id="avaliacoesGestaoAviso" hidden></div>
+        <div class="fl-gestao-painel" id="adminPanelArquitetura" hidden>
+          <div id="adminAvaliacaoProduto">
+            <p class="loading-msg">Carregando…</p>
+          </div>
+          <div id="adminAvaliacaoSquad" hidden>
+            <p class="loading-msg">Carregando…</p>
+          </div>
+          <div id="adminEstruturas" hidden></div>
+          <div id="adminEstruturaAtual" hidden></div>
+        </div>
+        <div class="fl-gestao-painel" id="adminPanelTaxonomia" hidden>
+          <!-- sem origem registrada (entrada direta, F5): o retorno é o início da Gestão; com origem, a Taxonomia mostra o dela -->
+          <button type="button" class="avp-voltar-link" id="flTaxVoltar" hidden>← Voltar para a Gestão da Floresta</button>
+          <div id="adminTaxonomia">
+            <p class="loading-msg">Carregando a Taxonomia…</p>
+          </div>
+        </div>
+      </div>
     </section>
   </div>
 </div><!-- /page-avaliacoes -->

@@ -259,7 +259,7 @@ async function parteB(browser, R) {
         carencia: item('Carência', ['P11', 'P13'], 'a-validar')
       };
       const { ctx, page, erros } = await abrir(browser, viewport, clone(base6), avaliacoes);
-      await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+      await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
       await page.waitForSelector('#avpConfigMotoresBtn');
       await page.click('#avpConfigMotoresBtn');
       await page.waitForSelector('#avpMotorArqEditarBtn');

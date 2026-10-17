@@ -1,6 +1,6 @@
 /* Catálogo preparatório do Mapa da Floresta (mapa-floresta.js) — 1º incremento, SÓ CONSULTA. Desktop e celular
  * 375 px; Firebase falso em persistência real; hermético. O que a pessoa vê e o que a tela (não) grava:
- *   1. Abrir pela lista de Avaliações: endereço #arquitetura?mf=catalogo, título próprio ("Catálogo preparatório" —
+ *   1. Abrir pela lista de Avaliações: endereço #arquitetura?tr=1, título próprio ("Catálogo preparatório" —
  *      não o Mapa visual); as três categorias (Linha com os 6 códigos firmes do ramo Linha, Área Especializada, CoE)
  *      com os nomes da Taxonomia e o invariante Linha × Squad (Linha pode ter Squads; Área e CoE não).
  *   2. Estruturas e associações: aviso de informação INDISPONÍVEL nesta versão; nunca "nenhuma estrutura cadastrada",
@@ -138,13 +138,13 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 const texto = (page, sel) => page.locator(sel).innerText();
 const itensVisiveis = (page) => page.$$eval('#mfItens .mf-item', (els) => els.map((e) => e.getAttribute('data-item')).sort());
 /* lista simples (ajuste de usabilidade): filtros e contadores ficam recolhidos em "Filtros e contadores"; os detalhes de um
-   objeto abrem ao clicar nele (#arquitetura?mf=catalogo&item=<id>) */
+   objeto abrem ao clicar nele (#arquitetura?tr=1&item=<id>) */
 async function abrirAvancados(page) {
   const d = page.locator('#mfFiltrosAvancados');
   if ((await d.count()) && !(await d.evaluate((x) => x.open))) await page.click('#mfFiltrosAvancados > summary');
 }
 async function detalhe(page, id) {
-  await page.evaluate((i) => { location.hash = '#arquitetura?mf=catalogo&item=' + encodeURIComponent(i); }, id);
+  await page.evaluate((i) => { location.hash = '#arquitetura?tr=1&item=' + encodeURIComponent(i); }, id);
   await page.waitForSelector('#mfItens .mf-item--detalhe[data-item="' + id + '"]');
   return page.locator('#mfItens .mf-item--detalhe[data-item="' + id + '"]');
 }
@@ -170,14 +170,14 @@ async function capturar(page, nome) {
 async function principal(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + '] 1–6. categorias, catálogo, filtros, navegação e nada gravado');
   const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura');
-  await page.waitForSelector('#avpInicioJornada');
+  await page.waitForSelector('#avpInicioTrabalhos');
   const antes = await banco(page);
-  await page.click('#avpInicioJornada');
+  await page.click('#avpInicioTrabalhos');
   await page.waitForSelector('#mfItens');
-  afirma(await page.evaluate(() => location.hash) === '#arquitetura?mf=catalogo', 'endereço próprio #arquitetura?mf=catalogo');
-  afirma(/Jornada de Avaliação e Posicionamento/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'título "Jornada de Avaliação e Posicionamento" (não o Mapa visual)');
+  afirma(await page.evaluate(() => location.hash) === '#arquitetura?tr=1', 'endereço próprio #arquitetura?tr=1');
+  afirma(/^trabalhos$/i.test((await texto(page, '#page-avaliacoes .page-hero h1')).trim()), 'título "Trabalhos" (não o Mapa visual)');
   afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de Avaliações fica por baixo, escondida');
-  afirma((await page.evaluate(() => (document.body.innerText.match(/Jornada de Avaliação e Posicionamento/g) || []).length)) === 1, 'o título aparece uma vez só (sem repetir no cartão)');
+  afirma((await page.evaluate(() => [...document.querySelectorAll('#avaliacoesMapa h2, #avaliacoesMapa h3')].filter((h) => h.textContent.trim() === 'Trabalhos').length)) === 0, 'o título aparece uma vez só (sem repetir no cartão)');
 
   /* 0. lista simples: busca em destaque; categorias, filtros, contadores e explicações recolhidos; nenhum detalhe aberto */
   const celular = viewport === CELULAR;
@@ -284,7 +284,7 @@ async function principal(browser, viewport, rotulo) {
   await page.fill('#mfBusca', 'divergente');
   await page.click('#mfItens .mf-item[data-item="pDiv"] .mf-linha-abrir');
   await page.waitForSelector('#mfItens .mf-item--detalhe[data-item="pDiv"]');
-  afirma((await page.evaluate(() => location.hash)) === '#arquitetura?mf=catalogo&item=pDiv' && await page.locator('#mfItens .mf-item').count() === 1, 'clicar no objeto abre só a jornada dele (endereço próprio)');
+  afirma((await page.evaluate(() => location.hash)) === '#arquitetura?tr=1&item=pDiv' && await page.locator('#mfItens .mf-item').count() === 1, 'clicar no objeto abre só a jornada dele (endereço próprio)');
   await voltarLista(page);
   afirma((await page.inputValue('#mfBusca')) === 'divergente' && JSON.stringify(await itensVisiveis(page)) === '["pDiv"]', '"← Voltar para a lista" preserva a busca');
   await page.click('#mfLimparFiltros');
@@ -294,17 +294,17 @@ async function principal(browser, viewport, rotulo) {
   afirma(await page.locator('#avaliacoesMapa').isHidden() && /[?&]po=gDiv/.test(await page.evaluate(() => location.hash)), '"Abrir Posicionamento" abre a ficha da avaliação vigente');
   await page.goBack();
   await page.waitForSelector('#mfItens');
-  afirma(await page.locator('#avaliacoesPosicionamento').isHidden() && /Jornada de Avaliação e Posicionamento/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'Voltar do navegador volta ao catálogo');
+  afirma(await page.locator('#avaliacoesPosicionamento').isHidden() && /^s*Trabalhoss*$/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'Voltar do navegador volta aos registros');
   await page.goBack(); await page.waitForSelector('#mfItens .mf-linha');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#mfItens');
-  afirma((await itensVisiveis(page)).length === 10, 'F5 em #arquitetura?mf=catalogo reabre o catálogo');
+  afirma((await itensVisiveis(page)).length === 10, 'F5 em #arquitetura?tr=1 reabre o catálogo');
   await page.click('#mfVoltar');
-  await page.waitForSelector('#avpInicioJornada');
+  await page.waitForSelector('#avpInicioTrabalhos');
   afirma(await page.locator('#avaliacoesMapa').isHidden() && (await texto(page, '#page-avaliacoes .page-hero h1')).trim() === 'A Floresta', '"← Voltar para A Floresta": lista e título originais');
 
   /* 6. nada gravado (e, antes, nada cortado dentro dos cartões — rolagem horizontal da página não pega isso) */
-  await page.click('#avpInicioJornada');
+  await page.click('#avpInicioTrabalhos');
   await page.waitForSelector('#mfItens');
   await abrirFiltroPosic(page);
   const pequenos = await page.$$eval('#avaliacoesMapa button, #avaliacoesMapa a, #avaliacoesMapa select, #avaliacoesMapa input:not([type="radio"]), #avaliacoesMapa summary, #avaliacoesMapa label.mf-opcao',
@@ -313,7 +313,7 @@ async function principal(browser, viewport, rotulo) {
   const cortados = await page.$$eval('#avaliacoesMapa .mf-categoria, #avaliacoesMapa .mf-item, #avaliacoesMapa .mf-filtros, #avaliacoesMapa .mf-opcao, #avaliacoesMapa .mf-filtro-posic-resumo', (els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > window.innerWidth + 1).map((e) => e.className + ':' + (e.getAttribute('data-categoria') || e.getAttribute('data-item') || '')));
   afirma(!cortados.length, 'nenhum cartão ou filtro transborda a largura da tela', cortados.join(', '));
   await page.click('#mfVoltar');
-  await page.waitForSelector('#avpInicioJornada');
+  await page.waitForSelector('#avpInicioTrabalhos');
   afirma(await banco(page) === antes, 'nenhuma gravação: o banco inteiro é o mesmo antes e depois');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
@@ -332,7 +332,7 @@ async function legibilidade(browser, viewport, rotulo, nomes, tituloNomes) {
   console.log('[' + rotulo + '] 4b. filtros legíveis, sem corte (' + tituloNomes + ')');
   const db = semente();
   Object.keys(nomes).forEach((k) => { db.taxonomia.organizacional.conceitos[k].nome = nomes[k]; });
-  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo', ARQ, { db });
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?tr=1', ARQ, { db });
   await page.waitForSelector('#mfItens');
   /* espera os nomes OFICIAIS chegarem (o rótulo de contingência também é um nome longo): o estado do módulo tem de ser 'ok' */
   await esperarCondicao(page, () => !!(window.faPosicionamentos && window.faPosicionamentos.estado() === 'ok'), null, { limite: 10000, descricao: 'nomes da Taxonomia carregados' });
@@ -368,13 +368,13 @@ async function legibilidade(browser, viewport, rotulo, nomes, tituloNomes) {
 
 async function perfis(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 7. perfis');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo', AVA);
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?tr=1', AVA);
   await page.waitForSelector('#mfItens');
   afirma((await itensVisiveis(page)).length === 10 && await page.locator('#avaliacoesMapa button:not(.avp-voltar-link):not(.mf-filtrar-categoria):not(#mfLimparFiltros):not(#mfIrMapa):not(#mfSoAcao)').count() === 0,
     'perfil "Avaliação": consulta o catálogo, sem nenhuma ação de gravação');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo', SEM));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?tr=1', SEM));
   await esperarCondicao(page, () => !/^#(?:arquitetura|avaliacoes)/.test(location.hash) || !!document.getElementById('mfSemAcesso') || (document.getElementById('page-avaliacoes') || {}).hidden, null, { limite: 10000, descricao: 'sem acesso decidido' });
   afirma(await page.locator('#mfItens').count() === 0 && !/Item Linha/.test(await page.evaluate(() => document.body.innerText)), 'sem acesso à Avaliação: o catálogo não aparece e nenhum item vaza');
   await ctx.close();
@@ -382,14 +382,14 @@ async function perfis(browser, viewport, rotulo) {
 
 async function rede(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 8. rede lenta, leitura recusada e "Tentar de novo"');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo', ARQ, { delays: { 'posicionamento-decisoes': 3000 } });
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?tr=1', ARQ, { delays: { 'posicionamento-decisoes': 3000 } });
   await page.waitForSelector('#mfCarregando');
   afirma(await page.locator('#mfItens, #mfVazio').count() === 0, 'leitura lenta: "Carregando…", nunca catálogo vazio');
   await page.waitForSelector('#mfItens', { timeout: 10000 });
   afirma((await itensVisiveis(page)).length === 10, 'quando a leitura chega, o catálogo aparece');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo', ARQ, { fail: ['posicionamento-decisoes'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?tr=1', ARQ, { fail: ['posicionamento-decisoes'] }));
   await page.waitForSelector('#mfErro');
   afirma(await page.locator('#mfItens, #mfVazio').count() === 0 && /Não foi possível ler/.test(await texto(page, '#mfErro')), 'leitura recusada: erro com "Tentar de novo", nenhum catálogo parcial');
   await capturar(page, 'erro-' + (viewport === DESKTOP ? 'desktop' : '375'));
@@ -404,7 +404,7 @@ async function rede(browser, viewport, rotulo) {
 
 async function demora(browser) {
   console.log('[desktop] 8b. leitura que não chega: aviso de demora');
-  const { ctx, page, erros } = await abrir(browser, DESKTOP, '#arquitetura?mf=catalogo', ARQ, { delays: { 'posicionamento-decisoes': 60000 } });
+  const { ctx, page, erros } = await abrir(browser, DESKTOP, '#arquitetura?tr=1', ARQ, { delays: { 'posicionamento-decisoes': 60000 } });
   await page.waitForSelector('#mfDemora', { timeout: 16000 });
   afirma(/demorando/.test(await texto(page, '#mfDemora')) && await page.locator('#mfItens').count() === 0, 'depois de 12 s: "demorando mais que o normal", com "Tentar de novo", sem catálogo');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
@@ -424,15 +424,15 @@ async function loginDepois(browser) {
   await page.evaluate((v) => { const el = document.getElementById('loginEmail'); if (el.value !== v) el.value = v; }, ARQ);
   await page.click('#loginForm button[type="submit"]');
   await esperarCondicao(page, () => { const m = document.getElementById('authModal'); return !!m && m.hidden === true; }, null, { limite: 10000, descricao: 'o login fechar o modal' });
-  await page.waitForSelector('#avpInicioJornada', { timeout: 15000 });
-  await page.click('#avpInicioJornada');
+  await page.waitForSelector('#avpInicioTrabalhos', { timeout: 15000 });
+  await page.click('#avpInicioTrabalhos');
   await esperarCondicao(page, () => document.querySelectorAll('#mfItens .mf-item').length > 0 && !document.querySelector('#mfItens [data-situacao="verificando"]') && !/Verificando…|Carregando…/.test((document.getElementById('mfItens') || {}).textContent || ''),
     null, { limite: 10000, descricao: 'os itens saírem de "Verificando…"/"Carregando…" sem recarregar a página' });
   afirma(await page.evaluate(() => window.faMotorArquitetura.configCarregada()), '8c. depois do login, a configuração do motor de P1–P16 carrega e a Jornada mostra os dados sem F5');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   console.log('[desktop] 8d. configuração do motor que não chega');
-  const d = await abrir(browser, DESKTOP, '#arquitetura?mf=catalogo', ARQ, { delays: { 'motor-arquitetura-config': 60000 } });
+  const d = await abrir(browser, DESKTOP, '#arquitetura?tr=1', ARQ, { delays: { 'motor-arquitetura-config': 60000 } });
   await d.page.waitForSelector('#mfDemora', { timeout: 16000 });
   afirma(/demorando/.test(await texto(d.page, '#mfDemora')) && await d.page.locator('#mfTentarDeNovo').count() >= 1, '8d. sem a configuração do motor: "demorando", com "Tentar de novo" (nunca "Verificando…" sem aviso)');
   await d.ctx.close();

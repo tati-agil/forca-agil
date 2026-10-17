@@ -61,7 +61,12 @@ const esperar = (page, fn, arg, limite) => esperarCondicao(page, fn, arg, { limi
 const noInicio = (page) => esperar(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#arquitetura'; });
 const linha = (id) => '#mfItens .mf-linha[data-item="' + id + '"]';
 const card = (id) => '#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]';
-const naJornada = (page) => esperar(page, () => { const r = document.getElementById('mfResumo'); return !!r && /Jornada completa/.test(r.textContent); }, undefined, 15000);
+const naJornada = (page) => esperar(page, () => { const r = document.getElementById('mfResumo'); return !!r && /Registros completos/.test(r.textContent); }, undefined, 15000);
+/* Trabalhos: as listas completas ficam recolhidas (a escolha dura enquanto a página não recarrega) */
+async function abrirListas(page) {
+  await page.waitForSelector('#mfTrabListas > summary', { timeout: 10000 });
+  if (!(await page.evaluate(() => document.getElementById('mfTrabListas').open))) await page.click('#mfTrabListas > summary');
+}
 async function abreItem(page, id) {
   await page.click(linha(id) + ' .mf-linha-abrir');
   await page.waitForSelector(card(id), { timeout: 10000 });
@@ -77,8 +82,8 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/O que você deseja fazer\?/.test(await texto(page, '#avpInicio')) && await visivel(page, '#avpInicioContinuar') && await visivel(page, '#avpInicioComecar'),
     'continuar um trabalho e começar um trabalho (sem painel de conexões)');
   afirma(await page.locator('#avpInicio .btn--primary').count() === 0 && (await texto(page, '#avpInicioTrabalhos')).trim() === 'Ver e continuar trabalhos' && (await page.getAttribute('#avpInicioTrabalhos', 'href')) === '#arquitetura?tr=1' &&
-    /Consultar jornada até o Mapa/.test(await texto(page, '#avpInicioJornada')),
-    'continuar leva aos Trabalhos de avaliação; a Jornada do Mapa é consulta, com nome próprio; nenhum botão domina o Início');
+    !(await page.$('#avpInicioJornada')),
+    'continuar leva aos Trabalhos (com os registros da antiga Jornada); nenhum botão domina o Início');
   afirma(/Avaliar um Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se um item constitui um Produto\/Serviço\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
     (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' &&
     /Avaliar uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Já sabe qual responsabilidade deseja avaliar\?/.test(await texto(page, '#avpInicioOpcaoA')) &&
@@ -89,15 +94,15 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Portas (sem terceira porta)');
   afirma(/Porta 1 · P1–P16/i.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')) && /Porta 2 · Posicionamento das responsabilidades · O1–O9/i.test(await texto(page, '#avpInicioCartaoAtuacao > .avp-inicio-caminho')),
     'Porta 1 e Porta 2 (as duas atividades de responsabilidade sob a mesma Porta 2 e o mesmo O1–O9)');
-  afirma(/independentes: nenhuma é etapa da outra/.test(await texto(page, '#avpInicioNota')), 'as duas portas não são etapas de um mesmo fluxo');
+  afirma(/independentes: nenhuma é etapa obrigatória da outra/.test(await texto(page, '#avpInicioNota')), 'as duas portas não são etapas de um mesmo fluxo');
   console.log('Sem painel de conexões (a explicação é da Jornada até o Mapa)');
   afirma(await page.locator('#avpInicioConsultar, #avpComoTitulo, .avp-como, #avpInicio [data-admin-destino]').count() === 0 && !/Entenda como as avaliações se conectam/.test(await texto(page, '#avaliacoesPainel')),
     'o painel "Entenda como as avaliações se conectam" não existe mais (nem atalhos ao ADMIN no Início)');
-  afirma(await page.evaluate(() => { const c = document.getElementById('avpInicioComecar'), f = document.getElementById('avpInicio'); return !!c && f.lastElementChild === c; }), 'o Início termina em "Começar um trabalho", sem bloco vazio no lugar do painel');
+  afirma(await page.evaluate(() => { const m = document.getElementById('avpInicioMapaSec'), f = document.getElementById('avpInicio'); return !!m && (f.lastElementChild === m || (m.nextElementSibling && m.nextElementSibling.id === 'avpInicioGestao' && f.lastElementChild === m.nextElementSibling)); }), 'depois de continuar e começar, o Mapa da Floresta (e, para quem faz a gestão, o bloco Gestão da Floresta)');
   afirma(await page.locator('#avpInicio button').count() === 0, 'nenhum botão novo no Início');
   afirma(await page.locator('#avpSquadBtn, #avpPosicionamentoBtn, #avpMapaFlorestaBtn').count() === 0, 'sem a antiga barra de atalhos soltos');
   afirma(await larguraOk(page), 'Início sem rolagem lateral');
-  for (const id of ['avpInicioJornada', 'avpInicioNatureza', 'avpInicioAtuacao']) {
+  for (const id of ['avpInicioTrabalhos', 'avpInicioNatureza', 'avpInicioAtuacao', 'avpInicioSquad']) {
     const alt = await page.evaluate((i) => document.getElementById(i).getBoundingClientRect().height, id);
     afirma(alt >= 44, 'área de toque de ' + id + ' ≥ 44 px', String(alt));
   }
@@ -107,12 +112,12 @@ async function rodada(browser, viewport, rotulo) {
   await noInicio(page);
 
   console.log('Caso 1 — Agilidade (CoE, vínculo válido)');
-  await page.click('#avpInicioJornada');
+  await page.click('#avpInicioTrabalhos');
   await naJornada(page);
-  afirma(await hash(page) === '#arquitetura?mf=catalogo', 'Início → Jornada', await hash(page));
+  afirma(await hash(page) === '#arquitetura?tr=1', 'Início → Trabalhos (registros)', await hash(page));
   await page.fill('#mfBusca', 'agilidade');
   await esperar(page, () => document.querySelectorAll('#mfItens .mf-linha').length === 1);
-  afirma(/Jornada completa/.test(await texto(page, linha('oAgi'))), 'busca: a Agilidade, "Jornada completa"');
+  afirma(/Registro completo/.test(await texto(page, linha('oAgi'))), 'busca: a Agilidade, "Registro completo"');
   await abreItem(page, 'oAgi');
   afirma(await page.locator(card('oAgi') + ' .mf-abrir-squad').count() === 0, 'CoE: sem "Acessar Adequação à Squad"');
   const verMapa = await page.getAttribute(card('oAgi') + ' .mf-acao', 'href');
@@ -123,7 +128,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector('#mfmDetalheVoltarJornada', { timeout: 10000 });
   await page.click('#mfmDetalheVoltarJornada');
   await page.waitForSelector(card('oAgi'), { timeout: 10000 });
-  afirma(await hash(page) === '#arquitetura?mf=catalogo&item=oAgi', 'do Mapa, o retorno contextual volta ao MESMO objeto (não ao Início)', await hash(page));
+  afirma(await hash(page) === '#arquitetura?tr=1&item=oAgi', 'do Mapa, o retorno contextual volta ao MESMO objeto (não ao Início)', await hash(page));
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   await page.waitForSelector(card('oAgi'), { timeout: 15000 });
   afirma(true, 'F5 no detalhe: o mesmo objeto');
@@ -131,7 +136,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector(linha('pJur'), { timeout: 10000 });
 
   console.log('Caso 2 — Jurídico');
-  afirma(/Representado pela responsabilidade “Assessoramento jurídico”/.test(await texto(page, linha('pJur'))) && /Jornada completa/.test(await texto(page, linha('oJur'))),
+  afirma(/Representado pela responsabilidade “Assessoramento jurídico”/.test(await texto(page, linha('pJur'))) && /Registro completo/.test(await texto(page, linha('oJur'))),
     'P1–P16 "representado pela responsabilidade"; a atuação com a jornada completa — sem pendência inventada');
   await abreItem(page, 'oJur');
   afirma(await page.locator(card('oJur') + ' .mf-abrir-squad').count() === 0, 'Área Especializada: sem Squad');
@@ -155,13 +160,13 @@ async function rodada(browser, viewport, rotulo) {
   afirma(await page.locator('#avaliacoesMapa').isHidden() && /Capec/.test(await texto(page, '#avaliacoesSquad')), 'abre a Adequação à Squad do item, no lugar da Jornada');
   await page.goBack();
   await page.waitForSelector(card('pCapec'), { timeout: 10000 });
-  afirma(await hash(page) === '#arquitetura?mf=catalogo&item=pCapec' && await page.locator('#avaliacoesSquad').isHidden(), 'Voltar: o mesmo objeto na Jornada', await hash(page));
+  afirma(await hash(page) === '#arquitetura?tr=1&item=pCapec' && await page.locator('#avaliacoesSquad').isHidden(), 'Voltar: o mesmo registro', await hash(page));
   afirma(await larguraOk(page), 'detalhe sem rolagem lateral');
   await page.click('#mfVoltarLista');
   await page.waitForSelector('#mfVoltar', { timeout: 10000 });
   await page.click('#mfVoltar');
   await noInicio(page);
-  afirma(true, 'da lista da Jornada, "← Voltar para Avaliações" leva ao Início');
+  afirma(true, 'dos Trabalhos, "← Voltar para A Floresta" leva ao Início');
 
   console.log('Caso 3 — nova avaliação de natureza');
   await page.click('#avpInicioNatureza');
@@ -181,8 +186,10 @@ async function rodada(browser, viewport, rotulo) {
 
   console.log('Caso 7 — avaliação antiga, exportar, Lixeira');
   await page.click('#avpInicioTrabalhos');
+  await page.waitForSelector('#mfTrabListas > summary', { timeout: 10000 });
+  await page.click('#mfTrabListas > summary'); /* as listas completas ficam recolhidas nos Trabalhos */
   await page.waitForSelector('#avpTrabIrProdutos', { timeout: 10000 });
-  afirma(await page.locator('#avpTrabIrProdutos, #avpTrabIrPosicionamentos, #avpTrabIrSquad, #avpTrabIrJornada').count() === 4, 'Trabalhos de avaliação: Produto/Serviço, Posicionamentos, Adequação à Squad e Jornada');
+  afirma(await page.locator('#avpTrabIrProdutos, #avpTrabIrPosicionamentos, #avpTrabIrSquad').count() === 3 && await visivel(page, '#mfItens'), 'Trabalhos: os registros e as listas completas de Produto/Serviço, Posicionamentos e Adequação à Squad');
   await page.click('#avpTrabIrProdutos');
   await page.waitForSelector('#avpListaTitulo', { timeout: 10000 });
   await esperar(page, () => document.querySelectorAll('#avaliacoesPainel .avp-table tbody tr').length > 0, undefined, 15000);
@@ -198,20 +205,20 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector('#avpListaTitulo', { timeout: 15000 });
   afirma(await hash(page) === '#arquitetura?av=lista', 'F5 na lista: continua na lista');
   await page.click('#avpVoltarInicio');
-  await page.waitForSelector('#avpTrabalhos', { timeout: 10000 });
-  afirma(true, '"← Voltar" da lista: Trabalhos de avaliação (de onde ela foi aberta)');
+  await abrirListas(page);
+  afirma(await hash(page) === '#arquitetura?tr=1', '"← Voltar" da lista: Trabalhos (de onde ela foi aberta)', await hash(page));
   await page.click('#avpTrabIrPosicionamentos');
   await page.waitForSelector('#poLista', { timeout: 10000 });
   await esperar(page, () => !!document.getElementById('poExportarBtn'), undefined, 15000);
   afirma(await hash(page) === '#arquitetura?po=lista', 'Trabalhos → Posicionamentos: a lista com Exportar');
   await page.click('#poVoltar');
-  await page.waitForSelector('#avpTrabalhos', { timeout: 10000 });
+  await abrirListas(page);
   await page.click('#avpTrabIrSquad');
   await page.waitForSelector('#sqExportarBtn', { timeout: 15000 });
   afirma(await hash(page) === '#arquitetura?sq=lista' && await visivel(page, '#sqNovaBtn'), 'Trabalhos → Adequação à Squad: a lista com Exportar e "+ Nova avaliação de squad" (continua disponível sem o painel)', await hash(page));
   await page.goBack();
-  await page.waitForSelector('#avpTrabalhos', { timeout: 10000 });
-  await page.click('#avpTrabVoltar');
+  await page.waitForSelector('#mfVoltar', { timeout: 10000 });
+  await page.click('#mfVoltar');
   await noInicio(page);
 
   console.log('Caso 8 — Mapa');
@@ -248,9 +255,10 @@ async function rodada(browser, viewport, rotulo) {
   afirma(await page.locator('#avpInicioConsultar, .avp-como-fonte, #avpInicio [data-admin-destino]').count() === 0, 'perfil Avaliação (consulta): nenhum painel de conexões nem atalho para o ADMIN');
   afirma(!(await visivel(page, '#avpInicioAtuacao')) && /perfil Avaliação \+ Configuração/.test(await texto(page, '#avpInicioAtuacaoPerfil')) && await visivel(page, '#avpInicioNatureza'),
     'perfil Avaliação: começa avaliação de natureza; a atuação explica quem inicia (sem botão)');
-  await page.click('#avpInicioJornada');
+  afirma(await visivel(page, '#avpInicioSquad'), 'perfil Avaliação: "Abrir Adequação à Squad" (as mesmas permissões da tela)');
+  await page.click('#avpInicioTrabalhos');
   await naJornada(page);
-  afirma(true, 'perfil Avaliação: abre a Jornada');
+  afirma(true, 'perfil Avaliação: abre os Trabalhos, com os registros');
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', { email: ADM }));
   await noInicio(page);

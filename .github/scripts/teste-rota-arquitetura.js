@@ -75,9 +75,9 @@ const ver = (page, sel, descricao) => esperarCondicao(page, (s) => { const e = d
       await esperarCondicao(r.page, () => location.hash === '#home', null, { descricao: '#home' });
       const n0 = await r.page.evaluate(() => history.length);
       await r.page.evaluate(() => { location.hash = '#avaliacoes?mf=catalogo'; });
-      await ver(r.page, '#mfBusca', 'a Jornada pelo endereço antigo');
+      await ver(r.page, '#mfBusca', 'os Trabalhos pelo endereço antigo');
       const n1 = await r.page.evaluate(() => history.length);
-      afirma(await hash(r.page) === '#arquitetura?mf=catalogo' && n1 === n0 + 1, 'navegar para "#avaliacoes?mf=catalogo" → "#arquitetura?mf=catalogo", com UMA entrada no histórico', { hash: await hash(r.page), n0, n1 });
+      afirma(await hash(r.page) === '#arquitetura?tr=1' && n1 === n0 + 1, 'navegar para "#avaliacoes?mf=catalogo" → "#arquitetura?tr=1" (a antiga Jornada, hoje nos Trabalhos), com UMA entrada no histórico', { hash: await hash(r.page), n0, n1 });
       await r.page.goBack(); await esperarCondicao(r.page, () => location.hash === '#home', null, { descricao: 'Voltar para #home' });
       afirma(true, 'Voltar: volta para #home (nenhuma entrada fantasma)');
       /* entrada ANTIGA no histórico: o Voltar a reescreve */
@@ -96,16 +96,16 @@ const ver = (page, sel, descricao) => esperarCondicao(page, (s) => { const e = d
       await r.ctx.close();
 
       console.log('\n== Retorno à origem (ADMIN › Abrir Mapa → Voltar) ==');
-      r = await abrir(browser, vp, '#admin?arq=inicio');
+      r = await abrir(browser, vp, '#arquitetura?arq=inicio');
       await ver(r.page, '#avpAdminAbrirMapa', 'o Início de Avaliações e Mapa');
       await r.page.click('#avpAdminAbrirMapa');
       await ver(r.page, '.mfm-painel', 'o Mapa');
       afirma(await hash(r.page) === '#arquitetura?mf=mapa', 'ADMIN › Abrir Mapa → #arquitetura?mf=mapa', await hash(r.page));
-      const volta = r.page.locator('button:has-text("Voltar para Avaliações e Mapa")').first();
-      afirma(await volta.count() === 1, 'o Mapa oferece "← Voltar para Avaliações e Mapa"');
+      const volta = r.page.locator('button:has-text("Voltar para a Gestão da Floresta")').first();
+      afirma(await volta.count() === 1, 'o Mapa oferece "← Voltar para a Gestão da Floresta"');
       await volta.click();
-      await esperarCondicao(r.page, () => /^#admin\?arq=inicio/.test(location.hash), null, { limite: 15000, descricao: 'de volta ao ADMIN' });
-      afirma(/^#admin\?arq=inicio/.test(await hash(r.page)), 'Voltar: de volta ao ADMIN › Avaliações e Mapa', await hash(r.page));
+      await esperarCondicao(r.page, () => /^#arquitetura\?arq=inicio/.test(location.hash), null, { limite: 15000, descricao: 'de volta ao ADMIN' });
+      afirma(/^#arquitetura\?arq=inicio/.test(await hash(r.page)), 'Voltar: de volta ao ADMIN › Avaliações e Mapa', await hash(r.page));
       afirma(r.erros.length === 0, 'nenhum erro de página', r.erros);
       await r.ctx.close();
 

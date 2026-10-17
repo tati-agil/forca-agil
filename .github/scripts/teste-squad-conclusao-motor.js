@@ -100,8 +100,7 @@ async function abrir(browser, viewport, motorConfig, extraCfg, onde) {
   if (onde === 'motor') {
     await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
     await esperarSessaoAssentada(page);
-    await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
     await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 8000 });
     await page.click('#avpMotorSquadInicioBtn');
     await page.waitForSelector('#adminAvaliacaoSquad #sqMotorEditarRegrasBtn', { timeout: 8000 });

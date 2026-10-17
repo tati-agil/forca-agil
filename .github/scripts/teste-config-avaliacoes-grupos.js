@@ -41,14 +41,14 @@ const hash = (page) => page.evaluate(() => location.hash);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
 const QUESTIONARIOS = [
-  { btn: '#avpQuestP1P16Btn', codigo: 'CLASSIFICACAO_ARQUITETURAL', hash: '#admin?arq=questionarios&q=p1p16', titulo: 'Questionário — Produto/Serviço P1–P16', grupo: 'avpAvalP1P16' },
-  { btn: '#avpQuestO1O9Btn', codigo: 'POSICIONAMENTO_ORGANIZACIONAL', hash: '#admin?arq=questionarios&q=o1o9', titulo: 'Questionário — Posicionamento Organizacional O1–O9', grupo: 'avpAvalO1O9' },
-  { btn: '#avpQuestS1S8Btn', codigo: 'ADEQUACAO_SQUAD', hash: '#admin?arq=questionarios&q=s1s8', titulo: 'Questionário — Adequação à Gestão por Squad S1–S8', grupo: 'avpAvalS1S8' }
+  { btn: '#avpQuestP1P16Btn', codigo: 'CLASSIFICACAO_ARQUITETURAL', hash: '#arquitetura?arq=questionarios&q=p1p16', titulo: 'Questionário — Produto/Serviço P1–P16', grupo: 'avpAvalP1P16' },
+  { btn: '#avpQuestO1O9Btn', codigo: 'POSICIONAMENTO_ORGANIZACIONAL', hash: '#arquitetura?arq=questionarios&q=o1o9', titulo: 'Questionário — Posicionamento Organizacional O1–O9', grupo: 'avpAvalO1O9' },
+  { btn: '#avpQuestS1S8Btn', codigo: 'ADEQUACAO_SQUAD', hash: '#arquitetura?arq=questionarios&q=s1s8', titulo: 'Questionário — Adequação à Gestão por Squad S1–S8', grupo: 'avpAvalS1S8' }
 ];
 const MOTORES = [
-  { btn: '#avpConfigMotoresBtn', id: 'avpMotorArquitetural', hash: '#admin?arq=motores', grupo: 'avpAvalP1P16' },
-  { btn: '#avpMotorPosicionamentoInicioBtn', id: 'avpMotorPosicionamento', hash: '#admin?arq=motores&m=o', grupo: 'avpAvalO1O9' },
-  { btn: '#avpMotorSquadInicioBtn', id: 'sqMotorSquad', hash: '#admin?arq=motor-squad', grupo: 'avpAvalS1S8' }
+  { btn: '#avpConfigMotoresBtn', id: 'avpMotorArquitetural', hash: '#arquitetura?arq=motores', grupo: 'avpAvalP1P16' },
+  { btn: '#avpMotorPosicionamentoInicioBtn', id: 'avpMotorPosicionamento', hash: '#arquitetura?arq=motores&m=o', grupo: 'avpAvalO1O9' },
+  { btn: '#avpMotorSquadInicioBtn', id: 'sqMotorSquad', hash: '#arquitetura?arq=motor-squad', grupo: 'avpAvalS1S8' }
 ];
 /* tela de questionário: só o da avaliação escolhida, com as funções de sempre */
 const telaQuestionario = (page) => page.evaluate(() => ({
@@ -67,7 +67,7 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
   try {
     for (const [nome, vp] of [['computador', { width: 1280, height: 900 }], ['375 px', { width: 375, height: 812 }]]) {
       console.log('\n######## ' + nome + ' ########');
-      let r = await abrir(browser, vp, '#admin?arq=inicio'); let page = r.page;
+      let r = await abrir(browser, vp, '#arquitetura?arq=inicio'); let page = r.page;
       await page.waitForSelector('#avpGrupoConfiguracao', { timeout: 20000 });
       await abrirGrupo(page);
 
@@ -103,7 +103,7 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
         let t = await telaQuestionario(page);
         afirma(t.titulo === Q.titulo && JSON.stringify(t.cartoes) === JSON.stringify(['avpCfgCard-' + Q.codigo]) && t.editar === 1 && t.historico === 1 && t.exportar === 1 && await hash(page) === Q.hash,
           Q.titulo + ': só este questionário (editar, histórico, exportar), em ' + Q.hash, t);
-        afirma(t.voltar === '← Voltar para Avaliações e Mapa', 'o Voltar leva direto ao Início (nenhum nível intermediário)', t.voltar);
+        afirma(t.voltar === '← Voltar para a Gestão da Floresta', 'o Voltar leva direto ao Início (nenhum nível intermediário)', t.voltar);
         afirma(await larguraOk(page), 'sem rolagem horizontal');
         /* subtela e volta para o MESMO questionário */
         await page.click('.avp-config-auditoria-btn');
@@ -117,7 +117,7 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
         if (Q.codigo === 'POSICIONAMENTO_ORGANIZACIONAL') {
           await page.goBack();
           await noInicio(page);
-          afirma(await hash(page) === '#admin?arq=inicio' && await page.evaluate(() => document.getElementById('avpGrupoConfiguracao').open), 'Voltar do navegador: Início, com Configuração das Avaliações aberta');
+          afirma(await hash(page) === '#arquitetura?arq=inicio' && await page.evaluate(() => document.getElementById('avpGrupoConfiguracao').open), 'Voltar do navegador: Início, com Configuração das Avaliações aberta');
           await page.goForward();
           await ate(page, () => !!document.getElementById('avpCfgTitulo'), null, 'Avançar: o questionário');
           t = await telaQuestionario(page);
@@ -125,7 +125,7 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
         }
         await page.click('#avpConfigVoltar');
         await noInicio(page);
-        afirma(await hash(page) === '#admin?arq=inicio' && await page.evaluate(() => document.getElementById('avpGrupoConfiguracao').open), '"← Voltar": Início, com o grupo aberto');
+        afirma(await hash(page) === '#arquitetura?arq=inicio' && await page.evaluate(() => document.getElementById('avpGrupoConfiguracao').open), '"← Voltar": Início, com o grupo aberto');
       }
 
       console.log('\n== Motor de cada avaliação: abre direto, só ele; Voltar do navegador devolve ao Início ==');
@@ -138,7 +138,7 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
         afirma(await larguraOk(page), 'sem rolagem horizontal');
         await page.goBack();
         await noInicio(page);
-        afirma(await hash(page) === '#admin?arq=inicio', 'Voltar do navegador: Início');
+        afirma(await hash(page) === '#arquitetura?arq=inicio', 'Voltar do navegador: Início');
       }
       afirma(r.erros.length === 0, 'nenhum erro de página', r.erros);
       await r.ctx.close();
@@ -166,7 +166,7 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
       }
 
       console.log('\n== Perfil Avaliação + Configuração (sem admin geral): os mesmos seis acessos ==');
-      r = await abrir(browser, vp, '#admin?arq=inicio', { restrito: true }); page = r.page;
+      r = await abrir(browser, vp, '#arquitetura?arq=inicio', { restrito: true }); page = r.page;
       await page.waitForSelector('#avpGrupoConfiguracao', { timeout: 20000 });
       await ate(page, () => !!document.getElementById('avpMotorSquadInicioBtn'), null, 'o Motor de Squad no grupo S1–S8');
       afirma(await page.locator(QUESTIONARIOS.map((q) => q.btn).concat(MOTORES.map((m) => m.btn)).join(', ')).count() === 6, 'os seis acessos');

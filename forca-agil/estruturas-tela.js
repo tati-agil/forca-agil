@@ -17,9 +17,9 @@
      true    → manutenção pelos perfis autorizados (admin geral e avaliacao-arquitetura), com todas as regras do banco.
    Vale igual no site oficial e no ambiente de testes (a semente do emulador liga o marcador); lá só os avisos mudam.
 
-   Endereço: #admin?arq=estruturas (lista) e #admin?arq=estruturas&e=<id> (ficha) — F5 reabre a mesma tela.
+   Endereço: #arquitetura?arq=estruturas (lista) e #arquitetura?arq=estruturas&e=<id> (ficha) — F5 reabre a mesma tela.
    Etapa 5 — subagrupadores das Linhas de Negócios (agrupamento de APRESENTAÇÃO do Mapa): aba própria
-   (#admin?arq=estruturas&sg=lista e &sg=<id>) para criar, renomear, ordenar e encerrar; na ficha de uma Linha de
+   (#arquitetura?arq=estruturas&sg=lista e &sg=<id>) para criar, renomear, ordenar e encerrar; na ficha de uma Linha de
    Negócios, associar, trocar ou tirar do subagrupador, com o histórico junto ao da estrutura.
    M3 do Mapa — montarResponsavel(el, { itemId, posicionamento }): o bloco "Estrutura responsável" da ficha do Posicionamento
    (vincular, substituir e encerrar, com motivo; situação calculada pelo núcleo).
@@ -30,7 +30,7 @@
 (function () {
   'use strict';
 
-  var RAIZ_ROTA = '#admin?arq=estruturas';
+  var RAIZ_ROTA = '#arquitetura?arq=estruturas';
   function N() { return window.faEstruturasNucleo; }
   function U() { return window.faEstruturasCasosDeUso; }
   function FB() { return window.faEstruturasFirebase; }
@@ -191,12 +191,12 @@
     function chaveNova() { return db().ref().push().key; }
 
     /* ---------- endereço ---------- */
-    function idDoEndereco() { var m = /^#admin\?arq=estruturas(?:&e=([^&]*))?/.exec(location.hash || ''); return m ? (m[1] ? decodeURIComponent(m[1]) : '') : null; }
-    function sgDoEndereco() { if (!/^#admin\?arq=estruturas/.test(location.hash || '')) return null; var m = /[?&]sg=([^&]*)/.exec(location.hash || ''); return m ? decodeURIComponent(m[1]) : null; }
+    function idDoEndereco() { var m = /^#arquitetura\?arq=estruturas(?:&e=([^&]*))?/.exec(location.hash || ''); return m ? (m[1] ? decodeURIComponent(m[1]) : '') : null; }
+    function sgDoEndereco() { if (!/^#arquitetura\?arq=estruturas/.test(location.hash || '')) return null; var m = /[?&]sg=([^&]*)/.exec(location.hash || ''); return m ? decodeURIComponent(m[1]) : null; }
     var VISTAS_SG = { subagrupadores: 1, subagrupador: 1, 'sg-novo': 1, 'sg-renomear': 1, 'sg-encerrar': 1 };
     /* PR 4 (jornada guiada): &nova=<TIPO> abre o cadastro com o tipo já escolhido — a pessoa confere e confirma, nada é
        criado sozinho — e &objeto=<item> mostra o caminho de volta para a jornada daquele objeto (endereço estável: F5) */
-    function paramDoEndereco(nome) { var h = location.hash || ''; if (!/^#admin\?arq=estruturas/.test(h)) return null; var m = new RegExp('[?&]' + nome + '=([^&]*)').exec(h); return m ? decodeURIComponent(m[1]) : null; }
+    function paramDoEndereco(nome) { var h = location.hash || ''; if (!/^#arquitetura\?arq=estruturas/.test(h)) return null; var m = new RegExp('[?&]' + nome + '=([^&]*)').exec(h); return m ? decodeURIComponent(m[1]) : null; }
     var voltaObjeto = null, novaTipo = null, voltaPo = null;
     function sufixoJornada() { return (st.vista === 'nova' && novaTipo ? '&nova=' + encodeURIComponent(novaTipo) : '') + (voltaObjeto ? '&objeto=' + encodeURIComponent(voltaObjeto) : '') + (voltaPo ? '&po=' + encodeURIComponent(voltaPo) : ''); }
     function abrirNovaDoEndereco() {
@@ -210,7 +210,7 @@
       if (wrap.hidden) return;
       var alvo = VISTAS_SG[st.vista] ? RAIZ_ROTA + '&sg=' + (st.vista === 'subagrupadores' || st.vista === 'sg-novo' || !st.id ? 'lista' : encodeURIComponent(st.id))
         : RAIZ_ROTA + (st.id && st.vista !== 'lista' && st.vista !== 'nova' ? '&e=' + encodeURIComponent(st.id) : '') + sufixoJornada();
-      if (location.hash !== alvo && /^#admin\?arq=estruturas/.test(location.hash || '')) history.replaceState(history.state, '', alvo);
+      if (location.hash !== alvo && /^#arquitetura\?arq=estruturas/.test(location.hash || '')) history.replaceState(history.state, '', alvo);
     }
     window.addEventListener('hashchange', function () {
       if (wrap.hidden) return;
@@ -313,7 +313,7 @@
       return avisoSituacaoHtml('estAmbiente', 'O que for cadastrado aqui fica só no Firebase Emulator — não vai para o banco oficial.');
     }
     function listaHtml() {
-      var h = cabecalho('Estruturas do Mapa da Floresta', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'estVoltarOrigem') + abas('estruturas') + aviso();
+      var h = cabecalho('Estruturas do Mapa da Floresta', 'Voltar para ' + ((origem && origem.rotulo) || 'a Gestão da Floresta'), 'estVoltarOrigem') + abas('estruturas') + aviso();
       h += '<p class="est-intro">As estruturas organizacionais concretas — Linhas, Áreas Especializadas e Centros de Excelência — que aparecem no Mapa da Floresta. O tipo de cada uma é um dos oito posicionamentos firmes.</p>' +
         '<p class="est-intro est-tres" id="estTresCoisas">Três coisas diferentes: o <strong>tipo</strong> é recomendado pelo Posicionamento de cada item; a <strong>estrutura concreta</strong> é cadastrada aqui (pode existir antes de qualquer avaliação); o <strong>vínculo de responsabilidade</strong> é registrado na ficha do Posicionamento. O Mapa mostra as estruturas e os vínculos registrados.</p>';
       h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="estNova">Cadastrar estrutura</button>' : '') +
@@ -344,9 +344,9 @@
       var trabalho = (refs && refs.conceitosTrabalho) || [];
       function situacaoRef(c) {
         if (!refs) return null;
-        if (trabalho.indexOf(c) !== -1) return refs.conceitos && refs.conceitos[c] && refs.conceitos[c].ativo === true ? null : 'conceito inativo na Taxonomia (resolvido em ADMIN › Taxonomia, pelo admin geral)';
-        if (!refs.ligacoes || !refs.ligacoes[c]) return 'ligação oficial não registrada (resolvida em ADMIN › Taxonomia › Integração com o Posicionamento, pelo admin geral)';
-        if (!refs.conceitos || !refs.conceitos[c] || refs.conceitos[c].ativo !== true) return 'conceito inativo na Taxonomia (resolvido em ADMIN › Taxonomia, pelo admin geral)';
+        if (trabalho.indexOf(c) !== -1) return refs.conceitos && refs.conceitos[c] && refs.conceitos[c].ativo === true ? null : 'conceito inativo na Taxonomia (resolvido em Gestão da Floresta › Taxonomia, pelo admin geral)';
+        if (!refs.ligacoes || !refs.ligacoes[c]) return 'ligação oficial não registrada (resolvida em Gestão da Floresta › Taxonomia › Integração com o Posicionamento, pelo admin geral)';
+        if (!refs.conceitos || !refs.conceitos[c] || refs.conceitos[c].ativo !== true) return 'conceito inativo na Taxonomia (resolvido em Gestão da Floresta › Taxonomia, pelo admin geral)';
         return null;
       }
       function opcao(c) {
@@ -532,7 +532,7 @@
     }
     var INTRO_SG = 'Agrupamentos de apresentação do Mapa da Floresta, só para Linhas de Negócios: organizam onde cada Linha aparece no Mapa. Não são estruturas organizacionais nem conceitos da Taxonomia.';
     function subagrupadoresHtml() {
-      var h = cabecalho('Subagrupadores das Linhas de Negócios', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'estVoltarOrigem') + abas('subagrupadores') + aviso() + flashHtml() + errosHtml();
+      var h = cabecalho('Subagrupadores das Linhas de Negócios', 'Voltar para ' + ((origem && origem.rotulo) || 'a Gestão da Floresta'), 'estVoltarOrigem') + abas('subagrupadores') + aviso() + flashHtml() + errosHtml();
       h += '<p class="est-intro">' + esc(INTRO_SG) + '</p>';
       h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="sgNovo">Novo subagrupador</button>' : '') + '<a class="btn" href="#arquitetura?mf=mapa">Ver Mapa completo</a></div>';
       if (st.erroLeitura) return h + '<div class="avp-error-msg" role="alert">Não foi possível ler os subagrupadores agora.</div>';
@@ -605,7 +605,7 @@
       h += '<div class="est-ficha" id="sgFicha"><section class="est-secao"><h5 class="est-secao-titulo">Identificação</h5><dl class="est-dados">' +
         dado('Nome', esc(g.nome)) + dado('Aplica-se a', 'Linhas de Negócios') +
         dado('Posição no Mapa', g.situacao === 'ativo' ? (pos + 1) + 'º de ' + ativos.length : '<span class="est-vazio">fora do Mapa (encerrado)</span>') +
-        dado('Linhas associadas', linhas.length ? '<span class="sg-linhas">' + linhas.map(function (l) { return '<a href="#admin?arq=estruturas&e=' + encodeURIComponent(l.id) + '">' + esc(l.nome) + '</a>'; }).join('') + '</span>' : '<span class="est-vazio">nenhuma</span>', true) +
+        dado('Linhas associadas', linhas.length ? '<span class="sg-linhas">' + linhas.map(function (l) { return '<a href="#arquitetura?arq=estruturas&e=' + encodeURIComponent(l.id) + '">' + esc(l.nome) + '</a>'; }).join('') + '</span>' : '<span class="est-vazio">nenhuma</span>', true) +
         '</dl></section><section class="est-secao"><h5 class="est-secao-titulo">Situação e controle</h5><dl class="est-dados">' +
         dado('Situação', '<span class="est-situacao est-situacao--' + (g.situacao === 'ativo' ? 'ativa' : 'encerrada') + '">' + (g.situacao === 'ativo' ? 'Ativo' : 'Encerrado') + '</span>') +
         dado('Revisão', esc(g.revisao)) + dado('Criado', quando(g.criadoEm, g.criadoPor)) +
@@ -754,7 +754,7 @@
       else h = listaHtml();
       /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
       if (voltaPo) h = '<a class="est-voltar-jornada" id="estVoltarPosicionamento" href="#arquitetura?po=' + encodeURIComponent(voltaPo) + '&bloco=responsavel">← Voltar ao Posicionamento (estrutura responsável)</a>' + h;
-      else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
+      else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar ao registro</a>' + h;
       /* aberta de fora do ADMIN (o Mapa, por exemplo): o retorno à tela de origem fica à vista em qualquer vista do cadastro */
       else if (origem && origem.origemNav) h = '<button type="button" class="est-voltar-jornada" id="estVoltarOrigemNav">← Voltar para ' + esc(origem.origemNav.rotulo) + '</button>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';
@@ -981,8 +981,8 @@
       h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir a estrutura responsável') + '</h5>';
       if (!opcoes.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa do tipo ' + esc(nomeTipo(tipo)) + (v ? ' além da atual' : '') + ' está cadastrada. ' +
         'O Posicionamento definiu o tipo, mas não cria a estrutura. A recomendação continua válida sem estrutura vinculada, e não é preciso cadastrar uma estrutura para concluir esta avaliação nem para continuar a análise da área. ' +
-        'Se houver decisão organizacional de criar uma estrutura deste tipo, ela é cadastrada em ADMIN › Avaliações e Mapa › Estruturas do Mapa da Floresta, e você volta para cá depois.</p>' +
-        (tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#admin?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
+        'Se houver decisão organizacional de criar uma estrutura deste tipo, ela é cadastrada em Gestão da Floresta › Estruturas do Mapa da Floresta, e você volta para cá depois.</p>' +
+        (tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#arquitetura?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
           (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura deste tipo</a></p>' : '');
       else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura (' + esc(nomeTipo(tipo)) + ') <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
         opcoes.map(function (e) { return '<option value="' + esc(e.id) + '"' + (f.estruturaId === e.id ? ' selected' : '') + '>' + esc(e.nome) + (e.sigla ? ' (' + esc(e.sigla) + ')' : '') + '</option>'; }).join('') + '</select></div>';

@@ -14,7 +14,7 @@
  *   - salvar de novo uma avaliação existente (rascunho com natureza no formato antigo) grava a
  *     natureza EXATAMENTE como estava — sem migrar, sem limpar;
  *   - reavaliar um item com natureza: a versão nova nasce sem ela; a anterior fica intacta;
- *   - ADMIN: sem o cadastro (nenhum cartão, nenhuma menção); o endereço antigo #admin?arq=naturezas
+ *   - ADMIN: sem o cadastro (nenhum cartão, nenhuma menção); o endereço antigo #arquitetura?arq=naturezas
  *     cai no Início;
  *   - nada é gravado nos nós naturezas-complementares-config/-auditoria;
  *   - o módulo do catálogo (naturezas-config.js) saiu do site; o motor continua sem ler a natureza.
@@ -225,9 +225,9 @@ async function lerExcel(page) {
       afirma(JSON.stringify(db1['avaliacoes-produto'].clube) === JSON.stringify(antesClube), 'a versão anterior (com o registro histórico) ficou intacta');
 
       console.log('\n== ADMIN: o cadastro foi retirado ==');
-      await page.evaluate(() => { location.hash = '#admin?arq=naturezas'; });
+      await page.evaluate(() => { location.hash = '#arquitetura?arq=naturezas'; });
       await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 15000 });
-      afirma(/^#admin\?arq=inicio$/.test(await page.evaluate(() => location.hash)) || await page.locator('#avpNaturezasVoltar').count() === 0, '#admin?arq=naturezas (link antigo): fica no Início, sem tela de catálogo');
+      afirma(/^#arquitetura\?arq=inicio$/.test(await page.evaluate(() => location.hash)) || await page.locator('#avpNaturezasVoltar').count() === 0, '#arquitetura?arq=naturezas (link antigo): fica no Início, sem tela de catálogo');
       afirma(await page.locator('#avpConfigNaturezasBtn, #avpNaturezasVoltar, #avpNaturezaNova').count() === 0 && !/Naturez/i.test(await page.locator('#adminAvaliacaoProduto').innerText()), 'nenhum cartão nem menção às Naturezas no ADMIN');
       afirma(await page.locator('#avpGrupoDocumentacao #avpDocumentacaoBtn').count() === 1, 'os Documentos de referência continuam, no grupo Documentação');
       afirma(await larguraOk(page), 'sem rolagem lateral');

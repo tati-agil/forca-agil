@@ -43,13 +43,21 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   **A FLORESTA** (nome visível; tecnicamente o Núcleo de Arquitetura Organizacional) tem o endereço oficial `#arquitetura`
   — a página interna continua `avaliacoes` (`#page-avaliacoes`, permissões). O antigo `#avaliacoes…` (com os parâmetros)
   é reescrito para `#arquitetura…` por `head-init.js`, antes de qualquer outro script ler o endereço; gere sempre
-  `#arquitetura…` (`teste-rota-arquitetura.js`).
+  `#arquitetura…` (`teste-rota-arquitetura.js`). O Início da Floresta segue a ordem Continuar → Começar (Produto/Serviço,
+  responsabilidade, área, Adequação à Squad — independentes) → Mapa; **Trabalhos** (`#arquitetura?tr=1`, desenhado por
+  `mapa-floresta.js`) é uma tela só: "Continuar de onde parou" e as listas completas (blocos de `avaliacao-produto.js`,
+  `window.faTrabalhosFloresta`) com os registros da antiga Jornada de Avaliação e Posicionamento; o registro de um item é
+  `?tr=1&item=<id>`, e o antigo `?mf=catalogo[&item=]` é reescrito para `?tr=1[&item=]` (`teste-floresta-trabalhos.js`).
+  A **Gestão da Floresta** (`#arquitetura?arq=<área>`) reúne o que eram ADMIN › Avaliações e Mapa e ADMIN › Taxonomia
+  (`?arq=taxonomia`), com os mesmos módulos e ids (os painéis `#adminPanelArquitetura`/`#adminPanelTaxonomia` estão em
+  `#page-avaliacoes`; `avaliacao-produto.js` abre a Gestão e sobe a instância `admin`); o antigo `#admin?arq=<área>` é
+  reescrito por `head-init.js`, e o ADMIN não tem mais essas abas (`teste-floresta-gestao.js`).
   O controle de acesso vale na navegação e no acesso direto pelo hash; informação de acesso que chega tarde reaplica a
-  decisão sem rolar a página para o topo. Subendereços: `#admin?arq=<área>`, `#arquitetura?po=…`, `?sq=…`, `?an=…`,
-  `?mf=catalogo`.
+  decisão sem rolar a página para o topo. Subendereços: `#arquitetura?arq=<área>`, `?po=…`, `?sq=…`, `?an=…`, `?tr=1`,
+  `?mf=mapa`.
 - **Acesso** (`auth.js`, `window.faAuth`): quatro dimensões independentes — autenticação, participação (`member`/`enrolled`),
   perfis funcionais (`fa-avaliacao-autorizados`: `avaliacao` avalia; `avaliacao-arquitetura` também cura, decide e entra
-  no ADMIN só na área Avaliação e Mapa) e admin geral (lista fixa + `fa-admins`). "Ainda não sei" ≠ "não tem acesso".
+  na Gestão da Floresta — sem Taxonomia nem Usuários autorizados, que são do admin geral; não vê o ADMIN) e admin geral (lista fixa + `fa-admins`). "Ainda não sei" ≠ "não tem acesso".
   **Tudo é imposto por `database.rules.json`**, não só pela tela.
 - **Dados**: Firebase Realtime Database (projeto `kyber-agil`) é a única fonte oficial; o cliente lê e grava direto,
   com horário do servidor, autoria do token, revisão + 1 e auditoria só de acréscimo onde o domínio exige. Único código

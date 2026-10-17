@@ -58,7 +58,7 @@ const CONTRASTE = `(function () {
 
 async function questionarios(browser, viewport) {
   console.log('A. Questionários');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=questionarios');
   await naListaQuestionarios(page);
   const q = await page.evaluate(() => ['CLASSIFICACAO_ARQUITETURAL', 'ADEQUACAO_SQUAD', 'POSICIONAMENTO_ORGANIZACIONAL'].map((c) => {
     const card = document.getElementById('avpCfgCard-' + c);
@@ -82,13 +82,13 @@ async function questionarios(browser, viewport) {
   afirma(await larguraOk(page), 'Questionários sem rolagem lateral');
 
   console.log('   &q= abre só o questionário daquela avaliação, sem abrir a edição');
-  await page.evaluate(() => { location.hash = '#admin?arq=questionarios&q=o1o9'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=questionarios&q=o1o9'; });
   await esperar(page, () => { const c = document.querySelectorAll('.avp-config-item-card'); return c.length === 1 && c[0].id === 'avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL'; });
   afirma(await soQuestionario(page) === 'o1o9' && await page.locator('#avpCfgVoltarListaBtn').count() === 0, '&q=o1o9: só o questionário O1–O9; a edição não abre', await soQuestionario(page));
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   await esperar(page, () => document.querySelectorAll('.avp-config-item-card').length === 1, undefined, 20000);
   afirma(await soQuestionario(page) === 'o1o9', 'F5: continua no questionário O1–O9', await soQuestionario(page));
-  await page.evaluate(() => { location.hash = '#admin?arq=questionarios&q=s1s8'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=questionarios&q=s1s8'; });
   await esperar(page, () => !!document.getElementById('avpCfgCard-ADEQUACAO_SQUAD'));
   afirma(await soQuestionario(page) === 's1s8', '&q=s1s8: só o questionário S1–S8', await soQuestionario(page));
   await page.goBack();
@@ -97,7 +97,7 @@ async function questionarios(browser, viewport) {
   await page.goForward();
   await esperar(page, () => !!document.getElementById('avpCfgCard-ADEQUACAO_SQUAD'));
   afirma(await soQuestionario(page) === 's1s8', 'Avançar: o questionário S1–S8', await soQuestionario(page));
-  await page.evaluate(() => { location.hash = '#admin?arq=questionarios'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=questionarios'; });
   await esperar(page, () => document.querySelectorAll('.avp-config-item-card').length === 3);
   afirma(true, 'endereço antigo sem &q=: os três questionários (compatibilidade de links antigos)');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
@@ -106,7 +106,7 @@ async function questionarios(browser, viewport) {
 
 async function motores(browser, viewport) {
   console.log('B. Motores');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores&m=o');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=motores&m=o');
   await esperar(page, () => !!document.getElementById('avpPosResumo'), undefined, 20000);
   const resumo = (await texto(page, '#avpPosResumo')).trim();
   afirma(/^v2 preparada e inativa — existem requisitos pendentes para entrada em vigor\. A v1 continua em vigor\.$/.test(resumo), 'resumo exato, à vista: "v2 preparada e inativa — existem requisitos pendentes para entrada em vigor"', resumo);
@@ -124,7 +124,7 @@ async function motores(browser, viewport) {
   afirma(/estados/.test(await texto(page, '#avpPosSimulacao')), 'a simulação funciona (sem gravar)');
   afirma(await larguraOk(page), 'Motores sem rolagem lateral (seção aberta)');
   console.log('C. Motor de Squad');
-  await page.evaluate(() => { location.hash = '#admin?arq=motor-squad'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=motor-squad'; });
   await esperar(page, () => !!document.getElementById('sqMotorEditarRegrasBtn'), undefined, 20000);
   const cab = await page.evaluate(() => { const s = document.getElementById('sqMotorSquad'), t = document.querySelector('#adminAvaliacaoSquad #avpMotoresTitulo'); return (t ? t.textContent : '') + ' | ' + (s ? s.querySelector('.avp-motor-cab').textContent + ' ' + s.querySelector('.avp-motor-situacao').textContent : ''); });
   afirma(!/Configuração dos Motores/.test(cab) && /Adequação à Gestão por Squad/.test(cab) && /S1–S8/.test(cab) && /Versão vigente: \d+ · Situação:/.test(cab), 'Motor de Squad no padrão dos motores: cabeçalho comum, nome, sigla, versão · situação', cab.slice(0, 200));
@@ -135,7 +135,7 @@ async function motores(browser, viewport) {
 
 async function estruturas(browser, viewport) {
   console.log('D. Estruturas no tema escuro');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=estruturas');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=estruturas');
   await page.waitForSelector('#estLista', { timeout: 20000 });
   await page.evaluate(CONTRASTE);
   const lista = await page.evaluate(() => {
@@ -186,7 +186,7 @@ async function larguras(browser) {
     const m = { w, inicioPrimeiraAcao: ini.acao, inicioTituloAteAcao: ini.tituloAcao, inicio: ini.alto, larguraInicio: await larguraOk(page) };
     afirma(ini.acao + 44 <= ini.vh && m.larguraInicio, w + ' px: Início — primeira ação visível sem rolar; sem rolagem lateral', JSON.stringify(ini));
     for (const [area, sel] of [['questionarios', '#avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL'], ['motores', '#avpMotorArqEditarBtn'], ['motor-squad', '#sqMotorEditarRegrasBtn'], ['estruturas', '#estLista']]) {
-      await page.evaluate((a) => { location.hash = '#admin?arq=' + a; }, area);
+      await page.evaluate((a) => { location.hash = '#arquitetura?arq=' + a; }, area);
       await page.waitForSelector(sel, { timeout: 20000 });
       await page.waitForTimeout(200);
       m[area] = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -204,12 +204,12 @@ async function larguras(browser) {
 
 async function perfis(browser) {
   console.log('F. Perfis');
-  let { ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#admin?arq=questionarios&q=p1p16', { email: ARQ });
+  let { ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#arquitetura?arq=questionarios&q=p1p16', { email: ARQ });
   await esperar(page, () => !!document.getElementById('avpCfgCard-CLASSIFICACAO_ARQUITETURAL'));
   afirma(await soQuestionario(page) === 'p1p16' && await page.locator('.avp-config-editar-btn').count() === 1, 'Avaliação + Configuração: &q=p1p16 abre o questionário P1–P16 com Editar');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#admin?arq=questionarios', { email: AVAL }));
+  ({ ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#arquitetura?arq=questionarios', { email: AVAL }));
   await page.waitForTimeout(2500);
   afirma(await page.locator('#avpCfgCard-CLASSIFICACAO_ARQUITETURAL').count() === 0 && await page.locator('.avp-config-editar-btn').count() === 0, 'consulta (Avaliação): não vê nem edita os questionários pelo ADMIN');
   await ctx.close();
