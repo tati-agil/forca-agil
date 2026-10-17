@@ -55,7 +55,7 @@ const acao = (page, id) => page.evaluate((s) => { const a = document.querySelect
 const pronta = (page) => esperarCondicao(page, () => { const r = document.getElementById('mfResumo'); return !!r && /Jornada completa/.test(r.textContent); }, undefined, { limite: 15000 });
 /* ajuste de usabilidade: o detalhe de um objeto abre ao clicar nele (endereço próprio); a lista é simples */
 async function abre(page, id) {
-  await page.evaluate((i) => { location.hash = '#avaliacoes?mf=catalogo&item=' + encodeURIComponent(i); }, id);
+  await page.evaluate((i) => { location.hash = '#arquitetura?mf=catalogo&item=' + encodeURIComponent(i); }, id);
   await page.waitForSelector(card(id), { timeout: 10000 });
 }
 const situacaoLinha = (page, id) => texto(page, linha(id) + ' .mf-linha-situacao');
@@ -64,7 +64,7 @@ const situacaoLinha = (page, id) => texto(page, linha(id) + ' .mf-linha-situacao
 const falta = (page, id) => page.evaluate((i) => { const d = document.getElementById('mfFalta-' + i); return d ? { etapa: d.getAttribute('data-etapa'), t: d.textContent } : null; }, id);
 async function rodada(browser, viewport, rotulo) {
   console.log('\n=== ' + rotulo + ' ===');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo');
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo');
   await page.waitForSelector(linha('pCapec'), { timeout: 15000 });
   await pronta(page);
 
@@ -91,22 +91,22 @@ async function rodada(browser, viewport, rotulo) {
   await page.fill('#mfBusca', 'Capec');
   await page.click(linha('pCapec') + ' .mf-linha-abrir');
   await page.waitForSelector(card('pCapec'));
-  afirma((await hash(page)) === '#avaliacoes?mf=catalogo&item=pCapec' && await page.locator('#mfItens .mf-item').count() === 1, 'clicar abre só a jornada do objeto (endereço próprio)');
+  afirma((await hash(page)) === '#arquitetura?mf=catalogo&item=pCapec' && await page.locator('#mfItens .mf-item').count() === 1, 'clicar abre só a jornada do objeto (endereço próprio)');
   afirma((await etapas(page, 'pCapec')) === 'p1p16:ok posicionamento:ok decisao:opcional estrutura:ok vinculo:ok squad:opcional' && /Jornada completa/.test(await texto(page, card('pCapec'))),
     '1. Capec: completa; decisão opcional (recomendação firme); Squad só opcional', await etapas(page, 'pCapec'));
   afirma(await page.locator('#mfFalta-pCapec').count() === 0, 'I1: jornada completa não mostra "o que falta"');
   const mapaCapec = await acao(page, 'pCapec');
-  afirma(mapaCapec && mapaCapec.h === '#avaliacoes?mf=mapa&e=neg-1&item=pCapec', '1. Capec: "Localizar estrutura responsável no Mapa" leva à estrutura responsável', JSON.stringify(mapaCapec));
+  afirma(mapaCapec && mapaCapec.h === '#arquitetura?mf=mapa&e=neg-1&item=pCapec', '1. Capec: "Localizar estrutura responsável no Mapa" leva à estrutura responsável', JSON.stringify(mapaCapec));
   await page.click('#mfVoltarLista');
   await page.waitForSelector(linha('pCapec'));
-  afirma((await page.inputValue('#mfBusca')) === 'Capec' && await page.locator('#mfItens .mf-linha').count() === 1 && (await hash(page)) === '#avaliacoes?mf=catalogo', '"← Voltar para a lista": a busca é preservada');
+  afirma((await page.inputValue('#mfBusca')) === 'Capec' && await page.locator('#mfItens .mf-linha').count() === 1 && (await hash(page)) === '#arquitetura?mf=catalogo', '"← Voltar para a lista": a busca é preservada');
   await page.fill('#mfBusca', '');
   await abre(page, 'pAssess');
   afirma((await etapas(page, 'pAssess')).indexOf('decisao:ok') !== -1 && /Jornada completa/.test(await texto(page, card('pAssess'))), '2. Assessoria Previdenciária: decisão registrada, completa');
   await abre(page, 'pJur');
   const tJur = await texto(page, card('pJur'));
   afirma(/Representado pela responsabilidade “Assessoramento jurídico”/.test(tJur) && /A validar — análise de Produto\/Serviço; não é pendência/.test(tJur) && !(await page.$(card('pJur') + ' .mf-trilha')) &&
-    (await acao(page, 'pJur')).h === '#avaliacoes?mf=catalogo&item=oJur', '3. Jurídico P1–P16: representado pela atuação; "A validar" explicado, sem pendência; leva à atuação');
+    (await acao(page, 'pJur')).h === '#arquitetura?mf=catalogo&item=oJur', '3. Jurídico P1–P16: representado pela atuação; "A validar" explicado, sem pendência; leva à atuação');
   await abre(page, 'oJur');
   afirma((await etapas(page, 'oJur')) === 'atuacao:ok posicionamento:ok decisao:ok estrutura:ok vinculo:ok', '3. Jurídico (atuação): completa, sem etapa de Squad (Área Especializada)', await etapas(page, 'oJur'));
   await abre(page, 'oAgi');
@@ -114,7 +114,7 @@ async function rodada(browser, viewport, rotulo) {
     '4. Agilidade: Porta 2 sem P1–P16, CoE, completa, sem Squad', await etapas(page, 'oAgi'));
   await abre(page, 'pSem');
   const aSem = await acao(page, 'pSem');
-  afirma((await etapas(page, 'pSem')).indexOf('posicionamento:disponivel') !== -1 && aSem && /Iniciar o Posicionamento/.test(aSem.t) && aSem.h === '#avaliacoes?po=escolher&item=pSem' &&
+  afirma((await etapas(page, 'pSem')).indexOf('posicionamento:disponivel') !== -1 && aSem && /Iniciar o Posicionamento/.test(aSem.t) && aSem.h === '#arquitetura?po=escolher&item=pSem' &&
     /Disponível \(opcional\)/.test(await texto(page, card('pSem'))) && !/Próximo passo/.test(await texto(page, card('pSem'))),
     '5. item P1–P16 sem Posicionamento: disponível (opcional), não "próximo passo"; "Iniciar" ao alcance', JSON.stringify(aSem));
   afirma(await falta(page, 'pSem') === null, 'I1: o Posicionamento disponível (opcional) não aparece como "o que falta"');
@@ -135,7 +135,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/Atuação encerrada/.test(await texto(page, card('oEnc'))) && !(await page.$(card('oEnc') + ' .mf-acao')), 'atuação encerrada: sem ação');
   await abre(page, 'pVinc');
   const aVinc = await acao(page, 'pVinc');
-  afirma(/estrutura disponível \(não quer dizer vinculada\)/.test(await texto(page, card('pVinc'))) && aVinc && /Vincular a estrutura responsável/.test(aVinc.t) && aVinc.h === '#avaliacoes?po=gPV&bloco=responsavel',
+  afirma(/estrutura disponível \(não quer dizer vinculada\)/.test(await texto(page, card('pVinc'))) && aVinc && /Vincular a estrutura responsável/.test(aVinc.t) && aVinc.h === '#arquitetura?po=gPV&bloco=responsavel',
     '8. estrutura existe, vínculo pendente: "Vincular" (estrutura disponível ≠ vinculada)', JSON.stringify(aVinc));
   const fVinc = await falta(page, 'pVinc');
   afirma(fVinc && fVinc.etapa === 'vinculo' && /Registrar a estrutura responsável/.test(fVinc.t) && /Posicionamento sozinho não cria o vínculo/.test(fVinc.t) && /Estrutura responsável/.test(fVinc.t),
@@ -145,15 +145,15 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Ida e volta pelo endereço');
   await page.click(card('pVinc') + ' .mf-acao');
   await page.waitForSelector('#poJornada', { timeout: 10000 });
-  await esperarCondicao(page, () => location.hash === '#avaliacoes?po=gPV', undefined, { limite: 5000 });
+  await esperarCondicao(page, () => location.hash === '#arquitetura?po=gPV', undefined, { limite: 5000 });
   afirma(!!(await page.$('#poBlocoResponsavel')) && /Decisão final/.test(await texto(page, '#poJornada')), 'ficha aberta (endereço da ficha) com a trilha e o bloco da estrutura responsável');
   await page.click('#poVoltarJornada');
   await page.waitForSelector(card('pVinc'), { timeout: 10000 });
-  afirma((await hash(page)) === '#avaliacoes?mf=catalogo&item=pVinc', 'volta à jornada do mesmo objeto, endereço estável');
+  afirma((await hash(page)) === '#arquitetura?mf=catalogo&item=pVinc', 'volta à jornada do mesmo objeto, endereço estável');
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   await page.waitForSelector(card('pVinc'), { timeout: 15000 });
   afirma(true, 'F5: a jornada do mesmo objeto');
-  await page.evaluate(() => { location.hash = '#avaliacoes?mf=mapa&e=neg-1&item=pCapec'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?mf=mapa&e=neg-1&item=pCapec'; });
   await page.waitForSelector('#mfmDetalheVoltarJornada', { timeout: 15000 });
   afirma(/estruturas cadastradas/.test(await texto(page, '.mfm-subtitulo')), 'Mapa vindo da jornada: estruturas cadastradas (não a demonstração)');
   await page.click('#mfmDetalheVoltarJornada');
@@ -182,7 +182,7 @@ async function rodada(browser, viewport, rotulo) {
   await ctx.close();
 
   console.log('Perfil de consulta e rede lenta');
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', { email: AVAL }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo', { email: AVAL }));
   await page.waitForSelector(linha('pSem'), { timeout: 15000 });
   await pronta(page);
   await abre(page, 'pSem');
@@ -195,7 +195,7 @@ async function rodada(browser, viewport, rotulo) {
     'I1: perfil de consulta vê o que falta e quem pode, sem botão de gravar', fConsulta && fConsulta.t);
   /* na consulta, o que é opcional continua opcional: vínculo/cadastro de estrutura nunca viram pendência obrigatória */
   afirma(/Disponível \(opcional\)/.test(await texto(page, card('pPlat'))) && !/Próxima etapa/.test(await texto(page, card('pPlat'))), 'consulta: cadastrar estrutura aparece como "Disponível (opcional)", não como próxima etapa');
-  await page.evaluate(() => { location.hash = '#avaliacoes?mf=catalogo'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?mf=catalogo'; });
   await page.waitForSelector('#mfFiltrosAvancados > summary', { state: 'visible' });
   await page.click('#mfFiltrosAvancados > summary');
   afirma(/Com próxima ação: 0 · Em análise \(A validar\): 1 · Avaliadas, estrutura responsável opcional: 2 · Posicionamento disponível: 1/.test((await texto(page, '#mfResumo')).replace(/\s+/g, ' ')),
@@ -204,7 +204,7 @@ async function rodada(browser, viewport, rotulo) {
   const soAcaoConsulta = await page.$$eval('#mfItens .mf-item', (ls) => ls.map((l) => l.dataset.item).sort().join(','));
   afirma(soAcaoConsulta === 'pVal', 'consulta: "Só os que têm próxima ação" mostra só o A validar (nenhum opcional como pendência)', soAcaoConsulta);
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo', { delays: { 'estruturas-vinculos': 4000 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo', { delays: { 'estruturas-vinculos': 4000 } }));
   await page.waitForSelector(linha('pCapec'), { timeout: 15000 });
   const cedo = await situacaoLinha(page, 'pCapec');
   afirma(/Carregando/.test(cedo) && !/Jornada completa/.test(cedo), 'rede lenta: "Carregando…", nunca "Jornada completa" antes de os vínculos chegarem', cedo);

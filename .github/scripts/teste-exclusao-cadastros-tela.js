@@ -95,7 +95,7 @@ async function clicarNoMais(page, k, sel) {
 async function jornada(browser, viewport, rotulo) {
   console.log('\n== ' + rotulo + ' ==');
   /* 1. sem Posicionamento: exclusão comum */
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=atuacoes&item=oLivre', ARQ);
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=atuacoes&item=oLivre', ARQ);
   await page.waitForSelector('#poExcluirAtuacaoBtn');
   afirma(await existe(page, '#poEncerrarAtuacaoBtn'), '1. Encerrar e Excluir aparecem lado a lado (Excluir não substitui Encerrar)');
   afirma(/Encerrar.*mantém o cadastro.*Excluir.*por engano/.test(await texto(page, '#poEncerrarExcluirAjuda')), '1. a diferença entre Encerrar e Excluir está explicada');
@@ -116,20 +116,20 @@ async function jornada(browser, viewport, rotulo) {
   afirma(!(await existe(page, '#poListaAtuacoes [data-objeto="oLivre"]')), '1. some da lista de responsabilidades');
 
   /* 2. já avaliada, Avaliação + Configuração: não é com ela */
-  await ir(page, '#avaliacoes?po=atuacoes&item=oAgi');
+  await ir(page, '#arquitetura?po=atuacoes&item=oAgi');
   await page.waitForSelector('#poExcluirAtuacaoBtn');
   await page.click('#poExcluirAtuacaoBtn');
   await page.waitForSelector('.po-modal');
   afirma(/excepcional.*administrador geral/.test(await texto(page, '.po-modal')), '2. já avaliada: explica que é exclusão excepcional do administrador geral');
   await page.click('.po-modal .po-modal-sim');
   /* 4. bloqueios */
-  await ir(page, '#avaliacoes?po=atuacoes&item=oJur');
+  await ir(page, '#arquitetura?po=atuacoes&item=oJur');
   await page.waitForSelector('#poExcluirAtuacaoBtn');
   await page.click('#poExcluirAtuacaoBtn');
   await page.waitForSelector('.po-modal');
   afirma(/estrutura responsável ativa/.test(await texto(page, '.po-modal')), '4. estrutura responsável ativa: bloqueia e diz o que fazer');
   await page.click('.po-modal .po-modal-sim');
-  await ir(page, '#avaliacoes?po=atuacoes&item=oRasc');
+  await ir(page, '#arquitetura?po=atuacoes&item=oRasc');
   await page.waitForSelector('#poExcluirAtuacaoBtn');
   await page.click('#poExcluirAtuacaoBtn');
   await page.waitForSelector('.po-modal');
@@ -139,7 +139,7 @@ async function jornada(browser, viewport, rotulo) {
   afirma(db['objetos-organizacionais'].oAgi && db['objetos-organizacionais'].oJur && db['objetos-organizacionais'].oRasc && !(db['objetos-organizacionais-excluidos'] || {}).oAgi, '2/4. nada foi gravado nos casos recusados');
 
   /* 5/6. análises */
-  await ir(page, '#avaliacoes?an=anCheia');
+  await ir(page, '#arquitetura?an=anCheia');
   await page.waitForSelector('#anMais_rA');
   await clicarNoMais(page, 'rA', '#anExcluirResp_rA');
   await page.waitForSelector('#anFormExcluirResp');
@@ -161,13 +161,13 @@ async function jornada(browser, viewport, rotulo) {
   await page.click('#anExcluirBtn');
   await page.waitForSelector('#anExcluirSoAdmin');
   afirma(/administrador geral/.test(await texto(page, '#anExcluirSoAdmin')), '7. análise com conteúdo: só o administrador geral');
-  await ir(page, '#avaliacoes?an=anVazia');
+  await ir(page, '#arquitetura?an=anVazia');
   await page.waitForSelector('#anExcluirBtn');
   await page.click('#anExcluirBtn');
   await page.waitForSelector('#anFormExcluir[data-nivel="comum"]');
   await page.fill('#anMotivoExcluir', 'Aberta por engano (teste sintético)');
   await page.click('#anConfirmarExcluir');
-  await esperar(page, () => location.hash === '#avaliacoes?an=lista' && !!document.getElementById('anLista'));
+  await esperar(page, () => location.hash === '#arquitetura?an=lista' && !!document.getElementById('anLista'));
   db = await banco(page);
   afirma(!db['analises-organizacionais'].anVazia && (db['analises-organizacionais-excluidas'] || {}).anVazia && db['analises-organizacionais-excluidas'].anVazia.nivel === 'comum', '5. análise vazia excluída (comum), com registro mínimo');
   afirma(await esperar(page, () => !document.querySelector('#anLista [data-analise="anVazia"]')).then(() => true, () => false), '5. some da lista de análises');
@@ -175,7 +175,7 @@ async function jornada(browser, viewport, rotulo) {
   await ctx.close();
 
   /* 3. admin geral: exclusão excepcional */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=atuacoes&item=oAgi', ADM));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=atuacoes&item=oAgi', ADM));
   await page.waitForSelector('#poExcluirAtuacaoBtn');
   await page.click('#poExcluirAtuacaoBtn');
   await page.waitForSelector('.po-modal #poExcConfirmo');
@@ -191,21 +191,21 @@ async function jornada(browser, viewport, rotulo) {
   db = await banco(page);
   afirma((db['objetos-organizacionais-excluidos'] || {}).oAgi && db['objetos-organizacionais-excluidos'].oAgi.nivel === 'excepcional' && db['avaliacoes-posicionamento'].gA && db['posicionamento-vigente-por-item'].oAgi === 'gA',
     '3. excepcional gravada; avaliação e índice de vigência intactos');
-  await ir(page, '#avaliacoes?po=gA');
+  await ir(page, '#arquitetura?po=gA');
   await page.waitForSelector('#poObjetoExcluido');
   afirma(/Duplicada, já avaliada/.test(await texto(page, '#poObjetoExcluido')), '3. a ficha do Posicionamento mostra "Cadastro excluído" com o motivo');
   await foto(page, 'cadastro-excluido-ficha');
-  await ir(page, '#avaliacoes?po=lista');
+  await ir(page, '#arquitetura?po=lista');
   await page.waitForSelector('.po-linha[data-key="gA"]');
   afirma(await existe(page, '.po-linha[data-key="gA"] .po-badge-excluida'), '3. a lista do Posicionamento mostra o selo "Cadastro excluído"');
   afirma(!erros.length, 'sem erro de página (admin geral)', erros);
   await ctx.close();
 
   /* 7. perfil Avaliação: só consulta */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=atuacoes&item=oLivre', AVAL));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=atuacoes&item=oLivre', AVAL));
   await page.waitForSelector('#poAtuacaoSelecionada');
   afirma(!(await existe(page, '#poExcluirAtuacaoBtn')), '7. perfil Avaliação: nenhum botão Excluir na responsabilidade');
-  await ir(page, '#avaliacoes?an=anCheia');
+  await ir(page, '#arquitetura?an=anCheia');
   await page.waitForSelector('#anTitulo');
   afirma(!(await existe(page, '#anExcluirBtn')) && !(await existe(page, '[id^="anExcluirResp_"]')), '7. perfil Avaliação: nenhum botão Excluir na análise');
   await ctx.close();

@@ -11,10 +11,10 @@
    faQuestionarios (texto de O1–O9 e do diagnóstico, na versão fixada ao iniciar), faPosicionamentos (nome e
    definição atuais na Taxonomia Organizacional; o "nome registrado na conclusão" é feito AQUI).
 
-   Endereços (dentro de #avaliacoes, como ?sq= da Squad):
-     #avaliacoes?po=lista                 lista
-     #avaliacoes?po=escolher[&item=<id>]  escolher o item (e o item escolhido)
-     #avaliacoes?po=<avaliacaoId>         checklist (rascunho), resultado (concluída) ou descartada
+   Endereços (dentro de #arquitetura, como ?sq= da Squad):
+     #arquitetura?po=lista                 lista
+     #arquitetura?po=escolher[&item=<id>]  escolher o item (e o item escolhido)
+     #arquitetura?po=<avaliacaoId>         checklist (rascunho), resultado (concluída) ou descartada
    F5 e link direto reabrem a mesma tela; Voltar/Avançar andam entre elas.
 
    Banco (regras em database.rules.json; prova em teste-rules-posicionamento.js):
@@ -639,20 +639,20 @@
     /* ---- endereço ---- */
     function poDoEndereco() {
       var h = location.hash || '';
-      if (h.split('?')[0] !== '#avaliacoes') return {};
+      if (h.split('?')[0] !== '#arquitetura') return {};
       var m = /[?&]po=([^&]*)/.exec(h), i = /[?&]item=([^&]*)/.exec(h);
       return { po: m ? decodeURIComponent(m[1]) : null, item: i ? decodeURIComponent(i[1]) : null };
     }
     function enderecoDesejado() {
       if (wrap.hidden || state.tela === 'nao-encontrada') return null;
-      if (state.tela === 'lista') return '#avaliacoes?po=lista';
-      if (state.tela === 'escolher' || state.tela === 'sem-permissao') return '#avaliacoes?po=escolher' + (state.itemEscolhido ? '&item=' + encodeURIComponent(state.itemEscolhido) : '');
+      if (state.tela === 'lista') return '#arquitetura?po=lista';
+      if (state.tela === 'escolher' || state.tela === 'sem-permissao') return '#arquitetura?po=escolher' + (state.itemEscolhido ? '&item=' + encodeURIComponent(state.itemEscolhido) : '');
       /* Porta 2: a lista das atuações (e a escolhida), o cadastro e a edição */
-      if (state.tela === 'atuacoes') return '#avaliacoes?po=atuacoes' + (state.itemEscolhido ? '&item=' + encodeURIComponent(state.itemEscolhido) : '');
-      if (state.tela === 'todas') return '#avaliacoes?po=todas';
-      if (state.tela === 'form-atuacao') return state.objetoEditando ? '#avaliacoes?po=editar-atuacao&item=' + encodeURIComponent(state.objetoEditando) : '#avaliacoes?po=nova-atuacao';
-      if (state.tela === 'carregando') return state.pendente ? '#avaliacoes?po=' + encodeURIComponent(state.pendente) : null;
-      if (state.chave) return '#avaliacoes?po=' + encodeURIComponent(state.chave);
+      if (state.tela === 'atuacoes') return '#arquitetura?po=atuacoes' + (state.itemEscolhido ? '&item=' + encodeURIComponent(state.itemEscolhido) : '');
+      if (state.tela === 'todas') return '#arquitetura?po=todas';
+      if (state.tela === 'form-atuacao') return state.objetoEditando ? '#arquitetura?po=editar-atuacao&item=' + encodeURIComponent(state.objetoEditando) : '#arquitetura?po=nova-atuacao';
+      if (state.tela === 'carregando') return state.pendente ? '#arquitetura?po=' + encodeURIComponent(state.pendente) : null;
+      if (state.chave) return '#arquitetura?po=' + encodeURIComponent(state.chave);
       return null;
     }
     var aplicando = false;
@@ -660,18 +660,18 @@
       if (aplicando) return;
       var desejado = enderecoDesejado();
       if (!desejado || location.hash === desejado) return;
-      if ((location.hash || '').split('?')[0] !== '#avaliacoes') return;
+      if ((location.hash || '').split('?')[0] !== '#arquitetura') return;
       if ((location.hash || '').indexOf(desejado + '&bloco=') === 0) { history.replaceState(history.state, '', desejado); return; }
       var st = history.state;
       if (st && st.poAnterior === desejado) { history.back(); return; }
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
-      var est = { avp: 1, seq: Date.now(), origem: null, poAnterior: location.hash || '#avaliacoes' };
+      var est = { avp: 1, seq: Date.now(), origem: null, poAnterior: location.hash || '#arquitetura' };
       history.pushState(window.faNav ? window.faNav.comOrigem(est) : est, '', desejado); /* a origem externa acompanha */
     }
     /* Para onde o "← Voltar" do topo leva: a tela que abriu o Posicionamento (ficha de Produto/Serviço, Jornada, Mapa,
        Trabalhos, ADMIN — navOrigem), a lista de posicionamentos quando veio dela, ou a Avaliação (sem origem: F5, link). */
     function origemPo() { var o = window.faNav && window.faNav.origem(); return o && o.hash !== location.hash ? o : null; }
-    var RE_LISTA_PO = /^#avaliacoes\?(.*&)?po=(lista|todas|atuacoes)(&|$)/;
+    var RE_LISTA_PO = /^#(?:arquitetura|avaliacoes)\?(.*&)?po=(lista|todas|atuacoes)(&|$)/;
     /* a tela de baixo é uma lista de posicionamentos: a anterior desta entrada — ou, no desenho que ainda vai empilhar a
        ficha, o próprio endereço atual */
     function poAnteriorEhLista() {
@@ -679,14 +679,14 @@
       if (st && st.poAnterior && RE_LISTA_PO.test(st.poAnterior)) return true;
       return RE_LISTA_PO.test(location.hash || '') && state.tela !== 'lista' && state.tela !== 'todas' && state.tela !== 'atuacoes';
     }
-    function rotuloVoltarPo() { if (poAnteriorEhLista()) return '← Voltar para os Posicionamentos'; var o = origemPo(); return '← Voltar para ' + (o ? o.rotulo : 'Avaliações'); }
+    function rotuloVoltarPo() { if (poAnteriorEhLista()) return '← Voltar para os Posicionamentos'; var o = origemPo(); return '← Voltar para ' + (o ? o.rotulo : 'A Floresta'); }
     function sairParaAvaliacoes() {
       if (!confirmarSaida()) return;
       if (poAnteriorEhLista()) { history.back(); return; } /* veio da lista: volta para ela */
       if (origemPo()) { window.faNav.voltar(); return; }
       var st = history.state;
-      if (st && st.poAnterior && st.poAnterior.split('?')[0] === '#avaliacoes' && !/[?&](po|sq)=/.test(st.poAnterior)) { history.back(); return; }
-      history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#avaliacoes');
+      if (st && st.poAnterior && st.poAnterior.split('?')[0] === '#arquitetura' && !/[?&](po|sq)=/.test(st.poAnterior)) { history.back(); return; }
+      history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#arquitetura');
       fecharPainel();
     }
     function confirmarSaida() {
@@ -801,7 +801,7 @@
     function rodapeVoltar() {
       var p2 = state.atual && ehPorta2(state.atual), oa = origemAreaDe(state.atual);
       /* veio de uma análise de área: a volta é para a lista daquela área (no resultado concluído, o bloco do próximo passo já leva lá) */
-      if (oa) return state.tela === 'resultado' && state.atual.status === 'concluido' ? '' : '<div class="avp-actions-footer"><a class="btn btn--sm" id="poVoltarAreaRodape" href="#avaliacoes?an=' + encodeURIComponent(oa.analiseId) + '">← Voltar às responsabilidades de ' + esc(oa.nome) + '</a></div>';
+      if (oa) return state.tela === 'resultado' && state.atual.status === 'concluido' ? '' : '<div class="avp-actions-footer"><a class="btn btn--sm" id="poVoltarAreaRodape" href="#arquitetura?an=' + encodeURIComponent(oa.analiseId) + '">← Voltar às responsabilidades de ' + esc(oa.nome) + '</a></div>';
       return '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poVoltarLista" data-destino="' + (p2 ? 'todas' : 'lista') + '">← ' + (p2 ? 'Voltar às responsabilidades' : 'Voltar para a lista de posicionamentos') + '</button></div>';
     }
     function badge(status) {
@@ -1307,7 +1307,7 @@
       var A = window.faAnalisesOrganizacionais;
       if (!A || !A.origemHtml) return '';
       var h = A.origemHtml(objetoId), d = A.delimitacaoDe ? A.delimitacaoDe(objetoId) : null;
-      if (d) h += '<p class="an-origem" id="anDelimitada">Delimitada em ' + d.responsabilidades + ' responsabilidade' + (d.responsabilidades === 1 ? '' : 's') + ' na <a href="#avaliacoes?an=' + encodeURIComponent(d.analiseId) + '">análise organizacional</a>. O que já foi registrado para esta responsabilidade ampla continua no histórico.</p>';
+      if (d) h += '<p class="an-origem" id="anDelimitada">Delimitada em ' + d.responsabilidades + ' responsabilidade' + (d.responsabilidades === 1 ? '' : 's') + ' na <a href="#arquitetura?an=' + encodeURIComponent(d.analiseId) + '">análise organizacional</a>. O que já foi registrado para esta responsabilidade ampla continua no histórico.</p>';
       return h;
     }
 
@@ -1331,7 +1331,7 @@
       var AO = window.faAnalisesOrganizacionais, entrada = AO && AO.entradaAtuacoesHtml ? AO.entradaAtuacoesHtml(direto) : '';
       if (entrada) h += entrada; else if (direto) h += '<div class="avp-actions-bar">' + direto + '</div>';
       h += '<h4 class="po-subtitulo" id="poRegistradasTitulo">Responsabilidades registradas</h4>' +
-        '<p class="po-todas-link"><a class="btn btn--sm" id="poVerTodasBtn" href="#avaliacoes?po=todas">Ver todas as responsabilidades (também as das análises de área)</a></p>';
+        '<p class="po-todas-link"><a class="btn btn--sm" id="poVerTodasBtn" href="#arquitetura?po=todas">Ver todas as responsabilidades (também as das análises de área)</a></p>';
       var lista = objetosOrdenados();
       if (!lista.length) h += '<p class="admin-empty" id="poSemAtuacoes">Nenhuma responsabilidade organizacional cadastrada.</p>';
       h += '<ul class="po-itens" id="poListaAtuacoes">' + lista.map(function (o) {
@@ -1357,18 +1357,18 @@
         if (o.situacao !== 'ativo') return;
         var orig = porObj[o._id], sp = posicionamentoDoItem(o._id), oc = AO && AO.origemCompleta && ras !== null ? AO.origemCompleta(o._id) : { tipo: 'indisponivel' };
         var l = { descricao: (O() && O().registroSimplificado(o)) ? o.descricao : o.nome, origem: oc.tipo, area: oc.nome || null, analiseId: oc.analiseId || null, nucleos: orig ? orig.nucleos : [] };
-        if (!sp) { l.sit = 'pronta'; l.href = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(o._id); l.acao = 'Avaliar'; }
-        else if (sp.tipo === 'rascunho') { l.sit = 'andamento'; l.href = '#avaliacoes?po=' + encodeURIComponent(sp.key); l.acao = 'Continuar'; }
+        if (!sp) { l.sit = 'pronta'; l.href = '#arquitetura?po=atuacoes&item=' + encodeURIComponent(o._id); l.acao = 'Avaliar'; }
+        else if (sp.tipo === 'rascunho') { l.sit = 'andamento'; l.href = '#arquitetura?po=' + encodeURIComponent(sp.key); l.acao = 'Continuar'; }
         else {
           var reg = state.registros[sp.key] || {}, ra = reg.resultadoAutomatico || {}, dec = state.decisoes[sp.key];
-          l.sit = ra.codigoResultado === 'A_VALIDAR' && !dec ? 'avalidar' : 'avaliada'; l.href = '#avaliacoes?po=' + encodeURIComponent(sp.key); l.acao = 'Ver resultado';
+          l.sit = ra.codigoResultado === 'A_VALIDAR' && !dec ? 'avalidar' : 'avaliada'; l.href = '#arquitetura?po=' + encodeURIComponent(sp.key); l.acao = 'Ver resultado';
           l.tipo = rotuloResultado(ra); l.decisao = dec ? spanNome(dec.codigoFinal) : null;
         }
         out.push(l);
       });
       (ras || []).forEach(function (r) {
         if (r.objetoId) return;
-        out.push({ descricao: r.descricao, area: r.analiseNome, analiseId: r.analiseId, nucleos: r.nucleos, sit: r.pronta ? 'pronta' : 'pendente', href: '#avaliacoes?an=' + encodeURIComponent(r.analiseId), acao: 'Abrir análise da área' });
+        out.push({ descricao: r.descricao, area: r.analiseNome, analiseId: r.analiseId, nucleos: r.nucleos, sit: r.pronta ? 'pronta' : 'pendente', href: '#arquitetura?an=' + encodeURIComponent(r.analiseId), acao: 'Abrir análise da área' });
       });
       return { linhas: out.sort(function (x, y) { return String(x.descricao).localeCompare(String(y.descricao), 'pt-BR'); }), comAnalises: ras !== null };
     }
@@ -1390,7 +1390,7 @@
       h += '<ul class="po-todas" id="poTodasLista">' + L.map(function (l) {
         return '<li class="po-todas-item" data-situacao="' + l.sit + '" data-area="' + esc(l.analiseId || (l.origem === 'individual' ? '-' : '?')) + '" data-busca="' + esc(String(l.descricao).toLowerCase()) + '">' +
           '<div class="po-todas-texto"><strong>' + esc(l.descricao) + '</strong>' +
-          '<span class="po-todas-meta po-todas-origem" data-origem="' + esc(l.origem || 'analise') + '">' + (l.origem === 'excluida' ? 'Originada da análise ' + esc(l.area) + ' (excluída)' : l.area && l.origem !== 'indisponivel' ? 'Área: <a href="#avaliacoes?an=' + encodeURIComponent(l.analiseId) + '">' + esc(l.area) + '</a>'
+          '<span class="po-todas-meta po-todas-origem" data-origem="' + esc(l.origem || 'analise') + '">' + (l.origem === 'excluida' ? 'Originada da análise ' + esc(l.area) + ' (excluída)' : l.area && l.origem !== 'indisponivel' ? 'Área: <a href="#arquitetura?an=' + encodeURIComponent(l.analiseId) + '">' + esc(l.area) + '</a>'
             : l.origem === 'individual' ? 'Registrada individualmente' : 'Origem não disponível agora') + '</span>' +
           (l.nucleos && l.nucleos.length ? '<span class="po-todas-meta">Quem executa hoje: ' + esc(l.nucleos.join('; ')) + '</span>' : '') +
           (l.tipo ? '<span class="po-todas-meta">Tipo recomendado: ' + l.tipo + '</span>' : '') +
@@ -1696,7 +1696,7 @@
       if (a.status === 'concluido' && sit === 'vigente') et.push(['Estrutura e vínculo', 'futuro', 'Veja "Estrutura responsável" abaixo']);
       var sim = { ok: '✓', atual: '●', futuro: '○', na: '—', analise: '⚖', opcional: '◇', carregando: '…' };
       /* veio de uma análise de área: a volta é a da área (não concorre com a lista de jornadas) */
-      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada de Avaliação e Posicionamento">' + (origemAreaDe(a) ? '' : '<a class="po-jornada-voltar" id="poVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Voltar à lista de jornadas</a>') +
+      return '<nav class="po-jornada" id="poJornada" aria-label="Jornada de Avaliação e Posicionamento">' + (origemAreaDe(a) ? '' : '<a class="po-jornada-voltar" id="poVoltarJornada" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(a.itemId) + '">← Voltar à lista de jornadas</a>') +
         '<ol class="mf-trilha mf-trilha--compacta">' + et.map(function (e) {
           return '<li class="mf-etapa mf-etapa--' + e[1] + '" data-estado="' + e[1] + '"><span class="mf-etapa-simbolo" aria-hidden="true">' + sim[e[1]] + '</span><span class="mf-etapa-texto"><span class="mf-etapa-rotulo">' + esc(e[0]) + '</span>' +
             (e[2] ? '<span class="mf-etapa-detalhe">' + esc(e[2]) + '</span>' : '') + '</span></li>';
@@ -2525,7 +2525,7 @@
     var api = montar();
     if (api) window.faAvaliacaoPosicionamento = api;
   };
-  /* Carga direta em #avaliacoes?po=… (F5, link, Voltar/Avançar que atravessa um F5): em máquina lenta o roteador
+  /* Carga direta em #arquitetura?po=… (F5, link, Voltar/Avançar que atravessa um F5): em máquina lenta o roteador
      pode abrir a página antes de este arquivo carregar, e aí ninguém o monta — monta-se sozinho. */
-  if (/^#avaliacoes\?(.*&)?po=/.test(location.hash || '')) window.faInitAvaliacaoPosicionamento();
+  if (/^#(?:arquitetura|avaliacoes)\?(.*&)?po=/.test(location.hash || '')) window.faInitAvaliacaoPosicionamento();
 })();

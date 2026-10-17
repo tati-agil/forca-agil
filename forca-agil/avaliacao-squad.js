@@ -181,7 +181,7 @@
   }
 
   /* Duas instâncias, uma por lugar (mesmo princípio dos dois modos de avaliacao-produto.js):
-       'operacional' — #avaliacoes (aba AVALIAÇÃO): lista, nova avaliação, checklist, resultado e
+       'operacional' — #arquitetura (aba AVALIAÇÃO): lista, nova avaliação, checklist, resultado e
          exportações. É onde quem tem acesso à Avaliação avalia Squad, sem precisar do ADMIN.
        'admin' — ADMIN › Avaliações e Mapa: SÓ a Configuração do Motor de Squad (governança), aberta
          pela tela inicial da Arquitetura ou por Configuração dos Motores, voltando para a origem.
@@ -333,7 +333,7 @@
       if (arqWrap) arqWrap.hidden = false;
       trocarIdentidade(false);
     }
-    /* Operacional: a Squad mora dentro de #avaliacoes, mas não é Produto/Serviço — enquanto
+    /* Operacional: a Squad mora dentro de #arquitetura, mas não é Produto/Serviço — enquanto
        ela está na tela, o cabeçalho da página diz "Adequação à Squad"; ao sair, volta o original. */
     var identidadeOriginal = null;
     function trocarIdentidade(squad) {
@@ -351,23 +351,23 @@
     }
 
     /* ===================== ENDEREÇO (só operacional) =====================
-       #avaliacoes?sq=lista   lista de squad
-       #avaliacoes?sq=<chave> uma avaliação de squad (resultado ou rascunho salvo)
+       #arquitetura?sq=lista   lista de squad
+       #arquitetura?sq=<chave> uma avaliação de squad (resultado ou rascunho salvo)
        F5 e link direto reabrem a mesma tela; o Voltar/Avançar do navegador anda entre elas. Uma
        avaliação nova ainda não salva não tem endereço próprio (fica em ?sq=lista: o F5 recomeça
        da lista, como na avaliação de Produto/Serviço). Cada entrada guarda de onde veio
        (sqAnterior): o "← Voltar" para esse destino é o Voltar do navegador — nunca empilha. */
     function sqDoEndereco() {
       var h = location.hash || '';
-      if (h.split('?')[0] !== '#avaliacoes') return null;
+      if (h.split('?')[0] !== '#arquitetura') return null;
       var m = /[?&]sq=([^&]*)/.exec(h);
       return m ? decodeURIComponent(m[1]) : null;
     }
     function enderecoDesejado() {
       if (wrap.hidden || state.tela === 'nao-encontrada') return null; /* não encontrada: o endereço continua o pedido */
-      if ((state.tela === 'resultado' || state.tela === 'checklist') && state.atual && state.atual._key) return '#avaliacoes?sq=' + encodeURIComponent(state.atual._key);
-      if (state.tela === 'carregando' && state.pendente) return '#avaliacoes?sq=' + encodeURIComponent(state.pendente);
-      return '#avaliacoes?sq=lista';
+      if ((state.tela === 'resultado' || state.tela === 'checklist') && state.atual && state.atual._key) return '#arquitetura?sq=' + encodeURIComponent(state.atual._key);
+      if (state.tela === 'carregando' && state.pendente) return '#arquitetura?sq=' + encodeURIComponent(state.pendente);
+      return '#arquitetura?sq=lista';
     }
     var aplicandoEndereco = false;
     /* true depois que a Squad já está no próprio endereço: um redesenho assíncrono (dados ou motor chegando) que cai
@@ -379,11 +379,11 @@
       var desejado = enderecoDesejado();
       if (desejado && location.hash === desejado) noProprioEndereco = true;
       if (!desejado || location.hash === desejado) return;
-      if ((location.hash || '').split('?')[0] !== '#avaliacoes') return;
+      if ((location.hash || '').split('?')[0] !== '#arquitetura') return;
       var st = history.state;
       if (st && st.sqAnterior === desejado) { history.back(); return; }
       /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
-      var est = { avp: 1, seq: Date.now(), origem: null, sqAnterior: location.hash || '#avaliacoes' };
+      var est = { avp: 1, seq: Date.now(), origem: null, sqAnterior: location.hash || '#arquitetura' };
       var oe = origemSquad(); if (oe) est.navOrigem = oe; /* a origem externa acompanha as telas da Squad (F5 incluído) */
       history.pushState(est, '', desejado);
       noProprioEndereco = true;
@@ -406,12 +406,12 @@
       return true;
     }
     /* "← Voltar para Avaliações": com a lista de avaliações logo atrás no histórico, é o Voltar do
-       navegador; sem ela (F5, link direto), substitui a entrada por #avaliacoes e fecha a Squad. */
+       navegador; sem ela (F5, link direto), substitui a entrada por #arquitetura e fecha a Squad. */
     function sairParaAvaliacoes() {
       if (voltarParaOrigemExterna()) return;
       var st = history.state;
-      if (st && st.sqAnterior && st.sqAnterior.split('?')[0] === '#avaliacoes' && !/[?&]sq=/.test(st.sqAnterior)) { history.back(); return; }
-      history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#avaliacoes');
+      if (st && st.sqAnterior && st.sqAnterior.split('?')[0] === '#arquitetura' && !/[?&]sq=/.test(st.sqAnterior)) { history.back(); return; }
+      history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#arquitetura');
       voltarParaArquitetura();
     }
     function aplicarEndereco(sq) {
@@ -475,7 +475,7 @@
          arquivos exportados trazem as avaliações. */
       var ordenados = filtrados.slice().sort(function (a, b) { return (b.atualizadoEm || '').localeCompare(a.atualizadoEm || ''); });
       var chavesSel = Object.keys(state.selecionados).filter(function (k) { return state.selecionados[k] && buscarItem(k) && !buscarItem(k).excluido; });
-      var html = sqLinkVoltar('sqVoltarArquitetura', rotuloSquad('Avaliações'));
+      var html = sqLinkVoltar('sqVoltarArquitetura', rotuloSquad('A Floresta'));
       html += '<div class="avp-intro"><p><strong>Adequação à gestão por Squad:</strong> registra evidências (S1 a S8) sobre demanda, evolução, ' +
         'autonomia, complexidade e ownership de um item — completamente independente da classificação arquitetural (P1-P16) do mesmo item. ' +
         'Nenhuma das duas decide a outra.</p></div>';
@@ -527,7 +527,7 @@
         });
         html += '</tbody></table></div>';
       }
-      html += '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="sqVoltarArquiteturaRodape">← Voltar para ' + esc(rotuloSquad('Avaliações')) + '</button></div>';
+      html += '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="sqVoltarArquiteturaRodape">← Voltar para ' + esc(rotuloSquad('A Floresta')) + '</button></div>';
       wrap.innerHTML = html;
 
       byId('sqVoltarArquitetura').addEventListener('click', sairParaAvaliacoes);
@@ -616,7 +616,7 @@
       abrirLista: function () { mostrarPainel(); state.tela = 'lista'; render(); },
       iniciarOuAbrirParaItem: function (opts) {
         /* a tela de onde veio (Posicionamento, Jornada…) é a origem: o retorno da Squad volta para ela */
-        state.origemExterna = window.faNav && /^#avaliacoes\?/.test(location.hash || '') && !/[?&]sq=/.test(location.hash) ? { hash: location.hash, rotulo: window.faNav.rotuloOrigem(location.hash) } : null;
+        state.origemExterna = window.faNav && /^#(?:arquitetura|avaliacoes)\?/.test(location.hash || '') && !/[?&]sq=/.test(location.hash) ? { hash: location.hash, rotulo: window.faNav.rotuloOrigem(location.hash) } : null;
         mostrarPainel();
         /* proteção contra duplicar: sem as avaliações de squad lidas não dá para saber se já há uma em andamento */
         if (!state.itensCarregados) { state.pendenteItem = opts; state.tela = 'carregando'; render(); return; }
@@ -2077,7 +2077,7 @@
         if (sq === null) { if (!wrap.hidden) voltarParaArquitetura(); return; }
         aplicarEndereco(sq);
       });
-      /* F5 / link direto em #avaliacoes?sq=…: este módulo pode montar depois de a lista ler o endereço */
+      /* F5 / link direto em #arquitetura?sq=…: este módulo pode montar depois de a lista ler o endereço */
       if (sqDoEndereco()) aplicarEndereco(sqDoEndereco());
     }
     return api;
@@ -2095,8 +2095,8 @@
     var adm = montarSquad({ wrapId: 'adminAvaliacaoSquad', modo: 'admin', vizinhoId: 'adminAvaliacaoProduto' });
     if (adm) window.faAvaliacaoSquadAdmin = adm;
   };
-  /* Carga direta em #avaliacoes?sq=… (F5, link): em máquina lenta o roteador e avaliacao-produto.js abrem a página
+  /* Carga direta em #arquitetura?sq=… (F5, link): em máquina lenta o roteador e avaliacao-produto.js abrem a página
      antes de este arquivo carregar, e aí ninguém monta a instância operacional — monta-se sozinha; quem abre a
      tela do endereço continua sendo aplicarEndereco(). */
-  if (/^#avaliacoes\?(.*&)?sq=/.test(location.hash || '')) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+  if (/^#(?:arquitetura|avaliacoes)\?(.*&)?sq=/.test(location.hash || '')) window.faInitAvaliacaoSquad({ modo: 'operacional' });
 })();

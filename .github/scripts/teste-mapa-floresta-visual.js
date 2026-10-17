@@ -1,6 +1,6 @@
 /* Mapa da Floresta — versão VISUAL DEMONSTRATIVA, no desenho aprovado (mapa-floresta.js, modo "mapa"; dados de
  * mapa-floresta-demo.js). Desktop e celular 375 px; Firebase falso; hermético. Mínimo, por decisão da responsável:
- *   1. #avaliacoes?mf=mapa: faixa "Dados demonstrativos"; blocos de cima para baixo (Estratégia de Clientes, Canais,
+ *   1. #arquitetura?mf=mapa: faixa "Dados demonstrativos"; blocos de cima para baixo (Estratégia de Clientes, Canais,
  *      Negócios com subagrupadores, Plataformas Habilitadoras com os 3 sub-blocos oficiais, Áreas Especializadas por
  *      último) e a coluna de CoEs à direita no desktop (no celular, CoEs antes das Áreas Especializadas); cores
  *      aprovadas; os 8 códigos firmes cobertos uma vez; cada caixa é uma estrutura concreta.
@@ -56,7 +56,7 @@ const banco = (page) => page.evaluate(() => JSON.stringify(window.__CFG.__dbReal
 async function rodada(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + ']');
   const celular = viewport === CELULAR;
-  const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?mf=mapa');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?mf=mapa');
   await page.waitForSelector('#mfmMapa');
   await esperarCondicao(page, () => /Tx PLATAFORMA_CORPORATIVA/.test((document.querySelector('.mfm-sub[data-codigo="PLATAFORMA_CORPORATIVA"] h4') || {}).textContent || ''), null, { limite: 10000, descricao: 'nomes da Taxonomia' });
   const antes = await banco(page);
@@ -116,7 +116,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.waitForSelector('#mfmDetalhe');
   await page.click('#mfmFechar');
   await esperarCondicao(page, () => !document.getElementById('mfmDetalhe'), null, { limite: 5000, descricao: 'detalhe fechado' });
-  afirma(await page.evaluate(() => location.hash) === '#avaliacoes?mf=mapa' && await page.locator('#mfmMapa').isVisible(), '"← Voltar ao Mapa" volta à visão geral');
+  afirma(await page.evaluate(() => location.hash) === '#arquitetura?mf=mapa' && await page.locator('#mfmMapa').isVisible(), '"← Voltar ao Mapa" volta à visão geral');
   /* Voltar do navegador e F5 */
   await page.click('.mfm-caixa[data-estrutura="demo-coe-1"]');
   await page.waitForSelector('#mfmDetalhe');
@@ -129,10 +129,10 @@ async function rodada(browser, viewport, rotulo) {
   /* atalhos Mapa ↔ Catálogo */
   await page.click('#mfmIrCatalogo');
   await page.waitForSelector('#mfCatalogo');
-  afirma(await page.evaluate(() => location.hash) === '#avaliacoes?mf=catalogo', 'atalho para o Catálogo');
+  afirma(await page.evaluate(() => location.hash) === '#arquitetura?mf=catalogo', 'atalho para o Catálogo');
   await page.click('#mfIrMapa');
   await page.waitForSelector('#mfmMapa');
-  afirma(await page.evaluate(() => location.hash) === '#avaliacoes?mf=mapa', 'atalho do Catálogo para o Mapa');
+  afirma(await page.evaluate(() => location.hash) === '#arquitetura?mf=mapa', 'atalho do Catálogo para o Mapa');
   /* quantidade variável: configuração populosa (0, 1, 3 e 10+ por grupo, nomes longos, subagrupador vazio e um a mais) */
   await page.click('.mfm-cenario[data-cenario="populoso"]');
   await esperarCondicao(page, () => /[?&]cenario=populoso/.test(location.hash) && document.querySelectorAll('.mfm-caixa').length > 40, null, { limite: 8000, descricao: 'configuração populosa' });
@@ -150,7 +150,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(pop.cortadas === 0 && !pop.sobrepostas && pop.semRolagem, 'configuração populosa: nenhum nome cortado, nenhuma caixa sobreposta, sem rolagem horizontal', JSON.stringify(pop));
   afirma(JSON.stringify(pop.vazios) === '["demo-sub-prot","PLATAFORMA_CORPORATIVA"]' && pop.subs === 4, 'grupos vazios dizem que estão vazios; um subagrupador a mais aparece sem mudar a tela', JSON.stringify(pop));
   await page.click('.mfm-cenario[data-cenario="habitual"]');
-  await esperarCondicao(page, () => location.hash === '#avaliacoes?mf=mapa' && document.querySelectorAll('.mfm-caixa').length === 26, null, { limite: 8000, descricao: 'volta à configuração habitual' });
+  await esperarCondicao(page, () => location.hash === '#arquitetura?mf=mapa' && document.querySelectorAll('.mfm-caixa').length === 26, null, { limite: 8000, descricao: 'volta à configuração habitual' });
   afirma(await banco(page) === antes, 'nada gravado: o banco inteiro é o mesmo');
   afirma(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));

@@ -88,7 +88,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     const p = await sessao('configuracao');
     afirma(await p.locator('#faFaixaAmbienteTestes').count() === 1, 'a faixa "AMBIENTE DE TESTES" aparece');
     afirma(await p.evaluate(() => window.faAmbiente.testes && window.faAmbiente.projeto === 'demo-forca-agil-local'), 'o site está ligado ao projeto de testes "demo-"');
-    await ir(p, '#avaliacoes?mf=mapa');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa', { timeout: 15000 });
     const vazios = await p.locator('#mfmMapa .mfm-vazio').allInnerTexts();
     afirma(vazios.length >= 7 && vazios.every((t) => t === 'Nenhuma estrutura cadastrada'), 'cada categoria vazia mostra "Nenhuma estrutura cadastrada" (' + vazios.length + ')');
@@ -162,7 +162,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
 
     /* ===== 4b. Navegação Mapa ↔ ficha ↔ edição (reproduzida, não presumida) ===== */
     console.log('\n4b. Navegação Mapa ↔ ficha ↔ edição');
-    await ir(p, '#avaliacoes?mf=mapa&e=' + idCoe);
+    await ir(p, '#arquitetura?mf=mapa&e=' + idCoe);
     await p.waitForSelector('#mfmAbrirCadastro', { timeout: 15000 });
     afirma(/Abrir a ficha no cadastro/.test(await texto(p, '#mfmAbrirCadastro')), 'o link do Mapa diz que leva à ficha no cadastro');
     await p.click('#mfmAbrirCadastro');
@@ -182,7 +182,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.goBack();
     await p.waitForSelector('#mfmDetalhe', { timeout: 15000 });
     afirma(/CoE de Dados/.test(await texto(p, '#mfmDetalhe')), 'o Voltar do navegador devolve ao Mapa com a mesma estrutura aberta');
-    await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+    await ir(p, '#arquitetura?mf=mapa&e=' + idNeg);
     await p.waitForFunction(() => /Linha de Investimentos/.test((document.querySelector('#mfmDetalhe') || {}).innerText || ''), null, { timeout: 15000 });
 
     /* ===== 5. Editar e encerrar ===== */
@@ -220,7 +220,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(await p.locator('#estEditar, #estEncerrar').count() === 0, 'estrutura encerrada não oferece editar nem encerrar');
     await p.click('#estHistorico summary');
     afirma(/Encerrada/.test(await texto(p, '#estHistorico')) && /Motivo do encerramento\s*Área incorporada/i.test(await texto(p, '#estHistorico')), 'o histórico guarda o encerramento e o motivo');
-    await ir(p, '#avaliacoes?mf=mapa');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     afirma(await p.locator('[data-estrutura="' + idAe + '"]').count() === 0 && /Nenhuma estrutura cadastrada/.test(await texto(p, '[data-bloco="ae"]')), 'a estrutura encerrada sai do Mapa');
     await ir(p, '#admin?arq=estruturas');
@@ -296,7 +296,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(!!sgPrev && /Subagrupador criado/.test(await texto(p, '#estFlash')), 'subagrupador criado, com confirmação e ficha própria');
     await p.click('#sgVoltarLista'); await p.waitForSelector('#sgLista');
     const sgCred = await novoSg('Crédito');
-    await ir(p, '#avaliacoes?mf=mapa');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa', { timeout: 15000 });
     const ordemMapa = async () => p.$$eval('[data-bloco="negocios"] [data-subagrupador]', (els) => els.map((e) => e.getAttribute('data-subagrupador')));
     afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgPrev, sgCred, '']), 'o Mapa mostra Previdência, Crédito e "Sem subagrupador", nessa ordem', JSON.stringify(await ordemMapa()));
@@ -311,7 +311,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.waitForFunction(() => /agora aparece no subagrupador/.test((document.querySelector('#estFlash') || {}).innerText || ''), null, { timeout: 15000 });
     const sgAtualTxt = await texto(p, '#estSgAtual'), sgFlashTxt = await texto(p, '#estFlash');
     afirma(/Previdência/.test(sgAtualTxt) && /agora aparece no subagrupador "Previdência"/.test(sgFlashTxt), 'associada: a ficha confirma e mostra o subagrupador', JSON.stringify({ atual: sgAtualTxt, flash: sgFlashTxt }));
-    await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+    await ir(p, '#arquitetura?mf=mapa&e=' + idNeg);
     await p.waitForSelector('#mfmDetalhe', { timeout: 15000 });
     afirma(await p.locator('[data-bloco="negocios"] [data-subagrupador="' + sgPrev + '"] [data-estrutura="' + idNeg + '"]').count() === 1 && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 0, 'MARCO: a Linha aparece dentro de Previdência no Mapa (e não mais em "Sem subagrupador")');
     afirma(/Linhas de Negócios › Previdência/.test(await texto(p, '#mfmDetalhe .mfm-caminho')) && (await texto(p, '#mfmSubagrupador')) === 'Previdência', 'o detalhe no Mapa mostra o caminho e o subagrupador');
@@ -329,7 +329,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.waitForSelector('#sgLista');
     await p.click('.sg-subir[data-subagrupador="' + sgCred + '"]');
     await p.waitForFunction(() => /Ordem atualizada/.test((document.querySelector('#estFlash') || {}).innerText || ''), null, { timeout: 15000 });
-    await ir(p, '#avaliacoes?mf=mapa');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgCred, sgPrev]), 'subir na lista muda a ordem no Mapa (Crédito antes de Previdência; sem Linha solta, não há "Sem subagrupador")', JSON.stringify(await ordemMapa()));
     /* renomear */
@@ -337,7 +337,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.waitForSelector('#sgRenomear', { timeout: 15000 });
     await p.click('#sgRenomear'); await p.fill('#sgNome', 'Crédito Consignado'); await p.click('#sgSalvar');
     await p.waitForSelector('#estFlash');
-    await ir(p, '#avaliacoes?mf=mapa');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     afirma(/Crédito Consignado/.test(await texto(p, '[data-subagrupador="' + sgCred + '"]')) && await p.locator('[data-subagrupador="' + sgCred + '"] [data-estrutura="' + idNeg + '"]').count() === 1, 'renomear aparece no Mapa, com a Linha dentro');
     /* encerrar com a Linha associada: nada em cascata, a Linha vai para "Sem subagrupador" */
@@ -351,7 +351,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.fill('#sgMotivo', 'Crédito consignado passa a ser tratado no subagrupador Previdência.'); await p.click('#sgSalvar');
     await p.waitForSelector('#sgEncerradoAviso', { timeout: 15000 });
     afirma(await p.locator('#sgRenomear, #sgEncerrar').count() === 0, 'subagrupador encerrado: só consulta, sem renomear nem reativar');
-    await ir(p, '#avaliacoes?mf=mapa');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgPrev, '']) && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 1, 'no Mapa, o subagrupador encerrado some e a Linha volta para "Sem subagrupador"', JSON.stringify(await ordemMapa()));
     await ir(p, '#admin?arq=estruturas&e=' + idNeg);
@@ -366,7 +366,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     /* ===== 7. Perfil só de consulta ===== */
     console.log('\n7. Perfil só de consulta');
     const c = await sessao('consulta');
-    await ir(c, '#avaliacoes?mf=mapa');
+    await ir(c, '#arquitetura?mf=mapa');
     await c.waitForSelector('#mfmMapa', { timeout: 15000 });
     afirma(await c.locator('#mfmMapa .mfm-caixa').count() === 3, 'a consulta vê as 3 estruturas ativas no Mapa');
     afirma(await c.locator('#mfmIrCadastro').count() === 0, 'a consulta não vê o atalho de cadastro');
@@ -390,14 +390,14 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
         faEstruturasFirebase.criarPortas({ db: firebase.database(), codigosFirmes: faMotorPosicionamentoNucleo.CODIGOS_FIRMES }));
     });
     afirma(!r4.ok, 'a consulta também não cria subagrupador (o banco recusa)', JSON.stringify(r4.erros || r4.situacao));
-    await ir(c, '#avaliacoes?mf=mapa');
+    await ir(c, '#arquitetura?mf=mapa');
     await c.waitForSelector('#mfmMapa', { timeout: 15000 });
     afirma(await c.locator('[data-bloco="negocios"] [data-subagrupador]').count() === 2, 'a consulta vê o subagrupador ativo e "Sem subagrupador" no Mapa');
     await c.context().close();
 
     /* ===== 8. Demonstração × cadastradas ===== */
     console.log('\n8. Demonstração separada');
-    await ir(p, '#avaliacoes?mf=mapa');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     await p.click('.mfm-fonte[data-fonte="demo"]');
     await p.waitForSelector('#mfmMapa');
@@ -428,7 +428,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const situacao = (pg) => pg.evaluate(() => (document.getElementById('poRespSituacao') || {}).textContent || '');
       const prontoBloco = (pg) => esperarCondicaoAte(pg, () => { const el = document.getElementById('poResponsavel'); return !!el && !!document.getElementById('poRespSituacao'); }, undefined, { limite: 15000 });
       const vinculos = async () => ((await S.banco('GET', 'estruturas-vinculos/registros')).corpo) || {};
-      await ir(p, '#avaliacoes?po=pos-m3');
+      await ir(p, '#arquitetura?po=pos-m3');
       afirma(await prontoBloco(p), 'a ficha do Posicionamento vigente mostra o bloco "Estrutura responsável"');
       afirma((await situacao(p)) === 'Sem estrutura responsável' && /Negócios|Linha de Negócios/.test(await texto(p, '#poRespAusente')), 'sem vínculo: situação "Sem estrutura responsável", com o posicionamento efetivo do item', await texto(p, '#poResponsavel'));
       await p.click('#poRespVincular');
@@ -480,13 +480,13 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(await semRolagemLateral(p), 'computador: ficha com o bloco sem rolagem lateral');
       /* perfil só de consulta: vê, não mexe */
       const cq = await sessao('consulta');
-      await ir(cq, '#avaliacoes?po=pos-m3');
+      await ir(cq, '#arquitetura?po=pos-m3');
       afirma(await prontoBloco(cq), 'perfil avaliacao (consulta) vê o bloco');
       afirma(await cq.locator('#poRespVincular, #poRespSubstituir, #poRespEncerrar, #poRespForm').count() === 0, 'perfil avaliacao (consulta) não tem botão nem formulário de vínculo');
       await cq.context().close();
       /* celular: vincular de novo, em 375 px */
       const cel = await sessao('configuracao', 375);
-      await ir(cel, '#avaliacoes?po=pos-m3');
+      await ir(cel, '#arquitetura?po=pos-m3');
       afirma(await prontoBloco(cel), '375 px: o bloco aparece');
       await cel.click('#poRespVincular'); await cel.waitForSelector('#poRespEstruturaSel');
       const alvoSel = await cel.locator('#poRespEstruturaSel').boundingBox(), alvoBtn = await cel.locator('#poRespSalvar').boundingBox();
@@ -513,7 +513,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(ra.codigoResultado === 'PLATAFORMA_CANAIS', 'Posicionamento de teste: Plataforma de Canais (resultado do motor v1), sem nenhuma estrutura desse tipo', ra.codigoResultado);
       const contarEstruturas = async () => Object.keys(((await S.banco('GET', 'estruturas-concretas/registros')).corpo) || {}).length;
       const antes = await contarEstruturas();
-      await ir(p, '#avaliacoes?po=pos-can');
+      await ir(p, '#arquitetura?po=pos-can');
       await p.waitForSelector('#poRespVincular', { timeout: 15000 });
       await p.click('#poRespVincular');
       await p.waitForSelector('#poRespSemOpcoes', { timeout: 15000 });
@@ -528,7 +528,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(/[?&]po=pos-can/.test(await p.evaluate(() => location.hash)), 'F5 no cadastro: continua com o caminho de volta ao Posicionamento');
       await p.click('#estVoltarPosicionamento');
       await p.waitForSelector('#poRespSituacao', { timeout: 15000 });
-      afirma(/^#avaliacoes\?po=pos-can/.test(await p.evaluate(() => location.hash)), 'volta ao MESMO Posicionamento, no bloco da estrutura responsável');
+      afirma(/^#(?:arquitetura|avaliacoes)\?po=pos-can/.test(await p.evaluate(() => location.hash)), 'volta ao MESMO Posicionamento, no bloco da estrutura responsável');
       await p.goBack();
       await p.waitForSelector('#estVoltarPosicionamento', { timeout: 15000 });
       await p.goForward();
@@ -545,14 +545,14 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await S.banco('PATCH', '', { 'avaliacoes-produto/item-m3': { itemId: 'item-m3', nome: 'Produto Delta', status: 'concluido', versao: 1, excluido: false, motorVersion: MOTOR_P, motorVersionArquitetura: 2,
         resultadoAutomatico: 'nao-produto', decisaoFinal: 'nao-produto', camadaSugerida: { id: 'componente', label: 'Componente' }, respostas: {}, criadoEm: '2026-09-30T09:00:00.000Z', atualizadoEm: '2026-10-02T09:00:00.000Z',
         reprocessedAt: '2026-10-02T09:00:00.000Z', historicoMotor: [{ resultadoAutomatico: 'produto', camadaSugerida: { id: 'produto-principal', label: 'Produto/Serviço principal' }, processadoEm: '2026-09-30T09:00:00.000Z' }] } });
-      await ir(p, '#avaliacoes?po=pos-m3');
+      await ir(p, '#arquitetura?po=pos-m3');
       await esperarCondicaoAte(p, () => !!document.getElementById('poBaseRevisao') && !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 });
       afirma(/foi reprocessada depois da conclusão e a classificação mudou/.test(await texto(p, '#poBaseRevisao')) && /nada foi alterado automaticamente/.test(await texto(p, '#poBaseRevisao')),
         'ficha do Posicionamento: "Precisa de revisão" quando a base foi reprocessada e a classificação mudou; nada alterado', await texto(p, '#poBaseRevisao'));
       afirma((await texto(p, '#poRespSituacao')) === 'Válido' && /não muda a situação do vínculo/.test(await texto(p, '#poRespBase')),
         'bloco da estrutura responsável: o vínculo continua "Válido" e mostra só o aviso da base (decisão D)');
       /* Catálogo */
-      await ir(p, '#avaliacoes?mf=catalogo&item=item-m3');
+      await ir(p, '#arquitetura?mf=catalogo&item=item-m3');
       const itemCat = '#mfCatalogo .mf-item[data-item="item-m3"]';
       await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
       const tCat = await texto(p, itemCat);
@@ -560,17 +560,17 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(/Estrutura responsável/.test(tCat) && /Linha de Investimentos/.test(tCat) && /Válido/.test(tCat) && /Aviso: a base do Posicionamento precisa de revisão/.test(tCat), 'Catálogo: a estrutura responsável do item, a situação do vínculo e o aviso', tCat.slice(0, 400));
       afirma(/Ambiente de testes/.test(await texto(p, '#mfAvisoEstruturas')), 'Catálogo: no ambiente de testes, o aviso diz de onde vêm estruturas e vínculos');
       /* Mapa: os produtos e serviços sob a estrutura */
-      await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+      await ir(p, '#arquitetura?mf=mapa&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'), undefined, { limite: 15000 });
       const tObj = await texto(p, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]');
       afirma(/Produto Delta/.test(tObj) && /Válido/.test(tObj) && /Aviso: a base do Posicionamento precisa de revisão/.test(tObj) &&
-        (await p.getAttribute('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] .mfm-abrir-po', 'href')) === '#avaliacoes?po=pos-m3', 'Mapa: o produto aparece na estrutura responsável, com a situação, o aviso e o atalho para o Posicionamento', tObj);
+        (await p.getAttribute('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] .mfm-abrir-po', 'href')) === '#arquitetura?po=pos-m3', 'Mapa: o produto aparece na estrutura responsável, com a situação, o aviso e o atalho para o Posicionamento', tObj);
       afirma(await p.locator('#mfmMapa .mfm-caixa[data-objeto]').count() === 0, 'Mapa: o produto não vira caixa do Mapa');
       /* ficha da estrutura */
       await ir(p, '#admin?arq=estruturas&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
       const tFicha = await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]');
-      afirma(/Produto Delta/.test(tFicha) && /Válido/.test(tFicha) && (await p.getAttribute('#estProdutos .est-produto[data-objeto="item-m3"] .est-abrir-po', 'href')) === '#avaliacoes?po=pos-m3',
+      afirma(/Produto Delta/.test(tFicha) && /Válido/.test(tFicha) && (await p.getAttribute('#estProdutos .est-produto[data-objeto="item-m3"] .est-abrir-po', 'href')) === '#arquitetura?po=pos-m3',
         'ficha da estrutura: os produtos e serviços sob ela, com a situação e o atalho para o Posicionamento (só consulta)', tFicha);
       afirma(await p.locator('#estProdutos button').count() === 0, 'ficha da estrutura: nenhuma ação de vínculo (administrado só no Posicionamento)');
       /* D: mudar só o nome da estrutura não invalida o vínculo */
@@ -580,17 +580,17 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(await semRolagemLateral(p), 'computador: ficha da estrutura com os produtos, sem rolagem lateral');
       /* perfil só de consulta: não lê as ligações oficiais — a situação continua "Válido", sem "tipo não corresponde" */
       const cq2 = await sessao('consulta');
-      await ir(cq2, '#avaliacoes?po=pos-m3');
+      await ir(cq2, '#arquitetura?po=pos-m3');
       await esperarCondicaoAte(cq2, () => !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 });
       afirma((await texto(cq2, '#poRespSituacao')) === 'Válido', 'perfil avaliacao (consulta): o vínculo aparece "Válido" (sem as ligações, a situação não confere o tipo — nunca um falso "Precisa de revisão")', await texto(cq2, '#poResponsavel'));
-      await ir(cq2, '#avaliacoes?mf=catalogo&item=item-m3');
+      await ir(cq2, '#arquitetura?mf=catalogo&item=item-m3');
       await esperarCondicaoAte(cq2, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
       afirma(/Válido/.test(await texto(cq2, itemCat)), 'perfil avaliacao (consulta): o Catálogo mostra a mesma situação "Válido"');
       await cq2.context().close();
       /* celular */
       const cel2 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['Catálogo com vínculos', '#avaliacoes?mf=catalogo&item=item-m3', itemCat + ' .mf-vinculo [data-situacao]'], ['Mapa com os produtos da estrutura', '#avaliacoes?mf=mapa&e=' + idNeg, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'],
-        ['ficha da estrutura com os produtos', '#admin?arq=estruturas&e=' + idNeg, '#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'], ['ficha do Posicionamento com o sinal', '#avaliacoes?po=pos-m3', '#poBaseRevisao']]) {
+      for (const [rot, hash, sel] of [['Catálogo com vínculos', '#arquitetura?mf=catalogo&item=item-m3', itemCat + ' .mf-vinculo [data-situacao]'], ['Mapa com os produtos da estrutura', '#arquitetura?mf=mapa&e=' + idNeg, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'],
+        ['ficha da estrutura com os produtos', '#admin?arq=estruturas&e=' + idNeg, '#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'], ['ficha do Posicionamento com o sinal', '#arquitetura?po=pos-m3', '#poBaseRevisao']]) {
         await ir(cel2, hash); await cel2.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel2), '375 px: ' + rot + ' sem rolagem lateral');
       }
@@ -657,10 +657,10 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(ativa && ativa.destino === 'neg-3' && antiga && antiga.encerramento.motivo === 'Squad passou para a Previdência' && antiga.encerramento.substituidaPor === ativa.id, 'trocar de Linha: encerra a composição anterior (com o motivo) e cria a nova na mesma operação; nada apagado', JSON.stringify(rels));
       afirma(/Relações encerradas — 1/.test(await texto(p, '#estRelacoesEncerradas')), 'a composição anterior continua consultável em "Relações encerradas"');
       /* Mapa: o Squad dentro do detalhe da Linha, nunca como caixa */
-      await ir(p, '#avaliacoes?mf=mapa&e=neg-3');
+      await ir(p, '#arquitetura?mf=mapa&e=neg-3');
       await esperarCondicaoAte(p, () => /Squad Alfa/.test((document.getElementById('mfmSquads') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(/Squad Alfa/.test(await texto(p, '#mfmSquads')) && await p.locator('#mfmMapa .mfm-caixa[data-estrutura="' + idSq + '"]').count() === 0, 'Mapa: o Squad aparece dentro do detalhe da Linha ("Squads vinculados") e não vira caixa (C1)');
-      await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+      await ir(p, '#arquitetura?mf=mapa&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.getElementById('mfmSquads') && !/Carregando/.test(document.getElementById('mfmSquads').innerText), undefined, { limite: 15000 });
       afirma(/Nenhum Squad vinculado/.test(await texto(p, '#mfmSquads')), 'Mapa: a Linha anterior fica sem o Squad depois da troca');
       /* relação não hierárquica admitida: CoE atende Linha; depois, encerrar com motivo */
@@ -670,7 +670,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(opcCoe.indexOf('atende|neg-3') !== -1 && !opcCoe.some((v) => /^compoe\|/.test(v)), 'CoE: oferece "atende" (admitido pela Taxonomia) e nenhum "compõe" (C2)', JSON.stringify(opcCoe));
       await p.selectOption('#estRelEscolha', 'atende|neg-3'); await p.fill('#estRelJustificativa', 'Atende a Previdência'); await p.click('#estRelSalvar');
       await p.waitForSelector('#estFlash', { timeout: 15000 });
-      await ir(p, '#avaliacoes?mf=mapa&e=neg-3');
+      await ir(p, '#arquitetura?mf=mapa&e=neg-3');
       await esperarCondicaoAte(p, () => /CoE de Dados atende esta estrutura/.test((document.getElementById('mfmRelacoes') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(/CoE de Dados atende esta estrutura/.test(await texto(p, '#mfmRelacoes')), 'Mapa: as demais relações aparecem no detalhe, só para consulta');
       await ir(p, '#admin?arq=estruturas&e=' + idCoe);
@@ -683,7 +683,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(await semRolagemLateral(p), 'computador: ficha com relações sem rolagem lateral');
       /* perfil só de consulta (C4): não entra no cadastro (ADMIN); vê Squads e relações no Mapa, e o banco recusa gravar */
       const cq3 = await sessao('consulta');
-      await ir(cq3, '#avaliacoes?mf=mapa&e=neg-3');
+      await ir(cq3, '#arquitetura?mf=mapa&e=neg-3');
       await esperarCondicaoAte(cq3, () => /Squad Alfa/.test((document.getElementById('mfmSquads') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(/Squad Alfa/.test(await texto(cq3, '#mfmSquads')) && await cq3.locator('#mfmDetalhe button:not(#mfmFechar), #mfmAbrirCadastro').count() === 0, 'perfil avaliacao (consulta): vê os Squads da Linha no Mapa, sem nenhuma ação (C4)');
       const rq = await cq3.evaluate(async (ids) => {
@@ -696,7 +696,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await cq3.context().close();
       /* celular */
       const cel3 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['ficha do Squad com relações', '#admin?arq=estruturas&e=' + idSq, '#estRelacoesLista .est-relacao'], ['Mapa com os Squads da Linha', '#avaliacoes?mf=mapa&e=neg-3', '#mfmSquads .mfm-squad']]) {
+      for (const [rot, hash, sel] of [['ficha do Squad com relações', '#admin?arq=estruturas&e=' + idSq, '#estRelacoesLista .est-relacao'], ['Mapa com os Squads da Linha', '#arquitetura?mf=mapa&e=neg-3', '#mfmSquads .mfm-squad']]) {
         await ir(cel3, hash); await cel3.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel3), '375 px: ' + rot + ' sem rolagem lateral');
       }
@@ -720,7 +720,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const v0 = await vincAtivo();
       afirma(v0 && v0.estruturaId === idNeg && v0.base.codigo === 'NEGOCIOS' && v0.base.origem === 'recomendacao', 'estado de partida: Produto Delta com estrutura responsável Linha (Negócios, pela recomendação)', JSON.stringify(v0));
       /* 1. decisão final pela tela, divergindo da recomendação (CoE) — G/D: o vínculo vira "Precisa de revisão", nada muda sozinho */
-      await ir(p, '#avaliacoes?po=pos-m3');
+      await ir(p, '#arquitetura?po=pos-m3');
       await p.waitForSelector('#poCodigoFinal', { timeout: 15000 });
       await p.selectOption('#poCodigoFinal', 'COE');
       await p.fill('#poJustificativaInput', 'Responsabilidade é de um CoE (validação M8)');
@@ -735,20 +735,20 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(JSON.stringify(v1) === JSON.stringify(v0), 'nada muda sozinho: o vínculo continua ativo, igual, até alguém substituí-lo ou encerrá-lo (D)');
       await foto(p, '#poResultado', 'm8-posicionamento-revisao-desktop.png');
       /* Catálogo, Mapa e ficha mostram a mesma situação */
-      await ir(p, '#avaliacoes?mf=catalogo&item=item-m3');
+      await ir(p, '#arquitetura?mf=catalogo&item=item-m3');
       const itemCat = '#mfCatalogo .mf-item[data-item="item-m3"]';
       await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
       const tCat = await texto(p, itemCat);
       afirma(/Precisa de revisão/.test(tCat) && /decisão final/.test(tCat), 'Catálogo: posicionamento efetivo pela decisão final e o vínculo "Precisa de revisão"', tCat.slice(0, 500));
       await foto(p, itemCat, 'm8-catalogo-revisao-desktop.png');
-      await ir(p, '#avaliacoes?mf=mapa&e=' + idNeg);
+      await ir(p, '#arquitetura?mf=mapa&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
       afirma(/Precisa de revisão/.test(await texto(p, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]')), 'Mapa: o produto continua sob a Linha, com "Precisa de revisão" (nada é movido sozinho)');
       await ir(p, '#admin?arq=estruturas&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
       afirma(/Precisa de revisão/.test(await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]')), 'ficha da Linha: a mesma situação');
       /* 2. substituir pela estrutura do tipo novo (CoE), com motivo — volta a "Válido", base = decisão final */
-      await ir(p, '#avaliacoes?po=pos-m3');
+      await ir(p, '#arquitetura?po=pos-m3');
       await p.waitForSelector('#poRespSubstituir', { timeout: 15000 }); await p.click('#poRespSubstituir'); await p.waitForSelector('#poRespEstruturaSel');
       const opcCoe = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean));
       afirma(JSON.stringify(opcCoe) === JSON.stringify([idCoe]), 'substituir: só estruturas ativas do tipo do posicionamento efetivo (o CoE)', JSON.stringify(opcCoe));
@@ -756,7 +756,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await p.waitForSelector('#poRespFlash', { timeout: 15000 });
       const v2 = await vincAtivo();
       afirma(v2 && v2.estruturaId === idCoe && v2.base.codigo === 'COE' && v2.base.origem === 'decisao' && v2.substitui === v0.id && (await texto(p, '#poRespSituacao')) === 'Válido', 'substituído com motivo: CoE, base pela decisão final, "Válido"; o anterior fica encerrado', JSON.stringify(v2));
-      await ir(p, '#avaliacoes?mf=mapa&e=' + idCoe);
+      await ir(p, '#arquitetura?mf=mapa&e=' + idCoe);
       await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
       const tCoe = await texto(p, '#mfmDetalhe');
       afirma(/Produto Delta/.test(tCoe) && /Válido/.test(tCoe) && /Não se aplica: Áreas Especializadas e Centros de Excelência não formam Squads/.test(tCoe), 'Mapa: o produto agora sob o CoE ("Válido"); o CoE não forma Squads (regra fixa Linha × Squad)');
@@ -773,7 +773,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const dbAntes = await fotosDb();
       /* false: só consulta — os dados aparecem, nenhum controle de edição, aviso de gravação suspensa */
       await S.banco('PUT', TRAVA, false);
-      await ir(p, '#avaliacoes?po=pos-m3');
+      await ir(p, '#arquitetura?po=pos-m3');
       await esperarCondicaoAte(p, () => !!document.getElementById('poRespSituacao') && /Gravação suspensa/.test((document.getElementById('poResponsavel') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma((await texto(p, '#poRespSituacao')) === 'Válido' && await p.locator('#poRespVincular, #poRespSubstituir, #poRespEncerrar, #poRespForm').count() === 0,
         'marcador false: a ficha do Posicionamento mostra a estrutura responsável, sem nenhuma ação, com "Gravação suspensa"');
@@ -783,16 +783,16 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await ir(p, '#admin?arq=estruturas');
       await esperarCondicaoAte(p, () => !!document.getElementById('estLista'), undefined, { limite: 15000 });
       afirma(await p.locator('#estNova').count() === 0, 'marcador false: a lista não oferece "Cadastrar estrutura"');
-      await ir(p, '#avaliacoes?mf=mapa');
+      await ir(p, '#arquitetura?mf=mapa');
       await esperarCondicaoAte(p, () => /Gravação suspensa/.test((document.getElementById('mfmFaixa') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(await p.locator('#mfmMapa .mfm-caixa[data-estrutura="' + idCoe + '"]').count() === 1 && /só consulta/.test(await texto(p, '#mfmIrCadastro')), 'marcador false: o Mapa mostra as estruturas reais, com "Gravação suspensa" e o cadastro só para consulta');
       const cq4 = await sessao('consulta');
-      await ir(cq4, '#avaliacoes?mf=mapa&e=neg-3');
+      await ir(cq4, '#arquitetura?mf=mapa&e=neg-3');
       await esperarCondicaoAte(cq4, () => /Squad Alfa/.test((document.getElementById('mfmSquads') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(/Squad Alfa/.test(await texto(cq4, '#mfmSquads')), 'marcador false: o perfil de consulta continua vendo o Mapa real');
       await cq4.context().close();
       const cel4 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['Posicionamento só consulta', '#avaliacoes?po=pos-m3', '#poRespSituacao'], ['ficha da estrutura só consulta', '#admin?arq=estruturas&e=' + idCoe, '#estFicha']]) {
+      for (const [rot, hash, sel] of [['Posicionamento só consulta', '#arquitetura?po=pos-m3', '#poRespSituacao'], ['ficha da estrutura só consulta', '#admin?arq=estruturas&e=' + idCoe, '#estFicha']]) {
         await ir(cel4, hash); await cel4.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel4), '375 px: ' + rot + ' sem rolagem lateral');
       }
@@ -801,22 +801,22 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await S.banco('DELETE', TRAVA);
       await esperarCondicaoAte(p, () => /Demonstração/.test((document.getElementById('mfmFaixa') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(/Demonstração/.test(await texto(p, '#mfmFaixa')), 'marcador ausente: o Mapa volta à demonstração (sem recarregar)');
-      await ir(p, '#avaliacoes?po=pos-m3');
+      await ir(p, '#arquitetura?po=pos-m3');
       await esperarCondicaoAte(p, () => !!document.getElementById('poResultado'), undefined, { limite: 15000 });
       await espera(800);
       afirma(await p.locator('#poBlocoResponsavel').count() === 0, 'marcador ausente: a ficha do Posicionamento não mostra o bloco de estrutura responsável');
-      await ir(p, '#avaliacoes?mf=catalogo');
+      await ir(p, '#arquitetura?mf=catalogo');
       await esperarCondicaoAte(p, () => !!document.getElementById('mfAvisoEstruturas'), undefined, { limite: 15000 });
       afirma(/informação indisponível/.test(await p.evaluate(() => (document.getElementById('mfAvisoEstruturas') || {}).textContent || '')) && await p.locator('.mf-vinculo').count() === 0, 'marcador ausente: o Catálogo volta a dizer que as estruturas estão indisponíveis');
       afirma(await fotosDb() === dbAntes, 'nos estados false e ausente nada foi gravado em estruturas, subagrupadores, vínculos ou relações');
       /* true de novo: a operação volta sem recarregar */
       await S.banco('PUT', TRAVA, true);
-      await ir(p, '#avaliacoes?mf=mapa');
+      await ir(p, '#arquitetura?mf=mapa');
       await esperarCondicaoAte(p, (id) => !!document.querySelector('#mfmMapa .mfm-caixa[data-estrutura="' + id + '"]'), idCoe, { limite: 15000 });
       afirma(await p.locator('#mfmMapa .mfm-caixa[data-estrutura="' + idCoe + '"]').count() === 1 && !/Gravação suspensa/.test(await texto(p, '#mfmFaixa')), 'marcador true de novo: o Mapa volta às estruturas, com manutenção');
       /* 5. celular: ficha do Posicionamento com decisão + bloco, e Mapa do CoE */
       const cel8 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['Posicionamento com decisão e estrutura responsável', '#avaliacoes?po=pos-m3', '#poRespSituacao'], ['Mapa do CoE com o produto', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'], ['Catálogo', '#avaliacoes?mf=catalogo&item=item-m3', itemCat + ' .mf-vinculo [data-situacao]']]) {
+      for (const [rot, hash, sel] of [['Posicionamento com decisão e estrutura responsável', '#arquitetura?po=pos-m3', '#poRespSituacao'], ['Mapa do CoE com o produto', '#arquitetura?mf=mapa&e=' + idCoe, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'], ['Catálogo', '#arquitetura?mf=catalogo&item=item-m3', itemCat + ' .mf-vinculo [data-situacao]']]) {
         await ir(cel8, hash); await cel8.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel8), '375 px: ' + rot + ' sem rolagem lateral');
       }
@@ -844,7 +844,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
         'estruturas-concretas/registros/ae-p2': { id: 'ae-p2', tipo: 'AREA_ESPECIALIZADA', nome: 'Jurídico de Teste', situacao: 'ativa', revisao: 1, criadaEm: 1791713600000, criadaPor: { id: 'semente', email: 'semente@teste' }, ultimaOperacao: 'semente-p2' }
       });
       afirma(ra.codigoResultado === 'AREA_ESPECIALIZADA', 'Posicionamento de teste da atuação: Área Especializada (resultado do motor v1)');
-      await ir(p, '#avaliacoes?po=pos-p2');
+      await ir(p, '#arquitetura?po=pos-p2');
       afirma(await esperarCondicaoAte(p, () => !!document.getElementById('poObjetoNome') && !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 }) &&
         (await texto(p, '#poRespSituacao')) === 'Sem estrutura responsável', 'ficha da atuação: bloco da atuação e da estrutura responsável ("Sem estrutura responsável")');
       await p.click('#poRespVincular');
@@ -857,12 +857,12 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const vP2 = Object.values(((await S.banco('GET', 'estruturas-vinculos/registros')).corpo) || {}).filter((v) => v.objetoId === 'obj-jur' && v.situacao === 'ativa');
       afirma(vP2.length === 1 && vP2[0].estruturaId === 'ae-p2' && vP2[0].base.codigo === 'AREA_ESPECIALIZADA' && (await texto(p, '#poRespSituacao')) === 'Válido',
         'vínculo da atuação gravado pelas regras reais; situação "Válido"', JSON.stringify(vP2));
-      await ir(p, '#avaliacoes?mf=catalogo&item=obj-jur');
+      await ir(p, '#arquitetura?mf=catalogo&item=obj-jur');
       const itemP2 = '#mfCatalogo .mf-item[data-item="obj-jur"]';
       await esperarCondicaoAte(p, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemP2, { limite: 15000 });
       const tP2 = await texto(p, itemP2);
       afirma(/Responsabilidade organizacional/.test(tP2) && /Jurídico de Teste/.test(tP2) && !(await p.$(itemP2 + ' .mf-abrir-avp')), 'Catálogo: a atuação com a estrutura responsável, sem link para P1–P16', tP2.slice(0, 300));
-      await ir(p, '#avaliacoes?mf=mapa&e=ae-p2');
+      await ir(p, '#arquitetura?mf=mapa&e=ae-p2');
       afirma(await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="obj-jur"]'), undefined, { limite: 15000 }) &&
         /Assessoramento jurídico/.test(await texto(p, '#mfmObjetos')) && /Produtos, serviços e atuações sob esta estrutura/.test(await texto(p, '#mfmDetalhe')), 'Mapa: a atuação aparece sob a estrutura responsável');
       await ir(p, '#admin?arq=estruturas&e=ae-p2');
@@ -873,7 +873,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     console.log('\n10. Celular (375 px) e computador');
     afirma(await semRolagemLateral(p), 'computador: Mapa sem rolagem lateral');
     const m = await sessao('configuracao', 375);
-    for (const [rot, hash, sel] of [['lista', '#admin?arq=estruturas', '#estLista'], ['ficha', '#admin?arq=estruturas&e=' + idNeg, '#estFicha'], ['subagrupadores', '#admin?arq=estruturas&sg=lista', '#sgLista'], ['ficha com subagrupador', '#admin?arq=estruturas&e=' + idNeg, '#estSubagrupador'], ['Mapa', '#avaliacoes?mf=mapa', '#mfmMapa'], ['detalhe no Mapa', '#avaliacoes?mf=mapa&e=' + idCoe, '#mfmDetalhe']]) {
+    for (const [rot, hash, sel] of [['lista', '#admin?arq=estruturas', '#estLista'], ['ficha', '#admin?arq=estruturas&e=' + idNeg, '#estFicha'], ['subagrupadores', '#admin?arq=estruturas&sg=lista', '#sgLista'], ['ficha com subagrupador', '#admin?arq=estruturas&e=' + idNeg, '#estSubagrupador'], ['Mapa', '#arquitetura?mf=mapa', '#mfmMapa'], ['detalhe no Mapa', '#arquitetura?mf=mapa&e=' + idCoe, '#mfmDetalhe']]) {
       await ir(m, hash); await m.waitForSelector(sel, { timeout: 15000 });
       afirma(await semRolagemLateral(m), '375 px: ' + rot + ' sem rolagem lateral');
     }

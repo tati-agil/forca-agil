@@ -64,7 +64,7 @@ async function conferir(page, sel, rotulo) {
   for (const [tag, vp] of [['desktop', { width: 1280, height: 900 }], ['375 px', { width: 375, height: 800 }]]) {
     console.log('\n######## ' + tag + ' ########');
     /* Avaliações Squad */
-    let r = await abrir(browser, vp, '#avaliacoes?sq=lista');
+    let r = await abrir(browser, vp, '#arquitetura?sq=lista');
     await esperarCondicao(r.page, () => !!document.getElementById('sqFiltroTexto') && document.querySelectorAll('#avaliacoesSquad tbody tr, #avaliacoesSquad .sq-item, #avaliacoesSquad [data-key]').length >= 2, null, { limite: 15000, descricao: 'lista da Squad com o filtro' });
     await conferir(r.page, '#sqFiltroTexto', 'Squad');
     const antes = await r.page.evaluate(() => document.querySelector('#avaliacoesSquad').innerText);
@@ -76,7 +76,7 @@ async function conferir(page, sel, rotulo) {
     afirma(r.erros.length === 0, 'Squad: nenhum erro de JS');
     await r.ctx.close();
     /* Jornada do Mapa */
-    r = await abrir(browser, vp, '#avaliacoes?mf=catalogo');
+    r = await abrir(browser, vp, '#arquitetura?mf=catalogo');
     await esperarCondicao(r.page, () => !!document.getElementById('mfBusca') && !!document.querySelector('.mf-linha'), null, { limite: 15000, descricao: 'Jornada com a busca' });
     await conferir(r.page, '#mfBusca', 'Jornada do Mapa');
     await r.page.fill('#mfBusca', 'Capec');

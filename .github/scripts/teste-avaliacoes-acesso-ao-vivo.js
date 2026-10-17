@@ -65,16 +65,16 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await gravarAcesso(page, 'avaliacao');
     await esperarCondicao(page, () => { const a = document.querySelector('a[data-nav-page="avaliacoes"]'); return !!a && !a.hidden; }, null, { descricao: 'o menu mostrar "Avaliação" depois da concessão' });
     afirma(true, 'concedido "Avaliação": o menu mostra "Avaliação" sem recarregar');
-    await page.evaluate(() => { location.hash = '#avaliacoes'; });
+    await page.evaluate(() => { location.hash = '#arquitetura'; });
     await page.waitForSelector('#avpInicio', { timeout: 8000 });
-    afirma(await hash(page) === '#avaliacoes', 'e a área AVALIAÇÃO abre (no Início)');
+    afirma(await hash(page) === '#arquitetura', 'e a área AVALIAÇÃO abre (no Início)');
     afirma(!(await linkMenu(page, 'admin')), '"Avaliação" não vê o ADMIN');
     await gravarAcesso(page, 'avaliacao-arquitetura');
     await esperarCondicao(page, () => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }, null, { descricao: 'o menu mostrar "Admin" depois da troca de tipo' });
     afirma(true, 'trocado para "Avaliação + Configuração": o menu passa a mostrar "Admin" sem recarregar');
     await gravarAcesso(page, null);
-    await esperarCondicao(page, () => location.hash !== '#avaliacoes', null, { descricao: 'sair da área AVALIAÇÃO depois da remoção' });
-    afirma(await hash(page) !== '#avaliacoes', 'removido: sai da área AVALIAÇÃO sem recarregar (' + await hash(page) + ')');
+    await esperarCondicao(page, () => location.hash !== '#arquitetura', null, { descricao: 'sair da área AVALIAÇÃO depois da remoção' });
+    afirma(await hash(page) !== '#arquitetura', 'removido: sai da área AVALIAÇÃO sem recarregar (' + await hash(page) + ')');
     afirma(!(await linkMenu(page, 'avaliacoes')) && !(await linkMenu(page, 'admin')), 'removido: o menu não mostra mais "Avaliação" nem "Admin"');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
@@ -82,14 +82,14 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 
   console.log('\n######## 2. "Avaliação" faz a Adequação à Squad na área AVALIAÇÃO — celular 375 px ########');
   {
-    const { ctx, page, erros } = await abrir(browser, CELULAR, 'avaliacao', '#avaliacoes');
+    const { ctx, page, erros } = await abrir(browser, CELULAR, 'avaliacao', '#arquitetura');
     await page.waitForSelector('#avpInicio', { timeout: 8000 });
     afirma(await larguraOk(page), 'Início com a entrada "Adequação à Squad" sem rolagem horizontal');
-    await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+    await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
     afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de squad toma o lugar do Início');
     afirma(await page.locator('#sqMotorConfigBtn, #sqMotorEditarRegrasBtn').count() === 0, 'a configuração do motor de squad NÃO aparece aqui (é do ADMIN › Avaliação e Mapa)');
-    afirma(/Voltar para Avaliações/i.test(await page.locator('#sqVoltarArquitetura').innerText()), 'o Voltar diz "← Voltar para Avaliações"');
+    afirma(/Voltar para A Floresta/i.test(await page.locator('#sqVoltarArquitetura').innerText()), 'o Voltar diz "← Voltar para A Floresta"');
     await page.click('#sqNovaBtn');
     await page.waitForSelector('#sqfEscolhaNovo');
     await page.click('#sqfEscolhaNovo');
@@ -103,8 +103,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await page.waitForSelector('#avaliacoesSquad #sqVoltarArquitetura');
     await page.click('#sqVoltarArquitetura');
     await page.waitForSelector('#avpInicio', { timeout: 8000 });
-    afirma(await page.locator('#avaliacoesSquad').isHidden() && await page.locator('#avaliacoesPainel').isVisible(), 'Voltar devolve o Início da Avaliação');
-    await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+    afirma(await page.locator('#avaliacoesSquad').isHidden() && await page.locator('#avaliacoesPainel').isVisible(), 'Voltar devolve o Início da Floresta');
+    await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { state: 'visible', timeout: 8000 });
     await page.evaluate(() => { location.hash = '#home'; });
     await page.waitForSelector('#avaliacoesSquad', { state: 'hidden', timeout: 8000 });

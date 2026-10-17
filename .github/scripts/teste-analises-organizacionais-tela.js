@@ -167,7 +167,7 @@ async function semearVinculo(page, objetoId, estruturaId) {
 }
 const analiseAtual = (page) => page.evaluate(() => decodeURIComponent(/an=([^&]*)/.exec(location.hash)[1]));
 async function abrirAnaliseNova(page, nome, escopo, extra) {
-  await ir(page, '#avaliacoes?an=nova');
+  await ir(page, '#arquitetura?an=nova');
   await page.waitForSelector('#anFormNova');
   await page.evaluate(() => { document.getElementById('anNovaAvancado').open = true; }); /* o tipo fica em "Opções avançadas" */
   await page.check('#anFormNova input[value="' + escopo + '"]');
@@ -198,7 +198,7 @@ function mapaB(info) {
 
 async function jornadaB(browser) {
   console.log('\n== B. Jornada B — Núcleo de Arquitetura de TI ==');
-  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab: 'LIBERADO_PARA_PERFIS_AUTORIZADOS' });
+  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab: 'LIBERADO_PARA_PERFIS_AUTORIZADOS' });
   await page.waitForSelector('#anEntradaAtuacoes');
   afirma(/Nova responsabilidade/.test(await texto(page, '#anEntradaAtuacoes #poNovaAtuacaoBtn')) && /Analisar uma área/.test(await texto(page, '#anEntradaNova')), 'Porta 2: "Nova responsabilidade" e "Analisar uma área"');
   await page.click('#anEntradaNova');
@@ -238,14 +238,14 @@ async function jornadaB(browser) {
   afirma(posR1.resultadoAutomatico.codigoResultado === 'AREA_ESPECIALIZADA' && posR1.origem === 'objeto-organizacional', 'O1–O9 de sempre: resultado do motor gravado para a atuação da análise', posR1.resultadoAutomatico);
   await semearVinculo(page, objR1, 'nucleo-arq');
   await page.click('#anVoltarAnalise');
-  await esperar(page, (i) => location.hash === '#avaliacoes?an=' + i && !!document.getElementById('anTitulo'), id);
+  await esperar(page, (i) => location.hash === '#arquitetura?an=' + i && !!document.getElementById('anTitulo'), id);
   const k1 = await recorteId(page, 'Pareceres e validações de arquitetura');
   await esperar(page, (k) => /Vínculo formal compatível/.test((document.getElementById('anSit_' + k) || {}).textContent || ''), k1);
   afirma(/Recomendação: /.test(await texto(page, '#anPos_' + k1)), 'R1 classificada e com vínculo formal compatível');
   /* R2: atuação criada; Posicionamento CoE (semeado) */
   const objR2 = await criarAtuacao(page, 'Evolução da disciplina de arquitetura');
   await semearPosicionamento(page, objR2, 'COE');
-  await ir(page, '#avaliacoes?an=' + id);
+  await ir(page, '#arquitetura?an=' + id);
   const k2 = await recorteId(page, 'Evolução da disciplina de arquitetura') || (await page.waitForTimeout(500), await recorteId(page, 'Evolução da disciplina de arquitetura'));
   await esperar(page, (k) => /Exercida sem responsável formal compatível/.test((document.getElementById('anSit_' + k) || {}).textContent || ''), k2);
   afirma(true, 'R2 classificada como CoE e exercida pelo Núcleo (Área Especializada): "exercida sem responsável formal compatível", sem vínculo forçado');
@@ -283,7 +283,7 @@ async function jornadaB(browser) {
   await page.waitForSelector('#anExercidas', { timeout: 15000 });
   const ex = await texto(page, '#anExercidas');
   afirma(/Pareceres e validações/.test(ex) && /Evolução da disciplina/.test(ex) && /confirmado/.test(ex) && /declarado/.test(ex) && /não é vínculo formal/.test(ex), 'ficha da estrutura: "Exerce, segundo as análises", com caráter, fonte e data — separado do vínculo');
-  await ir(page, '#avaliacoes?mf=catalogo&item=' + objR2);
+  await ir(page, '#arquitetura?mf=catalogo&item=' + objR2);
   await page.waitForSelector('#mfCatalogo .mf-item--detalhe #anOrigem', { timeout: 20000 });
   afirma(true, 'Jornada: a atuação mostra a análise de origem');
   const dbFim = await banco(page);
@@ -314,7 +314,7 @@ function mapaA(info) {
 }
 async function jornadaA(browser, db) {
   console.log('\n== A. Jornada A — Núcleo de Governança de TI (regressão do agrupamento) ==');
-  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { db });
+  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=lista', { db });
   await page.waitForSelector('#anNovaBtn');
   const id = await abrirAnaliseNova(page, 'Núcleo de Governança de TI', 'estrutura');
   await responderPendentes(page, mapaA);
@@ -335,7 +335,7 @@ async function jornadaA(browser, db) {
   afirma(/Hipótese sem evidência: Plano de TI/.test(await texto(page, '#anLacunas')), 'lacuna: a hipótese sem evidência fica listada (não bloqueia)');
   const objPol = await criarAtuacao(page, 'Políticas e padrões de Segurança da Informação');
   await semearPosicionamento(page, objPol, 'A_VALIDAR', 'CONFLITO');
-  await ir(page, '#avaliacoes?an=' + id);
+  await ir(page, '#arquitetura?an=' + id);
   const kPol = await (async () => { await page.waitForSelector('.an-recorte', { state: 'attached' }); return recorteId(page, 'Políticas e padrões de Segurança da Informação'); })();
   await abrirDetalhes(page); await page.waitForSelector('#anAprofundar_' + kPol);
   afirma(/mesma responsabilidade/.test(await texto(page, '#anAprofundar_' + kPol)) && /recomendação automática não muda/.test(await texto(page, '#anAprofundar_' + kPol)), 'A validar (conflito): explicação e evidência qualitativa, sem escolher código');
@@ -355,7 +355,7 @@ async function jornadaA(browser, db) {
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
   /* admin geral registra a referência ao ato externo */
-  ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=' + id, { db, email: ADM }));
+  ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=' + id, { db, email: ADM }));
   await page.waitForSelector('#anComposicaoSecao', { timeout: 20000 }); await abrirComposicao(page); await page.waitForSelector('#anAbrirAprovacao', { timeout: 20000 });
   await abrirComposicao(page); await page.click('#anAbrirAprovacao'); await page.waitForSelector('#anFormAprovacao');
   afirma(/Registrar não significa que você aprovou/.test(await texto(page, '#anFormAprovacao')), 'o formulário diz que registrar não é aprovar');
@@ -374,7 +374,7 @@ async function jornadaA(browser, db) {
 
 async function jornadaC(browser, db, objPol) {
   console.log('\n== C. Jornada C — Segurança de TI (capacidade) ==');
-  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { db });
+  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=lista', { db });
   await page.waitForSelector('#anNovaBtn');
   const id = await abrirAnaliseNova(page, 'Segurança de TI', 'capacidade', { capacidades: 'Proteger informações e ambientes' });
   afirma(/Capacidades \(só referência\)Proteger informações e ambientes/.test(await texto(page, '#anObjeto')), 'capacidade registrada só como referência');
@@ -392,7 +392,7 @@ async function jornadaC(browser, db, objPol) {
   const objOp = await criarAtuacao(page, 'Operação dos controles técnicos de segurança');
   await semearPosicionamento(page, objOp, 'PLATAFORMA_HABILITADORA_TECNOLOGIA');
   await semearVinculo(page, objOp, 'nucleo-infra');
-  await ir(page, '#avaliacoes?an=' + id);
+  await ir(page, '#arquitetura?an=' + id);
   await page.waitForSelector('.an-recorte', { state: 'attached' });
   const k = await recorteId(page, 'Operação dos controles técnicos de segurança');
   await esperar(page, (kk) => /Vínculo formal compatível/.test((document.getElementById('anSit_' + kk) || {}).textContent || ''), k);
@@ -410,10 +410,10 @@ async function marcador(browser) {
   console.log('\n== M. Acesso pelos perfis oficiais (sem controle de disponibilidade) ==');
   /* sem marcador e com QUALQUER estado antigo de homologação gravado: o acesso é o do perfil — nada a ligar à mão */
   for (const [hab, rot] of [[null, 'sem marcador'], ['DESLIGADO', 'estado antigo DESLIGADO'], ['SOMENTE_ADMIN_GERAL', 'estado antigo SOMENTE_ADMIN_GERAL']]) {
-    let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab });
+    let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab });
     await page.waitForSelector('#anEntradaAtuacoes', { timeout: 20000 });
     afirma(await existe(page, '#anEntradaNova'), rot + ': Avaliação + Configuração vê a entrada da análise e pode abrir uma ("Analisar uma área")');
-    await ir(page, '#avaliacoes?an=lista');
+    await ir(page, '#arquitetura?an=lista');
     await page.waitForSelector('#anNovaBtn, #anListaVazia, #anLista', { timeout: 20000 });
     afirma(await existe(page, '#anNovaBtn') && !(await existe(page, '#anIndisponivel')) && !(await existe(page, '#anHomologacao')), rot + ': a lista abre com "Abrir uma análise", sem aviso de homologação');
     const db = await banco(page);
@@ -438,10 +438,10 @@ async function marcador(browser) {
 
 async function consulta(browser, db, idA) {
   console.log('\n== P. Perfil Avaliação (consulta) ==');
-  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { db, email: AVAL });
+  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=lista', { db, email: AVAL });
   await page.waitForSelector('#anLista', { timeout: 20000 });
   afirma(!(await existe(page, '#anNovaBtn')), 'consulta: vê as análises, sem "Abrir uma análise"');
-  await ir(page, '#avaliacoes?an=' + idA);
+  await ir(page, '#arquitetura?an=' + idA);
   await page.waitForSelector('#anTitulo');
   afirma(!(await existe(page, '#anFormEntrega')) && !(await existe(page, '#anAbrirProposta')) && !(await existe(page, '#anPergunta')) && !(await existe(page, 'button[data-form="fatos"]')), 'consulta: nenhum formulário de gravação');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
@@ -450,12 +450,12 @@ async function consulta(browser, db, idA) {
 
 async function celular(browser, db, idB) {
   console.log('\n== R. 375 px ==');
-  const { ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#avaliacoes?an=lista', { db });
+  const { ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#arquitetura?an=lista', { db });
   await page.waitForSelector('#anLista', { timeout: 20000 });
   afirma(await larguraOk(page), '375: lista sem rolagem lateral');
-  await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anFormNova');
+  await ir(page, '#arquitetura?an=nova'); await page.waitForSelector('#anFormNova');
   afirma(await larguraOk(page), '375: nova análise sem rolagem lateral');
-  await ir(page, '#avaliacoes?an=' + idB); await page.waitForSelector('#anTitulo');
+  await ir(page, '#arquitetura?an=' + idB); await page.waitForSelector('#anTitulo');
   afirma(await larguraOk(page), '375: análise sem rolagem lateral');
   await abrirComposicao(page); await page.click('#anAbrirProposta'); await page.waitForSelector('#anFormProposta');
   afirma(await larguraOk(page), '375: formulário de proposta sem rolagem lateral');

@@ -1,7 +1,7 @@
 /* ============================================================
    Força Ágil — Porta 2 · ANÁLISE ORGANIZACIONAL — tela (window.faAnalisesOrganizacionais)
 
-   Dentro de #avaliacoes, com endereço próprio: #avaliacoes?an=lista | an=nova | an=<id> (F5, link direto,
+   Dentro de #arquitetura, com endereço próprio: #arquitetura?an=lista | an=nova | an=<id> (F5, link direto,
    Voltar/Avançar). A jornada ajuda a pessoa a entender um escopo amplo, descobrir as responsabilidades que existem ali,
    delimitá-las, avaliar cada uma com o O1–O9 EXISTENTE (a atuação criada a partir de um recorte segue o fluxo de hoje
    da Porta 2), aprofundar os "A validar", diagnosticar a composição e registrar a proposta — com a aprovação do desenho
@@ -233,11 +233,11 @@
     }
     function doEndereco() {
       var h = location.hash || '';
-      if (h.split('?')[0] !== '#avaliacoes') return null;
+      if (h.split('?')[0] !== '#arquitetura') return null;
       var m = /[?&]an=([^&]*)/.exec(h);
       return m ? decodeURIComponent(m[1]) : null;
     }
-    function ir(an) { var alvo = '#avaliacoes?an=' + encodeURIComponent(an); if (location.hash !== alvo) location.hash = alvo; else aplicar(); }
+    function ir(an) { var alvo = '#arquitetura?an=' + encodeURIComponent(an); if (location.hash !== alvo) location.hash = alvo; else aplicar(); }
     function aplicar() {
       var an = doEndereco();
       if (!an) { fechar(); return; }
@@ -276,7 +276,7 @@
       var digitado = st.limparCampos ? { valores: {}, marcas: [] } : capturarCampos(); st.limparCampos = false;
       var a = acesso(), h;
       if (!autorizacaoResolvida()) h = '<p class="loading-msg" id="anCarregando">Carregando…</p>';
-      else if (!a.ler) h = '<div class="avp-form-card" id="anIndisponivel"><p>A Análise Organizacional não está disponível para você agora.</p><p class="an-nota">A Porta 2 continua disponível como sempre: <a href="#avaliacoes?po=atuacoes">Responsabilidades organizacionais</a>.</p></div>';
+      else if (!a.ler) h = '<div class="avp-form-card" id="anIndisponivel"><p>A Análise Organizacional não está disponível para você agora.</p><p class="an-nota">A Porta 2 continua disponível como sempre: <a href="#arquitetura?po=atuacoes">Responsabilidades organizacionais</a>.</p></div>';
       else if (!dadosProntos()) h = '<p class="loading-msg" id="anCarregando">Carregando as análises…</p>';
       else if (st.tela === 'lista') h = renderLista(a);
       else if (st.tela === 'nova') h = a.gravar ? renderNova() : '<p class="admin-empty" id="anSemPermissao">Abrir uma análise é do perfil Avaliação + Configuração.</p>';
@@ -291,9 +291,9 @@
     function infoPos() { var m = {}; Object.keys(D.vigentes || {}).forEach(function (o) { var p = posicionamentoDa(o); if (p.estado === 'concluido') m[o] = { codigoEfetivo: p.codigoEfetivo }; }); return m; }
     function renderLista(a) {
       var est = estado(), ids = Object.keys(est.analises).sort(function (x, y) { return (est.analises[y].criadaEm || 0) - (est.analises[x].criadaEm || 0); });
-      var h = voltar('#avaliacoes?po=atuacoes', 'Voltar para Responsabilidades Organizacionais', 'anVoltarAtuacoes') + '<h2 class="an-titulo">Análises Organizacionais</h2>' +
+      var h = voltar('#arquitetura?po=atuacoes', 'Voltar para Responsabilidades Organizacionais', 'anVoltarAtuacoes') + '<h2 class="an-titulo">Análises Organizacionais</h2>' +
         '<p class="an-intro">Acompanhe as responsabilidades de cada área.</p>';
-      if (a.gravar) h += '<a class="btn btn--primary" id="anNovaBtn" href="#avaliacoes?an=nova">Nova análise</a>';
+      if (a.gravar) h += '<a class="btn btn--primary" id="anNovaBtn" href="#arquitetura?an=nova">Nova análise</a>';
       var ativas = ids.filter(function (id) { return est.analises[id].situacao !== 'descartada'; }), desc = ids.length - ativas.length;
       /* nomes repetidos: data de abertura, situação e o código da análise distinguem uma da outra */
       var porNome = {}; ativas.forEach(function (id) { var nn = normalizado(est.analises[id].nome); porNome[nn] = (porNome[nn] || 0) + 1; });
@@ -306,7 +306,7 @@
           .filter(function (c) { return c[0]; }).map(function (c) { return c[0] + ' ' + (c[0] === 1 ? c[1] : c[2]); });
         var prox = !ks.length ? 'Adicionar responsabilidades' : (n.pronta || n.andamento || n.pendente) ? 'Continuar análise' : 'Ver resultados';
         var homonima = porNome[normalizado(x.nome)] > 1;
-        return '<li><a class="an-item" data-analise="' + esc(id) + '" href="#avaliacoes?an=' + encodeURIComponent(id) + '"><span class="an-item-nome">' + esc(x.nome) + '</span>' +
+        return '<li><a class="an-item" data-analise="' + esc(id) + '" href="#arquitetura?an=' + encodeURIComponent(id) + '"><span class="an-item-nome">' + esc(x.nome) + '</span>' +
           '<span class="an-item-det" id="anItemContagem_' + esc(id) + '">' + ks.length + ' responsabilidade' + (ks.length === 1 ? '' : 's') + (cont.length ? ' — ' + cont.join(' · ') : '') + '</span>' +
           (homonima ? '<span class="an-item-det an-item-homonima" id="anItemContexto_' + esc(id) + '">Aberta em ' + esc(fmtData(x.criadaEm)) + ' · ' + esc(situacaoTexto(N().situacaoDaAnalise(est, id, { posicionamentos: infoPos() }))) + ' · código ' + esc(String(id).slice(-6)) + '</span>' : '') +
           '<span class="btn btn--sm' + (prox === 'Ver resultados' ? '' : ' btn--primary') + ' an-item-acao" id="anItemAcao_' + esc(id) + '">' + prox + '</span></a></li>';
@@ -326,7 +326,7 @@
       var atuacoes = Object.keys(D.objetos || {}).filter(function (k) { return D.objetos[k].situacao === 'ativo'; }).sort(function (x, y) { return String(D.objetos[x].nome).localeCompare(D.objetos[y].nome); });
       /* abrir uma análise pede só o nome da área; tipo, descrição, capacidades e responsabilidade prévia ficam em
          "Opções avançadas" (o tipo começa como "estrutura que já existe") */
-      return voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<h2 class="an-titulo">' + (unidadesListadas() ? 'Analisar uma área' : 'Qual área você deseja analisar?') + '</h2>' +
+      return voltar('#arquitetura?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<h2 class="an-titulo">' + (unidadesListadas() ? 'Analisar uma área' : 'Qual área você deseja analisar?') + '</h2>' +
         '<form class="avp-form-card an-form" id="anFormNova" novalidate>' +
         campoUnidadeNova(f) +
         '<div class="avp-field"><label for="anNome">' + (unidadesListadas() ? 'Nome da área <span class="an-opc">(preenchido pela unidade escolhida; ou digite, se ela não estiver no cadastro)</span>' : 'Nome da área') + '</label><input id="anNome" maxlength="200" value="' + esc(f.nome || '') + '" placeholder="Ex.: GECON — Gerência de Contabilidade e Controladoria"></div>' +
@@ -444,7 +444,7 @@
       if (!ativos.length) return { t: 'Informe as responsabilidades da área: cole a lista, uma por linha (ou adicione uma por vez). Pode copiar as atribuições, sem reformular.', rotulo: 'Adicionar responsabilidades', alvo: 'anLoteTexto' };
       var achar = function (acao) { for (var i = 0; i < ativos.length; i++) if (rs.sits[i].acao === acao) return i; return -1; };
       var i = achar('continuar');
-      if (i >= 0) return { t: 'Continue o O1–O9 de "' + textoResp(a.recortes[ativos[i]]) + '".', rotulo: 'Continuar avaliação', href: '#avaliacoes?po=' + encodeURIComponent(rs.sits[i].avaliacaoId) };
+      if (i >= 0) return { t: 'Continue o O1–O9 de "' + textoResp(a.recortes[ativos[i]]) + '".', rotulo: 'Continuar avaliação', href: '#arquitetura?po=' + encodeURIComponent(rs.sits[i].avaliacaoId) };
       /* avaliar (ainda sem cadastro) e iniciar (cadastro já feito) têm a MESMA prioridade, na ordem da lista: a sugestão não
          salta para a responsabilidade seguinte só porque a anterior acabou de ganhar o cadastro */
       for (i = 0; i < ativos.length; i++) if (rs.sits[i].acao === 'avaliar' || rs.sits[i].acao === 'iniciar') break;
@@ -452,7 +452,7 @@
         var rk0 = ativos[i], rr0 = a.recortes[rk0];
         if (st.pendentes[rk0]) return { t: 'Aguardando a confirmação do servidor para "' + textoResp(rr0) + '". Não é preciso clicar de novo.' };
         if (rs.sits[i].acao === 'avaliar') return { t: 'Avalie "' + textoResp(rr0) + '" pelo O1–O9.', rotulo: 'Avaliar próxima', avaliar: rk0 };
-        return { t: 'Inicie o O1–O9 de "' + textoResp(rr0) + '".', rotulo: 'Avaliar próxima', href: '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(rr0.objetoId) };
+        return { t: 'Inicie o O1–O9 de "' + textoResp(rr0) + '".', rotulo: 'Avaliar próxima', href: '#arquitetura?po=atuacoes&item=' + encodeURIComponent(rr0.objetoId) };
       }
       i = achar('separar');
       if (i >= 0) return { t: 'Registro anterior: separe "' + textoResp(a.recortes[ativos[i]]) + '" nas partes que a compõem.', rotulo: 'Separar', alvo: 'anSeparar_' + ativos[i] };
@@ -474,7 +474,7 @@
     }
     function renderAnalise(acc) {
       var est = estado(), a = est.analises[st.id];
-      if (!a) return voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<p class="admin-empty" id="anNaoEncontrada">Análise não encontrada.</p>';
+      if (!a) return voltar('#arquitetura?an=lista', 'Voltar para as análises', 'anVoltarLista') + '<p class="admin-empty" id="anNaoEncontrada">Análise não encontrada.</p>';
       var pend = N().proximasPerguntas(a), lac = N().lacunas(a), gravar = acc.gravar && a.situacao === 'aberta';
       var ativos = Object.keys(a.recortes).filter(function (k) { return a.recortes[k].situacao === 'ativo'; }).sort(emOrdem(a));
       var sfs = ativos.map(function (k) { return situacaoFormalDe(a.recortes[k]); });
@@ -497,7 +497,7 @@
       else if (gravar && detalharAberto && ps.detalhe.length) card = { onde: 'detalhe', html: renderPergunta(a, ps.detalhe) };
       else if (gravar && f2b.length) card = { onde: 'objeto', html: renderPergunta(a, f2b, false, true) };
       var px = proximaAcao(a, ativos, rs, gravar);
-      var h = voltar('#avaliacoes?an=lista', 'Voltar para as análises', 'anVoltarLista') +
+      var h = voltar('#arquitetura?an=lista', 'Voltar para as análises', 'anVoltarLista') +
         '<h2 class="an-titulo" id="anTitulo">' + esc(a.nome) + '</h2>' +
         (a.unidadeAtualId ? '<p class="an-nota" id="anUnidadeAtualInfo">Área na Estrutura Organizacional Atual: <strong>' + esc(rotuloUnidade(a.unidadeAtualId)) + '</strong></p>' : '') +
         (a.situacao === 'descartada' ? '<p class="avp-error-msg" id="anDescartada">Análise descartada: ' + esc(a.descarte && a.descarte.motivo) + '. Nada foi apagado.</p>' : '') +
@@ -595,9 +595,9 @@
         var acao = '';
         if (st.pendentes[k]) acao = '<span class="an-chip an-chip--atual" id="anPendente_' + esc(k) + '" role="status">' + (st.pendentes[k] === 'aguardando' ? 'Aguardando confirmação do servidor' : 'Gravando…') + '</span>';
         else if (s.acao === 'avaliar') acao = gravar ? '<button type="button" class="btn btn--sm" data-an="avaliar" data-recorte="' + esc(k) + '" id="anCriarAtuacao_' + esc(k) + '">Avaliar</button>' : '';
-        else if (s.acao === 'iniciar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anAbrirPos_' + esc(k) + '">Avaliar</a>';
-        else if (s.acao === 'continuar') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Continuar</a>';
-        else if (s.acao === 'ver') acao = '<a class="btn btn--sm" href="#avaliacoes?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Ver resultado</a>';
+        else if (s.acao === 'iniciar') acao = '<a class="btn btn--sm" href="#arquitetura?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anAbrirPos_' + esc(k) + '">Avaliar</a>';
+        else if (s.acao === 'continuar') acao = '<a class="btn btn--sm" href="#arquitetura?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Continuar</a>';
+        else if (s.acao === 'ver') acao = '<a class="btn btn--sm" href="#arquitetura?po=' + encodeURIComponent(s.avaliacaoId) + '" id="anAbrirPos_' + esc(k) + '">Ver resultado</a>';
         else if (gravar && s.acao === 'separar') acao = '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="separar" data-recorte="' + esc(k) + '" id="anSeparar_' + esc(k) + '">Separar</button>';
         else if (gravar && N().modeloSimples(r)) acao = '<button type="button" class="btn btn--sm btn--primary" data-an="abrir-form" data-form="delimitar" data-recorte="' + esc(k) + '" id="anDelimitar_' + esc(k) + '">Definir delimitação</button>';
         else if (gravar) acao = '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="revisar" data-recorte="' + esc(k) + '" id="anRevisar_' + esc(k) + '">Revisar</button>';
@@ -607,7 +607,7 @@
           (!r.objetoId && (s.acao !== 'revisar' || N().modeloSimples(r)) ? '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="revisar" data-recorte="' + esc(k) + '" id="anRevisar_' + esc(k) + '">' + (N().registroDireto(r) ? 'Editar o texto' : 'Revisar o texto') + '</button>' : '') +
           (!r.objetoId ? '<button type="button" class="btn btn--sm an-link" data-an="abrir-form" data-form="descartar-recorte" data-recorte="' + esc(k) + '" id="anDescartarResp_' + esc(k) + '">Descartar</button>' +
             '<button type="button" class="btn btn--sm an-link an-link--perigo" data-an="abrir-form" data-form="excluir-recorte" data-recorte="' + esc(k) + '" id="anExcluirResp_' + esc(k) + '">Excluir</button>'
-            : (D.objetos || {})[r.objetoId] ? '<a class="btn btn--sm an-link an-link--perigo" href="#avaliacoes?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anExcluirCadastro_' + esc(k) + '">Excluir o cadastro…</a>' : '') + '</div></details>';
+            : (D.objetos || {})[r.objetoId] ? '<a class="btn btn--sm an-link an-link--perigo" href="#arquitetura?po=atuacoes&item=' + encodeURIComponent(r.objetoId) + '" id="anExcluirCadastro_' + esc(k) + '">Excluir o cadastro…</a>' : '') + '</div></details>';
         h += '<div class="an-linha an-resp" role="row" data-resp="' + esc(k) + '" data-situacao="' + s.c + '">' +
           '<div class="an-cel an-cel--resp" role="cell"><strong>' + esc(textoResp(r)) + '</strong>' + (origem ? '<span class="an-det">Parte de: "' + esc(textoResp(origem)) + '"</span>' : '') +
           (r.objetoId && !(D.objetos || {})[r.objetoId] && (D.objExcluidos || {})[r.objetoId] ? '<span class="an-det an-det--excluido" id="anCadastroExcluido_' + esc(k) + '">Cadastro excluído em ' + esc(fmtData(D.objExcluidos[r.objetoId].excluidoEm)) + ': ' + esc(D.objExcluidos[r.objetoId].motivo) + '. O que foi avaliado continua no histórico.</span>' : '') +
@@ -1087,7 +1087,7 @@
       if (st.gravando || st.pendentes[rk]) return; /* clique repetido: a gravação desta responsabilidade já está em curso */
       var objetoId = S().novaChave('objetos-organizacionais');
       st.pendentes[rk] = 'gravando';
-      executar(function (est, c) { return N().associarAtuacao(est, id, rk, objetoId, c); }, 'Responsabilidade registrada na Porta 2. Responda o O1–O9.', function () { delete st.pendentes[rk]; location.hash = '#avaliacoes?po=atuacoes&item=' + encodeURIComponent(objetoId); },
+      executar(function (est, c) { return N().associarAtuacao(est, id, rk, objetoId, c); }, 'Responsabilidade registrada na Porta 2. Responda o O1–O9.', function () { delete st.pendentes[rk]; location.hash = '#arquitetura?po=atuacoes&item=' + encodeURIComponent(objetoId); },
         function (res, c, ident) {
           var objetoPayload = O.payloadCriacao({ id: objetoId, audId: S().novaChave('objetos-organizacionais-auditoria/' + objetoId), dados: dados, usuario: { uid: ident.uid, email: ident.email, name: (sessao() || {}).name }, agora: S().agoraServidor() });
           return F().payloadCriarAtuacao({ objetoPayload: objetoPayload, associacao: res, analiseId: id, recorteId: rk, objetoId: objetoId, audId: S().novaChave(F().NOS.auditoria), usuario: ident, agora: S().agoraServidor() });
@@ -1204,7 +1204,7 @@
         if (!mxa.trim()) { pedirCampo({ campo: 'motivo', texto: 'Informe o motivo da exclusão para continuar.' }, 'anMotivoExcluir'); return; }
         if (form.getAttribute('data-nivel') === 'excepcional' && !(document.getElementById('anExcluirConfirmo') || {}).checked) { pedirCampo({ campo: 'confirmo', texto: 'Marque a confirmação da exclusão excepcional para continuar.' }, 'anExcluirConfirmo'); return; }
         st.erroExcluir = null;
-        executar(function (est, c) { return N().excluirAnalise(est, id, { motivo: mxa, revisaoEsperada: rev }, c); }, 'Análise excluída. O registro mínimo e o histórico foram preservados.', function () { location.hash = '#avaliacoes?an=lista'; });
+        executar(function (est, c) { return N().excluirAnalise(est, id, { motivo: mxa, revisaoEsperada: rev }, c); }, 'Análise excluída. O registro mínimo e o histórico foram preservados.', function () { location.hash = '#arquitetura?an=lista'; });
       } else if (form.id === 'anFormDescartar') {
         var md = val('anMotivoDescarte');
         executar(function (est, c) { return N().descartarAnalise(est, id, { motivo: md }, c); }, 'Análise descartada. Nada foi apagado.');
@@ -1319,8 +1319,8 @@
     /* as ações da tela de Responsabilidades Organizacionais: "Nova responsabilidade" e "Analisar uma área" (mesmo peso);
        "Análises Organizacionais" acompanha as áreas já abertas */
     return '<div class="an-entrada an-acoes" id="anEntradaAtuacoes">' + (botaoDireto || '') +
-      (a.gravar ? '<a class="btn btn--primary" id="anEntradaNova" href="#avaliacoes?an=nova">Analisar uma área</a>' : '') +
-      '<a class="btn btn--sm" id="anEntradaLista" href="#avaliacoes?an=lista">Análises Organizacionais</a></div>';
+      (a.gravar ? '<a class="btn btn--primary" id="anEntradaNova" href="#arquitetura?an=nova">Analisar uma área</a>' : '') +
+      '<a class="btn btn--sm" id="anEntradaLista" href="#arquitetura?an=lista">Análises Organizacionais</a></div>';
   }
   /* Caminho A (direto) com "Sim, precisa separar" ou "Não sei": a responsabilidade não vai direto para o O1–O9; ela é
      registrada numa Análise Organizacional nova (Caminho B), com a descrição como a pessoa escreveu, para separar as
@@ -1348,8 +1348,8 @@
     ligarDados();
     if (!autorizacaoResolvida()) return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">Verificando o seu acesso…</p>';
     var a = acesso();
-    if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=nova" id="avpInicioAnalise">Analisar área</a></div>';
-    if (a.ler) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=lista" id="avpInicioAnalise">Ver as análises de áreas</a><p class="avp-inicio-perfil">Abrir uma análise é do perfil Avaliação + Configuração.</p></div>';
+    if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#arquitetura?an=nova" id="avpInicioAnalise">Analisar área</a></div>';
+    if (a.ler) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#arquitetura?an=lista" id="avpInicioAnalise">Ver as análises de áreas</a><p class="avp-inicio-perfil">Abrir uma análise é do perfil Avaliação + Configuração.</p></div>';
     return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">A análise de áreas é dos perfis da Avaliação.</p>';
   }
   /* ficha do Posicionamento de uma atuação nascida de uma análise */
@@ -1424,10 +1424,10 @@
   function origemHtml(objetoId) {
     var c = origemCompleta(objetoId);
     if (c.tipo === 'excluida') return '<p class="an-origem an-origem--excluida" id="anOrigem" data-origem="excluida">Originada da análise <strong>' + esc(c.nome) + '</strong> (excluída).</p>';
-    var o = origemDe(objetoId); return o ? '<p class="an-origem" id="anOrigem" data-origem="analise">Responsabilidade registrada na análise <a href="#avaliacoes?an=' + encodeURIComponent(o.analiseId) + '" id="anVoltarAnalise">' + esc(o.nome) + '</a>.</p>' : '';
+    var o = origemDe(objetoId); return o ? '<p class="an-origem" id="anOrigem" data-origem="analise">Responsabilidade registrada na análise <a href="#arquitetura?an=' + encodeURIComponent(o.analiseId) + '" id="anVoltarAnalise">' + esc(o.nome) + '</a>.</p>' : '';
   }
   /* depois do O1–O9: voltar à lista da área para avaliar a próxima */
-  function voltarAreaHtml(objetoId) { var o = origemDe(objetoId); return o ? '<a class="btn btn--primary btn--sm" id="anVoltarResponsabilidades" href="#avaliacoes?an=' + encodeURIComponent(o.analiseId) + '">Voltar às responsabilidades da ' + esc(nomeCurtoArea(o)) + '</a>' : ''; }
+  function voltarAreaHtml(objetoId) { var o = origemDe(objetoId); return o ? '<a class="btn btn--primary btn--sm" id="anVoltarResponsabilidades" href="#arquitetura?an=' + encodeURIComponent(o.analiseId) + '">Voltar às responsabilidades da ' + esc(nomeCurtoArea(o)) + '</a>' : ''; }
   /* Jornada: a atuação ampla delimitada vira agrupador (D6) */
   function delimitacaoDe(objetoId) { if (!pronto()) return null; var r = N().objetoAmploDelimitado(estado(), objetoId); return r.delimitado ? r : null; }
   /* ficha da estrutura (N4): o que ela exerce segundo as análises — fonte, caráter e data; nunca vínculo */
@@ -1436,7 +1436,7 @@
     var l = N().exercidasPelaEstrutura(estado(), estruturaId);
     if (!l.length) return '';
     return '<section class="est-secao an-exercidas" id="anExercidas"><h5 class="est-secao-titulo">Exerce, segundo as análises organizacionais</h5><ul>' + l.map(function (x) {
-      return '<li><a href="#avaliacoes?an=' + encodeURIComponent(x.analiseId) + '">' + esc(x.responsabilidade) + '</a> <span class="an-chip an-chip--' + (x.carater === 'hipotese' ? 'pend' : 'neu') + '">' + esc(CARATER[x.carater] || x.carater) + '</span> <span class="an-det">análise "' + esc(x.analiseNome) + '" · fonte: ' + esc(x.fonte) + ' · ' + esc(fmtData(x.informadoEm)) + '</span></li>';
+      return '<li><a href="#arquitetura?an=' + encodeURIComponent(x.analiseId) + '">' + esc(x.responsabilidade) + '</a> <span class="an-chip an-chip--' + (x.carater === 'hipotese' ? 'pend' : 'neu') + '">' + esc(CARATER[x.carater] || x.carater) + '</span> <span class="an-det">análise "' + esc(x.analiseNome) + '" · fonte: ' + esc(x.fonte) + ' · ' + esc(fmtData(x.informadoEm)) + '</span></li>';
     }).join('') + '</ul><p class="an-nota">Informação descritiva das análises: não é vínculo formal e não muda o Mapa.</p></section>';
   }
   window.faInitAnalisesOrganizacionais = function () {
@@ -1446,5 +1446,5 @@
   };
   window.faAnalisesOrganizacionais = { origemCompleta: origemCompleta, resumoPorArea: resumoPorArea, entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, responsabilidadesDasAnalises: responsabilidadesDasAnalises, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
     exercidasHtml: exercidasHtml, acesso: acesso, aoMudar: function (f) { aoMudarFns.push(f); }, ligar: function () { ligarDados(); } };
-  if (/^#avaliacoes\?(.*&)?an=/.test(location.hash || '')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.faInitAnalisesOrganizacionais); else window.faInitAnalisesOrganizacionais(); }
+  if (/^#(?:arquitetura|avaliacoes)\?(.*&)?an=/.test(location.hash || '')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.faInitAnalisesOrganizacionais); else window.faInitAnalisesOrganizacionais(); }
 })();

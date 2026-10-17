@@ -1,4 +1,4 @@
-/* ACESSOS da aba AVALIAÇÃO (#avaliacoes) e do ADMIN > AVALIAÇÃO E MAPA.
+/* ACESSOS da aba AVALIAÇÃO (#arquitetura) e do ADMIN > AVALIAÇÃO E MAPA.
  *
  * Modelo (fa-avaliacao-autorizados/<emailKey>.tipo), independente de qualquer
  * outro acesso do site:
@@ -9,13 +9,13 @@
  * Admin geral entra em tudo por ser admin, sem precisar estar na lista.
  *
  * Prova, na tela (desktop e celular 375 px), com banco falso em persistenciaReal:
- *   - menu: "Avaliar oficina" (#avaliacao) × "Avaliação" (#avaliacoes);
+ *   - menu: "Avaliar oficina" (#avaliacao) × "Avaliação" (#arquitetura);
  *   - tipo "Avaliação": opera a aba inteira; #admin é barrado;
  *   - tipo "Avaliação + Configuração": #admin abre SÓ com a aba Arquitetura (as
  *     outras abas/painéis não existem na tela), sem "Usuários autorizados" e sem
  *     NENHUMA gravação fora do que ele mesmo faz;
  *   - perfil antigo não concede nada; usuário comum não entra;
- *   - "não sei ≠ sem acesso": com o registro lento, F5 em #avaliacoes e em
+ *   - "não sei ≠ sem acesso": com o registro lento, F5 em #arquitetura e em
  *     #admin NÃO expulsa;
  *   - "Usuários autorizados" (admin geral): lista só autorizados, adiciona
  *     procurando entre os cadastrados, altera o tipo, remove (só a autorização)
@@ -81,7 +81,7 @@ async function abrir(browser, o) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html' + (o.hash || '#avaliacoes?av=lista'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (o.hash || '#arquitetura?av=lista'), { waitUntil: 'domcontentloaded' });
   /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms fixos); quando o
      cenário derruba a leitura de fa-avaliacao-autorizados, o acesso à Avaliação fica "não sei" por desenho */
   await esperarSessaoAssentada(page, { semAvaliacao: (o.fail || []).some((c) => /^fa-avaliacao-autorizados/.test(c)) });
@@ -115,7 +115,7 @@ async function abrirMais(page, key) {
       const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao', viewport, hash: '#home' });
       afirma(await page.locator('a[data-nav-page="avaliacao"]').first().textContent().then((t) => /Avaliar oficina/i.test(t)), 'item "Avaliar oficina" aponta para #avaliacao (feedback da oficina)');
       afirma(await page.locator('a[data-nav-page="avaliacao"]').first().getAttribute('href') === '#avaliacao', 'a rota da oficina continua #avaliacao');
-      afirma(await page.locator('a[data-nav-page="avaliacoes"]').first().textContent().then((t) => /^\s*Avalia(ç|c)(ã|a)o\s*$/i.test(t)), 'item "Avaliação" aponta para #avaliacoes (Produto/Serviço)');
+      afirma(await page.locator('a[data-nav-page="avaliacoes"]').first().textContent().then((t) => /^\s*A Floresta\s*$/i.test(t)), 'item "A Floresta" aponta para #arquitetura');
       afirma(await page.evaluate(() => !document.querySelector('.nav-link-avaliacoes').hidden), 'tipo "Avaliação" vê o item "Avaliação"');
       afirma(!(await visivelAdmin(page)), 'tipo "Avaliação" NÃO vê "Admin"');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
@@ -184,7 +184,7 @@ async function abrirMais(page, key) {
     for (const perfil of ['consulta', 'avaliador', 'gestor']) {
       const { ctx, page, erros } = await abrir(browser, { email: EM, perfilAntigo: perfil, viewport });
       await page.waitForTimeout(400);
-      afirma(await hash(page) === '#home', 'perfil antigo "' + perfil + '": #avaliacoes leva para #home');
+      afirma(await hash(page) === '#home', 'perfil antigo "' + perfil + '": #arquitetura leva para #home');
       afirma(await page.evaluate(() => document.querySelector('.nav-link-avaliacoes').hidden), 'perfil antigo "' + perfil + '": item "Avaliação" oculto');
       await page.evaluate(() => { location.hash = '#admin'; });
       await page.waitForTimeout(400);
@@ -195,7 +195,7 @@ async function abrirMais(page, key) {
     {
       const r = await abrir(browser, { email: EM, viewport });
       await r.page.waitForTimeout(400);
-      afirma(await hash(r.page) === '#home', 'usuário comum: #avaliacoes leva para #home');
+      afirma(await hash(r.page) === '#home', 'usuário comum: #arquitetura leva para #home');
       afirma(await r.page.evaluate(() => document.querySelector('.nav-link-avaliacoes').hidden), 'usuário comum: item "Avaliação" oculto');
       await r.ctx.close();
     }
@@ -218,10 +218,10 @@ async function abrirMais(page, key) {
   {
     const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao', delays: { 'fa-avaliacao-autorizados': 3500 } });
     await page.waitForTimeout(800);
-    afirma(await hash(page) === '#avaliacoes?av=lista', 'enquanto o registro não chega, continua em #avaliacoes (não é expulso)');
+    afirma(await hash(page) === '#arquitetura?av=lista', 'enquanto o registro não chega, continua em #arquitetura (não é expulso)');
     await page.waitForSelector('#avpNovoBtn', { timeout: 9000 });
     await page.waitForTimeout(400);
-    afirma(await hash(page) === '#avaliacoes?av=lista' && await contar(page, '#avaliacoesPainel .avp-table tbody tr') === 3, 'quando chega: entra e carrega as 3');
+    afirma(await hash(page) === '#arquitetura?av=lista' && await contar(page, '#avaliacoesPainel .avp-table tbody tr') === 3, 'quando chega: entra e carrega as 3');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }
@@ -249,11 +249,11 @@ async function abrirMais(page, key) {
     await ctx.close();
   }
 
-  console.log('\n== Link antigo #admin?avp=<chave> abre a avaliação em #avaliacoes ==');
+  console.log('\n== Link antigo #admin?avp=<chave> abre a avaliação em #arquitetura ==');
   {
     const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao', hash: '#admin?avp=k1' });
     await page.waitForSelector('#avpVoltarListaResultado', { timeout: 8000 }).catch(() => {});
-    afirma(/^#avaliacoes\?avp=k1/.test(await hash(page)), 'a URL foi reescrita para #avaliacoes?avp=k1');
+    afirma(/^#(?:arquitetura|avaliacoes)\?avp=k1/.test(await hash(page)), 'a URL foi reescrita para #arquitetura?avp=k1');
     afirma(await contar(page, '#avpVoltarListaResultado') === 1, 'a avaliação abriu');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();

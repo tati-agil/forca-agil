@@ -100,19 +100,19 @@ const objetoPorNome = (db, nome) => Object.entries(db['objetos-organizacionais']
 
 async function rodada(browser, viewport, rotulo) {
   console.log('\n=== ' + rotulo + ' ===');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=lista');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=lista');
 
   console.log('1. As duas portas');
   await page.waitForSelector('#poAtuacoesBtn');
   afirma(!!(await page.$('#poNovoBtn')) && /não precisa de P1–P16/.test(await texto(page, '#poDuasPortas')), 'lista: Porta 1 e Porta 2 lado a lado, com a diferença explicada');
   await page.click('#poAtuacoesBtn');
   await page.waitForSelector('#poAtuacoes #poNovaAtuacaoBtn');
-  afirma((await hash(page)) === '#avaliacoes?po=atuacoes' && /Atuação a encerrar/.test(await texto(page, '#poListaAtuacoes')), 'lista das atuações em #avaliacoes?po=atuacoes');
+  afirma((await hash(page)) === '#arquitetura?po=atuacoes' && /Atuação a encerrar/.test(await texto(page, '#poListaAtuacoes')), 'lista das atuações em #arquitetura?po=atuacoes');
 
   console.log('2. Cadastro da atuação');
   await page.click('#poNovaAtuacaoBtn');
   await page.waitForSelector('#poFormAtuacao');
-  afirma((await hash(page)) === '#avaliacoes?po=nova-atuacao', 'cadastro em #avaliacoes?po=nova-atuacao');
+  afirma((await hash(page)) === '#arquitetura?po=nova-atuacao', 'cadastro em #arquitetura?po=nova-atuacao');
   /* Caminho A: um campo (a responsabilidade); a referência informativa fica recolhida, opcional */
   await page.click('#poSalvarAtuacaoBtn');
   await page.waitForSelector('#poAtuacaoErros');
@@ -130,7 +130,7 @@ async function rodada(browser, viewport, rotulo) {
   const [idAg, ag] = objetoPorNome(db, 'Desenvolvimento de competências em agilidade') || [];
   afirma(!!ag && ag.situacao === 'ativo' && ag.revisao === 1 && ag.referenciaItemId === 'pLivre' && db['objetos-organizacionais-por-referencia'] && db['objetos-organizacionais-por-referencia'].pLivre === idAg &&
     Object.values((db['objetos-organizacionais-auditoria'] || {})[idAg] || {}).some((x) => x.tipo === 'criacao'), 'grava a atuação (ativa, revisão 1, referência e índice, auditoria de criação)');
-  afirma((await hash(page)) === '#avaliacoes?po=atuacoes&item=' + idAg && /Responsabilidade registrada/.test(await texto(page, '#poFlash')) && /indique sua hipótese inicial para começar a avaliação O1–O9/.test(await texto(page, '#poProximoPasso')), 'depois de salvar: a atuação aberta, pedindo a hipótese', (await hash(page)) + ' | ' + (await texto(page, '#poFlash')));
+  afirma((await hash(page)) === '#arquitetura?po=atuacoes&item=' + idAg && /Responsabilidade registrada/.test(await texto(page, '#poFlash')) && /indique sua hipótese inicial para começar a avaliação O1–O9/.test(await texto(page, '#poProximoPasso')), 'depois de salvar: a atuação aberta, pedindo a hipótese', (await hash(page)) + ' | ' + (await texto(page, '#poFlash')));
 
   console.log('3. Hipótese obrigatória, oculta nas perguntas, comparada no resultado');
   afirma(await desabilitado(page, '#poIniciarAtuacaoBtn') && /Escolha a hipótese inicial/.test(await texto(page, '#poHipoteseFalta')), '"Iniciar" travado até escolher a hipótese');
@@ -151,7 +151,7 @@ async function rodada(browser, viewport, rotulo) {
   const regAg = Object.values(db['avaliacoes-posicionamento']).find((r) => r.itemId === idAg);
   afirma(regAg.origem === ORIGEM && regAg.hipoteseInicial === 'COE' && regAg.resultadoAutomatico.codigoResultado === 'AREA_ESPECIALIZADA', 'gravado: origem Porta 2, hipótese CoE, resultado do motor (a hipótese não mudou nada)');
   /* Porta 1 com hipótese que se confirma */
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher&item=pCapec'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=escolher&item=pCapec'; });
   await page.waitForSelector('#poHipoteseIniciar');
   afirma(await desabilitado(page, '#poIniciarBtn'), 'Porta 1: "Iniciar" também travado até escolher a hipótese');
   await page.click('#poHipoteseIniciar input[value="NEGOCIOS"]');
@@ -162,7 +162,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#poConcluirBtn');
   await page.waitForSelector('#poBlocoHipotese', { timeout: 10000 });
   afirma((await page.getAttribute('#poHipotese', 'data-comparacao')) === 'confirmada', 'Porta 1: hipótese Negócios × recomendação Negócios = "confirmada"');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=gEC'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=gEC'; });
   await page.waitForSelector('#poBlocoHipotese');
   afirma((await page.getAttribute('#poHipotese', 'data-comparacao')) === 'nao-registrada', 'avaliação antiga, sem hipótese: "não registrada" (nada inventado)');
 
@@ -170,7 +170,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/comparação com Plataforma/.test(await texto(page, '#poNotaEstrategiaClientes')) && /Tx ESTRATEGIA_CLIENTES/.test(await texto(page, '#poRecomendado')), 'resultado Estratégia de Clientes: a nota aparece e a recomendação não muda');
 
   console.log('4. Edição da atuação');
-  await page.evaluate((id) => { location.hash = '#avaliacoes?po=atuacoes&item=' + id; }, idAg);
+  await page.evaluate((id) => { location.hash = '#arquitetura?po=atuacoes&item=' + id; }, idAg);
   await page.waitForSelector('#poEditarAtuacaoBtn');
   await page.click('#poEditarAtuacaoBtn');
   await page.waitForSelector('#poFormAtuacao');
@@ -206,13 +206,13 @@ async function rodada(browser, viewport, rotulo) {
     'reavaliação: v2 da Porta 2, hipótese nova, nome atual, sem base P1–P16');
 
   console.log('6. Encerrar a atuação');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=atuacoes&item=oComRasc'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=atuacoes&item=oComRasc'; });
   await page.waitForSelector('#poEncerrarAtuacaoBtn');
   await page.click('#poEncerrarAtuacaoBtn');
   await page.waitForSelector('.po-modal');
   afirma(/rascunho de Posicionamento em andamento/.test(await texto(page, '.po-modal')) && (await banco(page))['objetos-organizacionais'].oComRasc.situacao === 'ativo', 'com rascunho aberto: explica e não encerra');
   await page.click('.po-modal .po-modal-sim');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=atuacoes&item=oFim'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=atuacoes&item=oFim'; });
   await page.waitForSelector('#poEncerrarAtuacaoBtn');
   await page.click('#poEncerrarAtuacaoBtn');
   await page.waitForSelector('#poMotivoEncerrarAtuacao');
@@ -226,7 +226,7 @@ async function rodada(browser, viewport, rotulo) {
     'encerrada com o motivo; sem "Iniciar" nem "Encerrar" depois');
 
   console.log('8. Celular e erros');
-  for (const h of ['#avaliacoes?po=atuacoes', '#avaliacoes?po=nova-atuacao', '#avaliacoes?po=atuacoes&item=' + idAg]) {
+  for (const h of ['#arquitetura?po=atuacoes', '#arquitetura?po=nova-atuacao', '#arquitetura?po=atuacoes&item=' + idAg]) {
     await page.evaluate((x) => { location.hash = x; }, h);
     await page.waitForSelector(h.indexOf('nova') !== -1 ? '#poFormAtuacao' : '#poAtuacoes');
     afirma(await larguraOk(page), rotulo + ': ' + h + ' sem rolagem lateral');

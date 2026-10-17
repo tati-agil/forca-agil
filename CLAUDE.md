@@ -40,8 +40,12 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   `docs/referencia-tecnica.md` e `docs/arquitetura-detalhada.md`; ao criar módulo, coloque-o depois do que ele usa e
   registre-o na tabela de módulos.
 - **Rotas** (`router.js`, hash): fixed page list (`home`, `turmas`, `conteudos`, `treinamento`, `repositorio`, `avaliacao`, `avaliacoes`, `minha-area`, `ajuda`, `admin`, `facilitador`, `checkin`).
+  **A FLORESTA** (nome visível; tecnicamente o Núcleo de Arquitetura Organizacional) tem o endereço oficial `#arquitetura`
+  — a página interna continua `avaliacoes` (`#page-avaliacoes`, permissões). O antigo `#avaliacoes…` (com os parâmetros)
+  é reescrito para `#arquitetura…` por `head-init.js`, antes de qualquer outro script ler o endereço; gere sempre
+  `#arquitetura…` (`teste-rota-arquitetura.js`).
   O controle de acesso vale na navegação e no acesso direto pelo hash; informação de acesso que chega tarde reaplica a
-  decisão sem rolar a página para o topo. Subendereços: `#admin?arq=<área>`, `#avaliacoes?po=…`, `?sq=…`, `?an=…`,
+  decisão sem rolar a página para o topo. Subendereços: `#admin?arq=<área>`, `#arquitetura?po=…`, `?sq=…`, `?an=…`,
   `?mf=catalogo`.
 - **Acesso** (`auth.js`, `window.faAuth`): quatro dimensões independentes — autenticação, participação (`member`/`enrolled`),
   perfis funcionais (`fa-avaliacao-autorizados`: `avaliacao` avalia; `avaliacao-arquitetura` também cura, decide e entra

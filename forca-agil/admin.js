@@ -76,7 +76,7 @@
     var el = document.getElementById('adminVoltaInicio');
     if (!el) {
       el = document.createElement('p'); el.className = 'admin-volta-inicio'; el.id = 'adminVoltaInicio'; el.hidden = true;
-      el.innerHTML = '<a href="#avaliacoes" id="adminVoltaInicioLink">← Voltar ao Início de Avaliações</a>';
+      el.innerHTML = '<a href="#arquitetura" id="adminVoltaInicioLink">← Voltar ao Início da Floresta</a>';
       var abas = wrap.querySelector('.admin-tabs-bar');
       if (abas) abas.parentNode.insertBefore(el, abas.nextSibling); else wrap.insertBefore(el, wrap.firstChild);
     }
@@ -135,22 +135,22 @@
      As telas que empilham entradas próprias copiam a marca (faNav.comOrigem), para a origem não se perder no caminho.
      avp:1 nas entradas criadas aqui: a área Avaliação não as reescreve. */
   var ROTULOS_ORIGEM = [
-    [/^#avaliacoes\?(.*&)?tr=1/, 'Trabalhos de avaliação'],
-    [/^#avaliacoes\?(.*&)?po=(lista|todas|atuacoes)(&|$)/, 'os Posicionamentos'],
-    [/^#avaliacoes\?(.*&)?po=/, 'o Posicionamento'],
-    [/^#avaliacoes\?(.*&)?sq=/, 'a Adequação à Squad'],
-    [/^#avaliacoes\?(.*&)?mf=mapa/, 'o Mapa da Floresta'],
-    [/^#avaliacoes\?(.*&)?mf=catalogo/, 'a Jornada do Mapa'],
-    [/^#avaliacoes\?(.*&)?an=/, 'a Análise Organizacional'],
-    [/^#avaliacoes\?(.*&)?(avp|editar)=/, 'a avaliação de Produto/Serviço'],
-    [/^#avaliacoes\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],
-    [/^#avaliacoes$/, 'o Início da Avaliação'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?tr=1/, 'Trabalhos de avaliação'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?po=(lista|todas|atuacoes)(&|$)/, 'os Posicionamentos'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?po=/, 'o Posicionamento'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?sq=/, 'a Adequação à Squad'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?mf=mapa/, 'o Mapa da Floresta'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?mf=catalogo/, 'a Jornada do Mapa'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?an=/, 'a Análise Organizacional'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?(avp|editar)=/, 'a avaliação de Produto/Serviço'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],
+    [/^#(?:arquitetura|avaliacoes)$/, 'o Início da Floresta'],
     [/^#admin\?arq=estruturas/, 'as Estruturas do Mapa da Floresta'],
     [/^#admin\?arq=documentacao/, 'os Documentos de referência'],
     [/^#admin/, 'Avaliações e Mapa']
   ];
   function rotuloOrigem(hash) { for (var i = 0; i < ROTULOS_ORIGEM.length; i++) if (ROTULOS_ORIGEM[i][0].test(hash || '')) return ROTULOS_ORIGEM[i][1]; return 'a tela anterior'; }
-  function origemValida(o) { return !!(o && typeof o.hash === 'string' && /^#(avaliacoes|admin)(\?|$)/.test(o.hash)); }
+  function origemValida(o) { return !!(o && typeof o.hash === 'string' && /^#(arquitetura|avaliacoes|admin)(\?|$)/.test(o.hash)); }
   window.faNav = {
     rotuloOrigem: rotuloOrigem,
     /* a origem registrada na entrada atual (ou null) */

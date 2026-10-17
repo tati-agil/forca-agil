@@ -2881,7 +2881,7 @@
       else if (state.tela === 'config-motores') renderConfigMotores();
     }
 
-    /* Tela de carregamento de #avaliacoes?avp=<chave> (F5, link direto, nova aba)
+    /* Tela de carregamento de #arquitetura?avp=<chave> (F5, link direto, nova aba)
        enquanto a leitura de avaliacoes-produto ainda não respondeu. Sem isto,
        a primeira renderização (antes de qualquer dado chegar) caía no
        default 'lista' e mostrava "0 avaliações registradas" + "+ Avaliar
@@ -2911,13 +2911,13 @@
       });
     }
 
-    /* ===================== ROTA PERSISTENTE (#avaliacoes?avp=<key>) =====================
+    /* ===================== ROTA PERSISTENTE (#arquitetura?avp=<key>) =====================
        A tela de resultado é um registro consultável, não uma página de
        transição — precisa sobreviver a F5, funcionar com link copiado/aberto
        em outra aba, e reagir ao botão voltar/avançar do navegador. O router
-       central (router.js) só entende páginas fixas (#avaliacoes, #home…) e ignora
+       central (router.js) só entende páginas fixas (#arquitetura, #home…) e ignora
        tudo depois de "?" ao decidir qual página mostrar — por isso o `?avp=`
-       vive dentro do MESMO hash de #avaliacoes: o router mostra a página
+       vive dentro do MESMO hash de #arquitetura: o router mostra a página
        normalmente, e este módulo lê o parâmetro para decidir se mostra a
        lista ou uma avaliação específica dela. Links antigos (#admin?avp=…,
        de quando isto morava no Admin) são redirecionados pelo router.
@@ -2940,11 +2940,11 @@
     /* ===================== NAVEGAÇÃO: A URL É A FONTE DE VERDADE =====================
        A tela exibida SEMPRE decorre da URL (sincronizarComHash); o histórico do navegador guarda só o CONTEXTO
        DE ORIGEM (history.state) para o "Voltar" saber para onde ir. Endereços:
-         #avaliacoes                      lista
-         #avaliacoes?avp=<chave>          avaliação (vigente ou versão anterior — a chave identifica a versão)
-         #avaliacoes?nova=1               nova avaliação (formulário inicial / checklist)
-         #avaliacoes?editar=<chave>       continuar um rascunho
-         #avaliacoes?reavaliar=<chave>    reavaliação da versão <chave>
+         #arquitetura                      lista
+         #arquitetura?avp=<chave>          avaliação (vigente ou versão anterior — a chave identifica a versão)
+         #arquitetura?nova=1               nova avaliação (formulário inicial / checklist)
+         #arquitetura?editar=<chave>       continuar um rascunho
+         #arquitetura?reavaliar=<chave>    reavaliação da versão <chave>
        Nova/editar/reavaliar não persistem a edição: o F5 recomeça do estado salvo (sem autosave) e o navegador
        avisa antes de recarregar se houver alteração não salva (beforeunload).
        Cada entrada criada por esta tela carrega { avp:1, seq, origem } — origem = { t:'lista' } ou
@@ -2960,17 +2960,17 @@
     function marcarEntradaAtual() {
       if (!estadoDaEntrada()) history.replaceState({ avp: 1, seq: proximoSeq(), origem: null }, '', location.href);
     }
-    /* #avaliacoes = o Início da Avaliação (organizado pelo trabalho da pessoa); a lista das avaliações P1–P16 tem
+    /* #arquitetura = o Início da Avaliação (organizado pelo trabalho da pessoa); a lista das avaliações P1–P16 tem
        endereço próprio. Os demais endereços (?avp=, ?editar=, ?nova=1, ?po=, ?sq=, ?mf=) não mudaram. */
-    function hashInicio() { return '#avaliacoes'; }
-    function hashLista() { return '#avaliacoes?av=lista'; }
-    function hashAvaliacao(key) { return '#avaliacoes?avp=' + encodeURIComponent(key); }
-    function hashNova() { return '#avaliacoes?nova=1'; }
-    function hashEditar(key) { return '#avaliacoes?editar=' + encodeURIComponent(key); }
-    function hashReavaliar(key) { return '#avaliacoes?reavaliar=' + encodeURIComponent(key); }
+    function hashInicio() { return '#arquitetura'; }
+    function hashLista() { return '#arquitetura?av=lista'; }
+    function hashAvaliacao(key) { return '#arquitetura?avp=' + encodeURIComponent(key); }
+    function hashNova() { return '#arquitetura?nova=1'; }
+    function hashEditar(key) { return '#arquitetura?editar=' + encodeURIComponent(key); }
+    function hashReavaliar(key) { return '#arquitetura?reavaliar=' + encodeURIComponent(key); }
     function destinoDaUrl() {
       var h = location.hash || '';
-      if (h.split('?')[0] !== '#avaliacoes') return { t: 'fora' };
+      if (h.split('?')[0] !== '#arquitetura') return { t: 'fora' };
       var p = paramsDaHash();
       if (p.po) return { t: 'posicionamento', po: p.po, item: p.item || null }; /* Posicionamento Organizacional: o endereço é dele (avaliacao-posicionamento.js) */
       if (p.sq) return { t: 'squad', sq: p.sq }; /* Adequação à Squad: o endereço é dela (avaliacao-squad.js) */
@@ -3012,7 +3012,7 @@
       var e = estadoDaEntrada();
       var o = e && e.origem;
       if (o && o.t === 'lista') return { historico: true, hash: hashLista(), rotulo: 'avaliações' };
-      if (o && o.t === 'inicio') return { historico: true, hash: hashInicio(), rotulo: 'o Início da Avaliação' };
+      if (o && o.t === 'inicio') return { historico: true, hash: hashInicio(), rotulo: 'o Início da Floresta' };
       if (o && o.t === 'avaliacao') return { historico: true, hash: hashAvaliacao(o.key), rotulo: 'a avaliação (v' + (o.v || 1) + ')' };
       var no = window.faNav && window.faNav.origem();
       if (no && no.hash !== location.hash) return { navOrigem: true, hash: no.hash, rotulo: no.rotulo };
@@ -3337,14 +3337,14 @@
     var navParaObservar = document.querySelector('.nav');
     if (navParaObservar && typeof ResizeObserver === 'function') new ResizeObserver(ajustarTopoCabecalho).observe(navParaObservar);
 
-    /* ===================== INÍCIO DA AVALIAÇÃO (#avaliacoes) =====================
+    /* ===================== INÍCIO DA AVALIAÇÃO (#arquitetura) =====================
        Organizado pelo TRABALHO da pessoa, não pelas funcionalidades: continuar/consultar (a Jornada), começar um trabalho
        novo (as duas portas — natureza P1–P16 ou atuação organizacional) e os registros completos de cada avaliação, cada
        um com a sua finalidade. Não lê o banco: abre na hora, também no 4G. Cada destino é uma tela que já existe; ao
        abri-lo daqui, a entrada do histórico registra o Início como origem, e o "← Voltar" de lá volta para cá. */
     var DESTINOS_INICIO = {
-      avpInicioJornada: '#avaliacoes?mf=catalogo', avpInicioNatureza: '#avaliacoes?nova=1', avpInicioAtuacao: '#avaliacoes?po=nova-atuacao',
-      avpInicioTrabalhos: '#avaliacoes?tr=1', avpInicioMapa: '#avaliacoes?mf=mapa'
+      avpInicioJornada: '#arquitetura?mf=catalogo', avpInicioNatureza: '#arquitetura?nova=1', avpInicioAtuacao: '#arquitetura?po=nova-atuacao',
+      avpInicioTrabalhos: '#arquitetura?tr=1', avpInicioMapa: '#arquitetura?mf=mapa'
     };
     var inicioOuveNomes = false;
     /* Entrar no ADMIN por um atalho do Início marca a entrada do histórico (faVoltaInicio; a aba, quando não tem endereço
@@ -3396,12 +3396,12 @@
       var acAO = AO && AO.acesso ? AO.acesso() : { ler: false };
       var num = function (v) { return v === null || v === undefined ? '…' : String(v); };
       var lin = function (rot, v, id) { return '<li><span class="avp-trab-num" id="' + id + '">' + num(v) + '</span> ' + rot + '</li>'; };
-      var h = '<div class="avp-trabalhos" id="avpTrabalhos"><button type="button" class="avp-voltar-link" id="avpTrabVoltar">' + esc(window.faNav && window.faNav.origem() ? '← Voltar para ' + window.faNav.origem().rotulo : '← Voltar para Avaliações') + '</button>' +
+      var h = '<div class="avp-trabalhos" id="avpTrabalhos"><button type="button" class="avp-voltar-link" id="avpTrabVoltar">' + esc(window.faNav && window.faNav.origem() ? '← Voltar para ' + window.faNav.origem().rotulo : '← Voltar para A Floresta') + '</button>' +
         '<h2 class="avp-inicio-titulo">Trabalhos de avaliação</h2><p class="avp-intro">Encontre um trabalho anterior e continue de onde parou. Os registros são compartilhados com quem tem acesso à Avaliação.</p>';
       /* continuar de onde parou: os rascunhos (P1–P16 e O1–O9), com link direto */
       var pend = [];
-      (rp ? rp.andamento : []).forEach(function (it) { pend.push('<li><a href="#avaliacoes?avp=' + encodeURIComponent(it._key) + '">' + esc(it.nome || 'Item sem nome') + '</a> <span class="avp-ficha-meta">Produto/Serviço · em andamento</span></li>'); });
-      (rs && rs.rascunhos ? rs.rascunhos : []).forEach(function (r) { pend.push('<li><a href="#avaliacoes?po=' + encodeURIComponent(r.key) + '">' + esc(r.nome || 'Sem nome') + '</a> <span class="avp-ficha-meta">' + (r.porta2 ? 'Responsabilidade' : 'Posicionamento') + ' · avaliação O1–O9 em andamento</span></li>'); });
+      (rp ? rp.andamento : []).forEach(function (it) { pend.push('<li><a href="#arquitetura?avp=' + encodeURIComponent(it._key) + '">' + esc(it.nome || 'Item sem nome') + '</a> <span class="avp-ficha-meta">Produto/Serviço · em andamento</span></li>'); });
+      (rs && rs.rascunhos ? rs.rascunhos : []).forEach(function (r) { pend.push('<li><a href="#arquitetura?po=' + encodeURIComponent(r.key) + '">' + esc(r.nome || 'Sem nome') + '</a> <span class="avp-ficha-meta">' + (r.porta2 ? 'Responsabilidade' : 'Posicionamento') + ' · avaliação O1–O9 em andamento</span></li>'); });
       /* análises de área com responsabilidades ainda por avaliar: aparecem mesmo sem rascunho aberto (o trabalho continua
          na análise, não num rascunho). "com O1–O9 concluído" = Posicionamento concluído; nada aqui é proposta nem tipo da área */
       var porArea = acAO.ler && AO && AO.resumoPorArea ? AO.resumoPorArea() : null, areasPend = [];
@@ -3413,7 +3413,7 @@
         if (x.prontas) partes.push(x.prontas + ' pronta' + (x.prontas === 1 ? '' : 's') + ' para avaliar');
         if (x.pendentes) partes.push(x.pendentes + ' pendente' + (x.pendentes === 1 ? '' : 's') + ' de delimitação');
         areasPend.push('<li class="avp-trab-area" data-analise="' + esc(x.analiseId) + '"><span class="avp-trab-area-texto"><strong>' + esc(x.nome) + '</strong> <span class="avp-ficha-meta">Análise de área · ' + partes.join(' · ') + '</span></span>' +
-          '<a class="btn btn--sm" href="#avaliacoes?an=' + encodeURIComponent(x.analiseId) + '" id="avpTrabArea_' + esc(x.analiseId) + '">Continuar análise</a></li>');
+          '<a class="btn btn--sm" href="#arquitetura?an=' + encodeURIComponent(x.analiseId) + '" id="avpTrabArea_' + esc(x.analiseId) + '">Continuar análise</a></li>');
       });
       var carregando = rp === null || rs === null || (acAO.ler && porArea === null);
       h += '<section class="avp-trab-secao" id="avpTrabContinuar"><h3>Continuar de onde parou</h3>' +
@@ -3425,26 +3425,26 @@
       h += '<div class="avp-trab-grade">' +
         '<section class="avp-trab-secao" id="avpTrabProdutos"><h3>Produtos/Serviços</h3><ul class="avp-trab-nums">' +
           lin('em andamento', rp ? rp.andamento.length : null, 'avpTrabProdAndamento') + lin('concluídas', rp ? rp.concluidas : null, 'avpTrabProdConcluidas') + lin('com resultado A validar', rp ? rp.avalidar : null, 'avpTrabProdAValidar') + '</ul>' +
-          '<a class="btn btn--sm" id="avpTrabIrProdutos" href="#avaliacoes?av=lista">Ver avaliações de Produto/Serviço</a></section>' +
+          '<a class="btn btn--sm" id="avpTrabIrProdutos" href="#arquitetura?av=lista">Ver avaliações de Produto/Serviço</a></section>' +
         '<section class="avp-trab-secao" id="avpTrabResponsabilidades"><h3>Responsabilidades Organizacionais</h3>' +
           (rs && rs.erro ? '<p class="avp-error-msg">Não foi possível ler as responsabilidades agora.</p>' : '<ul class="avp-trab-nums">' +
           lin('prontas para avaliar', rr ? rr.pronta || 0 : null, 'avpTrabRespProntas') + lin('em avaliação', rr ? rr.andamento || 0 : null, 'avpTrabRespAndamento') +
           lin('avaliadas (O1–O9 concluído)', rr ? rr.avaliada || 0 : null, 'avpTrabRespAvaliadas') + lin('com resultado A validar (sem decisão final)', rr ? rr.avalidar || 0 : null, 'avpTrabRespAValidar') + '</ul>') +
-          '<a class="btn btn--sm" id="avpTrabIrResponsabilidades" href="#avaliacoes?po=todas">Ver todas as responsabilidades</a>' +
-          '<a class="btn btn--sm" id="avpTrabIrPosicionamentos" href="#avaliacoes?po=lista">Ver avaliações de Posicionamento (O1–O9)</a></section>' +
+          '<a class="btn btn--sm" id="avpTrabIrResponsabilidades" href="#arquitetura?po=todas">Ver todas as responsabilidades</a>' +
+          '<a class="btn btn--sm" id="avpTrabIrPosicionamentos" href="#arquitetura?po=lista">Ver avaliações de Posicionamento (O1–O9)</a></section>' +
         '<section class="avp-trab-secao" id="avpTrabAreas"><h3>Análises de áreas</h3>';
       if (!acAO.ler) h += '<p class="avp-ficha-meta" id="avpTrabAreasIndisponivel">A análise de áreas não está disponível para o seu perfil agora.</p>';
       else {
         var areas = {}; (ras || []).forEach(function (r) { areas[r.analiseId] = true; });
         h += '<ul class="avp-trab-nums">' + lin('áreas com responsabilidades registradas', ras ? Object.keys(areas).length : null, 'avpTrabAreasQtd') +
           lin('responsabilidades de áreas ainda sem O1–O9', ras ? ras.filter(function (r) { return !r.objetoId && r.pronta; }).length : null, 'avpTrabAreasProntas') + '</ul>' +
-          '<a class="btn btn--sm" id="avpTrabIrAreas" href="#avaliacoes?an=lista">Ver análises de áreas</a>';
+          '<a class="btn btn--sm" id="avpTrabIrAreas" href="#arquitetura?an=lista">Ver análises de áreas</a>';
       }
       h += '</section>' +
         '<section class="avp-trab-secao" id="avpTrabSquad"><h3>Adequação à Squad</h3><p class="avp-ficha-meta">Avaliação complementar (S1–S8), só quando o posicionamento é do ramo Linha.</p>' +
-          '<a class="btn btn--sm" id="avpTrabIrSquad" href="#avaliacoes?sq=lista">Ver adequações à Squad</a></section>' +
+          '<a class="btn btn--sm" id="avpTrabIrSquad" href="#arquitetura?sq=lista">Ver adequações à Squad</a></section>' +
         '<section class="avp-trab-secao" id="avpTrabJornada"><h3>Jornadas e Mapa</h3><p class="avp-ficha-meta">Consulta da ligação entre os resultados das avaliações e as estruturas responsáveis. Não é onde se cadastra nem se avalia.</p>' +
-          '<a class="btn btn--sm" id="avpTrabIrJornada" href="#avaliacoes?mf=catalogo">Consultar a Jornada do Mapa</a></section></div></div>';
+          '<a class="btn btn--sm" id="avpTrabIrJornada" href="#arquitetura?mf=catalogo">Consultar a Jornada do Mapa</a></section></div></div>';
       wrap.innerHTML = h;
       var v = document.getElementById('avpTrabVoltar'); if (v) v.addEventListener('click', function () {
         var e = estadoDaEntrada();
@@ -3452,7 +3452,7 @@
         if (window.faNav && window.faNav.voltar()) return;
         irPara(hashInicio(), { replace: true });
       });
-      if (window.faNav) window.faNav.ligarLinks(wrap, '#avpTrabalhos a[href^="#avaliacoes"]', { rotulo: 'Trabalhos de avaliação' });
+      if (window.faNav) window.faNav.ligarLinks(wrap, '#avpTrabalhos a[href^="#arquitetura"]', { rotulo: 'Trabalhos de avaliação' });
     }
     /* os números chegam depois (Posicionamento e análises): redesenha no lugar */
     window.addEventListener('fa-posicionamento-dados', function () { if (state.tela === 'trabalhos' && !wrap.hidden) renderTrabalhos(); });
@@ -3522,7 +3522,7 @@
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
       var html = '';
-      if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="btn btn--sm" id="avpVoltarInicio">' + esc(window.faNav && window.faNav.origem() && window.faNav.origem().hash !== location.hash ? '← Voltar para ' + window.faNav.origem().rotulo : '← Início da Avaliação') + '</button>' +
+      if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="btn btn--sm" id="avpVoltarInicio">' + esc(window.faNav && window.faNav.origem() && window.faNav.origem().hash !== location.hash ? '← Voltar para ' + window.faNav.origem().rotulo : '← Início da Floresta') + '</button>' +
         '<h2 class="avp-lista-titulo" id="avpListaTitulo">Avaliações de Produto/Serviço ou outra natureza (P1–P16)</h2></div>';
       if (state.flashLista) {
         html += '<div class="avp-flash-success" id="avpFlashLista">' + esc(state.flashLista) +
@@ -3549,7 +3549,7 @@
         ' avaliaç' + (baseContagem.length === 1 ? 'ão' : 'ões') + (state.lixeira ? ' na lixeira' : '') + '</span>';
       if (!state.lixeira && pode()) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
       /* Adequação à Squad, Posicionamento Organizacional e a Jornada não têm atalho aqui: moram no Início da Avaliação
-         (#avaliacoes) e, no contexto de um item, na Jornada e na ficha. */
+         (#arquitetura) e, no contexto de um item, na Jornada e na ficha. */
       if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
@@ -5048,7 +5048,7 @@
 
     /* ===================== MAPA DA FLORESTA — DESTINO DA JORNADA =====================
        Um destaque curto, nas duas entradas (ADMIN › Avaliações e Mapa e Início da Avaliação), para o Mapa que JÁ existe
-       (#avaliacoes?mf=mapa) e a jornada preparatória (#avaliacoes?mf=catalogo). Nenhum segundo Mapa, definição ou registro:
+       (#arquitetura?mf=mapa) e a jornada preparatória (#arquitetura?mf=catalogo). Nenhum segundo Mapa, definição ou registro:
        a definição oficial é o cartão MAPA_FLORESTA de "Documentação e mapas". A situação dos dados segue a mesma regra do
        Mapa (mapa-floresta.js): com o cadastro de estruturas disponível, registros reais; sem ele, modo demonstrativo, com
        exemplos fictícios — nunca apresentados como relações concluídas; enquanto o marcador não chegou, "conferindo". */
@@ -5140,7 +5140,7 @@
       }
       /* chegou aqui pelo Mapa ("Definição do Mapa"): o retorno leva de volta a ele */
       var origemMapa = window.faNav && window.faNav.origem();
-      origemMapa = origemMapa && /^#avaliacoes\?(.*&)?mf=/.test(origemMapa.hash) ? origemMapa : null;
+      origemMapa = origemMapa && /^#(?:arquitetura|avaliacoes)\?(.*&)?mf=/.test(origemMapa.hash) ? origemMapa : null;
       var html = origemMapa ? linkVoltar('avpInicioVoltarOrigem', origemMapa.rotulo) : '';
       /* 1. MAPA DA FLORESTA — a única apresentação do Mapa no ADMIN: abrir, definição oficial (edição e histórico),
          jornada e documentação relacionada. Aberta ao chegar. */
@@ -5149,8 +5149,8 @@
         : renderDefinicaoMapa(d);
       html += secao('avpAdminMapa', 'Mapa da Floresta', MAPA_DESCRICAO_ADMIN,
         situacaoDadosMapaHtml('avpAdminMapaSituacao') +
-        '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a>' +
-        '<span class="avp-mapa-secundarias"><a class="avp-mapa-link" id="avpAdminJornadaMapa" href="#avaliacoes?mf=catalogo" data-mapa-admin="#avaliacoes?mf=catalogo">Consultar jornada até o Mapa</a>' +
+        '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#arquitetura?mf=mapa" data-mapa-admin="#arquitetura?mf=mapa">Abrir Mapa da Floresta</a>' +
+        '<span class="avp-mapa-secundarias"><a class="avp-mapa-link" id="avpAdminJornadaMapa" href="#arquitetura?mf=catalogo" data-mapa-admin="#arquitetura?mf=catalogo">Consultar jornada até o Mapa</a>' +
         '</span></div>' + defHtml, true, 'avp-mapa-destaque');
       /* 2. Configuração das Avaliações: um grupo por tipo de avaliação, cada um com o seu Questionário (perguntas, no
          cadastro central de questionários) e o seu Motor (regras que interpretam as respostas). Os botões abrem direto
@@ -7795,7 +7795,7 @@
         html += '<button class="btn" id="avpPosicionarBtn">Posicionamento Organizacional deste item</button>';
       }
       /* PR 4: a jornada do item (etapas e próximo passo; também mostra se ele é referência de uma atuação da Porta 2) */
-      if (modo === 'operacional' && a.status === 'concluido' && a.excluido !== true) html += '<a class="btn" id="avpVerJornadaBtn" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(a.itemId || a._key) + '">Ver na Jornada de Avaliação e Posicionamento</a>';
+      if (modo === 'operacional' && a.status === 'concluido' && a.excluido !== true) html += '<a class="btn" id="avpVerJornadaBtn" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(a.itemId || a._key) + '">Ver na Jornada de Avaliação e Posicionamento</a>';
       html += '</div>';
 
       html += '</div>';
@@ -7919,7 +7919,7 @@
       if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { pedirReavaliacao(a._key); });
       var posicionarBtn = document.getElementById('avpPosicionarBtn');
       if (posicionarBtn) posicionarBtn.addEventListener('click', function () {
-        var dest = '#avaliacoes?po=escolher&item=' + encodeURIComponent(a.itemId || a._key);
+        var dest = '#arquitetura?po=escolher&item=' + encodeURIComponent(a.itemId || a._key);
         if (window.faNav) window.faNav.ir(dest); else irPara(dest);
       });
 
@@ -9443,7 +9443,7 @@
       state.itensCarregados = true;
       state.erroCarga = null;
       if (state.tela === 'lista' || state.tela === 'trabalhos') render();
-      sincronizarComHash(); /* resolve um #avaliacoes?avp=<key> pendente (F5, link direto) assim que os dados chegarem */
+      sincronizarComHash(); /* resolve um #arquitetura?avp=<key> pendente (F5, link direto) assim que os dados chegarem */
     }
     function aoFalharCarga(err) {
       state.itensCarregados = true;
@@ -9566,7 +9566,7 @@
     }
   };
 
-  /* A área AVALIAÇÃO (#avaliacoes) sobe a instância operacional ao ser aberta
+  /* A área AVALIAÇÃO (#arquitetura) sobe a instância operacional ao ser aberta
      pela primeira vez. O bloco do Admin sobe a sua em initAdmin (admin.js). */
   if (window.faRouter && window.faRouter.onPageInit) {
     window.faRouter.onPageInit('avaliacoes', function () {

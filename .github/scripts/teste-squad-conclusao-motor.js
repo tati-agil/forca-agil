@@ -107,10 +107,10 @@ async function abrir(browser, viewport, motorConfig, extraCfg, onde) {
     await page.waitForSelector('#adminAvaliacaoSquad #sqMotorEditarRegrasBtn', { timeout: 8000 });
     return { ctx, page, erros };
   }
-  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   await page.waitForSelector('#avpInicio', { timeout: 8000 });
-  await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+  await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
   return { ctx, page, erros };
 }

@@ -72,7 +72,7 @@ const texto = (page, sel) => page.evaluate((s) => { const e = document.querySele
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const ir = (page, hash) => page.evaluate((h) => { location.hash = h; }, hash);
 async function iniciar(page, item) {
-  await ir(page, '#avaliacoes?po=atuacoes&item=' + item);
+  await ir(page, '#arquitetura?po=atuacoes&item=' + item);
   await page.waitForSelector('#poHipoteseIniciar');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarAtuacaoBtn'); await page.waitForSelector('#poChecklist');
 }
@@ -100,7 +100,7 @@ function diferencas(Q, de, para) {
 
 async function tela(browser, viewport, rotulo) {
   console.log('\n== B/C/D. ' + rotulo + ' ==');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=atuacoes');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=atuacoes');
   /* avaliação começada ANTES da aplicação: redação em vigor (fábrica), com a interface nova */
   await iniciar(page, 'oAntes');
   afirma(/Ainda não sabe responder\?/.test(await texto(page, '#poSemEvidencia')) && /não conta como NÃO/.test(await texto(page, '#poSemEvidencia')) && /SALVAR RASCUNHO/.test(await texto(page, '#poSemEvidencia')), 'D. o aviso: sem resposta não é NÃO; salvar o rascunho e voltar');
@@ -191,7 +191,7 @@ async function tela(browser, viewport, rotulo) {
   await page.evaluate(() => document.querySelectorAll('.avp-ajuda-det, .po-investigar').forEach((d) => { d.open = true; }));
   afirma(await larguraOk(page), 'C. ajudas abertas: sem rolagem lateral');
   /* a avaliação começada antes continua com a redação dela */
-  await ir(page, '#avaliacoes?po=' + kAntes);
+  await ir(page, '#arquitetura?po=' + kAntes);
   await page.waitForSelector('#poChecklist');
   afirma(/Identifica se a responsabilidade tem característica de Linha/.test(await texto(page, '.po-pergunta[data-q="O1"] .avp-ajuda-det')) && versaoAntes === 1, 'C. avaliação começada antes (versão 1): continua com a redação dela');
   afirma(!erros.length, 'sem erro de página', erros);

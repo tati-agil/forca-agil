@@ -78,7 +78,7 @@ const ir = (page, hash) => page.evaluate((h) => { location.hash = h; }, hash);
 
 async function jornada(browser, viewport, rotulo) {
   console.log('\n== ' + rotulo + ' ==');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?tr=1');
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?tr=1');
   /* P4 */
   await page.waitForSelector('#avpTrabArea_anArea');
   const linhaArea = await texto(page, '.avp-trab-area[data-analise="anArea"]');
@@ -97,7 +97,7 @@ async function jornada(browser, viewport, rotulo) {
   await ctx.close();
 
   /* 7. gravação lenta: o cadastro da B leva 20 s para ser confirmado (o prazo da tela é 15 s) */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?an=anArea', { atrasoConfirmacao: { 'analises-por-objeto': 20000 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?an=anArea', { atrasoConfirmacao: { 'analises-por-objeto': 20000 } }));
   await page.waitForSelector('#anCriarAtuacao_rB');
   await page.click('#anCriarAtuacao_rB');
   await page.waitForSelector('#anPendente_rB');
@@ -115,7 +115,7 @@ async function jornada(browser, viewport, rotulo) {
   afirma(!erros.length, 'sem erro de página (gravação lenta)', erros);
 
   /* P1: apoio O7 × O9 no rascunho de A */
-  await ir(page, '#avaliacoes?po=atuacoes&item=oA');
+  await ir(page, '#arquitetura?po=atuacoes&item=oA');
   await page.waitForSelector('#poHipoteseIniciar');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarAtuacaoBtn'); await page.waitForSelector('#poChecklist');
   for (const [q, v] of [['O1', 'SIM'], ['O2', 'NAO'], ['O3', 'NAO'], ['O4', 'NAO'], ['O5', 'NAO']]) { await page.click('.po-resp[data-q="' + q + '"][data-v="' + v + '"]'); await page.waitForTimeout(80); }
@@ -144,7 +144,7 @@ async function jornada(browser, viewport, rotulo) {
   afirma(!erros.length, 'sem erro de página (apoio)', erros);
 
   /* S3: hipótese que coincide */
-  await ir(page, '#avaliacoes?po=gA');
+  await ir(page, '#arquitetura?po=gA');
   await page.waitForSelector('#poHipoteseComparacao');
   const hc = await texto(page, '#poHipoteseComparacao');
   afirma(/A recomendação coincide com sua hipótese inicial/.test(hc) && !/Hipótese confirmada/.test(hc), 'S3. "A recomendação coincide com sua hipótese inicial"', hc);

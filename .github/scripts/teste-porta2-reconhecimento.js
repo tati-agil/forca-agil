@@ -107,14 +107,14 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 
 async function rodada(browser, viewport, rotulo) {
   console.log('\n=== ' + rotulo + ' ===');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=lista');
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=lista');
 
   console.log('1. Lista do Posicionamento');
   await page.waitForSelector('#poLista .po-linha[data-key="gJ"]');
   afirma(/Responsabilidade organizacional/.test(await texto(page, '.po-linha[data-key="gJ"]')) && !/Responsabilidade organizacional/.test(await texto(page, '.po-linha[data-key="gC"]')), 'a responsabilidade da Porta 2 vem marcada ("Responsabilidade organizacional"); a Porta 1 não');
 
   console.log('2. Ficha da Porta 2');
-  await ir(page, '#avaliacoes?po=gJ');
+  await ir(page, '#arquitetura?po=gJ');
   await esperarCondicao(page, () => !!document.getElementById('poObjetoNome') && !!document.getElementById('poDecisaoFinal'), undefined, { limite: 10000 });
   const fj = await texto(page, '#poObjeto');
   afirma(/Assessoramento jurídico/.test(fj) && /Finalidade de Assessoramento jurídico/.test(fj) && /Preventivo, consultivo/.test(fj), 'bloco da atuação: nome atual, finalidade e contexto');
@@ -123,15 +123,15 @@ async function rodada(browser, viewport, rotulo) {
   afirma(!(await page.$('#poBaseRevisao')) && !!(await page.$('#poReavaliarBtn')) && !(await page.$('#poAvaliarSquadBtn')), 'sem aviso de base P1–P16, com "Reavaliar" (PR 3: com hipótese nova), sem atalho de Squad (Área Especializada)');
   afirma(/Tx AREA_ESPECIALIZADA/.test(await texto(page, '#poDecisaoFinal')), 'decisão final como na Porta 1');
   afirma(await larguraOk(page), 'ficha da Porta 2 sem rolagem lateral');
-  await ir(page, '#avaliacoes?po=gC');
+  await ir(page, '#arquitetura?po=gC');
   await page.waitForSelector('#poResultado #poRecomendado');
   afirma(!(await page.$('#poObjeto')) && !!(await page.$('#poReavaliarBtn')), 'ficha da Porta 1 sem o bloco da atuação e com "Reavaliar", como antes');
 
   console.log('3. Rascunho da Porta 2: concluir');
-  await ir(page, '#avaliacoes?po=gE');
+  await ir(page, '#arquitetura?po=gE');
   await esperarCondicao(page, () => { const g = document.getElementById('poGate'); return !!g && /encerrada/.test(g.textContent); }, undefined, { limite: 10000 });
   afirma(await page.evaluate(() => document.getElementById('poConcluirBtn').disabled) && /Incorporada a outra atuação/.test(await texto(page, '#poObjetoSituacao')), 'objeto encerrado: conclusão travada com o motivo (e a situação diz por quê)');
-  await ir(page, '#avaliacoes?po=gA');
+  await ir(page, '#arquitetura?po=gA');
   await esperarCondicao(page, () => !!document.getElementById('poObjetoNome') && !document.getElementById('poConcluirBtn').disabled, undefined, { limite: 10000 });
   afirma(/Disseminação de agilidade/.test(await texto(page, '#poObjeto')) && !(await page.$('#poGate')), 'rascunho da Porta 2: bloco da atuação e nenhum gate de P1–P16');
   await page.click('#poConcluirBtn');
@@ -142,7 +142,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(db['avaliacoes-posicionamento'].gE.status === 'rascunho', 'o rascunho do objeto encerrado continua intacto');
 
   console.log('4. Adequação à Squad pelo atalho');
-  await ir(page, '#avaliacoes?po=gN');
+  await ir(page, '#arquitetura?po=gN');
   await page.waitForSelector('#poAvaliarSquadBtn', { timeout: 10000 });
   await page.click('#poAvaliarSquadBtn');
   await page.waitForSelector('#avaliacoesSquad #sqPosicionamento', { timeout: 10000 });
@@ -157,10 +157,10 @@ async function rodada(browser, viewport, rotulo) {
   await ctx.close();
 
   console.log('5. Catálogo do Mapa');
-  ({ ctx, page, erros: erros } = await abrir(browser, viewport, '#avaliacoes?mf=catalogo'));
+  ({ ctx, page, erros: erros } = await abrir(browser, viewport, '#arquitetura?mf=catalogo'));
   await page.waitForSelector('#mfCatalogo .mf-item[data-item="oJur"]', { timeout: 15000 });
-  /* lista simples: o detalhe de cada objeto abre ao clicar (#avaliacoes?mf=catalogo&item=<id>) */
-  const item = async (id) => { await page.evaluate((i) => { location.hash = '#avaliacoes?mf=catalogo&item=' + i; }, id); await page.waitForSelector('#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]'); return texto(page, '#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]'); };
+  /* lista simples: o detalhe de cada objeto abre ao clicar (#arquitetura?mf=catalogo&item=<id>) */
+  const item = async (id) => { await page.evaluate((i) => { location.hash = '#arquitetura?mf=catalogo&item=' + i; }, id); await page.waitForSelector('#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]'); return texto(page, '#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]'); };
   afirma(/Responsabilidade organizacional/.test(await texto(page, '#mfCatalogo .mf-linha[data-item="oJur"]')), 'na lista simples, a atuação vem marcada como "Atuação organizacional"');
   const tJ = await item('oJur');
   afirma(/Responsabilidade organizacional/.test(tJ) && /Tx AREA_ESPECIALIZADA/.test(tJ) && await page.locator('.mf-item[data-item="oJur"]').getAttribute('data-situacao') === 'firme', 'a atuação aparece, firme, com o posicionamento efetivo');

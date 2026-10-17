@@ -1,12 +1,12 @@
 /* Adequação à Squad na área AVALIAÇÃO — identidade e navegação próprias (desktop e 375 px).
  *
- * A Squad mora dentro de #avaliacoes, mas não é Produto/Serviço:
- *   - ao entrar, o cabeçalho da página diz "Adequação à Squad" (e não "Avaliações");
+ * A Squad mora dentro de #arquitetura, mas não é Produto/Serviço:
+ *   - ao entrar, o cabeçalho da página diz "Adequação à Squad" (e não "A Floresta");
  *     ao sair, o cabeçalho original volta;
- *   - a subtela tem endereço próprio: #avaliacoes?sq=lista e #avaliacoes?sq=<chave>;
+ *   - a subtela tem endereço próprio: #arquitetura?sq=lista e #arquitetura?sq=<chave>;
  *   - F5 continua na mesma tela de Squad (lista ou a avaliação aberta);
  *   - o Voltar/Avançar do navegador anda entre avaliações → lista de squad → avaliação de squad;
- *   - "← Voltar para Avaliações" é um botão visível no topo e repetido no rodapé;
+ *   - "← Voltar para A Floresta" é um botão visível no topo e repetido no rodapé;
  *   - link direto com a leitura lenta mostra "Carregando…" e depois a avaliação (nunca "não encontrada"
  *     por não ter esperado);
  *   - link direto / F5 quando avaliacao-squad.js chega ~3 s DEPOIS do roteador e de avaliacao-produto.js
@@ -55,7 +55,7 @@ async function abrir(browser, viewport, hash, extra) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   /* o arquivo da Squad chega atrasado; o resto (roteador, avaliacao-produto.js) carrega normalmente */
-  /* registra, desde o início da carga, se a página #avaliacoes chegou a abrir com Produto/Serviço montado e SEM o módulo da Squad */
+  /* registra, desde o início da carga, se a página #arquitetura chegou a abrir com Produto/Serviço montado e SEM o módulo da Squad */
   if (atrasarSquad) await ctx.addInitScript('window.__corridaSquad = false; (function olhar() { var p = document.getElementById("page-avaliacoes"); ' +
     'if (p && !p.hidden && typeof window.faInitAvaliacaoProduto === "function" && typeof window.faInitAvaliacaoSquad === "undefined") window.__corridaSquad = true; ' +
     'if (typeof window.faInitAvaliacaoSquad === "undefined") setTimeout(olhar, 50); })();');
@@ -75,105 +75,105 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     {
-      const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes');
+      const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura');
       await page.waitForSelector('#avpInicio', { timeout: 8000 });
-      afirma(await titulo(page) === 'Avaliações', 'na lista de avaliações o título é o da página ("Avaliações")');
-      await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+      afirma(await titulo(page) === 'A Floresta', 'na lista de avaliações o título é o da página ("A Floresta")');
+      await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
       await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 8000 });
-      afirma(await hash(page) === '#avaliacoes?sq=lista', 'entrar na Squad dá endereço próprio: #avaliacoes?sq=lista (' + await hash(page) + ')');
+      afirma(await hash(page) === '#arquitetura?sq=lista', 'entrar na Squad dá endereço próprio: #arquitetura?sq=lista (' + await hash(page) + ')');
       afirma(await titulo(page) === 'Adequação à Squad', 'o título da página passa a ser "Adequação à Squad" (' + await titulo(page) + ')');
-      afirma(await page.locator('#sqVoltarArquitetura').isVisible() && await page.locator('#sqVoltarArquiteturaRodape').count() === 1, '"← Voltar para Avaliações" no topo e repetido no rodapé');
+      afirma(await page.locator('#sqVoltarArquitetura').isVisible() && await page.locator('#sqVoltarArquiteturaRodape').count() === 1, '"← Voltar para A Floresta" no topo e repetido no rodapé');
       const cx = await page.locator('#sqVoltarArquitetura').boundingBox();
       afirma(!!cx && cx.height >= 30 && cx.width >= 120, 'o Voltar do topo é um botão de verdade (' + (cx ? Math.round(cx.width) + '×' + Math.round(cx.height) : '—') + ' px), não um link miúdo');
       afirma(await larguraOk(page), 'lista de squad sem rolagem horizontal');
 
       console.log('\n== Abrir uma avaliação, F5, Voltar/Avançar do navegador ==');
       await page.click('#avaliacoesSquad .sq-act-abrir[data-key="sqA"]');
-      await esperarHash(page, '#avaliacoes?sq=sqA');
+      await esperarHash(page, '#arquitetura?sq=sqA');
       await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado', { timeout: 8000 });
-      afirma(true, 'abrir uma avaliação de squad muda o endereço para #avaliacoes?sq=sqA');
+      afirma(true, 'abrir uma avaliação de squad muda o endereço para #arquitetura?sq=sqA');
       await page.reload({ waitUntil: 'domcontentloaded' });
       await esperarSessaoAssentada(page);
       await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado', { timeout: 10000 });
-      afirma(await hash(page) === '#avaliacoes?sq=sqA' && await squadVisivel(page) && /Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()),
+      afirma(await hash(page) === '#arquitetura?sq=sqA' && await squadVisivel(page) && /Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()),
         'F5 na avaliação de squad reabre a MESMA avaliação');
       afirma(await titulo(page) === 'Adequação à Squad', 'e o título continua "Adequação à Squad" depois do F5');
       await page.goBack();
-      await esperarHash(page, '#avaliacoes?sq=lista', 'o Voltar do navegador levar à lista de squad');
+      await esperarHash(page, '#arquitetura?sq=lista', 'o Voltar do navegador levar à lista de squad');
       await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 8000 });
       afirma(await squadVisivel(page), 'Voltar do navegador: da avaliação para a lista de squad');
       await page.goBack();
-      await esperarHash(page, '#avaliacoes', 'o Voltar do navegador sair da Squad');
+      await esperarHash(page, '#arquitetura', 'o Voltar do navegador sair da Squad');
       await esperarCondicao(page, () => document.getElementById('avaliacoesSquad').hidden, null, { descricao: 'a Squad fechar' });
-      afirma(await page.locator('#avaliacoesPainel').isVisible() && await titulo(page) === 'Avaliações', 'Voltar do navegador: da lista de squad para as avaliações, com o título original');
+      afirma(await page.locator('#avaliacoesPainel').isVisible() && await titulo(page) === 'A Floresta', 'Voltar do navegador: da lista de squad para as avaliações, com o título original');
       await page.goForward();
-      await esperarHash(page, '#avaliacoes?sq=lista', 'o Avançar voltar à lista de squad');
+      await esperarHash(page, '#arquitetura?sq=lista', 'o Avançar voltar à lista de squad');
       await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { state: 'visible', timeout: 8000 });
       afirma(await titulo(page) === 'Adequação à Squad', 'Avançar do navegador: de volta à lista de squad');
 
       console.log('\n== "← Voltar" da tela ==');
       await page.click('#avaliacoesSquad .sq-act-abrir[data-key="sqB"]');
-      await esperarHash(page, '#avaliacoes?sq=sqB');
+      await esperarHash(page, '#arquitetura?sq=sqB');
       await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado');
       await page.click('#avaliacoesSquad #sqVoltarListaResultado');
-      await esperarHash(page, '#avaliacoes?sq=lista', 'o "← Voltar" da avaliação levar à lista de squad');
+      await esperarHash(page, '#arquitetura?sq=lista', 'o "← Voltar" da avaliação levar à lista de squad');
       afirma(true, '"← Voltar" da avaliação de squad leva à lista de squad');
       const tamanhoAntes = await page.evaluate(() => history.length);
       await page.click('#sqVoltarArquiteturaRodape');
-      await esperarHash(page, '#avaliacoes', 'o "← Voltar para Avaliações" do rodapé sair da Squad');
+      await esperarHash(page, '#arquitetura', 'o "← Voltar para A Floresta" do rodapé sair da Squad');
       await esperarCondicao(page, () => document.getElementById('avaliacoesSquad').hidden, null, { descricao: 'a Squad fechar' });
-      afirma(await page.locator('#avpInicio').isVisible() && await titulo(page) === 'Avaliações', '"← Voltar para Avaliações" do rodapé devolve o Início da Avaliação e o título original');
+      afirma(await page.locator('#avpInicio').isVisible() && await titulo(page) === 'A Floresta', '"← Voltar para A Floresta" do rodapé devolve o Início da Floresta e o título original');
       afirma(await page.evaluate(() => history.length) === tamanhoAntes, 'sem empilhar entrada nova no histórico (o Voltar da tela é o Voltar do navegador)');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();
     }
     {
       console.log('\n== Link direto, leitura lenta ==');
-      const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=sqB', { delays: { 'avaliacoes-squad': 2500 } });
+      const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?sq=sqB', { delays: { 'avaliacoes-squad': 2500 } });
       await page.waitForSelector('#avaliacoesSquad:not([hidden])', { timeout: 8000 });
       afirma(!/não encontrada/i.test(await page.locator('#avaliacoesSquad').innerText()), 'enquanto a leitura não chega: nunca "não encontrada"');
       await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado', { timeout: 10000 });
-      afirma(/Canal de Atendimento/.test(await page.locator('#avaliacoesSquad').innerText()) && await hash(page) === '#avaliacoes?sq=sqB', 'quando chega: abre a avaliação pedida no endereço');
+      afirma(/Canal de Atendimento/.test(await page.locator('#avaliacoesSquad').innerText()) && await hash(page) === '#arquitetura?sq=sqB', 'quando chega: abre a avaliação pedida no endereço');
       await page.click('#avaliacoesSquad #sqVoltarListaResultado');
-      await esperarHash(page, '#avaliacoes?sq=lista');
+      await esperarHash(page, '#arquitetura?sq=lista');
       await page.click('#sqVoltarArquitetura');
-      await esperarHash(page, '#avaliacoes', 'sair da Squad sem histórico anterior');
+      await esperarHash(page, '#arquitetura', 'sair da Squad sem histórico anterior');
       await esperarCondicao(page, () => document.getElementById('avaliacoesSquad').hidden && !document.getElementById('avaliacoesPainel').hidden, null, { descricao: 'a lista de avaliações voltar' });
-      afirma(true, 'chegando por link direto, "← Voltar para Avaliações" ainda leva às avaliações');
+      afirma(true, 'chegando por link direto, "← Voltar para A Floresta" ainda leva às avaliações');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();
     }
     {
       console.log('\n== Endereço de avaliação que não existe ==');
-      const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=naoExiste');
+      const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?sq=naoExiste');
       await esperarCondicao(page, () => /não encontrada/i.test(document.getElementById('avaliacoesSquad').innerText), null, { descricao: 'aviso de não encontrada' });
-      afirma(await hash(page) === '#avaliacoes?sq=naoExiste', 'avaliação inexistente: aviso claro e o endereço continua o pedido');
+      afirma(await hash(page) === '#arquitetura?sq=naoExiste', 'avaliação inexistente: aviso claro e o endereço continua o pedido');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();
     }
     {
       console.log('\n== Link direto com avaliacao-squad.js chegando ~3 s depois (máquina lenta) ==');
-      const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=sqA', { atrasarSquad: 3000 });
-      /* a corrida aconteceu de verdade: a página #avaliacoes já abriu (Produto/Serviço montado) sem o módulo da Squad */
+      const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?sq=sqA', { atrasarSquad: 3000 });
+      /* a corrida aconteceu de verdade: a página #arquitetura já abriu (Produto/Serviço montado) sem o módulo da Squad */
       await page.waitForFunction(() => typeof window.faInitAvaliacaoSquad === 'function', null, { timeout: 12000 });
       const corrida = await page.evaluate(() => window.__corridaSquad === true);
-      afirma(corrida, 'reproduz a corrida: #avaliacoes aberta e avaliacao-produto.js carregado ANTES de avaliacao-squad.js');
+      afirma(corrida, 'reproduz a corrida: #arquitetura aberta e avaliacao-produto.js carregado ANTES de avaliacao-squad.js');
       const abriu = await esperarCondicaoAte(page, () => !!document.querySelector('#avaliacoesSquad #sqVoltarListaResultado'), null, { limite: 12000 });
       afirma(abriu && await squadVisivel(page) && /Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()) && (await page.locator('#avaliacoesSquad #sqVoltarListaResultado').count()) === 1,
         'quando o arquivo chega, a avaliação pedida (sqA) abre sozinha e o painel de Produto/Serviço fica oculto');
-      afirma(await hash(page) === '#avaliacoes?sq=sqA', 'o endereço continua #avaliacoes?sq=sqA (' + await hash(page) + ')');
+      afirma(await hash(page) === '#arquitetura?sq=sqA', 'o endereço continua #arquitetura?sq=sqA (' + await hash(page) + ')');
       afirma(await titulo(page) === 'Adequação à Squad', 'o título é "Adequação à Squad" (' + await titulo(page) + ')');
       /* idempotência: montar de novo não cria outra instância nem duplica a navegação */
       const mesma = await page.evaluate(() => { const a = window.faAvaliacaoSquad; window.faInitAvaliacaoSquad({ modo: 'operacional' }); window.faInitAvaliacaoSquad({ modo: 'operacional' }); return !!a && window.faAvaliacaoSquad === a; });
       afirma(mesma, 'faInitAvaliacaoSquad({modo:"operacional"}) chamado de novo mantém a MESMA instância');
       const antes = await page.evaluate(() => history.length);
       await page.click('#avaliacoesSquad #sqVoltarListaResultado');
-      await esperarHash(page, '#avaliacoes?sq=lista');
+      await esperarHash(page, '#arquitetura?sq=lista');
       await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 8000 });
       const depois = await page.evaluate(() => history.length);
       afirma(depois - antes === 1 && (await page.locator('#avaliacoesSquad #sqVoltarArquitetura').count()) === 1, 'depois de montar de novo, "voltar à lista" anda UMA entrada só no histórico e a tela não se duplica (' + (depois - antes) + ')');
       await page.goBack();
-      await esperarHash(page, '#avaliacoes?sq=sqA', 'o Voltar do navegador voltar à avaliação');
+      await esperarHash(page, '#arquitetura?sq=sqA', 'o Voltar do navegador voltar à avaliação');
       await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado', { timeout: 8000 });
       afirma(/Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()), 'Voltar do navegador reabre a avaliação, uma vez só');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
@@ -181,10 +181,10 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
     }
     {
       console.log('\n== Lista da Squad com avaliacao-squad.js chegando ~3 s depois ==');
-      const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=lista', { atrasarSquad: 3000 });
+      const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?sq=lista', { atrasarSquad: 3000 });
       const abriuLista = await esperarCondicaoAte(page, () => !!document.querySelector('#avaliacoesSquad .sq-act-abrir'), null, { limite: 12000 });
-      afirma(abriuLista && await squadVisivel(page) && (await page.locator('#avaliacoesSquad .sq-act-abrir').count()) === 2 && await hash(page) === '#avaliacoes?sq=lista' && await titulo(page) === 'Adequação à Squad',
-        'a lista da Squad abre sozinha, no endereço #avaliacoes?sq=lista, com o título "Adequação à Squad"');
+      afirma(abriuLista && await squadVisivel(page) && (await page.locator('#avaliacoesSquad .sq-act-abrir').count()) === 2 && await hash(page) === '#arquitetura?sq=lista' && await titulo(page) === 'Adequação à Squad',
+        'a lista da Squad abre sozinha, no endereço #arquitetura?sq=lista, com o título "Adequação à Squad"');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();

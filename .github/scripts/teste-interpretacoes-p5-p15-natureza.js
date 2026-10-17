@@ -134,7 +134,7 @@ async function abrirApp(browser, extra, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes?av=lista', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura?av=lista', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms + 500 ms fixos) */
   return { ctx, page, erros };
 }
@@ -184,7 +184,7 @@ async function irAoAdmin(page) {
   await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
 }
 async function voltarParaAvaliacoes(page) {
-  await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?av=lista'; });
   await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
   await page.waitForTimeout(200);
 }

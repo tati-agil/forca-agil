@@ -96,10 +96,10 @@ async function abrir(browser, viewport, squad) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   /* A avaliação de Squad fica na área AVALIAÇÃO; a configuração do motor, no ADMIN › Avaliação e Mapa. */
-  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   await page.waitForSelector('#avpInicio', { timeout: 8000 });
-  await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+  await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
   await page.waitForSelector('#avaliacoesSquad #sqExportarBtn');
   return { ctx, page, erros };
 }

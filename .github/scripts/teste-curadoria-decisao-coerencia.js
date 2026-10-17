@@ -151,7 +151,7 @@ async function abrir(browser, o) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes?av=lista', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura?av=lista', { waitUntil: 'domcontentloaded' });
   /* Pronta = login decidido, admin e acesso à Avaliação resolvidos e a lista desenhada (antes: espera do
      login com as opções no lugar do argumento, engolida, + 800 + 300 ms fixos — medido, já pronta). */
   await esperarCondicao(page, () => !document.body.classList.contains('aguardando-auth') && !!document.getElementById('avpNovoBtn') &&
@@ -171,7 +171,7 @@ async function abrirResultado(page, key) {
 }
 async function voltar(page) {
   await page.click('#avpVoltarListaResultado');
-  await esperarCondicao(page, () => location.hash === '#avaliacoes?av=lista' && !!document.getElementById('avpNovoBtn') && !document.querySelector('#avpCabecalhoFicha'), null, { descricao: 'a lista de volta (URL e tela)' });
+  await esperarCondicao(page, () => location.hash === '#arquitetura?av=lista' && !!document.getElementById('avpNovoBtn') && !document.querySelector('#avpCabecalhoFicha'), null, { descricao: 'a lista de volta (URL e tela)' });
 }
 async function gerarPdf(page) {
   await page.evaluate(() => { window.__pdfs = []; });
@@ -199,7 +199,7 @@ async function lerExcel(page) {
 const esperarV2 = async (page, antes) => afirma(await esperarCondicaoAte(page, (n) => {
   const b = window.__CFG.__dbReal || {};
   return Object.keys(b['avaliacoes-produto'] || {}).length === n + 1 && Object.keys(b['curadoria-auditoria'] || {}).length > 0 &&
-    /^#avaliacoes\?avp=/.test(location.hash) && !!document.getElementById('avpVoltarListaResultado');
+    /^#(?:arquitetura|avaliacoes)\?avp=/.test(location.hash) && !!document.getElementById('avpVoltarListaResultado');
 }, Object.keys(antes['avaliacoes-produto']).length, { limite: 8000 }), 'concluir grava a v2 e a sua auditoria e abre a avaliação nova');
 const textoDecisao = (page) => page.locator('#avpDecisaoResumo, #avpDecisaoLeitura').first().innerText();
 const auditoriaDe = async (page, key) => Object.values(((await banco(page))['curadoria-auditoria'] || {})[key] || {}).sort((a, b) => String(a.dataHora).localeCompare(String(b.dataHora)));
@@ -299,7 +299,7 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
        (a avaliação par2), não à lista — é o desenho da navegação ("Voltar sem laço, com o destino
        no texto"). Antes o teste esperava a lista, a espera estourava calada em 6 s e seguia. */
     await page.click('#avpVoltarListaResultado');
-    await esperarCondicao(page, () => location.hash === '#avaliacoes?avp=par2' && !!document.querySelector('#avpCabecalhoFicha') && !document.querySelector('#avpAvisoVersaoAnterior'), null, { limite: 6000, descricao: 'Voltar da versão anterior leva de volta à avaliação de origem (par2)' });
+    await esperarCondicao(page, () => location.hash === '#arquitetura?avp=par2' && !!document.querySelector('#avpCabecalhoFicha') && !document.querySelector('#avpAvisoVersaoAnterior'), null, { limite: 6000, descricao: 'Voltar da versão anterior leva de volta à avaliação de origem (par2)' });
     afirma(true, 'Voltar da versão anterior volta à avaliação de origem (par2), não à lista');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');

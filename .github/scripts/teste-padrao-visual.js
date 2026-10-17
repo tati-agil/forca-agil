@@ -26,15 +26,15 @@ let falhas = 0;
 function afirma(c, msg, det) { console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det !== undefined ? ' → ' + JSON.stringify(det).slice(0, 600) : '')); if (!c) falhas++; }
 
 const TELAS = [
-  ['Início da Avaliação', '#avaliacoes', '#avpInicioCartaoNatureza'],
-  ['Lista P1–P16', '#avaliacoes?av=lista', '.avp-act-ver'],
-  ['Trabalhos', '#avaliacoes?tr=1', '#avpTrabIrProdutos'],
-  ['Lista O1–O9', '#avaliacoes?po=lista', '#poNovoBtn'],
-  ['Jornada', '#avaliacoes?mf=catalogo', '.mf-item, #mfBusca'],
+  ['Início da Avaliação', '#arquitetura', '#avpInicioCartaoNatureza'],
+  ['Lista P1–P16', '#arquitetura?av=lista', '.avp-act-ver'],
+  ['Trabalhos', '#arquitetura?tr=1', '#avpTrabIrProdutos'],
+  ['Lista O1–O9', '#arquitetura?po=lista', '#poNovoBtn'],
+  ['Jornada', '#arquitetura?mf=catalogo', '.mf-item, #mfBusca'],
   ['ADMIN › Avaliações e Mapa', '#admin?arq=inicio', '#avpGrupoConfiguracao'],
   ['Motor P1–P16', '#admin?arq=motores', '#avpMotorArquitetural'],
   ['Questionário P1–P16', '#admin?arq=questionarios&q=p1p16', '#avpCfgTitulo'],
-  ['Nova avaliação P1–P16 (formulário)', '#avaliacoes?nova=1', '#avpfNome'],
+  ['Nova avaliação P1–P16 (formulário)', '#arquitetura?nova=1', '#avpfNome'],
   ['Usuários autorizados (formulário)', '#admin?arq=usuarios', '#avpUsuariosBusca']
 ];
 
@@ -150,7 +150,7 @@ async function focoInvisivel(page, n) {
         afirma(await esquemaRaiz(r.page) === 'dark', rotulo + ': raiz da página com color-scheme escuro (barra de rolagem no tema)', await esquemaRaiz(r.page));
         const fo = await focoInvisivel(r.page, 25);
         afirma(fo.total > 0 && !fo.invisiveis.length, rotulo + ': foco por teclado visível em todos os controles percorridos (' + fo.total + ')', fo.invisiveis);
-        if (hash === '#avaliacoes') {
+        if (hash === '#arquitetura') {
           const h1 = await r.page.evaluate(() => { const e = document.querySelector('#page-avaliacoes .page-hero h1'); const c = getComputedStyle(e); return { fam: c.fontFamily.split(',')[0].replace(/["']/g, ''), w: c.fontWeight }; });
           afirma(h1.fam === 'Anton' && h1.w === '400', 'título da página: Anton (identidade), no peso que a fonte tem', h1);
           const h3 = await r.page.evaluate(() => { const e = document.querySelector('#page-avaliacoes h3, #page-avaliacoes h4'); return e ? getComputedStyle(e).fontFamily.split(',')[0].replace(/["']/g, '') : null; });

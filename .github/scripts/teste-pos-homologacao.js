@@ -105,7 +105,7 @@ const contraste = (page, sel) => page.evaluate((s) => {
 
 async function jornada(browser, viewport, rotulo) {
   console.log('\n== ' + rotulo + ' ==');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=todas', ARQ);
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=todas', ARQ);
   /* 3. origem na lista */
   await page.waitForSelector('#poTodasLista');
   await esperar(page, () => !Array.from(document.querySelectorAll('.po-todas-origem')).some((x) => x.getAttribute('data-origem') === 'indisponivel'));
@@ -120,14 +120,14 @@ async function jornada(browser, viewport, rotulo) {
   afirma(await larguraOk(page), '3. lista sem rolagem lateral');
   await foto(page, 'origem-lista');
   /* 3. ficha e avaliação O1–O9 da concluída */
-  await ir(page, '#avaliacoes?po=atuacoes&item=oG1');
+  await ir(page, '#arquitetura?po=atuacoes&item=oG1');
   await page.waitForSelector('#anOrigem[data-origem="excluida"]');
   afirma(/Originada da análise Sintética — Gerência de Contabilidade e Controladoria \(excluída\)/.test(await texto(page, '#anOrigem')), '3. ficha da responsabilidade: origem na análise excluída');
-  await ir(page, '#avaliacoes?po=gG1');
+  await ir(page, '#arquitetura?po=gG1');
   await page.waitForSelector('#poObjeto #anOrigem');
   afirma(/\(excluída\)/.test(await texto(page, '#poObjeto #anOrigem')), '3. avaliação O1–O9 concluída: mostra a origem na análise excluída');
   /* 4/5. consulta antes de responder, no rascunho de oG2 */
-  await ir(page, '#avaliacoes?po=atuacoes&item=oG2');
+  await ir(page, '#arquitetura?po=atuacoes&item=oG2');
   await page.waitForSelector('#poHipoteseIniciar');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarAtuacaoBtn'); await page.waitForSelector('#poChecklist');
   afirma(/\(excluída\)/.test(await texto(page, '#poObjeto #anOrigem')), '3. rascunho O1–O9: mostra a origem na análise excluída');
@@ -161,14 +161,14 @@ async function jornada(browser, viewport, rotulo) {
 
   /* 3. sem leitura das análises (o banco recusa a leitura): nunca "registrada individualmente" sem prova. O estado antigo de
      homologação gravado (SOMENTE_ADMIN_GERAL) não decide mais nada — quem decide é o perfil, e aqui a leitura falha */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=todas', ARQ, sementePos('SOMENTE_ADMIN_GERAL'), { fail: ['analises-organizacionais'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=todas', ARQ, sementePos('SOMENTE_ADMIN_GERAL'), { fail: ['analises-organizacionais'] }));
   await page.waitForSelector('#poTodasLista');
   const semLeitura = await page.evaluate(() => Array.from(document.querySelectorAll('.po-todas-origem')).map((x) => x.getAttribute('data-origem')));
   afirma(semLeitura.length && semLeitura.every((x) => x === 'indisponivel') && !/Registrada individualmente/.test(await texto(page, '#poTodasLista')), '3. sem leitura das análises: "Origem não disponível agora", nunca "registrada individualmente"', semLeitura);
   await ctx.close();
 
   /* 6/8. confirmação de exclusão (admin geral) */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?an=anC', ADM));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?an=anC', ADM));
   await page.waitForSelector('#anExcluirBtn');
   await page.click('#anExcluirBtn');
   await page.waitForSelector('#anFormExcluir[data-nivel="excepcional"]');
@@ -186,7 +186,7 @@ async function jornada(browser, viewport, rotulo) {
   await foto(page, 'exclusao-analise-pendente');
   afirma(await larguraOk(page), '6/8. formulário sem rolagem lateral');
   /* modal da responsabilidade (exclusão excepcional da concluída) */
-  await ir(page, '#avaliacoes?po=atuacoes&item=oG1');
+  await ir(page, '#arquitetura?po=atuacoes&item=oG1');
   await page.waitForSelector('#poExcluirAtuacaoBtn');
   await page.click('#poExcluirAtuacaoBtn');
   await page.waitForSelector('.po-modal #poExcConfirmo');
@@ -198,7 +198,7 @@ async function jornada(browser, viewport, rotulo) {
     await page.evaluate(() => document.getElementById('poExcConfirmo').closest('label').classList.contains('po-campo-pendente')), '6. modal sem confirmação: mensagem visível junto do botão e confirmação destacada');
   afirma(!!(await banco(page))['objetos-organizacionais'].oG1, '6. nada foi excluído');
   afirma(!erros.length, 'sem erro de página (admin geral)', erros);
-  if (process.env.FA_PRINTS) { const fechar = await page.$('.po-modal .po-modal-nao'); if (fechar) await fechar.click(); await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicio'); await page.waitForTimeout(300); await foto(page, 'inicio'); }
+  if (process.env.FA_PRINTS) { const fechar = await page.$('.po-modal .po-modal-nao'); if (fechar) await fechar.click(); await ir(page, '#arquitetura'); await page.waitForSelector('#avpInicio'); await page.waitForTimeout(300); await foto(page, 'inicio'); }
   await ctx.close();
 }
 
