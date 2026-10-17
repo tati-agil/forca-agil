@@ -86,14 +86,8 @@ async function cenarioA(browser, vp, nome) {
   afirma(await page.getAttribute('#avpAdminJornadaMapa', 'href') === '#avaliacoes?mf=catalogo' && (await page.innerText('#avpAdminJornadaMapa')).trim().toLowerCase() === 'consultar jornada até o mapa', '"Consultar jornada até o Mapa" → #avaliacoes?mf=catalogo (link secundário)');
   afirma(await page.locator('#avpAdminDocsMapa').count() === 0, 'sem documentos de referência: nenhum link "Documentação relacionada"');
   afirma(await page.locator('#avpParteMapa').count() === 0 && await page.locator('#adminAvaliacaoProduto a[href="#avaliacoes?mf=mapa"]').count() === 1, 'nenhum segundo "Abrir o Mapa" na mesma tela');
-  /* as partes conectadas: lista (não sequência), cada uma com a sua responsabilidade e o acesso existente */
-  const partes = await page.$$eval('#avpAdminPartes .avp-parte strong', (els) => els.map((e) => e.textContent.trim()));
-  afirma(JSON.stringify(partes) === JSON.stringify(['Avaliação de Produto/Serviço', 'Posicionamento Organizacional', 'Estruturas do Mapa da Floresta', 'Vínculo de responsabilidade', 'Mapa da Floresta', 'Taxonomia', 'Adequação à Squad']) && await page.locator('#avpAdminPartes ol').count() === 0, 'as sete partes, em lista (sem numeração de etapas)', partes);
-  const textoPartes = await page.innerText('#avpAdminPartes');
-  afirma(/Não é uma sequência obrigatória/.test(textoPartes) && /não é etapa obrigatória para todos os itens/.test(textoPartes) && /quando registrado/.test(textoPartes), 'diz que não há sequência obrigatória, que a Squad é complementar e que o vínculo existe só quando registrado');
-  afirma(await page.getAttribute('#avpParteProduto', 'href') === '#avaliacoes?av=lista' && await page.getAttribute('#avpPartePosicionamento', 'href') === '#avaliacoes?po=lista' && await page.getAttribute('#avpParteSquad', 'href') === '#avaliacoes?sq=lista' && await page.locator('#avpParteTaxonomia').count() === 1, 'cada parte leva à funcionalidade existente (avaliações, posicionamentos, Squad, Taxonomia; o Mapa pelo início da seção)');
-  afirma(await page.locator('#avpParteEstruturasSem').count() === 1 && /ainda não habilitado/.test(await page.innerText('#avpParteEstruturasSem')), 'Estruturas sem cadastro habilitado: o nome sem link, dizendo por quê');
-  afirma(await page.locator('#avpAdminMapa ~ .avp-admin-grupo').count() >= 3 && await page.locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn, #avpConfigNaturezasBtn, #avpDocumentacaoBtn, #avpUsuariosBtn').count() === 5, 'as seções de configuração continuam depois do Mapa, com todos os acessos');
+  afirma(await page.locator('#avpAdminPartes, .avp-parte, [id^="avpParte"]').count() === 0, 'sem a lista "Como cada parte contribui para o Mapa" (a explicação é da Jornada até o Mapa)');
+  afirma(await page.locator('#avpAdminMapa ~ .avp-admin-grupo').count() >= 3 && await page.locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn, #avpConfigNaturezasBtn, #avpDocumentacaoBtn, #avpUsuariosBtn').count() === 5 && await page.locator('#avpGrupoReferencias').count() === 0, 'as seções de configuração continuam depois do Mapa, com todos os acessos');
   /* cenário 1: Abrir Mapa → Voltar para Avaliações e Mapa */
   const hashAdmin = await page.evaluate(() => location.hash);
   await page.click('#avpAdminAbrirMapa');

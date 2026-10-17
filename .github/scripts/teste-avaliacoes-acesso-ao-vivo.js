@@ -83,9 +83,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
   console.log('\n######## 2. "Avaliação" faz a Adequação à Squad na área AVALIAÇÃO — celular 375 px ########');
   {
     const { ctx, page, erros } = await abrir(browser, CELULAR, 'avaliacao', '#avaliacoes');
-    await page.waitForSelector('#avpInicioRegSquad', { state: 'attached', timeout: 8000 });
+    await page.waitForSelector('#avpInicio', { timeout: 8000 });
     afirma(await larguraOk(page), 'Início com a entrada "Adequação à Squad" sem rolagem horizontal');
-    await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegSquad');
+    await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
     afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de squad toma o lugar do Início');
     afirma(await page.locator('#sqMotorConfigBtn, #sqMotorEditarRegrasBtn').count() === 0, 'a configuração do motor de squad NÃO aparece aqui (é do ADMIN › Avaliação e Mapa)');
@@ -102,9 +102,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     if (await page.locator('.sq-modal-confirm-btn').count()) await page.click('.sq-modal-confirm-btn');
     await page.waitForSelector('#avaliacoesSquad #sqVoltarArquitetura');
     await page.click('#sqVoltarArquitetura');
-    await page.waitForSelector('#avpInicioRegSquad', { state: 'attached', timeout: 8000 });
+    await page.waitForSelector('#avpInicio', { timeout: 8000 });
     afirma(await page.locator('#avaliacoesSquad').isHidden() && await page.locator('#avaliacoesPainel').isVisible(), 'Voltar devolve o Início da Avaliação');
-    await page.evaluate(() => { const d = document.getElementById('avpInicioConsultar'); if (d) d.open = true; }); await page.click('#avpInicioRegSquad');
+    await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { state: 'visible', timeout: 8000 });
     await page.evaluate(() => { location.hash = '#home'; });
     await page.waitForSelector('#avaliacoesSquad', { state: 'hidden', timeout: 8000 });

@@ -197,7 +197,7 @@ async function jornada(browser, viewport, rotulo) {
     await page.evaluate(() => document.getElementById('poExcConfirmo').closest('label').classList.contains('po-campo-pendente')), '6. modal sem confirmação: mensagem visível junto do botão e confirmação destacada');
   afirma(!!(await banco(page))['objetos-organizacionais'].oG1, '6. nada foi excluído');
   afirma(!erros.length, 'sem erro de página (admin geral)', erros);
-  if (process.env.FA_PRINTS) { const fechar = await page.$('.po-modal .po-modal-nao'); if (fechar) await fechar.click(); await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicioConsultar', { state: 'attached' }); await page.evaluate(() => { document.getElementById('avpInicioConsultar').open = true; }); await page.waitForTimeout(300); await foto(page, 'entenda'); }
+  if (process.env.FA_PRINTS) { const fechar = await page.$('.po-modal .po-modal-nao'); if (fechar) await fechar.click(); await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicio'); await page.waitForTimeout(300); await foto(page, 'inicio'); }
   await ctx.close();
 }
 
