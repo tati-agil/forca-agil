@@ -2,6 +2,15 @@
    Comportamento controlado por window.__CFG (injetado antes deste script). */
 (function () {
   var CFG = window.__CFG || {};
+  /* ADMIN › Avaliações e Mapa: as seções do início são recolhíveis (details[data-secao-admin]) e só a do Mapa começa
+     aberta. Os testes que usam os cartões de dentro delas as encontram abertas, como a pessoa faria antes de clicar
+     (o mesmo padrão de abrir-recolhidas.js, aqui uma vez para todos). O recolhimento em si — estado inicial, reabertura
+     ao voltar, teclado e permissões — é provado com __CFG.secoesAdminRecolhidas = true (teste-admin-secoes-recolhiveis.js). */
+  if (!CFG.secoesAdminRecolhidas && !window.__secoesAdminAbertas && typeof MutationObserver === 'function') {
+    window.__secoesAdminAbertas = true;
+    var abrirSecoes = function () { document.querySelectorAll('details[data-secao-admin]:not([open]):not([data-teste-aberta])').forEach(function (d) { d.setAttribute('data-teste-aberta', ''); d.open = true; }); };
+    new MutationObserver(abrirSecoes).observe(document, { childList: true, subtree: true });
+  }
   var DB  = CFG.db || {};
   /* Modo opcional (__CFG.persistenciaReal = true): grava e lê como o
      Firebase DE VERDADE — some com null, objeto vazio e lista vazia, e

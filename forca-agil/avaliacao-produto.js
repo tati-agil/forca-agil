@@ -2644,6 +2644,7 @@
         var assinatura = state.tela + '|' + subtelaAdmin();
         if (state.assinaturaAdmin && assinatura !== state.assinaturaAdmin) {
           if (state.assinaturaAdmin.split('|')[0] === 'admin-inicio') state.rolagemInicio = window.pageYOffset || 0;
+          if (state.tela === 'admin-inicio') state.mapaDef = null; /* chegou de outra tela: relê a definição do Mapa */
           state.rolarPara = state.tela === 'admin-inicio' ? (state.rolagemInicio || 0) : 'topo';
         }
         state.assinaturaAdmin = assinatura;
@@ -2702,6 +2703,7 @@
       return !!p && !p.hidden && p.classList.contains('active');
     }
     function sincronizarEnderecoAdmin() {
+      if (modo === 'admin') { var areaVista = areaAtualAdmin(); if (areaVista !== 'inicio') state.voltouDaArea = areaVista; } /* a seção dela reabre na volta */
       if (modo !== 'admin' || aplicandoEnderecoAdmin) return;
       if ((location.hash || '').split('?')[0] !== '#admin' || !painelArquiteturaAtivo()) return;
       /* Só com alguém logado e o ADMIN de fato na tela: redesenhar por troca de sessão (sair,
@@ -2753,7 +2755,7 @@
     function seqArqAtual() { return history.state && history.state.seqArq || 0; }
     function edicaoSujaAdmin() {
       return !!((state.config && state.config.sujo) || (state.configMotores && state.configMotores.sujo) ||
-        (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) ||
+        (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) || (state.tela === 'admin-inicio' && state.mapaDef && state.mapaDef.sujo) ||
         (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()) ||
         (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()) ||
         (window.faEstruturaAtualAdmin && window.faEstruturaAtualAdmin.temAlteracaoNaoSalva()));
@@ -5147,13 +5149,13 @@
         ['Posicionamento Organizacional', 'Identifica o tipo de estrutura adequado à responsabilidade avaliada (O1–O9).', acesso('avpPartePosicionamento', 'Ver posicionamentos', '#avaliacoes?po=lista')],
         ['Estruturas do Mapa da Floresta', 'Cadastra as estruturas concretas.', estruturasDisponiveis() ? acesso('avpParteEstruturas', 'Abrir o cadastro', 'estruturas') : '<span class="avp-parte-sem" id="avpParteEstruturasSem">' + (habilitacaoEstruturasPendente() ? 'Conferindo…' : 'Cadastro ainda não habilitado') + '</span>'],
         ['Vínculo de responsabilidade', 'Associa o item à estrutura responsável, quando registrado — na ficha do Posicionamento.', acesso('avpParteVinculo', 'Ver na ficha do Posicionamento', '#avaliacoes?po=lista')],
-        ['Mapa da Floresta', 'Apresenta a visão integrada disponível (acesso no destaque acima).', ''],
+        ['Mapa da Floresta', 'Apresenta a visão integrada disponível (acesso no início desta seção).', ''],
         ['Taxonomia', 'Fornece os conceitos e definições oficiais usados nas classificações e nos tipos organizacionais.', taxDisponivel ? acesso('avpParteTaxonomia', 'Abrir a Taxonomia', 'taxonomia') : '<span class="avp-parte-sem">Mantida na aba Taxonomia (admin geral)</span>'],
         ['Adequação à Squad', 'Avaliação complementar, só quando aplicável; não é etapa obrigatória para todos os itens (S1–S8).', acesso('avpParteSquad', 'Ver adequações', '#avaliacoes?sq=lista')]
       ];
-      return '<section class="avp-form-card avp-partes-jornada" id="avpAdminPartes" aria-labelledby="avpAdminPartesTitulo"><h4 id="avpAdminPartesTitulo">Como cada parte contribui para o Mapa</h4>' +
+      return '<details class="avp-partes-jornada" id="avpAdminPartes" data-secao-admin="avpAdminPartes"' + (secaoAberta('avpAdminPartes', false) ? ' open' : '') + '><summary id="avpAdminPartesTitulo">Como cada parte contribui para o Mapa</summary>' +
         '<p class="avp-admin-grupo-desc">Cada parte tem a sua responsabilidade. Não é uma sequência obrigatória: um item pode ter só algumas delas.</p><ul class="avp-partes-lista">' +
-        partes.map(function (x) { return '<li class="avp-parte"><div class="avp-parte-texto"><strong>' + esc(x[0]) + '</strong><span>' + esc(x[1]) + '</span></div>' + x[2] + '</li>'; }).join('') + '</ul></section>';
+        partes.map(function (x) { return '<li class="avp-parte"><div class="avp-parte-texto"><strong>' + esc(x[0]) + '</strong><span>' + esc(x[1]) + '</span></div>' + x[2] + '</li>'; }).join('') + '</ul></details>';
     }
     /* abre o Mapa (ou a jornada) a partir do ADMIN registrando a origem na entrada do histórico — o "← Voltar" do Mapa
        volta para cá (mesmo padrão do atalho do Início para o ADMIN) */
@@ -5190,78 +5192,131 @@
     /* ===================== ADMIN: INÍCIO DO BLOCO "AVALIAÇÃO DE PRODUTO/SERVIÇO" =====================
        Só parametrização e governança — nada de avaliar aqui. O trabalho do dia
        a dia (consultar, avaliar, reavaliar) fica na área AVALIAÇÃO do menu. */
+    /* SEÇÕES RECOLHÍVEIS do início (details/summary nativos: teclado e estado aberto/fechado para tecnologias assistivas
+       vêm do navegador). O que a pessoa abriu fica em state.secoesInicio — fora do state.detAbertos, que zera a cada troca
+       de tela —, então voltar de uma funcionalidade reencontra a seção aberta. Ao voltar de uma ÁREA (também depois de F5
+       ou link direto nela), a seção que a contém é reaberta (SECAO_DA_AREA). Só o Mapa começa aberto. */
+    var SECAO_DA_AREA = { questionarios: 'avpGrupoConfiguracao', motores: 'avpGrupoConfiguracao', 'motor-squad': 'avpGrupoConfiguracao',
+      'estrutura-atual': 'avpGrupoEstruturas', estruturas: 'avpGrupoEstruturas', naturezas: 'avpGrupoComplementares',
+      usuarios: 'avpAdminAcessos', documentacao: 'avpGrupoReferencias' };
+    function secaoAberta(id, padrao) { var v = state.secoesInicio && state.secoesInicio[id]; return v === undefined ? !!padrao : !!v; }
+    /* a definição oficial do Mapa (arquitetura-definicoes/MAPA_FLORESTA) e o seu histórico, lidos ao chegar no início —
+       a mesma fonte, a mesma gravação e a mesma auditoria de antes; nada de valor de fábrica enquanto a leitura não volta */
+    function carregarDefinicaoInicio() {
+      var d = { carregando: true, erro: null, mapa: null, mapaHistorico: [], docsAtivos: 0, editandoMapa: null, salvandoMapa: false, erroMapa: null, flashMapa: null, sujo: false };
+      state.mapaDef = d;
+      var pend = 3, falhou = false;
+      var relogio = setTimeout(function () { if (state.mapaDef !== d || !d.carregando) return; d.carregando = false; d.erro = 'A leitura está demorando mais que o normal.'; if (state.tela === 'admin-inicio') render(); }, 12000);
+      function fimLeitura() { if (--pend > 0 || state.mapaDef !== d || falhou) return; clearTimeout(relogio); d.carregando = false; if (state.tela === 'admin-inicio') render(); }
+      function erro(e) {
+        console.error('[definição do Mapa] erro ao ler:', e);
+        if (falhou || state.mapaDef !== d) return;
+        falhou = true; clearTimeout(relogio); d.carregando = false; d.erro = 'Não foi possível carregar a definição agora.';
+        if (state.tela === 'admin-inicio') render();
+      }
+      db().ref(NODE_DEF + '/' + ID_MAPA_FLORESTA).once('value', function (snap) { d.mapa = snap.val() || null; fimLeitura(); }, erro);
+      db().ref(NODE_DEF_AUD).once('value', function (snap) {
+        var v = snap.val() || {};
+        d.mapaHistorico = Object.keys(v).map(function (k) { return v[k]; }).filter(function (l) { return l && l.definicaoId === ID_MAPA_FLORESTA; })
+          .sort(function (a, b) { return (b.dataHora || '').localeCompare(a.dataHora || ''); });
+        fimLeitura();
+      }, erro);
+      /* só para saber se há "Documentação relacionada" (a lista em si fica em Outras referências) */
+      db().ref(NODE_DOCS).once('value', function (snap) { var v = snap.val() || {}; d.docsAtivos = Object.keys(v).filter(function (k) { return v[k] && !v[k].arquivado; }).length; fimLeitura(); },
+        function () { d.docsAtivos = 0; fimLeitura(); });
+    }
     function renderAdminInicio() {
-      /* Grupos só de organização visual — cada cartão leva à mesma tela de antes. Padrão único: título do grupo →
-         cartões (nome + descrição curta); a explicação detalhada fica na tela de destino. */
-      function grupo(id, titulo, descricao, conteudo, classe) {
-        return '<section class="avp-form-card avp-admin-inicio avp-admin-grupo' + (classe ? ' ' + classe : '') + '" id="' + id + '" aria-labelledby="' + id + 'Titulo">' +
-          '<h4 id="' + id + 'Titulo">' + esc(titulo) + '</h4>' + (descricao ? '<p class="avp-admin-grupo-desc">' + esc(descricao) + '</p>' : '') + conteudo + '</section>';
+      state.secoesInicio = state.secoesInicio || {};
+      if (state.voltouDaArea) { var sv = SECAO_DA_AREA[state.voltouDaArea]; if (sv) state.secoesInicio[sv] = true; state.voltouDaArea = null; }
+      if (!state.mapaDef) carregarDefinicaoInicio();
+      var d = state.mapaDef;
+      /* Padrão único: título da seção (com descrição curta, visível mesmo recolhida) → funcionalidades. */
+      function secao(id, titulo, descricao, conteudo, padrao, classe) {
+        return '<details class="avp-form-card avp-admin-inicio avp-admin-grupo avp-admin-secao' + (classe ? ' ' + classe : '') + '" id="' + id + '" data-secao-admin="' + id + '"' + (secaoAberta(id, padrao) ? ' open' : '') + '>' +
+          '<summary class="avp-admin-secao-cab"><span class="avp-admin-secao-titulo" id="' + id + 'Titulo">' + esc(titulo) + '</span>' +
+          (descricao ? '<span class="avp-admin-secao-desc">' + esc(descricao) + '</span>' : '') + '</summary><div class="avp-admin-secao-corpo">' + conteudo + '</div></details>';
       }
       function cartoes(c) { return '<div class="avp-admin-cards">' + c + '</div>'; }
       function subgrupo(id, titulo) { return '<h5 class="avp-admin-subgrupo" id="' + id + '">' + esc(titulo) + '</h5>'; }
       function cartao(id, titulo, texto) {
         return '<button type="button" class="avp-admin-card" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
       }
-      var html = '<section class="avp-form-card avp-mapa-destaque" id="avpAdminMapa" aria-labelledby="avpAdminMapaTitulo">' +
-        '<p class="avp-mapa-rotulo">Destino da jornada</p><h4 id="avpAdminMapaTitulo">Mapa da Floresta</h4><p class="avp-mapa-desc">' + esc(MAPA_DESCRICAO_ADMIN) + '</p>' +
+      /* chegou aqui pelo Mapa ("Definição do Mapa"): o retorno leva de volta a ele */
+      var origemMapa = window.faNav && window.faNav.origem();
+      origemMapa = origemMapa && /^#avaliacoes\?(.*&)?mf=/.test(origemMapa.hash) ? origemMapa : null;
+      var html = origemMapa ? linkVoltar('avpInicioVoltarOrigem', origemMapa.rotulo) : '';
+      /* 1. MAPA DA FLORESTA — a única apresentação do Mapa no ADMIN: abrir, definição oficial (edição e histórico),
+         jornada e documentação relacionada. Aberta ao chegar. */
+      var defHtml = d.carregando ? '<p class="loading-msg" id="avpMapaDefCarregando">Carregando a definição oficial…</p>'
+        : d.erro ? '<p class="avp-error-msg" id="avpMapaDefErro">' + esc(d.erro) + ' <button type="button" class="btn btn--sm" id="avpMapaDefTentar">Tentar novamente</button></p>'
+        : renderDefinicaoMapa(d);
+      html += secao('avpAdminMapa', 'Mapa da Floresta', MAPA_DESCRICAO_ADMIN,
         situacaoDadosMapaHtml('avpAdminMapaSituacao') +
         '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a>' +
         '<span class="avp-mapa-secundarias"><a class="avp-mapa-link" id="avpAdminJornadaMapa" href="#avaliacoes?mf=catalogo" data-mapa-admin="#avaliacoes?mf=catalogo">Consultar jornada até o Mapa</a>' +
-        '<button type="button" class="avp-mapa-link" id="avpAdminDefinicaoMapa">Consultar definição e documentação</button></span></div></section>' +
-        partesDaJornadaHtml();
-      html += '<p class="avp-decisao-aviso avp-admin-papel" id="avpAdminPapel">Aqui você pode <strong>configurar</strong> como as avaliações perguntam e classificam e <strong>cadastrar</strong> as estruturas organizacionais. Realizar avaliações (inclusive as de Squad) é na área <strong>Avaliação</strong> do menu; conceitos e definições oficiais ficam em <strong>ADMIN › Taxonomia</strong>.</p>';
-      /* 1. Configuração das Avaliações: o que as perguntas dizem (questionários) e as regras que transformam as respostas
-         em resultado (os três motores, juntos — organização da PR #386, preservada) */
-      html += grupo('avpGrupoConfiguracao', 'Configuração das Avaliações', 'Como as avaliações perguntam e como as respostas viram resultado.',
+        (d.docsAtivos ? '<button type="button" class="avp-mapa-link" id="avpAdminDocsMapa">Documentação relacionada</button>' : '') + '</span></div>' +
+        defHtml + partesDaJornadaHtml(), true, 'avp-mapa-destaque');
+      /* 2. Configuração das Avaliações: questionários e os três motores juntos (organização da PR #386) */
+      html += secao('avpGrupoConfiguracao', 'Configuração das Avaliações', 'Questionários e motores de classificação. Realizar avaliações é na área Avaliação do menu.',
         cartoes(cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Textos, ajudas e interpretações das perguntas das avaliações, com versões e histórico.')) +
         subgrupo('avpSubMotores', 'Motores de classificação') +
         cartoes(cartao('avpConfigMotoresBtn', 'Produto/Serviço (P1–P16)', 'Regras que classificam o item, com simulação, versões e histórico de alterações.') +
           cartao('avpMotorPosicionamentoInicioBtn', 'Posicionamento Organizacional (O1–O9)', 'Versões do motor, prontidão, simulação e impacto — só consulta (a regra é fixa e a entrada em vigor é governada).') +
           (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Adequação à gestão por Squad (S1–S8)', 'Regras da adequação à gestão por squad, com simulação e versões. As avaliações de squad ficam na área Avaliação.') : '')));
-      /* 2. Cadastros de Estruturas Organizacionais: dois cadastros DIFERENTES (dados e finalidades separados), lado a lado */
+      /* 3. Cadastros de Estruturas Organizacionais: dois cadastros DIFERENTES (dados e finalidades separados) */
       var cadAtual = estruturaAtualDisponivel() ? cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Cadastro das unidades que existem hoje, como diretorias, gerências e núcleos. Utilizado para identificar a unidade analisada e as responsabilidades executadas na Análise Organizacional.') : '';
       var cadMapa = estruturasDisponiveis() ? cartao('avpEstruturasBtn', 'Estruturas do Mapa da Floresta', 'Cadastro das estruturas arquiteturais utilizadas nos posicionamentos e vínculos do Mapa, conforme os tipos organizacionais existentes no sistema.') : '';
-      if (cadAtual || cadMapa) html += grupo('avpGrupoEstruturas', 'Cadastros de Estruturas Organizacionais', 'Dois cadastros com finalidades diferentes; os dados de um não aparecem no outro.', cartoes(cadAtual + cadMapa));
-      /* 3. Configurações complementares (discreto): Naturezas Complementares — opções de um campo opcional da ficha de
-         Produto/Serviço; não entram em nenhum motor (naturezas-config.js; a tela de destino explica) */
-      html += grupo('avpGrupoComplementares', 'Configurações complementares', '',
-        cartoes(cartao('avpConfigNaturezasBtn', 'Naturezas Complementares', 'Opções utilizadas para descrever características adicionais dos itens da Avaliação de Produto/Serviço.')), 'avp-admin-grupo--discreto');
-      /* 4. ACESSOS (só admin geral): permissão (quem pode acessar) × disponibilidade (se a funcionalidade está liberada
-         para quem tem permissão). O controle da Análise Organizacional (Porta 2) mora aqui, uma vez só
-         (analises-organizacionais.js: mesma lógica, mesmo estado gravado, mesmo histórico; desativar não apaga dados). */
+      if (cadAtual || cadMapa) html += secao('avpGrupoEstruturas', 'Cadastros de Estruturas Organizacionais', 'Estrutura atual e estruturas do Mapa — finalidades e dados separados.', cartoes(cadAtual + cadMapa));
+      /* 4. Configurações complementares (discreto): Naturezas Complementares — não entram em nenhum motor */
+      html += secao('avpGrupoComplementares', 'Configurações complementares', 'Naturezas Complementares.',
+        cartoes(cartao('avpConfigNaturezasBtn', 'Naturezas Complementares', 'Opções utilizadas para descrever características adicionais dos itens da Avaliação de Produto/Serviço.')), false, 'avp-admin-grupo--discreto');
+      /* 5. ACESSOS (só admin geral): permissão × disponibilidade. O controle da Análise Organizacional (Porta 2) mora aqui,
+         uma vez só (analises-organizacionais.js: mesma lógica, mesmo estado gravado, mesma auditoria). */
       if (souAdminGeral()) {
         var temDisp = !!(window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao);
-        html += '<section class="avp-form-card avp-admin-inicio avp-admin-grupo avp-acessos" id="avpAdminAcessos" aria-labelledby="avpAdminAcessosTitulo"><h4 id="avpAdminAcessosTitulo">Acessos</h4>' +
+        html += secao('avpAdminAcessos', 'Acessos', 'Permissões de usuários e disponibilidade de funcionalidades.',
           '<p class="avp-admin-grupo-desc"><strong>Permissão</strong> define quem pode acessar. <strong>Disponibilidade</strong> define se a funcionalidade está liberada para quem tem permissão. Só o administrador geral altera.</p>' +
           '<h5 class="avp-admin-subgrupo avp-acessos-secao" id="avpAcessosPermissoes">Permissões de usuários</h5>' +
           cartoes(cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação e quem também acessa esta área do ADMIN, com histórico.')) +
           (temDisp ? '<h5 class="avp-admin-subgrupo avp-acessos-secao" id="avpAcessosDisponibilidade">Disponibilidade de funcionalidades</h5>' +
             '<div class="avp-disponibilidade" id="avpDispPorta2"><p class="avp-disp-nome"><strong>Análise Organizacional (Porta 2)</strong></p>' +
-            '<div id="anHabilitacaoAdmin"></div></div>' : '') + '</section>';
+            '<div id="anHabilitacaoAdmin"></div></div>' : ''), false, 'avp-acessos');
       }
-      /* 5. demais recursos */
-      html += grupo('avpGrupoReferencias', 'Referências', '',
-        cartoes(cartao('avpDocumentacaoBtn', 'Documentação e mapas', 'Definição oficial do Mapa da Floresta e outros artefatos de referência, com link, autor e data.')));
+      /* 6. Outras referências: os documentos de referência (o Mapa e a definição dele ficam só na seção do Mapa) */
+      html += secao('avpGrupoReferencias', 'Outras referências', 'Documentos de referência da Arquitetura.',
+        cartoes(cartao('avpDocumentacaoBtn', 'Documentos de referência', 'Artefatos guardados como link para o arquivo, com autor, data e histórico.')));
       wrap.innerHTML = html;
-      document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
-      document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
+      /* lembrar o que a pessoa abriu ou fechou (vale ao voltar de uma funcionalidade) */
+      Array.prototype.forEach.call(wrap.querySelectorAll('details[data-secao-admin]'), function (det) {
+        det.addEventListener('toggle', function () { state.secoesInicio[det.getAttribute('data-secao-admin')] = det.open; });
+      });
+      /* sair do início com a definição em edição não salva pergunta antes (mesmo aviso das outras telas) */
+      function sair(acao) { return function () { var dd = state.mapaDef; sairComAviso(dd, function () { if (dd) { dd.editandoMapa = null; dd.sujo = false; } acao(); }); }; }
+      document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', sair(abrirConfigQuestionarios));
+      document.getElementById('avpConfigMotoresBtn').addEventListener('click', sair(abrirConfigMotores));
       /* Posicionamento (O1–O9): a mesma área dos motores, já no cartão dele */
-      document.getElementById('avpMotorPosicionamentoInicioBtn').addEventListener('click', function () {
+      document.getElementById('avpMotorPosicionamentoInicioBtn').addEventListener('click', sair(function () {
         abrirConfigMotores();
         rolarAdmin('#avpMotorPosicionamento'); /* depois da subida ao topo da subtela, no mesmo quadro */
-      });
-      document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
+      }));
+      document.getElementById('avpConfigNaturezasBtn').addEventListener('click', sair(abrirConfigNaturezas));
       var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
-      if (squadBtn) squadBtn.addEventListener('click', abrirMotorSquadDoInicio);
+      if (squadBtn) squadBtn.addEventListener('click', sair(abrirMotorSquadDoInicio));
       var estruturasBtn = document.getElementById('avpEstruturasBtn');
-      if (estruturasBtn) estruturasBtn.addEventListener('click', abrirEstruturasDoInicio);
+      if (estruturasBtn) estruturasBtn.addEventListener('click', sair(abrirEstruturasDoInicio));
       var estruturaAtualBtn = document.getElementById('avpEstruturaAtualBtn');
-      if (estruturaAtualBtn) estruturaAtualBtn.addEventListener('click', abrirEstruturaAtualDoInicio);
+      if (estruturaAtualBtn) estruturaAtualBtn.addEventListener('click', sair(abrirEstruturaAtualDoInicio));
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
-      if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
-      document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);
-      document.getElementById('avpAdminDefinicaoMapa').addEventListener('click', abrirDocumentacao);
+      if (usuariosBtn) usuariosBtn.addEventListener('click', sair(abrirAdminUsuarios));
+      document.getElementById('avpDocumentacaoBtn').addEventListener('click', sair(abrirDocumentacao));
+      var docsMapa = document.getElementById('avpAdminDocsMapa');
+      if (docsMapa) docsMapa.addEventListener('click', sair(abrirDocumentacao));
+      var tentar = document.getElementById('avpMapaDefTentar');
+      if (tentar) tentar.addEventListener('click', function () { state.mapaDef = null; render(); });
+      var voltarOrigem = document.getElementById('avpInicioVoltarOrigem');
+      if (voltarOrigem) voltarOrigem.addEventListener('click', sair(function () { if (window.faVoltarParaOrigem) window.faVoltarParaOrigem(origemMapa.hash, origemMapa.aba); else location.hash = origemMapa.hash; }));
       ligarAcessosDaJornada(wrap);
+      if (!d.carregando && !d.erro) bindDefinicaoMapa(d);
       var habAn = document.getElementById('anHabilitacaoAdmin');
       if (habAn) window.faAnalisesOrganizacionais.montarHabilitacao(habAn);
     }
@@ -5383,10 +5438,8 @@
     function renderDocumentacao() {
       var d = state.documentacao;
       var html = linkVoltar('avpDocsVoltar', state.docsOrigem ? state.docsOrigem.rotulo : ROTULO_ADMIN);
-      html += '<div class="avp-form-card avp-docs"><h3>Documentação e mapas</h3>';
-      html += '<p class="avp-docs-intro">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro).</p>';
-      /* Definição do Mapa da Floresta: lida do banco (arquitetura-definicoes/MAPA_FLORESTA), em destaque */
-      if (!d.carregando && !d.erro) html += renderDefinicaoMapa(d);
+      html += '<div class="avp-form-card avp-docs"><h3>Documentos de referência</h3>';
+      html += '<p class="avp-docs-intro">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro). A definição oficial do Mapa da Floresta fica na seção do Mapa, no início de Avaliações e Mapa.</p>';
       if (d.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpDocsFlash">' + esc(d.flash) + '</p>';
       if (d.carregando) html += '<p class="loading-msg">Carregando documentação…</p>';
       if (d.erro) html += '<p class="avp-error-msg" id="avpDocsErro">' + esc(d.erro) + ' <button type="button" class="btn btn--sm" id="avpDocsTentar">Tentar novamente</button></p>';
@@ -5443,17 +5496,16 @@
         });
       });
       if (d.editando) bindFormDocumento(d);
-      bindDefinicaoMapa(d);
       wrap.querySelectorAll('details[data-det]').forEach(function (det) {
         det.addEventListener('toggle', function () { state.detAbertos = state.detAbertos || {}; state.detAbertos[det.dataset.det] = det.open; });
       });
     }
     function renderDefinicaoMapa(d) {
       var m = d.mapa, e = d.editandoMapa;
-      var h = '<section class="avp-docs-definicao" id="avpDocsMapaFloresta" aria-labelledby="avpDocsMapaFlorestaTitulo"><p class="avp-docs-definicao-rotulo">Definição oficial</p>';
+      var h = '<section class="avp-docs-definicao" id="avpDocsMapaFloresta" aria-labelledby="avpDocsMapaFlorestaTitulo">';
       if (d.flashMapa) h += '<p class="avp-flash-success avp-flash-success--inline" id="avpMapaFlash">' + esc(d.flashMapa) + '</p>';
       if (e) {
-        h += '<h4 id="avpDocsMapaFlorestaTitulo">' + (m ? 'Editar definição' : 'Registrar definição') + ' <span class="avp-docs-definicao-id">' + esc(ID_MAPA_FLORESTA) + '</span></h4>';
+        h += '<h5 id="avpDocsMapaFlorestaTitulo">' + (m ? 'Editar definição oficial' : 'Registrar definição oficial') + ' <span class="avp-docs-definicao-id">' + esc(ID_MAPA_FLORESTA) + '</span></h5>';
         h += '<div class="avp-field"><label for="avpMapaTitulo">Título *</label><input type="text" id="avpMapaTitulo" maxlength="120" value="' + esc(e.titulo) + '"></div>';
         h += '<div class="avp-field"><label for="avpMapaDefinicao">Definição *</label><textarea id="avpMapaDefinicao" rows="5" maxlength="4000">' + esc(e.definicao) + '</textarea></div>';
         h += '<div class="avp-field"><label for="avpMapaNota">Nota auxiliar</label><textarea id="avpMapaNota" rows="2" maxlength="1000">' + esc(e.nota) + '</textarea></div>';
@@ -5462,21 +5514,21 @@
         h += '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="avpMapaSalvar"' + (d.salvandoMapa ? ' disabled' : '') + '>' + (d.salvandoMapa ? 'SALVANDO…' : 'SALVAR') + '</button>' +
           '<button type="button" class="btn" id="avpMapaCancelar"' + (d.salvandoMapa ? ' disabled' : '') + '>Cancelar</button></div>';
       } else if (m) {
-        h += '<h4 id="avpDocsMapaFlorestaTitulo">' + esc(m.titulo) + '</h4>';
+        h += '<h5 id="avpDocsMapaFlorestaTitulo">Definição oficial' + (m.titulo && m.titulo !== 'Mapa da Floresta' ? ' — ' + esc(m.titulo) : '') + '</h5>';
         h += '<p class="avp-docs-definicao-texto">' + esc(m.definicao) + '</p>';
         if (m.nota) h += '<p class="avp-docs-definicao-nota">' + esc(m.nota) + '</p>';
         if (m.link) h += '<p class="avp-doc-link"><a href="' + esc(m.link) + '" target="_blank" rel="noopener noreferrer">Link de referência do mapa ↗</a></p>';
         h += '<p class="avp-doc-meta">Registrada por ' + esc(autorDe(m.criadoPor) || '—') + ' em ' + esc(fmtData(m.criadoEm)) +
           (m.atualizadoEm && m.atualizadoEm !== m.criadoEm ? ' · Atualizada em ' + esc(fmtData(m.atualizadoEm)) + ' por ' + esc(autorDe(m.atualizadoPor) || '—') : '') + '</p>';
-        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button><a class="avp-mapa-link" id="avpMapaAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a></div>';
+        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button></div>';
       } else {
         /* nó ainda não existe: valor inicial de fábrica, dito como tal */
         var f = PADRAO_MAPA_FLORESTA;
-        h += '<h4 id="avpDocsMapaFlorestaTitulo">' + esc(f.titulo) + '</h4>';
+        h += '<h5 id="avpDocsMapaFlorestaTitulo">Definição oficial</h5>';
         h += '<p class="avp-docs-definicao-texto">' + esc(f.definicao) + '</p>';
         h += '<p class="avp-docs-definicao-nota">' + esc(f.nota) + '</p>';
         h += '<p class="avp-doc-meta" id="avpMapaFabrica">Valor inicial — ainda não salvo no banco. Ao editar e salvar, passa a valer a versão gravada, com histórico.</p>';
-        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button><a class="avp-mapa-link" id="avpMapaAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a></div>';
+        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button></div>';
       }
       h += renderHistoricoRecolhido('avpMapaHistorico', d.mapaHistorico.map(function (l) {
         return { data: l.dataHora, autor: autorDe(l.usuario), tipo: ROTULO_ACAO_DEF[l.tipo] || l.tipo, resumo: l.titulo || '',
@@ -5485,7 +5537,6 @@
       return h + '</section>';
     }
     function bindDefinicaoMapa(d) {
-      var sec = document.getElementById('avpDocsMapaFloresta'); if (sec) ligarAcessosDaJornada(sec);
       var editar = document.getElementById('avpMapaEditarBtn');
       if (editar) editar.addEventListener('click', function () {
         var m = d.mapa || PADRAO_MAPA_FLORESTA;
@@ -5535,7 +5586,7 @@
         if (respondido) return; respondido = true;
         d.salvandoMapa = false;
         d.erroMapa = 'A conexão está demorando e não deu para confirmar o salvamento. Tente de novo.';
-        if (state.tela === 'admin-documentacao') render();
+        if (state.tela === 'admin-inicio') render();
       }, 12000);
       db().ref().update(updates, function (err) {
         if (respondido) return; respondido = true; clearTimeout(relogio);
@@ -5543,14 +5594,14 @@
         if (err) {
           console.error('[definição do Mapa da Floresta] erro ao gravar:', err);
           d.erroMapa = 'Não foi possível salvar. Tente novamente.';
-          if (state.tela === 'admin-documentacao') render();
+          if (state.tela === 'admin-inicio') render();
           return;
         }
         d.mapa = reg;
         d.mapaHistorico.unshift(linha);
         d.editandoMapa = null; d.sujo = false;
         d.flashMapa = '✓ ' + ROTULO_ACAO_DEF[linha.tipo] + '.';
-        if (state.tela === 'admin-documentacao') render();
+        if (state.tela === 'admin-inicio') render();
       });
     }
     function cartaoDocumento(k, it, arquivado) {

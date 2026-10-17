@@ -192,13 +192,13 @@ async function n9(browser, vp, tag) {
   await fim(r, 'N9');
 }
 async function n10(browser, vp, tag) {
-  console.log('\n== N10 (' + tag + '): Mapa → Definição e documentação → Voltar → Mapa ==');
+  console.log('\n== N10 (' + tag + '): Mapa → Definição oficial (seção do Mapa) → Voltar → Mapa ==');
   const r = await abrir(browser, vp, '#avaliacoes?mf=mapa'); const page = r.page;
   await ate(page, () => !!document.getElementById('mfmDefinicao'), null, 'Mapa com o acesso à documentação', 15000);
   await page.click('#mfmDefinicao');
-  await ate(page, () => /^#admin\?arq=documentacao/.test(location.hash) && !!document.getElementById('avpDocsVoltar'), null, 'Documentação e mapas');
-  afirma(await texto(page, '#avpDocsVoltar') === '← Voltar para o Mapa da Floresta', 'Documentação aberta pelo Mapa: "← Voltar para o Mapa da Floresta"', await texto(page, '#avpDocsVoltar'));
-  await page.click('#avpDocsVoltar');
+  await ate(page, () => /^#admin\?arq=inicio/.test(location.hash) && !!document.getElementById('avpInicioVoltarOrigem') && !!document.getElementById('avpDocsMapaFloresta'), null, 'seção do Mapa (definição oficial)');
+  afirma(await texto(page, '#avpInicioVoltarOrigem') === '← Voltar para o Mapa da Floresta' && await page.evaluate(() => document.getElementById('avpAdminMapa').open), 'definição aberta pelo Mapa: seção do Mapa aberta, "← Voltar para o Mapa da Floresta"', await texto(page, '#avpInicioVoltarOrigem'));
+  await page.click('#avpInicioVoltarOrigem');
   await ate(page, () => /^#avaliacoes\?mf=mapa/.test(location.hash) && !!document.getElementById('mfmMapa'), null, 'de volta ao Mapa');
   afirma(true, 'volta ao Mapa');
   await fim(r, 'N10');

@@ -114,11 +114,11 @@
       prova: ['teste-rules-perfis-avaliacao.js', 'teste-avaliacoes-acessos.js', 'teste-classificacoes-fonte-unica.js', 'teste-squad-endereco.js', 'teste-avaliacao-posicionamento.js', 'teste-rules-posicionamento.js', 'teste-regras-posicionamento-tabela.js', 'teste-posicionamento-decisao.js', 'teste-rules-posicionamento-decisao.js', 'teste-posicionamento-exportacoes.js', 'teste-posicionamento-exportacao-nucleo.js', 'teste-squad-liberacao.js', 'teste-rules-squad-liberacao.js', 'teste-mapa-floresta-catalogo.js'] },
 
     { id: 'arquitetura', titulo: 'Avaliações e Mapa',
-      oque: 'Configuração da Avaliação de Produto/Serviço: questionários, motores, naturezas, Motor de Squad, Documentação e mapas (com o Mapa da Floresta) e Usuários autorizados.',
+      oque: 'Configuração da Avaliação de Produto/Serviço: questionários, motores, naturezas, Motor de Squad, a seção do Mapa da Floresta (com a definição oficial), Documentos de referência e Usuários autorizados.',
       quem: 'Admin geral e "Avaliação + Configuração" (que no ADMIN vê só esta aba). Usuários autorizados é só do admin geral.',
       importante: [
         'Mudança de regra do motor só vale depois de simulada e publicada; cada publicação cria uma versão nova.',
-        'O Mapa da Floresta e os documentos são mantidos na própria tela de Documentação e mapas; o Manual não copia o conteúdo.',
+        'A definição do Mapa da Floresta é mantida na seção do Mapa e os documentos em Outras referências; o Manual não copia o conteúdo.',
         'Tudo o que muda fica no histórico de auditoria; nada é apagado (documentos são arquivados).',
         'Correção editorial de questionário vinda do código só vale quando alguém clica em Aplicar: cria uma versão nova e nunca sobrescreve um texto editado à mão (aparece como divergente, para conferir caso a caso).',
         'Questionários e versões tem três questionários: Classificação arquitetural (P1–P16), Adequação à Squad (S1–S8) e Posicionamento Organizacional (O1–O9 e o diagnóstico conflito × recorte). O texto do Posicionamento é mantido aqui; ele é respondido na área Avaliação (botão "Posicionamento Organizacional").',

@@ -1,4 +1,4 @@
-/* Mapa da Floresta configurável — ADMIN › Avaliação e Mapa › Documentação e mapas (desktop e 375 px).
+/* Mapa da Floresta configurável — ADMIN › Avaliação e Mapa › seção Mapa da Floresta (desktop e 375 px).
  *
  * A definição do Mapa da Floresta é DADO, não código: chave estável MAPA_FLORESTA, estado vigente
  * em arquitetura-definicoes/MAPA_FLORESTA, histórico em arquitetura-definicoes-auditoria (só
@@ -48,7 +48,7 @@ async function abrir(browser, viewport, definicoes, extra) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin?arq=documentacao', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#admin?arq=inicio', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
@@ -67,6 +67,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
       afirma(await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-texto') === FABRICA && await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-nota') === 'Não é um conceito da Taxonomia e não tem relação com o Mapa da Aposta.',
         'o card mostra a definição e a nota iniciais');
       afirma(await page.locator('#avpMapaFabrica').count() === 1, '…dito como "valor inicial — ainda não salvo no banco"');
+      afirma(await page.locator('#adminAvaliacaoProduto #avpDocsMapaFloresta').count() === 1 && await page.locator('#avpAdminMapa #avpDocsMapaFloresta').count() === 1 &&
+        await page.locator('#adminAvaliacaoProduto a[href="#avaliacoes?mf=mapa"]').count() === 1, 'um único Mapa: a definição dentro da seção do Mapa, com um só "Abrir Mapa da Floresta"');
       const h0 = page.locator('#avpMapaHistorico');
       afirma(await h0.count() === 1 && !(await h0.evaluate((d) => d.open)) && /Histórico — 0 alterações/.test(await texto(page, '#avpMapaHistorico summary')), 'histórico do card: "Histórico — 0 alterações", recolhido');
 
@@ -89,7 +91,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
       console.log('\n== 2 e 3. Configuração gravada: lida do banco, alterada pela tela, auditada ==');
       const { ctx, page, erros } = await abrir(browser, viewport, { MAPA_FLORESTA: GRAVADA });
       await page.waitForSelector('#avpDocsMapaFloresta .avp-docs-definicao-texto', { timeout: 8000 });
-      afirma(await texto(page, '#avpDocsMapaFlorestaTitulo') === GRAVADA.titulo && await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-texto') === GRAVADA.definicao &&
+      afirma(await texto(page, '#avpDocsMapaFlorestaTitulo') === 'Definição oficial — ' + GRAVADA.titulo && await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-texto') === GRAVADA.definicao &&
         await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-nota') === GRAVADA.nota, 'o card mostra título, definição e nota DO BANCO (não a constante do código)');
       afirma(await page.locator('#avpDocsMapaFloresta a[href="' + GRAVADA.link + '"]').count() === 1 && await page.locator('#avpMapaFabrica').count() === 0, 'link gravado e sem a marca de valor inicial');
       await page.click('#avpMapaEditarBtn');
@@ -127,7 +129,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     {
       console.log('\n== 5. Leitura pendente: o valor de fábrica não aparece como se fosse a configuração ==');
       const { ctx, page, erros } = await abrir(browser, viewport, { MAPA_FLORESTA: GRAVADA }, { delays: { 'arquitetura-definicoes': 2500 } });
-      await page.waitForSelector('#avpDocsVoltar', { timeout: 8000 });
+      await page.waitForSelector('#avpMapaDefCarregando', { timeout: 8000 });
       afirma(await page.locator('#avpDocsMapaFloresta').count() === 0 && !(await page.locator('#adminAvaliacaoProduto').innerText()).includes(FABRICA), 'enquanto a leitura não volta: nem o card de fábrica, nem card vazio');
       await page.waitForSelector('#avpDocsMapaFloresta .avp-docs-definicao-texto', { timeout: 10000 });
       afirma(await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-texto') === GRAVADA.definicao, 'quando chega: a configuração gravada');
@@ -137,11 +139,11 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     {
       console.log('\n== 6. Leitura que falha não substitui o conteúdo ==');
       const { ctx, page, erros } = await abrir(browser, viewport, { MAPA_FLORESTA: GRAVADA }, { fail: ['arquitetura-definicoes'] });
-      await page.waitForSelector('#avpDocsErro', { timeout: 8000 });
+      await page.waitForSelector('#avpMapaDefErro', { timeout: 8000 });
       const tela = await page.locator('#adminAvaliacaoProduto').innerText();
       afirma(await page.locator('#avpDocsMapaFloresta').count() === 0 && !tela.includes(FABRICA) && await page.locator('#avpMapaEditarBtn').count() === 0,
         'falha de leitura: erro visível, sem card vazio, sem o valor de fábrica e sem "Editar definição" (não dá para sobrescrever às cegas)');
-      afirma(await page.locator('#avpDocsTentar').count() === 1, '…com "Tentar novamente"');
+      afirma(await page.locator('#avpMapaDefTentar').count() === 1, '…com "Tentar novamente"');
       afirma(JSON.stringify((await banco(page, 'arquitetura-definicoes')).MAPA_FLORESTA) === JSON.stringify(GRAVADA), 'o banco continua com a configuração gravada');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();

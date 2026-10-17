@@ -1452,12 +1452,29 @@
     if (!el) return;
     ligarConfig();
     var formAberto = false, gravando = false, erro = null, ok = null;
+    /* histórico da disponibilidade (analises-organizacionais-config-auditoria, só acréscimo): recolhido; lido ao abrir */
+    var hist = undefined, histAberto = false;
+    function carregarHist() {
+      hist = 'carregando'; desenhar();
+      S().lerUmaVez(F().NOS.configAuditoria, 12000).then(function (v) {
+        v = v || {};
+        hist = Object.keys(v).map(function (k) { return v[k]; }).filter(Boolean).sort(function (a, b) { return (b.dataHora || 0) - (a.dataHora || 0); });
+        desenhar();
+      }, function () { hist = null; desenhar(); });
+    }
+    function histHtml() {
+      var corpo = hist === undefined || hist === 'carregando' ? '<p class="loading-msg">Carregando…</p>'
+        : hist === null ? '<p class="avp-error-msg">Não foi possível carregar o histórico agora.</p>'
+        : !hist.length ? '<p class="an-det">Nenhuma alteração registrada.</p>'
+        : '<ol class="an-eventos">' + hist.map(function (h) { return '<li>' + esc(fmtData(h.dataHora)) + ' — ' + esc(HAB[h.anterior] || h.anterior || '—') + ' → ' + esc(HAB[h.habilitacao] || h.habilitacao) + ' <span class="an-det">' + esc((h.usuario || {}).email || '') + ' · motivo: ' + esc(h.motivo || '') + '</span></li>'; }).join('') + '</ol>';
+      return '<details class="an-hab-ultima" id="anHabHistorico"' + (histAberto ? ' open' : '') + '><summary>Histórico' + (Array.isArray(hist) ? ' — ' + hist.length + (hist.length === 1 ? ' alteração' : ' alterações') : '') + '</summary>' + corpo + '</details>';
+    }
     function desenhar() {
       var p = perfil();
       if (!p.adminGeral) { el.innerHTML = ''; return; }
       var atual = D.hab === undefined ? null : D.hab, reg = D.habRegistro;
       el.innerHTML = '<div class="an-habilitacao" id="anHabilitacao"><p><strong>Situação:</strong> <span id="anHabAtual">' + (atual ? esc(HAB[atual] || atual) : 'Carregando…') + '</span></p>' +
-        (reg ? '<details class="an-hab-ultima" id="anHabUltima"><summary>Última alteração</summary><p class="an-det">' + esc(fmtData(reg.alteradoEm)) + ' · ' + esc((reg.alteradoPor || {}).email || '') + ' · motivo: ' + esc(reg.motivo) + '</p></details>' : '') +
+        histHtml() +
         (ok ? '<p class="avp-flash-success" role="status">' + esc(ok) + '</p>' : '') + (erro ? '<p class="avp-error-msg" role="alert">' + esc(erro) + '</p>' : '') +
         (formAberto ? '<form class="an-form" id="anFormHabilitacao"><fieldset class="an-opcoes"><legend>Nova disponibilidade</legend>' + Object.keys(HAB).map(function (k) { return '<label class="an-opcao"><input type="radio" name="anHab" value="' + k + '"' + (k === atual ? ' checked' : '') + '><span>' + esc(HAB[k]) + '<small class="an-hab-dica">' + esc(HAB_DICA[k]) + '</small></span></label>'; }).join('') + '</fieldset>' +
           '<div class="avp-field"><label for="anHabMotivo">Motivo (obrigatório)</label><input type="text" id="anHabMotivo" maxlength="500"></div><div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anHabSalvar"' + (gravando ? ' disabled' : '') + '>Salvar</button><button type="button" class="btn btn--sm" id="anHabCancelar">Cancelar</button></div></form>'
@@ -1467,6 +1484,12 @@
       if (ev.target.id === 'anHabAlterar') { formAberto = true; ok = null; erro = null; desenhar(); }
       else if (ev.target.id === 'anHabCancelar') { formAberto = false; erro = null; desenhar(); }
     });
+    /* abrir o histórico (toggle não borbulha: escuta na captura); redesenhar com ele aberto não relê */
+    el.addEventListener('toggle', function (ev) {
+      if (!ev.target || ev.target.id !== 'anHabHistorico') return;
+      histAberto = ev.target.open;
+      if (histAberto && (hist === undefined || hist === null)) carregarHist();
+    }, true);
     el.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var nova = (el.querySelector('input[name="anHab"]:checked') || {}).value, motivo = (document.getElementById('anHabMotivo') || {}).value || '';
@@ -1479,7 +1502,8 @@
       S().gravar(payload, PRAZO, function (err) {
         gravando = false;
         if (err) { erro = err === 'sem-resposta' ? 'O servidor não respondeu a tempo; confira antes de repetir.' : 'O banco recusou a alteração.'; desenhar(); return; }
-        formAberto = false; erro = null; ok = 'Disponibilidade alterada para: ' + (HAB[nova] || nova) + '.'; desenhar();
+        formAberto = false; erro = null; ok = 'Disponibilidade alterada para: ' + (HAB[nova] || nova) + '.';
+        if (histAberto) carregarHist(); else { hist = undefined; desenhar(); }
       });
     });
     aoMudarFns.push(function () { if (document.body.contains(el) && !formAberto) desenhar(); });
