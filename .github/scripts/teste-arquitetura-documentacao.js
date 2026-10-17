@@ -103,7 +103,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await page.click('.avp-modal-confirm-btn');
     await page.waitForSelector('#avpDocsArquivados');
     afirma((await banco(page, 'arquitetura-documentos'))[k].arquivado === true && await page.locator('#avpDocsLista .avp-doc-item').count() === 0, 'arquivar tira da lista e guarda em "Arquivados", sem apagar');
-    await page.evaluate(() => { document.getElementById('avpDocsArquivados').open = true; });
+    /* abre "Arquivados" e espera o botão à vista (um redesenho no meio fecharia a seção antes do clique) */
+    await esperarCondicao(page, () => { const d = document.getElementById('avpDocsArquivados'); if (d && !d.open) d.open = true; const b = document.querySelector('.avp-doc-arquivar[data-acao="restaurar"]'); return !!b && b.offsetParent !== null; }, undefined, { limite: 8000, descricao: 'Arquivados aberto com Restaurar à vista' });
     await page.click('.avp-doc-arquivar[data-acao="restaurar"]');
     await page.click('.avp-modal-confirm-btn');
     await esperarCondicao(page, () => document.querySelectorAll('#avpDocsLista .avp-doc-item').length === 1, null, { descricao: 'o documento restaurado voltar à lista' });
