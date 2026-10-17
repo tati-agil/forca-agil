@@ -8,7 +8,7 @@
  *   - Identificação compacta (sem perder informação);
  *   - Especialização derivada só na área automática; cadastrada só na Curadoria; estados do #273 preservados;
  *   - "Forma da decisão" sem citar Curadoria; SALVAR DECISÃO / ✓ DECISÃO SALVA, perto do formulário;
- *   - rótulos dos Salvar da Curadoria iguais ao que realmente salvam e com o mesmo peso visual;
+ *   - rótulos dos Salvar da Curadoria iguais ao que realmente salvam (a Natureza complementar foi retirada: sem botão);
  *   - históricos fora da Curadoria (Curadoria e Decisão separados), recolhidos;
  *   - a justificativa automática não incorpora Especialização/Papel cadastrados;
  *   - navegação existente não piora (Voltar, versão anterior).
@@ -287,7 +287,7 @@ async function passo(nome, fn) { try { await fn(); } catch (e) { afirma(false, n
       const bEsp = await page.evaluate(() => { const b = document.getElementById('avpSalvarEspecializacaoBtn'); return { t: b.textContent.trim(), c: b.className.replace(/\bavp-btn-decisao--salva\b/, '').trim() }; });
       const bNat = await page.evaluate(() => { const b = document.getElementById('avpSalvarNaturezaBtn'); return b ? { t: b.textContent.trim(), c: b.className.replace(/\bavp-btn-decisao--salva\b/, '').trim() } : null; });
       afirma(bEsp.t === 'SALVAR ESPECIALIZAÇÃO E PAPEL', 'Componente: o botão diz o que salva — "' + bEsp.t + '"');
-      afirma(bNat && bNat.c === bEsp.c, 'Natureza tem o mesmo peso visual (mesmas classes): "' + (bNat && bNat.c) + '" × "' + bEsp.c + '"');
+      afirma(bNat === null, 'Natureza complementar retirada: não há mais o botão SALVAR NATUREZA');
       await page.click('#avpSalvarEspecializacaoBtn');
       await page.waitForFunction(() => /✓ ESPECIALIZAÇÃO E PAPEL SALVOS/.test((document.getElementById('avpSalvarEspecializacaoBtn') || {}).textContent || ''), { timeout: 8000 }).catch(() => {});
       afirma(/✓ ESPECIALIZAÇÃO E PAPEL SALVOS/.test(await txt(page, '#avpSalvarEspecializacaoBtn')), 'depois de salvar: "✓ ESPECIALIZAÇÃO E PAPEL SALVOS"');

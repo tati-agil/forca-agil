@@ -17,7 +17,7 @@ const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 let falhas = 0;
 function afirma(c, msg, det) { console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det !== undefined ? ' → ' + JSON.stringify(det) : '')); if (!c) falhas++; }
-const SECOES = ['avpAdminMapa', 'avpGrupoConfiguracao', 'avpGrupoEstruturas', 'avpGrupoComplementares', 'avpAdminAcessos'];
+const SECOES = ['avpAdminMapa', 'avpGrupoConfiguracao', 'avpGrupoEstruturas', 'avpGrupoDocumentacao', 'avpAdminAcessos'];
 
 async function abrir(browser, vp, hash, o) {
   const db = SJ.semente();
@@ -82,11 +82,11 @@ const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limit
       await r.ctx.close();
 
       console.log('\n== ' + nome + ': link direto numa área e volta ==');
-      r = await abrir(browser, vp, '#admin?arq=naturezas'); page = r.page;
-      await page.waitForSelector('#avpNaturezasVoltar', { timeout: 20000 });
-      await page.click('#avpNaturezasVoltar');
-      await page.waitForSelector('#avpGrupoComplementares', { timeout: 15000 });
-      afirma(await page.evaluate(() => document.getElementById('avpGrupoComplementares').open) && await visivel(page, '#avpConfigNaturezasBtn'), 'link direto em Naturezas + Voltar: Configurações complementares aberta');
+      r = await abrir(browser, vp, '#admin?arq=documentacao'); page = r.page;
+      await page.waitForSelector('#avpDocsVoltar', { timeout: 20000 });
+      await page.click('#avpDocsVoltar');
+      await page.waitForSelector('#avpGrupoDocumentacao', { timeout: 15000 });
+      afirma(await page.evaluate(() => document.getElementById('avpGrupoDocumentacao').open) && await visivel(page, '#avpDocumentacaoBtn'), 'link direto em Documentos de referência + Voltar: Documentação aberta');
       afirma(await page.evaluate(() => document.getElementById('avpAdminMapa').open), 'o Mapa continua aberto');
       await r.ctx.close();
 

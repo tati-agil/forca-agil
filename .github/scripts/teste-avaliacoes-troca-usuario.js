@@ -106,7 +106,7 @@ async function abrirAbaArquitetura(page) {
   await btn.click();
   return true;
 }
-const QUATRO = ['#avpQuestP1P16Btn', '#avpConfigMotoresBtn', '#avpConfigNaturezasBtn', '#avpMotorSquadInicioBtn'];
+const QUATRO = ['#avpQuestP1P16Btn', '#avpConfigMotoresBtn', '#avpDocumentacaoBtn', '#avpMotorSquadInicioBtn'];
 async function quatroCartoes(page) {
   for (const sel of QUATRO) if (await contar(page, sel) !== 1) return false;
   return true;

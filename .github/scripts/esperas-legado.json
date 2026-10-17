@@ -652,90 +652,10 @@
       }
     },
     "teste-natureza-complementar.js": {
-      "3e73a0667742b91f": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, { timeout: 6000 })"
-      },
-      "1e7d22f868fce94e": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, { timeout: 6000 }).catch(() => {})"
-      },
-      "f819bb7577ba75a5": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => /Natureza complementar (salva|removida)/.test(document.body.innerText), { timeout: 8000 })"
-      },
-      "b9a3de4f46b1d7e9": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Natureza complementar (salva|removida)/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
-      },
       "36550d61e94780b9": {
         "n": 1,
         "padrao": "catch",
         "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
-      },
-      "60e32dd5d31a23da": {
-        "n": 3,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 })"
-      },
-      "c1f7fa30a5ec2c8e": {
-        "n": 3,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
-      },
-      "598777e12f4c9553": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => /Opção criada/.test(document.body.innerText), { timeout: 6000 })"
-      },
-      "959306d4bb3b9040": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => /Opção salva/.test(document.body.innerText), { timeout: 6000 })"
-      },
-      "7ec7776ee3cec553": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Opção salva/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
-      },
-      "34e8a8235f722e04": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => /Opção desativada/.test(document.body.innerText), { timeout: 6000 })"
-      },
-      "31bd7df81e128092": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Opção desativada/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
-      },
-      "197b18060ad668c0": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => /Opção ativada/.test(document.body.innerText), { timeout: 6000 })"
-      },
-      "8136d137a1879f5b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Opção ativada/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
-      },
-      "d9b772480320d3e1": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, { timeout: 9000 })"
-      },
-      "d5ecfe24e63c62e6": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => /Não foi possível salvar a natureza/.test(document.body.innerText), { timeout: 6000 })"
-      },
-      "0303c8573ccb4c3d": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => /Não foi possível salvar a natureza/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
       }
     },
     "teste-pdf-quebra-titulos.js": {

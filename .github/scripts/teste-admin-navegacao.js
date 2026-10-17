@@ -1,6 +1,6 @@
 /* Navegação do Admin da Avaliação de Produto/Serviço (PR 3 do prompt consolidado):
  *   - tela inicial organizada em grupos: Configuração das Avaliações (um grupo por avaliação — P1–P16, O1–O9, S1–S8 —, cada um com Questionário | Motor, num
- *     só lugar, dentro de Configuração das Avaliações) / Cadastros de Estruturas Organizacionais / Configurações complementares (Naturezas) / Acessos (Permissões
+ *     só lugar, dentro de Configuração das Avaliações) / Cadastros de Estruturas Organizacionais / Documentação (Documentos de referência; as Naturezas Complementares foram retiradas) / Acessos (Permissões
  *     de usuários e Disponibilidade de funcionalidades, com a Análise Organizacional) — só organização, as mesmas telas;
  *   - TODA subtela tem um "← Voltar para <tela pai>" explícito, que sobe UM nível;
  *   - sair de uma tela de edição com alteração não salva pede confirmação
@@ -62,7 +62,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
 
     console.log('\n== Tela inicial: Configuração das Avaliações, Cadastros de Estruturas, complementares, Acessos e Referências ==');
     const titulos = await page.locator('#adminAvaliacaoProduto .avp-admin-secao > summary .avp-admin-secao-titulo').allTextContents();
-    afirma(JSON.stringify(titulos) === JSON.stringify(['Mapa da Floresta', 'Configuração das Avaliações', 'Cadastros de Estruturas Organizacionais', 'Configurações complementares', 'Acessos']), 'seções: ' + titulos.join(' | '));
+    afirma(JSON.stringify(titulos) === JSON.stringify(['Mapa da Floresta', 'Configuração das Avaliações', 'Cadastros de Estruturas Organizacionais', 'Documentação', 'Acessos']), 'seções: ' + titulos.join(' | '));
     const grupo = (n) => page.locator('#adminAvaliacaoProduto .avp-admin-secao').nth(n + 1);
     /* Configuração das Avaliações: um grupo por avaliação, cada um com Questionário | Motor (nada de lista intermediária) */
     afirma(JSON.stringify(await grupo(0).locator('.avp-admin-aval-titulo').allTextContents()) === JSON.stringify(['Produto/Serviço P1–P16', 'Posicionamento Organizacional O1–O9', 'Adequação à Gestão por Squad S1–S8']),
@@ -72,15 +72,15 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
       'cada grupo: Questionário e Motor da própria avaliação');
     afirma(await grupo(1).locator('#avpEstruturaAtualBtn').count() === 1 && (await grupo(1).locator('#avpEstruturaAtualBtn strong').innerText()) === 'Estrutura Organizacional Atual' &&
       /unidades que existem hoje/.test(await grupo(1).locator('#avpEstruturaAtualBtn').innerText()), 'Cadastros de Estruturas Organizacionais: a Estrutura Organizacional Atual, com descrição curta');
-    afirma(await grupo(2).locator('#avpConfigNaturezasBtn').count() === 1 && (await grupo(2).getAttribute('class')).includes('avp-admin-grupo--discreto') &&
-      (await grupo(2).locator('#avpConfigNaturezasBtn').innerText()).includes('Opções utilizadas para descrever características adicionais dos itens da Avaliação de Produto/Serviço'), 'Naturezas Complementares: configuração auxiliar, em grupo discreto, com a descrição curta');
+    afirma(await page.locator('#avpConfigNaturezasBtn').count() === 0 && (await grupo(2).getAttribute('class')).includes('avp-admin-grupo--discreto') && !/Naturez/i.test(await page.locator('#adminAvaliacaoProduto').innerText()),
+      'Naturezas Complementares retiradas: nenhum cartão nem menção no ADMIN; Documentação continua em grupo discreto');
     /* sem repetição: nenhum grupo com um único cartão de mesmo nome; nenhum "Onde aparece" repetindo o que o cartão diz */
     const repetidos = await page.evaluate(() => [...document.querySelectorAll('#adminAvaliacaoProduto .avp-admin-secao')].filter((g) => { const t = g.querySelector('.avp-admin-secao-titulo').textContent.trim().toLowerCase(); return [...g.querySelectorAll('.avp-admin-card strong')].some((c) => c.textContent.trim().toLowerCase() === t); }).map((g) => g.querySelector('h4').textContent));
     afirma(!repetidos.length && await page.locator('#adminAvaliacaoProduto .avp-admin-grupo-uso').count() === 0, 'sem título repetido entre grupo e cartão, sem "Onde aparece" repetido', repetidos);
     afirma(/Realizar avaliações é na área Avaliação do menu/.test(await page.locator('#avpGrupoConfiguracao > summary').innerText()) && /Taxonomia/.test(await page.locator('#adminPanelArquitetura').innerText()), 'I1: onde se avalia e onde ficam os conceitos (Taxonomia), sem parágrafo à parte');
     afirma(await grupo(3).locator('#avpUsuariosBtn').count() === 1 && await page.locator('#anHabilitacaoAdmin, #anHabilitacao').count() === 0 &&
       /quem acessa cada funcionalidade/.test(await grupo(3).innerText()) && !/Disponibilidade/.test(await grupo(3).innerText()), 'Acessos: só as permissões (Usuários autorizados), sem o antigo controle de disponibilidade da Porta 2');
-    afirma(await grupo(2).locator('#avpDocumentacaoBtn').count() === 1 && (await grupo(2).locator('#avpDocumentacaoBtn strong').innerText()) === 'Documentos de referência', 'Configurações complementares: também os Documentos de referência');
+    afirma(await grupo(2).locator('#avpDocumentacaoBtn').count() === 1 && (await grupo(2).locator('#avpDocumentacaoBtn strong').innerText()) === 'Documentos de referência', 'Documentação: os Documentos de referência');
     /* O1–O9: o atalho abre a MESMA área dos motores, já no cartão do Posicionamento; o Voltar dela volta ao início */
     await page.click('#avpMotorPosicionamentoInicioBtn');
     await page.waitForSelector('#avpMotorPosicionamento', { timeout: 8000 });
@@ -185,22 +185,11 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.click('#avpMotoresVoltarLista');
     await page.waitForSelector('#avpQuestP1P16Btn');
 
-    console.log('\n== Naturezas complementares ==');
-    await page.click('#avpConfigNaturezasBtn');
-    await page.waitForSelector('#avpNaturezasVoltar');
-    await conferirVoltar(page, '#avpNaturezasVoltar', 'Avaliações e Mapa', 'naturezas');
-    await conferirVoltar(page, '#avpNaturezasVoltarRodape', 'Avaliações e Mapa', 'naturezas (rodapé)');
-    await page.click('#avpNaturezaNova');
-    await page.waitForSelector('#avpNaturezaNome');
-    await page.fill('#avpNaturezaNome', 'Opção em edição');
-    await page.click('#avpNaturezasVoltar');
-    afirma(await page.locator('.avp-modal-confirm-btn').count() === 1, 'naturezas: nova opção digitada e não salva → pede confirmação');
-    await page.click('.avp-modal-cancel-btn');
-    afirma((await page.locator('#avpNaturezaNome').inputValue()) === 'Opção em edição', 'Cancelar mantém o que foi digitado');
-    await page.click('#avpNaturezaCancelar');
-    await page.click('#avpNaturezasVoltar');
-    afirma(await page.locator('.avp-modal-confirm-btn').count() === 0, 'depois de cancelar a edição, sai sem perguntar');
+    console.log('\n== Naturezas complementares: cadastro retirado ==');
+    /* o endereço antigo do cadastro não abre tela nenhuma: cai no Início de Avaliações e Mapa */
+    await page.evaluate(() => { location.hash = '#admin?arq=naturezas'; });
     await page.waitForSelector('#avpQuestP1P16Btn');
+    afirma(await page.locator('#avpNaturezasVoltar, #avpNaturezaNova').count() === 0, '#admin?arq=naturezas (link antigo): nenhuma tela de catálogo; fica no Início');
 
     console.log('\n== Usuários autorizados ==');
     await page.click('#avpUsuariosBtn');
@@ -323,14 +312,14 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(fim.y === fim.max && fim.y > 100, 'a rolagem até o fim da tela inicial não é desfeita (' + fim.y + ' de ' + fim.max + ' px)');
     /* o cartão no meio da tela: rente ao topo ele fica sob o cabeçalho fixo e o clique do Playwright rola a página antes de
        clicar (a posição "de onde a pessoa saiu" passaria a ser outra) */
-    await page.evaluate(() => document.getElementById('avpConfigNaturezasBtn').scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await page.evaluate(() => document.getElementById('avpDocumentacaoBtn').scrollIntoView({ block: 'center', behavior: 'instant' }));
     const yInicio = await page.evaluate(() => window.pageYOffset); /* onde a pessoa está ao tocar no cartão */
     afirma(yInicio > 100, 'tela inicial rolada (' + yInicio + ' px)');
-    await page.click('#avpConfigNaturezasBtn');
-    await page.waitForSelector('#avpNaturezasVoltar');
-    await page.waitForFunction(() => { const b = document.getElementById('avpNaturezasVoltar').getBoundingClientRect(); return b.top >= 0 && b.bottom <= window.innerHeight; }, null, { timeout: 3000 });
+    await page.click('#avpDocumentacaoBtn');
+    await page.waitForSelector('#avpDocsVoltar');
+    await page.waitForFunction(() => { const b = document.getElementById('avpDocsVoltar').getBoundingClientRect(); return b.top >= 0 && b.bottom <= window.innerHeight; }, null, { timeout: 3000 });
     afirma(true, 'abrir uma subtela no meio da página mostra o "← Voltar" do topo');
-    await page.click('#avpNaturezasVoltarRodape');
+    await page.click('#avpDocsVoltarRodape');
     await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
     await page.waitForFunction((y) => Math.abs(window.pageYOffset - y) <= 2, yInicio, { timeout: 3000 });
     afirma(true, 'voltar para a tela inicial devolve a posição de onde a pessoa saiu');

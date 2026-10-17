@@ -231,7 +231,7 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     afirma(/Especialização: — → Instituto previdenciário/.test(blocoHist) && /Cicrana/.test(blocoHist), 'PDF: trilha — Especialização (anterior → novo) e quem alterou');
     afirma(/Decisão final: Não é Produto\/Serviço principal \(recomendação aceita\) → É Produto\/Serviço principal \(manual\)/.test(blocoHist) && /Justificativa: "Decidido por pessoa\."/.test(blocoHist) && /Fulana/.test(blocoHist), 'PDF: trilha — Decisão final (anterior → novo), justificativa e quem decidiu');
     afirma(/Nova versão criada por reavaliação da v1 \(v2\) por Beltrana/.test(blocoHist), 'PDF: trilha — criada por reavaliação');
-    afirma(/Natureza complementar: — → Programa transversal/.test(blocoHist) && /Gigi/.test(blocoHist), 'PDF: trilha — Natureza complementar (lida da outra auditoria)');
+    afirma(/Natureza complementar \(registro histórico\): — → Programa transversal/.test(blocoHist) && /Gigi/.test(blocoHist), 'PDF: trilha — Natureza complementar como registro histórico (lida da outra auditoria)');
     afirma(/Especialização confirmada/.test(blocoHist) && /Reprocessamento automático em lote — motor motor-xyz/.test(blocoHist), 'PDF: trilha — confirmação por reprocessamento automático em lote, com o motor');
     afirma(!/Trilha indisponível/.test(p), 'PDF: com a auditoria lida, não há "Trilha indisponível"');
     afirma(!/Abrangência/i.test(p), 'PDF: "Abrangência" não voltou');
@@ -312,7 +312,7 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     afirma(ex.celResumo('Item Sem Curadoria', 'Versão do motor') === MOTOR_VERSION, 'Excel Resumo: "Versão do motor" = ' + MOTOR_VERSION);
     const hc = ex.hist[0];
     const esperadoHist = ['ID do item', 'ID da avaliação', 'Versão', 'Data da avaliação', 'Responsável pela avaliação',
-      'Especialização identificada pelo questionário', 'Especialização', 'Papel estrutural', 'Natureza complementar', 'Situação da curadoria',
+      'Especialização identificada pelo questionário', 'Especialização', 'Papel estrutural', 'Natureza complementar (registro histórico)', 'Situação da curadoria',
       'Resultado anterior', 'Resultado atual', 'Classificação anterior', 'Classificação atual', 'Decisão anterior', 'Decisão atual', 'Forma anterior', 'Forma atual',
       'Responsável pela decisão', 'Data da decisão', 'Resumo da mudança', 'Justificativa de divergência'];
     afirma(JSON.stringify(hc) === JSON.stringify(esperadoHist), 'Excel Histórico: colunas anterior/atual separadas + Resumo da mudança (' + hc.join(' | ') + ')');
@@ -341,7 +341,7 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     afirma(!!lDec && lDec[6] === 'Não é Produto/Serviço principal (recomendação aceita)' && lDec[7] === 'É Produto/Serviço principal (manual)' && /Decidido por pessoa\./.test(lDec[10]) && lDec[8] === 'Fulana' && lDec[4] === 'Alteração', 'Excel Trilha: Decisão final — anterior, novo, justificativa e quem');
     afirma(lt.some((l) => /reavaliação da v1/.test(l[9]) && l[4] === 'Criação por reavaliação' && l[5] === 'Decisão final'), 'Excel Trilha: Evento "Criação por reavaliação" (Campo Decisão final, origem citando a v1)');
     afirma(lt.some((l) => /Reprocessamento automático em lote/.test(l[9]) && l[4] === 'Reprocessamento automático' && l[5] === 'Especialização'), 'Excel Trilha: Evento "Reprocessamento automático" (Campo Especialização, origem em lote com o motor)');
-    afirma(lt.some((l) => l[5] === 'Natureza complementar' && l[7] === 'Programa transversal'), 'Excel Trilha: Natureza complementar (outra auditoria)');
+    afirma(lt.some((l) => l[5] === 'Natureza complementar (registro histórico)' && l[7] === 'Programa transversal'), 'Excel Trilha: Natureza complementar como registro histórico (outra auditoria)');
     afirma(lt.some((l) => l[5] === 'Papel estrutural' && l[8] === '—'), 'Excel Trilha: autor sem nome → "—" (nunca o e-mail)');
     afirma(ex.linhasTrilha('cad1').length === 0 && !ex.linhasTrilha('cad1').some((l) => /indispon/i.test(l[4])), 'Excel Trilha: versão sem auditoria → nenhuma linha (lida com sucesso)');
     afirma(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'tela sem rolagem horizontal');

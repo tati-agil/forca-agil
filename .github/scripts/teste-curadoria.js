@@ -175,8 +175,8 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     const pCur = await posicaoH4(page, 'Curadoria arquitetural');
     const pDec = await posicaoH4(page, 'Decisão final');
     afirma(pClass !== -1 && pCur !== -1 && pDec !== -1 && pClass < pCur && pCur < pDec, 'ordem na tela: Classificação arquitetural → Curadoria arquitetural → Decisão final');
-    afirma(await contar(page, '#avpCuradoriaCard #avpEspecializacaoCadastrada') === 1 && await contar(page, '#avpCuradoriaCard #avpPapelEstruturalCadastrado') === 1 && await contar(page, '#avpCuradoriaCard #avpNaturezaComplementar') === 1,
-      'Curadoria reúne Especialização, Papel estrutural (Componente) e Natureza complementar');
+    afirma(await contar(page, '#avpCuradoriaCard #avpEspecializacaoCadastrada') === 1 && await contar(page, '#avpCuradoriaCard #avpPapelEstruturalCadastrado') === 1 && await contar(page, '#avpCuradoriaCard #avpNaturezaComplementar') === 0,
+      'Curadoria reúne Especialização e Papel estrutural (Componente); a Natureza complementar foi retirada (sem campo)');
     afirma(!/abrang/i.test(await page.locator('#avaliacoesPainel').innerText()), 'Abrangência não existe na tela');
     const cardClass = page.locator('#avaliacoesPainel .avp-alt-card');
     afirma(await cardClass.locator('input, select, textarea, button').count() === 0, 'a Classificação arquitetural (camada do motor) não tem nenhum controle de edição');
@@ -185,9 +185,9 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     await voltar(page);
 
-    console.log('\n== Canal: sem especialização nem papel (camada não os admite), natureza sim ==');
+    console.log('\n== Canal: sem especialização nem papel (camada não os admite); natureza retirada ==');
     await abrirResultado(page, 'canal');
-    afirma(await contar(page, '#avpEspecializacaoCadastrada') === 0 && await contar(page, '#avpPapelEstruturalCadastrado') === 0 && await contar(page, '#avpNaturezaComplementar') === 1, 'Canal: só a natureza aparece na Curadoria');
+    afirma(await contar(page, '#avpEspecializacaoCadastrada') === 0 && await contar(page, '#avpPapelEstruturalCadastrado') === 0 && await contar(page, '#avpNaturezaComplementar') === 0 && await contar(page, '#avpSalvarNaturezaBtn') === 0, 'Canal: nenhum campo editável de curadoria (a natureza foi retirada)');
     await voltar(page);
 
     console.log('\n== Registro ANTIGO com placeholders gravados: ausência de valor, nada apagado ==');
@@ -210,7 +210,7 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     const cab = ex.linhas[0].join('|');
     afirma(/Recomendação do sistema/.test(cab) && /Classificação arquitetural/.test(cab) && /Decisão final/.test(cab) && /Forma da decisão/.test(cab), 'Excel: Recomendação do sistema · Classificação arquitetural · Decisão final · Forma da decisão');
     afirma(!/Resultado automático|Tipo da decisão|Decisão arquitetural final|Classificação arquitetural sugerida/.test(cab + '|' + ex.hist[0].join('|')), 'Excel: nomes antigos não existem mais');
-    afirma(ex.linhas[0].indexOf('Classificação arquitetural') < iEsp && iEsp < iPapel && iPapel < ex.linhas[0].indexOf('Natureza complementar') && ex.linhas[0].indexOf('Natureza complementar') < ex.linhas[0].indexOf('Decisão final'), 'Excel: mesma sequência — Classificação → Curadoria → Decisão final');
+    afirma(ex.linhas[0].indexOf('Classificação arquitetural') < iEsp && iEsp < iPapel && iPapel < ex.linhas[0].indexOf('Natureza complementar (registro histórico)') && ex.linhas[0].indexOf('Natureza complementar (registro histórico)') < ex.linhas[0].indexOf('Decisão final'), 'Excel: mesma sequência — Classificação → Curadoria → Decisão final');
 
     console.log('\n== Salvar especialização e papel: auditoria na mesma gravação ==');
     await abrirResultado(page, 'comp');
