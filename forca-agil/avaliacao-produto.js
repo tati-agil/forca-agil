@@ -3396,7 +3396,7 @@
       if (e) e.textContent = 'A Floresta';
       if (t) t.textContent = tax ? 'Taxonomia' : 'Gestão da Floresta';
       if (p) p.textContent = tax ? 'Os conceitos oficiais — nomes e definições — que as avaliações e o Mapa da Floresta usam.'
-        : 'O que sustenta as avaliações e o Mapa: questionários, motores, estruturas, definição do Mapa, documentação e Taxonomia.';
+        : 'O que sustenta as avaliações e o Mapa: questionários, motores, estruturas, definição do Mapa, documentação' + (window.faAdminPodeTaxonomia && window.faAdminPodeTaxonomia() ? ' e Taxonomia.' : '.');
     }
     function fecharGestao() {
       var g = document.getElementById('avaliacoesGestao');
@@ -3578,14 +3578,9 @@
       if (!A || !s || (A.isAdminReady && !A.isAdminReady())) return '';
       var geral = !!(A.isAdmin && A.isAdmin(s.email));
       if (!geral && ((A.isAvaliacaoReady && !A.isAvaliacaoReady()) || !podeDecidir())) return '';
-      return '<section class="avp-form-card avp-inicio-gestao" id="avpInicioGestao" aria-labelledby="avpInicioGestaoTitulo"><h3 id="avpInicioGestaoTitulo">Gestão da Floresta</h3>' +
-        '<p>O que sustenta as avaliações e o Mapa. Cada parte é usada num lugar — nenhuma é etapa das avaliações.</p>' +
-        '<ul class="avp-inicio-gestao-lista">' +
-        '<li><strong>Questionários e motores</strong> — as perguntas e as regras de P1–P16, O1–O9 e S1–S8.</li>' +
-        '<li><strong>Estruturas</strong> — as estruturas concretas que aparecem no Mapa e a estrutura atual usada na análise de áreas.</li>' +
-        '<li><strong>Definição do Mapa e Documentação</strong> — as referências oficiais da Arquitetura.</li>' +
-        (geral ? '<li><strong>Taxonomia</strong> — os nomes e as definições oficiais que as avaliações e o Mapa mostram.</li>' : '') +
-        '</ul><div class="avp-inicio-continuar-acoes"><a class="btn avp-inicio-acao" id="avpInicioGestaoAbrir" href="#arquitetura?arq=inicio">Abrir a Gestão da Floresta</a>' +
+      return '<section class="avp-inicio-gestao" id="avpInicioGestao" aria-labelledby="avpInicioGestaoTitulo"><h3 id="avpInicioGestaoTitulo">Gestão da Floresta</h3>' +
+        '<p>Questionários, motores, estruturas, definição do Mapa, documentação' + (geral ? ', Taxonomia' : '') + ' e acessos.</p>' +
+        '<div class="avp-inicio-continuar-acoes"><a class="btn avp-inicio-acao" id="avpInicioGestaoAbrir" href="#arquitetura?arq=inicio">Abrir a Gestão da Floresta</a>' +
         (geral ? '<a class="avp-mapa-link" id="avpInicioTaxonomia" href="#arquitetura?arq=taxonomia">Abrir a Taxonomia</a>' : '') + '</div></section>';
     }
     if (modo === 'operacional') ['fa-admin-ready', 'fa-avaliacao-ready'].forEach(function (ev) {
@@ -5195,7 +5190,7 @@
        Mapa (mapa-floresta.js): com o cadastro de estruturas disponível, registros reais; sem ele, modo demonstrativo, com
        exemplos fictícios — nunca apresentados como relações concluídas; enquanto o marcador não chegou, "conferindo". */
     var MAPA_DESCRICAO = 'Visualize as estruturas organizacionais e os produtos, serviços e responsabilidades associados a elas, conforme os registros disponíveis.';
-    var MAPA_DESCRICAO_ADMIN = 'O Mapa da Floresta reúne a visão das estruturas organizacionais e de suas responsabilidades.';
+    var MAPA_DESCRICAO_ADMIN = 'Abrir Mapa: ver a representação organizacional. Definição do Mapa: consultar e administrar a definição oficial.';
     /* abre o Mapa (ou a jornada) a partir do ADMIN registrando a origem na entrada do histórico — o "← Voltar" do Mapa
        volta para cá (mesmo padrão do atalho do Início para o ADMIN) */
     function abrirMapaDoAdmin(destino) {
@@ -5293,47 +5288,43 @@
         : d.erro ? '<p class="avp-error-msg" id="avpMapaDefErro">' + esc(d.erro) + ' <button type="button" class="btn btn--sm" id="avpMapaDefTentar">Tentar novamente</button></p>'
         : renderDefinicaoMapa(d);
       html += secao('avpAdminMapa', 'Mapa da Floresta', MAPA_DESCRICAO_ADMIN,
-        situacaoDadosMapaHtml('avpAdminMapaSituacao') +
-        '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#arquitetura?mf=mapa" data-mapa-admin="#arquitetura?mf=mapa">Abrir Mapa da Floresta</a>' +
+        '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#arquitetura?mf=mapa" data-mapa-admin="#arquitetura?mf=mapa">Abrir Mapa</a>' +
         '</div>' + defHtml, true, 'avp-mapa-destaque');
       /* 2. Configuração das Avaliações: um grupo por tipo de avaliação, cada um com o seu Questionário (perguntas, no
          cadastro central de questionários) e o seu Motor (regras que interpretam as respostas). Os botões abrem direto
          a tela daquela avaliação — sem tela intermediária. */
       function acesso(id, titulo, texto) {
-        return '<button type="button" class="avp-admin-acesso" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
+        return '<button type="button" class="avp-admin-acesso" id="' + id + '"><strong>' + esc(titulo) + '</strong>' + (texto ? '<span>' + esc(texto) + '</span>' : '') + '</button>';
       }
       function avaliacao(id, nome, sigla, descricao, questBtn, questTexto, motorBtn, motorTexto) {
         return '<div class="avp-admin-aval" id="' + id + '"><div class="avp-admin-aval-cab"><h5 class="avp-admin-aval-titulo">' + esc(nome) +
           ' <span class="avp-admin-aval-sigla">' + esc(sigla) + '</span></h5><p class="avp-admin-aval-desc">' + esc(descricao) + '</p></div>' +
           '<div class="avp-admin-aval-acessos">' + acesso(questBtn, 'Questionário', questTexto) + (motorBtn ? acesso(motorBtn, 'Motor', motorTexto) : '') + '</div></div>';
       }
-      html += secao('avpGrupoConfiguracao', 'Configuração das Avaliações', 'Cada avaliação tem o seu questionário (as perguntas) e o seu motor (as regras que interpretam as respostas). As avaliações são feitas em A Floresta › Começar um trabalho.',
+      html += secao('avpGrupoConfiguracao', 'Configuração das Avaliações', 'O questionário (as perguntas) e o motor (as regras) de cada avaliação. As avaliações são feitas em A Floresta › Começar um trabalho.',
         '<div class="avp-admin-avals">' +
         avaliacao('avpAvalP1P16', 'Produto/Serviço', 'P1–P16', 'Classifica o item avaliado na camada arquitetural.',
-          'avpQuestP1P16Btn', 'Perguntas, ajudas, textos, versões e correções editoriais.',
-          'avpConfigMotoresBtn', 'Regras, precedências, simulação, versões e histórico.') +
+          'avpQuestP1P16Btn', '', 'avpConfigMotoresBtn', '') +
         avaliacao('avpAvalO1O9', 'Posicionamento Organizacional', 'O1–O9', 'Recomenda o tipo de estrutura que deve sustentar a responsabilidade do item.',
-          'avpQuestO1O9Btn', 'Perguntas, ajudas, textos, versões e correções editoriais.',
-          'avpMotorPosicionamentoInicioBtn', 'Versões, prontidão, simulação e impacto — só consulta.') +
+          'avpQuestO1O9Btn', '', 'avpMotorPosicionamentoInicioBtn', 'Só consulta') +
         avaliacao('avpAvalS1S8', 'Adequação à Gestão por Squad', 'S1–S8', 'Indica se o item é adequado à gestão por squad.',
-          'avpQuestS1S8Btn', 'Perguntas, ajudas, textos, versões e correções editoriais.',
-          window.faAvaliacaoSquadAdmin ? 'avpMotorSquadInicioBtn' : null, 'Regras, textos dos vereditos, simulação e versões.') +
+          'avpQuestS1S8Btn', '', window.faAvaliacaoSquadAdmin ? 'avpMotorSquadInicioBtn' : null, '') +
         '</div>');
       /* 3. Cadastros de Estruturas Organizacionais: dois cadastros DIFERENTES (dados e finalidades separados) */
-      var cadAtual = estruturaAtualDisponivel() ? cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Cadastro das unidades que existem hoje, como diretorias, gerências e núcleos. Utilizado para identificar a unidade analisada e as responsabilidades executadas na Análise Organizacional.') : '';
-      var cadMapa = estruturasDisponiveis() ? cartao('avpEstruturasBtn', 'Estruturas do Mapa da Floresta', 'Cadastro das estruturas arquiteturais utilizadas nos posicionamentos e vínculos do Mapa, conforme os tipos organizacionais existentes no sistema.') : '';
-      if (cadAtual || cadMapa) html += secao('avpGrupoEstruturas', 'Cadastros de Estruturas Organizacionais', 'Estrutura atual e estruturas do Mapa — finalidades e dados separados.', cartoes(cadAtual + cadMapa));
+      var cadAtual = estruturaAtualDisponivel() ? cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'As unidades que existem hoje (diretorias, gerências, núcleos), usadas na análise de áreas.') : '';
+      var cadMapa = estruturasDisponiveis() ? cartao('avpEstruturasBtn', 'Estruturas do Mapa da Floresta', 'As estruturas que aparecem no Mapa e recebem os vínculos dos posicionamentos.') : '';
+      if (cadAtual || cadMapa) html += secao('avpGrupoEstruturas', 'Cadastros de Estruturas Organizacionais', 'Dois cadastros separados, com finalidades diferentes.', cartoes(cadAtual + cadMapa));
       /* 4. Documentação (discreto): os documentos de referência da Arquitetura. (As Naturezas
          Complementares, que dividiam este grupo, foram retiradas em 17/10/2026.) */
       var comTaxonomia = !!(window.faAdminPodeTaxonomia && window.faAdminPodeTaxonomia());
       html += secao('avpGrupoDocumentacao', 'Referências', comTaxonomia ? 'Documentação da Arquitetura e conceitos oficiais da Taxonomia.' : 'Documentação da Arquitetura.',
-        cartoes(cartao('avpDocumentacaoBtn', 'Documentação', 'Consulte e gerencie documentos de referência da Arquitetura, com links, autoria e histórico.') +
-          (comTaxonomia ? cartao('avpTaxonomiaBtn', 'Taxonomia', 'Os conceitos oficiais — nomes e definições — que as avaliações e o Mapa usam. Só a administração geral mantém.') : '')), false, 'avp-admin-grupo--discreto');
+        cartoes(cartao('avpDocumentacaoBtn', 'Documentação', 'Documentos de referência da Arquitetura, com links, autoria e histórico.') +
+          (comTaxonomia ? cartao('avpTaxonomiaBtn', 'Taxonomia', 'Nomes e definições oficiais usados nas avaliações e no Mapa.') : '')), false, 'avp-admin-grupo--discreto');
       /* 5. ACESSOS (só admin geral): as permissões dos perfis — elas decidem o acesso a cada funcionalidade, inclusive à
          Análise Organizacional (Porta 2), sem controle de disponibilidade à parte */
       if (souAdminGeral()) {
         html += secao('avpAdminAcessos', 'Acessos', 'Permissões de usuários: quem acessa cada funcionalidade.',
-          cartoes(cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (consulta) e quem também configura e registra (Avaliação + Configuração), com histórico.')), false, 'avp-acessos');
+          cartoes(cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa A Floresta e quem também faz a gestão, com histórico.')), false, 'avp-acessos');
       }
       wrap.innerHTML = html;
       /* lembrar o que a pessoa abriu ou fechou (vale ao voltar de uma funcionalidade) */
@@ -5566,7 +5557,7 @@
         h += '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="avpMapaSalvar"' + (d.salvandoMapa ? ' disabled' : '') + '>' + (d.salvandoMapa ? 'SALVANDO…' : 'SALVAR') + '</button>' +
           '<button type="button" class="btn" id="avpMapaCancelar"' + (d.salvandoMapa ? ' disabled' : '') + '>Cancelar</button></div>';
       } else if (m) {
-        h += '<h5 id="avpDocsMapaFlorestaTitulo">Definição oficial' + (m.titulo && m.titulo !== 'Mapa da Floresta' ? ' — ' + esc(m.titulo) : '') + '</h5>';
+        h += '<h5 id="avpDocsMapaFlorestaTitulo">Definição do Mapa' + (m.titulo && m.titulo !== 'Mapa da Floresta' ? ' — ' + esc(m.titulo) : '') + '</h5>';
         h += '<p class="avp-docs-definicao-texto">' + esc(m.definicao) + '</p>';
         if (m.nota) h += '<p class="avp-docs-definicao-nota">' + esc(m.nota) + '</p>';
         if (m.link) h += '<p class="avp-doc-link"><a href="' + esc(m.link) + '" target="_blank" rel="noopener noreferrer">Link de referência do mapa ↗</a></p>';
@@ -5576,7 +5567,7 @@
       } else {
         /* nó ainda não existe: valor inicial de fábrica, dito como tal */
         var f = PADRAO_MAPA_FLORESTA;
-        h += '<h5 id="avpDocsMapaFlorestaTitulo">Definição oficial</h5>';
+        h += '<h5 id="avpDocsMapaFlorestaTitulo">Definição do Mapa</h5>';
         h += '<p class="avp-docs-definicao-texto">' + esc(f.definicao) + '</p>';
         h += '<p class="avp-docs-definicao-nota">' + esc(f.nota) + '</p>';
         h += '<p class="avp-doc-meta" id="avpMapaFabrica">Valor inicial — ainda não salvo no banco. Ao editar e salvar, passa a valer a versão gravada, com histórico.</p>';

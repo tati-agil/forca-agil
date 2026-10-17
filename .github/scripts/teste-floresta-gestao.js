@@ -55,7 +55,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       let r = await abrir(browser, vp, '#arquitetura', { email: SJ.ARQ, admin: true });
       await ver(r.page, '#avpInicioGestao', 'o bloco Gestão da Floresta no Início');
       const gi = await texto(r.page, '#avpInicioGestao');
-      afirma(/Questionários e motores/.test(gi) && /Estruturas/.test(gi) && /Taxonomia/.test(gi) && /nenhuma é etapa/.test(gi), 'Início: "Gestão da Floresta" diz o que cada parte sustenta, sem etapas (com Taxonomia, admin geral)', gi);
+      afirma(/Questionários, motores, estruturas/.test(gi) && /Taxonomia/.test(gi) && !gi.includes('—') && await r.page.locator('#avpInicioGestao li, #avpInicioGestao ul').count() === 0, 'Início: "Gestão da Floresta" é um acesso direto (uma linha, sem lista de explicações), com Taxonomia para o admin geral', gi);
       afirma(await visivel(r.page, '#avpInicioTaxonomia'), 'Início: "Abrir a Taxonomia" (admin geral)');
       await r.page.click('#avpInicioGestaoAbrir');
       await ver(r.page, '#avpGrupoConfiguracao', 'o início da Gestão');
