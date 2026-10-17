@@ -104,7 +104,6 @@
     var d = new Date(iso);
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   }
-  var CONFIG_POSIC = 'posicionamento-config', CONFIG_POSIC_AUD = 'posicionamento-config-auditoria'; /* I2: o interruptor exigirParaSquad */
   function sessaoAtual() {
     var sess = window.faAuth && window.faAuth.getSession();
     return sess ? { name: sess.name || sess.email, email: sess.email } : null;
@@ -220,11 +219,9 @@
       motorConfig: null, /* null fora da tela de configuração do motor; ver abrirMotorConfig */
       itensArquitetura: [],
       itensArquiteturaCarregados: false,
-      /* I2: o Posicionamento Organizacional gravado (undefined = ainda não lido) e o interruptor exigirParaSquad */
+      /* I2: o Posicionamento Organizacional gravado (undefined = ainda não lido) — só informação, nunca bloqueia */
       posic: { vig: undefined, av: undefined, dec: undefined, erro: false },
-      config: { estado: 'carregando', exigir: false, registro: null },
-      pendenteItem: null, /* iniciarOuAbrirParaItem antes de as avaliações de squad chegarem (proteção contra duplicar) */
-      formExigir: null
+      pendenteItem: null /* iniciarOuAbrirParaItem antes de as avaliações de squad chegarem (proteção contra duplicar) */
     }; }
     var state = novoEstado();
 
@@ -241,16 +238,6 @@
       if (!N || typeof N.liberacaoSquad !== 'function') return { situacao: 'erro', liberaSquad: false };
       return N.liberacaoSquad(itemId, { vigentes: state.posic.vig, registros: state.posic.av, decisoes: state.posic.dec, erro: state.posic.erro });
     }
-    /* Pode CRIAR uma avaliação S para o item? true | false | null (ainda verificando). Com exigirParaSquad desligado
-       qualquer item pode (a origem da liberação só fica registrada); ligado, só item liberado. */
-    function gateCriacao(itemId) {
-      var lib = liberacaoDoItem(itemId), c = state.config;
-      if (lib.situacao === 'liberado') return { pode: true, lib: lib };
-      if (lib.situacao === 'verificando' || c.estado === 'carregando') return { pode: null, lib: lib };
-      if (c.estado === 'erro') return { pode: false, lib: lib, motivo: 'config' };
-      if (!c.exigir) return { pode: true, lib: lib };
-      return { pode: false, lib: lib, motivo: 'exigido' };
-    }
     var ROTULO_SITUACAO_POSIC = { verificando: 'Posicionamento: verificando…', erro: 'Posicionamento: não verificado', 'sem-posicionamento': 'Sem Posicionamento concluído',
       liberado: 'Squad liberada pelo Posicionamento', 'nao-liberado': 'Squad não liberada pelo Posicionamento' };
     function nomePosic(codigo) {
@@ -266,25 +253,12 @@
       if (lib.motivo === 'a-validar') return base + 'Sem decisão final que a libere, a Adequação à Squad não está liberada para este item.';
       return base + 'Área Especializada e CoE não são formadas por Squads: a Adequação à Squad não está liberada para este item.';
     }
-    function textoBloqueio(g) {
-      if (g.pode === null) return 'Verificando se uma nova Adequação à Squad pode ser iniciada…';
-      if (g.motivo === 'config') return 'Não foi possível verificar agora se a exigência de Posicionamento está ligada. Tente de novo em instantes.';
-      if (g.lib.situacao === 'erro') return 'Não foi possível verificar o Posicionamento Organizacional agora. Tente de novo em instantes.';
-      return 'A exigência de Posicionamento está ligada: só um item liberado pelo Posicionamento Organizacional pode iniciar uma nova Adequação à Squad.' +
-        (g.lib.situacao === 'sem-posicionamento' ? ' Faça antes a Avaliação de Produto/Serviço (P1–P16) e o Posicionamento Organizacional (O1–O9) do item.' : '');
-    }
-    /* o aviso no formulário e na ficha; para uma avaliação NOVA (ainda não gravada), também o bloqueio */
+    /* o aviso no formulário e na ficha: o Posicionamento vigente do item, só como informação (nunca bloqueia a avaliação) */
     function avisoPosicionamentoHtml(a) {
       if (modo !== 'operacional') return '';
       var lib = liberacaoDoItem(a.itemId || null);
-      var h = '<p class="sq-posic' + (lib.situacao === 'liberado' ? ' sq-posic--liberado' : '') + '" id="sqPosicionamento" data-situacao="' + esc(lib.situacao) + '" role="status">' + textoLiberacao(lib) + '</p>';
-      if (!a._key) {
-        var g = gateCriacao(a.itemId || null);
-        if (g.pode !== true) h += '<p class="' + (g.pode === null ? 'loading-msg' : 'avp-error-msg') + '" id="sqPosicBloqueio" role="status">' + esc(textoBloqueio(g)) + '</p>';
-      }
-      return h;
+      return '<p class="sq-posic' + (lib.situacao === 'liberado' ? ' sq-posic--liberado' : '') + '" id="sqPosicionamento" data-situacao="' + esc(lib.situacao) + '" role="status">' + textoLiberacao(lib) + '</p>';
     }
-    function criacaoBloqueada(a) { return !a._key && gateCriacao(a.itemId || null).pode !== true; }
     /* Mesmo critério de "versão superada" de avaliacao-produto.js
        (temVersaoMaisNova): uma versão arquitetural só entra na busca de
        item quando nenhuma reavaliação mais nova aponta pra ela via
@@ -718,9 +692,6 @@
         html += '<ul class="sq-busca-resultados" id="sqfBuscaResultados" hidden></ul>';
         if (state.erroForm) html += '<p class="avp-field-invalid-msg">' + esc(state.erroForm) + '</p>';
         html += '</div>';
-      } else if (modo === 'novo' && gateCriacao(null).pode !== true) {
-        var gNovo = gateCriacao(null);
-        html += '<p class="' + (gNovo.pode === null ? 'loading-msg' : 'avp-error-msg') + '" id="sqfNovoItemBloqueado" role="status">' + esc(textoBloqueio(gNovo)) + '</p>';
       } else if (modo === 'novo') {
         html += '<div class="avp-field' + (state.erroForm ? ' avp-field--invalid' : '') + '" id="sqfNovoItemWrap">';
         html += '<label for="sqfNovoItemNome">Nome do novo item *</label>';
@@ -804,7 +775,6 @@
       html += renderContextoArquitetural();
       html += avisoPosicionamentoHtml(a);
       html += '</div>';
-      var bloqueada = criacaoBloqueada(a);
 
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
 
@@ -823,9 +793,9 @@
       if (!motorPronto) html += renderAvisoCargaMotor(cargaMotor);
 
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="sqSalvarRascunhoBtn"' + (state.salvando || bloqueada ? ' disabled' : '') + '>' +
+      html += '<button class="btn" id="sqSalvarRascunhoBtn"' + (state.salvando ? ' disabled' : '') + '>' +
         (state.salvando === 'rascunho' ? 'SALVANDO…' : 'SALVAR E SAIR') + '</button>';
-      html += '<button class="btn btn--primary" id="sqConcluirBtn"' + (state.salvando || !motorPronto || bloqueada ? ' disabled' : '') + '>' +
+      html += '<button class="btn btn--primary" id="sqConcluirBtn"' + (state.salvando || !motorPronto ? ' disabled' : '') + '>' +
         (state.salvando === 'concluido' ? 'SALVANDO…' : (cargaMotor === 'carregando' ? 'CARREGANDO REGRAS…' : 'CONCLUIR AVALIAÇÃO')) + '</button>';
       html += '<button class="btn" id="sqCancelarChecklistBtn"' + (state.salvando ? ' disabled' : '') + '>CANCELAR</button>';
       html += '</div>';
@@ -868,7 +838,7 @@
       });
 
       byId('sqSalvarRascunhoBtn').addEventListener('click', function () {
-        if (state.salvando || criacaoBloqueada(a)) return;
+        if (state.salvando) return;
         if (!a.itemNome || !a.itemNome.trim()) { state.erroForm = 'Informe o nome do item.'; render(); return; }
         state.salvando = 'rascunho';
         render();
@@ -882,14 +852,14 @@
           render();
           sqAlert(tipo === 'timeout'
             ? 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "SALVAR E SAIR" de novo.'
-            : tipo === 'bloqueado' ? textoBloqueio(gateCriacao(a.itemId || null)) : 'Não foi possível salvar. Tente novamente.');
+            : 'Não foi possível salvar. Tente novamente.');
         });
       });
       var recarregarBtn = byId('sqMotorRecarregarBtn');
       if (recarregarBtn) recarregarBtn.addEventListener('click', function () { window.faMotorSquad.recarregar(); });
       if (cargaMotor === 'carregando') agendarAvisoDemora();
       byId('sqConcluirBtn').addEventListener('click', function () {
-        if (state.salvando || criacaoBloqueada(a)) return;
+        if (state.salvando) return;
         if (window.faMotorSquad.estadoCarga() !== 'carregado') return;
         var faltando = ORDEM_CODIGOS.filter(function (c) { return !a.respostas[c] || !a.respostas[c].resposta; });
         if (faltando.length) { state.erroForm = 'Responda todas as 8 perguntas antes de concluir.'; render(); return; }
@@ -906,7 +876,7 @@
           render();
           sqAlert(tipo === 'timeout'
             ? 'A conexão está demorando e não deu para confirmar a conclusão. Toque em "CONCLUIR AVALIAÇÃO" de novo.'
-            : tipo === 'bloqueado' ? textoBloqueio(gateCriacao(a.itemId || null)) : 'Não foi possível concluir. Tente novamente.');
+            : 'Não foi possível concluir. Tente novamente.');
         });
       });
       byId('sqCancelarChecklistBtn').addEventListener('click', function () { cancelarChecklist(); });
@@ -990,11 +960,7 @@
       var agora = new Date().toISOString();
       /* I2: a CRIAÇÃO (registro ainda não gravado) passa pela liberação e grava, uma vez, de onde ela veio */
       var criando = !a._key || !buscarItem(a._key);
-      if (criando && !a.origemLiberacao) {
-        var g = gateCriacao(a.itemId || null);
-        if (g.pode !== true) { if (onErro) onErro('bloqueado'); return; }
-        if (modo === 'operacional') a.origemLiberacao = window.faAvaliacaoPosicionamentoNucleo.origemLiberacaoSquad(g.lib, agora);
-      } else if (criando && gateCriacao(a.itemId || null).pode !== true) { if (onErro) onErro('bloqueado'); return; }
+      if (criando && !a.origemLiberacao && modo === 'operacional') a.origemLiberacao = window.faAvaliacaoPosicionamentoNucleo.origemLiberacaoSquad(liberacaoDoItem(a.itemId || null), agora);
       var key = a._key || db().ref(NODE).push().key;
       if (!a._key) a._key = key;
       var interpretacao = status === 'concluido'
@@ -1560,7 +1526,7 @@
 
     /* ---- PAINEL: o mesmo esqueleto dos outros motores
        (window.faMotoresUI, avaliacao-produto.js): situação → como decide (recolhido) → configurações e ações, separadas
-       em regras, textos dos vereditos e exigência de Posicionamento → versões anteriores e histórico (recolhidos) ---- */
+       em regras e textos dos vereditos → versões anteriores e histórico (recolhidos) ---- */
     function renderMotorPainel() {
       var c = state.motorConfig, U = window.faMotoresUI;
       var sit = window.faMotorSquad.situacao(), ab = c.abertos || {};
@@ -1573,8 +1539,7 @@
           '<div class="avp-actions-footer"><button class="btn btn--sm" id="sqMotorEditarTextosBtn">Editar textos dos vereditos</button>' +
           '<button class="btn btn--sm" id="sqMotorVereditosExcelBtn"' + (c.exportando ? ' disabled' : '') + '>📊 Exportar Excel</button>' +
           '<button class="btn btn--sm" id="sqMotorVereditosPdfBtn"' + (c.exportando ? ' disabled' : '') + '>📄 Exportar PDF</button></div>' +
-          (c.flashExportacao ? '<p class="avp-export-status' + (c.flashExportacao.erro ? ' avp-export-status--erro' : '') + '" id="sqMotorExportStatus">' + esc(c.flashExportacao.texto) + '</p>' : '') + '</div>' +
-        renderExigirPosicionamento();
+          (c.flashExportacao ? '<p class="avp-export-status' + (c.flashExportacao.erro ? ' avp-export-status--erro' : '') + '" id="sqMotorExportStatus">' + esc(c.flashExportacao.texto) + '</p>' : '') + '</div>';
       var bloco = {
         m: 's', id: 'sqMotorSquad', flash: flash,
         situacao: '<p>Versão vigente: <strong>' + esc(sit.versaoPublicada) + '</strong> · Situação: ' + (sit.temRascunho ? '<strong>há um rascunho de regras não publicado</strong>' : 'publicada, sem alterações pendentes') + '</p>' +
@@ -1585,59 +1550,6 @@
       };
       if (!U) return flash + '<p class="admin-empty">Configuração dos Motores indisponível.</p>';
       return U.bloco(bloco);
-    }
-    /* ---- I2: interruptor exigirParaSquad — só admin geral altera, com motivo, numa gravação com a auditoria ---- */
-    function souAdminGeralSq() {
-      var sess = window.faAuth && window.faAuth.getSession();
-      return !!(sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email));
-    }
-    function renderExigirPosicionamento() {
-      var cf = state.config, f = state.formExigir || {};
-      var html = '<div class="avp-motor-grupo" id="sqExigirCard"><h6 class="avp-motor-grupo-titulo">Exigência de Posicionamento Organizacional</h6>';
-      if (cf.estado === 'carregando') return html + '<p class="loading-msg" id="sqExigirEstado" role="status">Verificando…</p></div>';
-      if (cf.estado === 'erro') return html + '<p class="avp-error-msg" id="sqExigirEstado">Não foi possível ler a exigência agora.</p></div>';
-      html += '<p id="sqExigirEstado" data-exigir="' + (cf.exigir ? 'true' : 'false') + '">' + (cf.exigir
-        ? '<strong>Ligada:</strong> uma nova Adequação à Squad (inclusive de item que já tem uma concluída) só pode ser iniciada para item liberado pelo Posicionamento Organizacional. Rascunhos já existentes continuam.'
-        : '<strong>Desligada:</strong> a Adequação à Squad mostra o Posicionamento vigente do item como aviso, sem bloquear.') + '</p>';
-      var r = cf.registro;
-      if (r && r.alteradoPor) html += '<p class="avp-ficha-meta" id="sqExigirUltima">Última alteração: ' + esc(r.alteradoPor.email) + (typeof r.alteradoEm === 'number' ? ' em ' + esc(fmtData(new Date(r.alteradoEm).toISOString())) : '') + (r.motivo ? ' — ' + esc(r.motivo) : '') + '</p>';
-      if (!souAdminGeralSq()) return html + '<p class="avp-ficha-meta" id="sqExigirSoAdmin">Só admin geral altera a exigência.</p></div>';
-      html += '<div class="avp-field"><label for="sqExigirMotivo">Motivo (obrigatório)</label><textarea id="sqExigirMotivo" maxlength="500" rows="2"' + (f.salvando ? ' disabled' : '') + '>' + esc(f.motivo || '') + '</textarea></div>';
-      html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="sqExigirBtn"' + (f.salvando ? ' disabled' : '') + '>' +
-        (f.salvando ? 'SALVANDO…' : cf.exigir ? 'Desligar a exigência' : 'Ligar a exigência') + '</button></div>';
-      if (f.flash) html += '<p class="' + (f.flash.erro ? 'avp-error-msg' : 'avp-success-msg') + '" id="sqExigirFlash" role="status">' + esc(f.flash.texto) + '</p>';
-      return html + '</div>';
-    }
-    function bindExigirPosicionamento() {
-      var m = byId('sqExigirMotivo'), b = byId('sqExigirBtn');
-      if (m) m.addEventListener('input', function () { state.formExigir = Object.assign({}, state.formExigir, { motivo: m.value }); });
-      if (!b) return;
-      b.addEventListener('click', function () {
-        var f = state.formExigir || {}, motivo = String(f.motivo || '').trim(), novo = !state.config.exigir;
-        if (f.salvando) return;
-        if (!motivo) { state.formExigir = Object.assign({}, f, { flash: { erro: true, texto: 'Informe o motivo.' } }); render(); return; }
-        var u = null; try { u = firebase.auth().currentUser; } catch (e) { u = null; }
-        if (!u || !u.uid || !souAdminGeralSq()) return;
-        sqConfirm((novo ? 'Ligar' : 'Desligar') + ' a exigência de Posicionamento para nova Adequação à Squad? ' + (novo
-          ? 'A partir daí, só item liberado pelo Posicionamento Organizacional inicia uma nova avaliação S. As avaliações e rascunhos existentes não mudam.'
-          : 'A partir daí, a Adequação à Squad volta a só avisar, sem bloquear.'), function () {
-          var TS = firebase.database.ServerValue.TIMESTAMP, audId = db().ref(CONFIG_POSIC_AUD).push().key, quem = { uid: u.uid, email: u.email };
-          var w = {};
-          w[CONFIG_POSIC] = { exigirParaSquad: novo, alteradoEm: TS, alteradoPor: quem, motivo: motivo.slice(0, 500), auditoriaId: audId };
-          w[CONFIG_POSIC_AUD + '/' + audId] = { exigirParaSquad: novo, anterior: !!state.config.exigir, motivo: motivo.slice(0, 500), usuario: quem, dataHora: TS };
-          state.formExigir = { salvando: true, motivo: motivo }; render();
-          var respondido = false, relogio = setTimeout(function () {
-            if (respondido) return; respondido = true;
-            state.formExigir = { motivo: motivo, flash: { erro: true, texto: 'A conexão está demorando e não deu para confirmar. Confira o estado acima antes de tentar de novo.' } }; render();
-          }, 12000);
-          db().ref().update(w, function (err) {
-            if (respondido) return; respondido = true; clearTimeout(relogio);
-            state.formExigir = err ? { motivo: motivo, flash: { erro: true, texto: 'O banco recusou a alteração. Nada mudou.' } }
-              : { flash: { erro: false, texto: '✓ Exigência ' + (novo ? 'ligada' : 'desligada') + '. A alteração ficou registrada no histórico.' } };
-            render();
-          });
-        });
-      });
     }
     function exportarVereditos(gerar) {
       var c = state.motorConfig;
@@ -1678,7 +1590,6 @@
           });
         });
       });
-      bindExigirPosicionamento();
       byId('sqMotorVereditosExcelBtn').addEventListener('click', function () { exportarVereditos(gerarExcelVereditos); });
       byId('sqMotorVereditosPdfBtn').addEventListener('click', function () { exportarVereditos(gerarPdfVereditos); });
       byId('sqMotorEditarRegrasBtn').addEventListener('click', function () {
@@ -2103,8 +2014,6 @@
     }
     var posicOuvido = false;
     function ligarCargaI2() {
-      ouvirI2(CONFIG_POSIC, function (v) { state.config = { estado: 'ok', exigir: !!(v && v.exigirParaSquad === true), registro: v || null }; },
-        function () { state.config = { estado: 'erro', exigir: false, registro: null }; });
       if (modo !== 'operacional') return;
       ouvirI2('posicionamento-vigente-por-item', function (v) { state.posic.vig = v || {}; }, function () { state.posic.erro = true; });
       ouvirI2('avaliacoes-posicionamento', function (v) { state.posic.av = v || {}; }, function () { state.posic.erro = true; });

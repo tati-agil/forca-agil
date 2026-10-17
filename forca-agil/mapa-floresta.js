@@ -774,7 +774,7 @@
       if (x.chaveBase) h += '<a class="btn btn--sm mf-abrir-avp" href="#avaliacoes?' + (x.statusBase === 'rascunho' ? 'editar=' : 'avp=') + encodeURIComponent(x.chaveBase) + '">Abrir Avaliação de Produto/Serviço</a>';
       /* Adequação à Squad: só quando o posicionamento efetivo é do ramo Linha (a mesma etapa opcional da trilha); "Acessar"
          porque a Jornada não lê as avaliações S1–S8 — a Squad abre a que estiver em andamento ou começa uma, com o mesmo
-         controle de liberação (exigirParaSquad) e as mesmas permissões do atalho da ficha do Posicionamento */
+         aviso de liberação (só informação) e as mesmas permissões do atalho da ficha do Posicionamento */
       if (jx && jx.etapas && jx.etapas.some(function (e) { return e.id === 'squad'; }) && x.posicionamento)
         h += '<button type="button" class="btn btn--sm mf-abrir-squad" data-item="' + esc(x.itemId) + '">Acessar Adequação à Squad</button>';
       return h + '</div></li>';

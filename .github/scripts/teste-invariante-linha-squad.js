@@ -159,12 +159,14 @@ console.log('\n== F. I2: a liberação mostrada e exigida na Adequação à Squa
   anota('a decisão final prevalece sobre a recomendação (Negócios recomendado, CoE decidido → não liberado)', lib({ reg: reg('NEGOCIOS', true), dec: { codigoFinal: 'COE', liberaSquad: false } }).situacao === 'nao-liberado');
   anota('leitura pendente ou recusada nunca libera', N.liberacaoSquad('i', { vigentes: undefined, registros: {}, decisoes: {} }).situacao === 'verificando' &&
     N.liberacaoSquad('i', { vigentes: { i: 'g' }, registros: { g: reg('NEGOCIOS', true) }, decisoes: {}, erro: true }).liberaSquad === false);
-  /* regras do banco: com a exigência ligada, a criação de S só lê o liberaSquad GRAVADO (decisão ou recomendação), que
-     as próprias regras já prenderam à tabela literal na conclusão e na decisão — não lê nenhum nó de configuração dele */
+  /* regras do banco: a avaliação S não depende do O1–O9 — a criação de S não lê nenhum nó de configuração nem o
+     liberaSquad do Posicionamento (a antiga Exigência de Posicionamento foi retirada em 2026-10-17); o liberaSquad
+     continua preso à tabela literal nas regras da conclusão e da decisão (seções acima) */
   const vS = (REGRAS_BANCO['avaliacoes-squad'] && REGRAS_BANCO['avaliacoes-squad']['$avaliacaoId'] || {})['.validate'] || '';
-  anota('regras: a criação de S com a exigência ligada lê o liberaSquad da decisão, senão o da recomendação, da avaliação vigente do item',
-    /posicionamento-config'\)\.child\('exigirParaSquad'\)\.val\(\) === true/.test(vS) && /posicionamento-decisoes'\)\.child\(.*\)\.child\('liberaSquad'\)\.val\(\) === true/.test(vS) &&
-    /child\('resultadoAutomatico'\)\.child\('liberaSquad'\)\.val\(\) === true/.test(vS) && /posicionamento-vigente-por-item/.test(vS));
+  anota('regras: a criação de S não depende do Posicionamento (sem interruptor nem leitura do liberaSquad)',
+    !!vS && !/exigirParaSquad|posicionamento-config|posicionamento-vigente-por-item|liberaSquad/.test(vS));
+  anota('regras: o interruptor antigo e a auditoria dele não aceitam gravação de ninguém (histórico só para consulta)',
+    REGRAS_BANCO['posicionamento-config']['.write'] === false && REGRAS_BANCO['posicionamento-config-auditoria']['$auditoriaId']['.write'] === false);
 }
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

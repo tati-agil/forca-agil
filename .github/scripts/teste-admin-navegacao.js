@@ -227,8 +227,8 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     /* S1–S8 no mesmo esqueleto: como decide recolhido (com o que NÃO faz), regras / textos / exigência separados, histórico sob demanda */
     afirma(!(await page.evaluate(() => document.getElementById('sqMotorSquadDecide').open)) && /Não cria Squad/.test(await page.locator('#sqMotorSquadDecide').textContent()) && /Diferente do Posicionamento Organizacional/.test(await page.locator('#sqMotorSquadDecide').textContent()),
       'S1–S8: "Como este motor decide" recolhido, com o que significa, o que produz e que não cria Squad');
-    afirma(await page.locator('#sqMotorGrupoRegras #sqMotorEditarRegrasBtn, #sqMotorGrupoTextos #sqMotorEditarTextosBtn, #sqMotorGrupoTextos #sqMotorVereditosExcelBtn, #sqMotorGrupoTextos #sqMotorVereditosPdfBtn, #sqExigirCard').count() === 5,
-      'S1–S8: regras, textos dos vereditos (editar e exportar) e exigência de Posicionamento em blocos separados');
+    afirma(await page.locator('#sqMotorGrupoRegras #sqMotorEditarRegrasBtn, #sqMotorGrupoTextos #sqMotorEditarTextosBtn, #sqMotorGrupoTextos #sqMotorVereditosExcelBtn, #sqMotorGrupoTextos #sqMotorVereditosPdfBtn').count() === 4 && await page.locator('#sqExigirCard').count() === 0,
+      'S1–S8: regras e textos dos vereditos (editar e exportar) em blocos separados; sem a antiga exigência de Posicionamento');
     afirma(await page.locator('#sqMotorVersoes').count() === 0, 'S1–S8 só com a versão vigente: sem "Versões anteriores"');
     await page.click('#sqMotorHistorico > summary');
     await page.waitForFunction(() => /Histórico de alterações — /.test((document.querySelector('#sqMotorHistorico > summary') || {}).textContent || ''), null, { timeout: 8000 });

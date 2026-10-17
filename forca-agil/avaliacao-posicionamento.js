@@ -480,7 +480,7 @@
   }
   /* o registro imutável gravado na CRIAÇÃO de uma avaliação S: de onde veio a liberação naquele momento */
   function origemLiberacaoSquad(lib, agora) {
-    var o = { situacao: lib.situacao === 'erro' ? 'nao-verificado' : lib.situacao, liberaSquad: lib.liberaSquad === true, registradoEm: agora };
+    var o = { situacao: lib.situacao === 'erro' || lib.situacao === 'verificando' ? 'nao-verificado' : lib.situacao, liberaSquad: lib.liberaSquad === true, registradoEm: agora };
     if (lib.avaliacaoId) { o.avaliacaoPosicionamentoId = lib.avaliacaoId; o.codigo = lib.codigo; o.origem = lib.origem; }
     return o;
   }
