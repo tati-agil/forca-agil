@@ -249,7 +249,12 @@ async function passo(nome, fn) { try { await fn(); } catch (e) { afirma(false, n
       const ident = await page.locator('#avpIdentificacao').textContent();
       afirma(/Item Cadastrado/.test(ident) && /Descrição longa do item de teste/.test(ident) && /Público de teste/.test(ident) && /Necessidade de teste/.test(ident) && /Observação de teste/.test(ident) && /Teste/.test(ident), 'nome, descrição, público, necessidade, observações e quem avaliou continuam na ficha');
       const yRes = await topo(page, '.avp-result-card'), cxR = await caixa(page, '#avpResumoFicha'), cxL = await caixa(page, '#avpVoltarListaResultado');
-      afirma(cxR && cxL && (cxR.top - cxL.top) <= 300, 'a faixa-resumo (o estado vigente) começa a ' + (cxR && cxL && (cxR.top - cxL.top)) + ' px do "Voltar" — nada de Identificação longa antes');
+      /* a intenção: nada de Identificação LONGA antes do estado vigente (a compacta faz parte do cabeçalho). A altura
+         da Identificação é conferida direto; a distância tem folga para a tipografia do Padrão Visual (letras maiores
+         desde a PR #396; 375 px e fontes do Linux do CI) */
+      const cxI = await caixa(page, '#avpIdentificacao');
+      afirma(cxI && (cxI.bottom - cxI.top) <= 160, 'a Identificação antes da faixa-resumo é compacta (' + (cxI && (cxI.bottom - cxI.top)) + ' px)');
+      afirma(cxR && cxL && (cxR.top - cxL.top) <= 400, 'a faixa-resumo (o estado vigente) começa a ' + (cxR && cxL && (cxR.top - cxL.top)) + ' px do "Voltar" — nada de Identificação longa antes');
       afirma(yRes > 0 && yRes <= (viewport.width < 500 ? 960 : 740), 'o Resultado começa em ' + yRes + ' px, já com ações do item e resumo no cabeçalho (antes: 665 no desktop e 796 no celular, sem eles)');
       afirma(await page.evaluate(() => { const b = document.getElementById('avpGerarPdfBtn'); return b.getBoundingClientRect().height < 60; }), 'o botão GERAR PDF cabe em uma linha');
     });

@@ -1904,7 +1904,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
    primeira, inclusive no celular (mesma família visual do .btn, contorno ciano). */
 .avp-voltar-link {
   display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;
-  font-family: var(--font-mono); font-size: var(--arq-fs-meta); letter-spacing: .12em; text-transform: uppercase;
+  font-family: var(--font-mono); font-size: var(--arq-fs-aux); letter-spacing: .08em; text-transform: uppercase;
   color: var(--cyan); background: rgba(24,194,186,.08); border: 1px solid rgba(24,194,186,.55);
   border-radius: 9px; padding: 10px 16px; cursor: pointer; max-width: 100%; text-align: left;
 }
@@ -1917,7 +1917,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-form-card h3, .avp-form-card h4 { margin: 0 0 14px; }
 .avp-field { margin-bottom: 14px; }
 .avp-field:last-child { margin-bottom: 0; }
-.avp-field label { display: block; font-size: var(--arq-fs-meta); color: var(--ink-3); margin-bottom: 5px; font-family: var(--font-mono); }
+.avp-field label { display: block; font-size: var(--arq-fs-aux); color: var(--ink-3); margin-bottom: 5px; font-family: var(--font-mono); }
 .avp-field input[type="text"], .avp-field textarea, .avp-field select {
   width: 100%; background: var(--space-1); border: 1px solid var(--line-strong); color: var(--ink);
   border-radius: 8px; padding: 9px 12px; font-size: .88rem; font-family: inherit; resize: vertical;
@@ -2341,7 +2341,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-aut-adicionar .avp-aut-item { background: var(--panel); }
 .avp-aut-quem { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .avp-aut-tipo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.avp-aut-rotulo { font-size: var(--arq-fs-meta); color: var(--ink-3); }
+.avp-aut-rotulo { font-size: var(--arq-fs-aux); color: var(--ink-3); }
 .avp-aut-matriz th, .avp-aut-matriz td { white-space: normal; }
 /* Curadoria arquitetural: sub-blocos (Especialização/Papel e Natureza) dentro de um único cartão */
 .avp-curadoria-sub { border-top: 1px solid var(--line-strong); margin-top: 14px; padding-top: 12px; }
@@ -2427,7 +2427,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 
 /* Questionários e versões: texto explicativo e marca da manutenção pontual */
 .avp-intro-questionarios { margin: 6px 0 10px; font-size: .92rem; color: var(--ink-2, var(--ink)); line-height: 1.5; }
-.avp-correcao-tag { margin: 0 0 4px; font-size: var(--arq-fs-meta); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.avp-correcao-tag { margin: 0 0 4px; font-size: var(--arq-fs-aux); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
 
 /* Motor arquitetural legível: condição com título da pergunta e explicação do motor */
 .sq-cond-folha--legivel { display: block; margin: 8px 0 8px 14px; padding: 8px 10px; border-left: 3px solid var(--line); }
@@ -2569,7 +2569,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-aud { font-size: var(--arq-fs-aux); margin: 6px 0; overflow-wrap: anywhere; }
 .tax-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; }
 .tax-form { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
-.tax-form label { font-size: var(--arq-fs-meta); color: var(--ink-3); font-family: var(--font-mono); margin-top: 6px; }
+.tax-form label { font-size: var(--arq-fs-aux); color: var(--ink-3); font-family: var(--font-mono); margin-top: 6px; }
 .tax-form input[type="text"], .tax-form textarea, .tax-form select { width: 100%; box-sizing: border-box; background: var(--space-1); border: 1px solid var(--line-strong); color: var(--ink); border-radius: 8px; padding: 9px 12px; font-size: .88rem; font-family: inherit; resize: vertical; }
 .tax-form-linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .tax-check { display: flex; align-items: center; gap: 8px; }
@@ -2734,7 +2734,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 /* Avaliação: nome da classificação vindo da Taxonomia, nota da época e aviso de contingência */
 .fa-classif-epoca { font-size: var(--arq-fs-meta); font-weight: normal; color: var(--ink-3); }
 .fa-classif-def { font-size: var(--arq-fs-aux); color: var(--ink-2); margin: 4px 0 8px; overflow-wrap: anywhere; }
-.fa-classif-aviso { font-size: var(--arq-fs-meta); color: var(--ink-3); border-left: 3px solid var(--gold); padding: 2px 8px; margin: 4px 0 8px; overflow-wrap: anywhere; }
+.fa-classif-aviso { font-size: var(--arq-fs-aux); color: var(--ink-3); border-left: 3px solid var(--gold); padding: 2px 8px; margin: 4px 0 8px; overflow-wrap: anywhere; }
 .fa-classif-aviso[hidden], .fa-classif-epoca[hidden], .fa-classif-def[hidden] { display: none; }
 .tax-hist-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .tax-hist-item { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--space-1); margin: 0; }
@@ -2896,7 +2896,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-categoria { min-width: 0; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; overflow-wrap: anywhere; }
 .mf-categoria-topo { display: grid; gap: 4px; }
 .mf-categoria-nome { font-weight: 600; color: var(--ink); }
-.mf-squad { font-size: var(--arq-fs-meta); color: var(--ink-3); font-family: var(--font-mono); }
+.mf-squad { font-size: var(--arq-fs-aux); color: var(--ink-3); font-family: var(--font-mono); }
 .mf-squad[data-forma-squads="sim"] { color: var(--cyan-soft); }
 .mf-especializacoes { list-style: none; padding: 0 0 0 10px; margin: 0; border-left: 2px solid var(--line-strong); display: grid; gap: 4px; font-size: var(--arq-fs-aux); color: var(--ink-2); }
 .mf-contagem { font-size: var(--arq-fs-meta); color: var(--ink-3); font-family: var(--font-mono); }
@@ -4138,7 +4138,7 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 /* etiquetas, rótulos, contadores e metadados (que usavam a Space Mono via --font-mono) passam para o texto corrido;
    a monoespaçada fica onde é identidade */
 :is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) { --font-mono: var(--arq-texto); }
-:is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) :is(.btn, .eyebrow, code, kbd, samp, [class*="-sigla"], [class*="-codigo"]) { font-family: var(--arq-codigo); }
+:is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) :is(.btn, .avp-voltar-link, .eyebrow, code, kbd, samp, [class*="-sigla"], [class*="-codigo"]) { font-family: var(--arq-codigo); }
 /* botões: mesma cara (Space Mono, caixa-alta), letra maior e menos espaçada */
 :is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) .btn { font-size: .82rem; letter-spacing: .08em; }
 /* controles do navegador não herdam a fonte da página (caíam na Arial padrão, ex.: lista da Taxonomia) */

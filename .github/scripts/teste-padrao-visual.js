@@ -64,8 +64,8 @@ const medir = (page) => page.evaluate(() => {
     const el = w.currentNode.parentElement; if (!el || vistos.has(el)) continue; vistos.add(el);
     const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
     const cs = getComputedStyle(el); if (cs.visibility === 'hidden') continue;
-    const identidade = !!el.closest('.btn, .eyebrow, code, kbd, samp, [class*="-sigla"], [class*="-codigo"]');
-    out.push({ fam: cs.fontFamily.split(',')[0].replace(/["']/g, '').trim(), px: parseFloat(cs.fontSize), w: Number(cs.fontWeight), identidade, cls: String(el.className || '').split(' ')[0], txt: t.slice(0, 40) });
+    const identidade = !!el.closest('.btn, .avp-voltar-link, .eyebrow, code, kbd, samp, [class*="-sigla"], [class*="-codigo"]');
+    out.push({ fam: cs.fontFamily.split(',')[0].replace(/["']/g, '').trim(), px: parseFloat(cs.fontSize), w: Number(cs.fontWeight), identidade, tag: el.tagName.toLowerCase(), cls: String(el.className || '').split(' ')[0], txt: t.slice(0, 40) });
   }
   return out;
 });
@@ -85,6 +85,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
         if (t) {
           const pequenos = t.filter((x) => x.px < 12.75);
           afirma(!pequenos.length, rotulo + ': nenhum texto abaixo de 12,8 px', pequenos.slice(0, 6));
+          /* leitura confortável, não só o piso: rótulos de campo no tamanho auxiliar (0,86 rem) ou maior */
+          const rotulos = t.filter((x) => x.tag === 'label' && x.px < 13.7);
+          afirma(!rotulos.length, rotulo + ': rótulos de campo com 0,86 rem ou mais', rotulos.slice(0, 4));
           const sint = t.filter((x) => x.fam === 'Anton' && x.w > 400);
           afirma(!sint.length, rotulo + ': nenhum negrito sintético (Anton acima de 400)', sint);
           const mono = t.filter((x) => x.fam === 'Space Mono' && !x.identidade);
