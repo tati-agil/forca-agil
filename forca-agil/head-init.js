@@ -7,9 +7,12 @@ document.documentElement.classList.add('js');
    entrada nova no histórico. O nome interno da página continua 'avaliacoes' (router.js). */
 (function () {
   var ANTIGO = /^#\/?avaliacoes(?=$|\?)/;
+  /* A FLORESTA: a antiga Jornada de Avaliação e Posicionamento (?mf=catalogo) agora faz parte de Trabalhos (?tr=1);
+     o objeto em foco (&item=) e os demais parâmetros seguem iguais */
+  var JORNADA = /^(#arquitetura\?(?:[^#]*&)?)mf=catalogo(?=&|$)/;
   function normalizar() {
-    var h = location.hash || '';
-    if (ANTIGO.test(h)) history.replaceState(history.state, '', h.replace(ANTIGO, '#arquitetura'));
+    var h = location.hash || '', n = h.replace(ANTIGO, '#arquitetura').replace(JORNADA, '$1tr=1');
+    if (n !== h) history.replaceState(history.state, '', n);
   }
   window.faRotaArquitetura = { ROTA: '#arquitetura', normalizar: normalizar };
   normalizar();

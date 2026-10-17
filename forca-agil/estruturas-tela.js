@@ -754,7 +754,7 @@
       else h = listaHtml();
       /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
       if (voltaPo) h = '<a class="est-voltar-jornada" id="estVoltarPosicionamento" href="#arquitetura?po=' + encodeURIComponent(voltaPo) + '&bloco=responsavel">← Voltar ao Posicionamento (estrutura responsável)</a>' + h;
-      else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
+      else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar ao registro</a>' + h;
       /* aberta de fora do ADMIN (o Mapa, por exemplo): o retorno à tela de origem fica à vista em qualquer vista do cadastro */
       else if (origem && origem.origemNav) h = '<button type="button" class="est-voltar-jornada" id="estVoltarOrigemNav">← Voltar para ' + esc(origem.origemNav.rotulo) + '</button>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';

@@ -23,7 +23,7 @@
    Banco (leitura, os três perfis da Avaliação já leem): avaliacoes-produto, avaliacoes-posicionamento,
    posicionamento-vigente-por-item, posicionamento-decisoes — pela interface de serviços (faServicosPosicionamento).
 
-   Endereço: #arquitetura?mf=catalogo (F5, link direto, Voltar/Avançar).
+   Endereço: #arquitetura?tr=1 (F5, link direto, Voltar/Avançar).
 
    MAPA VISUAL — versão DEMONSTRATIVA (#arquitetura?mf=mapa, detalhe em &e=<id>), no desenho aprovado: blocos de cima
    para baixo (Estratégia de Clientes, Canais, Negócios com subagrupadores, Plataformas Habilitadoras, Áreas
@@ -356,7 +356,7 @@
       if (!meu && !identidadeOriginal) return;
       var t = !meu ? identidadeOriginal : modo === 'mapa'
         ? { eyebrow: 'Mapa da Floresta', h1: 'Mapa da Floresta', p: fonte === 'cadastro' ? 'As estruturas organizacionais concretas cadastradas: Linhas, Centros de Excelência e Áreas Especializadas.' : 'Demonstração com exemplos fictícios: as estruturas organizacionais e os produtos e serviços sob a responsabilidade de cada uma.' }
-        : { eyebrow: 'Mapa da Floresta', h1: 'Jornada de Avaliação e Posicionamento', p: 'Cada item de Produto/Serviço e cada responsabilidade organizacional: o que já foi feito e o que ainda pode ser feito até a estrutura responsável no Mapa da Floresta.' };
+        : { eyebrow: 'A Floresta', h1: 'Trabalhos', p: 'O que está em andamento e cada registro da Floresta: o que ele representa, o que já foi realizado, os registros relacionados e o que pode ser feito a seguir.' };
       if (eyebrow) eyebrow.textContent = t.eyebrow;
       if (h1) h1.textContent = t.h1;
       if (p) p.textContent = t.p;
@@ -381,11 +381,12 @@
       var h = location.hash || '';
       if (h.split('?')[0] !== '#arquitetura') return null;
       var m = /[?&]mf=([^&]*)/.exec(h), e = /[?&]e=([^&]*)/.exec(h), cn = /[?&]cenario=([^&]*)/.exec(h), fo = /[?&]fonte=([^&]*)/.exec(h), it = /[?&]item=([^&]*)/.exec(h);
+      if (!m && /[?&]tr=/.test(h)) m = [null, 'catalogo']; /* Trabalhos (?tr=1): a lista e os registros da antiga Jornada */
       return m ? { mf: decodeURIComponent(m[1]), e: e ? decodeURIComponent(e[1]) : null, cenario: cn ? decodeURIComponent(cn[1]) : null, fonte: fo ? decodeURIComponent(fo[1]) : null,
         item: it ? decodeURIComponent(it[1]) : null } : null;
     }
     function enderecoDesejado() {
-      if (modo !== 'mapa') return '#arquitetura?mf=catalogo' + (focoItem ? '&item=' + encodeURIComponent(focoItem) : '');
+      if (modo !== 'mapa') return '#arquitetura?tr=1' + (focoItem ? '&item=' + encodeURIComponent(focoItem) : '');
       var deDemo = fonte === 'demo' && cadastroDisponivel();
       return '#arquitetura?mf=mapa' + (deDemo ? '&fonte=demo' : '') + (fonte === 'demo' && cenarioDemo !== 'habitual' ? '&cenario=' + encodeURIComponent(cenarioDemo) : '') + (selecionada ? '&e=' + encodeURIComponent(selecionada) : '') + (voltaItem ? '&item=' + encodeURIComponent(voltaItem) : '');
     }
@@ -404,10 +405,10 @@
       var st = history.state;
       if (st && st.mfVoltaAdmin && st.mfVoltaAdmin.hash) return st.mfVoltaAdmin;
       var o = window.faNav && window.faNav.origem();
-      return o && !/[?&]mf=/.test(o.hash) ? o : null;
+      return o && !/[?&](mf|tr)=/.test(o.hash) ? o : null;
     }
     /* origem DENTRO do Mapa (o Mapa ao abrir um objeto, a lista ao abrir um item): o "Voltar" da tela volta para ela */
-    function origemInterna() { var o = window.faNav && window.faNav.origem(); return o && /[?&]mf=/.test(o.hash) && o.hash !== location.hash ? o : null; }
+    function origemInterna() { var o = window.faNav && window.faNav.origem(); return o && /[?&](mf|tr)=/.test(o.hash) && o.hash !== location.hash ? o : null; }
     /* links simples dentro do Mapa e da Jornada abrem guardando de onde vieram (e a origem externa segue junto) */
     function ligarLinksMapa() {
       if (!window.faNav) return;
@@ -419,7 +420,7 @@
           var h = a.getAttribute('href'); if (!h) return;
           ev.preventDefault();
           var ext = voltaAdmin();
-          window.faNav.ir(h, /[?&]mf=/.test(h) && ext ? { estado: { mfVoltaAdmin: ext } } : undefined);
+          window.faNav.ir(h, /[?&](mf|tr)=/.test(h) && ext ? { estado: { mfVoltaAdmin: ext } } : undefined);
         });
       });
     }
@@ -428,7 +429,7 @@
       var va = voltaAdmin();
       if (va && window.faVoltarParaOrigem) { window.faVoltarParaOrigem(va.hash, va.aba); return; }
       var st = history.state;
-      if (st && st.mfAnterior && st.mfAnterior.split('?')[0] === '#arquitetura' && !/[?&](po|sq|mf)=/.test(st.mfAnterior)) { history.back(); return; }
+      if (st && st.mfAnterior && st.mfAnterior.split('?')[0] === '#arquitetura' && !/[?&](po|sq|mf|tr)=/.test(st.mfAnterior)) { history.back(); return; }
       history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#arquitetura');
       fecharPainel();
     }
@@ -484,16 +485,28 @@
       if (modo === 'mapa') { renderMapaTela(); return; }
       var ativo = document.activeElement, foco = null;
       if (ativo && ativo.id && wrap.contains(ativo) && /^(INPUT|SELECT)$/.test(ativo.tagName)) foco = { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd };
-      var h = '<button type="button" class="avp-voltar-link" id="mfVoltar">' + rotuloVoltar() + '</button>';
-      h += '<button type="button" class="btn btn--sm mf-ir-mapa" id="mfIrMapa">Ver Mapa completo</button>';
-      h += '<div class="avp-form-card mf-card" id="mfCatalogo">' + (focoItem ? '' : '<details class="mf-sobre" id="mfSobre"><summary>Sobre esta tela</summary>') +
-        '<p class="avp-intro">O Mapa da Floresta vai representar as estruturas organizacionais concretas de três categorias. Os produtos, serviços e demais objetos avaliados ' +
-        'não viram nós do Mapa: aparecerão indiretamente, nos detalhes da estrutura responsável, quando essa associação for registrada. ' +
-        'Este catálogo mostra, a partir das avaliações já gravadas, em que ponto cada objeto está. Nada aqui é gravado.</p>' +
+      /* A FLORESTA — TRABALHOS: o que está em andamento (bloco de avaliacao-produto.js), os registros (cada item ou
+         responsabilidade uma vez, com a situação) e, recolhidas, as listas completas de cada avaliação. No registro de
+         um item há um só "Voltar": para a tela de origem (ficha, Mapa, ADMIN…), quando houver, ou para os Trabalhos. */
+      var T = window.faTrabalhosFloresta, ext = voltaAdmin();
+      var h = focoItem && (!ext || origemInterna()) ? '' : '<button type="button" class="avp-voltar-link" id="mfVoltar">' + rotuloVoltar() + '</button>';
+      if (!focoItem) {
+        if (T && T.preparar) T.preparar(atualizarBlocosTrabalhos);
+        h += '<div class="mf-trab-continuar" id="mfTrabContinuarVaga">' + (T ? T.continuarHtml() : '<p class="loading-msg" role="status">Carregando…</p>') + '</div>';
+      }
+      h += '<div class="avp-form-card mf-card" id="mfCatalogo">' + (focoItem ? '' : '<div class="mf-registros-topo"><h3 class="mf-registros-titulo" id="mfRegistrosTitulo">Registros</h3>' +
+          '<button type="button" class="btn btn--sm mf-ir-mapa" id="mfIrMapa">Ver Mapa completo</button></div>' +
+          '<p class="mf-ajuda" id="mfRegistrosAjuda">Cada item avaliado como Produto/Serviço e cada responsabilidade organizacional aparece uma vez. Abra um registro para ver o que já foi realizado, as avaliações relacionadas e o que pode ser feito a seguir.</p>' +
+          '');
+      /* "Sobre estes registros": recolhido; na lista vem antes dela, no registro de um item vem depois dele */
+      var sobre = '<details class="mf-sobre" id="mfSobre"><summary>Sobre estes registros</summary>' +
+        '<p class="avp-intro">Os registros mostram, a partir das avaliações já gravadas, em que ponto cada item ou responsabilidade está. Nada aqui é gravado. ' +
+        'O Mapa da Floresta representa as estruturas organizacionais concretas de três categorias; os itens avaliados não viram nós do Mapa: aparecem nos detalhes da estrutura responsável, quando essa associação é registrada.</p>' +
         (habilitacaoPendente() ? '' : cadastroDisponivel() ? '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note">' + (emTestes() ? '<strong>Ambiente de testes.</strong> As estruturas e os vínculos de estrutura responsável vêm do Firebase Emulator — não são dados do banco oficial.' + (gravacaoAtiva() ? '' : ' <strong>Gravação suspensa:</strong> só consulta.')
           : 'As estruturas e os vínculos de estrutura responsável vêm do cadastro de Estruturas do Mapa da Floresta.' + (gravacaoAtiva() ? '' : ' <strong>Gravação suspensa:</strong> só consulta.')) + '</div>'
           : '<div class="mf-aviso-estruturas" id="mfAvisoEstruturas" role="note"><strong>Estruturas Organizacionais Concretas: informação indisponível nesta versão.</strong> ' + esc(TEXTO_ESTRUTURAS) + '</div>') +
-        (focoItem ? '' : '</details>');
+        '</details>';
+      if (!focoItem) h += sobre;
       if (cadastroDisponivel() && podeLer()) ligarCadastro();
       if (!autorizacaoResolvida()) h += '<p class="loading-msg" role="status">Carregando…</p>';
       else if (!podeLer()) h += '<p class="avp-error-msg" id="mfSemAcesso">Este catálogo é consultado pelos perfis da Avaliação de Produto/Serviço (Avaliação, Avaliação + Configuração e administração geral). Seu acesso não inclui essa consulta.</p>';
@@ -509,15 +522,30 @@
           /* a lista está pronta, mas a configuração do motor de P1–P16 ainda não chegou (itens em "Verificando…"): o mesmo aviso, acima da lista */
           if (state.demorando) h += '<div class="mf-erro" id="mfDemora"><p class="avp-error-msg">A leitura está demorando mais que o normal. A tela continua esperando.</p>' +
             '<button type="button" class="btn btn--sm" id="mfTentarDeNovo">Tentar de novo</button></div>';
-          h += focoItem ? renderCatalogo(cat.itens) : renderCategorias(cat.itens) + renderCatalogo(cat.itens);
+          h += focoItem ? renderCatalogo(cat.itens) : renderCatalogo(cat.itens) + renderCategorias(cat.itens);
         }
       }
+      if (focoItem) h += sobre;
       h += '</div>';
+      if (!focoItem) h += '<details class="avp-form-card mf-card mf-trab-listas" id="mfTrabListas"' + (state.listasAbertas ? ' open' : '') + '><summary>Listas completas por avaliação</summary>' +
+        '<p class="mf-ajuda">A lista de cada avaliação, com os números e as ações próprias dela (exportar, filtrar por resultado, excluir…).</p>' +
+        '<div id="mfTrabListasVaga">' + (T ? T.listasHtml() : '') + '</div></details>';
       wrap.innerHTML = h;
       bind();
       if (P()) P().atualizarDom(wrap);
       if (foco) { var el = byId(foco.id); if (el) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) { /* select sem seleção */ } } }
       rolarFoco();
+    }
+
+    /* os números de "Continuar de onde parou" e das listas chegam depois (Posicionamento, análises): só esses blocos são
+       redesenhados, no lugar — a busca e os filtros dos registros não perdem o que a pessoa digitou */
+    function atualizarBlocosTrabalhos() {
+      var T = window.faTrabalhosFloresta;
+      if (wrap.hidden || modo !== 'catalogo' || focoItem || !T) return;
+      var c = byId('mfTrabContinuarVaga'), l = byId('mfTrabListasVaga');
+      if (c) c.innerHTML = T.continuarHtml();
+      if (l) l.innerHTML = T.listasHtml();
+      ligarLinksMapa();
     }
 
     function renderCategorias(itens) {
@@ -538,7 +566,7 @@
           return '<li data-codigo="' + esc(k) + '">' + spanNome(k) + ' <span class="mf-contagem">' + nk + ' objeto' + (nk === 1 ? '' : 's') + '</span></li>';
         }).join('') + '</ul>';
         h += '<p class="mf-categoria-rodape"><span class="mf-contagem" data-total="' + n + '">' + n + ' objeto' + (n === 1 ? '' : 's') + ' com posicionamento efetivo aqui</span>' +
-          (n ? ' <button type="button" class="btn btn--sm mf-filtrar-categoria" data-categoria="' + esc(c.id) + '" aria-label="Filtrar o catálogo por ' + esc(nomeTexto(c.codigoNome)) + '">Ver no catálogo</button>' : '') + '</p></li>';
+          (n ? ' <button type="button" class="btn btn--sm mf-filtrar-categoria" data-categoria="' + esc(c.id) + '" aria-label="Filtrar os registros por ' + esc(nomeTexto(c.codigoNome)) + '">Ver nos registros</button>' : '') + '</p></li>';
       });
       h += '</ul>';
       var cods = []; cs.forEach(function (c) { cods.push(c.codigoNome); c.codigos.forEach(function (k) { if (cods.indexOf(k) === -1) cods.push(k); }); });
@@ -555,6 +583,14 @@
       try { el.scrollIntoView({ block: 'start' }); } catch (e) { el.scrollIntoView(); }
     }
     var ultimosItens = null; /* os itens do último desenho do Catálogo (o atalho da Squad lê o item daqui) */
+    /* registro de um item: veio da lista ou do Mapa → volta para lá; veio de outra tela (ficha, ADMIN…) → o "Voltar" do
+       topo é o dela, e este botão só leva aos Trabalhos; sem origem (link direto) → Voltar para os Trabalhos */
+    function botaoVoltarLista() {
+      var oi = origemInterna();
+      if (oi) return '<button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">' + (/[?&]mf=mapa/.test(oi.hash) ? '← Voltar para o Mapa da Floresta' : '← Voltar para os Trabalhos') + '</button>';
+      if (voltaAdmin()) return '<button type="button" class="btn btn--sm mf-voltar-lista mf-ver-trabalhos" id="mfVoltarLista">Ver todos os trabalhos</button>';
+      return '<button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">← Voltar para os Trabalhos</button>';
+    }
     function renderCatalogo(itens) {
       var cs = cats(), f = state.filtros, cont = C.contarPorSituacao(itens);
       ultimosItens = itens;
@@ -562,13 +598,13 @@
       /* detalhe de UM objeto (&item=): a jornada completa dele, com o caminho de volta para a lista */
       if (focoItem) {
         var alvo = itens.filter(function (x) { return x.itemId === focoItem; })[0];
-        return '<section class="mf-secao mf-detalhe-objeto" aria-labelledby="mfCatalogoTitulo"><button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">' + (origemInterna() && /[?&]mf=mapa/.test(origemInterna().hash) ? '← Voltar para o Mapa da Floresta' : '← Voltar para a lista') + '</button>' +
-          '<h4 id="mfCatalogoTitulo" class="mf-sr">Jornada do objeto</h4>' +
+        return '<section class="mf-secao mf-detalhe-objeto" aria-labelledby="mfCatalogoTitulo">' + botaoVoltarLista() +
+          '<h4 id="mfCatalogoTitulo" class="mf-sr">Registro</h4>' +
           (alvo ? '<ul class="mf-itens" id="mfItens">' + renderItem(alvo) + '</ul>' : '<p class="admin-empty" id="mfObjetoNaoEncontrado">Objeto não encontrado no catálogo.</p>') + '</section>';
       }
       var vis = C.filtrar(itens, f, cs).filter(function (x) { return !f.soAcao || temProximaAcao(x); });
-      var h = '<section class="mf-secao" aria-labelledby="mfCatalogoTitulo"><h4 id="mfCatalogoTitulo">Objetos</h4>';
-      if (!itens.length) return h + '<p class="admin-empty" id="mfVazio">Nenhum objeto avaliado no catálogo: não há Avaliação de Produto/Serviço registrada fora da Lixeira.</p></section>';
+      var h = '<section class="mf-secao" aria-labelledby="mfCatalogoTitulo"><h4 id="mfCatalogoTitulo" class="mf-sr">Lista de registros</h4>';
+      if (!itens.length) return h + '<p class="admin-empty" id="mfVazio">Nenhum registro ainda: não há Avaliação de Produto/Serviço nem responsabilidade organizacional registrada fora da Lixeira.</p></section>';
       var avancado = !!(f.situacao || f.posicionamento || f.soAcao);
       h += '<div class="avp-field mf-busca"><label for="mfBusca">Buscar pelo nome</label><input type="search" id="mfBusca" value="' + esc(f.busca) + '" autocomplete="off" placeholder="Digite parte do nome"></div>' +
         '<details class="mf-filtros-avancados" id="mfFiltrosAvancados"' + (avancado || state.filtrosAbertos ? ' open' : '') + '><summary>Filtros e contadores</summary>' + resumoJornadaHtml(itens) +
@@ -578,9 +614,9 @@
         renderFiltroPosicionamento(cs, f) +
         '<button type="button" class="btn btn--sm mf-so-acao' + (f.soAcao ? ' mf-so-acao--ativo' : '') + '" id="mfSoAcao" aria-pressed="' + !!f.soAcao + '">Só os que têm próxima ação</button></div></details>';
       var recortado = !!(f.situacao || f.posicionamento || String(f.busca || '').trim() || f.soAcao);
-      h += '<div class="mf-contador-linha"><span class="avp-total" id="mfContador" aria-live="polite">' + (recortado ? vis.length + ' de ' + itens.length : itens.length) + ' objeto' + (itens.length === 1 ? '' : 's') + '</span>' +
+      h += '<div class="mf-contador-linha"><span class="avp-total" id="mfContador" aria-live="polite">' + (recortado ? vis.length + ' de ' + itens.length : itens.length) + ' registro' + (itens.length === 1 ? '' : 's') + '</span>' +
         (recortado ? ' <button type="button" class="btn btn--sm" id="mfLimparFiltros">Limpar filtros</button>' : '') + '</div>';
-      if (!vis.length) return h + '<p class="admin-empty" id="mfNenhumFiltro">Nenhum objeto com esses filtros.</p></section>';
+      if (!vis.length) return h + '<p class="admin-empty" id="mfNenhumFiltro">Nenhum registro com esses filtros.</p></section>';
       h += '<ul class="mf-itens mf-lista-simples" id="mfItens">' + vis.map(renderLinha).join('') + '</ul>';
       return h + '</section>';
     }
@@ -668,7 +704,7 @@
         if (j.encerrada) n.encerrada++; else if (j.completa) n.completa++; else if (j.analise) n.analise++; else if (temProximaAcao(x)) n.acao++; else if (j.disponivel && j.acao && (j.acao.tipo === 'estrutura' || j.acao.tipo === 'vinculo')) n.avaliada++; else if (j.disponivel) n.disponivel++;
       });
       if (carregando) return '<p class="mf-resumo loading-msg" id="mfResumo" role="status">Carregando a situação das estruturas…</p>';
-      return '<p class="mf-resumo" id="mfResumo">Jornada completa: <strong>' + n.completa + '</strong> · Com próxima ação: <strong>' + n.acao + '</strong> · Em análise (A validar): <strong>' + n.analise +
+      return '<p class="mf-resumo" id="mfResumo">Registros completos: <strong>' + n.completa + '</strong> · Com próxima ação: <strong>' + n.acao + '</strong> · Em análise (A validar): <strong>' + n.analise +
         '</strong> · Avaliadas, estrutura responsável opcional: <strong>' + n.avaliada + '</strong> · Posicionamento disponível: <strong>' + n.disponivel + '</strong> · Encerradas: <strong>' + n.encerrada + '</strong>' +
         (n.delimitada ? ' · Delimitadas em responsabilidades: <strong>' + n.delimitada + '</strong>' : '') + '</p>';
     }
@@ -683,7 +719,7 @@
       if (j.encerrada) return '<p class="mf-proxima mf-proxima--encerrada">Responsabilidade encerrada: não recebe nova avaliação nem novo vínculo.</p>';
       if (j.carregando) return '<p class="mf-proxima loading-msg" role="status">Carregando…</p>';
       var a = j.acao;
-      if (j.completa) return '<div class="mf-proxima mf-proxima--completa"><span class="mf-completa">✓ Jornada completa</span> <span class="mf-completa-por">' + (j.completaPor === 'decisao' ? 'pela decisão final e o vínculo registrados' : 'pela recomendação firme e o vínculo registrado') + '</span>' + (a && a.href ? ' <a class="btn btn--sm mf-acao" href="' + esc(a.href) + '"' + (a.rotuloAcessivel ? ' aria-label="' + esc(a.rotuloAcessivel) + '"' : '') + '>' + esc(a.rotulo) + '</a>' : '') + '</div>';
+      if (j.completa) return '<div class="mf-proxima mf-proxima--completa"><span class="mf-completa">✓ Registro completo</span> <span class="mf-completa-por">' + (j.completaPor === 'decisao' ? 'pela decisão final e o vínculo registrados' : 'pela recomendação firme e o vínculo registrado') + '</span>' + (a && a.href ? ' <a class="btn btn--sm mf-acao" href="' + esc(a.href) + '"' + (a.rotuloAcessivel ? ' aria-label="' + esc(a.rotuloAcessivel) + '"' : '') + '>' + esc(a.rotulo) + '</a>' : '') + '</div>';
       if (!a) return '';
       if (!a.rotulo) return '<p class="mf-proxima' + (a.opcional ? ' mf-proxima--disponivel' : '') + '">' + esc(a.texto) + '</p>';
       if (a.opcional) return '<div class="mf-proxima mf-proxima--disponivel"><span class="mf-proxima-rotulo">Disponível (opcional)</span> <a class="btn btn--sm mf-acao" data-acao="' + esc(a.tipo) + '" href="' + esc(a.href || '#arquitetura') + '">' + esc(a.rotulo) + '</a></div>';
@@ -705,7 +741,7 @@
           (jd.completa ? 'A jornada dela está completa.' : jd.encerrada ? 'Ela está encerrada.' : 'Acompanhe a jornada na atuação.') + '</p>' +
           (res ? '<p class="mf-resultado-p1">Resultado da Avaliação de Produto/Serviço (P1–P16): ' + esc(ROTULO_RESULTADO_P1[res] || res) +
             ' — análise de Produto/Serviço; não é pendência do Posicionamento da atuação.</p>' : '') +
-          '<a class="btn btn--sm mf-acao" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(j.representadoPor.id) + '">Ir para a atuação</a></div>';
+          '<a class="btn btn--sm mf-acao" href="#arquitetura?tr=1&item=' + encodeURIComponent(j.representadoPor.id) + '">Ir para a atuação</a></div>';
       }
       return '<div class="mf-jornada">' + trilhaHtml(j) + acaoHtml(j) + '</div>';
     }
@@ -716,7 +752,7 @@
       if (j.delimitada) return 'Delimitada em ' + j.delimitada.responsabilidades + ' responsabilidade' + (j.delimitada.responsabilidades === 1 ? '' : 's');
       if (j.encerrada) return 'Encerrada';
       if (j.carregando) return 'Carregando…';
-      if (j.completa) return '✓ Jornada completa';
+      if (j.completa) return '✓ Registro completo';
       if (j.analise) return 'Em análise (A validar)';
       if (j.disponivel) return j.acao && (j.acao.tipo === 'estrutura' || j.acao.tipo === 'vinculo') ? 'Avaliação concluída · estrutura responsável: opcional' : 'Posicionamento disponível (opcional)';
       if (j.acao && j.acao.rotulo) return 'Próximo passo: ' + j.acao.rotulo;
@@ -734,10 +770,17 @@
     function renderLinha(x) {
       var j = jornadas[x.itemId], tipo = x.origem === ORIGEM_PORTA2 ? 'Responsabilidade organizacional' : 'Produto/Serviço';
       return '<li class="mf-item mf-linha" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '"' + (j && j.representadoPor ? ' data-representado="1"' : '') + '>' +
-        '<a class="mf-linha-abrir" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(x.itemId) + '"><span class="mf-linha-texto"><span class="mf-linha-nome">' + esc(x.nome) + '</span>' +
+        '<a class="mf-linha-abrir" href="#arquitetura?tr=1&item=' + encodeURIComponent(x.itemId) + '"><span class="mf-linha-texto"><span class="mf-linha-nome">' + esc(x.nome) + '</span>' +
         '<span class="mf-linha-tipo">' + tipo + (x.objeto && x.objeto.situacao === 'encerrado' ? ' · encerrada' : '') + '</span>' +
         '<span class="mf-linha-situacao" data-jornada="' + esc(j ? (j.representadoPor ? 'representado' : j.completa ? 'completa' : j.analise ? 'analise' : j.encerrada ? 'encerrada' : j.disponivel ? 'disponivel' : 'proximo') : '') + '">' + esc(situacaoCurta(x)) + '</span></span>' +
         '<span class="mf-linha-abre" aria-hidden="true">›</span></a></li>';
+    }
+    /* o que o registro representa, em uma frase — sem inventar relação nem etapa obrigatória */
+    function representaHtml(x) {
+      var t = x.origem === ORIGEM_PORTA2
+        ? 'Responsabilidade organizacional (Porta 2): posicionada diretamente pelo O1–O9, sem Avaliação de Produto/Serviço.'
+        : 'Item avaliado como Produto/Serviço (P1–P16). O Posicionamento (O1–O9) e a Adequação à Squad (S1–S8) são avaliações independentes, feitas quando se aplicam.';
+      return '<p class="mf-representa" id="mfRepresenta-' + esc(x.itemId) + '">' + t + '</p>';
     }
     function renderItem(x) {
       var N = window.faAvaliacaoPosicionamentoNucleo, jx = jornadas[x.itemId], repr = !!(jx && jx.representadoPor);
@@ -746,15 +789,15 @@
         (x.origem === ORIGEM_PORTA2 ? '<span class="avp-badge mf-badge-porta2">Responsabilidade organizacional</span>' : '') +
         (x.objeto && x.objeto.situacao === 'encerrado' ? '<span class="avp-badge mf-badge-encerrado">Encerrada</span>' : '') +
         (repr ? '<span class="avp-badge mf-badge mf-badge--representado">Representado por atuação</span>' : '<span class="avp-badge mf-badge mf-badge--' + esc(x.situacao) + '">' + esc(C.ROTULO_SITUACAO[x.situacao] || x.situacao) + '</span>') +
-        '</div>' + analiseOrganizacionalHtml(x) + jornadaHtml(x) + (repr ? '' : faltaHtml(x)) + (repr ? '</li>' : '') + '<dl class="mf-detalhes">';
-      if (repr) return h.slice(0, h.lastIndexOf('<dl class="mf-detalhes">'));
+        '</div>' + representaHtml(x) + analiseOrganizacionalHtml(x) + '<h5 class="mf-subtitulo">O que já foi realizado</h5>' + jornadaHtml(x) + (repr ? '' : faltaHtml(x)) + (repr ? '</li>' : '') + '<h5 class="mf-subtitulo">Detalhes</h5><dl class="mf-detalhes">';
+      if (repr) return h.slice(0, h.lastIndexOf('<h5 class="mf-subtitulo">Detalhes</h5>'));
       if (x.situacao === 'firme') {
         h += '<dt>Posicionamento efetivo</dt><dd class="mf-efetivo" data-codigo="' + esc(x.efetivo.codigo) + '" data-origem="' + esc(x.efetivo.origem) + '">' + spanNome(x.efetivo.codigo) +
           ' <span class="mf-origem">(' + (x.efetivo.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + ')</span></dd>';
         if (x.efetivo.origem === 'decisao' && x.posicionamento.codigoAutomatico !== x.efetivo.codigo) h += '<dt>Recomendação automática</dt><dd>' + rotuloAutomatico(x.posicionamento) + '</dd>';
       } else if (x.situacao === 'a-validar') {
         h += '<dt>Recomendação automática</dt><dd>' + rotuloAutomatico(x.posicionamento) + '</dd>' +
-          '<dt>Pendência</dt><dd>Falta a decisão final com um posicionamento firme. A VALIDAR não é exclusão: o objeto continua no catálogo.</dd>';
+          '<dt>Pendência</dt><dd>Falta a decisão final com um posicionamento firme. A VALIDAR não é exclusão: o registro continua nos Trabalhos.</dd>';
       } else if (x.situacao === 'sem-posicionamento') {
         h += '<dt>Pendência</dt><dd>' + (x.rascunhoId ? 'Posicionamento Organizacional em andamento (rascunho), ainda não concluído.'
           : x.origem === ORIGEM_PORTA2 ? 'Posicionamento Organizacional (O1–O9) ainda não iniciado para esta atuação.'
@@ -765,10 +808,9 @@
       } else h += '<dt>Situação</dt><dd>Verificando a versão do motor da Avaliação de Produto/Serviço…</dd>';
       if (x.alertaBase) h += '<dt>Atenção</dt><dd class="mf-alerta" data-alerta="' + esc(x.alertaBase) + '">' + esc(ROTULO_ALERTA[x.alertaBase] || ((N.ROTULO_GATE && N.ROTULO_GATE[x.alertaBase]) || x.alertaBase)) + '</dd>';
       if (x.baseRevisao) h += '<dt>Precisa de revisão</dt><dd class="mf-base-revisao">' + esc(N.textoBaseRevisao(x.baseRevisao)) + ' Nada foi alterado automaticamente.</dd>';
-      if (x.origem === ORIGEM_PORTA2) h += '<dt>Porta</dt><dd class="mf-porta2">Porta 2 — responsabilidade organizacional posicionada diretamente, sem Avaliação de Produto/Serviço.</dd>';
       if (x.objetoReferente) h += '<dt>Responsabilidade organizacional</dt><dd class="mf-objeto-referente" data-objeto="' + esc(x.objetoReferente.id) + '">Este item é referência informativa da responsabilidade “' + esc(x.objetoReferente.nome) + '” (Porta 2).</dd>';
       h += vinculoDoItemHtml(x);
-      h += '</dl><div class="mf-item-acoes">';
+      h += '</dl><h5 class="mf-subtitulo">Registros relacionados</h5><div class="mf-item-acoes">';
       if (x.posicionamento) h += '<a class="btn btn--sm mf-abrir-po" href="#arquitetura?po=' + encodeURIComponent(x.posicionamento.avaliacaoId) + '">Abrir Posicionamento</a>';
       else if (x.rascunhoId) h += '<a class="btn btn--sm mf-abrir-po" href="#arquitetura?po=' + encodeURIComponent(x.rascunhoId) + '">Abrir rascunho do Posicionamento</a>';
       if (x.chaveBase) h += '<a class="btn btn--sm mf-abrir-avp" href="#arquitetura?' + (x.statusBase === 'rascunho' ? 'editar=' : 'avp=') + encodeURIComponent(x.chaveBase) + '">Abrir Avaliação de Produto/Serviço</a>';
@@ -834,6 +876,7 @@
       });
       ligarLinksMapa();
       Array.prototype.forEach.call(wrap.querySelectorAll('.mf-linha-abrir'), function (a) { a.addEventListener('click', function () { state.posicaoLista = window.scrollY || 0; }); });
+      var lst = byId('mfTrabListas'); if (lst) lst.addEventListener('toggle', function () { state.listasAbertas = lst.open; });
       var fav = byId('mfFiltrosAvancados'); if (fav) fav.addEventListener('toggle', function () { state.filtrosAbertos = fav.open; });
       var sa = byId('mfSoAcao'); if (sa) sa.addEventListener('click', function () { state.filtros.soAcao = !state.filtros.soAcao; render(); });
       var l = byId('mfLimparFiltros'); if (l) l.addEventListener('click', function () { state.filtros = { situacao: '', posicionamento: '', busca: '', soAcao: false }; render(); var s = byId('mfFiltroSituacao'); if (s) s.focus(); });
@@ -1037,7 +1080,7 @@
       var porItem = {}; cat.itens.forEach(function (x) { porItem[x.itemId] = x; });
       return '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
         var x = porItem[o.objetoId] || null, s = situacaoVinculo(o.objetoId, x), v = cadastro.vinculos[o.vinculoId];
-        return '<li class="mfm-objeto" data-objeto="' + esc(o.objetoId) + '"><a class="mfm-objeto-nome" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(o.objetoId) + '">' + esc(x ? x.nome : o.objetoId) + '</a>' +
+        return '<li class="mfm-objeto" data-objeto="' + esc(o.objetoId) + '"><a class="mfm-objeto-nome" href="#arquitetura?tr=1&item=' + encodeURIComponent(o.objetoId) + '">' + esc(x ? x.nome : o.objetoId) + '</a>' +
           '<span class="mfm-objeto-papel">Responsável principal ·' + window.faEstruturasAdmin.situacaoVinculoHtml(s) + '</span>' +
           (x && x.baseRevisao ? '<span class="mfm-objeto-desc mfm-objeto-aviso">Aviso: a base do Posicionamento precisa de revisão.' + esc(TEXTO_AVISO_VINCULO) + '</span>' : '') +
           '<a class="mfm-acao mfm-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x && x.posicionamento && x.posicionamento.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
@@ -1048,7 +1091,7 @@
       var h = '<aside class="mfm-detalhe" id="mfmDetalhe" style="--cor:' + (b ? b.cor : '#555') + '" aria-labelledby="mfmDetalheTitulo">' +
         '<button type="button" class="mfm-fechar" id="mfmFechar">← Voltar ao Mapa</button>' +
         '<p class="mfm-caminho">' + (b ? icone(b.icone, 'mfm-caminho-ic') : '') + esc(b ? b.titulo : '') + (b && b.subagrupado ? ' › ' + esc(subCad ? subCad.nome : 'Sem subagrupador') : linha && b.porCodigo ? ' › ' + spanNome(e.tipo) : '') + '</p>' +
-        (voltaItem ? '<a class="mfm-acao" id="mfmDetalheVoltarJornada" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(voltaItem) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' : '') + '<h3 id="mfmDetalheTitulo" tabindex="-1">' + esc(e.nome) + '</h3>' +
+        (voltaItem ? '<a class="mfm-acao" id="mfmDetalheVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(voltaItem) + '">← Voltar ao registro</a>' : '') + '<h3 id="mfmDetalheTitulo" tabindex="-1">' + esc(e.nome) + '</h3>' +
         '<span class="mfm-badge-cadastrada">Estrutura cadastrada</span>' +
         '<dl class="mfm-ficha"><dt>Natureza</dt><dd>' + esc(b ? b.natureza : '—') + '</dd>' +
         (linha ? '<dt>Especialização</dt><dd>' + spanNome(e.tipo) + '</dd>' : '<dt>Tipo oficial</dt><dd>' + spanNome(e.tipo) + '</dd>') +
@@ -1075,8 +1118,8 @@
       var h = '<div class="mfm-painel"><div class="mfm-cabecalho"><div class="mfm-cabecalho-texto"><h2 class="mfm-titulo">Mapa da Floresta</h2>' +
         '<p class="mfm-subtitulo">' + (fonte === 'cadastro' ? 'Visão organizacional · estruturas cadastradas' : 'Visão organizacional · demonstração com exemplos fictícios') + '</p></div>' +
         '<div class="mfm-acoes"><button type="button" class="mfm-acao" id="mfVoltar">' + rotuloVoltar() + '</button>' +
-        (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(voltaItem) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' : '') +
-        (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver a Jornada de Avaliação e Posicionamento</button>' : '') +
+        (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(voltaItem) + '">← Voltar ao registro</a>' : '') +
+        (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver os Trabalhos</button>' : '') +
         (podeManterEstruturas() ? '<a class="mfm-acao" id="mfmDefinicao" href="#admin?arq=inicio">Definição oficial do Mapa</a>' : '') + '</div></div>';
       if (cadastroDisponivel() && autorizacaoResolvida() && podeLer()) h += '<div class="mfm-cenarios mfm-fontes" role="group" aria-label="Dados do Mapa"><span class="mfm-cenarios-rotulo">Dados:</span>' +
         [['cadastro', 'Estruturas cadastradas'], ['demo', 'Demonstração (fictícia)']].map(function (o) {
@@ -1210,5 +1253,5 @@
     if (api) window.faMapaFloresta = api;
   };
   /* Carga direta em #arquitetura?mf=… (F5, link): em máquina lenta a página pode abrir antes de este arquivo carregar */
-  if (/^#(?:arquitetura|avaliacoes)\?(.*&)?mf=/.test(location.hash || '')) window.faInitCatalogoMapa();
+  if (/^#(?:arquitetura|avaliacoes)\?(.*&)?(mf|tr)=/.test(location.hash || '')) window.faInitCatalogoMapa();
 })();

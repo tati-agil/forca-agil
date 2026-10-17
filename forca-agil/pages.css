@@ -2971,6 +2971,16 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
    aprovada, cabeçalhos com ícone, subagrupadores com identidade própria e estruturas em superfícies claras. Fonte sem
    serifa e não condensada. Só nesta tela: nada aqui altera o tema do resto do site. */
 .mf-ir-mapa { margin: 0 0 14px 10px; }
+/* A FLORESTA — Trabalhos: "Continuar de onde parou", registros (título + Mapa na mesma linha) e listas completas recolhidas */
+.mf-trab-continuar { margin: 0 0 16px; }
+.mf-registros-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
+.mf-registros-titulo { margin: 0; font-family: var(--font-head); font-size: 1.1rem; line-height: 1.25; }
+.mf-registros-topo .mf-ir-mapa { margin: 0; }
+.mf-trab-listas { margin: 16px 0; }
+.mf-trab-listas > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+/* registro de um item: o que ele representa e os títulos das partes */
+.mf-representa { margin: 8px 0 0; font-size: var(--arq-fs-texto); color: var(--ink-2); }
+.mf-subtitulo { margin: 16px 0 8px; font-family: var(--font-head); font-size: 1rem; line-height: 1.25; }
 #page-avaliacoes.mf-mapa-largo .wrap { max-width: none; padding: calc(var(--nav-h, 72px) + 14px) clamp(10px, 2vw, 28px) 0; }
 #page-avaliacoes.mf-mapa-largo .page-hero { display: none; } /* o título passa para dentro do painel do Mapa */
 #page-avaliacoes.mf-mapa-largo .section { max-width: none; padding: 0 0 32px; }
@@ -3665,6 +3675,7 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .avp-inicio-porta2 .avp-inicio-opcoes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 0; }
 .avp-inicio-porta2 .avp-inicio-opcao { border-top: 1px solid var(--line-strong); padding: 14px 16px; }
 .avp-inicio-cartao > .avp-inicio-caminho { margin-bottom: 4px; }
+.avp-inicio-cartao--largo { grid-column: 1 / -1; } /* Adequação à Squad: linha própria, abaixo das duas portas */
 details.avp-como { margin-top: 8px; border: 1px solid var(--line-strong); border-radius: 12px; padding: 10px 14px; background: var(--panel); }
 details.avp-como > summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
 details.avp-como[open] > summary { margin-bottom: 8px; }
@@ -3676,7 +3687,7 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .avp-trab-nums { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .avp-trab-num { display: inline-block; min-width: 2ch; font-weight: 700; font-variant-numeric: tabular-nums; }
 .avp-trab-pendentes { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
-.avp-trab-pendentes a { overflow-wrap: anywhere; }
+.avp-trab-pendentes a { overflow-wrap: anywhere; display: inline-flex; align-items: center; min-height: 44px; } /* área de toque no celular */
 .avp-trab-areas { list-style: none; padding-left: 0; }
 .avp-trab-area { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
 .avp-trab-area-texto { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }

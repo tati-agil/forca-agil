@@ -11,7 +11,7 @@
  *   A. ADMIN › Avaliações e Mapa: o destaque "Mapa da Floresta" vem ANTES dos grupos de configuração, com a descrição
  *      combinada, a origem/situação dos dados (demonstrativo sem cadastro; registros com cadastro; nunca exemplo fictício
  *      como relação real), "Abrir Mapa da Floresta" (#arquitetura?mf=mapa, o Mapa existente), "Consultar definição do Mapa"
- *      (#admin?arq=documentacao, o cartão MAPA_FLORESTA existente) e "Consultar jornada até o Mapa" (#arquitetura?mf=catalogo);
+ *      (#admin?arq=documentacao, o cartão MAPA_FLORESTA existente) e "Consultar jornada até o Mapa" (#arquitetura?tr=1);
  *      a explicação diz que não há sequência obrigatória e que a Adequação à Squad é opcional.
  *   B. Área Avaliação (perfil "avaliacao", sem ADMIN): o Mapa e a jornada estão no Início, identificáveis, e abrem.
  *   C. Taxonomia aberta por "Abrir a aba Taxonomia": "← Voltar para Avaliações e Mapa" no Catálogo, na Administração e nas
@@ -83,7 +83,7 @@ async function cenarioA(browser, vp, nome) {
   afirma((await page.innerText('#avpAdminMapaTitulo')).trim() === 'Mapa da Floresta' && (await page.innerText('#avpAdminMapa > summary .avp-admin-secao-desc')).trim() === DESCRICAO_ADMIN, 'título "Mapa da Floresta" e a descrição curta, visível mesmo recolhida');
   afirma(await situacao(page, 'avpAdminMapaSituacao') === 'demonstrativo' && /modo demonstrativo, com exemplos fictícios que não representam relações reais/.test(await page.innerText('#avpAdminMapaSituacao')), 'sem cadastro de estruturas: diz que o Mapa é demonstrativo e que os exemplos não são relações reais');
   afirma(await page.getAttribute('#avpAdminAbrirMapa', 'href') === '#arquitetura?mf=mapa' && (await page.innerText('#avpAdminAbrirMapa')).trim().toLowerCase() === 'abrir mapa da floresta' && await page.locator('#avpAdminMapa .btn--primary').count() === 1, 'ação principal "Abrir Mapa da Floresta" → #arquitetura?mf=mapa (a única ação amarela da seção)');
-  afirma(await page.getAttribute('#avpAdminJornadaMapa', 'href') === '#arquitetura?mf=catalogo' && (await page.innerText('#avpAdminJornadaMapa')).trim().toLowerCase() === 'consultar jornada até o mapa', '"Consultar jornada até o Mapa" → #arquitetura?mf=catalogo (link secundário)');
+  afirma(await page.getAttribute('#avpAdminJornadaMapa', 'href') === '#arquitetura?tr=1' && (await page.innerText('#avpAdminJornadaMapa')).trim().toLowerCase() === 'consultar trabalhos e registros', '"Consultar trabalhos e registros" → #arquitetura?tr=1 (link secundário; a antiga Jornada está nos Trabalhos)');
   afirma(await page.locator('#avpAdminDocsMapa').count() === 0, 'sem documentos de referência: nenhum link "Documentação relacionada"');
   afirma(await page.locator('#avpParteMapa').count() === 0 && await page.locator('#adminAvaliacaoProduto a[href="#arquitetura?mf=mapa"]').count() === 1, 'nenhum segundo "Abrir o Mapa" na mesma tela');
   afirma(await page.locator('#avpAdminPartes, .avp-parte, [id^="avpParte"]').count() === 0, 'sem a lista "Como cada parte contribui para o Mapa" (a explicação é da Jornada até o Mapa)');
@@ -112,8 +112,8 @@ async function cenarioA(browser, vp, nome) {
   await page.goBack();
   await page.waitForSelector('#avpAdminMapa', { timeout: 8000 });
   await page.click('#avpAdminJornadaMapa');
-  await esperarCondicao(page, () => /^#(?:arquitetura|avaliacoes)\?mf=catalogo/.test(location.hash) && !!document.getElementById('mfCatalogo'), null, { limite: 12000, descricao: 'jornada até o Mapa' });
-  afirma(true, '"Consultar jornada até o Mapa" abre a jornada preparatória');
+  await esperarCondicao(page, () => /^#(?:arquitetura|avaliacoes)\?tr=1/.test(location.hash) && !!document.getElementById('mfCatalogo'), null, { limite: 12000, descricao: 'Trabalhos' });
+  afirma(true, '"Consultar trabalhos e registros" abre os Trabalhos (registros)');
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
   await ctx.close();
   /* com o cadastro de estruturas: a origem são os registros */
@@ -129,8 +129,8 @@ async function cenarioB(browser, vp, nome) {
   const { ctx, page, erros } = await abrir(browser, vp, { email: 'avaliadora@previ.com.br', admin: false, tipo: 'avaliacao', hash: 'avaliacoes' });
   await page.waitForSelector('#avpInicioMapaSec', { timeout: 15000 });
   afirma((await page.innerText('#avpInicioMapaTitulo')).trim() === 'Mapa da Floresta' && (await page.innerText('#avpInicioMapaSec .avp-mapa-desc')).trim() === DESCRICAO, 'o Início mostra o bloco "Mapa da Floresta", com a descrição');
-  afirma(await page.getAttribute('#avpInicioMapa', 'href') === '#arquitetura?mf=mapa' && await page.getAttribute('#avpInicioJornada', 'href') === '#arquitetura?mf=catalogo' && (await page.innerText('#avpInicioJornada')).trim() === 'Consultar jornada até o Mapa', '"Abrir Mapa da Floresta" e "Consultar jornada até o Mapa"');
-  afirma(await page.evaluate(() => { const r = document.getElementById('avpInicioMapaSec').getBoundingClientRect(); return r.top < window.innerHeight * 2.2; }), 'o bloco está no começo do Início (sem rolar muito)');
+  afirma(await page.getAttribute('#avpInicioMapa', 'href') === '#arquitetura?mf=mapa' && !(await page.$('#avpInicioJornada')), '"Abrir Mapa da Floresta" (a jornada está nos Trabalhos, sem atalho próprio)');
+  afirma(await page.evaluate(() => { const m = document.getElementById('avpInicioMapaSec').getBoundingClientRect(), c = document.getElementById('avpInicioComecar').getBoundingClientRect(); return m.top >= c.bottom; }), 'o bloco vem depois de continuar e começar (não interrompe a escolha)');
   await page.click('#avpInicioMapa');
   await esperarCondicao(page, () => /^#(?:arquitetura|avaliacoes)\?mf=mapa/.test(location.hash) && !!document.getElementById('mfmMapa'), null, { limite: 12000, descricao: 'Mapa aberto pelo Início' });
   afirma(true, 'quem tem só a Avaliação abre o Mapa pelo Início');

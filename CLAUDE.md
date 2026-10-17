@@ -43,7 +43,11 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   **A FLORESTA** (nome visível; tecnicamente o Núcleo de Arquitetura Organizacional) tem o endereço oficial `#arquitetura`
   — a página interna continua `avaliacoes` (`#page-avaliacoes`, permissões). O antigo `#avaliacoes…` (com os parâmetros)
   é reescrito para `#arquitetura…` por `head-init.js`, antes de qualquer outro script ler o endereço; gere sempre
-  `#arquitetura…` (`teste-rota-arquitetura.js`).
+  `#arquitetura…` (`teste-rota-arquitetura.js`). O Início da Floresta segue a ordem Continuar → Começar (Produto/Serviço,
+  responsabilidade, área, Adequação à Squad — independentes) → Mapa; **Trabalhos** (`#arquitetura?tr=1`, desenhado por
+  `mapa-floresta.js`) é uma tela só: "Continuar de onde parou" e as listas completas (blocos de `avaliacao-produto.js`,
+  `window.faTrabalhosFloresta`) com os registros da antiga Jornada de Avaliação e Posicionamento; o registro de um item é
+  `?tr=1&item=<id>`, e o antigo `?mf=catalogo[&item=]` é reescrito para `?tr=1[&item=]` (`teste-floresta-trabalhos.js`).
   O controle de acesso vale na navegação e no acesso direto pelo hash; informação de acesso que chega tarde reaplica a
   decisão sem rolar a página para o topo. Subendereços: `#admin?arq=<área>`, `#arquitetura?po=…`, `?sq=…`, `?an=…`,
   `?mf=catalogo`.

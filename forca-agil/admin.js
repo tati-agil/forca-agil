@@ -135,12 +135,12 @@
      As telas que empilham entradas próprias copiam a marca (faNav.comOrigem), para a origem não se perder no caminho.
      avp:1 nas entradas criadas aqui: a área Avaliação não as reescreve. */
   var ROTULOS_ORIGEM = [
-    [/^#(?:arquitetura|avaliacoes)\?(.*&)?tr=1/, 'Trabalhos de avaliação'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?(tr=1|mf=catalogo)(&.*)?&item=/, 'o registro'],
+    [/^#(?:arquitetura|avaliacoes)\?(.*&)?(tr=1|mf=catalogo)/, 'os Trabalhos'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?po=(lista|todas|atuacoes)(&|$)/, 'os Posicionamentos'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?po=/, 'o Posicionamento'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?sq=/, 'a Adequação à Squad'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?mf=mapa/, 'o Mapa da Floresta'],
-    [/^#(?:arquitetura|avaliacoes)\?(.*&)?mf=catalogo/, 'a Jornada do Mapa'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?an=/, 'a Análise Organizacional'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?(avp|editar)=/, 'a avaliação de Produto/Serviço'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],

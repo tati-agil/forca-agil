@@ -6,8 +6,8 @@
  *   N2. Posicionamento com Squad em andamento → Squad do item → Voltar → a ficha (não o Início); F5 na Squad mantém a origem.
  *   N3. Jornada (item) → "Abrir Posicionamento" → "← Voltar para a Jornada do Mapa" → o item; Voltar/Avançar do navegador.
  *   N4. Ficha de Produto/Serviço → "Posicionar" → Voltar → a ficha de Produto/Serviço.
- *   N5. Trabalhos → Jornada → "← Voltar para Trabalhos de avaliação" → Trabalhos; Trabalhos → Voltar → Início, sem ciclo.
- *   N6. Trabalhos → "Ver adequações à Squad" → "← Voltar para Trabalhos de avaliação" → Trabalhos.
+ *   N5. Início → Trabalhos (com os registros da antiga Jornada) → "← Voltar para A Floresta" → Início, sem ciclo.
+ *   N6. Trabalhos → "Ver adequações à Squad" → "← Voltar para os Trabalhos" → Trabalhos.
  *   N7. Mapa → estrutura (&e=) → objeto → "← Voltar para o Mapa da Floresta" → a mesma estrutura no Mapa.
  *   N8. Jornada: lista → item → "Voltar para a lista" volta de verdade (o Avançar devolve o item; sem ciclo).
  *   N9. Mapa → cadastro de estruturas / ficha da estrutura → "← Voltar para o Mapa da Floresta" → o Mapa.
@@ -94,15 +94,15 @@ async function n2(browser, vp, tag) {
 }
 async function n3(browser, vp, tag) {
   console.log('\n== N3 (' + tag + '): Jornada (item) → Posicionamento → Voltar → item; Voltar/Avançar ==');
-  const r = await abrir(browser, vp, '#arquitetura?mf=catalogo&item=pAssess'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?tr=1&item=pAssess'); const page = r.page;
   await ate(page, () => !!document.querySelector('.mf-abrir-po'), null, 'item da Jornada');
   const origem = await hashAgora(page);
   await page.click('.mf-abrir-po');
   await ate(page, fichaPo('gS'), 'gS', 'ficha aberta pela Jornada');
-  afirma(await texto(page, '#poVoltar') === '← Voltar para a Jornada do Mapa', 'Posicionamento aberto pela Jornada: "← Voltar para a Jornada do Mapa"', await texto(page, '#poVoltar'));
+  afirma(await texto(page, '#poVoltar') === '← Voltar para o registro', 'Posicionamento aberto pela Jornada: "← Voltar para a Jornada do Mapa"', await texto(page, '#poVoltar'));
   await page.goBack(); await ate(page, (h) => location.hash === h && !!document.querySelector('.mf-abrir-po'), origem, 'Voltar do navegador → item');
   await page.goForward(); await ate(page, fichaPo('gS'), 'gS', 'Avançar → ficha');
-  afirma(await texto(page, '#poVoltar') === '← Voltar para a Jornada do Mapa', 'Voltar/Avançar do navegador: a origem continua');
+  afirma(await texto(page, '#poVoltar') === '← Voltar para o registro', 'Voltar/Avançar do navegador: a origem continua');
   await page.click('#poVoltar');
   await ate(page, (h) => location.hash === h && !!document.querySelector('.mf-abrir-po'), origem, 'botão → item da Jornada');
   afirma(true, 'o botão volta ao mesmo item da Jornada');
@@ -121,21 +121,16 @@ async function n4(browser, vp, tag) {
   await fim(r, 'N4');
 }
 async function n5(browser, vp, tag) {
-  console.log('\n== N5 (' + tag + '): Início → Trabalhos → Jornada → Voltar → Trabalhos → Voltar → Início ==');
+  console.log('\n== N5 (' + tag + '): Início → Trabalhos (com os registros da antiga Jornada) → Voltar → Início ==');
   const r = await abrir(browser, vp, '#arquitetura'); const page = r.page;
   await ate(page, () => !!document.getElementById('avpInicioTrabalhos'), null, 'Início');
   await page.click('#avpInicioTrabalhos');
-  await ate(page, () => !!document.getElementById('avpTrabIrJornada'), null, 'Trabalhos');
-  await page.click('#avpTrabIrJornada');
-  await ate(page, () => /mf=catalogo/.test(location.hash) && !!document.getElementById('mfVoltar'), null, 'Jornada aberta por Trabalhos');
-  afirma(await texto(page, '#mfVoltar') === '← Voltar para Trabalhos de avaliação', 'Jornada aberta por Trabalhos: "← Voltar para Trabalhos de avaliação"', await texto(page, '#mfVoltar'));
+  await ate(page, () => location.hash === '#arquitetura?tr=1' && !!document.getElementById('mfVoltar') && !!document.getElementById('mfItens'), null, 'Trabalhos');
+  afirma(await texto(page, '#mfVoltar') === '← Voltar para A Floresta', 'Trabalhos aberto pelo Início: "← Voltar para A Floresta"', await texto(page, '#mfVoltar'));
   await page.click('#mfVoltar');
-  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('avpTrabVoltar'), null, 'de volta a Trabalhos');
-  afirma(true, 'volta a Trabalhos');
-  await page.click('#avpTrabVoltar');
   await ate(page, () => location.hash === '#arquitetura' && !!document.getElementById('avpInicio'), null, 'de volta ao Início');
   await page.goForward();
-  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('avpTrabVoltar'), null, 'Avançar → Trabalhos');
+  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('mfVoltar'), null, 'Avançar → Trabalhos');
   afirma(true, 'Trabalhos → Voltar → Início é o Voltar do histórico (o Avançar devolve Trabalhos; sem ciclo)');
   await fim(r, 'N5');
 }
@@ -143,12 +138,13 @@ async function n6(browser, vp, tag) {
   console.log('\n== N6 (' + tag + '): Trabalhos → Adequação à Squad → Voltar → Trabalhos ==');
   const r = await abrir(browser, vp, '#arquitetura?tr=1'); const page = r.page;
   await ate(page, () => !!document.getElementById('avpTrabIrSquad'), null, 'Trabalhos com a Adequação à Squad');
+  await page.click('#mfTrabListas > summary'); /* as listas completas ficam recolhidas */
   await page.click('#avpTrabIrSquad');
   await ate(page, () => /sq=lista/.test(location.hash) && !!document.getElementById('sqVoltarArquitetura'), null, 'lista da Squad');
-  afirma(/Trabalhos de avaliação/.test(await texto(page, '#sqVoltarArquitetura')), 'Squad aberta por Trabalhos: "← Voltar para Trabalhos de avaliação"', await texto(page, '#sqVoltarArquitetura'));
+  afirma(/os Trabalhos/.test(await texto(page, '#sqVoltarArquitetura')), 'Squad aberta por Trabalhos: "← Voltar para os Trabalhos"', await texto(page, '#sqVoltarArquitetura'));
   await page.click('#sqVoltarArquitetura');
-  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('avpTrabalhos'), null, 'de volta a Trabalhos');
-  afirma(true, 'volta a Trabalhos de avaliação');
+  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('mfTrabListas'), null, 'de volta a Trabalhos');
+  afirma(true, 'volta aos Trabalhos');
   await fim(r, 'N6');
 }
 async function n7(browser, vp, tag) {
@@ -157,7 +153,7 @@ async function n7(browser, vp, tag) {
   await ate(page, () => !!document.querySelector('#mfmObjetos .mfm-objeto-nome'), null, 'detalhe da estrutura com os objetos', 15000);
   const origem = await hashAgora(page);
   await page.click('#mfmObjetos .mfm-objeto-nome');
-  await ate(page, () => /mf=catalogo&item=/.test(location.hash) && !!document.getElementById('mfVoltarLista'), null, 'objeto na Jornada');
+  await ate(page, () => /tr=1&item=/.test(location.hash) && !!document.getElementById('mfVoltarLista'), null, 'objeto na Jornada');
   afirma(await texto(page, '#mfVoltarLista') === '← Voltar para o Mapa da Floresta', 'objeto aberto pelo Mapa: "← Voltar para o Mapa da Floresta"', await texto(page, '#mfVoltarLista'));
   await page.click('#mfVoltarLista');
   await ate(page, (h) => location.hash === h && !!document.getElementById('mfmDetalhe'), origem, 'de volta à estrutura no Mapa');
@@ -166,13 +162,13 @@ async function n7(browser, vp, tag) {
 }
 async function n8(browser, vp, tag) {
   console.log('\n== N8 (' + tag + '): Jornada lista → item → Voltar para a lista (sem ciclo) ==');
-  const r = await abrir(browser, vp, '#arquitetura?mf=catalogo'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?tr=1'); const page = r.page;
   await ate(page, () => !!document.querySelector('.mf-linha-abrir'), null, 'lista da Jornada');
   await page.click('.mf-linha-abrir');
   await ate(page, () => /&item=/.test(location.hash) && !!document.getElementById('mfVoltarLista'), null, 'item');
   const item = await hashAgora(page);
   await page.click('#mfVoltarLista');
-  await ate(page, () => location.hash === '#arquitetura?mf=catalogo' && !!document.querySelector('.mf-linha-abrir'), null, 'lista');
+  await ate(page, () => location.hash === '#arquitetura?tr=1' && !!document.querySelector('.mf-linha-abrir'), null, 'lista');
   await page.goForward();
   await ate(page, (h) => location.hash === h, item, 'Avançar → o item');
   afirma(true, '"Voltar para a lista" volta no histórico: o Avançar devolve o item (sem empilhar a lista)');
@@ -220,12 +216,12 @@ async function n11(browser, vp, tag) {
 
 async function n12(browser, vp, tag) {
   console.log('\n== N12 (' + tag + '): Jornada (item) → Squad → Voltar → item ==');
-  const r = await abrir(browser, vp, '#arquitetura?mf=catalogo&item=pAssess'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?tr=1&item=pAssess'); const page = r.page;
   await ate(page, () => !!document.querySelector('.mf-abrir-squad'), null, 'item com o acesso à Squad');
   const origem = await hashAgora(page);
   await page.click('.mf-abrir-squad');
   await ate(page, () => !!document.getElementById('sqVoltarListaChecklist'), null, 'Squad aberta pela Jornada');
-  afirma(await texto(page, '#sqVoltarListaChecklist') === '← Voltar para a Jornada do Mapa', 'Squad aberta pela Jornada: "← Voltar para a Jornada do Mapa"', await texto(page, '#sqVoltarListaChecklist'));
+  afirma(await texto(page, '#sqVoltarListaChecklist') === '← Voltar para o registro', 'Squad aberta pela Jornada: "← Voltar para a Jornada do Mapa"', await texto(page, '#sqVoltarListaChecklist'));
   await page.click('#sqVoltarListaChecklist');
   await page.click('.sq-modal-confirm-btn');
   await ate(page, (h) => location.hash === h && !!document.querySelector('.mf-abrir-squad'), origem, 'de volta ao item da Jornada');
@@ -237,7 +233,7 @@ async function n13(browser, vp, tag) {
   const r = await abrir(browser, vp, '#admin?arq=inicio'); const page = r.page;
   await ate(page, () => !!document.getElementById('avpAdminJornadaMapa'), null, 'ADMIN com a seção do Mapa');
   await page.click('#avpAdminJornadaMapa');
-  await ate(page, () => /mf=catalogo/.test(location.hash) && !!document.getElementById('mfVoltar'), null, 'Jornada aberta pelo ADMIN');
+  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('mfVoltar'), null, 'Jornada aberta pelo ADMIN');
   afirma(await texto(page, '#mfVoltar') === '← Voltar para Avaliações e Mapa', 'Jornada aberta pelo ADMIN: "← Voltar para Avaliações e Mapa"', await texto(page, '#mfVoltar'));
   await page.click('#mfVoltar');
   await ate(page, () => location.hash === '#admin?arq=inicio' && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura' && !!document.getElementById('avpAdminMapa'), null, 'de volta ao ADMIN');

@@ -75,9 +75,9 @@ const ver = (page, sel, descricao) => esperarCondicao(page, (s) => { const e = d
       await esperarCondicao(r.page, () => location.hash === '#home', null, { descricao: '#home' });
       const n0 = await r.page.evaluate(() => history.length);
       await r.page.evaluate(() => { location.hash = '#avaliacoes?mf=catalogo'; });
-      await ver(r.page, '#mfBusca', 'a Jornada pelo endereço antigo');
+      await ver(r.page, '#mfBusca', 'os Trabalhos pelo endereço antigo');
       const n1 = await r.page.evaluate(() => history.length);
-      afirma(await hash(r.page) === '#arquitetura?mf=catalogo' && n1 === n0 + 1, 'navegar para "#avaliacoes?mf=catalogo" → "#arquitetura?mf=catalogo", com UMA entrada no histórico', { hash: await hash(r.page), n0, n1 });
+      afirma(await hash(r.page) === '#arquitetura?tr=1' && n1 === n0 + 1, 'navegar para "#avaliacoes?mf=catalogo" → "#arquitetura?tr=1" (a antiga Jornada, hoje nos Trabalhos), com UMA entrada no histórico', { hash: await hash(r.page), n0, n1 });
       await r.page.goBack(); await esperarCondicao(r.page, () => location.hash === '#home', null, { descricao: 'Voltar para #home' });
       afirma(true, 'Voltar: volta para #home (nenhuma entrada fantasma)');
       /* entrada ANTIGA no histórico: o Voltar a reescreve */

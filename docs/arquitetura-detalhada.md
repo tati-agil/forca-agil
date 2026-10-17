@@ -73,7 +73,7 @@ The hermetic test suite (fake Firebase, no secrets, no network — `.github/scri
   estado depois da gravação. Ver `docs/referencia-tecnica.md` e `teste-rules-estrutura-atual.js`.
 - **Refinamento de usabilidade (Início pelo trabalho)**: o Início de Avaliações separa "Continuar um trabalho"
   (`#arquitetura?tr=1`, Trabalhos de avaliação — rascunhos e números reais de Produto/Serviço, responsabilidades e áreas,
-  só leitura, sem nó novo; a Jornada do Mapa é consulta com nome próprio) de "Começar um trabalho" (Porta 1; Porta 2
+  só leitura, sem nó novo; desde A FLORESTA, com os registros da antiga Jornada do Mapa na mesma tela) de "Começar um trabalho" (Porta 1; Porta 2
   com "uma responsabilidade" e "uma área", o mesmo O1–O9); sem o painel "Entenda como as avaliações se conectam" (a explicação fica na Jornada até o Mapa) e sem atalhos do Início ao ADMIN; as listas de Produto/Serviço, Posicionamentos e Adequação à Squad ficam em Trabalhos de avaliação.
   `#arquitetura?po=todas` reúne as responsabilidades do Caminho A e das análises (`faAnalisesOrganizacionais.
   responsabilidadesDasAnalises()`, só leitura; a já registrada na Porta 2 aparece uma vez). Registro de uma descrição

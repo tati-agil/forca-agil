@@ -1,7 +1,7 @@
 /* TRABALHOS DE AVALIAÇÃO e TODAS AS RESPONSABILIDADES — encontrar um trabalho anterior sem lembrar o módulo, com
  * números reais. Firebase falso em persistência real; hermético; dados fictícios só no banco da página. Prova:
- *   A. Usuário novo: no Início, "Ver e continuar trabalhos" leva aos Trabalhos de avaliação (#arquitetura?tr=1) — a
- *      Jornada do Mapa é consulta, com nome próprio; os números vêm dos registros (Produto/Serviço, responsabilidades,
+ *   A. Usuário novo: no Início, "Ver e continuar trabalhos" leva aos Trabalhos (#arquitetura?tr=1) — com os
+ *      registros da antiga Jornada na mesma tela; os números vêm dos registros (Produto/Serviço, responsabilidades,
  *      áreas) e "Continuar de onde parou" lista os rascunhos (P1–P16 e O1–O9) com link direto.
  *   B. Todas as responsabilidades (#arquitetura?po=todas): as do Caminho A e as das análises de área numa lista só; a
  *      responsabilidade da área já registrada na Porta 2 aparece UMA vez, com a área de origem e quem executa; a ainda
@@ -66,17 +66,18 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
       const { ctx, page, erros } = await abrir(browser, vp, '#arquitetura');
       console.log('A. Usuário novo: continuar um trabalho');
       await page.waitForSelector('#avpInicioTrabalhos');
-      afirma(/Ver e continuar trabalhos/.test(await texto(page, '#avpInicioTrabalhos')) && /Consultar jornada até o Mapa/.test(await texto(page, '#avpInicioJornada')) &&
-        await page.evaluate(() => ['avpInicioNatureza', 'avpInicioAtuacao', 'avpInicioAnalise', 'avpInicioTrabalhos', 'avpInicioJornada'].every((i) => !!document.getElementById(i))),
-        'no Início: começar (Produto/Serviço, responsabilidade, área), continuar e a Jornada como consulta — tudo à vista');
+      afirma(/Ver e continuar trabalhos/.test(await texto(page, '#avpInicioTrabalhos')) && !(await page.$('#avpInicioJornada')) &&
+        await page.evaluate(() => ['avpInicioNatureza', 'avpInicioAtuacao', 'avpInicioAnalise', 'avpInicioSquad', 'avpInicioTrabalhos'].every((i) => !!document.getElementById(i))),
+        'no Início: começar (Produto/Serviço, responsabilidade, área, Squad) e continuar — a Jornada está dentro dos Trabalhos');
       await page.click('#avpInicioTrabalhos');
-      await esperar(page, () => location.hash === '#arquitetura?tr=1' && !!document.getElementById('avpTrabalhos'));
+      await esperar(page, () => location.hash === '#arquitetura?tr=1' && !!document.getElementById('avpTrabContinuar'));
       await esperar(page, () => document.getElementById('avpTrabRespProntas') && document.getElementById('avpTrabRespProntas').textContent !== '…' && document.getElementById('avpTrabAreasQtd') && document.getElementById('avpTrabAreasQtd').textContent !== '…');
       const n = await page.evaluate(() => Object.fromEntries(['avpTrabProdAndamento', 'avpTrabProdConcluidas', 'avpTrabRespProntas', 'avpTrabRespAndamento', 'avpTrabRespAvaliadas', 'avpTrabAreasQtd', 'avpTrabAreasProntas'].map((i) => [i, document.getElementById(i).textContent])));
       afirma(n.avpTrabRespAndamento === '1' && n.avpTrabRespAvaliadas === '2' && n.avpTrabRespProntas === '1' && n.avpTrabAreasQtd === '1' && n.avpTrabAreasProntas === '1', 'números reais: 1 em avaliação, 2 avaliadas, 1 pronta (a da área sem O1–O9), 1 área', n);
       afirma(/Gerir a conformidade fiscal/.test(await texto(page, '#avpTrabPendentes')) && (await page.getAttribute('#avpTrabPendentes a[href="#arquitetura?po=gRas"]', 'href')) === '#arquitetura?po=gRas', '"Continuar de onde parou": o rascunho do O1–O9, com link direto');
       afirma(await larguraOk(page), rot + ': Trabalhos sem rolagem lateral');
       console.log('B. Todas as responsabilidades');
+      await page.click('#mfTrabListas > summary'); /* as listas completas ficam recolhidas nos Trabalhos */
       await page.click('#avpTrabIrResponsabilidades');
       await esperar(page, () => location.hash === '#arquitetura?po=todas' && document.querySelectorAll('#poTodasLista .po-todas-item').length > 0);
       const itens = await page.$$eval('#poTodasLista .po-todas-item', (l) => l.map((x) => ({ t: x.querySelector('strong').textContent, s: x.getAttribute('data-situacao'), a: x.getAttribute('data-area'), txt: x.textContent })));
