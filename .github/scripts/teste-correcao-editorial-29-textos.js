@@ -171,11 +171,16 @@ async function abrirQuestionarios(page) {
   await page.evaluate(() => { location.hash = '#admin'; });
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
-  await page.click('#avpConfigQuestionariosBtn');
+  await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
+  await page.click('#avpQuestP1P16Btn');
   await page.waitForSelector('#avpCorrecao-semantica-p1-p16', { timeout: 8000 });
 }
 async function aplicarNaTela(page, id) {
+  /* cada questionário tem a sua tela (#admin?arq=questionarios&q=…): a correção de S1–S8 fica no questionário S1–S8 */
+  if (!(await page.locator('#avpCorrecao-' + id).count())) {
+    await page.evaluate((h) => { location.hash = h; }, '#admin?arq=questionarios&q=' + (/s1-s8/.test(id) ? 's1s8' : 'p1p16'));
+    await page.waitForSelector('#avpCorrecao-' + id, { timeout: 8000 });
+  }
   await page.click('.avp-correcao-aplicar-btn[data-correcao="' + id + '"]');
   await page.waitForSelector('.avp-modal-confirm-btn', { timeout: 5000 });
   const confirmacao = await page.locator('body > .modal-overlay').last().innerText();
@@ -213,7 +218,7 @@ async function cenarioFabrica(browser, viewport, rotulo) {
   afirma(/Será retirado: Pergunte: se o produto principal deixasse de existir/.test(card), 'campo retirado aparece como "Será retirado: …"');
   afirma(/Antes: O item existe principalmente para que outro Produto\/Serviço consiga entregar seu resultado\?\s*Depois: O item é principalmente um elemento estrutural que compõe outro Produto\/Serviço\?/.test(card), 'P15: "Antes" e "Depois" da pergunta');
   afirma(/Ajuda — o que significa/.test(card) && !/textoAjuda\./.test(card), 'campos aninhados com rótulo legível (sem "textoAjuda.…")');
-  afirma(await page.locator('#avpCorrecao-semantica-s1-s8').count() === 1, 'card dos 13 textos de S1–S8 também presente');
+  afirma(await page.locator('#avpCorrecao-semantica-s1-s8').count() === 0, 'o card dos textos de S1–S8 fica no questionário S1–S8, não no de P1–P16');
   afirma(await larguraOk(page), 'cabe na tela (sem rolagem lateral)');
   const antes = await banco(page);
   afirma(!antes['questionarios-config'] || !Object.keys(antes['questionarios-config']).length, 'nada publicado antes do clique: o questionário segue o de fábrica', String(JSON.stringify(antes['questionarios-config'])).slice(0, 300));
@@ -245,6 +250,9 @@ async function cenarioFabrica(browser, viewport, rotulo) {
   afirma(dec1.versaoA === dec0.versaoA && dec1.versaoS === dec0.versaoS, 'versões dos motores iguais (' + dec0.versaoA + ' / ' + dec0.versaoS + ')');
   afirma(dec1.a === dec0.a, 'P1–P16: as 65.536 combinações dão as mesmas decisões antes e depois');
   afirma(dec1.s === dec0.s, 'S1–S8: as 256 combinações dão as mesmas decisões antes e depois');
+  /* a última correção aplicada foi a de S1–S8, na tela dele: de volta ao questionário P1–P16 */
+  await page.evaluate(() => { location.hash = '#admin?arq=questionarios&q=p1p16'; });
+  await page.waitForSelector('#avpCorrecao-semantica-p1-p16', { timeout: 8000 });
   afirma(/✓ Correção editorial aplicada/.test(await page.locator('#avpCorrecao-semantica-p1-p16').innerText()) && await page.locator('.avp-correcao-aplicar-btn[data-correcao="semantica-p1-p16"]').count() === 0,
     'card passa a "✓ Correção editorial aplicada", sem botão');
   const idem = await page.evaluate(() => new Promise((ok) => window.faQuestionarios.aplicarCorrecaoEditorial('semantica-p1-p16', null, (err) => ok(err))));

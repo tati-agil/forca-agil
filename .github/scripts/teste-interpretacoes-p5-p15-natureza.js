@@ -159,7 +159,7 @@ async function interpretacao(page, codigo) {
 }
 async function abrirConfig(page) {
   await irAoAdmin(page);
-  await page.click('#avpConfigQuestionariosBtn');
+  await page.click('#avpQuestP1P16Btn');
   await page.waitForSelector('#avpCorrecao-interpretacoes-p5-p15', { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(150);
 }
@@ -174,14 +174,14 @@ async function irAoAdmin(page) {
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   /* o Admin lembra a subtela em que ficou: se não caiu no início, volta até ele */
-  await page.waitForSelector('#avpConfigQuestionariosBtn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
-  for (var nivel = 0; nivel < 6 && !(await page.locator('#avpConfigQuestionariosBtn').count()); nivel++) {
+  await page.waitForSelector('#avpQuestP1P16Btn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
+  for (var nivel = 0; nivel < 6 && !(await page.locator('#avpQuestP1P16Btn').count()); nivel++) {
     /* o "← Voltar para …" sobe um nível por vez; aviso de alteração não salva é confirmado */
     await page.locator('#avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar').first().click();
     var sair = page.locator('.avp-modal-confirm-btn');
     if (await sair.count()) await sair.click();
   }
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+  await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
 }
 async function voltarParaAvaliacoes(page) {
   await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });

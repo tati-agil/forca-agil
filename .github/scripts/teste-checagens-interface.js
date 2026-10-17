@@ -948,7 +948,7 @@ const CHECAGENS = [
   { id: "adm-avaliacao-produto-exportar", grupo: "Admin", label: "Admin → Avaliação de Produto/Serviço: só parametrização (Usuários autorizados presente; sem lista nem exportação)",
     run: function () {
           var admin = document.getElementById('adminAvaliacaoProduto');
-          if (!admin || !admin.querySelector('#avpConfigQuestionariosBtn')) return true; /* bloco ainda não renderizado, ou numa subtela */
+          if (!admin || !admin.querySelector('#avpQuestP1P16Btn')) return true; /* bloco ainda não renderizado, ou numa subtela */
           return !!admin.querySelector('#avpUsuariosBtn') && !admin.querySelector('#avpExportarBtn') && !admin.querySelector('#avpLixeiraBtn');
         } },
 ];

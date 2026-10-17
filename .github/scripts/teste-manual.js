@@ -134,7 +134,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       afirma(true, '"Abrir ADMIN › Taxonomia" leva até a aba Taxonomia');
       await abrirAbaManual(page);
       await page.evaluate(() => { document.querySelector('#manual-arquitetura .man-ir-aba').click(); });
-      await esperarCondicao(page, () => document.getElementById('adminPanelArquitetura').classList.contains('active') && !!document.getElementById('avpConfigQuestionariosBtn'), null, { descricao: 'o botão levar à Arquitetura' });
+      await esperarCondicao(page, () => document.getElementById('adminPanelArquitetura').classList.contains('active') && !!document.getElementById('avpQuestP1P16Btn'), null, { descricao: 'o botão levar à Arquitetura' });
       afirma(true, '"Abrir ADMIN › Avaliações e Mapa" leva até a tela inicial da Arquitetura');
 
       console.log('\n== 9. Abas do ADMIN ==');
@@ -176,7 +176,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
     console.log('\n== 9. "Avaliação + Configuração" continua vendo só a Arquitetura ==');
     {
       const { ctx, page, erros, pedidosManual } = await abrir(browser, opts, ARQ);
-      await esperarCondicao(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]'); return !!b && b.classList.contains('active') && !!document.getElementById('avpConfigQuestionariosBtn'); }, null, { descricao: 'a Arquitetura abrir para Avaliação + Configuração' });
+      await esperarCondicao(page, () => { const b = document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]'); return !!b && b.classList.contains('active') && !!document.getElementById('avpQuestP1P16Btn'); }, null, { descricao: 'a Arquitetura abrir para Avaliação + Configuração' });
       const visiveis = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).filter((b) => !b.hidden && b.offsetParent !== null).map((b) => b.textContent.trim()));
       afirma(visiveis.length <= 1 && !visiveis.includes('Manual'), 'nenhuma outra aba (nem Manual) para Avaliação + Configuração', visiveis.join(', ') || 'barra oculta');
       afirma(pedidosManual.length === 0, 'e o Manual não é baixado');

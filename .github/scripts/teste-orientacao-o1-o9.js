@@ -123,7 +123,7 @@ async function tela(browser, viewport, rotulo) {
   await ir(page, '#admin');
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn'); await page.click('#avpConfigQuestionariosBtn');
+  await page.waitForSelector('#avpQuestO1O9Btn'); await page.click('#avpQuestO1O9Btn');
   await page.waitForSelector('#avpCorrecao-' + AJ);
   const cAj = await texto(page, '#avpCorrecao-' + AJ), cRo = await texto(page, '#avpCorrecao-' + RO9);
   afirma(/Correção editorial disponível/.test(cAj) && /Proposta para aprovação/.test(cAj) && /19 ajustes/.test(cAj) && !/divergente/.test(cAj), 'B. cartão das ajudas: proposta, 19 ajustes pendentes, nada divergente', cAj.slice(0, 200));

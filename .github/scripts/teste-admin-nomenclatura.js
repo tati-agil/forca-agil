@@ -52,7 +52,7 @@ async function rodada(browser, viewport, rotulo) {
   const abas = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).map((b) => b.textContent.trim()));
   afirma(abas.indexOf('Avaliações e Mapa') !== -1 && abas.indexOf('Taxonomia') === abas.indexOf('Avaliações e Mapa') + 1 && abas.indexOf('Avaliação e Mapa') === -1, '2. abas "Avaliações e Mapa" e "Taxonomia", lado a lado', abas);
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn');
+  await page.waitForSelector('#avpQuestP1P16Btn');
   afirma(await texto(page, '#adminPanelArquitetura .avp-panel-titulo') === 'Administração das Avaliações e do Mapa da Floresta', '2. título da área');
   afirma(/Configurações e cadastros governados das avaliações e do Mapa da Floresta/.test(await texto(page, '#admArqDescricao')), '2. o que a área reúne');
   const rel = await texto(page, '#admArqRelacaoTaxonomia');
@@ -68,7 +68,7 @@ async function rodada(browser, viewport, rotulo) {
 
   /* Avaliação + Configuração: o acesso de sempre */
   ({ ctx, page, erros } = await abrir(browser, viewport, ARQ));
-  await page.waitForSelector('#avpConfigQuestionariosBtn');
+  await page.waitForSelector('#avpQuestP1P16Btn');
   const restr = await page.evaluate(() => ({
     abasVisiveis: Array.from(document.querySelectorAll('.admin-tab-btn')).filter((b) => !b.hidden).map((b) => b.dataset.panel),
     barra: (document.querySelector('.admin-tabs-bar') || {}).hidden, tax: document.getElementById('adminPanelTaxonomia').hidden,

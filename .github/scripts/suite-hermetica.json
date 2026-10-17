@@ -587,6 +587,12 @@
       "sobre": "O cartão de P1–P16, O1–O9 ou S1–S8 abre direto aquele motor, sem segunda seleção; mesmo esqueleto (situação à vista, \"Como este motor decide\" recolhido e específico, versões e histórico recolhidos); um Voltar só, que reabre o grupo dos motores; Voltar do navegador; link direto e F5 em cada motor; teclado; perfil Avaliação + Configuração; sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-config-avaliacoes-grupos.js",
+      "nome": "Configuração das Avaliações — um grupo por avaliação: Questionário | Motor (desktop e celular)",
+      "duracao": 90,
+      "sobre": "Três grupos (P1–P16, O1–O9, S1–S8), cada um com Questionário e Motor; os seis acessos abrem direto a tela certa (o questionário mostra só o da avaliação, no mesmo cadastro central); \"← Voltar\", Voltar/Avançar do navegador, link direto e F5 nos seis endereços; perfil Avaliação + Configuração; legibilidade (título sem a Anton em negrito sintético, textos ≥ 14 px); 375 px sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 8,

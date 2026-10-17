@@ -18,7 +18,7 @@
  *   herda a avaliação aberta pela pessoa anterior.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
-const { esperarSessaoAssentada } = require('./esperas');
+const { esperarSessaoAssentada, esperarCondicaoAte } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -106,7 +106,7 @@ async function abrirAbaArquitetura(page) {
   await btn.click();
   return true;
 }
-const QUATRO = ['#avpConfigQuestionariosBtn', '#avpConfigMotoresBtn', '#avpConfigNaturezasBtn', '#avpMotorSquadInicioBtn'];
+const QUATRO = ['#avpQuestP1P16Btn', '#avpConfigMotoresBtn', '#avpConfigNaturezasBtn', '#avpMotorSquadInicioBtn'];
 async function quatroCartoes(page) {
   for (const sel of QUATRO) if (await contar(page, sel) !== 1) return false;
   return true;
@@ -131,7 +131,7 @@ async function quatroCartoes(page) {
       await sair(page);
       await entrar(page, ARQ);
       await irPara(page, '#admin');
-      await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {});
+      await esperarCondicaoAte(page, () => !!document.getElementById('avpQuestP1P16Btn'), null, { limite: 10000 }); /* o resultado é conferido logo abaixo */
       afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), '3-4) "Avaliação + Configuração" entra no ADMIN (' + await hash(page) + ')');
       afirma(await quatroCartoes(page), '5) volta ao INÍCIO da Arquitetura com os 4 cartões (Questionários, Motores, Naturezas, Motor de Squad)');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, '6) NÃO vê o cartão "Usuários autorizados"');
@@ -169,7 +169,7 @@ async function quatroCartoes(page) {
       await sair(page);
       await entrar(page, ARQ);
       await irPara(page, '#admin');
-      await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {});
+      await esperarCondicaoAte(page, () => !!document.getElementById('avpQuestP1P16Btn'), null, { limite: 10000 }); /* o resultado é conferido logo abaixo */
       afirma(await contar(page, '#avpAutBuscaAdd') === 0 && await contar(page, '#avpAutLista') === 0, 'o restrito não herda a lista nem a busca do admin geral');
       afirma(await quatroCartoes(page) && await contar(page, '#avpUsuariosBtn') === 0, 'vê o início da Arquitetura, sem "Usuários autorizados"');
       afirma(await mesmaPagina(page) && erros.length === 0, 'sem recarregar e sem erro de JS');

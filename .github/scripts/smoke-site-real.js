@@ -276,7 +276,7 @@ async function smokeComoAdmin(page) {
 
   await checar('ADMIN › Avaliações e Mapa abre a tela inicial', async () => {
     await abrirAba('adminPanelArquitetura');
-    await esperar(() => !!document.getElementById('avpConfigQuestionariosBtn'), null, 'os cartões da Arquitetura');
+    await esperar(() => !!document.getElementById('avpQuestP1P16Btn'), null, 'os cartões da Arquitetura');
   });
 
   await checar('ADMIN › Taxonomia carrega os conceitos do banco real', async () => {

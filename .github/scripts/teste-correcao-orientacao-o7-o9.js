@@ -79,7 +79,7 @@ async function tela(browser, viewport, rotulo) {
   await ir(page, '#admin');
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn'); await page.click('#avpConfigQuestionariosBtn');
+  await page.waitForSelector('#avpQuestO1O9Btn'); await page.click('#avpQuestO1O9Btn');
   await page.waitForSelector('#avpCorrecao-orientacao-o7-o9');
   afirma(/Orientação para distinguir O7 e O9/.test(await texto(page, '#avpCorrecao-orientacao-o7-o9')), 'B. a correção aparece no cartão do questionário O1–O9');
   afirma(await larguraOk(page), 'B. cartão sem rolagem lateral');

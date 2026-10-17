@@ -46,7 +46,8 @@ const esperar = (page, fn, arg, limite) => esperarCondicao(page, fn, arg, { limi
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent : ''; }, sel);
 const naListaQuestionarios = (page) => esperar(page, () => !!document.getElementById('avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL'));
-const focado = (page) => page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.avp-config-item-card--foco'), (e) => e.getAttribute('data-q')).join(','));
+/* &q=<questionário>: a tela mostra só aquele questionário — devolve o data-q do(s) cartão(ões) na tela */
+const soQuestionario = (page) => page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.avp-config-item-card'), (e) => e.getAttribute('data-q')).join(','));
 /* contraste WCAG entre duas cores computadas (rgb/rgba; o alfa é ignorado — superfícies opacas) */
 const CONTRASTE = `(function () {
   const rgb = (c) => (c.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
@@ -80,27 +81,25 @@ async function questionarios(browser, viewport) {
   }
   afirma(await larguraOk(page), 'Questionários sem rolagem lateral');
 
-  console.log('   &q= localiza o cartão sem abrir a edição');
+  console.log('   &q= abre só o questionário daquela avaliação, sem abrir a edição');
   await page.evaluate(() => { location.hash = '#admin?arq=questionarios&q=o1o9'; });
-  await esperar(page, () => !!document.querySelector('#avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL.avp-config-item-card--foco'));
-  await page.waitForTimeout(300);
-  const vis = await page.evaluate(() => { const r = document.getElementById('avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL').getBoundingClientRect(); return r.top >= 0 && r.top < window.innerHeight; });
-  afirma(await focado(page) === 'o1o9' && vis && await page.locator('#avpCfgVoltarListaBtn').count() === 0, '&q=o1o9: o cartão O1–O9 destacado e à vista; a edição não abre', await focado(page));
+  await esperar(page, () => { const c = document.querySelectorAll('.avp-config-item-card'); return c.length === 1 && c[0].id === 'avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL'; });
+  afirma(await soQuestionario(page) === 'o1o9' && await page.locator('#avpCfgVoltarListaBtn').count() === 0, '&q=o1o9: só o questionário O1–O9; a edição não abre', await soQuestionario(page));
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
-  await esperar(page, () => !!document.querySelector('.avp-config-item-card--foco'), undefined, 20000);
-  afirma(await focado(page) === 'o1o9', 'F5: continua no cartão O1–O9', await focado(page));
+  await esperar(page, () => document.querySelectorAll('.avp-config-item-card').length === 1, undefined, 20000);
+  afirma(await soQuestionario(page) === 'o1o9', 'F5: continua no questionário O1–O9', await soQuestionario(page));
   await page.evaluate(() => { location.hash = '#admin?arq=questionarios&q=s1s8'; });
-  await esperar(page, () => !!document.querySelector('#avpCfgCard-ADEQUACAO_SQUAD.avp-config-item-card--foco'));
-  afirma(await focado(page) === 's1s8', '&q=s1s8: o cartão S1–S8', await focado(page));
+  await esperar(page, () => !!document.getElementById('avpCfgCard-ADEQUACAO_SQUAD'));
+  afirma(await soQuestionario(page) === 's1s8', '&q=s1s8: só o questionário S1–S8', await soQuestionario(page));
   await page.goBack();
-  await esperar(page, () => !!document.querySelector('#avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL.avp-config-item-card--foco'));
-  afirma(await focado(page) === 'o1o9', 'Voltar: de novo o cartão O1–O9', await focado(page));
+  await esperar(page, () => !!document.getElementById('avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL'));
+  afirma(await soQuestionario(page) === 'o1o9', 'Voltar: de novo o questionário O1–O9', await soQuestionario(page));
   await page.goForward();
-  await esperar(page, () => !!document.querySelector('#avpCfgCard-ADEQUACAO_SQUAD.avp-config-item-card--foco'));
-  afirma(await focado(page) === 's1s8', 'Avançar: o cartão S1–S8', await focado(page));
+  await esperar(page, () => !!document.getElementById('avpCfgCard-ADEQUACAO_SQUAD'));
+  afirma(await soQuestionario(page) === 's1s8', 'Avançar: o questionário S1–S8', await soQuestionario(page));
   await page.evaluate(() => { location.hash = '#admin?arq=questionarios'; });
-  await esperar(page, () => !document.querySelector('.avp-config-item-card--foco'));
-  afirma(true, 'sem &q=: nenhum cartão destacado');
+  await esperar(page, () => document.querySelectorAll('.avp-config-item-card').length === 3);
+  afirma(true, 'endereço antigo sem &q=: os três questionários (compatibilidade de links antigos)');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 }
@@ -206,9 +205,8 @@ async function larguras(browser) {
 async function perfis(browser) {
   console.log('F. Perfis');
   let { ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#admin?arq=questionarios&q=p1p16', { email: ARQ });
-  await naListaQuestionarios(page);
-  await esperar(page, () => !!document.querySelector('.avp-config-item-card--foco'));
-  afirma(await focado(page) === 'p1p16' && await page.locator('.avp-config-editar-btn').count() === 3, 'Avaliação + Configuração: os três cartões com Editar; &q= localiza o cartão');
+  await esperar(page, () => !!document.getElementById('avpCfgCard-CLASSIFICACAO_ARQUITETURAL'));
+  afirma(await soQuestionario(page) === 'p1p16' && await page.locator('.avp-config-editar-btn').count() === 1, 'Avaliação + Configuração: &q=p1p16 abre o questionário P1–P16 com Editar');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#admin?arq=questionarios', { email: AVAL }));
