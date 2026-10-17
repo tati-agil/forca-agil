@@ -32,6 +32,8 @@ banco e a tabela de módulos, em `docs/referencia-tecnica.md` (consulte sob dema
 - **O site publicado continua funcionando no Firebase.** Não altere Hosting, regras do banco, autenticação, telas,
   motores, questionários ou dados sem pedido explícito.
 - **Celular e computador são a mesma entrega**, e rede lenta é o caso normal (ver `CLAUDE.md`).
+- **Padrão Visual Oficial** (`docs/padrao-visual.md`): toda funcionalidade nova ou modificada segue a identidade
+  aprovada do FORÇA ÁGIL; validar com `teste-padrao-visual.js`.
 - **"Se pode editar, pode gravar"**: tela de edição sem gravação real é defeito (ver `CLAUDE.md`).
 - **Nada de segredos no Git.** Use `.env` (ignorado) e `.env.example`.
 - **Paridade Firebase × PostgreSQL** (`docs/paridade-firebase-postgresql.md`): uma fonte oficial de gravação por vez

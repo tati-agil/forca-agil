@@ -114,6 +114,14 @@ Na prática, antes de considerar qualquer mudança pronta:
   `.github/scripts/teste-tela-preta.js` é o exemplo de como fazer isso sem
   depender de rede nem de segredo, e roda desktop e celular lado a lado.
 
+**Toda funcionalidade nova ou modificada deve seguir o Padrão Visual Oficial do FORÇA ÁGIL**
+(`docs/padrao-visual.md`). A identidade atual está aprovada pela dona: fundo espacial, paleta azul-escuro, dourado e
+ciano, Anton nos títulos de página, Oswald nos títulos de seção, botões em Space Mono, cartões escuros. Mudança
+visual só para corrigir problema comprovado de leitura ou uso — nunca um tema novo, nunca componente branco ou
+cinza fora das exceções do documento (Mapa da Floresta). Tamanhos de letra pelos tokens `--arq-fs-*` na própria
+regra do componente, não por sobrescritas em massa; validar com `.github/scripts/teste-padrao-visual.js` e
+comparar com `screenshots/padrao-visual/` na mesma escala.
+
 **Editar sem conseguir salvar não é uma funcionalidade menor — é quebrada.**
 Nas palavras dela: "se admin pode mexer, pode gravar. ou não deixa mexer ou
 deixa e salva." Toda tela é uma destas duas coisas, nunca uma terceira: só
