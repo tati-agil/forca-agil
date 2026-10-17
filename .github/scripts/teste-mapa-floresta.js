@@ -48,7 +48,7 @@ async function abrir(browser, viewport, definicoes, extra) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin?arq=inicio', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura?arq=inicio', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }

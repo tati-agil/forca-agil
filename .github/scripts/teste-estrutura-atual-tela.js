@@ -1,4 +1,4 @@
-/* ESTRUTURA ORGANIZACIONAL ATUAL — a tela do ADMIN › Avaliação e Mapa (#admin?arq=estrutura-atual). Firebase falso em
+/* ESTRUTURA ORGANIZACIONAL ATUAL — a tela do ADMIN › Avaliação e Mapa (#arquitetura?arq=estrutura-atual). Firebase falso em
  * persistência real; hermético; o banco é o da página (nada vai para produção; GECON e núcleos são dados de teste).
  * Prova, pela interface:
  *   A. Marcador: ausente = DESLIGADO — só consulta, sem "Nova unidade"; só o admin geral libera, com motivo.
@@ -39,7 +39,7 @@ async function abrir(browser, viewport, opts) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html' + (opts.hash || '#admin?arq=estrutura-atual'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (opts.hash || '#arquitetura?arq=estrutura-atual'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   if (!opts.hash) await page.waitForSelector('#adminEstruturaAtual:not([hidden]) #eaMarcador', { timeout: 20000 });
   return { ctx, page, erros };
@@ -127,7 +127,7 @@ async function criar(page, d, botao) {
     const dbLiberado = await banco(page);
     await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
     await page.waitForSelector('#adminEstruturaAtual:not([hidden]) #eaMarcador', { timeout: 20000 });
-    afirma(await page.evaluate(() => location.hash) === '#admin?arq=estrutura-atual', 'F5: continua na Estrutura Organizacional Atual');
+    afirma(await page.evaluate(() => location.hash) === '#arquitetura?arq=estrutura-atual', 'F5: continua na Estrutura Organizacional Atual');
     afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
     await ctx.close();
 

@@ -98,7 +98,7 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Sem painel de conexões (a explicação é da Jornada até o Mapa)');
   afirma(await page.locator('#avpInicioConsultar, #avpComoTitulo, .avp-como, #avpInicio [data-admin-destino]').count() === 0 && !/Entenda como as avaliações se conectam/.test(await texto(page, '#avaliacoesPainel')),
     'o painel "Entenda como as avaliações se conectam" não existe mais (nem atalhos ao ADMIN no Início)');
-  afirma(await page.evaluate(() => { const m = document.getElementById('avpInicioMapaSec'), f = document.getElementById('avpInicio'); return !!m && f.lastElementChild === m; }), 'o Início termina no Mapa da Floresta, depois de continuar e começar');
+  afirma(await page.evaluate(() => { const m = document.getElementById('avpInicioMapaSec'), f = document.getElementById('avpInicio'); return !!m && (f.lastElementChild === m || (m.nextElementSibling && m.nextElementSibling.id === 'avpInicioGestao' && f.lastElementChild === m.nextElementSibling)); }), 'depois de continuar e começar, o Mapa da Floresta (e, para quem faz a gestão, o bloco Gestão da Floresta)');
   afirma(await page.locator('#avpInicio button').count() === 0, 'nenhum botão novo no Início');
   afirma(await page.locator('#avpSquadBtn, #avpPosicionamentoBtn, #avpMapaFlorestaBtn').count() === 0, 'sem a antiga barra de atalhos soltos');
   afirma(await larguraOk(page), 'Início sem rolagem lateral');

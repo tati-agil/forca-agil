@@ -11,9 +11,9 @@
  * Prova, na tela (desktop e celular 375 px), com banco falso em persistenciaReal:
  *   - menu: "Avaliar oficina" (#avaliacao) × "Avaliação" (#arquitetura);
  *   - tipo "Avaliação": opera a aba inteira; #admin é barrado;
- *   - tipo "Avaliação + Configuração": #admin abre SÓ com a aba Arquitetura (as
- *     outras abas/painéis não existem na tela), sem "Usuários autorizados" e sem
- *     NENHUMA gravação fora do que ele mesmo faz;
+ *   - tipo "Avaliação + Configuração": sem o menu ADMIN; #admin leva à Gestão da
+ *     Floresta (#arquitetura?arq=inicio, dentro de A FLORESTA), sem "Usuários autorizados",
+ *     sem nada do ADMIN na tela e sem NENHUMA gravação fora do que ele mesmo faz;
  *   - perfil antigo não concede nada; usuário comum não entra;
  *   - "não sei ≠ sem acesso": com o registro lento, F5 em #arquitetura e em
  *     #admin NÃO expulsa;
@@ -160,22 +160,20 @@ async function abrirMais(page, key) {
       await page.click('#avpVoltarListaResultado');
       await aguardaLista(page);
       afirma(await contar(page, '#avpNovoBtn') === 1, 'a aba AVALIAÇÃO opera normalmente');
-      afirma(await page.evaluate(() => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }), 'o menu passa a mostrar "Admin" (leva só à Arquitetura)');
+      afirma(await page.evaluate(() => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && a.hidden; }), 'sem o menu "Admin" (a área do perfil é a Gestão da Floresta, dentro de A FLORESTA)');
       await page.evaluate(() => { location.hash = '#admin'; });
       await esperarCondicaoAte(page, () => !!document.getElementById('avpQuestP1P16Btn'), null, { limite: 8000 }); /* o resultado é conferido logo abaixo */
-      afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), '#admin abre (' + await hash(page) + ')');
-      afirma(await page.evaluate(() => !document.getElementById('adminContent').hidden && document.getElementById('adminGuard').hidden), 'conteúdo do ADMIN visível, sem aviso de "Acesso restrito"');
-      const abas = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).filter((b) => !b.hidden && b.offsetParent !== null).map((b) => b.textContent.trim()));
-      afirma(abas.length <= 1, 'nenhuma aba do ADMIN além da Arquitetura aparece no menu de abas — ' + JSON.stringify(abas));
+      afirma(await hash(page) === '#arquitetura?arq=inicio', '#admin leva à Gestão da Floresta (' + await hash(page) + ')');
+      afirma(await page.evaluate(() => document.getElementById('page-admin').hidden && !document.getElementById('avaliacoesGestao').hidden), 'a Gestão aparece em A FLORESTA; a página ADMIN não');
       const paineis = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-panel')).filter((p) => !p.hidden && p.offsetParent !== null).map((p) => p.id));
-      afirma(paineis.length === 1 && paineis[0] === 'adminPanelArquitetura', 'o único painel visível é o da Arquitetura — ' + JSON.stringify(paineis));
+      afirma(paineis.length === 0 && await page.evaluate(() => !document.getElementById('adminPanelArquitetura').hidden), 'nenhum painel do ADMIN visível; só as áreas da Gestão — ' + JSON.stringify(paineis));
       await esperarCondicao(page, () => !!document.getElementById('avpMotorSquadInicioBtn'), null, { descricao: 'o cartão "Motor de Squad" aparecer na Arquitetura' });
       afirma(await contar(page, '#avpQuestP1P16Btn') === 1 && await contar(page, '#avpConfigMotoresBtn') === 1 && await contar(page, '#avpDocumentacaoBtn') === 1 && await contar(page, '#avpConfigNaturezasBtn') === 0 && await contar(page, '#avpMotorSquadInicioBtn') === 1, 'Questionários, Motores, Naturezas e Motor de Squad disponíveis');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, 'SEM "Usuários autorizados" (só admin geral gerencia a lista)');
       afirma(await page.evaluate(() => { const c = document.querySelector('#adminCadastrados, #adminInteresses, #adminAdmins'); return !c || c.offsetParent === null; }), 'Cadastrados, Eventos e Administradores não estão na tela');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       const escritas = await page.evaluate(() => (window.__ESCRITAS || []).length);
-      afirma(escritas === 0, 'abrir o ADMIN não gravou nada no banco (migrações do admin geral NÃO rodam) — ' + escritas + ' escritas');
+      afirma(escritas === 0, 'abrir a Gestão não gravou nada no banco (migrações do admin geral NÃO rodam) — ' + escritas + ' escritas');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();
     }
@@ -228,9 +226,9 @@ async function abrirMais(page, key) {
   {
     const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao-arquitetura', hash: '#admin', delays: { 'fa-avaliacao-autorizados': 3500 } });
     await page.waitForTimeout(800);
-    afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), 'F5 em #admin com o registro lento: não é expulso enquanto espera (' + await hash(page) + ')');
+    afirma(/^#(admin|arquitetura\?arq=inicio)$/.test(await hash(page)), 'F5 em #admin com o registro lento: não é expulso enquanto espera (' + await hash(page) + ')');
     await esperarCondicaoAte(page, () => !!document.getElementById('avpQuestP1P16Btn'), null, { limite: 10000 }); /* o resultado é conferido logo abaixo */
-    afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)) && await contar(page, '#avpQuestP1P16Btn') === 1, 'quando chega: a Arquitetura carrega (' + await hash(page) + ')');
+    afirma(await hash(page) === '#arquitetura?arq=inicio' && await contar(page, '#avpQuestP1P16Btn') === 1, 'quando chega: a Gestão da Floresta carrega (' + await hash(page) + ')');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }
@@ -269,7 +267,7 @@ async function abrirMais(page, key) {
     const antigos = {}; antigos[chave('carla@previ.com.br')] = { email: 'carla@previ.com.br', perfil: 'gestor' };
     const { ctx, page, erros } = await abrir(browser, { email: SUPER, admin: true, viewport, hash: '#admin',
       db: { 'fa-users': users, 'fa-avaliacao-autorizados': aut, 'fa-avaliacao-acessos': antigos } });
-    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
     await page.waitForSelector('#avpUsuariosBtn', { timeout: 8000 });
     afirma(await contar(page, '#avpUsuariosBtn') === 1, 'admin geral vê o cartão "Usuários autorizados"');
     await page.click('#avpUsuariosBtn');
@@ -337,7 +335,7 @@ async function abrirMais(page, key) {
     console.log('\n== Lista vazia (estado inicial) e "Adicionar a mim" — ' + nomeTela + ' ==');
     const users = {}; users[chave(SUPER)] = { email: SUPER, name: 'Tatiane' };
     const { ctx, page, erros } = await abrir(browser, { email: SUPER, admin: true, hash: '#admin', viewport, db: { 'fa-users': users } });
-    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
     await page.waitForSelector('#avpUsuariosBtn', { timeout: 8000 });
     await page.click('#avpUsuariosBtn');
     await page.waitForSelector('#avpAutVazio', { timeout: 8000 });
@@ -364,7 +362,7 @@ async function abrirMais(page, key) {
   {
     const users = {}; users[chave('ana@previ.com.br')] = { email: 'ana@previ.com.br', name: 'Ana Souza' };
     const { ctx, page, erros } = await abrir(browser, { email: SUPER, admin: true, hash: '#admin', db: { 'fa-users': users }, fail: ['fa-avaliacao-autorizados/' + chave('ana@previ.com.br')] });
-    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
     await page.waitForSelector('#avpUsuariosBtn', { timeout: 8000 });
     await page.click('#avpUsuariosBtn');
     await page.waitForSelector('#avpAutAdicionarBtn', { timeout: 8000 });
@@ -383,7 +381,7 @@ async function abrirMais(page, key) {
   console.log('\n== "Adicionar a mim": se o banco recusar, nada parece salvo ==');
   {
     const { ctx, page, erros } = await abrir(browser, { email: SUPER, admin: true, hash: '#admin', db: { 'fa-users': {} }, fail: ['fa-avaliacao-autorizados/' + chave(SUPER)] });
-    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
     await page.waitForSelector('#avpUsuariosBtn', { timeout: 8000 });
     await page.click('#avpUsuariosBtn');
     await page.waitForSelector('#avpAutAdicionarEuBtn', { timeout: 8000 });

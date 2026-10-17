@@ -77,8 +77,7 @@ async function tela(browser, viewport, rotulo) {
   afirma(/observar onde termina a cadeia de valor/.test(antes), 'C. antes da correção: o apoio cita a ajuda oficial vigente (a antiga)', antes.slice(0, 80));
   /* B. aplicar pelo ADMIN */
   await ir(page, '#admin');
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpQuestO1O9Btn'); await page.click('#avpQuestO1O9Btn');
   await page.waitForSelector('#avpCorrecao-orientacao-o7-o9');
   afirma(/Orientação para distinguir O7 e O9/.test(await texto(page, '#avpCorrecao-orientacao-o7-o9')), 'B. a correção aparece no cartão do questionário O1–O9');

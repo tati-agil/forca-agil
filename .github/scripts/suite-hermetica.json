@@ -593,6 +593,12 @@
       "sobre": "Início na ordem Continuar, Começar (Produto/Serviço, responsabilidade, área, Adequação à Squad) e Mapa; Trabalhos (#arquitetura?tr=1) numa tela só — Continuar de onde parou, registros (a antiga Jornada) e listas completas; registro de um item com um só Voltar coerente com a origem; links antigos ?mf=catalogo; perfil Avaliação. Hermético (Firebase falso), nada é gravado."
     },
     {
+      "arquivo": ".github/scripts/teste-floresta-gestao.js",
+      "nome": "A FLORESTA: Gestão da Floresta (ex-ADMIN › Avaliações e Mapa e Taxonomia), permissões e links antigos (desktop e celular)",
+      "duracao": 70,
+      "sobre": "As áreas de ADMIN › Avaliações e Mapa e ADMIN › Taxonomia dentro de A Floresta (#arquitetura?arq=<área>), com os mesmos módulos e permissões: admin geral (com Taxonomia e Usuários autorizados), Avaliação + Configuração (sem ADMIN, #admin leva à Gestão), Avaliação (sem acesso); #admin?arq= antigo reescrito; Voltar/F5. Hermético (Firebase falso), nada é gravado."
+    },
+    {
       "arquivo": ".github/scripts/teste-padrao-visual.js",
       "nome": "Padrão Visual Oficial — Arquitetura: tipografia legível com a identidade do Força Ágil (desktop e celular)",
       "duracao": 110,

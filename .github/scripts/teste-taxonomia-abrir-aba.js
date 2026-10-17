@@ -1,5 +1,5 @@
 /* TAXONOMIA ABRE POR QUALQUER CAMINHO — desktop e 375 px. Hermético (Firebase falso), nada é gravado.
- * O defeito: só o CLIQUE na aba carregava a Taxonomia; os atalhos (hoje o "Abrir a aba Taxonomia" de Avaliações e Mapa), o link do Manual e o F5
+ * O defeito: só o CLIQUE na aba carregava a Taxonomia; os atalhos (hoje o cartão "Taxonomia" da Gestão da Floresta), o link do Manual e o F5
  * (faAdminAbrirAba) ficavam em "Carregando a Taxonomia…" para sempre. Agora o ativador de abas do ADMIN é o caminho
  * único. Prova-se o CONTEÚDO carregado (não só a aba selecionada) em:
  *   1. atalho "Abrir a aba Taxonomia" (admin geral), F5 no destino, Voltar/Avançar;
@@ -38,10 +38,10 @@ async function abrir(browser, viewport, hash, opts) {
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
-const carregada = () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && p.classList.contains('active') && !/Carregando a Taxonomia|Verificando o acesso/.test(p.textContent) && /Que tipo de estrutura organizacional é esta?|O que é o item?/.test(p.textContent); };
+const carregada = () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && !p.hidden && !/Carregando a Taxonomia|Verificando o acesso/.test(p.textContent) && /Que tipo de estrutura organizacional é esta?|O que é o item?/.test(p.textContent); };
 const esperarCarregada = (page, limite) => esperarCondicao(page, carregada, undefined, { limite: limite || 15000 });
-const naArquitetura = (page) => esperarCondicao(page, () => !!document.getElementById('avpAdminMapa') && /^#admin\?arq=inicio/.test(location.hash), undefined, { limite: 15000 });
-const atalhoTaxonomia = async (page) => { await page.waitForSelector('#admArqIrTaxonomia:not([hidden])', { timeout: 15000 }); await page.click('#admArqIrTaxonomia'); };
+const naArquitetura = (page) => esperarCondicao(page, () => !!document.getElementById('avpAdminMapa') && /^#arquitetura\?arq=inicio/.test(location.hash), undefined, { limite: 15000 });
+const atalhoTaxonomia = async (page) => { await page.waitForSelector('#avpTaxonomiaBtn', { timeout: 15000 }); await page.click('#avpTaxonomiaBtn'); };
 const noInicio = (page) => esperarCondicao(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#arquitetura'; }, undefined, { limite: 15000 });
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 /* conta as leituras da Taxonomia (once/on por caminho), instalado com a página pronta, para provar que não há inicialização duplicada */
@@ -56,8 +56,8 @@ const leiturasConceitos = (page) => page.evaluate(() => Object.keys(window.__lei
 
 async function rodada(browser, viewport, rotulo) {
   console.log('\n=== ' + rotulo + ' ===');
-  console.log('1. Atalho "Abrir a aba Taxonomia" (ADMIN › Avaliações e Mapa)');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio');
+  console.log('1. Cartão "Taxonomia" (Gestão da Floresta › Referências)');
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=inicio');
   await naArquitetura(page);
   await atalhoTaxonomia(page);
   await esperarCarregada(page);
@@ -66,28 +66,28 @@ async function rodada(browser, viewport, rotulo) {
   await esperarCarregada(page, 20000);
   afirma(true, 'F5 no destino: a Taxonomia carrega de novo');
   await page.goBack(); await naArquitetura(page);
-  afirma(true, 'Voltar: ADMIN › Avaliações e Mapa');
+  afirma(true, 'Voltar: Gestão da Floresta');
   await page.goForward(); await esperarCarregada(page, 20000);
   afirma(true, 'Avançar: a Taxonomia carregada');
   afirma(await larguraOk(page), 'sem rolagem lateral');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
-  console.log('2. Clique direto na aba (entrada pelo ADMIN)');
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin'));
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]:not([hidden])', { timeout: 15000 });
+  console.log('2. Endereço direto da Taxonomia (#arquitetura?arq=taxonomia)');
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura'));
+  await noInicio(page);
   await instalarContador(page);
-  await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=taxonomia'; }); /* a Taxonomia é área da Gestão da Floresta */
   await esperarCarregada(page);
   await page.waitForTimeout(600);
   const depoisDoClique = await leiturasConceitos(page);
   /* uma leitura por domínio: o atalho "Integridade e configurações" confere os conceitos dos dois (admin) */
   const porDominio = await page.evaluate(() => [window.__leiturasTax['taxonomia/organizacional/conceitos'] || 0, window.__leiturasTax['taxonomia/arquitetural/conceitos'] || 0]);
   afirma(depoisDoClique === 2 && porDominio[0] === 1 && porDominio[1] === 1, 'clique: uma única leitura dos conceitos de cada domínio (sem inicialização duplicada)', String(depoisDoClique) + ' ' + JSON.stringify(await page.evaluate(() => window.__leiturasTax)));
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=inicio'; }); await naArquitetura(page);
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=taxonomia'; }); /* de volta à Taxonomia */
   await esperarCarregada(page); await page.waitForTimeout(600);
-  afirma((await leiturasConceitos(page)) === depoisDoClique, 'voltar à aba: nenhuma releitura (o conteúdo já carregado é reaproveitado)', String(await leiturasConceitos(page)));
+  afirma((await leiturasConceitos(page)) === depoisDoClique, 'voltar à Taxonomia: nenhuma releitura (o conteúdo já carregado é reaproveitado)', String(await leiturasConceitos(page)));
   afirma(await page.evaluate(() => !document.getElementById('adminVoltaInicio') || document.getElementById('adminVoltaInicio').hidden), 'entrada direta: sem o retorno ao Início');
 
   await ctx.close();
@@ -96,19 +96,19 @@ async function rodada(browser, viewport, rotulo) {
   ({ ctx, page, erros } = await abrir(browser, viewport, '#admin'));
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelManual"]:not([hidden])', { timeout: 15000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelManual"]');
-  await page.waitForSelector('.man-ir-aba[data-aba="adminPanelTaxonomia"]', { state: 'attached', timeout: 20000 });
-  /* o link fica numa seção recolhida do Manual: o clique é o do próprio link (o mesmo ouvinte que a pessoa aciona) */
-  await page.evaluate(() => document.querySelector('.man-ir-aba[data-aba="adminPanelTaxonomia"]').click());
+  await page.waitForSelector('.man-link[href="#arquitetura?arq=taxonomia"]', { state: 'attached', timeout: 20000 });
+  /* o link fica numa seção recolhida do Manual: o clique é o do próprio link (o mesmo que a pessoa aciona) */
+  await page.evaluate(() => document.querySelector('.man-link[href="#arquitetura?arq=taxonomia"]').click());
   await esperarCarregada(page);
   afirma(true, 'link do Manual (página recém-aberta, Taxonomia nunca aberta antes): a Taxonomia carrega');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
   console.log('4. Leitura lenta');
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio', { delays: { taxonomia: 3000 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=inicio', { delays: { taxonomia: 3000 } }));
   await naArquitetura(page);
   await atalhoTaxonomia(page);
-  await esperarCondicao(page, () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && p.classList.contains('active'); }, undefined, { limite: 15000 });
+  await esperarCondicao(page, () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && !p.hidden; }, undefined, { limite: 15000 });
   afirma(/Carregando a Taxonomia/.test(await page.evaluate(() => document.getElementById('adminPanelTaxonomia').textContent)), 'lenta: mostra "Carregando a Taxonomia…" enquanto lê');
   await esperarCarregada(page, 20000);
   afirma(true, 'lenta: depois, o conteúdo');
@@ -116,7 +116,7 @@ async function rodada(browser, viewport, rotulo) {
 
   console.log('5. Falha e nova tentativa');
   /* o servidor não responde dentro do prazo de leitura (12 s): falha de conexão, com nova tentativa */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio', { delays: { taxonomia: 13000 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=inicio', { delays: { taxonomia: 13000 } }));
   await naArquitetura(page);
   await atalhoTaxonomia(page);
   await esperarCondicao(page, () => !!document.getElementById('taxErro'), undefined, { limite: 30000 });
@@ -128,7 +128,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(true, 'nova tentativa (o servidor volta a responder): carrega');
   await ctx.close();
   /* leitura recusada pelo banco: diz que não tem acesso, sem ficar carregando */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio', { fail: ['taxonomia'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=inicio', { fail: ['taxonomia'] }));
   await naArquitetura(page);
   await atalhoTaxonomia(page);
   await esperarCondicao(page, () => !!document.getElementById('taxSemAcesso'), undefined, { limite: 20000 });

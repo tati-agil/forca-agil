@@ -70,8 +70,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     afirma(await hash(page) === '#arquitetura', 'e a área AVALIAÇÃO abre (no Início)');
     afirma(!(await linkMenu(page, 'admin')), '"Avaliação" não vê o ADMIN');
     await gravarAcesso(page, 'avaliacao-arquitetura');
-    await esperarCondicao(page, () => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }, null, { descricao: 'o menu mostrar "Admin" depois da troca de tipo' });
-    afirma(true, 'trocado para "Avaliação + Configuração": o menu passa a mostrar "Admin" sem recarregar');
+    await esperarCondicao(page, () => !!document.getElementById('avpInicioGestao'), null, { descricao: 'o Início mostrar a Gestão da Floresta depois da troca de tipo' });
+    afirma(!(await linkMenu(page, 'admin')), 'trocado para "Avaliação + Configuração": o Início passa a mostrar a Gestão da Floresta sem recarregar (o menu ADMIN continua escondido — a gestão é dentro de A FLORESTA)');
     await gravarAcesso(page, null);
     await esperarCondicao(page, () => location.hash !== '#arquitetura', null, { descricao: 'sair da área AVALIAÇÃO depois da remoção' });
     afirma(await hash(page) !== '#arquitetura', 'removido: sai da área AVALIAÇÃO sem recarregar (' + await hash(page) + ')');

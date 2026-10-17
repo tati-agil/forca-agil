@@ -169,16 +169,15 @@ const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 async function abrirQuestionarios(page) {
   await page.evaluate(() => { location.hash = '#admin'; });
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
   await page.click('#avpQuestP1P16Btn');
   await page.waitForSelector('#avpCorrecao-semantica-p1-p16', { timeout: 8000 });
 }
 async function aplicarNaTela(page, id) {
-  /* cada questionário tem a sua tela (#admin?arq=questionarios&q=…): a correção de S1–S8 fica no questionário S1–S8 */
+  /* cada questionário tem a sua tela (#arquitetura?arq=questionarios&q=…): a correção de S1–S8 fica no questionário S1–S8 */
   if (!(await page.locator('#avpCorrecao-' + id).count())) {
-    await page.evaluate((h) => { location.hash = h; }, '#admin?arq=questionarios&q=' + (/s1-s8/.test(id) ? 's1s8' : 'p1p16'));
+    await page.evaluate((h) => { location.hash = h; }, '#arquitetura?arq=questionarios&q=' + (/s1-s8/.test(id) ? 's1s8' : 'p1p16'));
     await page.waitForSelector('#avpCorrecao-' + id, { timeout: 8000 });
   }
   await page.click('.avp-correcao-aplicar-btn[data-correcao="' + id + '"]');
@@ -251,7 +250,7 @@ async function cenarioFabrica(browser, viewport, rotulo) {
   afirma(dec1.a === dec0.a, 'P1–P16: as 65.536 combinações dão as mesmas decisões antes e depois');
   afirma(dec1.s === dec0.s, 'S1–S8: as 256 combinações dão as mesmas decisões antes e depois');
   /* a última correção aplicada foi a de S1–S8, na tela dele: de volta ao questionário P1–P16 */
-  await page.evaluate(() => { location.hash = '#admin?arq=questionarios&q=p1p16'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=questionarios&q=p1p16'; });
   await page.waitForSelector('#avpCorrecao-semantica-p1-p16', { timeout: 8000 });
   afirma(/✓ Correção editorial aplicada/.test(await page.locator('#avpCorrecao-semantica-p1-p16').innerText()) && await page.locator('.avp-correcao-aplicar-btn[data-correcao="semantica-p1-p16"]').count() === 0,
     'card passa a "✓ Correção editorial aplicada", sem botão');

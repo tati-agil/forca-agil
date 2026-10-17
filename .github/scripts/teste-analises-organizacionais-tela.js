@@ -207,7 +207,7 @@ async function jornadaB(browser) {
   afirma(escopos.length === 6 && escopos.every((t) => /Ex\.:/.test(t)), 'etapa 1: seis escopos, cada um com exemplo contrastante', escopos.length);
   afirma(!/Área Especializada|Centro de Excelência|CoE|Plataforma/.test(await texto(page, '#anFormNova')), 'nenhum tipo organizacional oferecido antes do O1–O9');
   const id = await abrirAnaliseNova(page, 'Núcleo de Arquitetura de TI', 'estrutura');
-  afirma(/Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && /não deve ser confundido com o cadastro de Responsabilidades Organizacionais/.test(await texto(page, '#anPerguntaAjuda')), 'uma pergunta por vez, com a explicação (F2b: cadastro de Estruturas do ADMIN ≠ Responsabilidades da Porta 2)');
+  afirma(/Essa estrutura já está cadastrada na Gestão da Floresta/.test(await texto(page, '#anPerguntaTitulo')) && /não deve ser confundido com o cadastro de Responsabilidades Organizacionais/.test(await texto(page, '#anPerguntaAjuda')), 'uma pergunta por vez, com a explicação (F2b: cadastro de Estruturas da Gestão ≠ Responsabilidades da Porta 2)');
   await responderPendentes(page, mapaB);
   afirma(/Informe as responsabilidades da área/.test(await texto(page, '#anProximaAcao')) && !(await existe(page, '#anDetalhar')) && await existe(page, '#anAjudaSeparar'), 'sem nada registrado: a próxima ação pede as responsabilidades; entregas só como ajuda opcional');
   await adicionarEntregas(page, Object.keys(B));
@@ -277,7 +277,7 @@ async function jornadaB(browser) {
   const resp = XLSX.utils.sheet_to_json(wb.Sheets.Responsabilidades, { header: 1 });
   afirma(wb.SheetNames.join() === 'Resumo,Entregas,Comparacoes,Responsabilidades,Propostas' && resp.length === 3 && /declarado/.test(JSON.stringify(resp)), 'Excel: resumo, entregas, comparações, responsabilidades (com caráter dos fatos) e propostas', wb.SheetNames);
   /* ficha da estrutura e Jornada */
-  await ir(page, '#admin?arq=estruturas');
+  await ir(page, '#arquitetura?arq=estruturas');
   await page.waitForSelector('.est-item[data-estrutura="nucleo-arq"]', { timeout: 20000 });
   await page.click('.est-item[data-estrutura="nucleo-arq"]');
   await page.waitForSelector('#anExercidas', { timeout: 15000 });
@@ -424,7 +424,7 @@ async function marcador(browser) {
   /* ADMIN: nenhum controle de disponibilidade; o histórico antigo continua no banco */
   const dbHist = sementeAnalise('SOMENTE_ADMIN_GERAL');
   dbHist['analises-organizacionais-config-auditoria'] = { h1: { habilitacao: 'SOMENTE_ADMIN_GERAL', anterior: 'DESLIGADO', motivo: 'Homologação (registro antigo)', usuario: { uid: 'x', email: ADM }, dataHora: 1791713600000 } };
-  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#admin?arq=inicio', { db: dbHist, email: ADM });
+  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?arq=inicio', { db: dbHist, email: ADM });
   await page.waitForSelector('#avpAdminAcessos', { timeout: 20000 }); await page.waitForTimeout(800);
   afirma(!(await existe(page, '#anHabilitacao')) && !(await existe(page, '#anHabilitacaoAdmin')) && !/Disponibilidade de funcionalidades/.test(await texto(page, '#adminAvaliacaoProduto')),
     'ADMIN › Acessos (admin geral): sem "Disponibilidade de funcionalidades" e sem o formulário dos três estados');

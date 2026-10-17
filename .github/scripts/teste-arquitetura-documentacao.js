@@ -1,4 +1,4 @@
-/* ADMIN › Avaliação e Mapa › Outras referências › Documentos de referência (a definição do Mapa da Floresta fica na seção do Mapa).
+/* Gestão da Floresta › Referências › Documentação (a definição do Mapa da Floresta fica na seção do Mapa).
  *
  * Formato inicial aprovado: título, descrição, link externo (https), autor e data — sem upload,
  * miniatura nem versionamento. Prova, em desktop e no celular (375 px):
@@ -66,9 +66,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await page.click('#avpDocumentacaoBtn');
     await page.waitForSelector('#avpDocsNovoBtn');
     const intro = await page.locator('.avp-docs').innerText();
-    afirma(/Documentos de referência/.test(intro) && /definição oficial do Mapa da Floresta fica na seção do Mapa/.test(intro) && await page.locator('#avpDocsMapaFloresta').count() === 0,
-      'Documentos de referência: sem um segundo cartão do Mapa; diz onde a definição está');
-    afirma(await page.evaluate(() => location.hash) === '#admin?arq=documentacao', 'endereço próprio preservado: #admin?arq=documentacao');
+    afirma(/Documentação/i.test(intro) && /definição oficial do Mapa da Floresta fica na seção do Mapa/.test(intro) && await page.locator('#avpDocsMapaFloresta').count() === 0,
+      'Documentação (uma só): sem um segundo cartão do Mapa; diz onde a definição está');
+    afirma(await page.evaluate(() => location.hash) === '#arquitetura?arq=documentacao', 'endereço próprio preservado: #arquitetura?arq=documentacao');
     const det0 = page.locator('#avpDocsHistorico');
     afirma(await det0.count() === 1 && !(await det0.evaluate((d) => d.open)) && /Histórico — 0 alterações/.test(await det0.locator('summary').first().innerText()), 'sem nenhuma alteração ainda: "Histórico — 0 alterações", recolhido');
 

@@ -126,10 +126,10 @@ async function rodada(browser, viewport, rotulo) {
   afirma(fVal && fVal.etapa === 'decisao' && /decisão final fundamentada ou uma reavaliação/.test(fVal.t) && /Ficha do Posicionamento/.test(fVal.t), 'I1: A validar — o que falta e onde (ficha do Posicionamento)', fVal && fVal.t);
   await abre(page, 'pPlat');
   const aPlat = await acao(page, 'pPlat');
-  afirma((await etapas(page, 'pPlat')).indexOf('estrutura:atual') !== -1 && aPlat && aPlat.h === '#admin?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat', '7. firme sem estrutura do tipo: "Cadastrar estrutura deste tipo"', JSON.stringify(aPlat));
+  afirma((await etapas(page, 'pPlat')).indexOf('estrutura:atual') !== -1 && aPlat && aPlat.h === '#arquitetura?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat', '7. firme sem estrutura do tipo: "Cadastrar estrutura deste tipo"', JSON.stringify(aPlat));
   const fPlat = await falta(page, 'pPlat');
-  afirma(fPlat && fPlat.etapa === 'estrutura' && /estrutura concreta ativa do tipo/.test(fPlat.t) && /não cria a estrutura/.test(fPlat.t) && /ADMIN › Avaliações e Mapa › Estruturas do Mapa da Floresta/.test(fPlat.t) &&
-    /Quem pode.*Avaliação \+ Configuração ou admin geral/.test(fPlat.t), 'I1: sem estrutura do tipo — o que falta, por quê, onde (ADMIN › Estruturas) e quem pode', fPlat && fPlat.t);
+  afirma(fPlat && fPlat.etapa === 'estrutura' && /estrutura concreta ativa do tipo/.test(fPlat.t) && /não cria a estrutura/.test(fPlat.t) && /Gestão da Floresta › Estruturas do Mapa da Floresta/.test(fPlat.t) &&
+    /Quem pode.*Avaliação \+ Configuração ou admin geral/.test(fPlat.t), 'I1: sem estrutura do tipo — o que falta, por quê, onde (Gestão da Floresta › Estruturas) e quem pode', fPlat && fPlat.t);
   await abre(page, 'oEnc');
   afirma(await falta(page, 'oEnc') === null, 'I1: atuação encerrada não mostra "o que falta"');
   afirma(/Atuação encerrada/.test(await texto(page, card('oEnc'))) && !(await page.$(card('oEnc') + ' .mf-acao')), 'atuação encerrada: sem ação');
@@ -170,7 +170,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/fonte=demo/.test(await hash(page)), 'a demonstração é escolha explícita (e fica no endereço)');
 
   console.log('Cadastrar estrutura com o tipo já escolhido');
-  await page.evaluate(() => { location.hash = '#admin?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat'; });
   await page.waitForSelector('#estForm', { timeout: 15000 });
   await esperarCondicao(page, () => { const r = document.querySelector('#estTipos input[value="PLATAFORMA_CANAIS"]'); return !!r && r.checked; }, undefined, { limite: 15000 });
   const qtd = await page.evaluate(() => Object.keys((window.__CFG.__dbReal['estruturas-concretas'] || {}).registros || {}).length);

@@ -199,9 +199,9 @@ async function governanca(browser) {
   afirma(await prop(page, 'input[name="anTemAtuacao"][value="nao"]', 'checked') && /Você quer aprofundar uma responsabilidade organizacional já registrada na Porta 2\?/.test(await texto(page, '#anAprofunda legend')) && await prop(page, '#anFormNova input[value="estrutura"]', 'checked'), 'nova análise: responsabilidade prévia opcional ("Não"); escopo já marcado');
   const id = await abrirAnalise(page, 'TESTE — Núcleo de Governança de TI', null);
   await page.waitForSelector('#anFormResponder[data-q="F2b"]', { state: 'attached' });
-  afirma(!(await prop(page, '#anObjeto', 'open')), 'a pergunta do cadastro no ADMIN fica fora da jornada principal (em "Mais sobre a área", recolhido)');
+  afirma(!(await prop(page, '#anObjeto', 'open')), 'a pergunta do cadastro na Gestão fica fora da jornada principal (em "Mais sobre a área", recolhido)');
   await page.click('#anObjeto > summary'); await page.waitForSelector('#anFormResponder[data-q="F2b"]');
-  afirma(/Pergunta opcional/.test(await texto(page, '#anPergunta')) && /Essa estrutura já está cadastrada no ADMIN/.test(await texto(page, '#anPerguntaTitulo')) && await prop(page, '#anEstruturaCadastrada', 'disabled'), 'F2b: opcional, com o campo dependente desabilitado');
+  afirma(/Pergunta opcional/.test(await texto(page, '#anPergunta')) && /Essa estrutura já está cadastrada na Gestão da Floresta/.test(await texto(page, '#anPerguntaTitulo')) && await prop(page, '#anEstruturaCadastrada', 'disabled'), 'F2b: opcional, com o campo dependente desabilitado');
   await page.focus('#anFormResponder input[name="anResposta"][value="cadastrada"]');
   await page.keyboard.press('Space');
   await page.keyboard.press('Tab');

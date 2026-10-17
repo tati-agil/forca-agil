@@ -205,7 +205,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.click('#estVerNoMapa');
     await p.waitForSelector('#mfmDetalhe', { timeout: 15000 });
     afirma(/Linha de Investimentos e Previdência/.test(await texto(p, '[data-estrutura="' + idNeg + '"]')), 'o Mapa mostra o nome novo');
-    await ir(p, '#admin?arq=estruturas&e=' + idAe);
+    await ir(p, '#arquitetura?arq=estruturas&e=' + idAe);
     await p.waitForSelector('#estFicha', { timeout: 15000 });
     await p.click('#estEncerrar');
     await p.waitForSelector('.est-confirmacao');
@@ -223,7 +223,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     afirma(await p.locator('[data-estrutura="' + idAe + '"]').count() === 0 && /Nenhuma estrutura cadastrada/.test(await texto(p, '[data-bloco="ae"]')), 'a estrutura encerrada sai do Mapa');
-    await ir(p, '#admin?arq=estruturas');
+    await ir(p, '#arquitetura?arq=estruturas');
     await p.waitForSelector('#estLista');
     afirma(await p.locator('.est-item[data-estrutura="' + idAe + '"]').count() === 0, 'a lista mostra só as ativas por padrão');
     await p.check('#estMostrarEncerradas');
@@ -248,12 +248,12 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     const secoes = await p.locator('#adminEstruturas .est-secao-titulo').allInnerTexts();
     afirma(['IDENTIFICAÇÃO', 'SITUAÇÃO E CONTROLE'].every((t) => secoes.some((s) => s.toUpperCase().indexOf(t) === 0)) && secoes.some((s) => /^Histórico/i.test(s)), 'ficha em três grupos: Identificação, Situação e controle, Histórico', secoes.join(' | '));
     afirma(await p.locator('#estEditar, #estEncerrar').count() === 0 && /reativada/.test(await texto(p, '#estEncerradaAviso')), 'ficha da encerrada: só consulta, sem editar nem reativar');
-    await ir(p, '#admin?arq=estruturas');
+    await ir(p, '#arquitetura?arq=estruturas');
     await p.waitForSelector('#estLista');
 
     /* ===== 6. Conflito ===== */
     console.log('\n6. Conflito');
-    await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+    await ir(p, '#arquitetura?arq=estruturas&e=' + idCoe);
     await p.waitForSelector('#estEditar');
     await p.click('#estEditar');
     await p.fill('#estNome', 'CoE de Dados e Analytics');
@@ -277,7 +277,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     console.log('\n6b. Subagrupadores das Linhas de Negócios (Etapa 5)');
     /* a edição do conflito ficou aberta com alteração não salva: a tela não sai sozinha por endereço — cancela antes */
     await p.click('#estCancelar'); await p.waitForSelector('#estFicha');
-    await ir(p, '#admin?arq=estruturas');
+    await ir(p, '#arquitetura?arq=estruturas');
     await p.waitForSelector('#estAbaSubagrupadores', { timeout: 15000 });
     await p.click('#estAbaSubagrupadores');
     await p.waitForSelector('#sgVazio', { timeout: 15000 });
@@ -302,7 +302,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgPrev, sgCred, '']), 'o Mapa mostra Previdência, Crédito e "Sem subagrupador", nessa ordem', JSON.stringify(await ordemMapa()));
     afirma(/Nenhuma Linha associada/.test(await texto(p, '[data-subagrupador="' + sgPrev + '"]')) && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 1, 'subagrupador vazio diz "Nenhuma Linha associada"; a Linha continua em "Sem subagrupador"');
     /* marco: associar uma Linha e vê-la no lugar certo */
-    await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+    await ir(p, '#arquitetura?arq=estruturas&e=' + idNeg);
     await p.waitForSelector('#estSubagrupador #estSgEscolha', { timeout: 15000 });
     afirma(/Sem subagrupador/.test(await texto(p, '#estSgAtual')), 'a ficha da Linha de Negócios mostra onde ela está no Mapa');
     await p.selectOption('#estSgEscolha', sgPrev);
@@ -316,7 +316,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     afirma(await p.locator('[data-bloco="negocios"] [data-subagrupador="' + sgPrev + '"] [data-estrutura="' + idNeg + '"]').count() === 1 && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 0, 'MARCO: a Linha aparece dentro de Previdência no Mapa (e não mais em "Sem subagrupador")');
     afirma(/Linhas de Negócios › Previdência/.test(await texto(p, '#mfmDetalhe .mfm-caminho')) && (await texto(p, '#mfmSubagrupador')) === 'Previdência', 'o detalhe no Mapa mostra o caminho e o subagrupador');
     /* trocar */
-    await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+    await ir(p, '#arquitetura?arq=estruturas&e=' + idNeg);
     await p.waitForSelector('#estSgEscolha');
     await p.selectOption('#estSgEscolha', sgCred);
     await p.click('#estSgAssociar');
@@ -325,7 +325,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     const histSg = await texto(p, '#estHistorico');
     afirma(/Passou para o subagrupador Crédito/.test(histSg) && /Saiu do subagrupador Previdência \(troca\)/.test(histSg) && /Associada ao subagrupador Previdência/.test(histSg) && /Portfólio de previdência/.test(histSg), 'a troca fica no histórico da Linha (associada, saiu, passou para), com a justificativa', histSg.slice(0, 300));
     /* ordenar: Crédito sobe */
-    await ir(p, '#admin?arq=estruturas&sg=lista');
+    await ir(p, '#arquitetura?arq=estruturas&sg=lista');
     await p.waitForSelector('#sgLista');
     await p.click('.sg-subir[data-subagrupador="' + sgCred + '"]');
     await p.waitForFunction(() => /Ordem atualizada/.test((document.querySelector('#estFlash') || {}).innerText || ''), null, { timeout: 15000 });
@@ -333,7 +333,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.waitForSelector('#mfmMapa');
     afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgCred, sgPrev]), 'subir na lista muda a ordem no Mapa (Crédito antes de Previdência; sem Linha solta, não há "Sem subagrupador")', JSON.stringify(await ordemMapa()));
     /* renomear */
-    await ir(p, '#admin?arq=estruturas&sg=' + sgCred);
+    await ir(p, '#arquitetura?arq=estruturas&sg=' + sgCred);
     await p.waitForSelector('#sgRenomear', { timeout: 15000 });
     await p.click('#sgRenomear'); await p.fill('#sgNome', 'Crédito Consignado'); await p.click('#sgSalvar');
     await p.waitForSelector('#estFlash');
@@ -341,7 +341,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await p.waitForSelector('#mfmMapa');
     afirma(/Crédito Consignado/.test(await texto(p, '[data-subagrupador="' + sgCred + '"]')) && await p.locator('[data-subagrupador="' + sgCred + '"] [data-estrutura="' + idNeg + '"]').count() === 1, 'renomear aparece no Mapa, com a Linha dentro');
     /* encerrar com a Linha associada: nada em cascata, a Linha vai para "Sem subagrupador" */
-    await ir(p, '#admin?arq=estruturas&sg=' + sgCred);
+    await ir(p, '#arquitetura?arq=estruturas&sg=' + sgCred);
     await p.waitForSelector('#sgEncerrar');
     await p.click('#sgEncerrar');
     await p.waitForSelector('.est-confirmacao');
@@ -354,12 +354,12 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
     afirma(JSON.stringify(await ordemMapa()) === JSON.stringify([sgPrev, '']) && await p.locator('[data-subagrupador=""] [data-estrutura="' + idNeg + '"]').count() === 1, 'no Mapa, o subagrupador encerrado some e a Linha volta para "Sem subagrupador"', JSON.stringify(await ordemMapa()));
-    await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+    await ir(p, '#arquitetura?arq=estruturas&e=' + idNeg);
     await p.waitForSelector('#estSgAtual');
     afirma(/Sem subagrupador/.test(await texto(p, '#estSgAtual')) && /foi encerrado/.test(await texto(p, '#estSgAtual')), 'a ficha da Linha explica: sem subagrupador porque o anterior foi encerrado');
     const assocs = (await S.banco('GET', 'mapa-subagrupadores/associacoes')).corpo || {};
     afirma(Object.values(assocs).filter((a) => a.estruturaId === idNeg).length === 2 && Object.values(assocs).some((a) => a.estruturaId === idNeg && a.situacao === 'ativa' && a.subagrupadorId === sgCred), 'no banco: a associação anterior ficou no histórico e a atual continua registrada (nada em cascata)');
-    await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+    await ir(p, '#arquitetura?arq=estruturas&e=' + idCoe);
     await p.waitForSelector('#estFicha');
     afirma(await p.locator('#estSubagrupador').count() === 0, 'CoE (não é Linha de Negócios): a ficha não oferece subagrupador');
 
@@ -373,7 +373,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     await c.click('[data-estrutura="' + idCoe + '"]');
     await c.waitForSelector('#mfmDetalhe');
     afirma(await c.locator('#mfmAbrirCadastro').count() === 0, 'no detalhe, a consulta não vê "Abrir no cadastro"');
-    await ir(c, '#admin?arq=estruturas');
+    await ir(c, '#arquitetura?arq=estruturas');
     await espera(1500);
     afirma(await c.locator('#adminEstruturas:not([hidden])').count() === 0, 'a consulta não entra no cadastro pelo endereço');
     const r3 = await c.evaluate(async () => {
@@ -518,7 +518,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await p.click('#poRespVincular');
       await p.waitForSelector('#poRespSemOpcoes', { timeout: 15000 });
       const href = await p.getAttribute('#poRespCadastrarTipo', 'href');
-      afirma(href === '#admin?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=item-can&po=pos-can' && /não cria a estrutura/.test(await texto(p, '#poRespSemOpcoes')),
+      afirma(href === '#arquitetura?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=item-can&po=pos-can' && /não cria a estrutura/.test(await texto(p, '#poRespSemOpcoes')),
         'sem estrutura do tipo: explica e oferece "Cadastrar estrutura deste tipo" (tipo e volta no endereço)', href);
       await p.click('#poRespCadastrarTipo');
       await p.waitForSelector('#estVoltarPosicionamento', { timeout: 15000 });
@@ -567,7 +567,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
         (await p.getAttribute('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] .mfm-abrir-po', 'href')) === '#arquitetura?po=pos-m3', 'Mapa: o produto aparece na estrutura responsável, com a situação, o aviso e o atalho para o Posicionamento', tObj);
       afirma(await p.locator('#mfmMapa .mfm-caixa[data-objeto]').count() === 0, 'Mapa: o produto não vira caixa do Mapa');
       /* ficha da estrutura */
-      await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+      await ir(p, '#arquitetura?arq=estruturas&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
       const tFicha = await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]');
       afirma(/Produto Delta/.test(tFicha) && /Válido/.test(tFicha) && (await p.getAttribute('#estProdutos .est-produto[data-objeto="item-m3"] .est-abrir-po', 'href')) === '#arquitetura?po=pos-m3',
@@ -590,7 +590,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       /* celular */
       const cel2 = await sessao('configuracao', 375);
       for (const [rot, hash, sel] of [['Catálogo com vínculos', '#arquitetura?mf=catalogo&item=item-m3', itemCat + ' .mf-vinculo [data-situacao]'], ['Mapa com os produtos da estrutura', '#arquitetura?mf=mapa&e=' + idNeg, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'],
-        ['ficha da estrutura com os produtos', '#admin?arq=estruturas&e=' + idNeg, '#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'], ['ficha do Posicionamento com o sinal', '#arquitetura?po=pos-m3', '#poBaseRevisao']]) {
+        ['ficha da estrutura com os produtos', '#arquitetura?arq=estruturas&e=' + idNeg, '#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'], ['ficha do Posicionamento com o sinal', '#arquitetura?po=pos-m3', '#poBaseRevisao']]) {
         await ir(cel2, hash); await cel2.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel2), '375 px: ' + rot + ' sem rolagem lateral');
       }
@@ -608,7 +608,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
         [T + 'conceitos/SQUAD']: { nome: 'Squad', ordem: 20, ativo: true, camada: 'trabalho' },
         [T + 'relacoes/SQUAD__compoe__LINHA']: { de: 'SQUAD', tipo: 'compoe', para: 'LINHA', criadaEm: Q, criadaPor: ADMIN_T, auditoriaId: 't0' }
       });
-      await ir(p, '#admin?arq=estruturas'); await p.waitForSelector('#estNova', { timeout: 15000 }); await p.click('#estNova');
+      await ir(p, '#arquitetura?arq=estruturas'); await p.waitForSelector('#estNova', { timeout: 15000 }); await p.click('#estNova');
       await p.waitForSelector('#estTipos input[name="estTipo"]');
       await esperarCondicaoAte(p, () => !!document.querySelector('#estTaxAviso .est-tax-aviso[data-conceito="SQUAD"]'), undefined, { limite: 15000 });
       const avisoSq = await texto(p, '#estTaxAviso');
@@ -623,7 +623,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       });
       const relacoesGravadas = async () => Object.values(((await S.banco('GET', 'estruturas-relacoes/registros')).corpo) || {});
       /* C1: Squad cadastrável */
-      await ir(p, '#admin?arq=estruturas'); await p.waitForSelector('#estNova', { timeout: 15000 }); await p.click('#estNova');
+      await ir(p, '#arquitetura?arq=estruturas'); await p.waitForSelector('#estNova', { timeout: 15000 }); await p.click('#estNova');
       await p.waitForSelector('#estTipos input[name="estTipo"]');
       await esperarCondicaoAte(p, () => !!document.querySelector('#estTipos input[value="SQUAD"]'), undefined, { limite: 15000 });
       afirma(/Organização do trabalho/.test(await texto(p, '#estTipos')) && /Squad/.test(await texto(p, '#estTipos')), 'cadastro: o Squad aparece como tipo, no grupo "Organização do trabalho", com o nome da Taxonomia (C1)');
@@ -664,7 +664,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await esperarCondicaoAte(p, () => !!document.getElementById('mfmSquads') && !/Carregando/.test(document.getElementById('mfmSquads').innerText), undefined, { limite: 15000 });
       afirma(/Nenhum Squad vinculado/.test(await texto(p, '#mfmSquads')), 'Mapa: a Linha anterior fica sem o Squad depois da troca');
       /* relação não hierárquica admitida: CoE atende Linha; depois, encerrar com motivo */
-      await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+      await ir(p, '#arquitetura?arq=estruturas&e=' + idCoe);
       await p.waitForSelector('#estRelNova', { timeout: 15000 }); await p.click('#estRelNova'); await p.waitForSelector('#estRelEscolha', { timeout: 15000 });
       const opcCoe = await p.$$eval('#estRelEscolha option', (os) => os.map((o) => o.value).filter(Boolean));
       afirma(opcCoe.indexOf('atende|neg-3') !== -1 && !opcCoe.some((v) => /^compoe\|/.test(v)), 'CoE: oferece "atende" (admitido pela Taxonomia) e nenhum "compõe" (C2)', JSON.stringify(opcCoe));
@@ -673,7 +673,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await ir(p, '#arquitetura?mf=mapa&e=neg-3');
       await esperarCondicaoAte(p, () => /CoE de Dados atende esta estrutura/.test((document.getElementById('mfmRelacoes') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(/CoE de Dados atende esta estrutura/.test(await texto(p, '#mfmRelacoes')), 'Mapa: as demais relações aparecem no detalhe, só para consulta');
-      await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+      await ir(p, '#arquitetura?arq=estruturas&e=' + idCoe);
       await p.waitForSelector('.est-rel-encerrar', { timeout: 15000 }); await p.click('.est-rel-encerrar'); await p.waitForSelector('#estRelMotivo');
       await p.click('#estRelSalvar'); await p.waitForSelector('#estErros');
       afirma(/Informe o motivo/.test(await texto(p, '#estErros')), 'encerrar relação sem motivo é recusado');
@@ -696,11 +696,11 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await cq3.context().close();
       /* celular */
       const cel3 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['ficha do Squad com relações', '#admin?arq=estruturas&e=' + idSq, '#estRelacoesLista .est-relacao'], ['Mapa com os Squads da Linha', '#arquitetura?mf=mapa&e=neg-3', '#mfmSquads .mfm-squad']]) {
+      for (const [rot, hash, sel] of [['ficha do Squad com relações', '#arquitetura?arq=estruturas&e=' + idSq, '#estRelacoesLista .est-relacao'], ['Mapa com os Squads da Linha', '#arquitetura?mf=mapa&e=neg-3', '#mfmSquads .mfm-squad']]) {
         await ir(cel3, hash); await cel3.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel3), '375 px: ' + rot + ' sem rolagem lateral');
       }
-      await ir(cel3, '#admin?arq=estruturas&e=' + idSq); await cel3.waitForSelector('.est-rel-trocar', { timeout: 15000 });
+      await ir(cel3, '#arquitetura?arq=estruturas&e=' + idSq); await cel3.waitForSelector('.est-rel-trocar', { timeout: 15000 });
       const bt = await cel3.locator('.est-rel-trocar').boundingBox();
       afirma(bt && bt.height >= 40, '375 px: botões das relações com área de toque adequada', bt && bt.height);
       await cel3.context().close();
@@ -744,7 +744,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await ir(p, '#arquitetura?mf=mapa&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
       afirma(/Precisa de revisão/.test(await texto(p, '#mfmObjetos .mfm-objeto[data-objeto="item-m3"]')), 'Mapa: o produto continua sob a Linha, com "Precisa de revisão" (nada é movido sozinho)');
-      await ir(p, '#admin?arq=estruturas&e=' + idNeg);
+      await ir(p, '#arquitetura?arq=estruturas&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#estProdutos .est-produto[data-objeto="item-m3"] [data-situacao]'), undefined, { limite: 15000 });
       afirma(/Precisa de revisão/.test(await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]')), 'ficha da Linha: a mesma situação');
       /* 2. substituir pela estrutura do tipo novo (CoE), com motivo — volta a "Válido", base = decisão final */
@@ -777,10 +777,10 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await esperarCondicaoAte(p, () => !!document.getElementById('poRespSituacao') && /Gravação suspensa/.test((document.getElementById('poResponsavel') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma((await texto(p, '#poRespSituacao')) === 'Válido' && await p.locator('#poRespVincular, #poRespSubstituir, #poRespEncerrar, #poRespForm').count() === 0,
         'marcador false: a ficha do Posicionamento mostra a estrutura responsável, sem nenhuma ação, com "Gravação suspensa"');
-      await ir(p, '#admin?arq=estruturas&e=' + idCoe);
+      await ir(p, '#arquitetura?arq=estruturas&e=' + idCoe);
       await esperarCondicaoAte(p, () => !!document.getElementById('estFicha') && /Gravação suspensa/.test((document.getElementById('estAmbiente') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(await p.locator('#estEditar, #estEncerrar, #estRelNova, .est-rel-encerrar, .est-rel-trocar').count() === 0 && /Produto Delta/.test(await texto(p, '#estProdutos')), 'marcador false: a ficha da estrutura mostra os dados (produtos, relações) e nenhum botão de edição');
-      await ir(p, '#admin?arq=estruturas');
+      await ir(p, '#arquitetura?arq=estruturas');
       await esperarCondicaoAte(p, () => !!document.getElementById('estLista'), undefined, { limite: 15000 });
       afirma(await p.locator('#estNova').count() === 0, 'marcador false: a lista não oferece "Cadastrar estrutura"');
       await ir(p, '#arquitetura?mf=mapa');
@@ -792,7 +792,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(/Squad Alfa/.test(await texto(cq4, '#mfmSquads')), 'marcador false: o perfil de consulta continua vendo o Mapa real');
       await cq4.context().close();
       const cel4 = await sessao('configuracao', 375);
-      for (const [rot, hash, sel] of [['Posicionamento só consulta', '#arquitetura?po=pos-m3', '#poRespSituacao'], ['ficha da estrutura só consulta', '#admin?arq=estruturas&e=' + idCoe, '#estFicha']]) {
+      for (const [rot, hash, sel] of [['Posicionamento só consulta', '#arquitetura?po=pos-m3', '#poRespSituacao'], ['ficha da estrutura só consulta', '#arquitetura?arq=estruturas&e=' + idCoe, '#estFicha']]) {
         await ir(cel4, hash); await cel4.waitForSelector(sel, { timeout: 15000 });
         afirma(await semRolagemLateral(cel4), '375 px: ' + rot + ' sem rolagem lateral');
       }
@@ -865,7 +865,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await ir(p, '#arquitetura?mf=mapa&e=ae-p2');
       afirma(await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="obj-jur"]'), undefined, { limite: 15000 }) &&
         /Assessoramento jurídico/.test(await texto(p, '#mfmObjetos')) && /Produtos, serviços e atuações sob esta estrutura/.test(await texto(p, '#mfmDetalhe')), 'Mapa: a atuação aparece sob a estrutura responsável');
-      await ir(p, '#admin?arq=estruturas&e=ae-p2');
+      await ir(p, '#arquitetura?arq=estruturas&e=ae-p2');
       afirma(await esperarCondicaoAte(p, () => !!document.getElementById('estProdutos') && /Assessoramento jurídico/.test(document.getElementById('estProdutos').textContent), undefined, { limite: 15000 }),
         'ficha da estrutura: a atuação na lista do que está sob ela');
     }
@@ -873,11 +873,11 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     console.log('\n10. Celular (375 px) e computador');
     afirma(await semRolagemLateral(p), 'computador: Mapa sem rolagem lateral');
     const m = await sessao('configuracao', 375);
-    for (const [rot, hash, sel] of [['lista', '#admin?arq=estruturas', '#estLista'], ['ficha', '#admin?arq=estruturas&e=' + idNeg, '#estFicha'], ['subagrupadores', '#admin?arq=estruturas&sg=lista', '#sgLista'], ['ficha com subagrupador', '#admin?arq=estruturas&e=' + idNeg, '#estSubagrupador'], ['Mapa', '#arquitetura?mf=mapa', '#mfmMapa'], ['detalhe no Mapa', '#arquitetura?mf=mapa&e=' + idCoe, '#mfmDetalhe']]) {
+    for (const [rot, hash, sel] of [['lista', '#arquitetura?arq=estruturas', '#estLista'], ['ficha', '#arquitetura?arq=estruturas&e=' + idNeg, '#estFicha'], ['subagrupadores', '#arquitetura?arq=estruturas&sg=lista', '#sgLista'], ['ficha com subagrupador', '#arquitetura?arq=estruturas&e=' + idNeg, '#estSubagrupador'], ['Mapa', '#arquitetura?mf=mapa', '#mfmMapa'], ['detalhe no Mapa', '#arquitetura?mf=mapa&e=' + idCoe, '#mfmDetalhe']]) {
       await ir(m, hash); await m.waitForSelector(sel, { timeout: 15000 });
       afirma(await semRolagemLateral(m), '375 px: ' + rot + ' sem rolagem lateral');
     }
-    await ir(m, '#admin?arq=estruturas'); await m.waitForSelector('#estNova'); await m.click('#estNova'); await m.waitForSelector('#estForm');
+    await ir(m, '#arquitetura?arq=estruturas'); await m.waitForSelector('#estNova'); await m.click('#estNova'); await m.waitForSelector('#estForm');
     /* como na seção 2: mede depois que a conferência das referências oficiais terminou (ela redesenha o formulário) */
     await esperarCondicaoAte(m, () => !!document.querySelector('#estTipos input') && !document.querySelector('#estTipos .loading-msg'), undefined, { limite: 15000 });
     afirma(await semRolagemLateral(m), '375 px: formulário de cadastro sem rolagem lateral');

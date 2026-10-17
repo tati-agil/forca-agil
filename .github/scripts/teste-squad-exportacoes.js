@@ -105,8 +105,7 @@ async function abrir(browser, viewport, squad) {
 }
 async function abrirMotorSquadNoAdmin(page) {
   await page.evaluate(() => { location.hash = '#admin'; });
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 8000 });
   await page.click('#avpMotorSquadInicioBtn');
 }

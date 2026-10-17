@@ -439,8 +439,7 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
   /* ---------------- 8: Conceitos-base da Avaliação na Taxonomia (Verificações do sistema) ---------------- */
   {
     const { ctx, page, erros } = await abrir(browser, viewport, { rota: 'admin' });
-    await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 12000 });
-    await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
+    await page.evaluate(() => { location.hash = '#arquitetura?arq=taxonomia'; }); /* a Taxonomia é área da Gestão da Floresta */
     await page.waitForSelector('#taxPergunta');
     await page.click('.tax-dominio[data-dominio="arquitetural"]');
     await page.waitForSelector('.tax-item', { timeout: 10000 });

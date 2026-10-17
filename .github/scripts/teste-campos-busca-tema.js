@@ -85,7 +85,7 @@ async function conferir(page, sel, rotulo) {
     afirma(r.erros.length === 0, 'Jornada: nenhum erro de JS');
     await r.ctx.close();
     /* Estrutura Organizacional Atual — motivo do marcador */
-    r = await abrir(browser, vp, '#admin?arq=estrutura-atual');
+    r = await abrir(browser, vp, '#arquitetura?arq=estrutura-atual');
     const tem = await esperarCondicao(r.page, () => !!document.getElementById('eaMarcadorMotivo'), null, { limite: 15000, descricao: 'motivo do marcador da Estrutura Atual' }).then(() => true);
     const g0 = await r.page.evaluate(() => (window.__ESCRITAS || []).length); /* a página grava sozinha ao abrir (registro de acesso): conta só o que vem depois */
     if (tem) {
@@ -98,7 +98,7 @@ async function conferir(page, sel, rotulo) {
     afirma(await r.page.evaluate(() => (window.__ESCRITAS || []).length) === g0, 'Estrutura Atual: nada gravado (só digitado)');
     await r.ctx.close();
     /* Estrutura Atual com a gravação liberada: o formulário de unidade e os demais controles */
-    r = await abrir(browser, vp, '#admin?arq=estrutura-atual', { eaLiberada: true });
+    r = await abrir(browser, vp, '#arquitetura?arq=estrutura-atual', { eaLiberada: true });
     await esperarCondicao(r.page, () => !!document.getElementById('eaNovaBtn') && !!document.getElementById('eaMostrarEncerradas'), null, { limite: 15000, descricao: 'Estrutura Atual liberada' });
     const chk = await r.page.evaluate(() => { const c = document.getElementById('eaMostrarEncerradas'), cs = getComputedStyle(c); return { accent: cs.accentColor, esquema: getComputedStyle(c.closest('.ea-tela')).colorScheme }; });
     afirma(chk.accent !== 'auto' && /dark/.test(chk.esquema), '"Mostrar encerradas": caixa no padrão do sistema (accent-color) e controles nativos no esquema escuro', chk);
@@ -117,7 +117,7 @@ async function conferir(page, sel, rotulo) {
     afirma(await r.page.evaluate(() => (window.__ESCRITAS || []).length) === g1 && r.erros.length === 0, 'Estrutura Atual: nada gravado, nenhum erro de JS');
     await r.ctx.close();
     /* ADMIN › Acessos: só as permissões (a Porta 2 segue os perfis; não há mais controle de disponibilidade) */
-    r = await abrir(browser, vp, '#admin?arq=inicio');
+    r = await abrir(browser, vp, '#arquitetura?arq=inicio');
     await esperarCondicao(r.page, () => !!document.getElementById('avpAdminAcessos') && !!document.getElementById('avpUsuariosBtn'), null, { limite: 15000, descricao: 'ADMIN › Acessos' });
     const ac = await r.page.evaluate(() => ({ titulo: document.getElementById('avpAdminAcessosTitulo').textContent, perm: !!document.querySelector('#avpAdminAcessos #avpUsuariosBtn'),
       disp: document.querySelectorAll('#anHabilitacao, #anHabilitacaoAdmin, #avpAcessosDisponibilidade, #avpDispPorta2').length, texto: document.getElementById('avpAdminAcessos').textContent }));
@@ -125,7 +125,7 @@ async function conferir(page, sel, rotulo) {
     afirma(r.erros.length === 0, 'Acessos: nenhum erro de JS');
     await r.ctx.close();
     /* perfil restrito (Avaliação + Configuração): sem Acessos (só admin geral), como antes */
-    r = await abrir(browser, vp, '#admin?arq=inicio', { restrito: true });
+    r = await abrir(browser, vp, '#arquitetura?arq=inicio', { restrito: true });
     await esperarCondicao(r.page, () => !!document.getElementById('avpAdminMapa'), null, { limite: 15000, descricao: 'ADMIN do perfil restrito' });
     afirma(await r.page.locator('#avpAdminAcessos, #avpUsuariosBtn').count() === 0, 'perfil restrito: sem Acessos (só admin geral, como antes)');
     await r.ctx.close();

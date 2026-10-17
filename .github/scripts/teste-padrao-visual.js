@@ -31,11 +31,11 @@ const TELAS = [
   ['Trabalhos', '#arquitetura?tr=1', '#avpTrabIrProdutos'],
   ['Lista O1–O9', '#arquitetura?po=lista', '#poNovoBtn'],
   ['Jornada', '#arquitetura?mf=catalogo', '.mf-item, #mfBusca'],
-  ['ADMIN › Avaliações e Mapa', '#admin?arq=inicio', '#avpGrupoConfiguracao'],
-  ['Motor P1–P16', '#admin?arq=motores', '#avpMotorArquitetural'],
-  ['Questionário P1–P16', '#admin?arq=questionarios&q=p1p16', '#avpCfgTitulo'],
+  ['ADMIN › Avaliações e Mapa', '#arquitetura?arq=inicio', '#avpGrupoConfiguracao'],
+  ['Motor P1–P16', '#arquitetura?arq=motores', '#avpMotorArquitetural'],
+  ['Questionário P1–P16', '#arquitetura?arq=questionarios&q=p1p16', '#avpCfgTitulo'],
   ['Nova avaliação P1–P16 (formulário)', '#arquitetura?nova=1', '#avpfNome'],
-  ['Usuários autorizados (formulário)', '#admin?arq=usuarios', '#avpUsuariosBusca']
+  ['Usuários autorizados (formulário)', '#arquitetura?arq=usuarios', '#avpUsuariosBusca']
 ];
 
 async function abrir(browser, vp, hash) {
@@ -54,7 +54,7 @@ async function abrir(browser, vp, hash) {
 }
 /* todo texto visível dentro do contêiner do domínio que está na tela */
 const medir = (page) => page.evaluate(() => {
-  const raiz = document.querySelector('#page-avaliacoes:not([hidden]), #adminPanelArquitetura.active, #adminPanelTaxonomia.active');
+  const raiz = document.querySelector('#page-avaliacoes:not([hidden]), #adminPanelArquitetura:not([hidden]), #adminPanelTaxonomia:not([hidden])');
   if (!raiz) return null;
   document.querySelectorAll('details').forEach((d) => { if (raiz.contains(d)) d.open = true; });
   const out = []; const vistos = new Set();
@@ -78,7 +78,7 @@ async function focoInvisivel(page, n) {
   /* começa no primeiro controle do domínio (no ADMIN, menu e abas vêm antes): foca por programa e volta um passo,
      para que o primeiro Tab já chegue a ele como foco de teclado */
   const temInicio = await page.evaluate(() => {
-    const raiz = document.querySelector('#page-avaliacoes:not([hidden]), #adminPanelArquitetura.active, #adminPanelTaxonomia.active');
+    const raiz = document.querySelector('#page-avaliacoes:not([hidden]), #adminPanelArquitetura:not([hidden]), #adminPanelTaxonomia:not([hidden])');
     const alvo = raiz && Array.from(raiz.querySelectorAll('a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')).find((e) => !e.disabled && e.getBoundingClientRect().width > 0);
     if (!alvo) return false; alvo.focus(); return true;
   });
@@ -136,7 +136,7 @@ async function focoInvisivel(page, n) {
         const id = await r.page.evaluate(() => {
           const sky = document.getElementById('sky'), stars = document.getElementById('stars');
           const lum = (c) => { const v = (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
-          const raiz = document.querySelector('#page-avaliacoes:not([hidden]), #adminPanelArquitetura.active, #adminPanelTaxonomia.active');
+          const raiz = document.querySelector('#page-avaliacoes:not([hidden]), #adminPanelArquitetura:not([hidden]), #adminPanelTaxonomia:not([hidden])');
           const campos = raiz ? Array.from(raiz.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea')).filter((e) => e.getBoundingClientRect().width > 0) : [];
           return {
             fundo: !!sky && /nebula\.jpg/.test(getComputedStyle(sky).backgroundImage) && getComputedStyle(sky).position === 'fixed',
@@ -159,18 +159,17 @@ async function focoInvisivel(page, n) {
         afirma(r.erros.length === 0, rotulo + ': nenhum erro de página', r.erros);
         await r.ctx.close();
       }
-      /* Taxonomia (admin geral): aba do ADMIN */
+      /* Taxonomia (admin geral): área da Gestão da Floresta */
       {
         const r = await abrir(browser, vp, '#admin');
-        await r.page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { timeout: 15000 });
-        await r.page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
-        await esperarCondicao(r.page, () => !!document.querySelector('#adminPanelTaxonomia.active .tax-ui'), null, { limite: 15000, descricao: 'a Taxonomia' });
+        await r.page.evaluate(() => { location.hash = '#arquitetura?arq=taxonomia'; }); /* a Taxonomia é área da Gestão da Floresta */
+        await esperarCondicao(r.page, () => !!document.querySelector('#adminPanelTaxonomia:not([hidden]) .tax-ui'), null, { limite: 15000, descricao: 'a Taxonomia' });
         await r.page.waitForTimeout(500);
         const t = await medir(r.page);
         afirma(t && !t.some((x) => x.fam === 'Arial'), 'Taxonomia: os itens da lista (botões) herdam a fonte, nada na Arial', t && t.filter((x) => x.fam === 'Arial').slice(0, 3));
         afirma(t && !t.some((x) => x.px < 12.75), 'Taxonomia: nenhum texto abaixo de 12,8 px', t && t.filter((x) => x.px < 12.75).slice(0, 4));
-        const h1 = await r.page.evaluate(() => getComputedStyle(document.querySelector('.admin-hero h1')).fontWeight);
-        afirma(h1 === '400', 'cabeçalho do ADMIN com aba da Arquitetura: sem negrito sintético', h1);
+        const h1 = await r.page.evaluate(() => getComputedStyle(document.querySelector('#page-avaliacoes .page-hero h1')).fontWeight);
+        afirma(h1 === '400', 'cabeçalho da Taxonomia (Gestão da Floresta): sem negrito sintético', h1);
         afirma(await larguraOk(r.page), 'Taxonomia: sem rolagem lateral');
         afirma(await esquemaRaiz(r.page) === 'dark', 'Taxonomia: raiz da página com color-scheme escuro');
         const fo = await focoInvisivel(r.page, 25);

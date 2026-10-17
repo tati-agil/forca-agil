@@ -6,7 +6,7 @@
  * O CI (teste-admin-navegacao, "tela inicial rolada (50 px)") achou a tela da Arquitetura sendo
  * rolada sozinha. Causa: a restauração automática de rolagem do navegador é guardada POR ENTRADA do
  * histórico (history.scrollRestoration), e vale o modo da entrada para onde se VOLTA. O site punha
- * 'manual' só na entrada de onde SAÍA, por um instante; a entrada de chegada (#admin?arq=inicio)
+ * 'manual' só na entrada de onde SAÍA, por um instante; a entrada de chegada (#arquitetura?arq=inicio)
  * ficava 'auto'. Com a página recarregada ainda carregando, o navegador adia essa restauração até
  * o fim do carregamento — e então rolava (suave) até a posição antiga, por cima de tudo.
  *
@@ -71,7 +71,7 @@ async function abrir(browser, viewport) {
   await page.route('**/*.png', async (r) => { if (carga.segurar) await carga.segurado; r.continue(); });
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'load' });
   await esperarSessaoAssentada(page);
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  await page.evaluate(() => { if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash)) location.hash = '#arquitetura?arq=inicio'; }); /* Avaliações e Mapa = Gestão da Floresta */
   await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
   return { ctx, page, erros, carga };
 }
@@ -101,7 +101,7 @@ async function terminarCarregamento(page, carga) {
 }
 /* Espera o "← Voltar" (recuo do histórico) terminar de posicionar a tela inicial. */
 async function aposVoltar(page) {
-  await page.waitForFunction(() => location.hash === '#admin?arq=inicio', null, { timeout: 5000 });
+  await page.waitForFunction(() => location.hash === '#arquitetura?arq=inicio', null, { timeout: 5000 });
   await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
   await quadros(page, 3);
 }
@@ -131,7 +131,7 @@ async function aposVoltar(page) {
     afirma(Math.abs(await y(page) - SAIDA) <= 2, 'Voltar do navegador: a tela devolve a posição de saída (' + SAIDA + ' px)', await y(page) + ' px');
     await lento(async () => {
       await page.goForward({ waitUntil: 'commit' });
-      await page.waitForFunction(() => location.hash === '#admin?arq=motores', null, { timeout: 5000 });
+      await page.waitForFunction(() => location.hash === '#arquitetura?arq=motores', null, { timeout: 5000 });
       await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible' });
       await quadros(page, 40);
     });
@@ -174,9 +174,9 @@ async function aposVoltar(page) {
     const y4 = await y(page);
     const rol4 = await terminarCarregamento(page, carga);
     afirma(Math.abs(await y(page) - y4) <= 2, 'Voltar do navegador: fim do carregamento não rola a tela (' + y4 + ' px)', 'foi para ' + await y(page) + ' px; rolagens: ' + rol4);
-    afirma(await hash(page) === '#admin?arq=inicio' && await page.locator('#avpQuestP1P16Btn').isVisible(), 'Voltar do navegador: tela inicial da Arquitetura, no endereço certo');
+    afirma(await hash(page) === '#arquitetura?arq=inicio' && await page.locator('#avpQuestP1P16Btn').isVisible(), 'Voltar do navegador: tela inicial da Arquitetura, no endereço certo');
     await page.goForward({ waitUntil: 'commit' });
-    await page.waitForFunction(() => location.hash === '#admin?arq=motores', null, { timeout: 5000 });
+    await page.waitForFunction(() => location.hash === '#arquitetura?arq=motores', null, { timeout: 5000 });
     await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible' });
     await quadros(page, 3);
     const y4b = await y(page);

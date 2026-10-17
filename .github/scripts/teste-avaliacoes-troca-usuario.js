@@ -1,4 +1,4 @@
-/* TROCA DE USUÁRIO SEM RECARREGAR a página — ADMIN > AVALIAÇÃO E MAPA.
+/* TROCA DE USUÁRIO SEM RECARREGAR a página — GESTÃO DA FLORESTA (antes ADMIN > AVALIAÇÃO E MAPA).
  *
  * Defeito que isto prende: os módulos do ADMIN (avaliacao-produto.js, avaliacao-squad.js) e o
  * cabeçalho do ADMIN (admin.js) moram na página inteira. Quando alguém saía e OUTRA pessoa
@@ -97,13 +97,9 @@ const entrar = async (page, email) => {
   await page.waitForFunction((e) => { const s = window.faAuth.getSession(); return !!s && s.email === e; }, email, { timeout: 12000 });
 };
 const irPara = async (page, destino) => { await page.evaluate((h) => { location.hash = h; }, destino); await page.waitForTimeout(400); };
-/* Admin geral: a aba Arquitetura é uma entre várias — a pessoa clica nela. Devolve false se o botão
-   da aba não estiver visível (cabeçalho do ADMIN ainda escondido por quem esteve antes). */
+/* A antiga aba "Avaliações e Mapa" do ADMIN é a Gestão da Floresta, dentro de A FLORESTA (#arquitetura?arq=inicio). */
 async function abrirAbaArquitetura(page) {
-  const btn = page.locator('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  const visivel = await btn.evaluate((b) => !b.hidden && getComputedStyle(b).display !== 'none').catch(() => false);
-  if (!visivel) return false;
-  await btn.click();
+  if (!/^#arquitetura\?(?:[^#]*&)?arq=/.test(await page.evaluate(() => location.hash))) await irPara(page, '#arquitetura?arq=inicio');
   return true;
 }
 const QUATRO = ['#avpQuestP1P16Btn', '#avpConfigMotoresBtn', '#avpDocumentacaoBtn', '#avpMotorSquadInicioBtn'];
@@ -118,7 +114,7 @@ async function quatroCartoes(page) {
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
 
-    console.log('\n== ADMIN > AVALIAÇÃO E MAPA: admin geral → restrito → admin geral, SEM recarregar ==');
+    console.log('\n== GESTÃO DA FLORESTA: admin geral → restrito → admin geral, SEM recarregar ==');
     {
       const { ctx, page, erros } = await abrir(browser, { email: ADMIN, hash: '#admin', viewport });
       await abrirAbaArquitetura(page);
@@ -132,11 +128,11 @@ async function quatroCartoes(page) {
       await entrar(page, ARQ);
       await irPara(page, '#admin');
       await esperarCondicaoAte(page, () => !!document.getElementById('avpQuestP1P16Btn'), null, { limite: 10000 }); /* o resultado é conferido logo abaixo */
-      afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), '3-4) "Avaliação + Configuração" entra no ADMIN (' + await hash(page) + ')');
+      afirma(await hash(page) === '#arquitetura?arq=inicio', '3-4) "Avaliação + Configuração": #admin leva à Gestão da Floresta (' + await hash(page) + ')');
       afirma(await quatroCartoes(page), '5) volta ao INÍCIO da Arquitetura com os 4 cartões (Questionários, Motores, Naturezas, Motor de Squad)');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, '6) NÃO vê o cartão "Usuários autorizados"');
       afirma(await contar(page, '#avpAutAdicionarBtn') === 0 && !/Só administradores gerais/.test(await textoDoAdmin(page)), '6) nem a tela de "Usuários autorizados" nem a mensagem de "só administradores gerais"');
-      { const barra = await barraDeAbasVisivel(page), nAbas = await abasVisiveis(page); afirma(!barra && nAbas === 1, 'o ADMIN dele continua só com a Arquitetura (sem barra de abas) — barra ' + (barra ? 'visível' : 'escondida') + ', ' + nAbas + ' aba(s)'); }
+      afirma(await page.evaluate(() => document.getElementById('navAdmin').hidden && document.getElementById('page-admin').hidden), 'sem o menu ADMIN e sem a página ADMIN (a área dele é a Gestão da Floresta)');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
 
       await sair(page);

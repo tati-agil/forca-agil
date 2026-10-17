@@ -72,7 +72,7 @@ function semente(o) {
   const users = {}; users[chave(ARQ)] = { name: 'Pessoa', email: ARQ, area: 'INFOR' }; users[chave(ADM)] = { name: 'Admin', email: ADM, area: 'INFOR' };
   const conceitos = {}, fontes = {};
   ['AREA_ESPECIALIZADA', 'COE', 'ESTRATEGIA_CLIENTES', 'NEGOCIOS', 'PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA', 'PLATAFORMA_CORPORATIVA', 'LINHA', 'PLATAFORMA'].forEach((c, i) => {
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
   });
   const db = {
     'fa-users': users, 'fa-admins': {}, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
@@ -277,7 +277,7 @@ async function atalho(browser, viewport, rotulo) {
 async function semInterruptor(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 5. ADMIN › Motor de Squad: sem o controle da exigência; histórico preservado');
   for (const email of [ADM, ARQ]) {
-    const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motor-squad', semente({ exigir: false }), email);
+    const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=motor-squad', semente({ exigir: false }), email);
     await page.waitForSelector('#sqMotorSquad', { state: 'visible' });
     afirma(await page.locator('#sqExigirCard, #sqExigirEstado, #sqExigirBtn, #sqExigirMotivo').count() === 0 && !/Exigência de Posicionamento/.test(await texto(page, '#sqMotorSquad')),
       (email === ADM ? 'admin geral' : 'Avaliação + Configuração') + ': o Motor de Squad sem o controle da exigência');

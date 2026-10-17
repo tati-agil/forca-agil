@@ -14,7 +14,7 @@
  *   N10. Mapa → "Definição e documentação do Mapa" → "← Voltar para o Mapa da Floresta" → o Mapa.
  *   N11. Lista de Posicionamentos → ficha → "← Voltar para os Posicionamentos" → a lista (não o Início).
  *   N12. Jornada (item) → "Acessar Adequação à Squad" → "← Voltar para a Jornada do Mapa" → o item.
- *   N13. ADMIN › Avaliações e Mapa → "Consultar jornada até o Mapa" → "← Voltar para Avaliações e Mapa" → o ADMIN (Mapa aberto).
+ *   N13. Gestão da Floresta → "Abrir Mapa da Floresta" → "← Voltar para a Gestão da Floresta" → a Gestão (Mapa aberto).
  *   Em todos: nenhum erro de JS, sem rolagem lateral, nenhuma gravação. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -180,7 +180,7 @@ async function n9(browser, vp, tag) {
   await ate(page, () => !!document.getElementById('mfmAbrirCadastro'), null, 'detalhe com "abrir no cadastro"', 15000);
   const origem = await hashAgora(page);
   await page.click('#mfmAbrirCadastro');
-  await ate(page, () => /^#admin\?arq=estruturas/.test(location.hash) && !!document.getElementById('estVoltarOrigemNav'), null, 'ficha da estrutura no cadastro');
+  await ate(page, () => /^#arquitetura\?arq=estruturas/.test(location.hash) && !!document.getElementById('estVoltarOrigemNav'), null, 'ficha da estrutura no cadastro');
   afirma(await texto(page, '#estVoltarOrigemNav') === '← Voltar para o Mapa da Floresta', 'ficha da estrutura aberta pelo Mapa: "← Voltar para o Mapa da Floresta"', await texto(page, '#estVoltarOrigemNav'));
   await page.click('#estVoltarOrigemNav');
   await ate(page, (h) => location.hash === h && !!document.getElementById('mfmMapa'), origem, 'de volta ao Mapa');
@@ -192,7 +192,7 @@ async function n10(browser, vp, tag) {
   const r = await abrir(browser, vp, '#arquitetura?mf=mapa'); const page = r.page;
   await ate(page, () => !!document.getElementById('mfmDefinicao'), null, 'Mapa com o acesso à documentação', 15000);
   await page.click('#mfmDefinicao');
-  await ate(page, () => /^#admin\?arq=inicio/.test(location.hash) && !!document.getElementById('avpInicioVoltarOrigem') && !!document.getElementById('avpDocsMapaFloresta'), null, 'seção do Mapa (definição oficial)');
+  await ate(page, () => /^#arquitetura\?arq=inicio/.test(location.hash) && !!document.getElementById('avpInicioVoltarOrigem') && !!document.getElementById('avpDocsMapaFloresta'), null, 'seção do Mapa (definição oficial)');
   afirma(await texto(page, '#avpInicioVoltarOrigem') === '← Voltar para o Mapa da Floresta' && await page.evaluate(() => document.getElementById('avpAdminMapa').open), 'definição aberta pelo Mapa: seção do Mapa aberta, "← Voltar para o Mapa da Floresta"', await texto(page, '#avpInicioVoltarOrigem'));
   await page.click('#avpInicioVoltarOrigem');
   await ate(page, () => /^#(?:arquitetura|avaliacoes)\?mf=mapa/.test(location.hash) && !!document.getElementById('mfmMapa'), null, 'de volta ao Mapa');
@@ -229,15 +229,16 @@ async function n12(browser, vp, tag) {
   await fim(r, 'N12');
 }
 async function n13(browser, vp, tag) {
-  console.log('\n== N13 (' + tag + '): ADMIN › Avaliações e Mapa → Jornada até o Mapa → Voltar → ADMIN (seção do Mapa aberta) ==');
-  const r = await abrir(browser, vp, '#admin?arq=inicio'); const page = r.page;
-  await ate(page, () => !!document.getElementById('avpAdminJornadaMapa'), null, 'ADMIN com a seção do Mapa');
-  await page.click('#avpAdminJornadaMapa');
-  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('mfVoltar'), null, 'Jornada aberta pelo ADMIN');
-  afirma(await texto(page, '#mfVoltar') === '← Voltar para Avaliações e Mapa', 'Jornada aberta pelo ADMIN: "← Voltar para Avaliações e Mapa"', await texto(page, '#mfVoltar'));
-  await page.click('#mfVoltar');
-  await ate(page, () => location.hash === '#admin?arq=inicio' && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura' && !!document.getElementById('avpAdminMapa'), null, 'de volta ao ADMIN');
-  afirma(await page.evaluate(() => document.getElementById('avpAdminMapa').open), 'volta a ADMIN › Avaliações e Mapa, com a seção do Mapa aberta');
+  console.log('\n== N13 (' + tag + '): Gestão da Floresta → Abrir Mapa → Voltar → Gestão (seção do Mapa aberta) ==');
+  const r = await abrir(browser, vp, '#arquitetura?arq=inicio'); const page = r.page;
+  await ate(page, () => !!document.getElementById('avpAdminAbrirMapa'), null, 'Gestão com a seção do Mapa');
+  await page.click('#avpAdminAbrirMapa');
+  await ate(page, () => /mf=mapa/.test(location.hash) && !!document.querySelector('#avaliacoesMapa button.avp-voltar-link, #mfVoltar'), null, 'Mapa aberto pela Gestão');
+  const volta = page.locator('#avaliacoesMapa button:has-text("Voltar para a Gestão da Floresta")').first();
+  afirma(await volta.count() === 1, 'Mapa aberto pela Gestão: "← Voltar para a Gestão da Floresta"');
+  await volta.click();
+  await ate(page, () => location.hash === '#arquitetura?arq=inicio' && !!document.getElementById('avpAdminMapa') && !document.getElementById('avaliacoesGestao').hidden, null, 'de volta à Gestão');
+  afirma(await page.evaluate(() => document.getElementById('avpAdminMapa').open), 'volta à Gestão da Floresta, com a seção do Mapa aberta');
   await fim(r, 'N13');
 }
 

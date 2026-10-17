@@ -69,7 +69,7 @@ function semente(comRedacaoV2) {
   const users = {}; users[chave(ARQ)] = { name: 'Pessoa', email: ARQ, area: 'INFOR' };
   const conceitos = {}, fontes = {};
   ['AREA_ESPECIALIZADA', 'COE', 'ESTRATEGIA_CLIENTES', 'NEGOCIOS', 'PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA', 'PLATAFORMA_CORPORATIVA', 'LINHA', 'PLATAFORMA'].forEach((c, i) => {
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
   });
   const qc = {};
   if (comRedacaoV2) qc[QCOD] = { motores: { 2: { versaoPublicada: 1, versoes: { 1: { perguntas: REDACAO_V2, motorCompativel: 2 } } } } };
@@ -108,7 +108,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 
 async function admin(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + '] 1. ADMIN › Questionários — redação v2 (inativo)');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', false);
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?arq=questionarios', false);
   await page.waitForSelector('#avpConteudoMotor2');
   const antes = await banco(page);
   const card = page.locator('#avpConteudoMotor2');
