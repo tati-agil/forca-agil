@@ -62,7 +62,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
 
     console.log('\n== Tela inicial: Configuração das Avaliações, Cadastros de Estruturas, complementares, Acessos e Referências ==');
     const titulos = await page.locator('#adminAvaliacaoProduto .avp-admin-secao > summary .avp-admin-secao-titulo').allTextContents();
-    afirma(JSON.stringify(titulos) === JSON.stringify(['Mapa da Floresta', 'Configuração das Avaliações', 'Cadastros de Estruturas Organizacionais', 'Configurações complementares', 'Acessos', 'Outras referências']), 'seções: ' + titulos.join(' | '));
+    afirma(JSON.stringify(titulos) === JSON.stringify(['Mapa da Floresta', 'Configuração das Avaliações', 'Cadastros de Estruturas Organizacionais', 'Configurações complementares', 'Acessos']), 'seções: ' + titulos.join(' | '));
     const grupo = (n) => page.locator('#adminAvaliacaoProduto .avp-admin-secao').nth(n + 1);
     afirma(await grupo(0).locator('#avpConfigQuestionariosBtn').count() === 1 && (await grupo(0).locator('h5').allTextContents()).join('|') === 'Motores de classificação', 'Configuração das Avaliações: os questionários e, num subgrupo, os motores');
     afirma(JSON.stringify(await grupo(0).locator('#avpSubMotores ~ .avp-admin-cards .avp-admin-card strong').allTextContents()) === JSON.stringify(['Produto/Serviço (P1–P16)', 'Posicionamento Organizacional (O1–O9)', 'Adequação à gestão por Squad (S1–S8)']) &&
@@ -77,7 +77,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(/Realizar avaliações é na área Avaliação do menu/.test(await page.locator('#avpGrupoConfiguracao > summary').innerText()) && /Taxonomia/.test(await page.locator('#adminPanelArquitetura').innerText()), 'I1: onde se avalia e onde ficam os conceitos (Taxonomia), sem parágrafo à parte');
     afirma(await grupo(3).locator('#avpUsuariosBtn').count() === 1 && await grupo(3).locator('#anHabilitacaoAdmin').count() === 1 && await page.locator('#anHabilitacaoAdmin').count() === 1 &&
       /Permissão define quem pode acessar/.test(await grupo(3).innerText()) && /Disponibilidade define se a funcionalidade está liberada para quem tem permissão/.test(await grupo(3).innerText()), 'Acessos: permissão × disponibilidade explicadas, Usuários autorizados e a Análise Organizacional, uma vez só');
-    afirma(await grupo(4).locator('#avpDocumentacaoBtn').count() === 1 && (await grupo(4).locator('#avpDocumentacaoBtn strong').innerText()) === 'Documentos de referência', 'Outras referências: Documentos de referência');
+    afirma(await grupo(2).locator('#avpDocumentacaoBtn').count() === 1 && (await grupo(2).locator('#avpDocumentacaoBtn strong').innerText()) === 'Documentos de referência', 'Configurações complementares: também os Documentos de referência');
     /* O1–O9: o atalho abre a MESMA área dos motores, já no cartão do Posicionamento; o Voltar dela volta ao início */
     await page.click('#avpMotorPosicionamentoInicioBtn');
     await page.waitForSelector('#avpMotorPosicionamento', { timeout: 8000 });
@@ -205,17 +205,10 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.waitForSelector('#avpConfigQuestionariosBtn');
 
     console.log('\n== Motor de Squad (a avaliação de Squad fica na área Avaliação) ==');
-    /* T1: aberto por Configuração dos Motores, o painel do motor de squad aparece de verdade e o
-       Voltar dele leva de volta para Configuração dos Motores */
+    /* T1: um acesso só ao motor de squad — o cartão em Motores de classificação; Configuração dos Motores não o repete */
     await page.click('#avpConfigMotoresBtn');
-    await page.waitForSelector('#avpMotorSquadAbrirBtn');
-    await page.click('#avpMotorSquadAbrirBtn');
-    await page.waitForSelector('#adminAvaliacaoSquad #sqMotorEditarRegrasBtn', { state: 'visible', timeout: 8000 });
-    afirma(await page.locator('#adminAvaliacaoProduto').isHidden(), 'motores → "Abrir configuração do motor de squad": o painel do motor aparece no lugar');
-    await conferirVoltar(page, '#sqMotorVoltarLista', 'Configuração dos Motores', 'painel do motor de squad aberto por Motores');
-    await page.click('#sqMotorVoltarLista');
-    await page.waitForSelector('#avpMotorSquadAbrirBtn', { state: 'visible' });
-    afirma(true, '…e o Voltar devolve Configuração dos Motores');
+    await page.waitForSelector('#avpMotorArqEditarBtn');
+    afirma(await page.locator('#avpMotorSquadAbrirBtn').count() === 0, 'Configuração dos Motores não repete o acesso ao motor de squad');
     await page.click('#avpMotoresVoltarLista');
     await page.waitForSelector('#avpMotorSquadInicioBtn', { state: 'visible' });
     await page.click('#avpMotorSquadInicioBtn');
@@ -272,12 +265,16 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.click('#avpConfigMotoresBtn');
     await page.waitForSelector('#avpMotorArqEditarBtn');
     afirma(await hash() === '#admin?arq=motores', 'Configuração dos Motores: #admin?arq=motores');
-    await page.click('#avpMotorSquadAbrirBtn');
+    await page.goBack();
+    await page.waitForSelector('#avpMotorSquadInicioBtn', { state: 'visible' });
+    await page.click('#avpMotorSquadInicioBtn');
     await page.waitForSelector('#adminAvaliacaoSquad #sqMotorEditarRegrasBtn', { state: 'visible' });
     afirma(await hash() === '#admin?arq=motor-squad', 'Motor de Squad: #admin?arq=motor-squad');
     await page.goBack();
+    await page.waitForSelector('#avpMotorSquadInicioBtn', { state: 'visible' });
+    afirma(await hash() === '#admin?arq=inicio' && await page.locator('#adminAvaliacaoSquad').isHidden(), 'Voltar do navegador: volta ao início de Avaliações e Mapa, sem sair do ADMIN');
+    await page.click('#avpConfigMotoresBtn');
     await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible' });
-    afirma(await hash() === '#admin?arq=motores' && await page.locator('#adminAvaliacaoSquad').isHidden(), 'Voltar do navegador: volta para Configuração dos Motores, sem sair do ADMIN');
     await page.goBack();
     await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
     afirma(await hash() === '#admin?arq=inicio', 'Voltar de novo: tela inicial da Arquitetura');

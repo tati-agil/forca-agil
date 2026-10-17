@@ -118,7 +118,7 @@
       quem: 'Admin geral e "Avaliação + Configuração" (que no ADMIN vê só esta aba). Usuários autorizados é só do admin geral.',
       importante: [
         'Mudança de regra do motor só vale depois de simulada e publicada; cada publicação cria uma versão nova.',
-        'A definição do Mapa da Floresta é mantida na seção do Mapa e os documentos em Outras referências; o Manual não copia o conteúdo.',
+        'A definição do Mapa da Floresta é mantida na seção do Mapa e os documentos em Configurações complementares; o Manual não copia o conteúdo.',
         'Tudo o que muda fica no histórico de auditoria; nada é apagado (documentos são arquivados).',
         'Correção editorial de questionário vinda do código só vale quando alguém clica em Aplicar: cria uma versão nova e nunca sobrescreve um texto editado à mão (aparece como divergente, para conferir caso a caso).',
         'Questionários e versões tem três questionários: Classificação arquitetural (P1–P16), Adequação à Squad (S1–S8) e Posicionamento Organizacional (O1–O9 e o diagnóstico conflito × recorte). O texto do Posicionamento é mantido aqui; ele é respondido na área Avaliação (botão "Posicionamento Organizacional").',

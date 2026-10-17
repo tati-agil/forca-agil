@@ -54,7 +54,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
-    afirma((await page.locator('#avpGrupoReferenciasTitulo').innerText()).trim() === 'Outras referências' && await page.locator('#avpGrupoReferencias #avpDocumentacaoBtn').count() === 1, 'o cartão fica em "Outras referências" na tela inicial');
+    afirma(await page.locator('#avpGrupoComplementares #avpDocumentacaoBtn').count() === 1 && await page.locator('#avpGrupoReferencias').count() === 0, 'o cartão fica em "Configurações complementares" (sem uma seção só para ele)');
     /* a definição oficial do Mapa fica na SEÇÃO DO MAPA, no início (uma só apresentação) */
     const DEFINICAO = 'É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
       'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.';
@@ -103,7 +103,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await page.click('.avp-modal-confirm-btn');
     await page.waitForSelector('#avpDocsArquivados');
     afirma((await banco(page, 'arquitetura-documentos'))[k].arquivado === true && await page.locator('#avpDocsLista .avp-doc-item').count() === 0, 'arquivar tira da lista e guarda em "Arquivados", sem apagar');
-    await page.evaluate(() => { document.getElementById('avpDocsArquivados').open = true; });
+    /* abre "Arquivados" e espera o botão à vista (um redesenho no meio fecharia a seção antes do clique) */
+    await esperarCondicao(page, () => { const d = document.getElementById('avpDocsArquivados'); if (d && !d.open) d.open = true; const b = document.querySelector('.avp-doc-arquivar[data-acao="restaurar"]'); return !!b && b.offsetParent !== null; }, undefined, { limite: 8000, descricao: 'Arquivados aberto com Restaurar à vista' });
     await page.click('.avp-doc-arquivar[data-acao="restaurar"]');
     await page.click('.avp-modal-confirm-btn');
     await esperarCondicao(page, () => document.querySelectorAll('#avpDocsLista .avp-doc-item').length === 1, null, { descricao: 'o documento restaurado voltar à lista' });

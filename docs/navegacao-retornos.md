@@ -21,7 +21,7 @@ As entradas criadas por `faNav.ir()` têm `avp: 1`. Por isso a área Avaliação
 |---|---|---|---|---|
 | Posicionamento (ficha) → "Avaliar Adequação à Squad" | Squad (nova ou em andamento) | a ficha | lista da Squad; com Squad em andamento, o Início | "← Voltar para o Posicionamento" → a ficha (também após F5 e após "Cancelar" confirmado) |
 | Jornada (item) → "Acessar Adequação à Squad" | Squad | o item da Jornada | lista da Squad / Início | "← Voltar para a Jornada do Mapa" → o item |
-| ADMIN › Avaliações e Mapa → partes (Produto/Serviço, Posicionamento, Vínculo, Squad) | listas da Avaliação | Avaliações e Mapa | Início da Avaliação | "← Voltar para Avaliações e Mapa" → o ADMIN, na mesma área |
+| Trabalhos → "Ver adequações à Squad" / "Ver avaliações de Posicionamento" | listas da Avaliação | Trabalhos | (pelo painel do Início, removido) | "← Voltar para Trabalhos de avaliação" |
 | ADMIN › Avaliações e Mapa → Abrir Mapa / jornada | Mapa / Jornada | Avaliações e Mapa | ok desde o #384 | idem, sem perder a origem nos links internos do Mapa |
 | Mapa → "Definição oficial do Mapa" | seção do Mapa no ADMIN (`#admin?arq=inicio`) | o Mapa | Documentação e mapas | "← Voltar para o Mapa da Floresta" → o Mapa |
 | ADMIN › qualquer funcionalidade → Voltar (da tela, do navegador ou depois de link direto) | início de Avaliações e Mapa | a seção de origem aberta | seções sempre abertas | a seção que contém a funcionalidade reabre |

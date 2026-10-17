@@ -1,8 +1,8 @@
 /* TAXONOMIA ABRE POR QUALQUER CAMINHO — desktop e 375 px. Hermético (Firebase falso), nada é gravado.
- * O defeito: só o CLIQUE na aba carregava a Taxonomia; o atalho do Início de Avaliações, o link do Manual e o F5
+ * O defeito: só o CLIQUE na aba carregava a Taxonomia; os atalhos (hoje o "Abrir a aba Taxonomia" de Avaliações e Mapa), o link do Manual e o F5
  * (faAdminAbrirAba) ficavam em "Carregando a Taxonomia…" para sempre. Agora o ativador de abas do ADMIN é o caminho
  * único. Prova-se o CONTEÚDO carregado (não só a aba selecionada) em:
- *   1. atalho do Início (admin geral), F5 no destino, Voltar/Avançar;
+ *   1. atalho "Abrir a aba Taxonomia" (admin geral), F5 no destino, Voltar/Avançar;
  *   2. clique direto na aba — UMA leitura dos conceitos (sem inicialização duplicada) e nenhuma releitura ao voltar à aba;
  *   3. link do Manual;
  *   4. leitura lenta: "Carregando…" e depois o conteúdo;
@@ -40,6 +40,8 @@ async function abrir(browser, viewport, hash, opts) {
 }
 const carregada = () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && p.classList.contains('active') && !/Carregando a Taxonomia|Verificando o acesso/.test(p.textContent) && /Que tipo de estrutura organizacional é esta?|O que é o item?/.test(p.textContent); };
 const esperarCarregada = (page, limite) => esperarCondicao(page, carregada, undefined, { limite: limite || 15000 });
+const naArquitetura = (page) => esperarCondicao(page, () => !!document.getElementById('avpAdminMapa') && /^#admin\?arq=inicio/.test(location.hash), undefined, { limite: 15000 });
+const atalhoTaxonomia = async (page) => { await page.waitForSelector('#admArqIrTaxonomia:not([hidden])', { timeout: 15000 }); await page.click('#admArqIrTaxonomia'); };
 const noInicio = (page) => esperarCondicao(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#avaliacoes'; }, undefined, { limite: 15000 });
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 /* conta as leituras da Taxonomia (once/on por caminho), instalado com a página pronta, para provar que não há inicialização duplicada */
@@ -54,18 +56,17 @@ const leiturasConceitos = (page) => page.evaluate(() => Object.keys(window.__lei
 
 async function rodada(browser, viewport, rotulo) {
   console.log('\n=== ' + rotulo + ' ===');
-  console.log('1. Atalho do Início de Avaliações');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes');
-  await noInicio(page);
-  await page.waitForSelector('#avpComoIrTaxonomia', { state: 'attached', timeout: 15000 });
-  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrTaxonomia');
+  console.log('1. Atalho "Abrir a aba Taxonomia" (ADMIN › Avaliações e Mapa)');
+  let { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio');
+  await naArquitetura(page);
+  await atalhoTaxonomia(page);
   await esperarCarregada(page);
-  afirma(await page.evaluate(carregada) && await page.evaluate(() => !document.getElementById('adminVoltaInicio').hidden), 'atalho do Início: a Taxonomia CARREGA o conteúdo (não fica em "Carregando…"), com o retorno ao Início');
+  afirma(await page.evaluate(carregada), 'atalho: a Taxonomia CARREGA o conteúdo (não fica em "Carregando…"), com o retorno ao Início');
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   await esperarCarregada(page, 20000);
   afirma(true, 'F5 no destino: a Taxonomia carrega de novo');
-  await page.goBack(); await noInicio(page);
-  afirma(true, 'Voltar: Início de Avaliações');
+  await page.goBack(); await naArquitetura(page);
+  afirma(true, 'Voltar: ADMIN › Avaliações e Mapa');
   await page.goForward(); await esperarCarregada(page, 20000);
   afirma(true, 'Avançar: a Taxonomia carregada');
   afirma(await larguraOk(page), 'sem rolagem lateral');
@@ -104,10 +105,9 @@ async function rodada(browser, viewport, rotulo) {
   await ctx.close();
 
   console.log('4. Leitura lenta');
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { delays: { taxonomia: 3000 } }));
-  await noInicio(page);
-  await page.waitForSelector('#avpComoIrTaxonomia', { state: 'attached', timeout: 15000 });
-  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrTaxonomia');
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio', { delays: { taxonomia: 3000 } }));
+  await naArquitetura(page);
+  await atalhoTaxonomia(page);
   await esperarCondicao(page, () => { const p = document.getElementById('adminPanelTaxonomia'); return !!p && p.classList.contains('active'); }, undefined, { limite: 15000 });
   afirma(/Carregando a Taxonomia/.test(await page.evaluate(() => document.getElementById('adminPanelTaxonomia').textContent)), 'lenta: mostra "Carregando a Taxonomia…" enquanto lê');
   await esperarCarregada(page, 20000);
@@ -116,10 +116,9 @@ async function rodada(browser, viewport, rotulo) {
 
   console.log('5. Falha e nova tentativa');
   /* o servidor não responde dentro do prazo de leitura (12 s): falha de conexão, com nova tentativa */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { delays: { taxonomia: 13000 } }));
-  await noInicio(page);
-  await page.waitForSelector('#avpComoIrTaxonomia', { state: 'attached', timeout: 15000 });
-  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrTaxonomia');
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio', { delays: { taxonomia: 13000 } }));
+  await naArquitetura(page);
+  await atalhoTaxonomia(page);
   await esperarCondicao(page, () => !!document.getElementById('taxErro'), undefined, { limite: 30000 });
   const aviso = await page.evaluate(() => document.getElementById('taxErro').textContent);
   afirma(/Não foi possível carregar a Taxonomia/.test(aviso) && /tentar novamente/i.test(aviso), 'sem resposta: aviso compreensível com "Tentar novamente" (nunca "Carregando…" para sempre)', aviso);
@@ -129,10 +128,9 @@ async function rodada(browser, viewport, rotulo) {
   afirma(true, 'nova tentativa (o servidor volta a responder): carrega');
   await ctx.close();
   /* leitura recusada pelo banco: diz que não tem acesso, sem ficar carregando */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { fail: ['taxonomia'] }));
-  await noInicio(page);
-  await page.waitForSelector('#avpComoIrTaxonomia', { state: 'attached', timeout: 15000 });
-  await page.evaluate(() => { ['avpInicioConsultar', 'avpComoDetalhes'].forEach((i) => { const d = document.getElementById(i); if (d) d.open = true; }); }); await page.click('#avpComoIrTaxonomia');
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=inicio', { fail: ['taxonomia'] }));
+  await naArquitetura(page);
+  await atalhoTaxonomia(page);
   await esperarCondicao(page, () => !!document.getElementById('taxSemAcesso'), undefined, { limite: 20000 });
   afirma(/não tem acesso/.test(await page.evaluate(() => document.getElementById('taxSemAcesso').textContent)), 'leitura recusada: "Você não tem acesso a esta área." (sem carregar para sempre)');
   afirma(await larguraOk(page), 'sem rolagem lateral');

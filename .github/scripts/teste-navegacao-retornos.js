@@ -7,14 +7,14 @@
  *   N3. Jornada (item) → "Abrir Posicionamento" → "← Voltar para a Jornada do Mapa" → o item; Voltar/Avançar do navegador.
  *   N4. Ficha de Produto/Serviço → "Posicionar" → Voltar → a ficha de Produto/Serviço.
  *   N5. Trabalhos → Jornada → "← Voltar para Trabalhos de avaliação" → Trabalhos; Trabalhos → Voltar → Início, sem ciclo.
- *   N6. ADMIN › Avaliações e Mapa → "Ver adequações" (Squad) → "← Voltar para Avaliações e Mapa" → o ADMIN.
+ *   N6. Trabalhos → "Ver adequações à Squad" → "← Voltar para Trabalhos de avaliação" → Trabalhos.
  *   N7. Mapa → estrutura (&e=) → objeto → "← Voltar para o Mapa da Floresta" → a mesma estrutura no Mapa.
  *   N8. Jornada: lista → item → "Voltar para a lista" volta de verdade (o Avançar devolve o item; sem ciclo).
  *   N9. Mapa → cadastro de estruturas / ficha da estrutura → "← Voltar para o Mapa da Floresta" → o Mapa.
  *   N10. Mapa → "Definição e documentação do Mapa" → "← Voltar para o Mapa da Floresta" → o Mapa.
  *   N11. Lista de Posicionamentos → ficha → "← Voltar para os Posicionamentos" → a lista (não o Início).
  *   N12. Jornada (item) → "Acessar Adequação à Squad" → "← Voltar para a Jornada do Mapa" → o item.
- *   N13. ADMIN › Avaliações e Mapa → "Ver avaliações" (Produto/Serviço) → "← Voltar para Avaliações e Mapa" → o ADMIN.
+ *   N13. ADMIN › Avaliações e Mapa → "Consultar jornada até o Mapa" → "← Voltar para Avaliações e Mapa" → o ADMIN (Mapa aberto).
  *   Em todos: nenhum erro de JS, sem rolagem lateral, nenhuma gravação. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -140,15 +140,15 @@ async function n5(browser, vp, tag) {
   await fim(r, 'N5');
 }
 async function n6(browser, vp, tag) {
-  console.log('\n== N6 (' + tag + '): ADMIN › Avaliações e Mapa → Squad → Voltar → ADMIN ==');
-  const r = await abrir(browser, vp, '#admin?arq=inicio'); const page = r.page;
-  await ate(page, () => !!document.getElementById('avpParteSquad'), null, 'ADMIN com as partes da jornada');
-  await page.click('#avpParteSquad');
+  console.log('\n== N6 (' + tag + '): Trabalhos → Adequação à Squad → Voltar → Trabalhos ==');
+  const r = await abrir(browser, vp, '#avaliacoes?tr=1'); const page = r.page;
+  await ate(page, () => !!document.getElementById('avpTrabIrSquad'), null, 'Trabalhos com a Adequação à Squad');
+  await page.click('#avpTrabIrSquad');
   await ate(page, () => /sq=lista/.test(location.hash) && !!document.getElementById('sqVoltarArquitetura'), null, 'lista da Squad');
-  afirma(await texto(page, '#sqVoltarArquitetura') === '← Voltar para Avaliações e Mapa', 'Squad aberta pelo ADMIN: "← Voltar para Avaliações e Mapa"', await texto(page, '#sqVoltarArquitetura'));
+  afirma(/Trabalhos de avaliação/.test(await texto(page, '#sqVoltarArquitetura')), 'Squad aberta por Trabalhos: "← Voltar para Trabalhos de avaliação"', await texto(page, '#sqVoltarArquitetura'));
   await page.click('#sqVoltarArquitetura');
-  await ate(page, () => location.hash === '#admin?arq=inicio' && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura' && !!document.getElementById('avpAdminPartes'), null, 'de volta ao ADMIN');
-  afirma(true, 'volta a ADMIN › Avaliações e Mapa (não ao Início da Avaliação)');
+  await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('avpTrabalhos'), null, 'de volta a Trabalhos');
+  afirma(true, 'volta a Trabalhos de avaliação');
   await fim(r, 'N6');
 }
 async function n7(browser, vp, tag) {
@@ -233,15 +233,15 @@ async function n12(browser, vp, tag) {
   await fim(r, 'N12');
 }
 async function n13(browser, vp, tag) {
-  console.log('\n== N13 (' + tag + '): ADMIN › Avaliações e Mapa → lista de Produto/Serviço → Voltar → ADMIN ==');
+  console.log('\n== N13 (' + tag + '): ADMIN › Avaliações e Mapa → Jornada até o Mapa → Voltar → ADMIN (seção do Mapa aberta) ==');
   const r = await abrir(browser, vp, '#admin?arq=inicio'); const page = r.page;
-  await ate(page, () => !!document.getElementById('avpParteProduto'), null, 'ADMIN com as partes');
-  await page.click('#avpParteProduto');
-  await ate(page, () => /av=lista/.test(location.hash) && !!document.getElementById('avpVoltarInicio'), null, 'lista de Produto/Serviço');
-  afirma(await texto(page, '#avpVoltarInicio') === '← Voltar para Avaliações e Mapa', 'lista aberta pelo ADMIN: "← Voltar para Avaliações e Mapa"', await texto(page, '#avpVoltarInicio'));
-  await page.click('#avpVoltarInicio');
-  await ate(page, () => location.hash === '#admin?arq=inicio' && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura', null, 'de volta ao ADMIN');
-  afirma(true, 'volta a ADMIN › Avaliações e Mapa');
+  await ate(page, () => !!document.getElementById('avpAdminJornadaMapa'), null, 'ADMIN com a seção do Mapa');
+  await page.click('#avpAdminJornadaMapa');
+  await ate(page, () => /mf=catalogo/.test(location.hash) && !!document.getElementById('mfVoltar'), null, 'Jornada aberta pelo ADMIN');
+  afirma(await texto(page, '#mfVoltar') === '← Voltar para Avaliações e Mapa', 'Jornada aberta pelo ADMIN: "← Voltar para Avaliações e Mapa"', await texto(page, '#mfVoltar'));
+  await page.click('#mfVoltar');
+  await ate(page, () => location.hash === '#admin?arq=inicio' && (document.querySelector('.admin-tab-btn.active') || {}).dataset.panel === 'adminPanelArquitetura' && !!document.getElementById('avpAdminMapa'), null, 'de volta ao ADMIN');
+  afirma(await page.evaluate(() => document.getElementById('avpAdminMapa').open), 'volta a ADMIN › Avaliações e Mapa, com a seção do Mapa aberta');
   await fim(r, 'N13');
 }
 
