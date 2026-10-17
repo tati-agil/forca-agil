@@ -180,16 +180,6 @@
         "padrao": "catch",
         "trecho": ".waitForSelector('#avaliacoesPainel .avp-table tbody tr', { timeout: 8000 }).catch(() => {})"
       },
-      "1bc12bc894eb77a0": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 }).catch(() => {})"
-      },
-      "acf5d2952e5868d0": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {})"
-      },
       "e360eb588ee1aa84": {
         "n": 1,
         "padrao": "catch",
@@ -290,11 +280,6 @@
         "n": 3,
         "padrao": "catch",
         "trecho": ".waitForSelector('#avpAutAdicionarBtn', { timeout: 8000 }).catch(() => {})"
-      },
-      "acf5d2952e5868d0": {
-        "n": 2,
-        "padrao": "catch",
-        "trecho": ".waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {})"
       },
       "1c97fde8b3e8817f": {
         "n": 1,

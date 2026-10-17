@@ -2712,14 +2712,13 @@
       var paginaAdmin = document.getElementById('page-admin');
       if (!sessaoAtual() || !paginaAdmin || paginaAdmin.hidden) return;
       var area = areaAtualAdmin();
-      var desejado = '#admin?arq=' + area + (area === 'motores' && state.configMotores && state.configMotores.motor === 'o' ? '&m=o' : '');
+      var desejado = '#admin?arq=' + area + (area === 'motores' && state.configMotores && state.configMotores.motor === 'o' ? '&m=o' : '') +
+        (area === 'questionarios' && state.config && state.config.filtro ? '&q=' + aliasDoQuestionario(state.config.filtro) : '');
       if (location.hash === desejado) return;
       /* Motores: &m=o (O1–O9) é a mesma área — trocar de motor substitui a entrada, sem empilhar */
       if (area === 'motores' && /^#admin\?arq=motores(&m=o)?$/.test(location.hash || '')) { history.replaceState(history.state, '', desejado); politicaRolagemAdmin(); return; }
       /* Estruturas Organizacionais guardam a estrutura aberta no próprio endereço (&e=<id>): não é outra área */
       if (area === 'estruturas' && /^#admin\?arq=estruturas(&|$)/.test(location.hash || '')) return;
-      /* Questionários: &q=<questionário> (atalho do Início) localiza um cartão — mesma área */
-      if (area === 'questionarios' && /^#admin\?arq=questionarios&q=[a-z0-9]+$/.test(location.hash || '')) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
       var volta = history.state && history.state.faVoltaInicio ? { faVoltaInicio: true } : {}; /* atalho do Início: a marca segue */
       if (history.state && history.state.navOrigem) volta.navOrigem = history.state.navOrigem; /* origem de fora (Mapa…): segue */
@@ -2768,7 +2767,7 @@
       if (window.faEstruturasAdmin && area !== 'estruturas') window.faEstruturasAdmin.fechar();
       if (window.faEstruturaAtualAdmin && area !== 'estrutura-atual') window.faEstruturaAtualAdmin.fechar();
       state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
-      if (area === 'questionarios') abrirConfigQuestionarios();
+      if (area === 'questionarios') abrirConfigQuestionarios(questionarioDoEndereco());
       else if (area === 'motores') abrirConfigMotores(motorDoEndereco());
       else if (area === 'naturezas') abrirConfigNaturezas();
       else if (area === 'usuarios' && souAdminGeral()) abrirAdminUsuarios();
@@ -2796,14 +2795,16 @@
     function aplicarEnderecoAdmin() {
       politicaRolagemAdmin();
       var area = areaDoEndereco();
-      if (area === 'questionarios' && area === areaAtualAdmin()) { focarQuestionarioDoEndereco(); return; }
+      /* Questionários: o questionário aberto é parte do endereço (&q=); o mesmo questionário = nada a fazer */
+      if (area === 'questionarios' && area === areaAtualAdmin() && questionarioDoEndereco() === ((state.config && state.config.filtro) || null)) return;
+      var outroQuestionario = area === 'questionarios' && area === areaAtualAdmin();
       /* Motores: trocar P1–P16 × O1–O9 pelo Voltar/Avançar é a mesma área — só muda o motor mostrado */
       if (area === 'motores' && area === areaAtualAdmin()) {
         var mm = motorDoEndereco();
         if (state.configMotores && state.configMotores.sub === 'painel' && state.configMotores.motor !== mm) irParaMotor(mm);
         return;
       }
-      if (!area || area === areaAtualAdmin()) return;
+      if (!area || (area === areaAtualAdmin() && !outroQuestionario)) return;
       if (edicaoSujaAdmin()) {
         var atual = areaAtualAdmin();
         history.pushState({ arq: atual }, '', '#admin?arq=' + atual); /* desfaz até a pessoa decidir */
@@ -4104,9 +4105,12 @@
        Nunca edita a versão PUBLICADA diretamente — sempre um rascunho à
        parte (window.faQuestionarios.salvarRascunho), só efetivado em
        PUBLICAR NOVA VERSÃO. */
-    function abrirConfigQuestionarios() {
+    /* filtro: o código do questionário aberto pelo grupo da avaliação no Início (Questionário de P1–P16, O1–O9 ou
+       S1–S8) — a tela mostra só ele, com as mesmas funções; sem filtro (endereço antigo sem &q=), os três. É o mesmo
+       cadastro central (window.faQuestionarios): só muda o que é mostrado. */
+    function abrirConfigQuestionarios(filtro) {
       state.config = { sub: 'lista', codigo: null, rascunho: null, flash: null, salvando: false,
-        confirmandoPublicacao: false, publicando: false, auditoria: null };
+        confirmandoPublicacao: false, publicando: false, auditoria: null, filtro: filtro || null };
       state.tela = 'config-questionario';
       render();
     }
@@ -4137,7 +4141,7 @@
     function renderConfigQuestionarios() {
       var c = state.config;
       var html = '<div class="avp-config-questionarios">';
-      html += linkVoltar('avpConfigVoltar', c.sub === 'lista' ? ROTULO_ADMIN : 'Questionários e versões');
+      html += linkVoltar('avpConfigVoltar', c.sub === 'lista' ? ROTULO_ADMIN : rotuloListaQuestionarios());
       if (c.sub === 'lista') html += renderConfigLista();
       else if (c.sub === 'editar') html += renderConfigEditar();
       else if (c.sub === 'auditoria') html += renderConfigAuditoria();
@@ -4148,14 +4152,15 @@
         if (c.sub === 'lista') fecharConfigQuestionarios();
         else sairComAviso(c, function () { c.sub = 'lista'; c.sujo = false; render(); });
       });
-      if (c.sub === 'lista') { bindConfigLista(); focarQuestionarioDoEndereco(); }
+      if (c.sub === 'lista') bindConfigLista();
       else if (c.sub === 'editar') bindConfigEditar();
       else if (c.sub === 'auditoria') bindConfigAuditoria();
     }
 
     function renderConfigLista() {
       var c = state.config;
-      var html = '<div class="avp-form-card"><h3>Questionários e versões</h3>';
+      var qf = c.filtro ? QUESTIONARIO_ALIAS[c.filtro] || {} : null;
+      var html = '<div class="avp-form-card"><h3 id="avpCfgTitulo">' + (qf ? 'Questionário — ' + esc(NOME_AVALIACAO_QUESTIONARIO[c.filtro] || c.filtro) + (qf.sigla ? ' <span class="avp-config-sigla">' + qf.sigla + '</span>' : '') : 'Questionários e versões') + '</h3>';
       html += '<p class="avp-intro-questionarios" id="avpIntroQuestionarios">Aqui são mantidas as perguntas e os textos usados nas avaliações. ' +
         'Alterações publicadas geram nova versão e não modificam avaliações já concluídas.</p>';
       html += '<p class="avp-decisao-aviso">Altere título, texto, ajuda e exemplo das perguntas sem precisar de código, PR ou deploy. ' +
@@ -4166,10 +4171,12 @@
       html += '</div>';
       Object.keys(window.faQuestionarios.CODIGOS).forEach(function (chave) {
         var codigo = window.faQuestionarios.CODIGOS[chave];
+        if (c.filtro && codigo !== c.filtro) return;
         var sit = window.faQuestionarios.situacao(codigo);
         /* um cartão por questionário: o que está vigente e as ações sempre à vista; correções editoriais e a redação da
-           versão futura do motor ficam DENTRO do cartão, recolhidas (nada é apagado). id/data-q: o atalho do Início
-           (#admin?arq=questionarios&q=p1p16|s1s8|o1o9) localiza este cartão. */
+           versão futura do motor ficam DENTRO do cartão, recolhidas (nada é apagado). data-q: o endereço do
+           questionário (#admin?arq=questionarios&q=p1p16|s1s8|o1o9 — grupo da avaliação no Início do ADMIN ou atalho do
+           Início da Avaliação) mostra só este cartão. */
         var q = QUESTIONARIO_ALIAS[codigo] || {};
         html += '<div class="avp-form-card avp-config-item-card" id="avpCfgCard-' + codigo + '" data-q="' + (q.alias || '') + '" tabindex="-1">';
         html += '<h4>' + esc(sit.nome) + (q.sigla ? ' <span class="avp-config-sigla">' + q.sigla + '</span>' : '') + '</h4>';
@@ -4203,6 +4210,21 @@
       return '<details class="' + classe + '" id="' + id + '" data-det="' + chaveDet + '"' + (aberta ? ' open' : '') + '><summary>' + esc(titulo) + '</summary>' +
         '<div class="avp-config-sub-corpo">' + conteudo + '</div></details>';
     }
+    /* nome da avaliação de cada questionário (o mesmo dos grupos do Início) */
+    var NOME_AVALIACAO_QUESTIONARIO = { CLASSIFICACAO_ARQUITETURAL: 'Produto/Serviço', ADEQUACAO_SQUAD: 'Adequação à Gestão por Squad',
+      POSICIONAMENTO_ORGANIZACIONAL: 'Posicionamento Organizacional' };
+    function aliasDoQuestionario(codigo) { return (QUESTIONARIO_ALIAS[codigo] || {}).alias || ''; }
+    function questionarioDoEndereco() {
+      var m = /^#admin\?arq=questionarios&q=([a-z0-9]+)$/.exec(location.hash || '');
+      var alvo = null;
+      Object.keys(QUESTIONARIO_ALIAS).forEach(function (c) { if (m && QUESTIONARIO_ALIAS[c].alias === m[1]) alvo = c; });
+      return alvo;
+    }
+    /* rótulo do "← Voltar" das subtelas (editar, histórico) para a tela do questionário */
+    function rotuloListaQuestionarios() {
+      var f = state.config && state.config.filtro;
+      return f ? 'Questionário ' + ((QUESTIONARIO_ALIAS[f] || {}).sigla || '') : 'Questionários e versões';
+    }
     var QUESTIONARIO_ALIAS = { CLASSIFICACAO_ARQUITETURAL: { alias: 'p1p16', sigla: 'P1–P16' }, ADEQUACAO_SQUAD: { alias: 's1s8', sigla: 'S1–S8' },
       POSICIONAMENTO_ORGANIZACIONAL: { alias: 'o1o9', sigla: 'O1–O9' } };
     /* O1–O9 tem também o diagnóstico de conflito/recorte (não é "O10"): "9 perguntas + diagnóstico" */
@@ -4211,25 +4233,6 @@
       var diag = lista.filter(function (p) { return p && p.tipo === 'diagnostico-conflito-recorte'; }).length;
       var n = (lista.length || sit.qtdPerguntas) - diag;
       return esc(n) + ' pergunta' + (n === 1 ? '' : 's') + (diag ? ' + diagnóstico' : '');
-    }
-    /* &q=p1p16|s1s8|o1o9 no endereço (atalho do Início): leva ao cartão do questionário e o destaca — sem abrir edição */
-    var focoQuestionarioFeito = null;
-    function focarQuestionarioDoEndereco() {
-      var m = /[?&]q=([a-z0-9]+)/.exec(location.hash || '');
-      var alvo = null;
-      Object.keys(QUESTIONARIO_ALIAS).forEach(function (c) { if (m && QUESTIONARIO_ALIAS[c].alias === m[1]) alvo = c; });
-      document.querySelectorAll('.avp-config-item-card--foco').forEach(function (el) { el.classList.remove('avp-config-item-card--foco'); });
-      if (!alvo) { focoQuestionarioFeito = null; return; }
-      var card = document.getElementById('avpCfgCard-' + alvo);
-      if (!card) return;
-      card.classList.add('avp-config-item-card--foco');
-      if (focoQuestionarioFeito === location.hash) return; /* rola uma vez por chegada, não a cada redesenho */
-      focoQuestionarioFeito = location.hash;
-      setTimeout(function () {
-        var topo = card.getBoundingClientRect().top + (window.pageYOffset || 0) - 96;
-        window.scrollTo({ top: Math.max(0, topo), left: 0, behavior: 'instant' });
-        try { card.focus({ preventScroll: true }); } catch (e) { /* navegador antigo */ }
-      }, 60);
     }
     /* H1-Final — redação para uma versão NOVA (inativa) do motor de Posicionamento. Trilha separada
        (questionarios-config/<código>/motores/<v>): nada aqui muda a redação v1 que o site usa nem põe o motor em
@@ -4654,7 +4657,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--sm" id="avpCfgSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
       html += '<button class="btn btn--primary btn--sm" id="avpCfgPublicarBtn">PUBLICAR NOVA VERSÃO</button>';
-      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">← Voltar para Questionários e versões</button>';
+      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">← Voltar para ' + esc(rotuloListaQuestionarios()) + '</button>';
       html += '</div>';
       if (c.confirmandoPublicacao) html += renderConfigConfirmarPublicacao();
       return html;
@@ -4806,7 +4809,7 @@
             resumo: 'Versão ' + a.versaoAnterior + ' → ' + a.novaVersao, anterior: a.valorAnterior, novo: a.valorNovo };
         }), { titulo: 'Histórico de alterações' });
       }
-      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">← Voltar para Questionários e versões</button></div>';
+      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">← Voltar para ' + esc(rotuloListaQuestionarios()) + '</button></div>';
       return html;
     }
     function bindConfigAuditoria() {
@@ -5164,7 +5167,6 @@
           (descricao ? '<span class="avp-admin-secao-desc">' + esc(descricao) + '</span>' : '') + '</summary><div class="avp-admin-secao-corpo">' + conteudo + '</div></details>';
       }
       function cartoes(c) { return '<div class="avp-admin-cards">' + c + '</div>'; }
-      function subgrupo(id, titulo) { return '<h5 class="avp-admin-subgrupo" id="' + id + '">' + esc(titulo) + '</h5>'; }
       function cartao(id, titulo, texto) {
         return '<button type="button" class="avp-admin-card" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
       }
@@ -5182,13 +5184,29 @@
         '<div class="avp-mapa-acoes"><a class="btn btn--primary" id="avpAdminAbrirMapa" href="#avaliacoes?mf=mapa" data-mapa-admin="#avaliacoes?mf=mapa">Abrir Mapa da Floresta</a>' +
         '<span class="avp-mapa-secundarias"><a class="avp-mapa-link" id="avpAdminJornadaMapa" href="#avaliacoes?mf=catalogo" data-mapa-admin="#avaliacoes?mf=catalogo">Consultar jornada até o Mapa</a>' +
         '</span></div>' + defHtml, true, 'avp-mapa-destaque');
-      /* 2. Configuração das Avaliações: questionários e os três motores juntos (organização da PR #386) */
-      html += secao('avpGrupoConfiguracao', 'Configuração das Avaliações', 'Questionários e motores de classificação. Realizar avaliações é na área Avaliação do menu.',
-        cartoes(cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Textos, ajudas e interpretações das perguntas das avaliações, com versões e histórico.')) +
-        subgrupo('avpSubMotores', 'Motores de classificação') +
-        cartoes(cartao('avpConfigMotoresBtn', 'Produto/Serviço (P1–P16)', 'Regras que classificam o item, com simulação, versões e histórico de alterações.') +
-          cartao('avpMotorPosicionamentoInicioBtn', 'Posicionamento Organizacional (O1–O9)', 'Versões do motor, prontidão, simulação e impacto — só consulta (a regra é fixa e a entrada em vigor é governada).') +
-          (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Adequação à gestão por Squad (S1–S8)', 'Regras da adequação à gestão por squad, com simulação e versões. As avaliações de squad ficam na área Avaliação.') : '')));
+      /* 2. Configuração das Avaliações: um grupo por tipo de avaliação, cada um com o seu Questionário (perguntas, no
+         cadastro central de questionários) e o seu Motor (regras que interpretam as respostas). Os botões abrem direto
+         a tela daquela avaliação — sem tela intermediária. */
+      function acesso(id, titulo, texto) {
+        return '<button type="button" class="avp-admin-acesso" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
+      }
+      function avaliacao(id, nome, sigla, descricao, questBtn, questTexto, motorBtn, motorTexto) {
+        return '<div class="avp-admin-aval" id="' + id + '"><div class="avp-admin-aval-cab"><h5 class="avp-admin-aval-titulo">' + esc(nome) +
+          ' <span class="avp-admin-aval-sigla">' + esc(sigla) + '</span></h5><p class="avp-admin-aval-desc">' + esc(descricao) + '</p></div>' +
+          '<div class="avp-admin-aval-acessos">' + acesso(questBtn, 'Questionário', questTexto) + (motorBtn ? acesso(motorBtn, 'Motor', motorTexto) : '') + '</div></div>';
+      }
+      html += secao('avpGrupoConfiguracao', 'Configuração das Avaliações', 'Cada avaliação tem o seu questionário (as perguntas) e o seu motor (as regras que interpretam as respostas). Realizar avaliações é na área Avaliação do menu.',
+        '<div class="avp-admin-avals">' +
+        avaliacao('avpAvalP1P16', 'Produto/Serviço', 'P1–P16', 'Classifica o item avaliado na camada arquitetural.',
+          'avpQuestP1P16Btn', 'Perguntas, ajudas, textos, versões e correções editoriais.',
+          'avpConfigMotoresBtn', 'Regras, precedências, simulação, versões e histórico.') +
+        avaliacao('avpAvalO1O9', 'Posicionamento Organizacional', 'O1–O9', 'Recomenda o tipo de estrutura que deve sustentar a responsabilidade do item.',
+          'avpQuestO1O9Btn', 'Perguntas, ajudas, textos, versões e correções editoriais.',
+          'avpMotorPosicionamentoInicioBtn', 'Versões, prontidão, simulação e impacto — só consulta.') +
+        avaliacao('avpAvalS1S8', 'Adequação à Gestão por Squad', 'S1–S8', 'Indica se o item é adequado à gestão por squad.',
+          'avpQuestS1S8Btn', 'Perguntas, ajudas, textos, versões e correções editoriais.',
+          window.faAvaliacaoSquadAdmin ? 'avpMotorSquadInicioBtn' : null, 'Regras, textos dos vereditos, simulação e versões.') +
+        '</div>');
       /* 3. Cadastros de Estruturas Organizacionais: dois cadastros DIFERENTES (dados e finalidades separados) */
       var cadAtual = estruturaAtualDisponivel() ? cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Cadastro das unidades que existem hoje, como diretorias, gerências e núcleos. Utilizado para identificar a unidade analisada e as responsabilidades executadas na Análise Organizacional.') : '';
       var cadMapa = estruturasDisponiveis() ? cartao('avpEstruturasBtn', 'Estruturas do Mapa da Floresta', 'Cadastro das estruturas arquiteturais utilizadas nos posicionamentos e vínculos do Mapa, conforme os tipos organizacionais existentes no sistema.') : '';
@@ -5210,7 +5228,10 @@
       });
       /* sair do início com a definição em edição não salva pergunta antes (mesmo aviso das outras telas) */
       function sair(acao) { return function () { var dd = state.mapaDef; sairComAviso(dd, function () { if (dd) { dd.editandoMapa = null; dd.sujo = false; } acao(); }); }; }
-      document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', sair(abrirConfigQuestionarios));
+      /* Questionário de cada avaliação: abre direto o questionário dela (a mesma tela de questionários, só com ele) */
+      [['avpQuestP1P16Btn', 'CLASSIFICACAO_ARQUITETURAL'], ['avpQuestO1O9Btn', 'POSICIONAMENTO_ORGANIZACIONAL'], ['avpQuestS1S8Btn', 'ADEQUACAO_SQUAD']].forEach(function (q) {
+        document.getElementById(q[0]).addEventListener('click', sair(function () { abrirConfigQuestionarios(window.faQuestionarios.CODIGOS[q[1]]); }));
+      });
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', sair(function () { abrirConfigMotores('p'); }));
       /* Posicionamento (O1–O9): a mesma área dos motores, já no cartão dele */
       document.getElementById('avpMotorPosicionamentoInicioBtn').addEventListener('click', sair(function () { abrirConfigMotores('o'); }));

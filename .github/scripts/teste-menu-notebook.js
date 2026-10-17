@@ -46,7 +46,7 @@ async function abrir(browser, viewport) {
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+  await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
   return { ctx, page, erros };
 }
 

@@ -39,7 +39,7 @@ async function abrir(browser, viewport) {
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+  await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
   return { ctx, page, erros };
 }
 const XLSX = require(path.join(__dirname, '..', '..', 'forca-agil', 'xlsx.mini.min.js'));
@@ -53,23 +53,33 @@ async function baixar(page, seletor) {
 }
 const linhasDe = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { header: 1, defval: '' });
 
+/* cada questionário abre na própria tela (grupo da avaliação no Início ou link direto #admin?arq=questionarios&q=…):
+   para usar outro, vai pelo endereço dele */
+const ALIAS_Q = { CLASSIFICACAO_ARQUITETURAL: 'p1p16', ADEQUACAO_SQUAD: 's1s8', POSICIONAMENTO_ORGANIZACIONAL: 'o1o9' };
+async function garantirQuestionario(page, codigo) {
+  const sel = '.avp-config-editar-btn[data-codigo="' + codigo + '"]';
+  if (await page.locator(sel).count()) return;
+  await page.evaluate((h) => { location.hash = h; }, '#admin?arq=questionarios&q=' + ALIAS_Q[codigo]);
+  await page.waitForSelector(sel, { timeout: 8000 });
+}
 (async () => {
   const browser = await chromium.launch();
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
-    await page.click('#avpConfigQuestionariosBtn');
+    await page.click('#avpQuestP1P16Btn');
     await page.waitForSelector('#avpIntroQuestionarios');
 
     console.log('\n== Nome e texto explicativo ==');
-    afirma(/Questionários e versões/.test(await page.locator('#adminAvaliacaoProduto h3').first().textContent()), 'título da tela: "Questionários e versões"');
+    afirma((await page.locator('#avpCfgTitulo').textContent()).trim() === 'Questionário — Produto/Serviço P1–P16', 'título da tela: o questionário da avaliação escolhida (Questionário — Produto/Serviço P1–P16)');
+    afirma(await page.locator('.avp-config-item-card').count() === 1, 'só o questionário escolhido, sem lista intermediária');
     afirma((await page.locator('#avpIntroQuestionarios').textContent()).trim() ===
       'Aqui são mantidas as perguntas e os textos usados nas avaliações. Alterações publicadas geram nova versão e não modificam avaliações já concluídas.', 'texto explicativo exato no topo');
     afirma(!/Configuração dos Questionários/.test(await page.locator('#adminAvaliacaoProduto').innerText()), 'o nome antigo não aparece mais na tela');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 
     console.log('\n== Exportar um questionário (arquitetural) ==');
-    let r = await baixar(page, '.avp-config-exportar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
+    await garantirQuestionario(page, 'CLASSIFICACAO_ARQUITETURAL'); let r = await baixar(page, '.avp-config-exportar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
     afirma(/^Questionarios_Classificacao_arquitetural_Produto_Servico_v\d+_\d{4}-\d{2}-\d{2}\.xlsx$/.test(r.nome), 'nome do arquivo: ' + r.nome);
     afirma(JSON.stringify(r.wb.SheetNames) === JSON.stringify(['Classificação arquitetural']), 'uma aba: ' + r.wb.SheetNames.join(' | '));
     let l = linhasDe(r.wb, 'Classificação arquitetural');
@@ -82,7 +92,7 @@ const linhasDe = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { header:
     afirma(await page.locator('#avpCfgExportStatus').count() === 1 && !/FALHA|Não foi possível/.test(await page.locator('#avpCfgExportStatus').innerText()), 'mensagem de sucesso na tela');
 
     console.log('\n== Exportar o de squad e todos ==');
-    r = await baixar(page, '.avp-config-exportar-btn[data-codigo="ADEQUACAO_SQUAD"]');
+    await garantirQuestionario(page, 'ADEQUACAO_SQUAD'); r = await baixar(page, '.avp-config-exportar-btn[data-codigo="ADEQUACAO_SQUAD"]');
     l = linhasDe(r.wb, 'Adequação à Squad');
     afirma(l.length === 9 && l[1][2] === 'S1' && l[8][2] === 'S8', 'squad: cabeçalho + S1…S8 (' + l.length + ' linhas)');
     r = await baixar(page, '#avpCfgExportarTodosBtn');
@@ -92,14 +102,14 @@ const linhasDe = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { header:
       linhasDe(r.wb, 'Posicionamento Organizacional').length === 11, 'as três abas completas');
 
     console.log('\n== Só a versão publicada: rascunho não entra ==');
-    await page.click('.avp-config-editar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
+    await garantirQuestionario(page, 'CLASSIFICACAO_ARQUITETURAL'); await page.click('.avp-config-editar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
     await page.waitForSelector('#avpCfgSalvarRascunhoBtn');
     await page.locator('[data-campo="texto"]').first().fill('TEXTO SOMENTE NO RASCUNHO');
     await page.click('#avpCfgSalvarRascunhoBtn');
     await page.waitForSelector('.avp-flash-success');
     await page.click('#avpConfigVoltar');
     await page.waitForSelector('.avp-config-exportar-btn');
-    r = await baixar(page, '.avp-config-exportar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
+    await garantirQuestionario(page, 'CLASSIFICACAO_ARQUITETURAL'); r = await baixar(page, '.avp-config-exportar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
     afirma(!/TEXTO SOMENTE NO RASCUNHO/.test(JSON.stringify(linhasDe(r.wb, 'Classificação arquitetural'))), 'o texto do rascunho não vai para o Excel');
     afirma(await larguraOk(page), 'sem rolagem horizontal ao final');
     await ctx.close();

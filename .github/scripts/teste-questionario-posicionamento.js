@@ -178,10 +178,19 @@ async function abrir(browser, viewport) {
   await esperarSessaoAssentada(page);
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
-  await page.click('#avpConfigQuestionariosBtn');
+  await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
+  await page.click('#avpQuestP1P16Btn');
   await page.waitForSelector('#avpIntroQuestionarios');
   return { ctx, page, erros };
+}
+/* cada questionário abre na própria tela (grupo da avaliação no Início ou link direto #admin?arq=questionarios&q=…):
+   para usar outro, vai pelo endereço dele */
+const ALIAS_Q = { CLASSIFICACAO_ARQUITETURAL: 'p1p16', ADEQUACAO_SQUAD: 's1s8', POSICIONAMENTO_ORGANIZACIONAL: 'o1o9' };
+async function garantirQuestionario(page, codigo) {
+  const sel = '.avp-config-editar-btn[data-codigo="' + codigo + '"]';
+  if (await page.locator(sel).count()) return;
+  await page.evaluate((h) => { location.hash = h; }, '#admin?arq=questionarios&q=' + ALIAS_Q[codigo]);
+  await page.waitForSelector(sel, { timeout: 8000 });
 }
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const lerConfig = (page, codigo) => page.evaluate((c) => new Promise((ok) => firebase.database().ref('questionarios-config/' + c).once('value', (s) => ok(s.val()))), codigo);
@@ -193,7 +202,7 @@ const camposDoEditor = (page) => page.evaluate(() => Array.from(document.querySe
   texto: card.innerText
 })));
 async function abrirEditor(page, codigo) {
-  await page.click('.avp-config-editar-btn[data-codigo="' + codigo + '"]');
+  await garantirQuestionario(page, codigo); await page.click('.avp-config-editar-btn[data-codigo="' + codigo + '"]');
   await page.waitForSelector('#avpCfgSalvarRascunhoBtn');
 }
 async function voltarLista(page) {
@@ -208,7 +217,7 @@ async function publicarEditor(page) {
   await page.waitForSelector('.avp-config-editar-btn');
 }
 async function restaurar(page, codigo, versao) {
-  await page.click('.avp-config-auditoria-btn[data-codigo="' + codigo + '"]');
+  await garantirQuestionario(page, codigo); await page.click('.avp-config-auditoria-btn[data-codigo="' + codigo + '"]');
   await page.waitForSelector('.avp-config-restaurar-btn[data-versao="' + versao + '"]');
   await page.click('.avp-config-restaurar-btn[data-versao="' + versao + '"]');
   await page.click('.avp-modal-confirm-btn');
@@ -224,6 +233,9 @@ async function parte2(browser, fq, nomeTela, viewport) {
   const { ctx, page, erros } = await abrir(browser, viewport);
 
   console.log('\n== Lista: o terceiro questionário aparece ==');
+  /* os três juntos: o endereço sem &q= (links antigos) — o Início abre cada um pelo grupo da sua avaliação */
+  await page.evaluate(() => { location.hash = '#admin?arq=questionarios'; });
+  await esperarCondicao(page, () => document.querySelectorAll('.avp-config-item-card[data-q]').length === 3, null, { descricao: 'os três questionários no endereço sem &q=' });
   /* o título de cada cartão (sem a sigla); as seções recolhidas dentro dele têm cartões próprios, que não contam */
   const cartoes = await page.evaluate(() => Array.prototype.map.call(document.querySelectorAll('.avp-config-item-card[data-q] > h4'), (h) => { const c = h.cloneNode(true); c.querySelectorAll('.avp-config-sigla').forEach((x) => x.remove()); return c.textContent.trim(); }));
   afirma(igual(cartoes, ['Classificação arquitetural (Produto/Serviço)', 'Adequação à gestão por Squad', 'Posicionamento Organizacional']), 'três questionários: ' + cartoes.join(' | '));
@@ -271,7 +283,7 @@ async function parte2(browser, fq, nomeTela, viewport) {
   const aud = await lerAuditoria(page, POS);
   afirma(aud.some((a) => a.pergunta === DIAG && a.campo === 'rotuloMesma' && a.valorAnterior === 'Mesma responsabilidade' && a.valorNovo === 'Mesma responsabilidade (revisado)' && a.versaoAnterior === 1 && a.novaVersao === 2) &&
     aud.some((a) => a.pergunta === DIAG && a.campo === 'textoAjuda'), 'auditoria por campo: rotuloMesma (anterior → novo, v1 → v2) e textoAjuda');
-  await page.click('.avp-config-auditoria-btn[data-codigo="' + POS + '"]');
+  await garantirQuestionario(page, POS); await page.click('.avp-config-auditoria-btn[data-codigo="' + POS + '"]');
   await page.waitForSelector('#avpCfgHistorico');
   await page.click('#avpCfgHistorico > summary');
   const hist = await page.locator('#avpCfgHistorico').innerText();
@@ -319,7 +331,7 @@ async function parte2(browser, fq, nomeTela, viewport) {
   afirma(igual(cfg.versoes[2].perguntas, esperadoRasc) && !cfg.rascunho, 'versão 2 de P = referência + título; rascunho limpo');
   const audP = await lerAuditoria(page, 'CLASSIFICACAO_ARQUITETURAL');
   afirma(audP.length === 1 && audP[0].pergunta === 'P1' && audP[0].campo === 'titulo', 'auditoria de P: uma entrada, P1 · titulo (como antes)');
-  await page.click('.avp-config-auditoria-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
+  await garantirQuestionario(page, 'CLASSIFICACAO_ARQUITETURAL'); await page.click('.avp-config-auditoria-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
   await page.waitForSelector('#avpCfgHistorico');
   await page.click('#avpCfgHistorico > summary');
   const histP = await page.locator('#avpCfgHistorico').innerText();

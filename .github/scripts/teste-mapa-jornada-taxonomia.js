@@ -87,7 +87,7 @@ async function cenarioA(browser, vp, nome) {
   afirma(await page.locator('#avpAdminDocsMapa').count() === 0, 'sem documentos de referência: nenhum link "Documentação relacionada"');
   afirma(await page.locator('#avpParteMapa').count() === 0 && await page.locator('#adminAvaliacaoProduto a[href="#avaliacoes?mf=mapa"]').count() === 1, 'nenhum segundo "Abrir o Mapa" na mesma tela');
   afirma(await page.locator('#avpAdminPartes, .avp-parte, [id^="avpParte"]').count() === 0, 'sem a lista "Como cada parte contribui para o Mapa" (a explicação é da Jornada até o Mapa)');
-  afirma(await page.locator('#avpAdminMapa ~ .avp-admin-grupo').count() >= 3 && await page.locator('#avpConfigQuestionariosBtn, #avpConfigMotoresBtn, #avpConfigNaturezasBtn, #avpDocumentacaoBtn, #avpUsuariosBtn').count() === 5 && await page.locator('#avpGrupoReferencias').count() === 0, 'as seções de configuração continuam depois do Mapa, com todos os acessos');
+  afirma(await page.locator('#avpAdminMapa ~ .avp-admin-grupo').count() >= 3 && await page.locator('#avpQuestP1P16Btn, #avpConfigMotoresBtn, #avpConfigNaturezasBtn, #avpDocumentacaoBtn, #avpUsuariosBtn').count() === 5 && await page.locator('#avpGrupoReferencias').count() === 0, 'as seções de configuração continuam depois do Mapa, com todos os acessos');
   /* cenário 1: Abrir Mapa → Voltar para Avaliações e Mapa */
   const hashAdmin = await page.evaluate(() => location.hash);
   await page.click('#avpAdminAbrirMapa');

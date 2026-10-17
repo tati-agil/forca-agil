@@ -51,7 +51,7 @@ const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limit
       afirma(JSON.stringify(await abertas(page)) === JSON.stringify(['aberta', 'recolhida', 'recolhida', 'recolhida', 'recolhida']), 'só o Mapa começa aberto', await abertas(page));
       afirma(await page.evaluate(() => { const s = [...document.querySelectorAll('#adminAvaliacaoProduto details.avp-admin-secao > summary')]; return s.length === 5 && s.every((x) => x.offsetHeight > 0 && x.querySelector('.avp-admin-secao-titulo') && x.querySelector('.avp-admin-secao-desc')); }),
         'recolhidas: o título e a descrição curta continuam visíveis');
-      afirma(!(await visivel(page, '#avpConfigQuestionariosBtn')) && !(await visivel(page, '#avpUsuariosBtn')), 'recolhidas: os cartões não ocupam a página');
+      afirma(!(await visivel(page, '#avpQuestP1P16Btn')) && !(await visivel(page, '#avpUsuariosBtn')), 'recolhidas: os cartões não ocupam a página');
       afirma(await page.locator('#adminAvaliacaoProduto #avpDocsMapaFloresta').count() === 1 && await page.locator('#avpAdminMapa #avpMapaEditarBtn').count() === 1 && await page.locator('#avpAdminMapa #avpMapaHistorico').count() === 1 &&
         await page.locator('#adminAvaliacaoProduto a[href="#avaliacoes?mf=mapa"]').count() === 1 && await page.locator('#avpAdminPartes, #avpAdminDocsMapa').count() === 0,
       'um único Mapa: Abrir, definição oficial, "Editar definição", histórico e a Jornada na mesma seção; sem lista de partes nem link de documentação repetidos');

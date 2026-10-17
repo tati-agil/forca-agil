@@ -72,7 +72,7 @@ async function abrir(browser, viewport) {
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'load' });
   await esperarSessaoAssentada(page);
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
+  await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
   return { ctx, page, erros, carga };
 }
 
@@ -102,7 +102,7 @@ async function terminarCarregamento(page, carga) {
 /* Espera o "← Voltar" (recuo do histórico) terminar de posicionar a tela inicial. */
 async function aposVoltar(page) {
   await page.waitForFunction(() => location.hash === '#admin?arq=inicio', null, { timeout: 5000 });
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
+  await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
   await quadros(page, 3);
 }
 
@@ -174,7 +174,7 @@ async function aposVoltar(page) {
     const y4 = await y(page);
     const rol4 = await terminarCarregamento(page, carga);
     afirma(Math.abs(await y(page) - y4) <= 2, 'Voltar do navegador: fim do carregamento não rola a tela (' + y4 + ' px)', 'foi para ' + await y(page) + ' px; rolagens: ' + rol4);
-    afirma(await hash(page) === '#admin?arq=inicio' && await page.locator('#avpConfigQuestionariosBtn').isVisible(), 'Voltar do navegador: tela inicial da Arquitetura, no endereço certo');
+    afirma(await hash(page) === '#admin?arq=inicio' && await page.locator('#avpQuestP1P16Btn').isVisible(), 'Voltar do navegador: tela inicial da Arquitetura, no endereço certo');
     await page.goForward({ waitUntil: 'commit' });
     await page.waitForFunction(() => location.hash === '#admin?arq=motores', null, { timeout: 5000 });
     await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible' });

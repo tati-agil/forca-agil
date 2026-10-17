@@ -1,5 +1,5 @@
 /* Navegação do Admin da Avaliação de Produto/Serviço (PR 3 do prompt consolidado):
- *   - tela inicial organizada em grupos: Questionários e versões / Motores de classificação (P1–P16, O1–O9, S1–S8 num
+ *   - tela inicial organizada em grupos: Configuração das Avaliações (um grupo por avaliação — P1–P16, O1–O9, S1–S8 —, cada um com Questionário | Motor, num
  *     só lugar, dentro de Configuração das Avaliações) / Cadastros de Estruturas Organizacionais / Configurações complementares (Naturezas) / Acessos (Permissões
  *     de usuários e Disponibilidade de funcionalidades, com a Análise Organizacional) — só organização, as mesmas telas;
  *   - TODA subtela tem um "← Voltar para <tela pai>" explícito, que sobe UM nível;
@@ -41,7 +41,7 @@ async function abrir(browser, viewport) {
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+  await page.waitForSelector('#avpQuestP1P16Btn', { timeout: 8000 });
   return { ctx, page, erros };
 }
 const visivel = (page, sel) => page.locator(sel).first().isVisible();
@@ -64,9 +64,12 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     const titulos = await page.locator('#adminAvaliacaoProduto .avp-admin-secao > summary .avp-admin-secao-titulo').allTextContents();
     afirma(JSON.stringify(titulos) === JSON.stringify(['Mapa da Floresta', 'Configuração das Avaliações', 'Cadastros de Estruturas Organizacionais', 'Configurações complementares', 'Acessos']), 'seções: ' + titulos.join(' | '));
     const grupo = (n) => page.locator('#adminAvaliacaoProduto .avp-admin-secao').nth(n + 1);
-    afirma(await grupo(0).locator('#avpConfigQuestionariosBtn').count() === 1 && (await grupo(0).locator('h5').allTextContents()).join('|') === 'Motores de classificação', 'Configuração das Avaliações: os questionários e, num subgrupo, os motores');
-    afirma(JSON.stringify(await grupo(0).locator('#avpSubMotores ~ .avp-admin-cards .avp-admin-card strong').allTextContents()) === JSON.stringify(['Produto/Serviço (P1–P16)', 'Posicionamento Organizacional (O1–O9)', 'Adequação à gestão por Squad (S1–S8)']) &&
-      await grupo(0).locator('#avpConfigMotoresBtn, #avpMotorPosicionamentoInicioBtn, #avpMotorSquadInicioBtn').count() === 3, 'Motores de classificação: os três motores juntos (organização da PR #386)');
+    /* Configuração das Avaliações: um grupo por avaliação, cada um com Questionário | Motor (nada de lista intermediária) */
+    afirma(JSON.stringify(await grupo(0).locator('.avp-admin-aval-titulo').allTextContents()) === JSON.stringify(['Produto/Serviço P1–P16', 'Posicionamento Organizacional O1–O9', 'Adequação à Gestão por Squad S1–S8']),
+      'Configuração das Avaliações: três grupos, um por avaliação');
+    afirma(await grupo(0).locator('#avpAvalP1P16 #avpQuestP1P16Btn, #avpAvalP1P16 #avpConfigMotoresBtn, #avpAvalO1O9 #avpQuestO1O9Btn, #avpAvalO1O9 #avpMotorPosicionamentoInicioBtn, #avpAvalS1S8 #avpQuestS1S8Btn, #avpAvalS1S8 #avpMotorSquadInicioBtn').count() === 6 &&
+      JSON.stringify(await grupo(0).locator('.avp-admin-acesso strong').allTextContents()) === JSON.stringify(['Questionário', 'Motor', 'Questionário', 'Motor', 'Questionário', 'Motor']),
+      'cada grupo: Questionário e Motor da própria avaliação');
     afirma(await grupo(1).locator('#avpEstruturaAtualBtn').count() === 1 && (await grupo(1).locator('#avpEstruturaAtualBtn strong').innerText()) === 'Estrutura Organizacional Atual' &&
       /unidades que existem hoje/.test(await grupo(1).locator('#avpEstruturaAtualBtn').innerText()), 'Cadastros de Estruturas Organizacionais: a Estrutura Organizacional Atual, com descrição curta');
     afirma(await grupo(2).locator('#avpConfigNaturezasBtn').count() === 1 && (await grupo(2).getAttribute('class')).includes('avp-admin-grupo--discreto') &&
@@ -89,12 +92,12 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 
     console.log('\n== Questionários ==');
-    await page.click('#avpConfigQuestionariosBtn');
+    await page.click('#avpQuestP1P16Btn');
     await conferirVoltar(page, '#avpConfigVoltar', 'Avaliações e Mapa', 'lista de questionários');
     await page.click('.avp-config-editar-btn >> nth=0');
     await page.waitForSelector('#avpCfgSalvarRascunhoBtn');
-    await conferirVoltar(page, '#avpConfigVoltar', 'Questionários e versões', 'edição do questionário (topo)');
-    await conferirVoltar(page, '#avpCfgVoltarListaBtn', 'Questionários e versões', 'edição do questionário (rodapé)');
+    await conferirVoltar(page, '#avpConfigVoltar', 'Questionário P1–P16', 'edição do questionário (topo)');
+    await conferirVoltar(page, '#avpCfgVoltarListaBtn', 'Questionário P1–P16', 'edição do questionário (rodapé)');
     afirma(await larguraOk(page), 'sem rolagem horizontal na edição');
     /* sem alteração: sai sem perguntar e cai na lista de questionários (um nível) */
     await page.click('#avpConfigVoltar');
@@ -116,11 +119,11 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(await page.locator('.avp-config-editar-btn').count() >= 1, 'Confirmar: volta para a lista de questionários');
     await page.click('.avp-config-auditoria-btn >> nth=0');
     await page.waitForSelector('#avpCfgAuditoriaVoltarBtn');
-    await conferirVoltar(page, '#avpConfigVoltar', 'Questionários e versões', 'histórico do questionário (topo)');
-    await conferirVoltar(page, '#avpCfgAuditoriaVoltarBtn', 'Questionários e versões', 'histórico do questionário (rodapé)');
+    await conferirVoltar(page, '#avpConfigVoltar', 'Questionário P1–P16', 'histórico do questionário (topo)');
+    await conferirVoltar(page, '#avpCfgAuditoriaVoltarBtn', 'Questionário P1–P16', 'histórico do questionário (rodapé)');
     await page.click('#avpConfigVoltar');
     await page.click('#avpConfigVoltar');
-    await page.waitForSelector('#avpConfigQuestionariosBtn');
+    await page.waitForSelector('#avpQuestP1P16Btn');
     afirma(true, 'dois cliques em "Voltar" chegam à tela inicial do Admin');
 
     console.log('\n== Motores ==');
@@ -180,7 +183,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
        exibia — o nome das classificações vem só da Taxonomia Arquitetural (teste-classificacoes-fonte-unica.js) */
     afirma(await page.locator('#avpMotorArqTextosBtn').count() === 0, 'motor arquitetural: não há mais "Editar textos" (o nome vem da Taxonomia)');
     await page.click('#avpMotoresVoltarLista');
-    await page.waitForSelector('#avpConfigQuestionariosBtn');
+    await page.waitForSelector('#avpQuestP1P16Btn');
 
     console.log('\n== Naturezas complementares ==');
     await page.click('#avpConfigNaturezasBtn');
@@ -197,7 +200,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.click('#avpNaturezaCancelar');
     await page.click('#avpNaturezasVoltar');
     afirma(await page.locator('.avp-modal-confirm-btn').count() === 0, 'depois de cancelar a edição, sai sem perguntar');
-    await page.waitForSelector('#avpConfigQuestionariosBtn');
+    await page.waitForSelector('#avpQuestP1P16Btn');
 
     console.log('\n== Usuários autorizados ==');
     await page.click('#avpUsuariosBtn');
@@ -207,12 +210,12 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await conferirVoltar(page, '#avpUsuariosVoltarRodape', 'Avaliações e Mapa', 'usuários (rodapé)');
     await page.fill('#avpUsuariosBusca', 'zz-busca-guardada');
     await page.click('#avpUsuariosVoltar');
-    await page.waitForSelector('#avpConfigQuestionariosBtn');
+    await page.waitForSelector('#avpQuestP1P16Btn');
     await page.click('#avpUsuariosBtn');
     await page.waitForSelector('#avpUsuariosBusca');
     afirma(await page.locator('#avpUsuariosBusca').inputValue() === 'zz-busca-guardada', 'voltar para Usuários devolve a mesma pesquisa');
     await page.click('#avpUsuariosVoltarRodape');
-    await page.waitForSelector('#avpConfigQuestionariosBtn');
+    await page.waitForSelector('#avpQuestP1P16Btn');
 
     console.log('\n== Motor de Squad (a avaliação de Squad fica na área Avaliação) ==');
     /* T1: um acesso só ao motor de squad — o cartão em Motores de classificação; Configuração dos Motores não o repete */
@@ -267,7 +270,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.click('.sq-modal-confirm-btn');
     await page.waitForSelector('#sqMotorEditarRegrasBtn');
     await page.click('#sqMotorVoltarLista');
-    await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
+    await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
     afirma(true, 'o Voltar do painel do motor devolve a tela inicial da Arquitetura');
 
     console.log('\n== Endereço próprio por área: F5 e Voltar/Avançar do navegador ==');
@@ -287,7 +290,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.click('#avpConfigMotoresBtn');
     await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible' });
     await page.goBack();
-    await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
+    await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
     afirma(await hash() === '#admin?arq=inicio', 'Voltar de novo: tela inicial da Arquitetura');
     await page.goForward();
     await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible' });
@@ -297,7 +300,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.waitForSelector('#avpMotorArqEditarBtn', { state: 'visible', timeout: 10000 });
     afirma(await hash() === '#admin?arq=motores' && await page.locator('#adminPanelArquitetura').evaluate((p) => p.classList.contains('active')), 'F5: continua em Configuração dos Motores, na aba Avaliações e Mapa');
     await page.click('#avpMotoresVoltarLista');
-    await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
+    await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
     afirma(await hash() === '#admin?arq=inicio', 'o "← Voltar" da tela também acerta o endereço');
 
     /* O "← Voltar" posiciona a tela inicial num requestAnimationFrame agendado no popstate
@@ -328,7 +331,7 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.waitForFunction(() => { const b = document.getElementById('avpNaturezasVoltar').getBoundingClientRect(); return b.top >= 0 && b.bottom <= window.innerHeight; }, null, { timeout: 3000 });
     afirma(true, 'abrir uma subtela no meio da página mostra o "← Voltar" do topo');
     await page.click('#avpNaturezasVoltarRodape');
-    await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
+    await page.waitForSelector('#avpQuestP1P16Btn', { state: 'visible' });
     await page.waitForFunction((y) => Math.abs(window.pageYOffset - y) <= 2, yInicio, { timeout: 3000 });
     afirma(true, 'voltar para a tela inicial devolve a posição de onde a pessoa saiu');
     afirma(await larguraOk(page), 'sem rolagem horizontal ao final');
