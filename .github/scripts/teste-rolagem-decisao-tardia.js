@@ -74,7 +74,7 @@ async function esperarDecisaoTardia(page, ev) {
     console.log('\n== 1. #admin › Arquitetura: perfil da Avaliação chega tarde ==');
     {
       const { ctx, page, erros } = await abrir(browser, viewport, ADM, 'admin?arq=inicio', { 'fa-avaliacao-autorizados': TARDE }, true);
-      await page.waitForSelector('#avpConfigNaturezasBtn', { state: 'visible', timeout: 12000 });
+      await page.waitForSelector('#avpDocumentacaoBtn', { state: 'visible', timeout: 12000 });
       const y0 = await rolarAteOFim(page);
       const antes = await page.evaluate(() => !window.__chegou['fa-avaliacao-ready']);
       afirma(y0 > 100 && antes, 'a pessoa rolou a tela inicial (' + y0 + ' px) ANTES de o perfil da Avaliação chegar');

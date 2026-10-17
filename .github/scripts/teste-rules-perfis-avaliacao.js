@@ -9,7 +9,7 @@
    Decisão da dona (pacote ADMIN > Avaliação e Mapa):
      - "Avaliação" avalia (cria, conclui, reavalia, reprocessa) mas NÃO cura
        nem decide: em avaliacoes-produto não muda nenhum campo de curadoria
-       (especialização, papel estrutural, natureza complementar) nem de
+       (especialização, papel estrutural) nem de
        decisão final (decisaoManual, decisaoConfirmada, justificativa,
        alteradoPor/Em). Numa versão nova (reavaliação) só HERDA os da
        versão anterior; numa avaliação nova, nascem vazios.
@@ -59,10 +59,14 @@ const concluida = (extra) => Object.assign({
 }, extra || {});
 const CURADORIA = {
   especializacaoCadastrada: 'Instituto previdenciário', especializacaoCamadaConfirmada: 'canal',
-  papelEstruturalCadastrado: 'essencial', papelEstruturalCamadaConfirmada: 'canal',
+  papelEstruturalCadastrado: 'essencial', papelEstruturalCamadaConfirmada: 'canal'
+};
+/* Natureza complementar: CAMPO RETIRADO (17/10/2026). Registro antigo (histórico) — ninguém grava mais. */
+const NATUREZA = {
   naturezaComplementarCodigo: 'PLATAFORMA', naturezaComplementarNomeNaEpoca: 'Plataforma',
   naturezaComplementarDefinidaPor: { name: 'Arq', email: ARQ }, naturezaComplementarDefinidaEm: '2026-10-01T10:00:00.000Z'
 };
+const NATUREZA_ANTIGA = { naturezaComplementar: { id: 'PROGRAMA_TRANSVERSAL', rotulo: 'Programa transversal' } };
 const linhaAud = (tipo, extra) => Object.assign({ tipo, usuario: { name: 'x', email: 'x@previ.com.br' }, dataHora: '2026-10-06T10:00:00.000Z' }, extra || {});
 
 async function main() {
@@ -77,8 +81,9 @@ async function main() {
       await a.ref('fa-admins/' + emailKey(ADMIN)).set({ email: ADMIN });
       await a.ref('fa-avaliacao-autorizados/' + emailKey(AVAL)).set({ email: AVAL, nome: AVAL, tipo: 'avaliacao' });
       await a.ref('fa-avaliacao-autorizados/' + emailKey(ARQ)).set({ email: ARQ, nome: ARQ, tipo: 'avaliacao-arquitetura' });
-      await a.ref(NODE + '/v1').set(concluida(CURADORIA));
+      await a.ref(NODE + '/v1').set(concluida(Object.assign({}, CURADORIA, NATUREZA)));
       await a.ref(NODE + '/semCur').set(concluida({ itemId: 'semCur' }));
+      await a.ref(NODE + '/leg').set(concluida(Object.assign({ itemId: 'leg' }, NATUREZA_ANTIGA)));
       await a.ref('motor-squad-config').set({ versaoPublicada: 1 });
       await a.ref('avaliacoes-squad/s1').set({ itemNome: 'Squad 1', status: 'concluido' });
     });
@@ -90,8 +95,10 @@ async function main() {
   await pode('conclui um rascunho seu (status, resultado automático)', db(AVAL).ref(NODE + '/nova').update({ status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto' }));
   await pode('reprocessa: muda o resultado automático e a decisão que o acompanha (não manual)',
     db(AVAL).ref(NODE + '/semCur').update({ resultadoAutomatico: 'produto', decisaoFinal: 'produto', motorVersion: 'v2' }));
-  await pode('cria a reavaliação (v2) herdando a curadoria da v1, sem decisão',
+  await pode('cria a reavaliação (v2) herdando a curadoria da v1, sem decisão (e sem a natureza retirada)',
     db(AVAL).ref(NODE + '/v2').set(concluida(Object.assign({ itemId: 'v1', versao: 2, versaoAnteriorKey: 'v1', status: 'rascunho' }, CURADORIA))));
+  await pode('regrava o registro inteiro mantendo curadoria e natureza EXATAMENTE como estão (salvar de novo)',
+    db(AVAL).ref(NODE + '/v1').set(concluida(Object.assign({}, CURADORIA, NATUREZA))));
   await pode('reprocessa uma avaliação COM curadoria (a curadoria fica como está)',
     db(AVAL).ref(NODE + '/v1').update({ resultadoAutomatico: 'produto', decisaoFinal: 'produto', motorVersion: 'v2' }));
   await semear((a) => a.ref(NODE + '/comDec').set(concluida({ itemId: 'comDec', decisaoManual: true, decisaoFinal: 'produto', decisaoConfirmada: true, justificativaDecisao: 'x', alteradoPor: { name: 'Arq', email: ARQ }, alteradoEm: '2026-10-01T10:00:00.000Z' })));
@@ -127,8 +134,33 @@ async function main() {
     await base();
     await pode(quem + ': registra decisão manual', db(email).ref(NODE + '/semCur').update({ decisaoManual: true, decisaoFinal: 'produto', decisaoConfirmada: true, justificativaDecisao: 'motivo', alteradoPor: { name: 'a', email }, alteradoEm: '2026-10-06T10:00:00.000Z' }));
     await pode(quem + ': muda a especialização', db(email).ref(NODE + '/v1').update({ especializacaoCadastrada: 'Outra' }));
-    await pode(quem + ': define a natureza complementar', db(email).ref(NODE + '/semCur').update({ naturezaComplementarCodigo: 'PLATAFORMA', naturezaComplementarNomeNaEpoca: 'Plataforma' }));
+    /* a natureza complementar foi retirada: nem quem cura grava (ver a seção própria abaixo) */
+    await naoPode(quem + ': NÃO define a natureza complementar (campo retirado)', db(email).ref(NODE + '/semCur').update({ naturezaComplementarCodigo: 'PLATAFORMA', naturezaComplementarNomeNaEpoca: 'Plataforma' }));
     await pode(quem + ': grava a auditoria da curadoria', db(email).ref('curadoria-auditoria/v1/p9').set(linhaAud('alteracao_especializacao', { origem: 'usuario' })));
+  }
+
+  console.log('\n== Natureza complementar RETIRADA: ninguém grava; o registro antigo fica como está ==');
+  for (const [quem, email] of [['Avaliação', AVAL], ['Avaliação + Configuração', ARQ], ['admin geral', ADMIN]]) {
+    await base();
+    await naoPode(quem + ': NÃO altera a natureza registrada', db(email).ref(NODE + '/v1').update({ naturezaComplementarNomeNaEpoca: 'Outra' }));
+    await naoPode(quem + ': NÃO troca o código da natureza', db(email).ref(NODE + '/v1/naturezaComplementarCodigo').set('OUTRO'));
+    await naoPode(quem + ': NÃO apaga a natureza registrada', db(email).ref(NODE + '/v1/naturezaComplementarCodigo').remove());
+    await naoPode(quem + ': NÃO troca quem registrou', db(email).ref(NODE + '/v1/naturezaComplementarDefinidaPor/email').set('outra.pessoa@previ.com.br'));
+    await naoPode(quem + ': NÃO regrava o registro inteiro sem a natureza (limpar)', db(email).ref(NODE + '/v1').set(concluida(CURADORIA)));
+    await naoPode(quem + ': NÃO migra o formato antigo para o novo', db(email).ref(NODE + '/leg').update({ naturezaComplementar: null, naturezaComplementarCodigo: 'PROGRAMA_TRANSVERSAL', naturezaComplementarNomeNaEpoca: 'Programa transversal' }));
+    await naoPode(quem + ': NÃO altera o rótulo do formato antigo', db(email).ref(NODE + '/leg/naturezaComplementar/rotulo').set('Outro'));
+    await naoPode(quem + ': avaliação NOVA não nasce com natureza', db(email).ref(NODE + '/novaNat').set(concluida(Object.assign({ itemId: 'novaNat' }, NATUREZA))));
+    await naoPode(quem + ': reavaliação NÃO herda a natureza', db(email).ref(NODE + '/v2n').set(concluida(Object.assign({ itemId: 'v1', versao: 2, versaoAnteriorKey: 'v1', status: 'rascunho' }, CURADORIA, NATUREZA))));
+    await naoPode(quem + ': reavaliação NÃO herda o formato antigo', db(email).ref(NODE + '/leg2').set(concluida(Object.assign({ itemId: 'leg', versao: 2, versaoAnteriorKey: 'leg', status: 'rascunho' }, NATUREZA_ANTIGA))));
+    await pode(quem + ': atualiza outro campo de uma avaliação com natureza (a natureza fica como está)', db(email).ref(NODE + '/v1').update({ excluido: true }));
+    await pode(quem + ': regrava o registro inteiro mantendo a natureza EXATAMENTE como está', db(email).ref(NODE + '/leg').set(concluida(Object.assign({ itemId: 'leg' }, NATUREZA_ANTIGA))));
+    await pode(quem + ': lê a avaliação com o registro histórico', db(email).ref(NODE + '/v1/naturezaComplementarNomeNaEpoca').once('value'));
+  }
+  {
+    let v1 = null;
+    await testEnv.withSecurityRulesDisabled(async (c) => { v1 = (await c.database().ref(NODE + '/v1').once('value')).val(); });
+    const ok = v1 && v1.naturezaComplementarCodigo === 'PLATAFORMA' && v1.naturezaComplementarNomeNaEpoca === 'Plataforma' && v1.naturezaComplementarDefinidaPor.email === ARQ;
+    anota('o registro histórico da natureza continua intacto depois de todas as tentativas', !!ok, JSON.stringify(v1));
   }
 
   console.log('\n== Adequação à Squad na área AVALIAÇÃO ==');

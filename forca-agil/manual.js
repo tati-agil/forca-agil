@@ -114,7 +114,7 @@
       prova: ['teste-rules-perfis-avaliacao.js', 'teste-avaliacoes-acessos.js', 'teste-classificacoes-fonte-unica.js', 'teste-squad-endereco.js', 'teste-avaliacao-posicionamento.js', 'teste-rules-posicionamento.js', 'teste-regras-posicionamento-tabela.js', 'teste-posicionamento-decisao.js', 'teste-rules-posicionamento-decisao.js', 'teste-posicionamento-exportacoes.js', 'teste-posicionamento-exportacao-nucleo.js', 'teste-squad-liberacao.js', 'teste-rules-squad-liberacao.js', 'teste-mapa-floresta-catalogo.js'] },
 
     { id: 'arquitetura', titulo: 'Avaliações e Mapa',
-      oque: 'Configuração da Avaliação de Produto/Serviço: questionários, motores, naturezas, Motor de Squad, a seção do Mapa da Floresta (com a definição oficial), Documentos de referência e Usuários autorizados.',
+      oque: 'Configuração da Avaliação de Produto/Serviço: questionários, motores, Motor de Squad, a seção do Mapa da Floresta (com a definição oficial), Documentos de referência e Usuários autorizados. As Naturezas Complementares foram retiradas em 17/10/2026: registros antigos aparecem só como histórico na ficha, no PDF e no Excel.',
       quem: 'Admin geral e "Avaliação + Configuração" (que no ADMIN vê só esta aba). Usuários autorizados é só do admin geral.',
       importante: [
         'Mudança de regra do motor só vale depois de simulada e publicada; cada publicação cria uma versão nova.',

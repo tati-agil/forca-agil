@@ -259,15 +259,9 @@
     },
     {
       "arquivo": ".github/scripts/teste-natureza-complementar.js",
-      "nome": "Natureza complementar: independente da decisão e do motor, com catálogo e auditoria",
-      "duracao": 30,
-      "sobre": "Hermético, banco falso em persistenciaReal. Natureza complementar (Clube de Benefícios: Canal + \"Plataforma/estrutura de benefícios e parcerias\"; Mais Previ: \"A validar\" preservado + decisão manual + \"Programa transversal\"): independente da decisão e do motor (nada de camada, respostas, motorVersion ou \"Motor desatualizado\" muda), edição posterior sem reavaliar/reprocessar, auditoria atômica com o valor anterior, catálogo configurável (renomear/desativar não reescreve o registrado), PDF, coluna na lista, Excel, reavaliar herda, formato antigo migra, rede lenta/falha e 375 px."
-    },
-    {
-      "arquivo": ".github/scripts/teste-natureza-catalogo-resiliente.js",
-      "nome": "Natureza complementar: catálogo resiliente (sessão, demora, Tentar novamente) e salvamento A/B",
-      "duracao": 94,
-      "sobre": "Hermético. Catálogo de naturezas complementares resiliente: nenhuma leitura sem acesso nem antes de o acesso estar resolvido; login sem F5; sair desliga; troca de conta descarta a resposta da conta anterior; leitura sem resposta → aviso de demora (12 s) com \"Tentar novamente\" (avaliação e Admin) sem acumular ouvintes; salvamento A/B com a confirmação antiga chegando por último termina em B, sem auditoria duplicada. Desktop e 375 px."
+      "nome": "Natureza complementar: retirada (17/10/2026) com o histórico preservado e consultável",
+      "duracao": 40,
+      "sobre": "Hermético, banco falso em persistenciaReal. Sem campo nem botão na ficha; a natureza já registrada aparece como registro histórico (nome/descrição da época, quem e quando; também o formato antigo {id, rotulo}); etiqueta na lista, PDF (valor e trilha antiga) e Excel com \"Natureza complementar (registro histórico)\"; salvar de novo uma avaliação existente repete a natureza exatamente como estava (sem migrar); reavaliação nasce sem natureza e a anterior fica intacta; ADMIN sem o cadastro (#admin?arq=naturezas cai no Início); nada gravado nos nós da natureza; naturezas-config.js fora do site; motor sem ler a natureza. Desktop e 375 px."
     },
     {
       "arquivo": ".github/scripts/teste-textos-informacao-documento.js",

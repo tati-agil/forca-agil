@@ -170,7 +170,7 @@ async function abrirMais(page, key) {
       const paineis = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-panel')).filter((p) => !p.hidden && p.offsetParent !== null).map((p) => p.id));
       afirma(paineis.length === 1 && paineis[0] === 'adminPanelArquitetura', 'o único painel visível é o da Arquitetura — ' + JSON.stringify(paineis));
       await esperarCondicao(page, () => !!document.getElementById('avpMotorSquadInicioBtn'), null, { descricao: 'o cartão "Motor de Squad" aparecer na Arquitetura' });
-      afirma(await contar(page, '#avpQuestP1P16Btn') === 1 && await contar(page, '#avpConfigMotoresBtn') === 1 && await contar(page, '#avpConfigNaturezasBtn') === 1 && await contar(page, '#avpMotorSquadInicioBtn') === 1, 'Questionários, Motores, Naturezas e Motor de Squad disponíveis');
+      afirma(await contar(page, '#avpQuestP1P16Btn') === 1 && await contar(page, '#avpConfigMotoresBtn') === 1 && await contar(page, '#avpDocumentacaoBtn') === 1 && await contar(page, '#avpConfigNaturezasBtn') === 0 && await contar(page, '#avpMotorSquadInicioBtn') === 1, 'Questionários, Motores, Naturezas e Motor de Squad disponíveis');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, 'SEM "Usuários autorizados" (só admin geral gerencia a lista)');
       afirma(await page.evaluate(() => { const c = document.querySelector('#adminCadastrados, #adminInteresses, #adminAdmins'); return !c || c.offsetParent === null; }), 'Cadastrados, Eventos e Administradores não estão na tela');
       afirma(await larguraOk(page), 'sem rolagem horizontal');

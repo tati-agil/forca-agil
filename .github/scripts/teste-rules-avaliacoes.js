@@ -59,7 +59,7 @@ async function main() {
   const registro = (email, tipo) => ({ email, nome: email, tipo, concedidoPor: SUPER, concedidoEm: '2026-10-01T10:00:00.000Z' });
   /* Linhas de auditoria no formato EXATO que a aplicação grava (ver questionarios-config.js publicarConteudo,
      motor-arquitetura.js/motor-squad.js publicarRegras/salvarTextos/registrarConflitoPublicacao,
-     avaliacao-produto.js reconciliação e salvarNatureza, naturezas-config.js salvarOpcao). */
+     avaliacao-produto.js reconciliação; a natureza complementar foi retirada e as gravações dela são recusadas). */
   const quem = (email) => ({ name: email, email });
   const QUEST = 'CLASSIFICACAO_ARQUITETURAL';
   const audQuest = (email, extra) => Object.assign({ pergunta: 'P5', campo: 'texto', valorAnterior: 'antes', valorNovo: 'depois',
@@ -132,12 +132,13 @@ async function main() {
         await assertSucceeds(db(email).ref(NODE + '/conc1/excluido').set(true));
         await assertSucceeds(db(email).ref(NODE + '/conc1/excluido').set(null));
         anota(rotulo + ': cria, exclui e restaura (funcionalidades operacionais da aba)', true);
-        await assertSucceeds(db(email).ref('naturezas-complementares-auditoria/conc1/' + emailKey(email)).set(audNatAval('conc1', email)));
-        anota(rotulo + ': registra a auditoria da natureza ao editar a avaliação', true);
+        /* Natureza complementar retirada (17/10/2026): ninguém acrescenta linha na auditoria dela */
+        await assertFails(db(email).ref('naturezas-complementares-auditoria/conc1/' + emailKey(email)).set(audNatAval('conc1', email)));
+        anota(rotulo + ': NÃO acrescenta auditoria da natureza (campo retirado)', true);
         await assertSucceeds(db(email).ref('questionarios-config').once('value'));
         await assertSucceeds(db(email).ref('motor-arquitetura-config').once('value'));
         await assertSucceeds(db(email).ref('naturezas-complementares-config').once('value'));
-        anota(rotulo + ': lê questionários, motor e naturezas (a ficha precisa deles)', true);
+        anota(rotulo + ': lê questionários, motor e o catálogo antigo das naturezas (histórico)', true);
       } else {
         await assertFails(db(email).ref(NODE).once('value'));
         await assertFails(db(email).ref(NODE).orderByChild('status').equalTo('concluido').once('value'));
@@ -158,7 +159,8 @@ async function main() {
     console.log('\n== ADMIN > AVALIAÇÃO E MAPA: configurações e adequação à Squad ==');
     await semearBase();
     /* [nó lido, caminho gravado, valor gravado]: configurações aceitam qualquer filho; as auditorias só aceitam
-       uma linha NOVA no formato que a aplicação grava, e o catálogo de naturezas só uma opção válida (ver seções abaixo) */
+       uma linha NOVA no formato que a aplicação grava (ver seções abaixo). O catálogo das naturezas (retirado) não aceita
+       gravação de ninguém — seção própria abaixo. */
     const NOS_ARQ = [
       ['questionarios-config/CLASSIFICACAO_ARQUITETURAL', (k) => 'questionarios-config/CLASSIFICACAO_ARQUITETURAL/__teste', () => ({ x: 1 })],
       ['questionarios-auditoria', (k) => 'questionarios-auditoria/' + QUEST + '/nova-' + k, (e) => audQuest(e)],
@@ -166,7 +168,6 @@ async function main() {
       ['motor-arquitetura-auditoria', (k) => 'motor-arquitetura-auditoria/nova-' + k, (e) => audMotor('regra', e)],
       ['motor-squad-config', (k) => 'motor-squad-config/__teste', () => ({ x: 1 })],
       ['motor-squad-auditoria', (k) => 'motor-squad-auditoria/nova-' + k, (e) => audMotor('regra', e)],
-      ['naturezas-complementares-config', (k) => 'naturezas-complementares-config/TESTE_' + k.toUpperCase(), (e, k) => opcaoNat('TESTE_' + k.toUpperCase())],
     ];
     /* avaliacoes-squad deixou de ser nó da Arquitetura: a avaliação de Squad mora na área AVALIAÇÃO
        (provado em teste-rules-perfis-avaliacao.js); aqui fica só a configuração. */
@@ -217,7 +218,7 @@ async function main() {
     const QUEM_GRAVA_CONFIG = [['super-admin', SUPER], ['admin geral', ADMIN], ['tipo "Avaliação + Configuração"', ARQ]];
     const QUEM_NAO_GRAVA_CONFIG = [['tipo "Avaliação"', AVAL], ['perfil antigo GESTOR', GESTOR_ANTIGO], ['usuário comum', SEM_ACESSO], ['sem login', null]];
 
-    console.log('\n== Auditorias de configuração: só ACRESCENTAR linha (questionários, motores, naturezas) ==');
+    console.log('\n== Auditorias de configuração: só ACRESCENTAR linha (questionários, motores) ==');
     await semearBase();
     /* [rótulo, raiz, caminho de uma linha nova, linha válida, linha já existente, ancestrais que não podem ser apagados, linhas inválidas, outras recusas] */
     const AUDITORIAS = [
@@ -236,14 +237,6 @@ async function main() {
         [['tipo desconhecido', audMotor('regra', ARQ, { tipo: 'inventado' })], ['reconciliação (só existe no motor de arquitetura)', audMotor('reconciliacao_versao_equivalente', ARQ)],
           ['texto sem os valores', audMotor('texto', ARQ, { valorAnterior: null, valorNovo: null })], ['conflito sem a versão atual', audMotor('conflito_publicacao', ARQ, { versaoAtual: null })],
           ['qualquer objeto', { x: 1 }]], []],
-      ['naturezas-complementares-auditoria (catálogo)', 'naturezas-complementares-auditoria', (k) => 'naturezas-complementares-auditoria/catalogo/' + k, (e) => audNatCat('PROGRAMA_TRANSVERSAL', 'ordem', e),
-        'naturezas-complementares-auditoria/catalogo/c1', ['naturezas-complementares-auditoria/catalogo'],
-        [['linha de avaliação no catálogo', audNatAval('conc1', ARQ)], ['campo fora dos quatro', audNatCat('PROGRAMA_TRANSVERSAL', 'codigoEstavel')],
-          ['código inválido', audNatCat('minusculo', 'nome')], ['sem data', audNatCat('PROGRAMA_TRANSVERSAL', 'nome', ARQ, { dataHora: null })], ['qualquer objeto', { x: 1 }]], []],
-      ['naturezas-complementares-auditoria (avaliação)', 'naturezas-complementares-auditoria', (k) => 'naturezas-complementares-auditoria/conc1/' + k, (e) => audNatAval('conc1', e),
-        'naturezas-complementares-auditoria/conc1/p1', ['naturezas-complementares-auditoria/conc1'],
-        [['avaliacaoId diferente da chave', audNatAval('rasc1', ARQ)], ['linha do catálogo', audNatCat('PROGRAMA_TRANSVERSAL', 'nome')],
-          ['sem data', audNatAval('conc1', ARQ, { dataHora: null })], ['qualquer objeto', { x: 1 }]], []],
     ];
     for (const [rotulo, raiz, nova, valida, existente, ancestrais, invalidas, extras] of AUDITORIAS) {
       const antes = await lerSemRegras(existente);
@@ -287,11 +280,20 @@ async function main() {
     /* valor anterior/usuário ausentes (a aplicação grava null → o campo não existe) continuam aceitos */
     await espera('questionarios-auditoria: aceita linha sem valor anterior (campo novo)', true, db(ARQ).ref('questionarios-auditoria/' + QUEST + '/sem-ant').set(audQuest(ARQ, { valorAnterior: null })));
     await espera('motor-squad-auditoria: aceita linha sem usuário (sessão ausente grava null)', true, db(ARQ).ref('motor-squad-auditoria/sem-usu').set(audMotor('sem_alteracao', ARQ, { usuario: null })));
-    /* tipo "Avaliação": grava a linha da avaliação, nunca o catálogo, e não reescreve a própria linha */
-    await espera('naturezas-auditoria — tipo "Avaliação": acrescenta linha da avaliação', true, db(AVAL).ref('naturezas-complementares-auditoria/conc1/av1').set(audNatAval('conc1', AVAL)));
-    await espera('naturezas-auditoria — tipo "Avaliação": NÃO reescreve a própria linha', false, db(AVAL).ref('naturezas-complementares-auditoria/conc1/av1').set(audNatAval('conc1', AVAL, { valorNovo: null })));
-    await espera('naturezas-auditoria — tipo "Avaliação": NÃO apaga a linha', false, db(AVAL).ref('naturezas-complementares-auditoria/conc1/av1').remove());
-    await espera('naturezas-auditoria — tipo "Avaliação": NÃO grava no catálogo', false, db(AVAL).ref('naturezas-complementares-auditoria/catalogo/av2').set(audNatCat('PROGRAMA_TRANSVERSAL', 'nome', AVAL)));
+    /* Natureza complementar retirada (17/10/2026): a auditoria dela é só histórico — NINGUÉM acrescenta, reescreve
+       nem apaga linha (o perfil "Avaliação", que antes podia acrescentar a linha de uma avaliação, também não) */
+    {
+      const antesNat = await lerSemRegras('naturezas-complementares-auditoria');
+      for (const [quemRot, email] of [['tipo "Avaliação"', AVAL]].concat(QUEM_GRAVA_CONFIG)) {
+        const k = 'x-' + emailKey(email);
+        await espera('naturezas-auditoria — ' + quemRot + ': NÃO acrescenta linha de avaliação', false, db(email).ref('naturezas-complementares-auditoria/conc1/' + k).set(audNatAval('conc1', email)));
+        await espera('naturezas-auditoria — ' + quemRot + ': NÃO acrescenta linha do catálogo', false, db(email).ref('naturezas-complementares-auditoria/catalogo/' + k).set(audNatCat('PROGRAMA_TRANSVERSAL', 'nome', email)));
+        await espera('naturezas-auditoria — ' + quemRot + ': NÃO reescreve linha antiga', false, db(email).ref('naturezas-complementares-auditoria/conc1/p1/dataHora').set('2030-01-01T00:00:00.000Z'));
+        await espera('naturezas-auditoria — ' + quemRot + ': NÃO apaga linha antiga', false, db(email).ref('naturezas-complementares-auditoria/conc1/p1').remove());
+        await espera('naturezas-auditoria — ' + quemRot + ': NÃO apaga o nó', false, db(email).ref('naturezas-complementares-auditoria').remove());
+      }
+      anota('naturezas-auditoria: o histórico continua EXATAMENTE como estava', JSON.stringify(await lerSemRegras('naturezas-complementares-auditoria')) === JSON.stringify(antesNat));
+    }
     /* leitura: a trilha de UMA avaliação é lida pela ficha (tipo "Avaliação"); o catálogo e o nó inteiro, só por quem administra */
     await espera('naturezas-auditoria — tipo "Avaliação": lê a trilha da avaliação', true, db(AVAL).ref('naturezas-complementares-auditoria/conc1').once('value'));
     await espera('naturezas-auditoria — tipo "Avaliação": NÃO lê a auditoria do catálogo', false, db(AVAL).ref('naturezas-complementares-auditoria/catalogo').once('value'));
@@ -324,55 +326,28 @@ async function main() {
     await espera('motor-squad: update que reescreve uma linha antiga junto com a config é recusado INTEIRO', false, db(ARQ).ref().update(sobrescreve));
     anota('…e a config não mudou (nada do update recusado entrou)', ((await lerSemRegras('motor-squad-config/textos/ADEQUADO')) || {}).rotulo === 'Adequado');
 
-    console.log('\n== Catálogo de naturezas (naturezas-complementares-config): opção válida, código imutável, nunca apagada ==');
+    console.log('\n== Catálogo de naturezas (naturezas-complementares-config): retirado — ninguém grava; o histórico continua legível ==');
     await semearBase();
     const NAT = 'naturezas-complementares-config';
-    for (const [quemRot, email] of QUEM_GRAVA_CONFIG) {
-      const cod = 'NOVA_' + emailKey(email).toUpperCase();
-      const opc = (extra) => opcaoNat(cod, Object.assign({ atualizadoPor: quem(email) }, extra || {}));
-      await espera(quemRot + ': cria opção nova', true, db(email).ref(NAT + '/' + cod).set(opc()));
-      await espera(quemRot + ': renomeia (objeto inteiro, como a tela)', true, db(email).ref(NAT + '/' + cod).set(opc({ nome: 'Nome novo' })));
-      await espera(quemRot + ': desativa', true, db(email).ref(NAT + '/' + cod).set(opc({ nome: 'Nome novo', ativo: false })));
-      await espera(quemRot + ': reativa e reordena', true, db(email).ref(NAT + '/' + cod).set(opc({ nome: 'Nome novo', ativo: true, ordem: 7 })));
-      await espera(quemRot + ': altera só um campo (ordem)', true, db(email).ref(NAT + '/' + cod + '/ordem').set(8));
-      await espera(quemRot + ': grava opção com descrição vazia e sem autor (sessão ausente)', true, db(email).ref(NAT + '/' + cod).set({ codigoEstavel: cod, nome: 'Só o básico', descricao: '', ativo: true, ordem: 0 }));
+    const antesCat = await lerSemRegras(NAT);
+    for (const [quemRot, email] of QUEM_GRAVA_CONFIG.concat(QUEM_NAO_GRAVA_CONFIG)) {
+      const cod = 'NOVA_' + emailKey(email || 'anon').toUpperCase();
+      await espera(quemRot + ': NÃO cria opção', false, db(email).ref(NAT + '/' + cod).set(opcaoNat(cod, { atualizadoPor: quem(email || ARQ) })));
+      await espera(quemRot + ': NÃO renomeia nem desativa', false, db(email).ref(NAT + '/PROGRAMA_TRANSVERSAL').set(opcaoNat('PROGRAMA_TRANSVERSAL', { nome: 'Outro', ativo: false })));
+      await espera(quemRot + ': NÃO altera só um campo', false, db(email).ref(NAT + '/PROGRAMA_TRANSVERSAL/ordem').set(8));
+      await espera(quemRot + ': NÃO apaga a opção', false, db(email).ref(NAT + '/PROGRAMA_TRANSVERSAL').remove());
+      await espera(quemRot + ': NÃO apaga nem sobrescreve o catálogo', false, db(email).ref(NAT).set({ SO_ESTA: opcaoNat('SO_ESTA') }));
     }
-    /* exatamente o que naturezas-config.js salvarOpcao grava: a opção + uma linha por campo alterado, num único update */
+    /* o que a tela antiga gravava (opção + auditoria do catálogo num único update) também é recusado inteiro */
     const salvar = {};
     salvar[NAT + '/PROGRAMA_TRANSVERSAL'] = opcaoNat('PROGRAMA_TRANSVERSAL', { nome: 'Programa transversal (novo)', ativo: false, ordem: 2 });
     salvar['naturezas-complementares-auditoria/catalogo/s1'] = audNatCat('PROGRAMA_TRANSVERSAL', 'nome', ARQ, { valorAnterior: 'Programa transversal', valorNovo: 'Programa transversal (novo)' });
-    salvar['naturezas-complementares-auditoria/catalogo/s2'] = audNatCat('PROGRAMA_TRANSVERSAL', 'ativo', ARQ, { valorAnterior: true, valorNovo: false });
-    salvar['naturezas-complementares-auditoria/catalogo/s3'] = audNatCat('PROGRAMA_TRANSVERSAL', 'ordem', ARQ, { valorAnterior: 1, valorNovo: 2 });
-    salvar['naturezas-complementares-auditoria/catalogo/s4'] = audNatCat('PROGRAMA_TRANSVERSAL', 'descricao', ARQ, { valorAnterior: null, valorNovo: '' });
-    await espera('salvar opção como a tela (opção + auditoria do catálogo num único update)', true, db(ARQ).ref().update(salvar));
-    for (const cod of ['minusculo', '1COMECA_COM_NUMERO', 'COM-HIFEN', '_SUBLINHADO', 'A'.repeat(61)]) {
-      await espera('código inválido recusado: "' + (cod.length > 20 ? cod.slice(0, 8) + '…(' + cod.length + ' caracteres)' : cod) + '"', false, db(ADMIN).ref(NAT + '/' + cod).set(opcaoNat(cod)));
+    await espera('salvar opção como a tela antiga (opção + auditoria num único update): recusado', false, db(ARQ).ref().update(salvar));
+    await espera('tipo "Avaliação": continua lendo o catálogo antigo (histórico)', true, db(AVAL).ref(NAT).once('value'));
+    for (const [quemRot, email] of QUEM_GRAVA_CONFIG) {
+      await espera(quemRot + ': continua lendo o catálogo antigo (histórico)', true, db(email).ref(NAT).once('value'));
     }
-    await espera('código com 60 caracteres (o máximo da tela) é aceito', true, db(ADMIN).ref(NAT + '/' + 'A'.repeat(60)).set(opcaoNat('A'.repeat(60))));
-    await espera('codigoEstavel diferente da chave na criação é recusado', false, db(ADMIN).ref(NAT + '/OUTRA_CHAVE').set(opcaoNat('PROGRAMA_TRANSVERSAL')));
-    await espera('codigoEstavel não pode ser trocado (objeto inteiro)', false, db(ADMIN).ref(NAT + '/PROGRAMA_TRANSVERSAL').set(opcaoNat('OUTRO_CODIGO')));
-    await espera('codigoEstavel não pode ser trocado (só o campo)', false, db(ADMIN).ref(NAT + '/PROGRAMA_TRANSVERSAL/codigoEstavel').set('OUTRO_CODIGO'));
-    await espera('codigoEstavel não pode ser apagado', false, db(ADMIN).ref(NAT + '/PROGRAMA_TRANSVERSAL/codigoEstavel').remove());
-    await espera('opção não pode ser apagada (remove)', false, db(ADMIN).ref(NAT + '/PROGRAMA_TRANSVERSAL').remove());
-    await espera('opção não pode ser apagada (update com null)', false, db(ADMIN).ref(NAT).update({ PROGRAMA_TRANSVERSAL: null }));
-    await espera('o catálogo inteiro não pode ser apagado', false, db(SUPER).ref(NAT).remove());
-    await espera('o catálogo inteiro não pode ser sobrescrito', false, db(SUPER).ref(NAT).set({ SO_ESTA: opcaoNat('SO_ESTA') }));
-    await espera('campo desconhecido recusado', false, db(ADMIN).ref(NAT + '/PROGRAMA_TRANSVERSAL').set(opcaoNat('PROGRAMA_TRANSVERSAL', { cor: 'azul' })));
-    await espera('campo desconhecido recusado (gravado sozinho)', false, db(ADMIN).ref(NAT + '/PROGRAMA_TRANSVERSAL/cor').set('azul'));
-    await espera('sem nome recusado', false, db(ADMIN).ref(NAT + '/SEM_NOME').set(opcaoNat('SEM_NOME', { nome: null })));
-    await espera('nome vazio recusado', false, db(ADMIN).ref(NAT + '/NOME_VAZIO').set(opcaoNat('NOME_VAZIO', { nome: '' })));
-    await espera('sem "ativo" recusado', false, db(ADMIN).ref(NAT + '/SEM_ATIVO').set(opcaoNat('SEM_ATIVO', { ativo: null })));
-    await espera('"ativo" que não é verdadeiro/falso recusado', false, db(ADMIN).ref(NAT + '/ATIVO_TEXTO').set(opcaoNat('ATIVO_TEXTO', { ativo: 'sim' })));
-    await espera('sem "ordem" recusado', false, db(ADMIN).ref(NAT + '/SEM_ORDEM').set(opcaoNat('SEM_ORDEM', { ordem: null })));
-    await espera('"ordem" que não é número recusada', false, db(ADMIN).ref(NAT + '/ORDEM_TEXTO').set(opcaoNat('ORDEM_TEXTO', { ordem: '1' })));
-    await espera('valor que não é objeto recusado', false, db(ADMIN).ref(NAT + '/SO_TEXTO').set('Programa'));
-    for (const [quemRot, email] of QUEM_NAO_GRAVA_CONFIG) {
-      await espera(quemRot + ': NÃO cria opção', false, db(email).ref(NAT + '/DE_FORA').set(opcaoNat('DE_FORA')));
-      await espera(quemRot + ': NÃO altera opção', false, db(email).ref(NAT + '/PROGRAMA_TRANSVERSAL/ativo').set(true));
-    }
-    await espera('tipo "Avaliação": continua lendo o catálogo (a ficha usa)', true, db(AVAL).ref(NAT).once('value'));
-    const pt = await lerSemRegras(NAT + '/PROGRAMA_TRANSVERSAL');
-    anota('PROGRAMA_TRANSVERSAL continua existindo, com o mesmo código, depois de todas as tentativas', !!pt && pt.codigoEstavel === 'PROGRAMA_TRANSVERSAL' && pt.nome === 'Programa transversal (novo)', JSON.stringify(pt));
+    anota('o catálogo continua EXATAMENTE como estava depois de todas as tentativas', JSON.stringify(await lerSemRegras(NAT)) === JSON.stringify(antesCat), JSON.stringify(await lerSemRegras(NAT)));
 
     console.log('\n== "Avaliação + Configuração" NÃO é admin geral: nada do resto do ADMIN ==');
     await semearBase();

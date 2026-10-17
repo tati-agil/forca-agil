@@ -54,7 +54,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
-    afirma(await page.locator('#avpGrupoComplementares #avpDocumentacaoBtn').count() === 1 && await page.locator('#avpGrupoReferencias').count() === 0, 'o cartão fica em "Configurações complementares" (sem uma seção só para ele)');
+    afirma(await page.locator('#avpGrupoDocumentacao #avpDocumentacaoBtn').count() === 1 && await page.locator('#avpGrupoReferencias, #avpGrupoComplementares').count() === 0, 'o cartão fica no grupo "Documentação" (as Naturezas Complementares, que dividiam o grupo, foram retiradas)');
     /* a definição oficial do Mapa fica na SEÇÃO DO MAPA, no início (uma só apresentação) */
     const DEFINICAO = 'É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
       'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.';

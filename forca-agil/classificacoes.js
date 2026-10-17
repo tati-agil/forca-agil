@@ -24,7 +24,7 @@
    altera resultado, código, decisão ou histórico — só o texto exibido. Quem mostra o nome mostra
    também um aviso discreto ("Rótulo de contingência"). Não há definição de contingência.
 
-   Mesmo padrão de sessão de naturezas-config.js: só lê com sessão autorizada para a Avaliação;
+   Padrão de sessão: só lê com sessão autorizada para a Avaliação;
    troca de pessoa/acesso desliga tudo (geração) e religa; resposta de leitura antiga é descartada.
 
    API: registrarCatalogo(lista, {sufixoConflito, sufixosAValidar}), codigos(), nome(id), definicao(id), estadoDefinicao(id), ativo(id),

@@ -34,13 +34,14 @@
      decisaoFinal: 'produto' | 'nao-produto' | 'a-validar' (igual à automática até o admin discordar),
      decisaoManual, justificativaDecisao, alteradoPor: {name,email}, alteradoEm,
      naturezaComplementarCodigo / NomeNaEpoca / DescricaoNaEpoca / DefinidaPor /
-       DefinidaEm: informação MANUAL opcional (ex.: "Programa transversal"),
-       INDEPENDENTE da decisão — existe com a recomendação aceita ou com
-       decisão manual, e pode ser alterada depois sem reavaliar nem
-       reprocessar; tudo null quando não há. Fora do motor e fora do
-       motorVersion (ver naturezaDoItem e window.faNaturezas). O formato
-       antigo { naturezaComplementar: { id, rotulo } } (só numa decisão
-       manual) ainda é lido, e é limpo na próxima gravação,
+       DefinidaEm (e o formato antigo { naturezaComplementar: { id, rotulo } }):
+       CAMPO RETIRADO em 17/10/2026 (decisão da responsável — sem necessidade
+       arquitetural demonstrada além de P1–P16, da Taxonomia e do O1–O9). Só
+       LEITURA: o que já foi registrado aparece como "registro histórico" na
+       ficha, no PDF, no Excel e na trilha; ninguém grava mais (regras do
+       banco), uma avaliação nova ou reavaliação nunca o tem, e salvar uma
+       avaliação existente repete exatamente o que está gravado (sem migrar
+       o formato antigo). Ver naturezaDoItem,
      decisaoConfirmada: boolean — só controla o botão "SALVAR DECISÃO"
        (jaSalvouAntes): true assim que alguém clica em salvar, seja aceitando
        a recomendação automática (decisaoManual fica false) seja divergindo
@@ -109,9 +110,10 @@
 
   var NODE = 'avaliacoes-produto';
   /* Auditoria da Curadoria e da Decisão final: curadoria-auditoria/<avaliacaoId>/<pushKey>
-     (só acrescenta linhas). A natureza complementar mantém a auditoria própria que
-     já tinha (naturezas-complementares-auditoria). */
+     (só acrescenta linhas). A natureza complementar (campo retirado) tem a auditoria própria,
+     hoje só para leitura: as linhas antigas continuam na trilha da ficha, do PDF e do Excel. */
   var NODE_CURADORIA_AUDITORIA = 'curadoria-auditoria';
+  var NODE_NATUREZA_AUDITORIA = 'naturezas-complementares-auditoria';
 
   /* IDENTIDADE/REGRA das 16 perguntas — nunca texto exibido ao usuário.
      id: chave interna usada por todo o motor (identificarCamada, respostas
@@ -385,34 +387,14 @@
     return window.faClassificacoes ? window.faClassificacoes.avisoHtml(ids, idElemento) : '';
   }
 
-  /* NATUREZA COMPLEMENTAR — descrição MANUAL e OPCIONAL de que tipo de item é
-     uma avaliação (ex.: "Programa transversal" para um item que o motor deixa
-     "A validar" e que a pessoa decidiu tratar como não Produto/Serviço
-     principal; "Plataforma/estrutura de benefícios e parcerias" para um
-     Canal). Não é uma camada: não entra em CAMADAS, não tem precedência,
-     nunca é lida por identificarCamada/computeResultado nem por
-     reprocessar/reconciliar, nunca é inferida das respostas e NÃO depende da
-     decisão (existe com a recomendação do sistema aceita). Alterá-la nunca
-     muda respostas, classificação, motorVersion nem marca "Motor
-     desatualizado".
-     A LISTA de opções vive em window.faNaturezas (naturezas-complementares-
-     config, com os dois casos reais como padrão de fábrica) — nunca aqui. A
-     avaliação guarda o código E o nome/descrição DA ÉPOCA, então renomear ou
-     desativar uma opção depois nunca reescreve o que já foi registrado. */
+  /* NATUREZA COMPLEMENTAR — CAMPO RETIRADO (17/10/2026). Era uma descrição manual e opcional de que
+     tipo de item é uma avaliação ("Programa transversal", "Plataforma/estrutura de benefícios e
+     parcerias"), criada para dois casos reais antes de existirem a Taxonomia e o Posicionamento
+     O1–O9; nunca entrou no motor nem em nenhum resultado. Não há mais edição nem catálogo: o que já
+     foi registrado é lido daqui, sempre com o nome e a descrição DA ÉPOCA gravados na avaliação, e
+     mostrado como registro histórico. */
   /* { codigo, nome, descricao, definidaPor, definidaEm } | null. Lê o formato
      novo e o antigo ({id, rotulo}, só existia numa decisão manual). */
-  /* Aviso do catálogo de naturezas quando ele não chegou: demora (rede lenta, depois de
-     ~12 s) ou erro — os dois com "Tentar novamente" (faNaturezas.recarregar descarta a leitura
-     anterior; nunca há duas disputando a tela). Mesmo aviso no seletor da avaliação e no
-     catálogo do Admin. */
-  function avisoCatalogoNaturezas(idBotao) {
-    var N = window.faNaturezas, est = N.estado();
-    var texto = est === 'erro' ? 'Não foi possível carregar as opções de natureza complementar.' :
-      (est === 'carregando' && N.demorando && N.demorando()) ? 'As opções de natureza complementar estão demorando para carregar (conexão lenta).' : '';
-    if (!texto) return '';
-    return '<div class="avp-natureza-aviso" role="alert"><p class="avp-error-msg">' + esc(texto) + '</p>' +
-      '<button type="button" class="btn btn--sm" id="' + idBotao + '">Tentar novamente</button></div>';
-  }
   function naturezaDoItem(it) {
     if (!it) return null;
     if (it.naturezaComplementarCodigo) {
@@ -541,21 +523,17 @@
     var n = naturezaDoItem(it);
     return n ? n.nome : '';
   }
-  /* Os campos que uma avaliação NOVA (reavaliação) herda da anterior — a
-     natureza descreve o item, não uma rodada de respostas, então não some
-     quando ele é reavaliado. Migra o formato antigo para o novo e limpa o
-     antigo. Sempre todas as chaves (null quando não há): o Firebase recusa
-     undefined. */
-  function camposNaturezaDoItem(it) {
-    var n = naturezaDoItem(it);
-    return {
-      naturezaComplementarCodigo: n ? n.codigo : null,
-      naturezaComplementarNomeNaEpoca: n ? n.nome : null,
-      naturezaComplementarDescricaoNaEpoca: n && n.descricao ? n.descricao : null,
-      naturezaComplementarDefinidaPor: n ? n.definidaPor : null,
-      naturezaComplementarDefinidaEm: n ? n.definidaEm : null,
-      naturezaComplementar: null
-    };
+  /* Campos da natureza (retirada) numa gravação do registro inteiro: EXATAMENTE o que já está
+     gravado nele — sem migrar o formato antigo, sem limpar, sem herdar. As regras do banco recusam
+     qualquer mudança num registro existente e qualquer valor num registro novo (que nunca os tem:
+     construirReavaliacao os limpa do clone). Sempre todas as chaves (null quando não há): o Firebase
+     recusa undefined, e null num set() é ausência. */
+  var CAMPOS_NATUREZA = ['naturezaComplementarCodigo', 'naturezaComplementarNomeNaEpoca', 'naturezaComplementarDescricaoNaEpoca',
+    'naturezaComplementarDefinidaPor', 'naturezaComplementarDefinidaEm', 'naturezaComplementar'];
+  function camposNaturezaGravados(it) {
+    var o = {};
+    CAMPOS_NATUREZA.forEach(function (c) { o[c] = it && it[c] != null ? it[c] : null; });
+    return o;
   }
 
   /* Versão do motor de classificação (identificarCamada + motivoJustificativa/
@@ -1641,7 +1619,7 @@
   var ROTULO_TIPO_AUDITORIA = {
     alteracao_especializacao: 'Especialização',
     alteracao_papel_estrutural: 'Papel estrutural',
-    alteracao_natureza_complementar: 'Natureza complementar',
+    alteracao_natureza_complementar: 'Natureza complementar (registro histórico)',
     alteracao_decisao_final: 'Decisão final'
   };
   /* Uma linha de auditoria em TEXTO PURO (quem escreve em HTML faz o esc):
@@ -1848,7 +1826,7 @@
       } catch (e) { console.error('[avaliacao-produto] erro ao ler a trilha da exportação:', e); fim(true); }
     }
     ler(NODE_CURADORIA_AUDITORIA);
-    ler(window.faNaturezas.NODE_AUDITORIA);
+    ler(NODE_NATUREZA_AUDITORIA);
   }
   /* cb({ <chave>: { ok, linhas } }) — todas em paralelo. */
   function lerTrilhas(chaves, cb) {
@@ -1970,7 +1948,7 @@
       html += '<div class="pdf-decisao-bloco"><table class="pdf-tabela-id">';
       if (curEsp) html += pdfLinhaTabela('Especialização', curEsp);
       if (curPapel) html += pdfLinhaTabela('Papel estrutural', curPapel);
-      if (curNat) html += pdfLinhaTabela('Natureza complementar', curNat);
+      if (curNat) html += pdfLinhaTabela('Natureza complementar (registro histórico)', curNat);
       html += '</table></div>';
     } else {
       html += '<p>Nenhuma informação de curadoria registrada nesta versão.</p>';
@@ -2288,7 +2266,7 @@
     { largura: 28, rotulo: 'Rótulo registrado na conclusão' },
     { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 30, rotulo: 'Especialização identificada pelo questionário' },
     { largura: 26, rotulo: 'Especialização' }, { largura: 16, rotulo: 'Papel estrutural' },
-    { largura: 30, rotulo: 'Natureza complementar' }, { largura: 30, rotulo: 'Situação da curadoria' },
+    { largura: 30, rotulo: 'Natureza complementar (registro histórico)' }, { largura: 30, rotulo: 'Situação da curadoria' },
     { largura: 20, rotulo: 'Decisão final' }, { largura: 34, rotulo: 'Forma da decisão' },
     { largura: 20, rotulo: 'Responsável pela decisão' }, { largura: 16, rotulo: 'Data da decisão' },
     { largura: 40, rotulo: 'Justificativa da decisão manual' }
@@ -2342,7 +2320,7 @@
     { largura: 30 }, { largura: 30 }, { largura: 22 }, { largura: 18 }, { largura: 60 }, { largura: 40 }
   ];
   var EXCEL_HEAD_HISTORICO = ['ID do item', 'ID da avaliação', 'Versão', 'Data da avaliação', 'Responsável pela avaliação',
-    'Especialização identificada pelo questionário', 'Especialização', 'Papel estrutural', 'Natureza complementar', 'Situação da curadoria',
+    'Especialização identificada pelo questionário', 'Especialização', 'Papel estrutural', 'Natureza complementar (registro histórico)', 'Situação da curadoria',
     'Resultado anterior', 'Resultado atual', 'Classificação anterior', 'Classificação atual', 'Decisão anterior', 'Decisão atual',
     'Forma anterior', 'Forma atual', 'Responsável pela decisão', 'Data da decisão', 'Resumo da mudança', 'Justificativa de divergência'];
   /* Uma linha por versão de cada item incluído no export, mesmo quando essa
@@ -2520,7 +2498,7 @@
          em fa-avaliacao-autorizados (qualquer dos dois tipos);
        modo 'admin' — o bloco de parametrização dentro do ADMIN
          (#adminAvaliacaoProduto): configuração de questionários, de motores,
-         das naturezas e dos usuários autorizados. Admin geral chega aqui
+         da documentação e dos usuários autorizados. Admin geral chega aqui
          inteiro; "Avaliação + Configuração" só sem o cartão de usuários.
      Nenhuma configuração aparece na tela operacional e vice-versa. */
   window.faInitAvaliacaoProduto = function (opcoes) {
@@ -2533,7 +2511,7 @@
        verdade são as regras do banco (database.rules.json, provadas em
        teste-rules-avaliacoes.js). */
     function pode() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
-    /* Curadoria (especialização, papel estrutural, natureza complementar) e
+    /* Curadoria (especialização, papel estrutural) e
        decisão final são da Arquitetura: "Avaliação" avalia; "Avaliação +
        Configuração" (e o admin geral) também cura e decide. O banco barra do
        mesmo jeito: em avaliacoes-produto, quem não é da Arquitetura não muda
@@ -2586,9 +2564,6 @@
       salvandoDecisao: false,
       reprocessando: false, /* trava o botão REPROCESSAR COM MOTOR ATUAL enquanto grava */
       decisaoForm: null,
-      salvandoNatureza: false, /* trava o botão SALVAR NATUREZA enquanto grava */
-      naturezaForm: null,      /* { codigo, ultimoSalvo, erro } — iniciado sob demanda por renderNaturezaBloco */
-      flashNatureza: null,     /* confirmação persistente mostrada após salvar a natureza complementar */
       salvandoEspecializacao: false, /* trava o botão SALVAR ESPECIALIZAÇÃO enquanto grava */
       especializacaoForm: null,
       curadoriaHist: null,  /* { chave, carregando, erro, itens } — histórico da curadoria e da decisão final desta avaliação */
@@ -2614,7 +2589,6 @@
       config: null, /* null fora da tela de configuração; ver abrirConfigQuestionarios — nunca persistido aqui,
                        só o rascunho gravado explicitamente em window.faQuestionarios */
       usuarios: null, /* null fora da tela "Usuários autorizados" (admin); ver abrirAdminUsuarios */
-      configNaturezas: null, /* null fora da tela "⚙ Naturezas complementares"; ver abrirConfigNaturezas */
       configMotores: null /* null fora da tela "⚙ Configuração dos Motores"; ver abrirConfigMotores */
     }; }
     var state = novoEstado();
@@ -2680,7 +2654,7 @@
        edição com alteração não salva pergunta antes (mesmo aviso do "← Voltar"). */
     var AREAS_ADMIN = {
       'admin-inicio': 'inicio', 'config-questionario': 'questionarios', 'config-motores': 'motores',
-      'config-naturezas': 'naturezas', 'admin-usuarios': 'usuarios', 'admin-documentacao': 'documentacao'
+      'admin-usuarios': 'usuarios', 'admin-documentacao': 'documentacao'
     };
     var aplicandoEnderecoAdmin = false;
     function areaAtualAdmin() {
@@ -2756,7 +2730,7 @@
     function seqArqAtual() { return history.state && history.state.seqArq || 0; }
     function edicaoSujaAdmin() {
       return !!((state.config && state.config.sujo) || (state.configMotores && state.configMotores.sujo) ||
-        (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) || (state.tela === 'admin-inicio' && state.mapaDef && state.mapaDef.sujo) ||
+        (state.documentacao && state.documentacao.sujo) || (state.tela === 'admin-inicio' && state.mapaDef && state.mapaDef.sujo) ||
         (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()) ||
         (window.faEstruturasAdmin && window.faEstruturasAdmin.temAlteracaoNaoSalva()) ||
         (window.faEstruturaAtualAdmin && window.faEstruturaAtualAdmin.temAlteracaoNaoSalva()));
@@ -2766,10 +2740,10 @@
       if (window.faAvaliacaoSquadAdmin && area !== 'motor-squad') window.faAvaliacaoSquadAdmin.fechar();
       if (window.faEstruturasAdmin && area !== 'estruturas') window.faEstruturasAdmin.fechar();
       if (window.faEstruturaAtualAdmin && area !== 'estrutura-atual') window.faEstruturaAtualAdmin.fechar();
-      state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
+      state.config = null; state.configMotores = null; state.documentacao = null;
       if (area === 'questionarios') abrirConfigQuestionarios(questionarioDoEndereco());
       else if (area === 'motores') abrirConfigMotores(motorDoEndereco());
-      else if (area === 'naturezas') abrirConfigNaturezas();
+      /* #admin?arq=naturezas (link antigo): o cadastro foi retirado — cai no Início, como área desconhecida */
       else if (area === 'usuarios' && souAdminGeral()) abrirAdminUsuarios();
       else if (area === 'documentacao') abrirDocumentacao();
       else if (area === 'motor-squad' && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; render(); abrirMotorSquadDoInicio(); }
@@ -2905,7 +2879,6 @@
       else if (state.tela === 'carregando') renderCarregandoAvaliacao();
       else if (state.tela === 'config-questionario') renderConfigQuestionarios();
       else if (state.tela === 'config-motores') renderConfigMotores();
-      else if (state.tela === 'config-naturezas') renderConfigNaturezas();
     }
 
     /* Tela de carregamento de #avaliacoes?avp=<chave> (F5, link direto, nova aba)
@@ -3135,8 +3108,6 @@
     function construirVisualizacao(it) {
       state.atual = clonarItem(it);
       state.decisaoForm = decisaoFormInicial(it);
-      state.naturezaForm = null;
-      state.flashNatureza = null;
       state.especializacaoForm = especializacaoFormInicial(it);
       state.curadoriaHist = null;
       state.reavaliacaoBase = null;
@@ -3280,11 +3251,6 @@
         return '';
       });
     }
-
-    /* O catálogo de naturezas complementares chega (ou muda) depois do
-       primeiro render: quem está olhando um resultado precisa ver o seletor
-       sair de "Carregando opções…". */
-    window.faNaturezas.aoMudar(function () { if (state.tela === 'resultado' || state.tela === 'config-naturezas') render(); });
 
     function renderNaoEncontrada() {
       var msg = state.erroCarga === 'geral'
@@ -3722,12 +3688,11 @@
             html += '<td class="avp-check-col"><input type="checkbox" class="avp-check-item" data-key="' + it._key + '"' +
               (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.nome) + '"></td>';
           }
-          /* Natureza complementar não ganha coluna própria (a lista ficaria larga
-             demais): aparece como etiqueta sob o nome do item; o resto do detalhe
-             (resultado automático, justificativas) fica na tela da avaliação. */
+          /* Natureza complementar (campo retirado; só registro histórico): etiqueta sob o nome do
+             item, quando a avaliação tem uma; o resto do detalhe fica na tela da avaliação. */
           html += '<td class="avp-col-item" data-label="Item"><span class="avp-item-nome">' + esc(it.nome) + '</span>' +
             (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') +
-            (natureza ? '<span class="avp-item-natureza" title="Natureza complementar"><span class="avp-tag-natureza">' + esc(natureza) + '</span></span>' : '') + '</td>';
+            (natureza ? '<span class="avp-item-natureza" title="Natureza complementar — registro histórico"><span class="avp-tag-natureza">' + esc(natureza) + '</span></span>' : '') + '</td>';
           /* "Resultado final" não tem coluna na lista (era redundante com a Classificação);
              resultado automático e decisão final ficam na ficha. Só a marca de decisão
              alterada à mão continua visível, junto da classificação. */
@@ -4046,6 +4011,9 @@
       state.atual.justificativaDecisao = null;
       state.atual.alteradoPor = null;
       state.atual.alteradoEm = null;
+      /* Natureza complementar (campo retirado): o registro histórico fica na versão em que foi
+         feito; a nova versão nunca o tem (as regras recusam). */
+      CAMPOS_NATUREZA.forEach(function (c) { delete state.atual[c]; });
       if (!state.atual.respostas) state.atual.respostas = {};
       state.atual.itemId = it.itemId || it._key;
       state.atual.versaoAnteriorKey = it._key;
@@ -5117,8 +5085,8 @@
        de tela —, então voltar de uma funcionalidade reencontra a seção aberta. Ao voltar de uma ÁREA (também depois de F5
        ou link direto nela), a seção que a contém é reaberta (SECAO_DA_AREA). Só o Mapa começa aberto. */
     var SECAO_DA_AREA = { questionarios: 'avpGrupoConfiguracao', motores: 'avpGrupoConfiguracao', 'motor-squad': 'avpGrupoConfiguracao',
-      'estrutura-atual': 'avpGrupoEstruturas', estruturas: 'avpGrupoEstruturas', naturezas: 'avpGrupoComplementares',
-      usuarios: 'avpAdminAcessos', documentacao: 'avpGrupoComplementares' };
+      'estrutura-atual': 'avpGrupoEstruturas', estruturas: 'avpGrupoEstruturas',
+      usuarios: 'avpAdminAcessos', documentacao: 'avpGrupoDocumentacao' };
     function secaoAberta(id, padrao) { var v = state.secoesInicio && state.secoesInicio[id]; return v === undefined ? !!padrao : !!v; }
     /* a definição oficial do Mapa (arquitetura-definicoes/MAPA_FLORESTA) e o seu histórico, lidos ao chegar no início —
        a mesma fonte, a mesma gravação e a mesma auditoria de antes; nada de valor de fábrica enquanto a leitura não volta */
@@ -5211,10 +5179,10 @@
       var cadAtual = estruturaAtualDisponivel() ? cartao('avpEstruturaAtualBtn', 'Estrutura Organizacional Atual', 'Cadastro das unidades que existem hoje, como diretorias, gerências e núcleos. Utilizado para identificar a unidade analisada e as responsabilidades executadas na Análise Organizacional.') : '';
       var cadMapa = estruturasDisponiveis() ? cartao('avpEstruturasBtn', 'Estruturas do Mapa da Floresta', 'Cadastro das estruturas arquiteturais utilizadas nos posicionamentos e vínculos do Mapa, conforme os tipos organizacionais existentes no sistema.') : '';
       if (cadAtual || cadMapa) html += secao('avpGrupoEstruturas', 'Cadastros de Estruturas Organizacionais', 'Estrutura atual e estruturas do Mapa — finalidades e dados separados.', cartoes(cadAtual + cadMapa));
-      /* 4. Configurações complementares (discreto): Naturezas Complementares — não entram em nenhum motor */
-      html += secao('avpGrupoComplementares', 'Configurações complementares', 'Naturezas Complementares e documentos de referência.',
-        cartoes(cartao('avpConfigNaturezasBtn', 'Naturezas Complementares', 'Opções utilizadas para descrever características adicionais dos itens da Avaliação de Produto/Serviço.') +
-          cartao('avpDocumentacaoBtn', 'Documentos de referência', 'Artefatos da Arquitetura guardados como link para o arquivo, com autor, data e histórico.')), false, 'avp-admin-grupo--discreto');
+      /* 4. Documentação (discreto): os documentos de referência da Arquitetura. (As Naturezas
+         Complementares, que dividiam este grupo, foram retiradas em 17/10/2026.) */
+      html += secao('avpGrupoDocumentacao', 'Documentação', 'Artefatos de referência da Arquitetura.',
+        cartoes(cartao('avpDocumentacaoBtn', 'Documentos de referência', 'Artefatos da Arquitetura guardados como link para o arquivo, com autor, data e histórico.')), false, 'avp-admin-grupo--discreto');
       /* 5. ACESSOS (só admin geral): as permissões dos perfis — elas decidem o acesso a cada funcionalidade, inclusive à
          Análise Organizacional (Porta 2), sem controle de disponibilidade à parte */
       if (souAdminGeral()) {
@@ -5235,7 +5203,6 @@
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', sair(function () { abrirConfigMotores('p'); }));
       /* Posicionamento (O1–O9): a mesma área dos motores, já no cartão dele */
       document.getElementById('avpMotorPosicionamentoInicioBtn').addEventListener('click', sair(function () { abrirConfigMotores('o'); }));
-      document.getElementById('avpConfigNaturezasBtn').addEventListener('click', sair(abrirConfigNaturezas));
       var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
       if (squadBtn) squadBtn.addEventListener('click', sair(abrirMotorSquadDoInicio));
       var estruturasBtn = document.getElementById('avpEstruturasBtn');
@@ -5780,8 +5747,8 @@
       html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-aut-matriz"><thead><tr><th>O que a pessoa acessa</th>' +
         TIPOS_AUTORIZADO.map(function (t) { return '<th>' + esc(t.rotulo) + '</th>'; }).join('') + '</tr></thead><tbody>' +
         '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar, Adequação à Squad)</td><td>Sim</td><td>Sim</td></tr>' +
-        '<tr><td data-label="Acesso">Curadoria e decisão arquitetural (especialização, papel estrutural, natureza complementar, decisão final)</td><td>Não</td><td>Sim</td></tr>' +
-        '<tr><td data-label="Acesso">ADMIN › Avaliações e Mapa (questionários, motores, naturezas, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">Curadoria e decisão arquitetural (especialização, papel estrutural, decisão final)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">ADMIN › Avaliações e Mapa (questionários, motores, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
         '<tr><td data-label="Acesso">Demais áreas do ADMIN</td><td>Não</td><td>Não</td></tr>' +
         '<tr><td data-label="Acesso">Gerenciar esta lista</td><td>Não</td><td>Não</td></tr></tbody></table></div>';
       if (u.carregando) {
@@ -5951,187 +5918,6 @@
           delete u.autorizados[key];
           u.flash = '✓ Acesso de ' + (atual.nome || atual.email) + ' removido.';
         });
-      });
-    }
-
-    /* ===================== CONFIGURAÇÃO DAS NATUREZAS COMPLEMENTARES =====================
-       Catálogo das opções do campo "Natureza complementar" (ver
-       window.faNaturezas): qualquer admin cria, renomeia, descreve, reordena,
-       ativa e desativa opções — sem código, sem PR, sem deploy. Quem abre esta
-       tela consegue gravar (naturezas-complementares-config/auditoria usam a
-       mesma regra de "qualquer admin" do resto do painel). Nunca apaga uma
-       opção (desativar é ativo:false) e nunca mexe em avaliações já
-       registradas: elas guardam o nome/descrição DA ÉPOCA. Código da opção:
-       gerado do nome na criação e imutável depois. */
-    function abrirConfigNaturezas() {
-      state.configNaturezas = { editando: null, erro: null, flash: null, salvando: false, historico: null, erroHistorico: false };
-      state.tela = 'config-naturezas';
-      render();
-      carregarHistoricoNaturezas();
-    }
-    /* Auditoria do catálogo (naturezas-complementares-auditoria/catalogo): gravada desde sempre, mas
-       não aparecia em lugar nenhum. Leitura avulsa ao abrir a tela e depois de cada gravação. */
-    function carregarHistoricoNaturezas() {
-      var c = state.configNaturezas;
-      db().ref('naturezas-complementares-auditoria/catalogo').once('value', function (snap) {
-        if (state.configNaturezas !== c) return;
-        var v = snap.val() || {};
-        c.historico = Object.keys(v).map(function (k) { return v[k]; }).sort(function (x, y) { return (y.dataHora || '').localeCompare(x.dataHora || ''); });
-        if (state.tela === 'config-naturezas') render();
-      }, function (err) {
-        console.error('[naturezas] erro ao ler o histórico do catálogo:', err);
-        if (state.configNaturezas !== c) return;
-        c.erroHistorico = true;
-        if (state.tela === 'config-naturezas') render();
-      });
-    }
-    var ROTULO_CAMPO_NATUREZA = { nome: 'Nome', descricao: 'Descrição', ativo: 'Ativa', ordem: 'Ordem' };
-    function renderConfigNaturezas() {
-      var c = state.configNaturezas;
-      var catalogo = window.faNaturezas.estado();
-      var todas = window.faNaturezas.todas();
-      var html = linkVoltar('avpNaturezasVoltar', ROTULO_ADMIN);
-      html += '<div class="avp-form-card"><h3>⚙ Naturezas Complementares</h3>';
-      html += '<p class="avp-decisao-aviso">Opções oferecidas no campo "Natureza complementar" de cada avaliação. É só uma descrição manual do item: não entra no motor, não muda respostas nem classificação e não exige reprocessamento. Renomear ou desativar uma opção não altera as avaliações que já a usam — elas guardam o nome da época.</p>';
-      if (catalogo === 'carregando') html += '<p class="loading-msg">Carregando opções…</p>';
-      html += avisoCatalogoNaturezas('avpNaturezasTentarNovamente');
-      if (c.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpNaturezasFlash">' + esc(c.flash) + '</p>';
-      if (c.erro) html += '<p class="avp-error-msg" id="avpNaturezasErro">' + esc(c.erro) + '</p>';
-      if (catalogo === 'ok') {
-        html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
-          '<th>Ordem</th><th>Nome</th><th>Descrição</th><th>Código</th><th>Situação</th><th>Ações</th></tr></thead><tbody>';
-        todas.forEach(function (o) {
-          html += '<tr data-codigo="' + esc(o.codigoEstavel) + '">';
-          html += '<td data-label="Ordem">' + esc(o.ordem) + '</td>';
-          html += '<td data-label="Nome">' + esc(o.nome) + '</td>';
-          html += '<td data-label="Descrição" style="white-space:normal">' + esc(o.descricao || '—') + '</td>';
-          html += '<td data-label="Código"><code>' + esc(o.codigoEstavel) + '</code></td>';
-          html += '<td data-label="Situação">' + (o.ativo ? 'Ativa' : 'Desativada') + '</td>';
-          html += '<td data-label="Ações"><div class="avp-row-actions">' +
-            '<button class="btn btn--sm avp-natureza-editar" data-codigo="' + esc(o.codigoEstavel) + '"' + (c.salvando ? ' disabled' : '') + '>Editar</button>' +
-            '<button class="btn btn--sm avp-natureza-alternar" data-codigo="' + esc(o.codigoEstavel) + '"' + (c.salvando ? ' disabled' : '') + '>' + (o.ativo ? 'Desativar' : 'Ativar') + '</button>' +
-            '</div></td>';
-          html += '</tr>';
-        });
-        html += '</tbody></table></div>';
-        if (!c.editando) html += '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpNaturezaNova"' + (c.salvando ? ' disabled' : '') + '>+ Nova opção</button></div>';
-      }
-      html += '</div>';
-      if (catalogo === 'ok' && c.editando) {
-        var e = c.editando;
-        html += '<div class="avp-form-card" id="avpNaturezaForm"><h4>' + (e.novo ? 'Nova opção' : 'Editar opção') + '</h4>';
-        html += '<div class="avp-field"><label for="avpNaturezaNome">Nome *</label><input type="text" id="avpNaturezaNome" value="' + esc(e.nome) + '" maxlength="80"></div>';
-        html += '<div class="avp-field"><label for="avpNaturezaDescricaoEd">Descrição</label><textarea id="avpNaturezaDescricaoEd" rows="3">' + esc(e.descricao) + '</textarea></div>';
-        html += '<div class="avp-field"><label for="avpNaturezaOrdem">Ordem</label><input type="number" id="avpNaturezaOrdem" value="' + esc(e.ordem) + '" min="0" step="1"></div>';
-        html += '<div class="avp-field"><label>Código</label><p class="avp-natureza-ajuda"><code id="avpNaturezaCodigo">' + esc(e.novo ? (window.faNaturezas.codigoDeNome(e.nome) || '—') : e.codigoEstavel) + '</code> ' +
-          (e.novo ? '(gerado do nome; não muda depois)' : '(não pode ser alterado)') + '</p></div>';
-        html += '<div class="avp-actions-footer">' +
-          '<button class="btn btn--primary" id="avpNaturezaSalvar"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'SALVANDO…' : 'SALVAR OPÇÃO') + '</button>' +
-          '<button class="btn" id="avpNaturezaCancelar"' + (c.salvando ? ' disabled' : '') + '>Cancelar</button></div>';
-        html += '</div>';
-      }
-      if (c.erroHistorico) html += '<p class="avp-natureza-ajuda" id="avpNaturezasHistoricoErro">Não foi possível carregar o histórico do catálogo agora.</p>';
-      else if (c.historico) {
-        html += renderHistoricoRecolhido('avpNaturezasHistorico', c.historico.map(function (l) {
-          return { data: l.dataHora, autor: autorDe(l.usuario), tipo: (ROTULO_CAMPO_NATUREZA[l.campo] || l.campo) + ' · ' + l.codigo,
-            resumo: l.valorAnterior == null ? 'opção criada' : '', anterior: l.valorAnterior, novo: l.valorNovo };
-        }), { titulo: 'Histórico do catálogo' });
-      }
-      html += rodapeVoltar('avpNaturezasVoltarRodape', ROTULO_ADMIN);
-      wrap.innerHTML = html;
-
-      ['avpNaturezasVoltar', 'avpNaturezasVoltarRodape'].forEach(function (id) {
-        document.getElementById(id).addEventListener('click', function () {
-          sairComAviso(c, function () { state.tela = telaInicial(); state.configNaturezas = null; render(); });
-        });
-      });
-      var tentarCatalogo = document.getElementById('avpNaturezasTentarNovamente');
-      if (tentarCatalogo) tentarCatalogo.addEventListener('click', function () { window.faNaturezas.recarregar(); });
-      wrap.querySelectorAll('.avp-natureza-editar').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var o = window.faNaturezas.porCodigo(btn.dataset.codigo);
-          if (!o) return;
-          c.sujo = false;
-          c.editando = { novo: false, codigoEstavel: o.codigoEstavel, nome: o.nome, descricao: o.descricao, ordem: o.ordem, ativo: o.ativo };
-          c.erro = null; c.flash = null;
-          render();
-        });
-      });
-      wrap.querySelectorAll('.avp-natureza-alternar').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var o = window.faNaturezas.porCodigo(btn.dataset.codigo);
-          if (!o) return;
-          gravarOpcaoNatureza(Object.assign({}, o, { ativo: !o.ativo }), o.ativo ? 'Opção desativada.' : 'Opção ativada.');
-        });
-      });
-      var nova = document.getElementById('avpNaturezaNova');
-      if (nova) nova.addEventListener('click', function () {
-        var maior = todas.reduce(function (m, o) { return Math.max(m, o.ordem); }, 0);
-        c.sujo = false;
-        c.editando = { novo: true, codigoEstavel: '', nome: '', descricao: '', ordem: maior + 1, ativo: true };
-        c.erro = null; c.flash = null;
-        render();
-        focarCampo('avpNaturezaNome');
-      });
-      var nome = document.getElementById('avpNaturezaNome');
-      if (nome) nome.addEventListener('input', function () {
-        c.sujo = true;
-        c.editando.nome = nome.value;
-        var cod = document.getElementById('avpNaturezaCodigo');
-        if (cod && c.editando.novo) cod.textContent = window.faNaturezas.codigoDeNome(nome.value) || '—';
-      });
-      var desc = document.getElementById('avpNaturezaDescricaoEd');
-      if (desc) desc.addEventListener('input', function () { c.sujo = true; c.editando.descricao = desc.value; });
-      var ordem = document.getElementById('avpNaturezaOrdem');
-      if (ordem) ordem.addEventListener('input', function () { c.sujo = true; c.editando.ordem = ordem.value; });
-      var cancelar = document.getElementById('avpNaturezaCancelar');
-      if (cancelar) cancelar.addEventListener('click', function () { c.editando = null; c.sujo = false; c.erro = null; render(); });
-      var salvar = document.getElementById('avpNaturezaSalvar');
-      if (salvar) salvar.addEventListener('click', function () {
-        var e = c.editando;
-        var nomeLimpo = String(e.nome || '').trim();
-        if (!nomeLimpo) { c.erro = 'Informe o nome da opção.'; render(); focarCampo('avpNaturezaNome'); return; }
-        var duplicada = window.faNaturezas.todas().some(function (o) {
-          return o.codigoEstavel !== e.codigoEstavel && o.nome.toLowerCase() === nomeLimpo.toLowerCase();
-        });
-        if (duplicada) { c.erro = 'Já existe uma opção com esse nome.'; render(); focarCampo('avpNaturezaNome'); return; }
-        var codigo = e.novo ? window.faNaturezas.codigoDeNome(nomeLimpo) : e.codigoEstavel;
-        if (!window.faNaturezas.codigoValido(codigo)) { c.erro = 'Não foi possível gerar um código a partir desse nome. Use letras ou números.'; render(); return; }
-        if (e.novo && window.faNaturezas.porCodigo(codigo)) { c.erro = 'Já existe uma opção com o código ' + codigo + '. Use um nome diferente.'; render(); return; }
-        gravarOpcaoNatureza({ codigoEstavel: codigo, nome: nomeLimpo, descricao: e.descricao, ordem: e.ordem, ativo: e.ativo }, e.novo ? 'Opção criada.' : 'Opção salva.');
-      });
-    }
-    /* Mesmo cuidado do salvamento da natureza: só o envio mais recente mexe na tela, e uma
-       confirmação que chega depois do relógio não é descartada. A lista em si vem do ouvinte do
-       catálogo (faNaturezas), nunca daqui. */
-    var envioCatalogoNaturezas = 0;
-    function gravarOpcaoNatureza(opcao, mensagemOk) {
-      var c = state.configNaturezas;
-      if (!c || c.salvando) return;
-      var meu = ++envioCatalogoNaturezas, atrasou = false;
-      c.salvando = true; c.erro = null; c.flash = null;
-      render();
-      var relogio = setTimeout(function () {
-        if (meu !== envioCatalogoNaturezas || state.configNaturezas !== c) return;
-        atrasou = true;
-        c.salvando = false;
-        c.erro = 'A conexão está demorando e ainda não deu para confirmar o salvamento. Ele continua pendente: a tela avisa quando a confirmação chegar.';
-        render();
-      }, 12000);
-      window.faNaturezas.salvarOpcao(opcao, sessaoAtual(), function (err) {
-        clearTimeout(relogio);
-        if (meu !== envioCatalogoNaturezas || state.configNaturezas !== c) return; /* resposta antiga, ou outra tela */
-        c.salvando = false;
-        if (err) {
-          console.error('[avaliacao-produto] erro ao salvar opção de natureza complementar:', err);
-          c.erro = 'Não foi possível salvar a opção. Tente novamente.';
-        } else {
-          c.erro = null;
-          if (!atrasou) { c.editando = null; c.sujo = false; }
-          c.flash = '✓ ' + mensagemOk + (atrasou ? ' (A confirmação chegou com atraso.)' : '');
-          carregarHistoricoNaturezas();
-        }
-        if (state.tela === 'config-naturezas') render();
       });
     }
 
@@ -7520,8 +7306,6 @@
           state.salvando = null;
           state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
           state.decisaoForm = decisaoFormInicial(payload);
-          state.naturezaForm = null;
-          state.flashNatureza = null;
           state.especializacaoForm = especializacaoFormInicial(payload);
           state.reavaliacaoBase = null;
           state.flashResultado = '✓ Avaliação salva com sucesso.';
@@ -7687,10 +7471,9 @@
            seu, intacto, na sua própria chave). */
         historicoMotor: null
       };
-      /* A natureza complementar descreve o ITEM, não uma rodada de respostas:
-         uma reavaliação herda a da versão anterior (a.* veio do clone), um item
-         novo não tem. Nunca é calculada aqui. */
-      Object.assign(payload, camposNaturezaDoItem(a));
+      /* Natureza complementar (campo retirado): o registro inteiro é regravado, então ela vai
+         EXATAMENTE como está gravada — num item novo ou numa reavaliação, ausente. */
+      Object.assign(payload, camposNaturezaGravados(a));
       if (status === 'concluido') {
         var calc = computeResultado(a);
         /* A camada mudou (reavaliação ou edição)? Fixa o vínculo do cadastro de curadoria na hora
@@ -8255,8 +8038,8 @@
        reprocessamento ou nova versão do motor). A recomendação do sistema
        nunca é apagada nem substituída por nada daqui. Cada alteração grava
        uma linha de auditoria (valor anterior, novo, quem, quando) NA MESMA
-       gravação: especialização/papel em curadoria-auditoria, natureza na
-       auditoria própria que ela já tinha. */
+       gravação, em curadoria-auditoria. A natureza complementar (campo retirado) aparece só como
+       registro histórico, quando a versão tem uma. */
     function renderCuradoriaCard(a, camada, editavel) {
       var html = '<div class="avp-form-card avp-curadoria-card' + (editavel ? '' : ' avp-curadoria-card--leitura') + '" id="' + (editavel ? 'avpCuradoriaCard' : 'avpCuradoriaLeitura') + '">';
       html += '<h4>Curadoria arquitetural</h4>';
@@ -8265,7 +8048,7 @@
           'classificação arquitetural (a camada vem do motor). Cada alteração fica registrada: valor anterior, novo valor, quem e quando.</p>';
         html += renderCuradoriaRevisao(a, true);
         if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1) html += renderEspecializacaoCadastradaCard(camada.id);
-        html += renderNaturezaBloco(a);
+        html += renderNaturezaHistorica(a);
         html += renderCuradoriaSemEfeito(a);
       } else {
         var nat = naturezaDoItem(a);
@@ -8277,7 +8060,7 @@
           html += '<dl class="avp-decisao-resumo" id="avpCuradoriaResumo">';
           if (esp) html += '<dt>Especialização</dt><dd>' + esc(esp) + '</dd>';
           if (papel) html += '<dt>Papel estrutural</dt><dd>' + esc(papel) + '</dd>';
-          if (nat) html += '<dt>Natureza complementar</dt><dd>' + esc(nat.nome) + '</dd>';
+          if (nat) html += '<dt>Natureza complementar <span class="avp-config-readonly-tag">(registro histórico)</span></dt><dd id="avpNaturezaHistoricaLeitura">' + esc(nat.nome) + '</dd>';
           html += '</dl>';
         }
         html += renderCuradoriaRevisao(a, false);
@@ -8395,7 +8178,7 @@
         });
       }
       ler(NODE_CURADORIA_AUDITORIA);
-      ler(window.faNaturezas.NODE_AUDITORIA);
+      ler(NODE_NATUREZA_AUDITORIA);
     }
     /* Linha de auditoria nova, para gravar junto com a alteração (mesmo update). */
     function linhaAuditoriaCuradoria(a, tipo, anterior, novo, extra) {
@@ -8498,196 +8281,27 @@
       return html;
     }
 
-    /* ===================== NATUREZA COMPLEMENTAR =====================
-       Bloco dentro da "Curadoria arquitetural": tem o seu próprio
-       botão e o seu próprio salvamento, independente da decisão (existe com a
-       recomendação aceita ou com decisão manual) e independente do motor —
-       salvar aqui grava só os campos naturezaComplementar* da avaliação e uma
-       linha de auditoria, nunca respostas, classificação, motorVersion nem
-       atualizadoEm. Disponível também numa avaliação já concluída: alterar a
-       natureza não exige reavaliar, reprocessar nem criar nova avaliação. */
-    function naturezaFormDe(a) {
-      var f = state.naturezaForm;
-      if (f && f.chave === a._key) return f;
-      var atual = naturezaDoItem(a);
-      var cod = atual && atual.codigo ? atual.codigo : '';
-      state.naturezaForm = { chave: a._key, codigo: cod, ultimoSalvo: cod, erro: null };
-      return state.naturezaForm;
-    }
-    function estadoBotaoNatureza(f, catalogo) {
-      if (state.salvandoNatureza) return { label: 'SALVANDO…', desabilitado: true, salva: false };
-      if (catalogo !== 'ok') return { label: 'SALVAR NATUREZA', desabilitado: true, salva: false };
-      if ((f.codigo || '') !== (f.ultimoSalvo || '')) return { label: 'SALVAR NATUREZA', desabilitado: false, salva: false };
-      return { label: f.ultimoSalvo ? '✓ NATUREZA SALVA' : 'SALVAR NATUREZA', desabilitado: true, salva: !!f.ultimoSalvo };
-    }
-    function renderNaturezaBloco(a) {
-      var f = naturezaFormDe(a);
-      var catalogo = window.faNaturezas.estado();
-      var atual = naturezaDoItem(a);
-      var opcoes = window.faNaturezas.opcoesParaSelecao(atual && atual.codigo);
-      /* Natureza registrada no formato antigo, cujo código já não existe no
-         catálogo (ex.: 'programa'): continua aparecendo no seletor, pelo nome
-         da época, para não parecer que a avaliação ficou sem natureza. */
-      if (atual && atual.codigo && !opcoes.some(function (o) { return o.codigoEstavel === atual.codigo; })) {
-        opcoes = opcoes.concat([{ codigoEstavel: atual.codigo, nome: atual.nome, descricao: atual.descricao }]);
+    /* ===================== NATUREZA COMPLEMENTAR (registro histórico) =====================
+       O campo foi retirado em 17/10/2026: sem edição, sem catálogo. Quando a versão tem uma natureza
+       registrada, ela aparece aqui só para consulta, com o nome e a descrição DA ÉPOCA e quem a
+       registrou; sem natureza, nada aparece. As alterações antigas continuam no histórico da curadoria. */
+    function renderNaturezaHistorica(a) {
+      var n = naturezaDoItem(a);
+      if (!n) return '';
+      var html = '<div class="avp-natureza-bloco avp-curadoria-sub" id="avpNaturezaHistorica">';
+      html += '<h5>Natureza complementar <span class="avp-config-readonly-tag">(registro histórico)</span></h5>';
+      html += '<p class="avp-natureza-valor"><strong id="avpNaturezaHistoricaNome">' + esc(n.nome) + '</strong></p>';
+      if (n.descricao) html += '<p class="avp-natureza-descricao" id="avpNaturezaHistoricaDescricao">' + esc(n.descricao) + '</p>';
+      if (n.definidaPor || n.definidaEm) {
+        html += '<p class="avp-history-note" id="avpNaturezaHistoricaRegistro">Registrada' +
+          (n.definidaPor ? ' por ' + esc(n.definidaPor.name || n.definidaPor.email || '') : '') +
+          (n.definidaEm ? ' em ' + esc(fmtData(n.definidaEm)) : '') + '.</p>';
       }
-      var escolhida = f.codigo ? opcoes.filter(function (o) { return o.codigoEstavel === f.codigo; })[0] : null;
-      var html = '<div class="avp-natureza-bloco avp-curadoria-sub" id="avpNaturezaBloco">';
-      html += '<h5>Natureza complementar</h5>';
-      html += '<div class="avp-field">';
-      html += '<label for="avpNaturezaComplementar">Natureza complementar <span class="avp-config-readonly-tag">(opcional)</span></label>';
-      html += '<p class="avp-natureza-ajuda">Descrição adicional do item. Não altera respostas, classificação, camada, motor nem exige reprocessamento — pode ser mudada a qualquer momento.</p>';
-      html += '<select class="avp-select" id="avpNaturezaComplementar"' + (catalogo !== 'ok' || state.salvandoNatureza ? ' disabled' : '') + '>';
-      html += '<option value=""' + (!f.codigo ? ' selected' : '') + '>' + (catalogo === 'carregando' ? 'Carregando opções…' : 'Nenhuma') + '</option>';
-      opcoes.forEach(function (o) {
-        html += '<option value="' + esc(o.codigoEstavel) + '"' + (f.codigo === o.codigoEstavel ? ' selected' : '') + '>' + esc(o.nome) + '</option>';
-      });
-      html += '</select>';
-      if (escolhida && escolhida.descricao) html += '<p class="avp-natureza-descricao" id="avpNaturezaDescricao">' + esc(escolhida.descricao) + '</p>';
-      html += '</div>';
-      html += avisoCatalogoNaturezas('avpNaturezaTentarNovamente');
-      if (atual) {
-        html += '<p class="avp-history-note" id="avpNaturezaRegistro">Registrada: <strong>' + esc(atual.nome) + '</strong>' +
-          (atual.definidaPor ? ' por ' + esc(atual.definidaPor.name || atual.definidaPor.email || '—') : '') +
-          (atual.definidaEm ? ' em ' + fmtData(atual.definidaEm) : '') + '.</p>';
-      }
-      if (f.erro) html += '<p class="avp-error-msg">' + esc(f.erro) + '</p>';
-      if (state.flashNatureza) {
-        html += '<p class="avp-flash-success avp-flash-success--inline" id="avpFlashNatureza">' + esc(state.flashNatureza) +
-          ' <button type="button" class="avp-flash-close" id="avpFlashNaturezaClose" aria-label="Fechar">×</button></p>';
-      }
-      var estado = estadoBotaoNatureza(f, catalogo);
-      html += '<button class="btn btn--primary avp-btn-decisao' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarNaturezaBtn"' +
-        (estado.desabilitado ? ' disabled' : '') + '>' + esc(estado.label) + '</button>';
+      html += '<p class="avp-natureza-ajuda" id="avpNaturezaHistoricaAviso">Campo retirado: não aceita mais alterações. O registro é mantido só para consulta e não altera classificação, decisão nem motor.</p>';
       html += '</div>';
       return html;
     }
-    function bindNaturezaBloco() {
-      var sel = document.getElementById('avpNaturezaComplementar');
-      if (sel) sel.addEventListener('change', function () {
-        if (state.salvandoNatureza || !state.naturezaForm) return;
-        state.naturezaForm.codigo = sel.value;
-        state.naturezaForm.erro = null;
-        state.flashNatureza = null;
-        render();
-      });
-      var btn = document.getElementById('avpSalvarNaturezaBtn');
-      if (btn) btn.addEventListener('click', salvarNatureza);
-      var fechar = document.getElementById('avpFlashNaturezaClose');
-      if (fechar) fechar.addEventListener('click', function () { state.flashNatureza = null; render(); });
-      var tentar = document.getElementById('avpNaturezaTentarNovamente');
-      if (tentar) tentar.addEventListener('click', function () { window.faNaturezas.recarregar(); });
-    }
-    /* Salvamentos da natureza, por avaliação. Cada envio ganha um número (ultima); `pendente` é o
-       envio mais recente que ainda não teve resposta. Regras:
-       - resposta antiga nunca vence a nova: só o envio mais recente mexe na tela (valor, "salvo",
-         aviso); a resposta de um envio anterior, mesmo chegando depois, só registra a linha de
-         auditoria dela no histórico local;
-       - confirmação atrasada (depois do relógio de 12 s) não é descartada: se ainda for o envio
-         mais recente, a tela passa a mostrar o valor como salvo;
-       - o "valor anterior" da auditoria segue a ordem em que o Firebase aplica as gravações de um
-         mesmo cliente: com um envio ainda sem resposta, o anterior real é o valor desse envio;
-       - o MESMO valor de um envio ainda sem resposta não é enviado de novo (seria uma segunda linha
-         de auditoria para uma mudança só). */
-    var operacoesNatureza = {};
-    var epocaSessao = 0;
-    function salvarNatureza() {
-      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
-      if (state.salvandoNatureza) return; /* clique repetido enquanto já está salvando: ignora */
-      var a = state.atual;
-      var f = state.naturezaForm;
-      if (!a || !f || !a._key) return;
-      if (estadoBotaoNatureza(f, window.faNaturezas.estado()).desabilitado) return;
-      var chave = a._key;
-      var ops = operacoesNatureza[chave] = operacoesNatureza[chave] || { ultima: 0, pendente: null };
-      var registrado = naturezaDoItem(a);
-      var anterior = ops.pendente ? ops.pendente.valor : (registrado ? { codigo: registrado.codigo || null, nome: registrado.nome } : null);
-      var codigoNovo = f.codigo || '';
-      if (ops.pendente && ((ops.pendente.valor && ops.pendente.valor.codigo) || '') === codigoNovo) {
-        f.erro = 'Este mesmo valor ainda aguarda a confirmação do salvamento anterior. A tela avisa quando ela chegar.';
-        render();
-        return;
-      }
-      var opcao = null;
-      if (codigoNovo) {
-        opcao = window.faNaturezas.porCodigo(codigoNovo);
-        if (!opcao && registrado && registrado.codigo === codigoNovo) opcao = { codigoEstavel: registrado.codigo, nome: registrado.nome, descricao: registrado.descricao };
-        if (!opcao) { f.erro = 'Essa opção não existe mais no catálogo. Escolha outra.'; render(); return; }
-      }
-      var sess = sessaoAtual();
-      var agora = new Date().toISOString();
-      var campos = {
-        naturezaComplementarCodigo: opcao ? opcao.codigoEstavel : null,
-        naturezaComplementarNomeNaEpoca: opcao ? opcao.nome : null,
-        naturezaComplementarDescricaoNaEpoca: opcao && opcao.descricao ? opcao.descricao : null,
-        naturezaComplementarDefinidaPor: opcao ? sess : null,
-        naturezaComplementarDefinidaEm: opcao ? agora : null
-      };
-      /* UMA gravação atômica: os campos da natureza + a linha de auditoria.
-         Nunca motorVersion, respostas, classificação nem atualizadoEm; o campo
-         do formato antigo (naturezaComplementar) é limpo para não sobrar dois
-         valores. A avaliação e a auditoria nunca divergem: ou gravam as duas
-         coisas, ou nenhuma. */
-      var updates = {};
-      Object.keys(campos).forEach(function (k) { updates[NODE + '/' + chave + '/' + k] = campos[k]; });
-      updates[NODE + '/' + chave + '/naturezaComplementar'] = null;
-      var chaveAud = window.faNaturezas.NODE_AUDITORIA + '/' + chave;
-      var valorNovo = opcao ? { codigo: opcao.codigoEstavel, nome: opcao.nome } : null;
-      var linhaNatureza = {
-        tipo: 'alteracao_natureza_complementar',
-        avaliacaoId: chave, avaliacaoNome: a.nome || null,
-        valorAnterior: anterior,
-        valorNovo: valorNovo,
-        usuario: sess, dataHora: agora
-      };
-      updates[chaveAud + '/' + db().ref(chaveAud).push().key] = linhaNatureza;
-      var meu = ++ops.ultima, epoca = epocaSessao;
-      ops.pendente = { seq: meu, valor: valorNovo };
-      f.erro = null;
-      state.salvandoNatureza = true;
-      render();
 
-      var atrasou = false;
-      var relogio = setTimeout(function () {
-        if (epoca !== epocaSessao || meu !== ops.ultima || !ops.pendente || ops.pendente.seq !== meu) return;
-        atrasou = true;
-        state.salvandoNatureza = false;
-        if (state.naturezaForm === f) f.erro = 'A conexão está demorando e ainda não deu para confirmar o salvamento. Ele continua pendente: a tela avisa quando a confirmação chegar.';
-        render();
-      }, 12000);
-      function aoResponder(err) {
-        clearTimeout(relogio);
-        if (epoca !== epocaSessao) return; /* outra pessoa entrou depois do envio */
-        if (ops.pendente && ops.pendente.seq === meu) ops.pendente = null;
-        var maisRecente = meu === ops.ultima;
-        if (err) {
-          console.error('[avaliacao-produto] erro ao salvar natureza complementar:', err);
-          if (!maisRecente) return; /* um envio mais novo já cuida da tela */
-          state.salvandoNatureza = false;
-          if (state.naturezaForm === f) f.erro = 'Não foi possível salvar a natureza complementar. Tente novamente.';
-          render();
-          return;
-        }
-        adicionarAoHistoricoLocal([linhaNatureza]); /* a linha existe no banco, seja qual for o envio */
-        if (!maisRecente) { render(); return; }    /* resposta antiga: nunca restaura o valor anterior */
-        state.salvandoNatureza = false;
-        Object.assign(a, campos);
-        a.naturezaComplementar = null;
-        state.itens = upsertItem(state.itens, clonarItem(a));
-        if (state.naturezaForm === f) {
-          f.ultimoSalvo = codigoNovo;
-          f.erro = null;
-          state.flashNatureza = (codigoNovo ? '✓ Natureza complementar salva com sucesso.' : '✓ Natureza complementar removida.') +
-            (atrasou ? ' (A confirmação chegou com atraso.)' : '');
-        }
-        render();
-      }
-      try {
-        db().ref().update(updates, aoResponder);
-      } catch (e) {
-        aoResponder(e);
-      }
-    }
     /* Os três estados que a seção pede: nunca salvo (ativo, "SALVAR
        DECISÃO"), salvo e sem mudança (desabilitado, "✓ DECISÃO SALVA") e
        alterado depois de já ter salvo (ativo de novo, "SALVAR ALTERAÇÃO").
@@ -8720,7 +8334,6 @@
       if (ta) ta.addEventListener('input', function () { state.decisaoForm.justificativa = ta.value; });
       var btn = document.getElementById('avpSalvarDecisaoBtn');
       if (btn) btn.addEventListener('click', salvarDecisao);
-      bindNaturezaBloco();
       var flashDecisaoClose = document.getElementById('avpFlashDecisaoClose');
       if (flashDecisaoClose) flashDecisaoClose.addEventListener('click', function () { state.flashDecisao = null; render(); });
     }
@@ -9884,8 +9497,6 @@
     }
     var ultimaAssinatura = assinaturaDeAcesso();
     function resetarPorSessao() {
-      epocaSessao++; /* respostas de salvamentos da pessoa anterior não mexem mais na tela */
-      operacoesNatureza = {};
       if (refItens) { try { refItens.off('value', aoChegarItens); } catch (e) { /* já cancelada pelo banco */ } refItens = null; }
       cargaIniciada = false; /* a leitura do banco depende de quem é a pessoa: liga de novo no acesso dela */
       var novo = novoEstado();
