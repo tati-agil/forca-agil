@@ -227,7 +227,7 @@
       porque: 'Sem um posicionamento firme não há tipo de estrutura com que registrar o vínculo.', onde: 'Ficha do Posicionamento deste registro.', quem: QUEM_POSICIONA };
     if (e.id === 'estrutura') return { etapa: e.id, falta: 'Uma estrutura concreta ativa do tipo ' + (tipo || 'recomendado') + '.',
       porque: 'O Posicionamento definiu o tipo, mas não cria a estrutura; o vínculo só pode ser registrado com uma estrutura desse tipo.',
-      onde: 'ADMIN › Avaliações e Mapa › Estruturas do Mapa da Floresta (o tipo já vem escolhido; você confere antes de salvar). Depois, volte para este registro.', quem: QUEM_POSICIONA };
+      onde: 'Gestão da Floresta › Estruturas do Mapa da Floresta (o tipo já vem escolhido; você confere antes de salvar). Depois, volte para este registro.', quem: QUEM_POSICIONA };
     if (e.id === 'vinculo') return { etapa: e.id, falta: e.estado === 'revisao' ? 'Revisar a estrutura responsável: o vínculo precisa de revisão.' : 'Registrar a estrutura responsável (o vínculo).',
       porque: 'A estrutura já existe, mas o Posicionamento sozinho não cria o vínculo; é o vínculo que leva este registro ao Mapa.', onde: 'Ficha do Posicionamento › Estrutura responsável.', quem: QUEM_POSICIONA };
     return null;
@@ -424,7 +424,7 @@
         });
       });
     }
-    function rotuloVoltar() { var v = voltaAdmin(); return v ? '← Voltar para ' + esc(v.rotulo || 'Avaliações e Mapa') : '← Voltar para A Floresta'; }
+    function rotuloVoltar() { var v = voltaAdmin(); return v ? '← Voltar para ' + esc(v.rotulo || 'a Gestão da Floresta') : '← Voltar para A Floresta'; }
     function sairParaAvaliacoes() {
       var va = voltaAdmin();
       if (va && window.faVoltarParaOrigem) { window.faVoltarParaOrigem(va.hash, va.aba); return; }
@@ -675,7 +675,7 @@
         posicionamento: x.rascunhoId ? '#arquitetura?po=' + encodeURIComponent(x.rascunhoId) : x.origem === ORIGEM_PORTA2 ? '#arquitetura?po=atuacoes&item=' + volta : '#arquitetura?po=escolher&item=' + volta,
         ficha: pos ? '#arquitetura?po=' + encodeURIComponent(pos.avaliacaoId) : null,
         vinculo: pos ? '#arquitetura?po=' + encodeURIComponent(pos.avaliacaoId) + '&bloco=responsavel' : null,
-        novaEstrutura: x.efetivo ? '#admin?arq=estruturas&nova=' + encodeURIComponent(x.efetivo.codigo) + '&objeto=' + volta : null,
+        novaEstrutura: x.efetivo ? '#arquitetura?arq=estruturas&nova=' + encodeURIComponent(x.efetivo.codigo) + '&objeto=' + volta : null,
         mapa: cad && cad.vinculo && cad.vinculo.estruturaId ? '#arquitetura?mf=mapa&e=' + encodeURIComponent(cad.vinculo.estruturaId) + '&item=' + volta : null
       };
     }
@@ -1104,7 +1104,7 @@
         (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + (e.alteradaPor ? ' · ' + esc(e.alteradaPor.email || e.alteradaPor.id) : '') + '</dd>' : '') + '</dl>' +
         '<h4 class="mfm-objetos-titulo">Produtos, serviços e atuações sob esta estrutura</h4>' +
         produtosDaEstruturaHtml(e) +
-        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#admin?arq=estruturas&e=' + encodeURIComponent(e.id) + '">' + (gravacaoAtiva() ? 'Abrir a ficha no cadastro (editar ou encerrar)' : 'Abrir a ficha no cadastro') + '</a>' : '');
+        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#arquitetura?arq=estruturas&e=' + encodeURIComponent(e.id) + '">' + (gravacaoAtiva() ? 'Abrir a ficha no cadastro (editar ou encerrar)' : 'Abrir a ficha no cadastro') + '</a>' : '');
       return h + '</aside>';
     }
     function renderMapaTela() {
@@ -1120,7 +1120,7 @@
         '<div class="mfm-acoes"><button type="button" class="mfm-acao" id="mfVoltar">' + rotuloVoltar() + '</button>' +
         (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(voltaItem) + '">← Voltar ao registro</a>' : '') +
         (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver os Trabalhos</button>' : '') +
-        (podeManterEstruturas() ? '<a class="mfm-acao" id="mfmDefinicao" href="#admin?arq=inicio">Definição oficial do Mapa</a>' : '') + '</div></div>';
+        (podeManterEstruturas() ? '<a class="mfm-acao" id="mfmDefinicao" href="#arquitetura?arq=inicio">Definição oficial do Mapa</a>' : '') + '</div></div>';
       if (cadastroDisponivel() && autorizacaoResolvida() && podeLer()) h += '<div class="mfm-cenarios mfm-fontes" role="group" aria-label="Dados do Mapa"><span class="mfm-cenarios-rotulo">Dados:</span>' +
         [['cadastro', 'Estruturas cadastradas'], ['demo', 'Demonstração (fictícia)']].map(function (o) {
           return '<button type="button" class="mfm-cenario mfm-fonte' + (fonte === o[0] ? ' mfm-cenario--ativo' : '') + '" data-fonte="' + o[0] + '" aria-pressed="' + (fonte === o[0]) + '">' + o[1] + '</button>';
@@ -1133,7 +1133,7 @@
       else if (fonte === 'cadastro') h += '<div class="mfm-faixa mfm-faixa--cadastro" id="mfmFaixa" role="note">' + (emTestes() ? '<strong>Ambiente de testes.</strong> Estruturas cadastradas no Firebase Emulator — não são dados do banco oficial.' + (gravacaoAtiva() ? '' : ' Gravação suspensa: só consulta.')
           : '<strong>Estruturas organizacionais cadastradas.</strong>' + (gravacaoAtiva() ? '' : ' Gravação suspensa: só consulta.')) +
         (pronto ? ' <span class="mfm-legenda">Cada caixa é uma estrutura cadastrada: clique para ver os detalhes.</span>' : '') +
-        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? ' <a class="mfm-link-cadastro" id="mfmIrCadastro" href="#admin?arq=estruturas">' + (gravacaoAtiva() ? 'Cadastrar ou editar estruturas' : 'Abrir o cadastro (só consulta)') + '</a>' : '') + '</div>';
+        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? ' <a class="mfm-link-cadastro" id="mfmIrCadastro" href="#arquitetura?arq=estruturas">' + (gravacaoAtiva() ? 'Cadastrar ou editar estruturas' : 'Abrir o cadastro (só consulta)') + '</a>' : '') + '</div>';
       else h += '<div class="mfm-faixa" id="mfmFaixa" role="note"><strong>Demonstração.</strong> ' + esc(demo() ? demo().AVISO : '') +
         (pronto ? ' <span class="mfm-legenda">Cada caixa é uma estrutura concreta de exemplo: clique para ver os detalhes.</span>' : '') + '</div>';
       if (!autorizacaoResolvida()) h += '<p class="mfm-msg" role="status">Carregando…</p>';

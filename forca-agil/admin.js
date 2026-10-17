@@ -12,14 +12,6 @@
     document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.panel === target); });
     document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === target); });
     if (target === 'adminPanelManual') abrirManual();
-    /* A Taxonomia carrega ao abrir a aba — por QUALQUER caminho: clique na aba, atalho do Início de Avaliações, link do
-       Manual, F5 (faAdminAbrirAba). Antes só o clique carregava, e os outros caminhos ficavam em "Carregando a Taxonomia…".
-       Abrir de novo não relê nada: abrir() só lê o que está ocioso ou com erro. */
-    if (target === 'adminPanelTaxonomia' && window.faTaxonomia && window.faTaxonomia.abrir) {
-      /* vinda do Início de Avaliações: abre no domínio da atividade de origem (arquitetural/organizacional) */
-      var m = marcaVoltaInicio();
-      window.faTaxonomia.abrir(m && m.faTaxDominio ? { dominio: m.faTaxDominio, pedido: m.faTaxPedido || 0 } : undefined);
-    }
   }
 
   /* O Manual (manual.js) é documentação para a administradora: só é baixado na primeira vez que
@@ -58,7 +50,16 @@
   /* A Arquitetura tem endereço próprio por área (#admin?arq=…, ver avaliacao-produto.js):
      quem chega por ele (F5, Voltar do navegador) cai direto na aba; trocar para outra aba
      devolve o endereço a #admin, para um F5 lá não reabrir a Arquitetura. */
+  /* A FLORESTA — GESTÃO: "Avaliações e Mapa" e "Taxonomia" deixaram de ser abas do ADMIN; ficam na Gestão da Floresta
+     (#arquitetura?arq=<área>, avaliacao-produto.js). Quem pede uma delas pelo nome antigo (Manual, atalhos) é levado para
+     lá; já dentro da Gestão, só o painel é mostrado (sem tocar no histórico). */
+  var PAINEIS_GESTAO = { adminPanelArquitetura: 'inicio', adminPanelTaxonomia: 'taxonomia' };
+  function naGestao() { return /^#arquitetura\?(?:[^#]*&)?arq=/.test(location.hash || ''); }
   window.faAdminAbrirAba = function (target) {
+    if (PAINEIS_GESTAO[target]) {
+      if (!naGestao()) { location.hash = '#arquitetura?arq=' + PAINEIS_GESTAO[target]; return true; }
+      return window.faGestaoMostrar ? window.faGestaoMostrar(target) : false;
+    }
     var btn = document.querySelector('.admin-tab-btn[data-panel="' + target + '"]');
     if (!btn || btn.hidden) return false;
     ativarAba(target);
@@ -87,28 +88,23 @@
   window.addEventListener('hashchange', function () { window.faAdminAtualizarVoltaInicio(); });
   window.addEventListener('popstate', function () { window.faAdminAtualizarVoltaInicio(); });
 
-  /* TAXONOMIA ABERTA A PARTIR DE "AVALIAÇÕES E MAPA" — origem registrada no histórico do navegador, como o atalho do Início:
-     a entrada de origem ganha faAbaAtual (a aba em que a pessoa estava) e a posição da rolagem; a nova entrada, faAbaAtual =
-     Taxonomia e faTaxOrigem (de onde veio). A Taxonomia mostra "← Voltar para Avaliações e Mapa" só com essa marca, nos três
-     espaços; o retorno é o Voltar do navegador (mesma área, mesma posição). F5 e Avançar reabrem a aba certa pela marca.
-     Entrar pela própria aba Taxonomia não inventa origem: trocar de aba à mão apaga a marca da entrada atual. Nada aqui
-     descarta o que está sendo editado na Taxonomia: o estado dela fica na memória enquanto a aba está escondida. */
+  /* TAXONOMIA ABERTA A PARTIR DE OUTRA TELA (Gestão da Floresta, atalhos): a Taxonomia é a área #arquitetura?arq=taxonomia
+     da Gestão, e a origem é a do faNav — a mesma de toda a Floresta. A Taxonomia mostra "← Voltar para <origem>" só com
+     essa marca, nos três espaços; o retorno é o Voltar do navegador, conferido. Entrar direto não inventa origem. Nada aqui
+     descarta o que está sendo editado na Taxonomia: o estado dela fica na memória enquanto a área está escondida. */
   function noAdmin() { return /^#admin(\?|$)/.test(location.hash || ''); }
   window.faAdminOrigemTaxonomia = function () {
-    var st = history.state;
-    return st && st.faTaxOrigem && st.faAbaAtual === 'adminPanelTaxonomia' && noAdmin() ? st.faTaxOrigem : null;
+    if (!/^#arquitetura\?(?:[^#]*&)?arq=taxonomia(&|$)/.test(location.hash || '')) return null;
+    return window.faNav ? window.faNav.origem() : null;
   };
-  window.faAdminIrTaxonomiaComOrigem = function () {
-    var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
-    if (!t || t.hidden) return false;
-    var aqui = location.hash || '#admin';
-    var base = {}; var st = history.state || {}; Object.keys(st).forEach(function (k) { if (k !== 'faTaxOrigem') base[k] = st[k]; });
-    base.faAbaAtual = 'adminPanelArquitetura'; base.faRolagem = window.pageYOffset || 0;
-    history.replaceState(base, '', aqui);
-    history.pushState({ faAbaAtual: 'adminPanelTaxonomia', faTaxOrigem: { aba: 'adminPanelArquitetura', rotulo: 'Avaliações e Mapa', hash: aqui } }, '', '#admin');
-    ativarAba('adminPanelTaxonomia');
-    var painel = document.getElementById('adminPanelTaxonomia');
-    if (painel && painel.scrollIntoView && painel.getBoundingClientRect().top < 0) painel.scrollIntoView({ block: 'start' });
+  /* só para quem tem a Taxonomia (admin geral) — nunca um atalho para área inacessível */
+  window.faAdminPodeTaxonomia = function () {
+    var A = window.faAuth, s = A && A.getSession && A.getSession();
+    return !!(s && A.isAdmin && A.isAdmin(s.email));
+  };
+  window.faAdminIrTaxonomiaComOrigem = function (dominio) {
+    if (!window.faAdminPodeTaxonomia() || !window.faNav) return false;
+    window.faNav.ir('#arquitetura?arq=taxonomia' + (dominio ? '&dominio=' + encodeURIComponent(dominio) : ''));
     return true;
   };
   /* RETORNO À ORIGEM, CONFERIDO: o Voltar do navegador devolve a mesma área e a mesma posição; se ele não levar ao endereço
@@ -135,6 +131,12 @@
      As telas que empilham entradas próprias copiam a marca (faNav.comOrigem), para a origem não se perder no caminho.
      avp:1 nas entradas criadas aqui: a área Avaliação não as reescreve. */
   var ROTULOS_ORIGEM = [
+    /* Gestão da Floresta (#arquitetura?arq=<área>; o antigo #admin?arq= é reescrito): antes das demais, porque o endereço
+       de uma área pode levar parâmetros de volta (&po=, &objeto=) */
+    [/^#(?:arquitetura|admin)\?arq=taxonomia/, 'a Taxonomia'],
+    [/^#(?:arquitetura|admin)\?arq=estruturas/, 'as Estruturas do Mapa da Floresta'],
+    [/^#(?:arquitetura|admin)\?arq=documentacao/, 'a Documentação'],
+    [/^#(?:arquitetura|admin)\?arq=/, 'a Gestão da Floresta'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?(tr=1|mf=catalogo)(&.*)?&item=/, 'o registro'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?(tr=1|mf=catalogo)/, 'os Trabalhos'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?po=(lista|todas|atuacoes)(&|$)/, 'os Posicionamentos'],
@@ -145,9 +147,7 @@
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?(avp|editar)=/, 'a avaliação de Produto/Serviço'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],
     [/^#(?:arquitetura|avaliacoes)$/, 'o Início da Floresta'],
-    [/^#admin\?arq=estruturas/, 'as Estruturas do Mapa da Floresta'],
-    [/^#admin\?arq=documentacao/, 'os Documentos de referência'],
-    [/^#admin/, 'Avaliações e Mapa']
+    [/^#admin/, 'o ADMIN']
   ];
   function rotuloOrigem(hash) { for (var i = 0; i < ROTULOS_ORIGEM.length; i++) if (ROTULOS_ORIGEM[i][0].test(hash || '')) return ROTULOS_ORIGEM[i][1]; return 'a tela anterior'; }
   function origemValida(o) { return !!(o && typeof o.hash === 'string' && /^#(arquitetura|avaliacoes|admin)(\?|$)/.test(o.hash)); }
@@ -278,7 +278,6 @@
     /* Quem entra aqui como admin geral na MESMA página em que antes esteve o admin restrito
        (sem recarregar) encontraria o cabeçalho do ADMIN ainda escondido por ele. */
     restaurarAdminCompleto();
-    atalhoTaxonomia(true);
     migrateNameCase();
     migrarEsperaPorOrigem();
     migrarEsperaEventoKey();
@@ -296,65 +295,18 @@
     loadSorteios();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
-    /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
-       já existir na primeira renderização do bloco de Avaliação. */
-    if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
-    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
+    /* Avaliações e Mapa e Taxonomia: na Gestão da Floresta (avaliacao-produto.js sobe os módulos ao abrir #arquitetura?arq=…) */
     initCertificados();
     window.faAdminAtualizarVoltaInicio();
     aplicarAbaDoHistorico();
   }
 
-  /* Admin restrito ("Avaliação + Configuração"): só o painel Avaliação e Mapa.
-     Esconde as demais abas e painéis (não só o menu) e inicia apenas os dois
-     módulos dele. O cartão "Usuários autorizados" não aparece (avaliacao-produto.js
-     só o mostra para admin geral) e as regras do banco negam o resto. */
-  var PAINEL_INICIAL_ADMIN = 'adminPanelInteresses'; /* o que o HTML abre ativo */
-  /* "Abrir a aba Taxonomia" (na área Avaliações e Mapa): só para quem tem a aba — nunca um atalho para área inacessível */
-  function atalhoTaxonomia(visivel) {
-    var b = document.getElementById('admArqIrTaxonomia'), aba = document.querySelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
-    if (!b) return;
-    b.hidden = !(visivel && aba && !aba.hidden);
-    if (!b._ligado) { b._ligado = true; b.addEventListener('click', function () { window.faAdminIrTaxonomiaComOrigem(); }); }
-  }
-  var _adminRestritoAplicado = false;
-  /* Desfaz initAdminArquitetura: abas, barra e painéis de volta ao que o HTML entrega. Só age se o
-     restrito de fato rodou antes nesta página — não mexe na aba que o admin geral estava vendo. */
-  function restaurarAdminCompleto() {
-    if (!_adminRestritoAplicado) return;
-    _adminRestritoAplicado = false;
-    document.querySelectorAll('.admin-tab-btn').forEach(function (b) {
-      b.hidden = false;
-      b.classList.toggle('active', b.dataset.panel === PAINEL_INICIAL_ADMIN);
-    });
-    document.querySelectorAll('.admin-tab-panel').forEach(function (p) {
-      p.hidden = false;
-      p.classList.toggle('active', p.id === PAINEL_INICIAL_ADMIN);
-    });
-    var bar = document.querySelector('.admin-tabs-bar');
-    if (bar) bar.hidden = false;
-  }
-
+  /* "Avaliação + Configuração" (sem ser admin geral): a área dela — Avaliações e Mapa — é a Gestão da Floresta, dentro de
+     A FLORESTA; no ADMIN não há nada para esse perfil. O router já redireciona quando o perfil é conhecido; aqui cobre o
+     caso de ele chegar depois de o ADMIN abrir (rede lenta). As regras do banco seguem negando o resto. */
+  function restaurarAdminCompleto() { /* o ADMIN não esconde mais abas para o perfil restrito: nada a desfazer */ }
   function initAdminArquitetura() {
-    _adminRestritoAplicado = true;
-    atalhoTaxonomia(false);
-    document.querySelectorAll('.admin-tab-btn').forEach(function (b) {
-      var arq = b.dataset.panel === 'adminPanelArquitetura';
-      b.hidden = !arq;
-      b.classList.toggle('active', arq);
-    });
-    document.querySelectorAll('.admin-tab-panel').forEach(function (p) {
-      var arq = p.id === 'adminPanelArquitetura';
-      p.hidden = !arq;
-      p.classList.toggle('active', arq);
-    });
-    var bar = document.querySelector('.admin-tabs-bar');
-    if (bar) bar.hidden = true;
-    /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
-       já existir na primeira renderização do bloco de Avaliação. */
-    if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
-    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
-    window.faAdminAtualizarVoltaInicio();
+    if (/^#admin(\?|$)/.test(location.hash || '')) location.replace('#arquitetura?arq=inicio');
   }
 
   /* fa-espera guardava UMA entrada por pessoa. Agora guarda uma por pessoa e

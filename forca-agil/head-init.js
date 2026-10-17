@@ -10,8 +10,11 @@ document.documentElement.classList.add('js');
   /* A FLORESTA: a antiga Jornada de Avaliação e Posicionamento (?mf=catalogo) agora faz parte de Trabalhos (?tr=1);
      o objeto em foco (&item=) e os demais parâmetros seguem iguais */
   var JORNADA = /^(#arquitetura\?(?:[^#]*&)?)mf=catalogo(?=&|$)/;
+  /* A FLORESTA — GESTÃO: as áreas de ADMIN › Avaliações e Mapa (#admin?arq=<área>) agora ficam em A Floresta, no mesmo
+     endereço de área (#arquitetura?arq=<área>) — favoritos, links e entradas antigas do histórico continuam valendo */
+  var GESTAO = /^#\/?admin\?((?:[^#]*&)?arq=)/;
   function normalizar() {
-    var h = location.hash || '', n = h.replace(ANTIGO, '#arquitetura').replace(JORNADA, '$1tr=1');
+    var h = location.hash || '', n = h.replace(ANTIGO, '#arquitetura').replace(JORNADA, '$1tr=1').replace(GESTAO, '#arquitetura?$1');
     if (n !== h) history.replaceState(history.state, '', n);
   }
   window.faRotaArquitetura = { ROTA: '#arquitetura', normalizar: normalizar };

@@ -43,6 +43,10 @@
   function podeVerAdmin(s) {
     return !!(s && window.faAuth && (window.faAuth.isAdmin(s.email) || (window.faAuth.podeArquitetura && window.faAuth.podeArquitetura())));
   }
+  /* quem entra no ADMIN só pela Arquitetura ("Avaliação + Configuração", sem ser admin geral) — decidido, nunca "ainda não sei" */
+  function soGestao(s) {
+    return !!(s && adminDecidido() && !window.faAuth.isAdmin(s.email) && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura());
+  }
   function adminDecidido() {
     return listaAdminsPronta() && avaliacoesPronta();
   }
@@ -65,6 +69,8 @@
     /* Link antigo de uma avaliação (#admin?avp=<chave>, de quando a tela só
        existia dentro do Admin) continua abrindo a mesma avaliação, agora na
        área Avaliação. */
+    /* Gestão da Floresta: a área antiga do ADMIN (#admin?arq=<área>) é reescrita por head-init.js para #arquitetura?arq=<área> */
+    if (h === 'admin' && /(^|[?&])arq=/.test(bruto) && window.faRotaArquitetura) { window.faRotaArquitetura.normalizar(); h = 'avaliacoes'; }
     if (h === 'admin' && /(^|[?&])avp=/.test(bruto)) {
       history.replaceState(null, '', '#arquitetura?' + bruto.split('?').slice(1).join('?'));
       h = 'avaliacoes';
@@ -78,6 +84,8 @@
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
       if (!s || (!podeVerAdmin(s) && adminDecidido())) { location.hash = '#home'; return; }
+      /* "Avaliação + Configuração" não tem mais nada no ADMIN: a área dela (Avaliações e Mapa) é a Gestão da Floresta */
+      if (soGestao(s)) { location.hash = '#arquitetura?arq=inicio'; return; }
     }
 
     if (page === 'facilitador' && !podeVerFacilitador(window.faAuth && window.faAuth.getSession())) {
@@ -154,6 +162,9 @@
       if (s && !podeVerAdmin(s) && adminDecidido()) {
         page = 'home';
         history.replaceState(null, '', '#home');
+      } else if (s && soGestao(s)) {
+        page = 'avaliacoes';
+        history.replaceState(null, '', '#arquitetura?arq=inicio');
       }
     }
 
@@ -240,7 +251,7 @@
      avaliacao-produto.js, no popstate). O hashchange chega numa tarefa DEPOIS do popstate; em
      máquina lenta, a subida genérica ao topo daqui rodava por último e desfazia a posição que a
      tela tinha acabado de devolver. */
-  const ehAreaDaArquitetura = (url) => /#admin\?(?:[^#]*&)?arq=/.test(url || '');
+  const ehAreaDaArquitetura = (url) => /#(?:arquitetura|admin)\?(?:[^#]*&)?arq=/.test(url || '');
   window.addEventListener('hashchange', function (e) {
     soAreaDaArquitetura = ehAreaDaArquitetura(e.oldURL) && ehAreaDaArquitetura(e.newURL);
     try { show(route()); } finally { soAreaDaArquitetura = false; }

@@ -96,7 +96,7 @@
       oque: 'Avaliação arquitetural de produtos e serviços e a Adequação à Squad (menu "Avaliação", endereço #arquitetura).',
       quem: 'Admin geral e quem está em "Usuários autorizados" (perfil funcional): "Avaliação" avalia; "Avaliação + Configuração" também faz a curadoria e a decisão arquitetural final.',
       importante: [
-        'O acesso vem só da lista de Usuários autorizados (ADMIN › Avaliações e Mapa, gerida pelo admin geral) e vale na hora, sem recarregar.',
+        'O acesso vem só da lista de Usuários autorizados (Gestão da Floresta, gerida pelo admin geral) e vale na hora, sem recarregar.',
         'O nome e a definição de cada classificação vêm da Taxonomia Arquitetural; o Manual não repete esses conceitos.',
         'As regras do banco aplicam o perfil: esconder botão não é a barreira.',
         'Texto novo de questionário não reescreve o passado: cada avaliação mostra a pergunta que foi respondida. Ao reavaliar, a pergunta cujo texto mudou pede SIM ou NÃO de novo.',
@@ -109,13 +109,13 @@
         'Catálogo do Mapa da Floresta, no botão de mesmo nome da lista (os três perfis, só consulta): mostra as três categorias do Mapa — Linha com as suas especializações, Área Especializada e CoE — e cada objeto avaliado com o que falta para ele chegar ao Mapa: Avaliação de Produto/Serviço válida, Posicionamento concluído ou decisão final de um "A validar" (que não é exclusão). Vale a decisão final; sem ela, a recomendação automática firme. Ainda não é o Mapa visual, e as estruturas concretas e os responsáveis ainda não aparecem: essa informação está indisponível nesta versão (virá com o cadastro das estruturas), o que é diferente de não existir.',
         'O Posicionamento vigente do item aparece na Adequação à Squad só como informação: nenhum item é bloqueado por ele (a antiga Exigência de Posicionamento foi retirada). Cada avaliação S guarda, ao ser criada, de onde veio a liberação naquele momento.',
       ],
-      links: [{ texto: 'Abrir a Avaliação de Produto/Serviço', href: '#arquitetura?av=lista' }, { texto: 'Ver os conceitos em ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
-      fonte: ['auth.js (getAvaliacaoTipo) e nó fa-avaliacao-autorizados', 'database.rules.json', 'Conceitos: ADMIN › Taxonomia'],
+      links: [{ texto: 'Abrir a Avaliação de Produto/Serviço', href: '#arquitetura?av=lista' }, { texto: 'Ver os conceitos na Taxonomia (Gestão da Floresta)', href: '#arquitetura?arq=taxonomia' }],
+      fonte: ['auth.js (getAvaliacaoTipo) e nó fa-avaliacao-autorizados', 'database.rules.json', 'Conceitos: Gestão da Floresta › Taxonomia'],
       prova: ['teste-rules-perfis-avaliacao.js', 'teste-avaliacoes-acessos.js', 'teste-classificacoes-fonte-unica.js', 'teste-squad-endereco.js', 'teste-avaliacao-posicionamento.js', 'teste-rules-posicionamento.js', 'teste-regras-posicionamento-tabela.js', 'teste-posicionamento-decisao.js', 'teste-rules-posicionamento-decisao.js', 'teste-posicionamento-exportacoes.js', 'teste-posicionamento-exportacao-nucleo.js', 'teste-squad-liberacao.js', 'teste-rules-squad-liberacao.js', 'teste-mapa-floresta-catalogo.js'] },
 
-    { id: 'arquitetura', titulo: 'Avaliações e Mapa',
+    { id: 'arquitetura', titulo: 'Gestão da Floresta (antes ADMIN › Avaliações e Mapa)',
       oque: 'Configuração da Avaliação de Produto/Serviço: questionários, motores, Motor de Squad, a seção do Mapa da Floresta (com a definição oficial), Documentos de referência e Usuários autorizados. As Naturezas Complementares foram retiradas em 17/10/2026: registros antigos aparecem só como histórico na ficha, no PDF e no Excel.',
-      quem: 'Admin geral e "Avaliação + Configuração" (que no ADMIN vê só esta aba). Usuários autorizados é só do admin geral.',
+      quem: 'Admin geral e "Avaliação + Configuração", dentro de A FLORESTA (#arquitetura?arq=inicio; o antigo #admin?arq= continua levando para lá). Usuários autorizados e Taxonomia são só do admin geral.',
       importante: [
         'Mudança de regra do motor só vale depois de simulada e publicada; cada publicação cria uma versão nova.',
         'A definição do Mapa da Floresta é mantida na seção do Mapa e os documentos em Configurações complementares; o Manual não copia o conteúdo.',
@@ -126,8 +126,8 @@
         'Motores › Motor de Posicionamento: a entrada em vigor de uma versão nova começa por uma proposta (com redação publicada, simulação e impacto calculados) e precisa de duas aprovações de pessoas diferentes de quem propôs, ao menos uma de admin geral; quem aprova reconhece o impacto calculado na hora. Se o impacto ou a redação mudarem, a proposta aparece desatualizada. Aprovar não põe nada em vigor.',
         'Fronteira confiável (servidor): "Validar redação no servidor" confere a redação publicada e registra a validação; "Conferir entrada em vigor no servidor" (só admin geral) recalcula tudo e mostra se a proposta aprovada está apta, sem mudar nada. Com uma proposta aprovada e apta, o botão "Ativar" só aparece quando o servidor informa que a ativação está habilitada (hoje está desligada no servidor); ativar põe a versão em vigor numa única gravação registrada e auditada, e voltar à v1 exige o mesmo rito (proposta e aprovação dupla). As avaliações existentes não mudam: só nascem na versão nova as avaliações novas, e uma antiga muda só por "Atualizar com motor atual". Se aparecer "Fronteira confiável indisponível", as funções ainda não foram implantadas: nada foi validado.',
       ],
-      links: [{ texto: 'Abrir ADMIN › Avaliações e Mapa', aba: 'adminPanelArquitetura' }],
-      fonte: ['ADMIN › Avaliações e Mapa (a própria tela)', 'database.rules.json'],
+      links: [{ texto: 'Abrir a Gestão da Floresta', href: '#arquitetura?arq=inicio' }],
+      fonte: ['Gestão da Floresta (a própria tela)', 'database.rules.json'],
       prova: ['teste-mapa-floresta.js', 'teste-arquitetura-documentacao.js', 'teste-motor-adicionar-condicao.js', 'teste-rules-perfis-avaliacao.js', 'teste-correcao-editorial-29-textos.js', 'teste-questionario-posicionamento.js', 'teste-rules-governanca-motor.js', 'teste-fronteira-posicionamento.js'] },
 
     { id: 'taxonomia', titulo: 'Taxonomia',
@@ -141,8 +141,8 @@
         'Em "Verificações do sistema", "Conexão com o Posicionamento" mostra se os 10 conceitos usados pelo motor de Posicionamento estão conectados, e "Conexão com a Avaliação", as 11 classificações; sem pendência, só "Nenhuma pendência" e os detalhes técnicos recolhidos. A área não mostra o andamento das avaliações nem do Mapa. Registrar o vínculo (prévia, depois confirmação; uma vez só) protege o conceito: vinculado, ele não pode ser inativado nem trocar entre "Tipo organizacional" e "Organização do trabalho". Enquanto faltar vínculo aparece um aviso destacado, e o acesso "Verificações do sistema e dados" (na Administração de um conceito) diz "requer atenção".',
         'No domínio organizacional, Linha, Área Especializada e CoE são as estruturas de posicionamento; Squad e Capítulo ficam em "Organização do trabalho", e Disciplina é conceito auxiliar. Trocar entre "Tipo organizacional" e "Organização do trabalho" pede motivo, fica no histórico e só vale para conceito sem pai e sem filho ativo (o banco confere por um índice de filhos ativos, construído uma única vez); filho inativo não impede.',
       ],
-      links: [{ texto: 'Abrir ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
-      fonte: ['ADMIN › Taxonomia (a própria tela)', 'database.rules.json'],
+      links: [{ texto: 'Abrir a Taxonomia (Gestão da Floresta)', href: '#arquitetura?arq=taxonomia' }],
+      fonte: ['Gestão da Floresta › Taxonomia (a própria tela)', 'database.rules.json'],
       prova: ['teste-rules-taxonomia.js', 'teste-rules-taxonomia-governanca.js', 'teste-taxonomia.js', 'teste-taxonomia-governanca.js', 'teste-taxonomia-camada-trabalho.js', 'teste-taxonomia-definicao.js', 'teste-rules-taxonomia-definicoes.js', 'teste-taxonomia-posicionamento-ligacoes.js', 'teste-posicionamentos-fonte-unica.js'] },
 
     { id: 'papeis', titulo: 'Facilitação, diretores e Minha Área',

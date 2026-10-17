@@ -3972,6 +3972,12 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .avp-mapa-como ul { margin: 6px 0 6px; padding-left: 18px; }
 .avp-mapa-como p { margin: 4px 0 0; }
 .avp-inicio-mapa { margin: 16px 0; }
+/* Gestão da Floresta no Início: o que sustenta as avaliações e o Mapa (só para quem pode abrir a Gestão) */
+.avp-inicio-gestao h3 { margin: 0 0 6px; }
+.avp-inicio-gestao-lista { margin: 8px 0 12px; padding-left: 18px; display: grid; gap: 4px; font-size: var(--arq-fs-texto); }
+.avp-inicio-gestao .avp-inicio-continuar-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.fl-gestao-painel > #flTaxVoltar { margin: 0 0 12px; }
+.fl-gestao-painel > #flTaxVoltar[hidden] { display: none; } /* .avp-voltar-link define display e venceria o hidden */
 @media (max-width: 720px) {
   .avp-mapa-acoes { flex-direction: column; align-items: stretch; }
   .avp-mapa-acoes .btn { width: 100%; }
@@ -4159,8 +4165,6 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 /* tabela compartilhada com o resto do site: só dentro do domínio */
 :is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) .admin-table { font-size: var(--arq-fs-aux); }
 :is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) .admin-table th { font-size: var(--arq-fs-meta); }
-/* o cabeçalho do ADMIN é compartilhado: corrige o negrito sintético só quando a aba aberta é da Arquitetura */
-#page-admin:has(#adminPanelArquitetura.active:not([hidden]), #adminPanelTaxonomia.active:not([hidden])) .admin-hero h1 { font-weight: 400; }
 
 /* ===== ARQUITETURA ORGANIZACIONAL: FOCO E ROLAGEM (Padrão Visual Oficial, seção 4) =====
    Auditoria de 17/10/2026 (Chromium e Edge no Windows, desktop e 375 px): campos, seletores, data, busca e modais do
@@ -4172,5 +4176,5 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
       antiga "#adminContent input:focus { outline: none }" apaga o contorno, e .btn nunca teve :focus-visible.
       Contorno no acento do tema (na Taxonomia, --accent já é o ciano dela), só para teclado (:focus-visible); o Mapa
       da Floresta mantém o seu contorno azul-escuro, próprio para a folha clara. */
-:root:has(#page-avaliacoes:not([hidden]), #page-admin:not([hidden]) :is(#adminPanelArquitetura, #adminPanelTaxonomia).active) { color-scheme: dark; }
+:root:has(#page-avaliacoes:not([hidden])) { color-scheme: dark; } /* a Gestão da Floresta (inclusive a Taxonomia) está em #page-avaliacoes */
 :is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) :is(a, button, input, select, textarea, summary, [tabindex]):not(.mfm-painel *, .mfm-detalhe *):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
