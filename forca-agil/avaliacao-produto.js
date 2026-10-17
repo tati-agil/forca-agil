@@ -4187,7 +4187,7 @@
             'Correções editoriais (' + corrs.length + ') — ' + (pend ? pend + ' pendente' + (pend === 1 ? '' : 's') : 'todas aplicadas'), !!pend,
             corrs.map(function (corr) { return renderCorrecaoEditorial(corr.id); }).join(''));
         }
-        if (codigo === window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL) {
+        if (codigo === window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL && governancaV2Visivel()) {
           html += recolhivel('cfgMotorV2', 'avpCfgMotorV2', 'avp-config-sub avp-config-sub--futura',
             'Versão futura inativa — redação para o motor de Posicionamento v2', false, renderConteudoMotorNovo(codigo, 2));
         }
@@ -6190,6 +6190,14 @@
        Não há ação de ativar: prontidão técnica não é autorização, e a entrada em vigor exige aprovação explícita
        (dupla, vinculada à versão exata do motor e da redação) e fronteira confiável — fase b. A simulação roda no
        navegador (núcleo puro); o impacto lê as avaliações uma vez e não grava nada. */
+    /* GOVERNANÇA DA V2 DO O1–O9 — DORMENTE. A v2 não está autorizada, a ativação está desligada no servidor
+       (ATIVACAO_HABILITADA = false em functions/index.js) e a fronteira confiável não está publicada: proposta, aprovação,
+       validação, ativação, redação da v2 e suspensão de publicações não produzem efeito. Por decisão da responsável
+       (2026-10-17) saem da apresentação; o código, as regras, os dados e os históricos ficam. Quando a v2 for autorizada,
+       reapresentar é trocar GOVERNANCA_V2_VISIVEL para true (decisão de código, não um controle do ADMIN). Os testes do
+       código dormente o ligam com window.FA_GOVERNANCA_V2 = true. */
+    var GOVERNANCA_V2_VISIVEL = false;
+    function governancaV2Visivel() { return GOVERNANCA_V2_VISIVEL || window.FA_GOVERNANCA_V2 === true; }
     var ROTULO_PRONTIDAO = {
       DEFINICAO_VALIDA: 'Definição do motor válida (regras fixas de domínio)', VERSAO_DIFERENTE_DA_EM_VIGOR: 'Versão diferente da que está em vigor',
       REDACAO_PUBLICADA_COMPATIVEL: 'Redação publicada e compatível com o motor', SIMULACAO_EXECUTADA: 'Simulação contra a versão em vigor executada',
@@ -6204,7 +6212,9 @@
     function renderPainelPosicionamento(flash) {
       var N = window.faMotorPosicionamentoNucleo, G = window.faGovernancaPosicionamento, Q = window.faQuestionarios;
       var ab = state.configMotores.abertos || {};
-      var SO_CONSULTA = '<p class="avp-ficha-meta" id="avpPosSoConsulta">A regra é fixa no sistema e esta tela não ativa versões: a entrada em vigor de uma versão nova é governada (aprovação dupla vinculada à versão e fronteira confiável).</p>';
+      var SO_CONSULTA = governancaV2Visivel()
+        ? '<p class="avp-ficha-meta" id="avpPosSoConsulta">A regra é fixa no sistema e esta tela não ativa versões: a entrada em vigor de uma versão nova é governada (aprovação dupla vinculada à versão e fronteira confiável).</p>'
+        : '<p class="avp-ficha-meta" id="avpPosSoConsulta">A regra é fixa no sistema. A entrada em vigor de uma versão nova não está autorizada: esta tela não ativa versões.</p>';
       var bloco = function (situacao, acoes, versoes) {
         return blocoMotorHtml({ m: 'o', id: 'avpMotorPosicionamento', flash: flash, situacao: situacao, comoDecide: itensComoDecidePosicionamento(), decideAberto: !!ab.avpMotorPosicionamentoDecide, acoes: SO_CONSULTA + (acoes || ''), versoes: versoes || '' });
       };
@@ -6221,20 +6231,21 @@
       var alvo = alvoDoPainel(emVigor);
       if (!alvo) return bloco(situacao + '<p class="avp-ficha-meta">Nenhuma versão nova preparada.</p>', '', versoesPos);
       var html = '';
+      var gov = governancaV2Visivel();
       var defA = N.definicao(alvo), defV = N.definicao(emVigor);
       var pubs = (alvo === 1 ? [ultimaRedacaoPublicada(codigo, 1)] : Q.versoesPublicadasConteudoMotor(codigo, alvo)).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
-      var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null, redacaoValidada: redacaoAtualValidada(codigo, alvo) });
+      var pr = !gov ? null : G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null, redacaoValidada: redacaoAtualValidada(codigo, alvo) });
       /* o que está em vigor fica à vista; a preparação da versão futura (prontidão, simulação, impacto, aprovação dupla,
          fronteira, histórico) vai para uma seção avançada recolhida — inteira, com todos os bloqueios, ao abrir */
       /* pendência importante: fica à vista, sem abrir nada */
       situacao += '<p class="avp-pos-resumo" id="avpPosResumo"><strong>v' + alvo + ' preparada e inativa</strong> — existem requisitos pendentes para entrada em vigor. A v' + emVigor + ' continua em vigor.</p>';
       var inicioAvancado = html.length;
-      html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
+      if (gov) html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
         return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
       }).join('') +
         renderItemAprovacaoGov(cp, alvo) +
         '<li data-item="FRONTEIRA" data-ok="false">✗ Fronteira confiável para gravar e ativar <em>(fase b)</em></li></ul>';
-      html += '<p class="avp-decisao-aviso" id="avpPosNaoAutoriza">' + esc(pr.aviso) + ' Nesta fase não há ação de ativar: a v' + alvo + ' continua inativa e a v' + emVigor + ' em vigor.</p>';
+      if (gov) html += '<p class="avp-decisao-aviso" id="avpPosNaoAutoriza">' + esc(pr.aviso) + ' Nesta fase não há ação de ativar: a v' + alvo + ' continua inativa e a v' + emVigor + ' em vigor.</p>';
       /* simulação lógica */
       html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpPosSimularBtn">Simular v' + emVigor + ' × v' + alvo + '</button>' +
         '<button type="button" class="btn btn--sm" id="avpPosImpactoBtn"' + (cp.lendo ? ' disabled' : '') + '>' + (cp.lendo ? 'Lendo avaliações…' : 'Calcular impacto nos registros') + '</button></div>';
@@ -6257,12 +6268,19 @@
         if (im.incomparaveis.length) html += '<p class="avp-decisao-aviso" id="avpPosIncomparavelExplica">Incomparável não significa resultado diferente: significa que faltam condições para uma comparação segura ' +
           '(por exemplo, a pergunta mudou de redação ou a v' + esc(N_VERSAO_ALVO(cp)) + ' pede uma resposta que a avaliação não tem). O resultado dessas avaliações na nova versão só se sabe reavaliando.</p>';
         if (im.incomparaveis.length) html += '<p class="avp-ficha-meta" id="avpPosIncomparaveisMotivos">Motivos: ' + Object.keys(motivos).map(function (m) { return esc(ROTULO_INCOMPARAVEL[m] || m) + ' (' + motivos[m] + ')'; }).join('; ') + '.</p>';
-        html += '<p class="avp-ficha-meta">Quem aprovar a entrada em vigor terá de reconhecer explicitamente estes números, inclusive os incomparáveis. Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
+        html += '<p class="avp-ficha-meta">' + (gov ? 'Quem aprovar a entrada em vigor terá de reconhecer explicitamente estes números, inclusive os incomparáveis. ' : '') + 'Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
+      }
+      var abrir = !!(cp.simulacao || cp.impacto || cp.lendo || cp.erro);
+      if (!gov) {
+        /* só a análise, que é só leitura (a simulação é pura; o impacto lê as avaliações e não grava nada) */
+        return bloco(situacao, recolhivel('motorPosSimulacao', 'avpPosAvancado', 'avp-config-sub avp-pos-avancado avp-motor-detalhe',
+          'Simulação e impacto da v' + alvo + ' (só leitura)', abrir,
+          '<p class="avp-ficha-meta" id="avpPosSoLeitura">Compara a v' + emVigor + ' com a v' + alvo + ' e mostra o efeito nas avaliações vigentes. Só leitura: nada é gravado e nenhuma versão muda.</p>' + html.slice(inicioAvancado)), versoesPos);
       }
       html += renderGovernancaPosicionamento(cp, alvo, defA, pr);
       var avancado = html.slice(inicioAvancado);
       return bloco(situacao, recolhivel('motorPosGovernanca', 'avpPosAvancado', 'avp-config-sub avp-pos-avancado avp-motor-detalhe',
-        'Governança da v' + alvo + ' — prontidão, simulação, impacto e aprovação', !!(cp.simulacao || cp.impacto || cp.lendo || cp.erro), avancado), versoesPos);
+        'Governança da v' + alvo + ' — prontidão, simulação, impacto e aprovação', abrir, avancado), versoesPos);
     }
     /* ---- B3: governança persistida — proposta de entrada em vigor e aprovação dupla. Toda a regra está em
        faGovernancaPosicionamento (puro) e nas regras do banco; a tela só mostra e grava pela interface de serviços.
@@ -6653,8 +6671,10 @@
     }
     function bindPainelPosicionamento() {
       var cpGov = state.configMotores && state.configMotores.posicionamento;
-      if (cpGov && !cpGov.gov) { iniciarGovernanca(cpGov); if (cpGov.gov) { render(); return; } }
-      bindGovernancaPosicionamento(cpGov);
+      if (governancaV2Visivel()) {
+        if (cpGov && !cpGov.gov) { iniciarGovernanca(cpGov); if (cpGov.gov) { render(); return; } }
+        bindGovernancaPosicionamento(cpGov);
+      }
       var posSim = document.getElementById('avpPosSimularBtn');
       if (posSim) posSim.addEventListener('click', function () {
         var N = window.faMotorPosicionamentoNucleo, emVigor = versaoEmVigorPainel(), alvo = alvoDoPainel(emVigor);
