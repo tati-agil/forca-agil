@@ -12,10 +12,10 @@
    database.rules.json. Esta tela nunca classifica (o O1–O9 é o do Posicionamento), nunca grava estrutura, vínculo,
    Taxonomia nem Mapa, e não executa a v2.
 
-   MARCADOR DE HOMOLOGAÇÃO (analises-organizacionais-config/habilitacao; ausente = DESLIGADO): com DESLIGADO nada desta
-   jornada aparece e a Porta 2 de hoje continua igual; SOMENTE_ADMIN_GERAL: só o admin geral vê e grava;
-   LIBERADO_PARA_PERFIS_AUTORIZADOS: os três perfis leem, Avaliação + Configuração e admin geral gravam. As regras do
-   banco aplicam o mesmo mapa nas operações de dados — esconder botão nunca é a proteção.
+   ACESSO PELOS PERFIS OFICIAIS (sem controle de disponibilidade): os três perfis da Avaliação consultam; Avaliação +
+   Configuração e admin geral registram; só o admin geral registra aprovação. As regras do banco aplicam o mesmo mapa nas
+   operações de dados — esconder botão nunca é a proteção. O antigo marcador de homologação
+   (analises-organizacionais-config) não é mais lido nem gravado; ele e o histórico dele ficam no banco, só para consulta.
    ============================================================ */
 (function () {
   'use strict';
@@ -79,10 +79,6 @@
     EVIDENCIA_INSUFICIENTE: ['Faltam respostas ou nenhum papel foi identificado.', 'Complete as respostas no Posicionamento ou registre a pendência com o que falta.'],
     INCOERENCIA: ['Uma resposta SIM ficou fora do caminho do questionário.', 'Confira as respostas no Posicionamento (reavaliação) ou volte à delimitação, se elas refletem responsabilidades diferentes.']
   };
-  /* estados gravados no banco (códigos, inalterados) → rótulos mostrados em ADMIN › Acessos › Disponibilidade de funcionalidades */
-  var HAB = { DESLIGADO: 'Desativada', SOMENTE_ADMIN_GERAL: 'Ativada só para o admin geral (homologação)', LIBERADO_PARA_PERFIS_AUTORIZADOS: 'Ativada para os perfis autorizados' };
-  /* uma linha por estado, só no formulário de alteração (a mesma regra vale no banco) */
-  var HAB_DICA = { DESLIGADO: 'Não aparece para ninguém. Nenhum dado é apagado.', SOMENTE_ADMIN_GERAL: 'Só o admin geral usa, para homologar.', LIBERADO_PARA_PERFIS_AUTORIZADOS: 'Os perfis autorizados consultam; Avaliação + Configuração e admin geral registram.' };
   /* textos de tela de algumas perguntas (a matriz F1–F17 do núcleo continua a fonte da pergunta e do porquê) */
   var TEXTO_PERGUNTA = {
     F2a: { curta: 'Um só resultado e um só destinatário?' },
@@ -95,21 +91,17 @@
   var PRAZO = 15000;
 
   /* ===================== estado compartilhado (lido ao vivo) ===================== */
-  var D = { hab: undefined, habErro: null, analises: undefined, propostas: undefined, aprovacoes: undefined, porObjeto: undefined, objetos: undefined,
+  var D = { analises: undefined, propostas: undefined, aprovacoes: undefined, porObjeto: undefined, objetos: undefined,
     vigentes: undefined, avaliacoes: undefined, decisoes: undefined, rascunhos: undefined, estruturas: undefined, vinculos: undefined, ligacoes: undefined, offset: 0, erro: null };
-  var ouvintes = { cfg: null, dados: [], estr: null };
+  var ouvintes = { dados: [], estr: null };
   var aoMudarFns = [];
   function avisar() { aoMudarFns.forEach(function (f) { try { f(); } catch (e) { /* uma tela não derruba a outra */ } }); }
-  function acesso() { return N() ? N().acessoPelaHabilitacao(D.hab, perfil()) : { ler: false, gravar: false, registrarAprovacao: false, habilitacao: 'DESLIGADO' }; }
-  function ligarConfig() {
-    if (ouvintes.cfg || !S() || !sessao()) return;
-    ouvintes.cfg = S().ouvir(F().NOS.config, function (v) { D.hab = v && v.habilitacao ? v.habilitacao : 'DESLIGADO'; D.habRegistro = v || null; D.habErro = null; ligarDados(); avisar(); },
-      function () { D.hab = 'DESLIGADO'; D.habErro = 'RECUSADA'; avisar(); });
-  }
+  /* só os perfis oficiais decidem (não há mais marcador de disponibilidade) */
+  function acesso() { return N() && sessao() ? N().acessoPorPerfil(perfil()) : { ler: false, gravar: false, registrarAprovacao: false }; }
   function desligarDados() { ouvintes.dados.forEach(function (c) { c(); }); ouvintes.dados = []; if (ouvintes.estr) { ouvintes.estr(); ouvintes.estr = null; }
     ['analises', 'propostas', 'aprovacoes', 'porObjeto', 'objetos', 'vigentes', 'avaliacoes', 'decisoes', 'rascunhos', 'estruturas', 'vinculos', 'ligacoes'].forEach(function (k) { D[k] = undefined; }); }
   function ligarDados() {
-    if (!acesso().ler) { if (ouvintes.dados.length) { desligarDados(); } return; }
+    if (!S() || !F() || !acesso().ler) { if (ouvintes.dados.length) { desligarDados(); } return; }
     if (ouvintes.dados.length) return;
     var NOS = F().NOS;
     var ouvir = function (caminho, chave) { ouvintes.dados.push(S().ouvir(caminho, function (v) { D[chave] = v || {}; avisar(); }, function () { D[chave] = undefined; D.erro = chave; avisar(); })); };
@@ -128,8 +120,8 @@
       E.lerLigacoes(null, M ? M.CODIGOS_FIRMES : []).then(function (l) { D.ligacoes = l; avisar(); });
     } else { D.estruturas = null; }
   }
-  function aoMudarSessao() { desligarDados(); if (ouvintes.cfg) { ouvintes.cfg(); ouvintes.cfg = null; } D.hab = undefined; ligarConfig(); avisar(); }
-  ['fa-auth-ready', 'fa-auth-change', 'fa-avaliacao-ready', 'fa-admin-ready'].forEach(function (ev) { window.addEventListener(ev, function () { if (ev === 'fa-auth-change') aoMudarSessao(); else { ligarConfig(); ligarDados(); avisar(); } }); });
+  function aoMudarSessao() { desligarDados(); ligarDados(); avisar(); }
+  ['fa-auth-ready', 'fa-auth-change', 'fa-avaliacao-ready', 'fa-admin-ready'].forEach(function (ev) { window.addEventListener(ev, function () { if (ev === 'fa-auth-change') aoMudarSessao(); else { ligarDados(); avisar(); } }); });
   window.addEventListener('fa-estruturas-habilitacao', function () { if (!ouvintes.estr && acesso().ler && ouvintes.dados.length) { desligarDados(); ligarDados(); } });
 
   /* ---------- leitura derivada ---------- */
@@ -251,7 +243,7 @@
       if (!an) { fechar(); return; }
       if (an === 'lista' || an === 'nova') { st.tela = an; st.id = null; } else { if (st.id !== an) { st.form = null; st.abertos = {}; } st.tela = 'analise'; st.id = an; }
       st.erro = null;
-      mostrar(); ligarConfig(); ligarDados(); render();
+      mostrar(); ligarDados(); render();
     }
 
     /* ---------- desenho ---------- */
@@ -283,14 +275,14 @@
       [['anDetalhar', 'detalhar'], ['anQuandoSeparar', 'quandoSeparar'], ['anConceitos', 'conceitos'], ['anComposicaoSecao', 'composicao'], ['anDetalhesResp', 'detalhesResp'], ['anObjeto', 'objeto'], ['anRefMais', 'refMais'], ['anNovaAvancado', 'novaAvancado'], ['anRegistrar', 'adicionar']].forEach(function (x) { var d = document.getElementById(x[0]); if (d && wrap.contains(d)) st.abertos[x[1]] = d.open; });
       var digitado = st.limparCampos ? { valores: {}, marcas: [] } : capturarCampos(); st.limparCampos = false;
       var a = acesso(), h;
-      if (!autorizacaoResolvida() || D.hab === undefined) h = '<p class="loading-msg" id="anCarregando">Carregando…</p>';
+      if (!autorizacaoResolvida()) h = '<p class="loading-msg" id="anCarregando">Carregando…</p>';
       else if (!a.ler) h = '<div class="avp-form-card" id="anIndisponivel"><p>A Análise Organizacional não está disponível para você agora.</p><p class="an-nota">A Porta 2 continua disponível como sempre: <a href="#avaliacoes?po=atuacoes">Responsabilidades organizacionais</a>.</p></div>';
       else if (!dadosProntos()) h = '<p class="loading-msg" id="anCarregando">Carregando as análises…</p>';
       else if (st.tela === 'lista') h = renderLista(a);
       else if (st.tela === 'nova') h = a.gravar ? renderNova() : '<p class="admin-empty" id="anSemPermissao">Abrir uma análise é do perfil Avaliação + Configuração.</p>';
       else h = renderAnalise(a);
       var foco = document.activeElement && wrap.contains(document.activeElement) ? document.activeElement.id : null;
-      wrap.innerHTML = '<div class="an-tela">' + (D.hab === 'SOMENTE_ADMIN_GERAL' ? '<p class="an-homologacao" id="anHomologacao">Em homologação: visível só para o admin geral.</p>' : '') + h + '</div>';
+      wrap.innerHTML = '<div class="an-tela">' + h + '</div>';
       restaurarCampos(digitado);
       if (foco) { var f = document.getElementById(foco); if (f && f.focus) f.focus({ preventScroll: true }); }
     }
@@ -1322,7 +1314,7 @@
   /* lista de atuações da Porta 2: os dois caminhos de início, que convergem para o O1–O9. Vazio com o marcador
      desligado — aí a Porta 2 continua exatamente como antes. botaoDireto: o botão de sempre de "nova atuação" */
   function entradaAtuacoesHtml(botaoDireto) {
-    ligarConfig();
+    ligarDados();
     var a = acesso(); if (!a.ler) return '';
     /* as ações da tela de Responsabilidades Organizacionais: "Nova responsabilidade" e "Analisar uma área" (mesmo peso);
        "Análises Organizacionais" acompanha as áreas já abertas */
@@ -1353,12 +1345,12 @@
   /* Início de Avaliações, no cartão da Porta 2: o atalho para o Caminho B (só quando o marcador libera a leitura) */
   /* a ação do Caminho B segue a situação real do marcador e do perfil: nunca um botão que não funciona */
   function caminhoAssistidoInicioHtml() {
-    ligarConfig();
-    if (D.hab === undefined || !autorizacaoResolvida()) return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">Verificando a disponibilidade…</p>';
+    ligarDados();
+    if (!autorizacaoResolvida()) return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">Verificando o seu acesso…</p>';
     var a = acesso();
     if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=nova" id="avpInicioAnalise">Analisar área</a></div>';
     if (a.ler) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#avaliacoes?an=lista" id="avpInicioAnalise">Ver as análises de áreas</a><p class="avp-inicio-perfil">Abrir uma análise é do perfil Avaliação + Configuração.</p></div>';
-    return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">' + (D.hab === 'DESLIGADO' ? 'Em preparação: ainda não disponível.' : 'Ainda não disponível para o seu perfil.') + '</p>';
+    return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">A análise de áreas é dos perfis da Avaliação.</p>';
   }
   /* ficha do Posicionamento de uma atuação nascida de uma análise */
   /* a lista consolidada da Porta 2 (avaliacao-posicionamento.js, "Ver todas as responsabilidades"): as
@@ -1447,75 +1439,12 @@
       return '<li><a href="#avaliacoes?an=' + encodeURIComponent(x.analiseId) + '">' + esc(x.responsabilidade) + '</a> <span class="an-chip an-chip--' + (x.carater === 'hipotese' ? 'pend' : 'neu') + '">' + esc(CARATER[x.carater] || x.carater) + '</span> <span class="an-det">análise "' + esc(x.analiseNome) + '" · fonte: ' + esc(x.fonte) + ' · ' + esc(fmtData(x.informadoEm)) + '</span></li>';
     }).join('') + '</ul><p class="an-nota">Informação descritiva das análises: não é vínculo formal e não muda o Mapa.</p></section>';
   }
-  /* ADMIN › Avaliações e Mapa (só admin geral): o marcador de homologação, com motivo e histórico */
-  function montarHabilitacao(el) {
-    if (!el) return;
-    ligarConfig();
-    var formAberto = false, gravando = false, erro = null, ok = null;
-    /* histórico da disponibilidade (analises-organizacionais-config-auditoria, só acréscimo): recolhido; lido ao abrir */
-    var hist = undefined, histAberto = false;
-    function carregarHist() {
-      hist = 'carregando'; desenhar();
-      S().lerUmaVez(F().NOS.configAuditoria, 12000).then(function (v) {
-        v = v || {};
-        hist = Object.keys(v).map(function (k) { return v[k]; }).filter(Boolean).sort(function (a, b) { return (b.dataHora || 0) - (a.dataHora || 0); });
-        desenhar();
-      }, function () { hist = null; desenhar(); });
-    }
-    function histHtml() {
-      var corpo = hist === undefined || hist === 'carregando' ? '<p class="loading-msg">Carregando…</p>'
-        : hist === null ? '<p class="avp-error-msg">Não foi possível carregar o histórico agora.</p>'
-        : !hist.length ? '<p class="an-det">Nenhuma alteração registrada.</p>'
-        : '<ol class="an-eventos">' + hist.map(function (h) { return '<li>' + esc(fmtData(h.dataHora)) + ' — ' + esc(HAB[h.anterior] || h.anterior || '—') + ' → ' + esc(HAB[h.habilitacao] || h.habilitacao) + ' <span class="an-det">' + esc((h.usuario || {}).email || '') + ' · motivo: ' + esc(h.motivo || '') + '</span></li>'; }).join('') + '</ol>';
-      return '<details class="an-hab-ultima" id="anHabHistorico"' + (histAberto ? ' open' : '') + '><summary>Histórico' + (Array.isArray(hist) ? ' — ' + hist.length + (hist.length === 1 ? ' alteração' : ' alterações') : '') + '</summary>' + corpo + '</details>';
-    }
-    function desenhar() {
-      var p = perfil();
-      if (!p.adminGeral) { el.innerHTML = ''; return; }
-      var atual = D.hab === undefined ? null : D.hab, reg = D.habRegistro;
-      el.innerHTML = '<div class="an-habilitacao" id="anHabilitacao"><p><strong>Situação:</strong> <span id="anHabAtual">' + (atual ? esc(HAB[atual] || atual) : 'Carregando…') + '</span></p>' +
-        histHtml() +
-        (ok ? '<p class="avp-flash-success" role="status">' + esc(ok) + '</p>' : '') + (erro ? '<p class="avp-error-msg" role="alert">' + esc(erro) + '</p>' : '') +
-        (formAberto ? '<form class="an-form" id="anFormHabilitacao"><fieldset class="an-opcoes"><legend>Nova disponibilidade</legend>' + Object.keys(HAB).map(function (k) { return '<label class="an-opcao"><input type="radio" name="anHab" value="' + k + '"' + (k === atual ? ' checked' : '') + '><span>' + esc(HAB[k]) + '<small class="an-hab-dica">' + esc(HAB_DICA[k]) + '</small></span></label>'; }).join('') + '</fieldset>' +
-          '<div class="avp-field"><label for="anHabMotivo">Motivo (obrigatório)</label><input type="text" id="anHabMotivo" maxlength="500"></div><div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="anHabSalvar"' + (gravando ? ' disabled' : '') + '>Salvar</button><button type="button" class="btn btn--sm" id="anHabCancelar">Cancelar</button></div></form>'
-          : '<button type="button" class="btn btn--sm" id="anHabAlterar">Alterar disponibilidade</button>') + '</div>';
-    }
-    el.addEventListener('click', function (ev) {
-      if (ev.target.id === 'anHabAlterar') { formAberto = true; ok = null; erro = null; desenhar(); }
-      else if (ev.target.id === 'anHabCancelar') { formAberto = false; erro = null; desenhar(); }
-    });
-    /* abrir o histórico (toggle não borbulha: escuta na captura); redesenhar com ele aberto não relê */
-    el.addEventListener('toggle', function (ev) {
-      if (!ev.target || ev.target.id !== 'anHabHistorico') return;
-      histAberto = ev.target.open;
-      if (histAberto && (hist === undefined || hist === null)) carregarHist();
-    }, true);
-    el.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var nova = (el.querySelector('input[name="anHab"]:checked') || {}).value, motivo = (document.getElementById('anHabMotivo') || {}).value || '';
-      var ident = S().identidade();
-      if (!nova || !motivo.trim() || !ident) { erro = 'Escolha a nova disponibilidade e escreva o motivo.'; desenhar(); return; }
-      var payload;
-      try { payload = F().payloadHabilitacao({ anterior: D.hab, nova: nova, motivo: motivo, audId: S().novaChave(F().NOS.configAuditoria), usuario: ident, agora: S().agoraServidor() }); }
-      catch (e) { erro = e.message; desenhar(); return; }
-      gravando = true; desenhar();
-      S().gravar(payload, PRAZO, function (err) {
-        gravando = false;
-        if (err) { erro = err === 'sem-resposta' ? 'O servidor não respondeu a tempo; confira antes de repetir.' : 'O banco recusou a alteração.'; desenhar(); return; }
-        formAberto = false; erro = null; ok = 'Disponibilidade alterada para: ' + (HAB[nova] || nova) + '.';
-        if (histAberto) carregarHist(); else { hist = undefined; desenhar(); }
-      });
-    });
-    aoMudarFns.push(function () { if (document.body.contains(el) && !formAberto) desenhar(); });
-    desenhar();
-  }
-
   window.faInitAnalisesOrganizacionais = function () {
     if (window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.aplicarEndereco) return;
     var api = montar();
     if (api) Object.keys(api).forEach(function (k) { window.faAnalisesOrganizacionais[k] = api[k]; });
   };
   window.faAnalisesOrganizacionais = { origemCompleta: origemCompleta, resumoPorArea: resumoPorArea, entradaAtuacoesHtml: entradaAtuacoesHtml, caminhoAssistidoInicioHtml: caminhoAssistidoInicioHtml, podeRegistrarAvulsa: podeRegistrarAvulsa, registrarResponsabilidadeAvulsa: registrarResponsabilidadeAvulsa, origemHtml: origemHtml, voltarAreaHtml: voltarAreaHtml, responsabilidadesDasAnalises: responsabilidadesDasAnalises, origemDe: origemDe, delimitacaoDe: delimitacaoDe,
-    exercidasHtml: exercidasHtml, montarHabilitacao: montarHabilitacao, acesso: acesso, aoMudar: function (f) { aoMudarFns.push(f); }, ligar: function () { ligarConfig(); ligarDados(); } };
+    exercidasHtml: exercidasHtml, acesso: acesso, aoMudar: function (f) { aoMudarFns.push(f); }, ligar: function () { ligarDados(); } };
   if (/^#avaliacoes\?(.*&)?an=/.test(location.hash || '')) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', window.faInitAnalisesOrganizacionais); else window.faInitAnalisesOrganizacionais(); }
 })();

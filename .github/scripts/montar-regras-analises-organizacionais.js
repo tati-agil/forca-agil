@@ -5,10 +5,10 @@
  *   analises-recortes-em-proposta (cada responsabilidade citada numa proposta registrada).
  *
  * O que as regras garantem (provado no emulador por teste-rules-analises-organizacionais.js):
- *   - MARCADOR DE HOMOLOGAÇÃO (analises-organizacionais-config/habilitacao; ausente = DESLIGADO) vale nas OPERAÇÕES DE
- *     DADOS, não só na tela: DESLIGADO → ninguém lê nem grava as análises; SOMENTE_ADMIN_GERAL → só o admin geral;
- *     LIBERADO_PARA_PERFIS_AUTORIZADOS → leem os três perfis da Avaliação, gravam admin geral e avaliacao-arquitetura;
- *     só o admin geral muda o marcador, com motivo e auditoria própria (só acréscimo);
+ *   - ACESSO PELOS PERFIS OFICIAIS nas OPERAÇÕES DE DADOS, não só na tela: leem os três perfis da Avaliação (admin geral,
+ *     avaliacao, avaliacao-arquitetura); gravam admin geral e avaliacao-arquitetura; só o admin geral aprova. Não há mais
+ *     controle de disponibilidade: o antigo marcador de homologação (analises-organizacionais-config) e a auditoria dele
+ *     ficam só para consulta — ninguém os grava, e nenhuma regra os lê;
  *   - análise: revisão 1 → revisão anterior + 1 (gravação velha é recusada); criação, escopo e objeto amplo fixos;
  *     horário do SERVIDOR; autoria do token; descartada é final; toda gravação traz o seu evento de auditoria novo;
  *   - recorte avaliado: a atuação ligada nunca muda e só existe com o índice de origem; uma atuação tem no máximo uma
@@ -44,12 +44,10 @@ const AN = 'analises-organizacionais', AUD = 'analises-organizacionais-auditoria
 const IDX = 'analises-por-objeto', CFG = 'analises-organizacionais-config', CFG_AUD = 'analises-organizacionais-config-auditoria', EXC = 'analises-organizacionais-excluidas';
 const CIT = 'analises-recortes-em-proposta';
 const OBJ = 'objetos-organizacionais';
-const HAB = "root.child('" + CFG + "').child('habilitacao').val()";
-const SO_GERAL = HAB + " === 'SOMENTE_ADMIN_GERAL'", LIBERADO = HAB + " === 'LIBERADO_PARA_PERFIS_AUTORIZADOS'";
 const PERFIS = "auth != null && ((" + ADM + ") || " + TIPO + " === 'avaliacao' || " + TIPO + " === 'avaliacao-arquitetura')";
-const LER = "auth != null && ((" + SO_GERAL + " && (" + ADM + ")) || (" + LIBERADO + " && ((" + ADM + ") || " + TIPO + " === 'avaliacao' || " + TIPO + " === 'avaliacao-arquitetura')))";
-const GRAVAR = "auth != null && ((" + SO_GERAL + " && (" + ADM + ")) || (" + LIBERADO + " && ((" + ADM + ") || " + TIPO + " === 'avaliacao-arquitetura')))";
-const APROVAR = "auth != null && (" + ADM + ") && (" + SO_GERAL + " || " + LIBERADO + ")";
+const LER = PERFIS;
+const GRAVAR = "auth != null && ((" + ADM + ") || " + TIPO + " === 'avaliacao-arquitetura')";
+const APROVAR = "auth != null && (" + ADM + ")";
 const ID = '/^[A-Za-z0-9_-]{1,60}$/';
 const and = (xs) => xs.join(' && ');
 const umDe = (x, lista) => '(' + lista.map((v) => x + " === '" + v + "'").join(' || ') + ')';
@@ -57,7 +55,6 @@ const naoEmBranco = (x) => x + ".replace(' ', '').replace('\\t', '').replace('\\
 const texto = (n) => ({ '.validate': 'newData.isString() && newData.val().length <= ' + n + ' && ' + naoEmBranco('newData.val()') });
 const ESCOPOS = ['responsabilidade', 'estrutura', 'grande-area', 'conjunto', 'capacidade', 'atuacao-informal'];
 const ALTERNATIVAS = ['manter-consciente', 'rever-delimitacao', 'integrar-recortes', 'distribuir-existentes', 'propor-estrutura', 'pendente'];
-const HABILITACOES = ['DESLIGADO', 'SOMENTE_ADMIN_GERAL', 'LIBERADO_PARA_PERFIS_AUTORIZADOS'];
 const autoria = (campo) => ({ '.validate': "newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email" });
 const autoriaId = { '.validate': "newData.child('id').val() === auth.uid" };
 const PV = "newData.child('propostaVigente').val()", PV_ANT = "data.child('propostaVigente').val()";
@@ -217,42 +214,9 @@ const blocoPorObjeto = {
   }
 };
 
-const blocoConfig = {
-  '.read': PERFIS,
-  '.write': 'auth != null && (' + ADM + ') && newData.exists()',
-  '.validate': and([
-    "newData.hasChildren(['habilitacao','alteradoEm','alteradoPor','motivo','auditoriaId'])",
-    "newData.parent().child('" + CFG_AUD + "').child(newData.child('auditoriaId').val()).exists()",
-    "!root.child('" + CFG_AUD + "').child(newData.child('auditoriaId').val()).exists()"
-  ]),
-  habilitacao: { '.validate': umDe('newData.val()', HABILITACOES) },
-  alteradoEm: { '.validate': 'newData.val() === now' },
-  alteradoPor: autoria(),
-  motivo: texto(500),
-  auditoriaId: { '.validate': 'newData.isString() && newData.val().matches(' + ID + ')' },
-  $outro: { '.validate': false }
-};
-
-const blocoConfigAuditoria = {
-  '.read': PERFIS,
-  $auditoriaId: {
-    '.write': 'auth != null && (' + ADM + ') && !data.exists() && newData.exists()',
-    '.validate': and([
-      "newData.hasChildren(['habilitacao','anterior','motivo','usuario','dataHora'])",
-      "newData.parent().parent().child('" + CFG + "').child('auditoriaId').val() === $auditoriaId",
-      "newData.child('habilitacao').val() === newData.parent().parent().child('" + CFG + "').child('habilitacao').val()",
-      "newData.child('motivo').val() === newData.parent().parent().child('" + CFG + "').child('motivo').val()",
-      "newData.child('anterior').val() === (root.child('" + CFG + "').child('habilitacao').exists() ? root.child('" + CFG + "').child('habilitacao').val() : 'DESLIGADO')",
-      "newData.child('dataHora').val() === now"
-    ]),
-    habilitacao: { '.validate': umDe('newData.val()', HABILITACOES) },
-    anterior: { '.validate': umDe('newData.val()', HABILITACOES) },
-    usuario: autoria(),
-    motivo: texto(500),
-    dataHora: { '.validate': 'newData.val() === now' },
-    $outro: { '.validate': false }
-  }
-};
+/* o antigo marcador de homologação e a sua auditoria: só consulta (o histórico fica; ninguém grava, nenhuma regra lê) */
+const blocoConfig = { '.read': PERFIS, '.write': false };
+const blocoConfigAuditoria = { '.read': PERFIS, '.write': false };
 
 /* analises-recortes-em-proposta/$id/$r = true: a responsabilidade foi citada numa proposta registrada. Nasce só com uma
    proposta nova na mesma gravação; nunca muda nem sai (regravar true é inócuo) */

@@ -3,11 +3,10 @@
    (teste-rules.yml) com o database.rules.json de produção. As gravações são as que o código real monta: o núcleo
    (analises-organizacionais-nucleo.js), o adaptador (analises-organizacionais-firebase.js) e, para a atuação criada a
    partir de um recorte, o núcleo das atuações (objetos-organizacionais-nucleo.js). Prova, pelo BANCO:
-   A. Marcador de homologação: ausente = DESLIGADO (ninguém lê nem grava análises); só o admin geral o muda, com motivo
-      e auditoria (anterior conferido); os três perfis o leem.
-   B. SOMENTE_ADMIN_GERAL: só o admin geral lê e grava; Avaliação + Configuração e Avaliação, não.
-   C. LIBERADO_PARA_PERFIS_AUTORIZADOS: leem os três perfis; gravam admin geral e Avaliação + Configuração; Avaliação
-      só lê; sem perfil e sem login, nada.
+   A. Acesso pelos PERFIS OFICIAIS, sem controle de disponibilidade: leem os três perfis (admin geral, Avaliação +
+      Configuração, Avaliação); gravam admin geral e Avaliação + Configuração; Avaliação só lê; sem perfil e sem login,
+      nada. O antigo marcador e a auditoria dele: os perfis ainda os leem (histórico), ninguém os grava.
+   B. Qualquer estado antigo do marcador gravado (SOMENTE_ADMIN_GERAL, DESLIGADO) não muda o acesso de ninguém.
    D. Análise: revisão + 1 (gravação velha recusada), horário do servidor, autoria do token, evento novo na mesma
       gravação, criação/escopo/objeto amplo fixos, auditoria só de acréscimo, descartada é final.
    E. Atuação criada a partir de um recorte: uma gravação com objeto + recorte ligado + índice de origem; a ligação
@@ -16,7 +15,7 @@
       aprovadas (reclassificar recusado); pendente exige pendência.
    G. Aprovação: só admin geral, referência a ato externo (natureza fixa), só da proposta vigente e não pendente, uma
       por versão, com evento de auditoria.
-   H. Voltar a DESLIGADO não apaga nada: os dados ficam, só deixam de ser lidos e gravados.
+   H. Nada foi apagado nem gravado fora do lugar: análises, propostas, aprovação e atuação continuam no banco.
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -57,10 +56,8 @@ async function main() {
     if (mexer) mexer(w);
     return w;
   }
-  const habilitar = async (e, nova, motivo) => {
-    const atual = await ler(NOS.config);
-    return F.payloadHabilitacao({ anterior: atual ? atual.habilitacao : undefined, nova, motivo: motivo === undefined ? 'Homologação' : motivo, audId: chave('cfg'), usuario: usuario(e), agora: TS });
-  };
+  const MARCADOR_ANTIGO = { habilitacao: 'SOMENTE_ADMIN_GERAL', alteradoEm: 1, alteradoPor: { uid: 'x', email: SUPER }, motivo: 'Homologação (registro antigo)', auditoriaId: 'cfg0' };
+  const AUD_ANTIGA = { habilitacao: 'SOMENTE_ADMIN_GERAL', anterior: 'DESLIGADO', motivo: 'Homologação (registro antigo)', usuario: { uid: 'x', email: SUPER }, dataHora: 1 };
 
   await env.clearDatabase();
   await semear(async (a) => {
@@ -69,36 +66,33 @@ async function main() {
     await a.ref('fa-avaliacao-autorizados/' + emailKey(AVAL)).set({ email: AVAL, tipo: 'avaliacao' });
   });
 
-  console.log('\n== A. Marcador ausente = DESLIGADO ==');
+  console.log('\n== A. Acesso pelos perfis oficiais (sem marcador gravado) ==');
   const criarAnalise = (e, id, dados) => op(e, (est, c) => N.criarAnalise(est, Object.assign({ nome: 'Núcleo de Governança de TI', tipoEscopo: 'estrutura' }, dados || {}), Object.assign(c, { novoId: id })));
-  await nega('admin geral NÃO cria análise com o marcador ausente', up(SUPER, await criarAnalise(SUPER, 'anDesl')));
-  await nega('admin geral NÃO lê análises com o marcador ausente', db(SUPER).ref(NOS.analises).once('value'));
-  for (const e of [SUPER, ADMIN, ARQ, AVAL]) await pode(e.split('@')[0] + ' lê o marcador', db(e).ref(NOS.config).once('value'));
-  await nega('sem perfil NÃO lê o marcador', db(SEM).ref(NOS.config).once('value'));
-  await nega('Avaliação + Configuração NÃO muda o marcador', up(ARQ, await habilitar(ARQ, 'SOMENTE_ADMIN_GERAL')));
-  await nega('marcador sem motivo: recusado', up(SUPER, ((w) => { w[NOS.config].motivo = ' '; return w; })(await habilitar(SUPER, 'SOMENTE_ADMIN_GERAL', 'x'))));
-  const hMal = await habilitar(SUPER, 'SOMENTE_ADMIN_GERAL');
-  Object.keys(hMal).filter((k) => k.indexOf(NOS.configAuditoria) === 0).forEach((k) => { hMal[k].anterior = 'LIBERADO_PARA_PERFIS_AUTORIZADOS'; });
-  await nega('auditoria do marcador com "anterior" falso: recusada', up(SUPER, hMal));
-  await nega('valor fora dos três estados: recusado', up(SUPER, ((w) => { w[NOS.config].habilitacao = 'LIGADO'; return w; })(await habilitar(SUPER, 'SOMENTE_ADMIN_GERAL'))));
-
-  console.log('\n== B. SOMENTE_ADMIN_GERAL ==');
-  await pode('admin geral liga SOMENTE_ADMIN_GERAL (com motivo e auditoria)', up(SUPER, await habilitar(SUPER, 'SOMENTE_ADMIN_GERAL')));
-  anota('auditoria do marcador: anterior DESLIGADO, nova SOMENTE_ADMIN_GERAL', Object.values(await ler(NOS.configAuditoria) || {}).some((x) => x.anterior === 'DESLIGADO' && x.habilitacao === 'SOMENTE_ADMIN_GERAL'));
-  await pode('admin geral cria análise', up(SUPER, await criarAnalise(SUPER, 'anA')));
-  await pode('admin geral (fa-admins) lê', db(ADMIN).ref(NOS.analises).once('value'));
-  await nega('Avaliação + Configuração NÃO lê', db(ARQ).ref(NOS.analises).once('value'));
-  await nega('Avaliação + Configuração NÃO cria', up(ARQ, await criarAnalise(ARQ, 'anB')));
-  await nega('Avaliação NÃO lê', db(AVAL).ref(NOS.analises).once('value'));
-
-  console.log('\n== C. LIBERADO_PARA_PERFIS_AUTORIZADOS ==');
-  await pode('admin geral libera para os perfis autorizados', up(SUPER, await habilitar(SUPER, 'LIBERADO_PARA_PERFIS_AUTORIZADOS')));
+  await pode('admin geral cria análise (sem nada a ativar)', up(SUPER, await criarAnalise(SUPER, 'anA')));
   for (const e of [SUPER, ADMIN, ARQ, AVAL]) await pode(e.split('@')[0] + ' lê análises', db(e).ref(NOS.analises).once('value'));
   await nega('sem perfil NÃO lê', db(SEM).ref(NOS.analises).once('value'));
   await nega('sem login NÃO lê', db(null).ref(NOS.analises).once('value'));
   await pode('Avaliação + Configuração cria análise', up(ARQ, await criarAnalise(ARQ, 'anC')));
   await nega('Avaliação NÃO cria', up(AVAL, await criarAnalise(AVAL, 'anD')));
   await nega('Avaliação NÃO altera', up(AVAL, await op(AVAL, (est, c) => N.adicionarEntrega(est, 'anC', { descricao: 'x' }, c))));
+  await nega('sem perfil NÃO cria', up(SEM, await criarAnalise(SEM, 'anS')));
+  /* o antigo marcador: ninguém grava (nem o admin geral); o histórico continua legível pelos perfis */
+  await nega('admin geral NÃO grava mais o marcador', db(SUPER).ref(NOS.config).set(MARCADOR_ANTIGO));
+  await nega('admin geral NÃO grava mais a auditoria do marcador', db(SUPER).ref(NOS.configAuditoria + '/cfgN').set(AUD_ANTIGA));
+  await semear((a) => a.ref(NOS.configAuditoria + '/cfg0').set(AUD_ANTIGA));
+  for (const e of [SUPER, ARQ, AVAL]) await pode(e.split('@')[0] + ' lê o histórico antigo do marcador', db(e).ref(NOS.configAuditoria).once('value'));
+  await nega('sem perfil NÃO lê o histórico do marcador', db(SEM).ref(NOS.configAuditoria).once('value'));
+
+  console.log('\n== B. O estado antigo de homologação não decide mais nada ==');
+  await pode('Avaliação + Configuração cria outra análise (anB)', up(ARQ, await criarAnalise(ARQ, 'anB')));
+  for (const antigo of ['SOMENTE_ADMIN_GERAL', 'DESLIGADO']) {
+    await semear((a) => a.ref(NOS.config).set(Object.assign({}, MARCADOR_ANTIGO, { habilitacao: antigo })));
+    await pode(antigo + ' gravado: Avaliação + Configuração continua lendo', db(ARQ).ref(NOS.analises).once('value'));
+    await pode(antigo + ' gravado: Avaliação continua lendo', db(AVAL).ref(NOS.analises).once('value'));
+    await pode(antigo + ' gravado: Avaliação + Configuração continua registrando', up(ARQ, await op(ARQ, (est, c) => N.adicionarEntrega(est, 'anB', { descricao: 'Entrega com marcador ' + antigo }, Object.assign(c, { novoId: 'eAnt' + antigo.slice(0, 3) })))));
+    await nega(antigo + ' gravado: Avaliação continua sem registrar', up(AVAL, await criarAnalise(AVAL, 'anDx' + antigo.slice(0, 3))));
+  }
+  await semear((a) => a.ref(NOS.config).remove());
 
   console.log('\n== D. Ciclo da análise ==');
   const anC = await ler(NOS.analises + '/anC');
@@ -181,10 +175,7 @@ async function main() {
   anota('descartada, com o motivo', anA.situacao === 'descartada' && anA.descarte.motivo === 'Aberta para teste');
   await nega('descartada é final (nada mais se grava)', up(ARQ, F.payloadOperacao({ ok: true, mudancas: [{ entidade: 'analise', id: 'anA', antes: anA, depois: Object.assign({}, anA, { revisao: anA.revisao + 1, situacao: 'aberta', descarte: null }), revisaoAnterior: anA.revisao }], eventos: [{ tipo: 'x', operacaoId: 'op', detalhe: {} }] }, { audId: chave('ev'), usuario: usuario(ARQ), agora: TS })));
 
-  console.log('\n== H. Voltar a DESLIGADO ==');
-  await pode('admin geral desliga', up(SUPER, await habilitar(SUPER, 'DESLIGADO', 'Fim da homologação')));
-  await nega('desligado: Avaliação + Configuração não lê mais', db(ARQ).ref(NOS.analises).once('value'));
-  await nega('desligado: admin geral também não grava', up(SUPER, await criarAnalise(SUPER, 'anE')));
+  console.log('\n== H. Nada apagado ==');
   anota('nada foi apagado: análises, propostas, aprovação e a atuação continuam no banco', !!(await ler(NOS.analises + '/anC')) && !!(await ler(NOS.propostas + '/anC/v2')) && !!(await ler(NOS.aprovacoes + '/anC/v1')) && (await ler('objetos-organizacionais/objR1/situacao')) === 'ativo');
   anota('nenhuma estrutura, vínculo ou conceito foi gravado', !(await ler('estruturas-concretas')) && !(await ler('estruturas-vinculos')) && !(await ler('taxonomia')));
 

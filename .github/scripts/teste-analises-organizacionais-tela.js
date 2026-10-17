@@ -1,8 +1,9 @@
 /* Porta 2 · ANÁLISE ORGANIZACIONAL — a jornada na tela (PR A). Firebase falso em persistência real; hermético; o
  * banco é o da página (nada vai para produção). As respostas são HIPÓTESES de teste (cenários de TI), não classificações
  * oficiais. Prova, pela interface:
- *   M. Marcador de homologação: ausente = DESLIGADO (nada aparece, a Porta 2 fica como era); SOMENTE_ADMIN_GERAL (só o
- *      admin geral, com aviso de homologação); o admin geral muda o marcador no ADMIN, com motivo e auditoria.
+ *   M. Acesso pelos perfis oficiais, sem controle de disponibilidade: sem marcador ou com qualquer estado antigo gravado
+ *      (DESLIGADO, SOMENTE_ADMIN_GERAL), Avaliação + Configuração registra; o ADMIN não tem mais o formulário; o histórico
+ *      antigo fica intacto.
  *   B. Jornada B (Núcleo de Arquitetura de TI): descoberta uma pergunta por vez, com o porquê; comparação com os sete
  *      critérios (contra os indícios exige justificativa); delimitação em 2 responsabilidades; fatos de quem executa e
  *      responde (descritivos); atuação criada e O1–O9 respondido NA TELA DO POSICIONAMENTO (fluxo de sempre); volta à
@@ -406,38 +407,32 @@ async function jornadaC(browser, db, objPol) {
 }
 
 async function marcador(browser) {
-  console.log('\n== M. Marcador de homologação ==');
-  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', {});
-  await page.waitForSelector('#poListaAtuacoes, #poSemAtuacoes', { timeout: 20000 }); await page.waitForTimeout(800);
-  afirma(!(await existe(page, '#anEntradaAtuacoes')), 'ausente (DESLIGADO): a Porta 2 aparece como sempre, sem a entrada da análise');
-  await ir(page, '#avaliacoes?an=lista');
-  await page.waitForSelector('#anIndisponivel');
-  afirma(/continua disponível como sempre/.test(await texto(page, '#anIndisponivel')), 'DESLIGADO: endereço direto diz que não está disponível e aponta a Porta 2');
-  await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { hab: 'SOMENTE_ADMIN_GERAL' }));
-  await page.waitForSelector('#anIndisponivel');
-  afirma(true, 'SOMENTE_ADMIN_GERAL: Avaliação + Configuração não vê');
-  await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { hab: 'SOMENTE_ADMIN_GERAL', email: ADM }));
-  await page.waitForSelector('#anHomologacao'); await page.waitForSelector('#anNovaBtn, #anListaVazia, #anLista', { timeout: 20000 }); /* o aviso aparece já no "Carregando…" */
-  afirma(await existe(page, '#anNovaBtn'), 'SOMENTE_ADMIN_GERAL: o admin geral vê e grava, com aviso de homologação');
-  await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#admin?arq=inicio', { email: ADM }));
-  await page.waitForSelector('#anHabilitacao', { timeout: 20000 });
-  await esperar(page, () => /Desativada/.test((document.getElementById('anHabAtual') || {}).textContent || ''));
-  afirma(!!(await page.$('#avpAdminAcessos #avpAcessosDisponibilidade ~ #avpDispPorta2 #anHabilitacao')), 'ADMIN › Avaliações e Mapa › Acessos › Disponibilidade de funcionalidades (admin geral): a Análise Organizacional aparece como Desativada');
-  await page.click('#anHabAlterar');
-  await page.check('input[name="anHab"][value="SOMENTE_ADMIN_GERAL"]');
-  await page.fill('#anHabMotivo', 'Homologação da Análise Organizacional');
-  await page.click('#anHabSalvar');
-  await esperar(page, () => /Ativada só para o admin geral/.test((document.getElementById('anHabAtual') || {}).textContent || ''));
-  const db = await banco(page), aud = Object.values(db['analises-organizacionais-config-auditoria'] || {})[0] || {};
-  afirma(db[CFG].habilitacao === 'SOMENTE_ADMIN_GERAL' && aud.anterior === 'DESLIGADO' && aud.motivo === 'Homologação da Análise Organizacional', 'o admin geral liga a homologação, com motivo e auditoria (anterior: DESLIGADO)');
+  console.log('\n== M. Acesso pelos perfis oficiais (sem controle de disponibilidade) ==');
+  /* sem marcador e com QUALQUER estado antigo de homologação gravado: o acesso é o do perfil — nada a ligar à mão */
+  for (const [hab, rot] of [[null, 'sem marcador'], ['DESLIGADO', 'estado antigo DESLIGADO'], ['SOMENTE_ADMIN_GERAL', 'estado antigo SOMENTE_ADMIN_GERAL']]) {
+    let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab });
+    await page.waitForSelector('#anEntradaAtuacoes', { timeout: 20000 });
+    afirma(await existe(page, '#anEntradaNova'), rot + ': Avaliação + Configuração vê a entrada da análise e pode abrir uma ("Analisar uma área")');
+    await ir(page, '#avaliacoes?an=lista');
+    await page.waitForSelector('#anNovaBtn, #anListaVazia, #anLista', { timeout: 20000 });
+    afirma(await existe(page, '#anNovaBtn') && !(await existe(page, '#anIndisponivel')) && !(await existe(page, '#anHomologacao')), rot + ': a lista abre com "Abrir uma análise", sem aviso de homologação');
+    const db = await banco(page);
+    afirma(hab ? db[CFG] && db[CFG].habilitacao === hab : !db[CFG], rot + ': o marcador antigo não é lido para decidir nem regravado');
+    afirma(!erros.length, rot + ': nenhum erro de página', erros.join(' | '));
+    await ctx.close();
+  }
+  /* ADMIN: nenhum controle de disponibilidade; o histórico antigo continua no banco */
+  const dbHist = sementeAnalise('SOMENTE_ADMIN_GERAL');
+  dbHist['analises-organizacionais-config-auditoria'] = { h1: { habilitacao: 'SOMENTE_ADMIN_GERAL', anterior: 'DESLIGADO', motivo: 'Homologação (registro antigo)', usuario: { uid: 'x', email: ADM }, dataHora: 1791713600000 } };
+  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#admin?arq=inicio', { db: dbHist, email: ADM });
+  await page.waitForSelector('#avpAdminAcessos', { timeout: 20000 }); await page.waitForTimeout(800);
+  afirma(!(await existe(page, '#anHabilitacao')) && !(await existe(page, '#anHabilitacaoAdmin')) && !/Disponibilidade de funcionalidades/.test(await texto(page, '#adminAvaliacaoProduto')),
+    'ADMIN › Acessos (admin geral): sem "Disponibilidade de funcionalidades" e sem o formulário dos três estados');
+  afirma(await existe(page, '#avpAdminAcessos #avpUsuariosBtn'), 'Acessos continua com as permissões (Usuários autorizados)');
+  const depois = await banco(page);
+  afirma(JSON.stringify(depois['analises-organizacionais-config-auditoria']) === JSON.stringify(dbHist['analises-organizacionais-config-auditoria']) && depois[CFG].habilitacao === 'SOMENTE_ADMIN_GERAL',
+    'o histórico das alterações antigas e o último marcador ficam no banco, intactos (nada apagado nem migrado)');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
-  await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#admin?arq=inicio', {}));
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 20000 }); await page.waitForTimeout(500);
-  afirma(!(await existe(page, '#anHabilitacao')), 'Avaliação + Configuração não vê o interruptor');
   await ctx.close();
 }
 

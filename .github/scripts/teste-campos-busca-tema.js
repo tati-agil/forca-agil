@@ -3,8 +3,8 @@
  * type). Prova, no computador e a 375 px: fundo escuro; texto preenchido e placeholder com contraste ≥ 4,5:1; foco
  * visível; e os filtros continuam filtrando. Estrutura Atual com a gravação liberada: todos os controles nativos (campos
  * sem type, select, data, textarea, checkbox "Mostrar encerradas") no padrão escuro, inclusive desabilitado e somente
- * leitura. ADMIN › Acessos: "Permissões de usuários" e "Disponibilidade de funcionalidades", com o controle da Análise
- * Organizacional (Porta 2) uma vez só, rótulos "Ativada/Desativada" e "Alterar disponibilidade"; só admin geral.
+ * leitura. ADMIN › Acessos: só as permissões, sem o antigo controle de disponibilidade da Análise Organizacional
+ * (Porta 2); só admin geral.
  * Firebase falso em persistência real; hermético; conteúdo fictício. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -116,31 +116,18 @@ async function conferir(page, sel, rotulo) {
     afirma(parseFloat(estados.r1.opacidade) < 1 && estados.r1.cursor === 'not-allowed' && /rgb/.test(estados.ro), 'Estrutura Atual: desabilitado e somente leitura com estados próprios', estados);
     afirma(await r.page.evaluate(() => (window.__ESCRITAS || []).length) === g1 && r.erros.length === 0, 'Estrutura Atual: nada gravado, nenhum erro de JS');
     await r.ctx.close();
-    /* ADMIN › Acessos: as duas seções e a Porta 2 em "Disponibilidade de funcionalidades" (uma vez só) */
+    /* ADMIN › Acessos: só as permissões (a Porta 2 segue os perfis; não há mais controle de disponibilidade) */
     r = await abrir(browser, vp, '#admin?arq=inicio');
-    await esperarCondicao(r.page, () => !!document.getElementById('avpAdminAcessos') && !!document.getElementById('anHabAtual') && !/Carregando/.test(document.getElementById('anHabAtual').textContent), null, { limite: 15000, descricao: 'ADMIN › Acessos' });
-    const ac = await r.page.evaluate(() => ({ titulo: document.getElementById('avpAdminAcessosTitulo').textContent, perm: !!document.querySelector('#avpAdminAcessos #avpAcessosPermissoes ~ .avp-admin-cards #avpUsuariosBtn'),
-      disp: !!document.querySelector('#avpAdminAcessos #avpAcessosDisponibilidade ~ #avpDispPorta2 #anHabilitacao'), n: document.querySelectorAll('#anHabilitacao').length,
-      isolado: [...document.querySelectorAll('#adminAvaliacaoProduto .avp-admin-grupo h4')].some((h) => /Análise Organizacional/.test(h.textContent)),
-      atual: document.getElementById('anHabAtual').textContent, botao: (document.getElementById('anHabAlterar') || {}).textContent }));
-    afirma(ac.titulo === 'Acessos' && ac.perm && ac.disp, 'Acessos: "Permissões de usuários" (Usuários autorizados) e "Disponibilidade de funcionalidades" (Análise Organizacional)', ac);
-    afirma(ac.n === 1 && !ac.isolado, 'o controle da Porta 2 aparece uma vez só (sem o grupo isolado de antes)', ac);
-    afirma(ac.atual === 'Desativada' && ac.botao === 'Alterar disponibilidade' && !/Habilitação/.test(await r.page.evaluate(() => document.getElementById('avpAdminAcessos').textContent)), 'rótulos compreensíveis: "Desativada", "Alterar disponibilidade" (sem "Habilitação")', ac);
-    const g2 = await r.page.evaluate(() => (window.__ESCRITAS || []).length);
-    await r.page.click('#anHabAlterar'); await r.page.waitForSelector('#anFormHabilitacao');
-    const ops = await r.page.$$eval('#anFormHabilitacao .an-opcao > span', (l) => l.map((x) => x.firstChild.textContent));
-    const dicas = await r.page.$$eval('#anFormHabilitacao .an-hab-dica', (l) => l.map((x) => x.textContent));
-    afirma(dicas.length === 3 && /Nenhum dado é apagado/.test(dicas[0]) && /homologar/.test(dicas[1]), 'cada estado com uma linha curta, só no formulário (desativar não apaga dados)', dicas);
-    afirma((await r.page.innerText('label[for="anHabMotivo"]')).includes('Motivo (obrigatório)'), 'o motivo é dito obrigatório');
-    afirma(JSON.stringify(ops) === JSON.stringify(['Desativada', 'Ativada só para o admin geral (homologação)', 'Ativada para os perfis autorizados']), 'opções: Desativada / Ativada só para o admin geral / Ativada para os perfis autorizados', ops);
-    afirma((await medir(r.page, '#anHabMotivo')).lumFundo < 0.1, 'o "Motivo" da disponibilidade no tema escuro');
-    await r.page.click('#anHabCancelar');
-    afirma(await r.page.evaluate(() => (window.__ESCRITAS || []).length) === g2 && r.erros.length === 0, 'Acessos: nada gravado, nenhum erro de JS');
+    await esperarCondicao(r.page, () => !!document.getElementById('avpAdminAcessos') && !!document.getElementById('avpUsuariosBtn'), null, { limite: 15000, descricao: 'ADMIN › Acessos' });
+    const ac = await r.page.evaluate(() => ({ titulo: document.getElementById('avpAdminAcessosTitulo').textContent, perm: !!document.querySelector('#avpAdminAcessos #avpUsuariosBtn'),
+      disp: document.querySelectorAll('#anHabilitacao, #anHabilitacaoAdmin, #avpAcessosDisponibilidade, #avpDispPorta2').length, texto: document.getElementById('avpAdminAcessos').textContent }));
+    afirma(ac.titulo === 'Acessos' && ac.perm && ac.disp === 0 && !/Disponibilidade/.test(ac.texto), 'Acessos: as permissões (Usuários autorizados), sem "Disponibilidade de funcionalidades"', ac);
+    afirma(r.erros.length === 0, 'Acessos: nenhum erro de JS');
     await r.ctx.close();
     /* perfil restrito (Avaliação + Configuração): sem Acessos (só admin geral), como antes */
     r = await abrir(browser, vp, '#admin?arq=inicio', { restrito: true });
     await esperarCondicao(r.page, () => !!document.getElementById('avpAdminMapa'), null, { limite: 15000, descricao: 'ADMIN do perfil restrito' });
-    afirma(await r.page.locator('#avpAdminAcessos, #anHabilitacao, #avpUsuariosBtn').count() === 0, 'perfil restrito: nem Acessos nem o controle da Porta 2 (só admin geral, como antes)');
+    afirma(await r.page.locator('#avpAdminAcessos, #avpUsuariosBtn').count() === 0, 'perfil restrito: sem Acessos (só admin geral, como antes)');
     await r.ctx.close();
   }
   await browser.close();

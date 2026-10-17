@@ -93,7 +93,7 @@ const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limit
       console.log('\n== ' + nome + ': permissões e nenhuma seção vazia ==');
       r = await abrir(browser, vp, '#admin?arq=inicio', { restrito: true }); page = r.page;
       await page.waitForSelector('#avpAdminMapa', { timeout: 20000 });
-      afirma(await page.locator('#avpAdminAcessos, #anHabilitacao, #avpUsuariosBtn').count() === 0, 'Avaliação + Configuração: sem a seção Acessos (só admin geral, como antes)');
+      afirma(await page.locator('#avpAdminAcessos, #avpUsuariosBtn').count() === 0, 'Avaliação + Configuração: sem a seção Acessos (só admin geral, como antes)');
       afirma(await page.evaluate(() => [...document.querySelectorAll('#adminAvaliacaoProduto details.avp-admin-secao .avp-admin-secao-corpo')].every((c) => c.querySelector('.avp-admin-card, a, button'))), 'toda seção mostrada tem ao menos uma funcionalidade');
       afirma(await page.locator('#avpAdminMapa #avpMapaEditarBtn').count() === 1, 'a definição continua editável pelo perfil que já podia editá-la');
       await r.ctx.close();

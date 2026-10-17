@@ -410,9 +410,8 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     afirma(explica.indexOf('Fallback ("Tx a-validar")') !== -1 && explica.indexOf('Tx capacidade-organizacional, Tx processo-etapa, Tx modalidade-subproduto, Tx regra-condicao ou Tx componente') !== -1 &&
       explica.indexOf('"A validar"') === -1, '"Como este motor decide" usa os nomes da Taxonomia (' + explica.slice(0, 160) + ')');
     await foto(page, 'motor-sem-editar-textos-' + sufixo, '#adminAvaliacaoProduto');
-    await page.click('#avpMotorArqAuditoriaBtn');
-    await page.waitForSelector('#avpMotorArqHistorico', { timeout: 8000 });
-    await page.click('#avpMotorArqHistorico > summary');
+    await page.click('#avpMotorArqHistorico > summary'); /* recolhido: lido ao abrir */
+    await page.waitForFunction(() => /Histórico de alterações — /.test((document.querySelector('#avpMotorArqHistorico > summary') || {}).textContent || ''), null, { timeout: 8000 });
     const histMotor = await texto(page, '#avpMotorArqHistorico');
     afirma(/Texto/.test(histMotor) && /canal/.test(histMotor), 'histórico do motor: a linha antiga de "Texto" continua listada (' + histMotor.slice(0, 120) + ')');
     afirma(await larguraOk(page), 'motor sem rolagem horizontal');

@@ -114,17 +114,6 @@
     p[NOS.porObjeto + '/' + o.objetoId] = { analiseId: o.analiseId, recorteId: o.recorteId };
     return p;
   }
-  /* marcador de homologação: o: { anterior, nova, motivo, audId, usuario, agora } */
-  function payloadHabilitacao(o) {
-    exigirId(o.audId, 'audId');
-    var por = pessoa(o.usuario), motivo = typeof o.motivo === 'string' ? o.motivo.trim() : '';
-    if (!motivo) throw new Error('análise organizacional: motivo obrigatório');
-    var p = {};
-    p[NOS.config] = { habilitacao: o.nova, alteradoEm: o.agora, alteradoPor: por, motivo: motivo, auditoriaId: o.audId };
-    p[NOS.configAuditoria + '/' + o.audId] = { habilitacao: o.nova, anterior: o.anterior || 'DESLIGADO', motivo: motivo, usuario: por, dataHora: o.agora };
-    return p;
-  }
-
   /* banco → estado do núcleo (devolve o que o banco descartou: mapas e listas vazios, campos nulos) */
   function normalizarAnalise(a) {
     if (!a) return a;
@@ -164,7 +153,7 @@
   }
 
   var api = Object.freeze({ NOS: NOS, chaveProposta: chaveProposta, payloadOperacao: payloadOperacao, payloadCriarAtuacao: payloadCriarAtuacao,
-    payloadHabilitacao: payloadHabilitacao, normalizarAnalise: normalizarAnalise, estadoDoBanco: estadoDoBanco, semVazios: semVazios });
+    normalizarAnalise: normalizarAnalise, estadoDoBanco: estadoDoBanco, semVazios: semVazios });
   if (typeof window !== 'undefined') window.faAnalisesFirebase = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
