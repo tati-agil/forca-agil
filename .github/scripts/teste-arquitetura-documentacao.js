@@ -105,7 +105,8 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     afirma((await banco(page, 'arquitetura-documentos'))[k].arquivado === true && await page.locator('#avpDocsLista .avp-doc-item').count() === 0, 'arquivar tira da lista e guarda em "Arquivados", sem apagar');
     /* abre "Arquivados" e espera o botão à vista (um redesenho no meio fecharia a seção antes do clique) */
     await esperarCondicao(page, () => { const d = document.getElementById('avpDocsArquivados'); if (d && !d.open) d.open = true; const b = document.querySelector('.avp-doc-arquivar[data-acao="restaurar"]'); return !!b && b.offsetParent !== null; }, undefined, { limite: 8000, descricao: 'Arquivados aberto com Restaurar à vista' });
-    await page.click('.avp-doc-arquivar[data-acao="restaurar"]');
+    /* abrir e clicar no MESMO passo: um redesenho entre os dois (a gravação chegando, mais lenta no CI) fechava "Arquivados" */
+    await page.evaluate(() => { const d = document.getElementById('avpDocsArquivados'); if (d) d.open = true; document.querySelector('.avp-doc-arquivar[data-acao="restaurar"]').click(); });
     await page.click('.avp-modal-confirm-btn');
     await esperarCondicao(page, () => document.querySelectorAll('#avpDocsLista .avp-doc-item').length === 1, null, { descricao: 'o documento restaurado voltar à lista' });
     afirma((await banco(page, 'arquitetura-documentos'))[k].arquivado === false, 'restaurar devolve à lista');
