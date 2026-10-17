@@ -2712,8 +2712,10 @@
       var paginaAdmin = document.getElementById('page-admin');
       if (!sessaoAtual() || !paginaAdmin || paginaAdmin.hidden) return;
       var area = areaAtualAdmin();
-      var desejado = '#admin?arq=' + area;
+      var desejado = '#admin?arq=' + area + (area === 'motores' && state.configMotores && state.configMotores.motor === 'o' ? '&m=o' : '');
       if (location.hash === desejado) return;
+      /* Motores: &m=o (O1–O9) é a mesma área — trocar de motor substitui a entrada, sem empilhar */
+      if (area === 'motores' && /^#admin\?arq=motores(&m=o)?$/.test(location.hash || '')) { history.replaceState(history.state, '', desejado); politicaRolagemAdmin(); return; }
       /* Estruturas Organizacionais guardam a estrutura aberta no próprio endereço (&e=<id>): não é outra área */
       if (area === 'estruturas' && /^#admin\?arq=estruturas(&|$)/.test(location.hash || '')) return;
       /* Questionários: &q=<questionário> (atalho do Início) localiza um cartão — mesma área */
@@ -2767,7 +2769,7 @@
       if (window.faEstruturaAtualAdmin && area !== 'estrutura-atual') window.faEstruturaAtualAdmin.fechar();
       state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
       if (area === 'questionarios') abrirConfigQuestionarios();
-      else if (area === 'motores') abrirConfigMotores();
+      else if (area === 'motores') abrirConfigMotores(motorDoEndereco());
       else if (area === 'naturezas') abrirConfigNaturezas();
       else if (area === 'usuarios' && souAdminGeral()) abrirAdminUsuarios();
       else if (area === 'documentacao') abrirDocumentacao();
@@ -2795,6 +2797,12 @@
       politicaRolagemAdmin();
       var area = areaDoEndereco();
       if (area === 'questionarios' && area === areaAtualAdmin()) { focarQuestionarioDoEndereco(); return; }
+      /* Motores: trocar P1–P16 × O1–O9 pelo Voltar/Avançar é a mesma área — só muda o motor mostrado */
+      if (area === 'motores' && area === areaAtualAdmin()) {
+        var mm = state.motorPendente || motorDoEndereco(); state.motorPendente = null;
+        if (state.configMotores && state.configMotores.sub === 'painel' && state.configMotores.motor !== mm) irParaMotor(mm); else sincronizarEnderecoAdmin(); /* o endereço acompanha o motor mostrado */
+        return;
+      }
       if (!area || area === areaAtualAdmin()) return;
       if (edicaoSujaAdmin()) {
         var atual = areaAtualAdmin();
@@ -5203,12 +5211,9 @@
       /* sair do início com a definição em edição não salva pergunta antes (mesmo aviso das outras telas) */
       function sair(acao) { return function () { var dd = state.mapaDef; sairComAviso(dd, function () { if (dd) { dd.editandoMapa = null; dd.sujo = false; } acao(); }); }; }
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', sair(abrirConfigQuestionarios));
-      document.getElementById('avpConfigMotoresBtn').addEventListener('click', sair(abrirConfigMotores));
+      document.getElementById('avpConfigMotoresBtn').addEventListener('click', sair(function () { abrirConfigMotores('p'); }));
       /* Posicionamento (O1–O9): a mesma área dos motores, já no cartão dele */
-      document.getElementById('avpMotorPosicionamentoInicioBtn').addEventListener('click', sair(function () {
-        abrirConfigMotores();
-        rolarAdmin('#avpMotorPosicionamento'); /* depois da subida ao topo da subtela, no mesmo quadro */
-      }));
+      document.getElementById('avpMotorPosicionamentoInicioBtn').addEventListener('click', sair(function () { abrirConfigMotores('o'); }));
       document.getElementById('avpConfigNaturezasBtn').addEventListener('click', sair(abrirConfigNaturezas));
       var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
       if (squadBtn) squadBtn.addEventListener('click', sair(abrirMotorSquadDoInicio));
@@ -6109,15 +6114,30 @@
       });
     }
 
-    function abrirConfigMotores() {
-      state.configMotores = { sub: 'painel', flash: null };
+    function abrirConfigMotores(motor) {
+      state.configMotores = { sub: 'painel', flash: null, motor: motor === 'o' ? 'o' : 'p' };
       state.tela = 'config-motores';
       render();
     }
     function voltarPainelConfigMotores() {
-      state.configMotores = { sub: 'painel', flash: state.configMotores && state.configMotores.flash };
+      state.configMotores = { sub: 'painel', motor: 'p', flash: state.configMotores && state.configMotores.flash };
       render();
     }
+    /* o seletor dos motores: P/O ficam nesta tela (mesma área do endereço, &m=o); S abre o painel do Motor de Squad */
+    function irParaMotor(m) {
+      var sq = document.getElementById('adminAvaliacaoSquad');
+      var noSquad = !!(sq && !sq.hidden);
+      if (m === 's') { if (!noSquad && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; abrirMotorSquadDoInicio(); rolarAdmin('topo'); } return; }
+      if (noSquad && window.faAvaliacaoSquadAdmin) { state.motorPendente = m; window.faAvaliacaoSquadAdmin.fechar(); }
+      var c = state.tela === 'config-motores' && state.configMotores && state.configMotores.sub === 'painel' ? state.configMotores : null;
+      if (c && c.motor === m && !noSquad) return;
+      var pos = c && c.posicionamento; /* a simulação e o impacto já calculados do O1–O9 continuam ao voltar à aba */
+      state.configMotores = { sub: 'painel', flash: null, motor: m === 'o' ? 'o' : 'p', posicionamento: pos || undefined };
+      state.tela = 'config-motores';
+      render();
+      rolarAdmin('topo');
+    }
+    function motorDoEndereco() { return /^#admin\?arq=motores&m=o$/.test(location.hash || '') ? 'o' : 'p'; }
     function voltarParaEditarRegras(c) {
       state.configMotores = { sub: 'editar-regras', regras: c.regras, versaoBase: c.versaoBase, salvando: false, sujo: true };
       render();
@@ -6139,8 +6159,6 @@
       else if (c.sub === 'simulacao') html += renderMotorArqSimulacao();
       else if (c.sub === 'conflito-publicacao') html += renderMotorArqConflitoPublicacao();
       else if (c.sub === 'comparar-alteracoes') html += renderMotorArqCompararAlteracoes();
-      else if (c.sub === 'auditoria') html += renderMotorArqAuditoria();
-      else if (c.sub === 'versoes') html += renderMotorArqVersoes();
       html += '</div>';
       if (c.sub === 'painel') html += rodapeVoltar('avpMotoresVoltarRodape', ROTULO_ADMIN);
       wrap.innerHTML = html;
@@ -6157,36 +6175,25 @@
       else if (c.sub === 'simulacao') bindMotorArqSimulacao();
       else if (c.sub === 'conflito-publicacao') bindMotorArqConflitoPublicacao();
       else if (c.sub === 'comparar-alteracoes') bindMotorArqCompararAlteracoes();
-      else if (c.sub === 'auditoria') bindMotorArqAuditoria();
-      else if (c.sub === 'versoes') bindMotorArqVersoes();
     }
 
-    /* ---- PAINEL (visão geral dos dois motores) ---- */
+    /* ---- PAINEL: o cabeçalho com o seletor e o motor escolhido (P1–P16 ou O1–O9; o S1–S8 abre o painel dele) ---- */
     function renderMotoresPainel() {
       var c = state.configMotores;
-      var sitArq = window.faMotorArquitetura.situacao();
-      var html = '<div class="avp-form-card"><h3>⚙ Configuração dos Motores</h3>';
-      html += '<p class="avp-decisao-aviso">Os dois motores decidem por condições lógicas e precedência — nunca peso, pontuação ou contagem de respostas SIM. Alterar a lógica cria uma versão nova; alterar só a redação nunca versiona o motor.</p></div>';
-      if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
-      html += renderComoOMotorDecide(false);
-
-      html += '<div class="avp-form-card"><h4>Motor de Classificação Arquitetural (P1-P16)</h4>';
-      html += '<p>Versão publicada: <strong>' + esc(sitArq.versaoPublicada) + '</strong> · Status: ' + (sitArq.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'Publicada') + ' · Regras: ' + esc(sitArq.qtdRegras) + '</p>';
-      html += '<p>Última publicação: ' + (sitArq.ultimaAlteracaoEm ? esc(fmtData(sitArq.ultimaAlteracaoEm)) + (sitArq.ultimaAlteracaoPor ? ' · ' + esc(sitArq.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica, migradas de identificarCamada)') + '</p>';
-      html += '<div class="avp-actions-footer">';
-      html += '<button class="btn btn--sm" id="avpMotorArqEditarBtn">Editar regras</button>';
-      html += '<button class="btn btn--sm" id="avpMotorArqVersoesBtn">Versões publicadas</button>';
-      html += '<button class="btn btn--sm" id="avpMotorArqAuditoriaBtn">Histórico de alterações</button>';
-      html += '</div>';
-      /* O antigo "Editar textos" deste motor gravava um rótulo de classificação que nada exibia (cópia
-         morta). O NOME e a DEFINIÇÃO das classificações vêm só da Taxonomia Arquitetural; o que já foi
-         gravado em motor-arquitetura-config/textos e o histórico dessas edições continuam guardados. */
-      html += '<p class="avp-natureza-ajuda" id="avpMotorArqNomesTaxonomia">Os nomes e as definições das classificações vêm da Taxonomia Arquitetural (ADMIN › Taxonomia), pelo código de cada classificação — não são editados aqui.</p>';
-      html += '</div>';
-
-      /* o Motor de Squad (S1–S8) tem um acesso só: o cartão dele em Configuração das Avaliações › Motores de classificação */
-      html += renderPainelPosicionamento();
-      return html;
+      var html = cabecalhoMotoresHtml(c.motor || 'p');
+      var flash = c.flash ? '<p class="avp-flash-success">' + esc(c.flash) + '</p>' : '';
+      if (c.motor === 'o') return html + renderPainelPosicionamento(flash);
+      var sitArq = window.faMotorArquitetura.situacao(), ab = c.abertos || {};
+      return html + blocoMotorHtml({ m: 'p', id: 'avpMotorArquitetural', flash: flash,
+        situacao: '<p>Versão vigente: <strong>' + esc(sitArq.versaoPublicada) + '</strong> · Situação: ' + (sitArq.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'publicada') + ' · ' + esc(sitArq.qtdRegras) + ' regras</p>' +
+          '<p class="avp-ficha-meta">Última publicação: ' + (sitArq.ultimaAlteracaoEm ? esc(fmtData(sitArq.ultimaAlteracaoEm)) + (sitArq.ultimaAlteracaoPor ? ' · ' + esc(sitArq.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica, migradas de identificarCamada)') + '</p>',
+        comoDecide: itensComoDecideArq(), decideAberto: !!ab.avpMotorArquiteturalDecide,
+        acoes: '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpMotorArqEditarBtn">Editar regras</button></div>' +
+          /* O antigo "Editar textos" deste motor gravava um rótulo de classificação que nada exibia (cópia morta). O NOME e a
+             DEFINIÇÃO das classificações vêm só da Taxonomia Arquitetural; o que já foi gravado continua guardado. */
+          '<p class="avp-natureza-ajuda" id="avpMotorArqNomesTaxonomia">Os nomes e as definições das classificações vêm da Taxonomia Arquitetural (ADMIN › Taxonomia), pelo código de cada classificação — não são editados aqui.</p>',
+        versoes: versoesAnterioresHtml('avpMotorArqVersoes', window.faMotorArquitetura.listarVersoes(), window.faMotorArquitetura.versaoAtual(), 'avp-motor-arq-restaurar-btn', !!ab.avpMotorArqVersoes),
+        historico: historicoMotorHtml('avpMotorArqHistorico', c.hist, !!ab.avpMotorArqHistorico) });
     }
     /* ===== H2-a — Motor de Posicionamento: versões, prontidão e impacto (SÓ CONSULTA) =====
        Não há ação de ativar: prontidão técnica não é autorização, e a entrada em vigor exige aprovação explícita
@@ -6203,24 +6210,33 @@
       'exige-novas-respostas': 'exige novas respostas na v2', 'resultado-gravado-diverge': 'resultado gravado diverge do motor da versão', 'dados-incompletos': 'dados incompletos',
       'versao-desconhecida': 'versão de motor desconhecida', 'erro-na-comparacao': 'não foi possível comparar'
     };
-    function renderPainelPosicionamento() {
+    function renderPainelPosicionamento(flash) {
       var N = window.faMotorPosicionamentoNucleo, G = window.faGovernancaPosicionamento, Q = window.faQuestionarios;
-      var html = '<div class="avp-form-card" id="avpMotorPosicionamento"><h4>Motor de Posicionamento Organizacional (O1–O9) — versões</h4>';
-      if (!N || !G) return html + '<p class="admin-empty">Módulo do motor de posicionamento não carregado.</p></div>';
+      var ab = state.configMotores.abertos || {};
+      var SO_CONSULTA = '<p class="avp-ficha-meta" id="avpPosSoConsulta">A regra é fixa no sistema e esta tela não ativa versões: a entrada em vigor de uma versão nova é governada (aprovação dupla vinculada à versão e fronteira confiável).</p>';
+      var bloco = function (situacao, acoes, versoes) {
+        return blocoMotorHtml({ m: 'o', id: 'avpMotorPosicionamento', flash: flash, situacao: situacao, comoDecide: itensComoDecidePosicionamento(), decideAberto: !!ab.avpMotorPosicionamentoDecide, acoes: SO_CONSULTA + (acoes || ''), versoes: versoes || '' });
+      };
+      if (!N || !G) return bloco('<p class="admin-empty">Módulo do motor de posicionamento não carregado.</p>');
       var cp = state.configMotores.posicionamento || (state.configMotores.posicionamento = {});
       var codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, emVigor = versaoEmVigorPainel();
-      if (emVigor === null) return html + '<p class="loading-msg" id="avpPosVerificandoVigencia" role="status">' + (vigenciaMotorLida.estado === 'erro' ? 'Não foi possível ler a versão em vigor agora.' : 'Verificando a versão em vigor…') + '</p></div>';
-      html += '<table class="admin-table avp-pos-versoes"><thead><tr><th>Versão</th><th>Situação</th></tr></thead><tbody>' + N.versoes().map(function (v) {
-        return '<tr data-versao="' + v + '"><td data-label="Versão">v' + v + '</td><td data-label="Situação">' + (v === emVigor ? '<strong>Em vigor</strong>' : 'Inativa') + '</td></tr>';
-      }).join('') + '</tbody></table>';
+      if (emVigor === null) return bloco('<p class="loading-msg" id="avpPosVerificandoVigencia" role="status">' + (vigenciaMotorLida.estado === 'erro' ? 'Não foi possível ler a versão em vigor agora.' : 'Verificando a versão em vigor…') + '</p>');
+      /* versões anteriores = as de número menor que a em vigor (uma versão preparada e inativa NÃO é anterior: aparece na situação) */
+      var anteriores = N.versoes().filter(function (v) { return v < emVigor; });
+      var versoesPos = anteriores.length ? '<details class="avp-motor-detalhe" id="avpPosVersoesAnteriores" data-motor-det="avpPosVersoesAnteriores"' + (ab.avpPosVersoesAnteriores ? ' open' : '') + '><summary>Versões anteriores — ' + anteriores.length + (anteriores.length === 1 ? ' versão' : ' versões') + '</summary><ul>' +
+        anteriores.slice().reverse().map(function (v) { return '<li data-anterior="' + v + '">v' + v + ' — fora de vigor</li>'; }).join('') + '</ul></details>' : '';
+      var situacao = '<p id="avpPosVigente">Versão em vigor: <strong>v' + emVigor + '</strong></p>' +
+        '<p class="avp-ficha-meta" id="avpPosVersoesLinha">Versões: ' + N.versoes().map(function (v) { return '<span data-versao="' + v + '">v' + v + ': ' + (v === emVigor ? 'Em vigor' : 'Inativa') + '</span>'; }).join(' · ') + '</p>';
       var alvo = alvoDoPainel(emVigor);
-      if (!alvo) return html + '<p>Nenhuma versão nova preparada.</p></div>';
+      if (!alvo) return bloco(situacao + '<p class="avp-ficha-meta">Nenhuma versão nova preparada.</p>', '', versoesPos);
+      var html = '';
       var defA = N.definicao(alvo), defV = N.definicao(emVigor);
       var pubs = (alvo === 1 ? [ultimaRedacaoPublicada(codigo, 1)] : Q.versoesPublicadasConteudoMotor(codigo, alvo)).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
       var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null, redacaoValidada: redacaoAtualValidada(codigo, alvo) });
       /* o que está em vigor fica à vista; a preparação da versão futura (prontidão, simulação, impacto, aprovação dupla,
          fronteira, histórico) vai para uma seção avançada recolhida — inteira, com todos os bloqueios, ao abrir */
-      html += '<p class="avp-pos-resumo" id="avpPosResumo"><strong>v' + alvo + ' inativa</strong> — existem requisitos pendentes para entrada em vigor. A v' + emVigor + ' continua em vigor.</p>';
+      /* pendência importante: fica à vista, sem abrir nada */
+      situacao += '<p class="avp-pos-resumo" id="avpPosResumo"><strong>v' + alvo + ' preparada e inativa</strong> — existem requisitos pendentes para entrada em vigor. A v' + emVigor + ' continua em vigor.</p>';
       var inicioAvancado = html.length;
       html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
         return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
@@ -6254,9 +6270,8 @@
       }
       html += renderGovernancaPosicionamento(cp, alvo, defA, pr);
       var avancado = html.slice(inicioAvancado);
-      html = html.slice(0, inicioAvancado) + recolhivel('motorPosGovernanca', 'avpPosAvancado', 'avp-config-sub avp-pos-avancado',
-        'Governança e versões futuras — prontidão, simulação, impacto e aprovação da v' + alvo, !!(cp.simulacao || cp.impacto || cp.lendo || cp.erro), avancado);
-      return html + '</div>';
+      return bloco(situacao, recolhivel('motorPosGovernanca', 'avpPosAvancado', 'avp-config-sub avp-pos-avancado avp-motor-detalhe',
+        'Governança da v' + alvo + ' — prontidão, simulação, impacto e aprovação', !!(cp.simulacao || cp.impacto || cp.lendo || cp.erro), avancado), versoesPos);
     }
     /* ---- B3: governança persistida — proposta de entrada em vigor e aprovação dupla. Toda a regra está em
        faGovernancaPosicionamento (puro) e nas regras do banco; a tela só mostra e grava pela interface de serviços.
@@ -6611,7 +6626,47 @@
         if (state.configMotores && state.configMotores.posicionamento === cp) render();
       });
     }
+    function ligarAbasMotores(raiz) {
+      Array.prototype.forEach.call(raiz.querySelectorAll('.avp-motores-aba'), function (b) {
+        b.addEventListener('click', function () { irParaMotor(b.getAttribute('data-motor')); });
+      });
+    }
     function bindMotoresPainel() {
+      var c = state.configMotores;
+      ligarAbasMotores(wrap);
+      /* o que a pessoa abriu (Como decide, versões, histórico) continua aberto entre um redesenho e outro */
+      c.abertos = c.abertos || {};
+      Array.prototype.forEach.call(wrap.querySelectorAll('details[data-motor-det]'), function (d) {
+        d.addEventListener('toggle', function () {
+          var id = d.getAttribute('data-motor-det');
+          c.abertos[id] = d.open;
+          if (id === 'avpMotorArqHistorico' && d.open && !Array.isArray(c.hist) && c.hist !== 'carregando') {
+            c.hist = 'carregando';
+            window.faMotorArquitetura.auditoria(function (lista) { if (state.configMotores === c) { c.hist = lista || []; render(); } });
+          }
+        });
+      });
+      wrap.querySelectorAll('.avp-motor-arq-restaurar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          avpConfirm('Restaurar a versão ' + btn.dataset.versao + ' como uma versão nova das regras?', function () {
+            window.faMotorArquitetura.publicarVersaoAnterior(Number(btn.dataset.versao), sessaoAtual(), function (err) {
+              if (err) { avpAlert('Não foi possível restaurar. Tente novamente.'); return; }
+              state.configMotores = { sub: 'painel', motor: 'p', flash: '✓ Versão restaurada como uma versão nova.' };
+              render();
+            });
+          });
+        });
+      });
+      if (c.motor === 'o') bindPainelPosicionamento();
+      else document.getElementById('avpMotorArqEditarBtn').addEventListener('click', function () {
+        state.configMotores = {
+          sub: 'editar-regras', regras: window.faMotorArquitetura.iniciarOuObterRascunhoRegras(),
+          versaoBase: window.faMotorArquitetura.versaoBaseDoRascunho(), erro: null, salvando: false
+        };
+        render();
+      });
+    }
+    function bindPainelPosicionamento() {
       var cpGov = state.configMotores && state.configMotores.posicionamento;
       if (cpGov && !cpGov.gov) { iniciarGovernanca(cpGov); if (cpGov.gov) { render(); return; } }
       bindGovernancaPosicionamento(cpGov);
@@ -6624,24 +6679,6 @@
       });
       var posImp = document.getElementById('avpPosImpactoBtn');
       if (posImp) posImp.addEventListener('click', calcularImpactoPosicionamento);
-      document.getElementById('avpMotorArqEditarBtn').addEventListener('click', function () {
-        state.configMotores = {
-          sub: 'editar-regras', regras: window.faMotorArquitetura.iniciarOuObterRascunhoRegras(),
-          versaoBase: window.faMotorArquitetura.versaoBaseDoRascunho(), erro: null, salvando: false
-        };
-        render();
-      });
-      document.getElementById('avpMotorArqVersoesBtn').addEventListener('click', function () {
-        state.configMotores = { sub: 'versoes' };
-        render();
-      });
-      document.getElementById('avpMotorArqAuditoriaBtn').addEventListener('click', function () {
-        state.configMotores = { sub: 'auditoria', lista: null };
-        render();
-        window.faMotorArquitetura.auditoria(function (lista) {
-          if (state.configMotores && state.configMotores.sub === 'auditoria') { state.configMotores.lista = lista; render(); }
-        });
-      });
     }
 
     /* ---- EDITAR REGRAS — lista ÚNICA e ordenada (diferente do squad, que
@@ -6713,6 +6750,18 @@
     /* Explicação fixa, em linguagem de quem administra — descreve o que o
        motor JÁ faz (precedência, fallback, simulação, rascunho × publicação),
        não define regra nenhuma. */
+    function itensComoDecidePosicionamento() {
+      return '<li><strong>O que avalia:</strong> a responsabilidade organizacional associada a um objeto — não o objeto em si —, respondendo a perguntas O1–O9.</li>' +
+        '<li><strong>Como decide:</strong> em níveis. O1–O3 indicam Linha, Área Especializada ou Centro de Excelência; O4–O5 só valem no ramo Linha; O6–O9, só no ramo Plataforma. Só as perguntas do caminho contam, e um nível só conclui com todas as suas perguntas respondidas.</li>' +
+        '<li><strong>Quando exige validação:</strong> o resultado é "A validar" quando há incoerência (SIM fora do caminho), conflito ou recorte (dois papéis no mesmo nível, esclarecidos pelo diagnóstico) ou evidência insuficiente (pergunta sem resposta). Ausência de resposta nunca vira NÃO.</li>' +
+        '<li><strong>Resultado:</strong> a recomendação do TIPO de estrutura que deve sustentar a responsabilidade. A decisão humana pode confirmá-la ou divergir, com justificativa.</li>' +
+        '<li><strong>Tipo × estrutura concreta:</strong> recomendar o tipo não cria nem escolhe uma estrutura concreta; o vínculo com a estrutura responsável é registrado à parte, na ficha do Posicionamento.</li>' +
+        '<li><strong>Regra fixa:</strong> a lógica está no sistema e não se edita aqui; uma versão nova só entra em vigor pela governança.</li>';
+    }
+    function itensComoDecideArq() {
+      var h = '<li><strong>O que classifica:</strong> a natureza arquitetural do item avaliado (por exemplo, se ele constitui um Produto/Serviço ou é um componente, processo, capacidade ou regra), a partir das respostas SIM/NÃO de P1–P16.</li>';
+      return h + renderComoOMotorDecide().replace(/^[\s\S]*?<ul class="avp-motor-explica-lista">/, '').replace(/<\/ul><\/details>$/, '');
+    }
     function renderComoOMotorDecide(abertoPorPadrao) {
       var h = '<details class="avp-form-card avp-motor-explica"' + (abertoPorPadrao ? ' open' : '') + '><summary><strong>Como este motor decide</strong></summary>';
       h += '<ul class="avp-motor-explica-lista">';
@@ -7149,50 +7198,61 @@
     }
     /* Exposto para o motor de squad (avaliacao-squad.js) mostrar o histórico no mesmo formato. */
     window.faHistoricoArquitetura = { render: renderHistoricoRecolhido, linhasMotor: linhasAuditoriaMotor };
-    function renderMotorArqAuditoria() {
-      var c = state.configMotores;
-      var html = '<div class="avp-form-card"><h3>Histórico de alterações do motor arquitetural</h3></div>';
-      /* o "← Voltar" do rodapé existe também enquanto carrega e quando não há nada a mostrar */
-      if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>' + '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>'; return html; }
-      html += renderHistoricoRecolhido('avpMotorArqHistorico', linhasAuditoriaMotor(c.lista), { titulo: 'Histórico de alterações' });
-      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>';
-      return html;
+    /* ===================== CONFIGURAÇÃO DOS MOTORES — os três motores, um padrão =====================
+       Um cabeçalho (título, descrição curta e o seletor dos três motores) e, em cada motor, a mesma hierarquia:
+       identificação (nome, critérios, finalidade) → situação atual (versão vigente, pendências) → "Como este motor
+       decide" (recolhido) → configurações e ações → versões anteriores (recolhidas) → histórico (recolhido, lido só ao
+       abrir). Só apresentação: regras, versões, permissões e auditoria são as de sempre. O Motor de Squad (S1–S8) mora em
+       avaliacao-squad.js e usa este mesmo cabeçalho e esqueleto (window.faMotoresUI). */
+    var MOTORES_CONFIG = [
+      { m: 'p', nome: 'Produto/Serviço', sigla: 'P1–P16', finalidade: 'Classifica a natureza arquitetural dos itens avaliados, conforme os critérios P1–P16.' },
+      { m: 'o', nome: 'Posicionamento Organizacional', sigla: 'O1–O9', finalidade: 'Identifica o tipo de estrutura organizacional indicado para uma responsabilidade, conforme os critérios O1–O9.' },
+      { m: 's', nome: 'Adequação à Gestão por Squad', sigla: 'S1–S8', finalidade: 'Avalia a adequação do trabalho à gestão por Squad, conforme os critérios S1–S8.' }
+    ];
+    function motorConfig(m) { return MOTORES_CONFIG.filter(function (x) { return x.m === m; })[0]; }
+    function cabecalhoMotoresHtml(atual) {
+      return '<div class="avp-form-card avp-motores-cab"><h3 id="avpMotoresTitulo">Configuração dos Motores</h3>' +
+        '<p class="avp-motores-desc">Consulte as regras, versões e configurações dos motores utilizados nas avaliações.</p>' +
+        '<div class="avp-motores-abas" role="tablist" aria-label="Motores">' + MOTORES_CONFIG.filter(function (x) { return x.m !== 's' || !!window.faAvaliacaoSquadAdmin; }).map(function (x) {
+          var sel = x.m === atual;
+          return '<button type="button" class="avp-motores-aba' + (sel ? ' avp-motores-aba--ativa' : '') + '" role="tab" id="avpMotorAba_' + x.m + '" data-motor="' + x.m + '" aria-selected="' + sel + '"' +
+            (sel ? ' aria-current="true"' : '') + '><strong>' + esc(x.nome) + '</strong><span>' + esc(x.sigla) + '</span></button>';
+        }).join('') + '</div></div>';
     }
-    function bindMotorArqAuditoria() {
-      var btn = document.getElementById('avpMotorArqVoltarAuditoriaBtn');
-      if (btn) btn.addEventListener('click', voltarPainelConfigMotores);
+    /* o esqueleto comum: o.situacao, o.comoDecide (itens <li>), o.acoes, o.versoes, o.historico, o.flash (HTML já pronto) */
+    function blocoMotorHtml(o) {
+      var M = motorConfig(o.m);
+      return '<section class="avp-form-card avp-motor" id="' + o.id + '" data-motor="' + o.m + '" role="tabpanel" aria-labelledby="avpMotorAba_' + o.m + '">' +
+        '<header class="avp-motor-cab"><h4 class="avp-motor-titulo" id="' + o.id + 'Titulo">' + esc(M.nome) + ' <span class="avp-config-sigla">' + esc(M.sigla) + '</span></h4>' +
+        '<p class="avp-motor-finalidade">' + esc(M.finalidade) + '</p></header>' +
+        (o.flash || '') +
+        '<div class="avp-motor-situacao" id="' + o.id + 'Situacao">' + o.situacao + '</div>' +
+        '<details class="avp-motor-explica avp-motor-detalhe" id="' + o.id + 'Decide" data-motor-det="' + o.id + 'Decide"' + (o.decideAberto ? ' open' : '') + '><summary>Como este motor decide</summary>' +
+        '<ul class="avp-motor-explica-lista">' + o.comoDecide + '</ul></details>' +
+        '<div class="avp-motor-acoes"><h5 class="avp-motor-secao">Configurações e ações</h5>' + o.acoes + '</div>' +
+        (o.versoes || '') + (o.historico || '') + '</section>';
     }
-
-    /* ---- VERSÕES PUBLICADAS (rollback) ---- */
-    function renderMotorArqVersoes() {
-      var versoes = window.faMotorArquitetura.listarVersoes();
-      var atual = window.faMotorArquitetura.versaoAtual();
-      var html = '<div class="avp-form-card"><h3>Versões publicadas do motor arquitetural</h3>' +
-        '<p class="avp-decisao-aviso">Restaurar uma versão anterior cria uma versão NOVA com aquele conjunto de regras — nunca reescreve o histórico nem toca em avaliações já concluídas.</p></div>';
-      html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Versão</th><th>Situação</th><th>Ações</th></tr></thead><tbody>';
-      versoes.forEach(function (v) {
-        html += '<tr><td data-label="Versão">' + esc(v) + '</td><td data-label="Situação">' + (v === atual ? 'Vigente' : '—') + '</td>' +
-          '<td data-label="Ações">' + (v === atual ? '' : '<button class="btn btn--sm avp-motor-arq-restaurar-btn" data-versao="' + v + '">Restaurar como nova versão</button>') + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarVersoesBtn">← Voltar para Configuração dos Motores</button></div>';
-      return html;
+    /* versões anteriores (recolhidas): só as que não estão em vigor; sem anteriores, sem a seção */
+    function versoesAnterioresHtml(id, versoes, vigente, classeRestaurar, aberto) {
+      var ant = (versoes || []).filter(function (v) { return v !== vigente; });
+      if (!ant.length) return '';
+      return '<details class="avp-motor-detalhe" id="' + id + '" data-motor-det="' + id + '"' + (aberto ? ' open' : '') + '><summary>Versões anteriores — ' + ant.length + (ant.length === 1 ? ' versão' : ' versões') + '</summary>' +
+        '<p class="avp-ficha-meta">Restaurar uma versão anterior cria uma versão NOVA com aquele conjunto de regras — nunca reescreve o histórico nem toca em avaliações já concluídas.</p>' +
+        '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Versão</th><th>Ação</th></tr></thead><tbody>' + ant.slice().reverse().map(function (v) {
+          return '<tr><td data-label="Versão">' + esc(v) + '</td><td data-label="Ação">' + (classeRestaurar ? '<button type="button" class="btn btn--sm ' + classeRestaurar + '" data-versao="' + v + '">Restaurar como nova versão</button>' : '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div></details>';
     }
-    function bindMotorArqVersoes() {
-      document.getElementById('avpMotorArqVoltarVersoesBtn').addEventListener('click', voltarPainelConfigMotores);
-      wrap.querySelectorAll('.avp-motor-arq-restaurar-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          avpConfirm('Restaurar a versão ' + btn.dataset.versao + ' como uma versão nova das regras?', function () {
-            window.faMotorArquitetura.publicarVersaoAnterior(Number(btn.dataset.versao), sessaoAtual(), function (err) {
-              if (err) { avpAlert('Não foi possível restaurar. Tente novamente.'); return; }
-              state.configMotores = { sub: 'painel', flash: '✓ Versão restaurada como uma versão nova.' };
-              render();
-            });
-          });
-        });
-      });
+    /* histórico (recolhido): lido só quando a pessoa abre; depois, o padrão único de histórico */
+    function historicoMotorHtml(id, lista, aberto) {
+      if (Array.isArray(lista)) return renderHistoricoRecolhido(id, linhasAuditoriaMotor(lista), { titulo: 'Histórico de alterações' }).replace('<details ', '<details data-motor-det="' + id + '"' + (aberto ? ' open' : '') + ' ');
+      return '<details class="avp-historico-recolhido avp-motor-detalhe" id="' + id + '" data-motor-det="' + id + '"' + (aberto ? ' open' : '') + '><summary>Histórico de alterações</summary>' +
+        '<p class="loading-msg">' + (lista === 'erro' ? 'Não foi possível carregar o histórico agora.' : 'Carregando…') + '</p></details>';
     }
-
+    if (modo === 'admin') {
+      window.faMotoresUI = { cabecalho: cabecalhoMotoresHtml, bloco: blocoMotorHtml, versoesAnteriores: versoesAnterioresHtml, historico: historicoMotorHtml };
+      /* alterna entre os três motores sem voltar ao início (o Squad mora em outro módulo: fecha e abre) */
+      window.faMotoresIr = function (m) { irParaMotor(m); };
+    }
     /* ===================== FORM INICIAL ===================== */
     function renderFormInicial() {
       var a = state.atual;

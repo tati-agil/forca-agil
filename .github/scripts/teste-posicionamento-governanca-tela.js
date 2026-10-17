@@ -1,6 +1,6 @@
 /* H2-a / H3-a — a tela da governança do motor de Posicionamento. Desktop e celular 375 px; Firebase falso em
  * persistência real; hermético. A lógica pura está em teste-governanca-posicionamento.js; aqui:
- *   1. ADMIN › Motores: o cartão do Motor de Posicionamento mostra v1 em vigor e v2 inativa; a prontidão marca o que
+ *   1. ADMIN › Motores (aba O1–O9, #admin?arq=motores&m=o): o Motor de Posicionamento mostra v1 em vigor e v2 inativa; a prontidão marca o que
  *      falta (redação publicada, aprovação, fronteira confiável) e diz que prontidão não é autorização; não há
  *      ação de ativar; "Simular" mostra os estados e 0 violações de Linha × Squad; "Calcular impacto" separa iguais,
  *      alterados, incomparáveis (com motivo) e violações, contra o RASCUNHO (identificado), e não grava nada.
@@ -129,11 +129,11 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 
 async function motores(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + '] 1. ADMIN › Motores — Motor de Posicionamento');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores', true);
+  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores&m=o', true);
   await page.waitForSelector('#avpMotorPosicionamento');
   const antes = await banco(page);
   const card = page.locator('#avpMotorPosicionamento');
-  afirma(/Em vigor/.test(await card.locator('tr[data-versao="1"]').innerText()) && /Inativa/.test(await card.locator('tr[data-versao="2"]').innerText()), 'v1 em vigor, v2 inativa');
+  afirma(/Em vigor/.test(await card.locator('#avpPosVersoesLinha [data-versao="1"]').innerText()) && /Inativa/.test(await card.locator('#avpPosVersoesLinha [data-versao="2"]').innerText()), 'v1 em vigor, v2 inativa');
   const ok = async (item) => card.locator('li[data-item="' + item + '"]').getAttribute('data-ok');
   afirma(await ok('DEFINICAO_VALIDA') === 'true' && await ok('REDACAO_PUBLICADA_COMPATIVEL') === 'false' && await ok('APROVACAO') === 'false' && await ok('FRONTEIRA') === 'false',
     'prontidão: definição válida; sem redação publicada, sem aprovação, sem fronteira confiável');
@@ -212,12 +212,12 @@ async function publicar(browser, viewport, rotulo) {
   await page.click('#avpConteudoMotorPublicadas summary');
   afirma(/Versão 1/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()) && /Validada para ativação: não/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()), 'histórico: versão 1, "Validada para ativação: não"');
   afirma(await page.locator('#avpConteudoMotorPublicarBtn').count() === 0, 'sem rascunho, não há o que publicar');
-  await page.evaluate(() => { window.__detAntigo = document.getElementById('avpConteudoMotorPublicadas'); location.hash = '#admin?arq=motores'; });
+  await page.evaluate(() => { window.__detAntigo = document.getElementById('avpConteudoMotorPublicadas'); location.hash = '#admin?arq=motores&m=o'; });
   await page.waitForSelector('#avpMotorPosicionamento');
   /* "toggle" é uma tarefa à parte: na máquina lenta chega depois que a tela já trocou (CI, 375 px) */
   await page.evaluate(() => { window.__detAntigo.dispatchEvent(new Event('toggle')); });
   const card = page.locator('#avpMotorPosicionamento');
-  afirma(/Inativa/.test(await card.locator('tr[data-versao="2"]').innerText()) && /Em vigor/.test(await card.locator('tr[data-versao="1"]').innerText()), 'depois de publicar: v1 continua em vigor, v2 inativa');
+  afirma(/Inativa/.test(await card.locator('#avpPosVersoesLinha [data-versao="2"]').innerText()) && /Em vigor/.test(await card.locator('#avpPosVersoesLinha [data-versao="1"]').innerText()), 'depois de publicar: v1 continua em vigor, v2 inativa');
   afirma(await card.locator('li[data-item="REDACAO_PUBLICADA_COMPATIVEL"]').getAttribute('data-ok') === 'true' && await card.locator('li[data-item="REDACAO_VALIDADA_FRONTEIRA"]').getAttribute('data-ok') === 'false',
     'prontidão: redação publicada ✓, mas validada pela fronteira confiável ✗');
   afirma(await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1, 'versão em vigor do motor: 1');
@@ -278,7 +278,7 @@ async function calcularImpacto(page) {
   await page.waitForSelector('#avpPosImpacto');
 }
 async function abrirMotores(browser, viewport, email, db, extra) {
-  const r = await abrir(browser, viewport, '#admin?arq=motores', false, email, db, extra);
+  const r = await abrir(browser, viewport, '#admin?arq=motores&m=o', false, email, db, extra);
   await r.page.waitForSelector('#avpPosGovernanca #avpPosVigenciaRegistrada');
   return r;
 }
@@ -360,7 +360,7 @@ async function governanca(browser, viewport, rotulo) {
   afirma(/Autorizada — a entrada em vigor depende da fronteira confiável\./.test(await textoDe(page, '#avpPosPropostasHistorico')) && /continua em vigor/.test(await textoDe(page, '#avpPosPropostasHistorico')),
     'a aprovada diz "Autorizada — depende da fronteira confiável" e que nada mudou');
   afirma(await page.locator('li[data-item="APROVACAO"]').getAttribute('data-ok') === 'true' && await page.locator('li[data-item="FRONTEIRA"]').getAttribute('data-ok') === 'false', 'prontidão: aprovação dupla ✓, fronteira confiável ✗');
-  afirma(await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1 && /Inativa/.test(await textoDe(page, '#avpMotorPosicionamento tr[data-versao="2"]')), 'v1 continua em vigor e v2 inativa');
+  afirma(await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1 && /Inativa/.test(await textoDe(page, '#avpPosVersoesLinha [data-versao="2"]')), 'v1 continua em vigor e v2 inativa');
   afirma(await page.locator('#avpPosProporBtn').count() === 1, 'com o índice livre, uma nova proposta pode ser feita');
   dbAprovado = clone(db); pidAprovado = pid;
   afirma(await larguraOk(page), 'sem rolagem horizontal');
@@ -586,12 +586,12 @@ async function ativacaoTela(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* 6g. ADMIN com a v2 em vigor: a tabela diz isso e o alvo passa a ser o retorno à v1 */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores', false, ADM, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores&m=o', false, ADM, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
   await page.waitForSelector('#avpPosVerificandoVigencia');
   afirma(await page.locator('#avpPosGovernanca').count() === 0, 'ADMIN com vigência lenta: "Verificando a versão em vigor…", sem governança');
   await page.waitForSelector('#avpPosGovernanca #avpPosVigenciaRegistrada', { timeout: 10000 });
   const card = page.locator('#avpMotorPosicionamento');
-  afirma(/Em vigor/.test(await card.locator('tr[data-versao="2"]').innerText()) && !/Em vigor/.test(await card.locator('tr[data-versao="1"]').innerText()), 'v2 em vigor na tabela de versões');
+  afirma(/Em vigor/.test(await card.locator('#avpPosVersoesLinha [data-versao="2"]').innerText()) && !/Em vigor/.test(await card.locator('#avpPosVersoesLinha [data-versao="1"]').innerText()), 'v2 em vigor na tabela de versões');
   afirma(/Retorno à v1/.test(await textoDe(page, '#avpPosGovernanca h5')) && /v2/.test(await textoDe(page, '#avpPosVigenciaRegistrada')), 'a governança passa a tratar o retorno à v1 (mesmo rito)');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));

@@ -4,9 +4,9 @@
  *   A. Questionários: um cartão por questionário (P1–P16, S1–S8, O1–O9 "9 perguntas + diagnóstico") com versão,
  *      situação e Editar / Histórico / Exportar; correções editoriais e a redação da v2 (inativa) recolhidas DENTRO do
  *      cartão, sem perder nada; &q=p1p16|s1s8|o1o9 localiza o cartão sem abrir a edição (F5, Voltar/Avançar).
- *   B. Motores: resumo "v2 inativa — existem requisitos pendentes para entrada em vigor"; a governança numa seção
+ *   B. Motores (aba O1–O9): resumo "v2 preparada e inativa — existem requisitos pendentes para entrada em vigor"; a governança numa seção
  *      avançada recolhida; nenhum botão de ativar; D2 — os marcadores da prontidão ficam dentro do cartão.
- *   C. Motor de Squad: cabeçalho no padrão (⚙ título, sigla, versão · situação).
+ *   C. Motor de Squad: o mesmo cabeçalho de Configuração dos Motores (seletor dos três) e o esqueleto comum (nome, sigla, versão · situação).
  *   D. Estruturas no tema escuro: superfícies escuras, contraste ≥ 4,5:1, lista/ficha/histórico/formulário.
  *   E. Início: título compacto, primeira ação visível sem rolar; nenhuma tela com rolagem lateral.
  *   F. Perfis: Avaliação + Configuração edita os questionários; consulta não entra no ADMIN. */
@@ -107,10 +107,10 @@ async function questionarios(browser, viewport) {
 
 async function motores(browser, viewport) {
   console.log('B. Motores');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motores&m=o');
   await esperar(page, () => !!document.getElementById('avpPosResumo'), undefined, 20000);
   const resumo = (await texto(page, '#avpPosResumo')).trim();
-  afirma(/^v2 inativa — existem requisitos pendentes para entrada em vigor\. A v1 continua em vigor\.$/.test(resumo), 'resumo exato: "v2 inativa — existem requisitos pendentes para entrada em vigor"', resumo);
+  afirma(/^v2 preparada e inativa — existem requisitos pendentes para entrada em vigor\. A v1 continua em vigor\.$/.test(resumo), 'resumo exato, à vista: "v2 preparada e inativa — existem requisitos pendentes para entrada em vigor"', resumo);
   afirma(await page.evaluate(() => { const d = document.getElementById('avpPosAvancado'); return !!d && !d.open && d.tagName === 'DETAILS'; }), 'governança da v2 (prontidão, simulação, impacto, aprovação) numa seção avançada recolhida');
   afirma(await page.evaluate(() => !!document.querySelector('#avpPosAvancado #avpPosProntidao')), 'a prontidão continua na página, dentro da seção avançada (nada removido)');
   afirma(await page.evaluate(() => !Array.prototype.some.call(document.querySelectorAll('#adminPanelArquitetura button'), (b) => /^\s*Ativar/i.test(b.textContent))), 'bloqueio preservado: nenhum botão "Ativar"');
@@ -126,8 +126,8 @@ async function motores(browser, viewport) {
   console.log('C. Motor de Squad');
   await page.evaluate(() => { location.hash = '#admin?arq=motor-squad'; });
   await esperar(page, () => !!document.getElementById('sqMotorEditarRegrasBtn'), undefined, 20000);
-  const cab = await page.evaluate(() => { const b = document.getElementById('sqMotorEditarRegrasBtn'); let h = null; document.querySelectorAll('#adminPanelArquitetura h3').forEach((x) => { if (/Motor de Squad/.test(x.textContent) && x.offsetParent) h = x; }); return h ? h.textContent + ' | ' + h.parentElement.textContent : ''; });
-  afirma(/⚙ Motor de Squad/.test(cab) && /S1–S8/.test(cab) && /Versão de regras publicada: \d+ · Situação:/.test(cab), 'cabeçalho no padrão: ⚙ título, sigla, versão · situação', cab.slice(0, 160));
+  const cab = await page.evaluate(() => { const s = document.getElementById('sqMotorSquad'), t = document.querySelector('#adminAvaliacaoSquad #avpMotoresTitulo'); return (t ? t.textContent : '') + ' | ' + (s ? s.querySelector('.avp-motor-cab').textContent + ' ' + s.querySelector('.avp-motor-situacao').textContent : ''); });
+  afirma(/Configuração dos Motores/.test(cab) && /Adequação à Gestão por Squad/.test(cab) && /S1–S8/.test(cab) && /Versão vigente: \d+ · Situação:/.test(cab), 'Motor de Squad no padrão dos motores: cabeçalho comum, nome, sigla, versão · situação', cab.slice(0, 200));
   afirma(await larguraOk(page), 'Motor de Squad sem rolagem lateral');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
@@ -185,7 +185,7 @@ async function larguras(browser) {
       return { acao: Math.round(a.top + scrollY), tituloAcao: Math.round(a.top - h.bottom), alto: document.documentElement.scrollHeight, vh: innerHeight }; });
     const m = { w, inicioPrimeiraAcao: ini.acao, inicioTituloAteAcao: ini.tituloAcao, inicio: ini.alto, larguraInicio: await larguraOk(page) };
     afirma(ini.acao + 44 <= ini.vh && m.larguraInicio, w + ' px: Início — primeira ação visível sem rolar; sem rolagem lateral', JSON.stringify(ini));
-    for (const [area, sel] of [['questionarios', '#avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL'], ['motores', '#avpPosResumo'], ['motor-squad', '#sqMotorEditarRegrasBtn'], ['estruturas', '#estLista']]) {
+    for (const [area, sel] of [['questionarios', '#avpCfgCard-POSICIONAMENTO_ORGANIZACIONAL'], ['motores', '#avpMotorArqEditarBtn'], ['motor-squad', '#sqMotorEditarRegrasBtn'], ['estruturas', '#estLista']]) {
       await page.evaluate((a) => { location.hash = '#admin?arq=' + a; }, area);
       await page.waitForSelector(sel, { timeout: 20000 });
       await page.waitForTimeout(200);

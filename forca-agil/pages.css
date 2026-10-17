@@ -4080,3 +4080,31 @@ button.avp-mapa-link { background: none; border: 0; padding: 0; font: inherit; c
 .avp-partes-jornada { margin: 14px 0 0; border-top: 1px solid var(--line); padding-top: 10px; }
 .avp-partes-jornada > summary { cursor: pointer; font-weight: 600; color: var(--ink); display: list-item; padding: 12px 0; } /* marcador nativo, como os históricos */
 .avp-partes-jornada > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* ===== Configuração dos Motores: um cabeçalho com o seletor dos três motores e o mesmo esqueleto em cada um ===== */
+.avp-motores-cab h3 { margin: 0 0 4px; }
+.avp-motores-desc { margin: 0 0 12px; color: var(--ink-2); font-size: .9rem; }
+.avp-motores-abas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.avp-motores-aba { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: 10px 12px; text-align: left; cursor: pointer;
+  background: var(--space-1); border: 1px solid var(--line-strong); border-radius: 10px; color: var(--ink); font: inherit; }
+.avp-motores-aba strong { font-size: .9rem; }
+.avp-motores-aba span { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; color: var(--ink-3); }
+@media (hover: hover) { .avp-motores-aba:hover { border-color: var(--accent); } }
+.avp-motores-aba:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.avp-motores-aba--ativa { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); background: var(--panel-2); }
+.avp-motor { margin-top: 12px; }
+.avp-motor-cab { margin: 0 0 10px; }
+.avp-motor-titulo { margin: 0 0 4px; font-size: 1.1rem; }
+.avp-motor-finalidade { margin: 0; color: var(--ink-2); font-size: .9rem; max-width: 75ch; }
+.avp-motor-situacao { padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--space-1); }
+.avp-motor-situacao p { margin: 0 0 4px; }
+.avp-motor-situacao p:last-child { margin-bottom: 0; }
+.avp-motor-secao { margin: 16px 0 8px; font-size: .95rem; color: var(--ink); }
+.avp-motor-acoes { margin-top: 4px; }
+.avp-motor-grupo { padding: 10px 0; border-top: 1px solid var(--line); }
+.avp-motor-grupo:first-of-type { border-top: 0; padding-top: 0; }
+.avp-motor-grupo-titulo { margin: 0 0 6px; font-size: .88rem; color: var(--ink-2); text-transform: none; letter-spacing: 0; }
+details.avp-motor-detalhe, .avp-motor > details.avp-historico-recolhido { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+details.avp-motor-detalhe > summary { cursor: pointer; font-weight: 600; color: var(--ink); min-height: 32px; }
+details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-historico-recolhido > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.avp-motor .avp-motor-explica-lista { margin: 10px 0 0; }

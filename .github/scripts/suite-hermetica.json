@@ -581,6 +581,12 @@
       "sobre": "Só o Mapa começa aberto (Abrir, definição oficial, edição e histórico juntos); as demais seções recolhidas com título e descrição visíveis; Enter abre e fecha; voltar de uma funcionalidade (Voltar da tela, do navegador, link direto) reabre a seção de origem; perfil restrito sem Acessos e sem seção vazia."
     },
     {
+      "arquivo": ".github/scripts/teste-motores-integrados.js",
+      "nome": "Configuração dos Motores integrada: P1–P16, O1–O9 e S1–S8 no mesmo padrão (desktop e celular)",
+      "duracao": 45,
+      "sobre": "Seletor dos três motores (endereço acompanha: motores, &m=o, motor-squad), link direto e F5 em cada um, Voltar do navegador do S1–S8, \"Como este motor decide\" recolhido e específico de cada motor, versão vigente e pendência do O1–O9 à vista, teclado, perfil Avaliação + Configuração, sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 8,

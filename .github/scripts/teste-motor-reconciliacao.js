@@ -235,9 +235,8 @@ async function voltarParaAvaliacoes(page) {
     await irAoAdmin(page);
     await page.click('#avpConfigMotoresBtn');
     await page.waitForTimeout(200);
-    await page.click('#avpMotorArqAuditoriaBtn');
-    await page.waitForTimeout(400);
-    await page.evaluate(() => { const d = document.getElementById('avpMotorArqHistorico'); if (d) d.open = true; }); /* o histórico fica recolhido: abre para ler */
+    await page.click('#avpMotorArqHistorico > summary'); /* o histórico fica recolhido: abre para ler (lido ao abrir) */
+    await page.waitForFunction(() => /Histórico de alterações — /.test((document.querySelector('#avpMotorArqHistorico > summary') || {}).textContent || ''), null, { timeout: 8000 });
     afirma(/Reconciliação com versão equivalente/.test(await page.locator('#adminPanelArquitetura').innerText().catch(() => '')), 'tela de auditoria do motor mostra "Reconciliação com versão equivalente"');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
