@@ -1,12 +1,12 @@
-/* CONFIGURAÇÃO DOS MOTORES INTEGRADA — os três motores (P1–P16, O1–O9, S1–S8) com o mesmo cabeçalho, o mesmo seletor e o
- * mesmo esqueleto (identificação → situação → como decide → configurações e ações → versões anteriores → histórico), no
- * computador e a 375 px. Prova:
- *   - o seletor alterna entre os três sem voltar ao início, e o endereço acompanha (#admin?arq=motores, &m=o, motor-squad);
- *   - link direto e F5 em cada motor; Voltar do navegador do S1–S8 volta ao motor de antes;
- *   - "Como este motor decide" recolhido e específico de cada motor (nenhum texto de outro motor);
- *   - a pendência do O1–O9 (versão preparada e inativa) e a versão vigente ficam à vista, sem abrir nada;
- *   - teclado (Enter no seletor e no "Como decide"); perfil Avaliação + Configuração com os três motores; sem rolagem lateral;
- *     nenhum erro de página. Firebase falso em persistência real; hermético; nada é gravado. */
+/* MOTORES — ESCOLHA ÚNICA: ADMIN › Avaliações e Mapa → o cartão de um dos três motores (P1–P16, O1–O9, S1–S8) → a tela
+ * daquele motor → Voltar. No computador e a 375 px. Prova:
+ *   - o cartão abre direto o motor escolhido: sem uma segunda seleção dos três motores, sem título genérico;
+ *   - o mesmo esqueleto em cada motor: nome e finalidade → situação (versão vigente, pendências à vista) → "Como este
+ *     motor decide" (recolhido, específico do motor) → configurações e ações → versões anteriores e histórico (recolhidos);
+ *   - um "← Voltar" só, para Avaliações e Mapa, que reabre o grupo dos três motores; o Voltar do navegador faz o mesmo;
+ *   - link direto e F5 em cada motor (#admin?arq=motores, &m=o, motor-squad); teclado (Enter no cartão e no "Como
+ *     decide"); perfil Avaliação + Configuração; sem rolagem lateral; nenhum erro de página.
+ * Firebase falso em persistência real; hermético; nada é gravado. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -36,55 +36,65 @@ async function abrir(browser, vp, hash, o) {
 const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limite: 15000, descricao });
 const hash = (page) => page.evaluate(() => location.hash);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-const selecionado = (page) => page.evaluate(() => { const b = [...document.querySelectorAll('.avp-motores-aba')].filter((x) => x.offsetParent && x.getAttribute('aria-selected') === 'true'); return b.length === 1 ? b[0].getAttribute('data-motor') : b.length; });
 const decide = (page, id) => page.evaluate((i) => { const d = document.getElementById(i); return d ? { aberto: d.open, texto: d.textContent } : null; }, id);
+/* uma tela de motor: o motor escolhido e mais nenhum; nenhuma segunda seleção; um Voltar visível */
+const soEle = (page, id) => page.evaluate((i) => {
+  const vis = (e) => !!e && e.offsetParent !== null;
+  const motores = ['avpMotorArquitetural', 'avpMotorPosicionamento', 'sqMotorSquad'].filter((x) => vis(document.getElementById(x)));
+  const voltas = [...document.querySelectorAll('#adminAvaliacaoProduto button, #adminAvaliacaoSquad button')].filter((b) => vis(b) && /^← Voltar para Avaliações e Mapa$/.test(b.textContent.trim()));
+  return { motores, selecao: document.querySelectorAll('.avp-motores-aba, [role="tablist"]').length, voltas: voltas.length, generico: /Configuração dos Motores/.test((document.getElementById(i) || document.body).closest('#adminPanelArquitetura').innerText) };
+}, id);
+const MOTORES = [
+  { cartao: '#avpConfigMotoresBtn', id: 'avpMotorArquitetural', hash: '#admin?arq=motores', chave: /O que classifica/, outros: /Tipo × estrutura concreta|Não cria Squad/, rotulo: 'P1–P16' },
+  { cartao: '#avpMotorPosicionamentoInicioBtn', id: 'avpMotorPosicionamento', hash: '#admin?arq=motores&m=o', chave: /Tipo × estrutura concreta/, outros: /O que classifica|Não cria Squad/, rotulo: 'O1–O9' },
+  { cartao: '#avpMotorSquadInicioBtn', id: 'sqMotorSquad', hash: '#admin?arq=motor-squad', chave: /Não cria Squad/, outros: /O que classifica|Tipo × estrutura concreta/, rotulo: 'S1–S8' }
+];
 
 (async () => {
   const browser = await chromium.launch();
   try {
     for (const [nome, vp] of [['computador', { width: 1280, height: 900 }], ['375 px', { width: 375, height: 812 }]]) {
-      console.log('\n== ' + nome + ': os três motores, o mesmo padrão ==');
-      let r = await abrir(browser, vp, '#admin?arq=motores'); let page = r.page;
-      await page.waitForSelector('#avpMotorArquitetural', { timeout: 20000 });
-      afirma(JSON.stringify(await page.locator('.avp-motores-aba strong').allTextContents()) === JSON.stringify(['Produto/Serviço', 'Posicionamento Organizacional', 'Adequação à Gestão por Squad']) && await selecionado(page) === 'p',
-        'cabeçalho "Configuração dos Motores" com os três motores no seletor; P1–P16 selecionado');
-      afirma(/Consulte as regras, versões e configurações dos motores utilizados nas avaliações\./.test(await page.locator('.avp-motores-desc').textContent()), 'descrição curta da tela');
-      const p = await decide(page, 'avpMotorArquiteturalDecide');
-      afirma(/Versão vigente: \d+/.test(await page.locator('#avpMotorArquiteturalSituacao').innerText()) && !p.aberto && /O que classifica/.test(p.texto) && !/Tipo × estrutura concreta|Não cria Squad/.test(p.texto),
-        'P1–P16: versão vigente à vista; "Como este motor decide" recolhido e só dele');
-      afirma(await larguraOk(page), 'P1–P16 sem rolagem lateral');
-      /* teclado: Enter no seletor e no "Como decide" */
-      await page.focus('#avpMotorAba_o'); await page.keyboard.press('Enter');
-      await page.waitForSelector('#avpMotorPosicionamento #avpPosVigente, #avpMotorPosicionamento .loading-msg', { timeout: 15000 });
-      await ate(page, () => !!document.getElementById('avpPosResumo') || !!document.getElementById('avpPosVigente'), null, 'O1–O9 carregado');
-      afirma(await hash(page) === '#admin?arq=motores&m=o' && await selecionado(page) === 'o' && await page.locator('#avpMotorArquitetural').count() === 0, 'Enter no seletor: O1–O9, com o endereço #admin?arq=motores&m=o e só ele na tela');
-      const o = await decide(page, 'avpMotorPosicionamentoDecide');
-      afirma(!o.aberto && /Tipo × estrutura concreta/.test(o.texto) && /A validar/.test(o.texto) && !/O que classifica|Não cria Squad/.test(o.texto), 'O1–O9: "Como este motor decide" recolhido e só dele (tipo × estrutura concreta, A validar)');
-      afirma(await page.locator('#avpPosVigente').isVisible() && await page.locator('#avpPosResumo').isVisible() && !(await page.evaluate(() => document.getElementById('avpPosAvancado').open)),
-        'O1–O9: versão em vigor e a pendência da versão preparada à vista; a governança recolhida');
-      await page.focus('#avpMotorPosicionamentoDecide > summary'); await page.keyboard.press('Enter');
-      afirma((await decide(page, 'avpMotorPosicionamentoDecide')).aberto, 'Enter no "Como este motor decide" abre a explicação');
-      /* S1–S8 pelo seletor; o Voltar do navegador volta ao motor de antes */
-      await page.click('#avpMotorAba_s');
-      await page.waitForSelector('#adminAvaliacaoSquad #sqMotorSquad', { state: 'visible', timeout: 15000 });
-      const s = await decide(page, 'sqMotorSquadDecide');
-      afirma(await hash(page) === '#admin?arq=motor-squad' && await selecionado(page) === 's' && !s.aberto && /Não cria Squad/.test(s.texto) && !/O que classifica|Tipo × estrutura concreta/.test(s.texto),
-        'S1–S8: mesmo cabeçalho e seletor, no endereço de sempre; "Como este motor decide" recolhido e só dele');
-      afirma(await larguraOk(page), 'S1–S8 sem rolagem lateral');
+      console.log('\n== ' + nome + ': cada cartão abre só o seu motor; Voltar devolve ao grupo ==');
+      let r = await abrir(browser, vp, '#admin?arq=inicio'); let page = r.page;
+      await page.waitForSelector('#avpGrupoConfiguracao', { timeout: 20000 });
+      for (const M of MOTORES) {
+        await page.evaluate(() => { document.getElementById('avpGrupoConfiguracao').open = true; });
+        if (M.rotulo === 'O1–O9') { await page.focus(M.cartao); await page.keyboard.press('Enter'); } else await page.click(M.cartao);
+        await page.waitForSelector('#' + M.id, { state: 'visible', timeout: 15000 });
+        const t = await soEle(page, M.id);
+        afirma(JSON.stringify(t.motores) === JSON.stringify([M.id]) && t.selecao === 0 && t.voltas === 1 && !t.generico && await hash(page) === M.hash,
+          M.rotulo + (M.rotulo === 'O1–O9' ? ' (Enter no cartão)' : '') + ': só este motor, sem segunda seleção, um "← Voltar" só, em ' + M.hash, t);
+        if (M.rotulo === 'O1–O9') await ate(page, () => !!document.getElementById('avpPosVigente'), null, 'versão em vigor do O1–O9 lida');
+        const d = await decide(page, M.id + 'Decide');
+        afirma(!!d && !d.aberto && M.chave.test(d.texto) && !M.outros.test(d.texto) && /Versão (vigente|em vigor)/.test(await page.locator('#' + M.id + 'Situacao').innerText()),
+          M.rotulo + ': versão à vista; "Como este motor decide" recolhido e só dele');
+        if (M.rotulo === 'O1–O9') {
+          await ate(page, () => !!document.getElementById('avpPosResumo'), null, 'pendência do O1–O9');
+          afirma(await page.locator('#avpPosResumo').isVisible() && !(await page.evaluate(() => document.getElementById('avpPosAvancado').open)), 'O1–O9: pendência da versão preparada à vista; governança recolhida');
+          await page.focus('#avpMotorPosicionamentoDecide > summary'); await page.keyboard.press('Enter');
+          afirma((await decide(page, 'avpMotorPosicionamentoDecide')).aberto, 'Enter no "Como este motor decide" abre a explicação');
+        }
+        afirma(await larguraOk(page), M.rotulo + ' sem rolagem lateral');
+        await page.click(M.id === 'sqMotorSquad' ? '#sqMotorVoltarLista' : '#avpMotoresVoltarLista');
+        await ate(page, () => location.hash === '#admin?arq=inicio' && !!document.getElementById('avpGrupoConfiguracao') && document.getElementById('avpGrupoConfiguracao').open, null, 'de volta ao grupo');
+        afirma(true, M.rotulo + ': "← Voltar" devolve a Avaliações e Mapa com o grupo dos três motores aberto');
+      }
+      /* Voltar do navegador: do motor ao grupo */
+      await page.click('#avpMotorPosicionamentoInicioBtn');
+      await page.waitForSelector('#avpMotorPosicionamento', { state: 'visible' });
       await page.goBack();
-      await ate(page, () => !!document.getElementById('avpMotorPosicionamento') && document.getElementById('adminAvaliacaoSquad').hidden, null, 'Voltar do navegador ao O1–O9');
-      afirma(await selecionado(page) === 'o', 'Voltar do navegador: de volta ao motor de antes (O1–O9)');
+      await ate(page, () => location.hash === '#admin?arq=inicio' && !!document.getElementById('avpGrupoConfiguracao') && document.getElementById('avpGrupoConfiguracao').open, null, 'Voltar do navegador');
+      afirma(true, 'Voltar do navegador: do motor ao grupo dos três motores');
       afirma(r.erros.length === 0, 'nenhum erro de página', r.erros);
       await r.ctx.close();
 
       console.log('\n== ' + nome + ': links diretos e F5 ==');
-      for (const [h, m, sel] of [['#admin?arq=motores&m=o', 'o', '#avpMotorPosicionamento'], ['#admin?arq=motor-squad', 's', '#adminAvaliacaoSquad #sqMotorSquad'], ['#admin?arq=motores', 'p', '#avpMotorArquitetural']]) {
-        r = await abrir(browser, vp, h); page = r.page;
-        await page.waitForSelector(sel, { state: 'visible', timeout: 20000 });
-        afirma(await selecionado(page) === m, 'link direto ' + h + ': o motor certo selecionado');
+      for (const M of MOTORES) {
+        r = await abrir(browser, vp, M.hash); page = r.page;
+        await page.waitForSelector('#' + M.id, { state: 'visible', timeout: 20000 });
         await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
-        await page.waitForSelector(sel, { state: 'visible', timeout: 20000 });
-        afirma(await selecionado(page) === m && await hash(page) === h, 'F5 em ' + h + ': continua no mesmo motor');
+        await page.waitForSelector('#' + M.id, { state: 'visible', timeout: 20000 });
+        afirma(await hash(page) === M.hash && JSON.stringify((await soEle(page, M.id)).motores) === JSON.stringify([M.id]), 'link direto e F5 em ' + M.hash + ': o mesmo motor, só ele');
         afirma(r.erros.length === 0, 'nenhum erro de página', r.erros);
         await r.ctx.close();
       }
@@ -92,7 +102,7 @@ const decide = (page, id) => page.evaluate((i) => { const d = document.getElemen
       console.log('\n== ' + nome + ': perfil Avaliação + Configuração ==');
       r = await abrir(browser, vp, '#admin?arq=motores', { restrito: true }); page = r.page;
       await page.waitForSelector('#avpMotorArquitetural', { timeout: 20000 });
-      afirma(await page.locator('.avp-motores-aba').count() === 3 && await page.locator('#avpMotorArqEditarBtn').count() === 1, 'os três motores no seletor e "Editar regras" (o perfil já podia editar)');
+      afirma(await page.locator('#avpMotorArqEditarBtn').count() === 1 && await page.locator('.avp-motores-aba').count() === 0, '"Editar regras" (o perfil já podia editar), sem segunda seleção');
       await r.ctx.close();
     }
   } finally { await browser.close(); }

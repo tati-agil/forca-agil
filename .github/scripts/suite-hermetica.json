@@ -582,9 +582,9 @@
     },
     {
       "arquivo": ".github/scripts/teste-motores-integrados.js",
-      "nome": "Configuração dos Motores integrada: P1–P16, O1–O9 e S1–S8 no mesmo padrão (desktop e celular)",
+      "nome": "Motores — escolha única: cada cartão abre só o seu motor (desktop e celular)",
       "duracao": 45,
-      "sobre": "Seletor dos três motores (endereço acompanha: motores, &m=o, motor-squad), link direto e F5 em cada um, Voltar do navegador do S1–S8, \"Como este motor decide\" recolhido e específico de cada motor, versão vigente e pendência do O1–O9 à vista, teclado, perfil Avaliação + Configuração, sem rolagem lateral."
+      "sobre": "O cartão de P1–P16, O1–O9 ou S1–S8 abre direto aquele motor, sem segunda seleção; mesmo esqueleto (situação à vista, \"Como este motor decide\" recolhido e específico, versões e histórico recolhidos); um Voltar só, que reabre o grupo dos motores; Voltar do navegador; link direto e F5 em cada motor; teclado; perfil Avaliação + Configuração; sem rolagem lateral."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",

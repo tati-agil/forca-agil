@@ -2799,8 +2799,8 @@
       if (area === 'questionarios' && area === areaAtualAdmin()) { focarQuestionarioDoEndereco(); return; }
       /* Motores: trocar P1–P16 × O1–O9 pelo Voltar/Avançar é a mesma área — só muda o motor mostrado */
       if (area === 'motores' && area === areaAtualAdmin()) {
-        var mm = state.motorPendente || motorDoEndereco(); state.motorPendente = null;
-        if (state.configMotores && state.configMotores.sub === 'painel' && state.configMotores.motor !== mm) irParaMotor(mm); else sincronizarEnderecoAdmin(); /* o endereço acompanha o motor mostrado */
+        var mm = motorDoEndereco();
+        if (state.configMotores && state.configMotores.sub === 'painel' && state.configMotores.motor !== mm) irParaMotor(mm);
         return;
       }
       if (!area || area === areaAtualAdmin()) return;
@@ -6123,16 +6123,10 @@
       state.configMotores = { sub: 'painel', motor: 'p', flash: state.configMotores && state.configMotores.flash };
       render();
     }
-    /* o seletor dos motores: P/O ficam nesta tela (mesma área do endereço, &m=o); S abre o painel do Motor de Squad */
+    /* P1–P16 e O1–O9 dividem a área do endereço (#admin?arq=motores e &m=o): um link direto ou o Voltar/Avançar entre os
+       dois mostra o motor do endereço */
     function irParaMotor(m) {
-      var sq = document.getElementById('adminAvaliacaoSquad');
-      var noSquad = !!(sq && !sq.hidden);
-      if (m === 's') { if (!noSquad && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; abrirMotorSquadDoInicio(); rolarAdmin('topo'); } return; }
-      if (noSquad && window.faAvaliacaoSquadAdmin) { state.motorPendente = m; window.faAvaliacaoSquadAdmin.fechar(); }
-      var c = state.tela === 'config-motores' && state.configMotores && state.configMotores.sub === 'painel' ? state.configMotores : null;
-      if (c && c.motor === m && !noSquad) return;
-      var pos = c && c.posicionamento; /* a simulação e o impacto já calculados do O1–O9 continuam ao voltar à aba */
-      state.configMotores = { sub: 'painel', flash: null, motor: m === 'o' ? 'o' : 'p', posicionamento: pos || undefined };
+      state.configMotores = { sub: 'painel', flash: null, motor: m === 'o' ? 'o' : 'p' };
       state.tela = 'config-motores';
       render();
       rolarAdmin('topo');
@@ -6151,7 +6145,7 @@
       var destinoVoltar = c.sub === 'painel' ? ROTULO_ADMIN
         : c.sub === 'simulacao' || c.sub === 'conflito-publicacao' ? 'Editar regras'
         : c.sub === 'comparar-alteracoes' ? 'o conflito de publicação'
-        : 'Configuração dos Motores';
+        : 'Produto/Serviço (P1–P16)';
       var html = linkVoltar('avpMotoresVoltarLista', destinoVoltar);
       html += '<div class="avp-config-motores">';
       if (c.sub === 'painel') html += renderMotoresPainel();
@@ -6160,10 +6154,7 @@
       else if (c.sub === 'conflito-publicacao') html += renderMotorArqConflitoPublicacao();
       else if (c.sub === 'comparar-alteracoes') html += renderMotorArqCompararAlteracoes();
       html += '</div>';
-      if (c.sub === 'painel') html += rodapeVoltar('avpMotoresVoltarRodape', ROTULO_ADMIN);
       wrap.innerHTML = html;
-      var rodapeMotores = document.getElementById('avpMotoresVoltarRodape');
-      if (rodapeMotores) rodapeMotores.addEventListener('click', function () { state.tela = telaInicial(); state.configMotores = null; render(); });
       document.getElementById('avpMotoresVoltarLista').addEventListener('click', function () {
         if (c.sub === 'painel') { state.tela = telaInicial(); state.configMotores = null; render(); }
         else if (c.sub === 'simulacao' || c.sub === 'conflito-publicacao') voltarParaEditarRegras(c);
@@ -6177,10 +6168,10 @@
       else if (c.sub === 'comparar-alteracoes') bindMotorArqCompararAlteracoes();
     }
 
-    /* ---- PAINEL: o cabeçalho com o seletor e o motor escolhido (P1–P16 ou O1–O9; o S1–S8 abre o painel dele) ---- */
+    /* ---- PAINEL: só o motor escolhido no cartão do início (P1–P16 ou O1–O9; o S1–S8 abre o painel dele) ---- */
     function renderMotoresPainel() {
       var c = state.configMotores;
-      var html = cabecalhoMotoresHtml(c.motor || 'p');
+      var html = '';
       var flash = c.flash ? '<p class="avp-flash-success">' + esc(c.flash) + '</p>' : '';
       if (c.motor === 'o') return html + renderPainelPosicionamento(flash);
       var sitArq = window.faMotorArquitetura.situacao(), ab = c.abertos || {};
@@ -6626,14 +6617,8 @@
         if (state.configMotores && state.configMotores.posicionamento === cp) render();
       });
     }
-    function ligarAbasMotores(raiz) {
-      Array.prototype.forEach.call(raiz.querySelectorAll('.avp-motores-aba'), function (b) {
-        b.addEventListener('click', function () { irParaMotor(b.getAttribute('data-motor')); });
-      });
-    }
     function bindMotoresPainel() {
       var c = state.configMotores;
-      ligarAbasMotores(wrap);
       /* o que a pessoa abriu (Como decide, versões, histórico) continua aberto entre um redesenho e outro */
       c.abertos = c.abertos || {};
       Array.prototype.forEach.call(wrap.querySelectorAll('details[data-motor-det]'), function (d) {
@@ -6942,7 +6927,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="avpMotorArqSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
       html += '<button class="btn btn--primary" id="avpMotorArqSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
-      html += '<button class="btn" id="avpMotorArqCancelarBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração dos Motores</button>';
+      html += '<button class="btn" id="avpMotorArqCancelarBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Produto/Serviço (P1–P16)</button>';
       html += '</div>';
       return html;
     }
@@ -7199,31 +7184,22 @@
     /* Exposto para o motor de squad (avaliacao-squad.js) mostrar o histórico no mesmo formato. */
     window.faHistoricoArquitetura = { render: renderHistoricoRecolhido, linhasMotor: linhasAuditoriaMotor };
     /* ===================== CONFIGURAÇÃO DOS MOTORES — os três motores, um padrão =====================
-       Um cabeçalho (título, descrição curta e o seletor dos três motores) e, em cada motor, a mesma hierarquia:
+       O motor é escolhido UMA vez (o cartão dele em ADMIN › Avaliações e Mapa) e a tela mostra só ele, com a mesma hierarquia:
        identificação (nome, critérios, finalidade) → situação atual (versão vigente, pendências) → "Como este motor
        decide" (recolhido) → configurações e ações → versões anteriores (recolhidas) → histórico (recolhido, lido só ao
        abrir). Só apresentação: regras, versões, permissões e auditoria são as de sempre. O Motor de Squad (S1–S8) mora em
-       avaliacao-squad.js e usa este mesmo cabeçalho e esqueleto (window.faMotoresUI). */
+       avaliacao-squad.js e usa este mesmo esqueleto (window.faMotoresUI). Um "← Voltar" só, para Avaliações e Mapa. */
     var MOTORES_CONFIG = [
       { m: 'p', nome: 'Produto/Serviço', sigla: 'P1–P16', finalidade: 'Classifica a natureza arquitetural dos itens avaliados, conforme os critérios P1–P16.' },
       { m: 'o', nome: 'Posicionamento Organizacional', sigla: 'O1–O9', finalidade: 'Identifica o tipo de estrutura organizacional indicado para uma responsabilidade, conforme os critérios O1–O9.' },
       { m: 's', nome: 'Adequação à Gestão por Squad', sigla: 'S1–S8', finalidade: 'Avalia a adequação do trabalho à gestão por Squad, conforme os critérios S1–S8.' }
     ];
     function motorConfig(m) { return MOTORES_CONFIG.filter(function (x) { return x.m === m; })[0]; }
-    function cabecalhoMotoresHtml(atual) {
-      return '<div class="avp-form-card avp-motores-cab"><h3 id="avpMotoresTitulo">Configuração dos Motores</h3>' +
-        '<p class="avp-motores-desc">Consulte as regras, versões e configurações dos motores utilizados nas avaliações.</p>' +
-        '<div class="avp-motores-abas" role="tablist" aria-label="Motores">' + MOTORES_CONFIG.filter(function (x) { return x.m !== 's' || !!window.faAvaliacaoSquadAdmin; }).map(function (x) {
-          var sel = x.m === atual;
-          return '<button type="button" class="avp-motores-aba' + (sel ? ' avp-motores-aba--ativa' : '') + '" role="tab" id="avpMotorAba_' + x.m + '" data-motor="' + x.m + '" aria-selected="' + sel + '"' +
-            (sel ? ' aria-current="true"' : '') + '><strong>' + esc(x.nome) + '</strong><span>' + esc(x.sigla) + '</span></button>';
-        }).join('') + '</div></div>';
-    }
     /* o esqueleto comum: o.situacao, o.comoDecide (itens <li>), o.acoes, o.versoes, o.historico, o.flash (HTML já pronto) */
     function blocoMotorHtml(o) {
       var M = motorConfig(o.m);
-      return '<section class="avp-form-card avp-motor" id="' + o.id + '" data-motor="' + o.m + '" role="tabpanel" aria-labelledby="avpMotorAba_' + o.m + '">' +
-        '<header class="avp-motor-cab"><h4 class="avp-motor-titulo" id="' + o.id + 'Titulo">' + esc(M.nome) + ' <span class="avp-config-sigla">' + esc(M.sigla) + '</span></h4>' +
+      return '<section class="avp-form-card avp-motor" id="' + o.id + '" data-motor="' + o.m + '" aria-labelledby="' + o.id + 'Titulo">' +
+        '<header class="avp-motor-cab"><h3 class="avp-motor-titulo" id="' + o.id + 'Titulo">' + esc(M.nome) + ' <span class="avp-config-sigla">' + esc(M.sigla) + '</span></h3>' +
         '<p class="avp-motor-finalidade">' + esc(M.finalidade) + '</p></header>' +
         (o.flash || '') +
         '<div class="avp-motor-situacao" id="' + o.id + 'Situacao">' + o.situacao + '</div>' +
@@ -7249,9 +7225,7 @@
         '<p class="loading-msg">' + (lista === 'erro' ? 'Não foi possível carregar o histórico agora.' : 'Carregando…') + '</p></details>';
     }
     if (modo === 'admin') {
-      window.faMotoresUI = { cabecalho: cabecalhoMotoresHtml, bloco: blocoMotorHtml, versoesAnteriores: versoesAnterioresHtml, historico: historicoMotorHtml };
-      /* alterna entre os três motores sem voltar ao início (o Squad mora em outro módulo: fecha e abre) */
-      window.faMotoresIr = function (m) { irParaMotor(m); };
+      window.faMotoresUI = { bloco: blocoMotorHtml, versoesAnteriores: versoesAnterioresHtml, historico: historicoMotorHtml };
     }
     /* ===================== FORM INICIAL ===================== */
     function renderFormInicial() {

@@ -6,7 +6,7 @@
  *      cartão, sem perder nada; &q=p1p16|s1s8|o1o9 localiza o cartão sem abrir a edição (F5, Voltar/Avançar).
  *   B. Motores (aba O1–O9): resumo "v2 preparada e inativa — existem requisitos pendentes para entrada em vigor"; a governança numa seção
  *      avançada recolhida; nenhum botão de ativar; D2 — os marcadores da prontidão ficam dentro do cartão.
- *   C. Motor de Squad: o mesmo cabeçalho de Configuração dos Motores (seletor dos três) e o esqueleto comum (nome, sigla, versão · situação).
+ *   C. Motor de Squad: o esqueleto comum dos motores (nome, sigla, versão · situação), sem uma segunda seleção dos três.
  *   D. Estruturas no tema escuro: superfícies escuras, contraste ≥ 4,5:1, lista/ficha/histórico/formulário.
  *   E. Início: título compacto, primeira ação visível sem rolar; nenhuma tela com rolagem lateral.
  *   F. Perfis: Avaliação + Configuração edita os questionários; consulta não entra no ADMIN. */
@@ -127,7 +127,7 @@ async function motores(browser, viewport) {
   await page.evaluate(() => { location.hash = '#admin?arq=motor-squad'; });
   await esperar(page, () => !!document.getElementById('sqMotorEditarRegrasBtn'), undefined, 20000);
   const cab = await page.evaluate(() => { const s = document.getElementById('sqMotorSquad'), t = document.querySelector('#adminAvaliacaoSquad #avpMotoresTitulo'); return (t ? t.textContent : '') + ' | ' + (s ? s.querySelector('.avp-motor-cab').textContent + ' ' + s.querySelector('.avp-motor-situacao').textContent : ''); });
-  afirma(/Configuração dos Motores/.test(cab) && /Adequação à Gestão por Squad/.test(cab) && /S1–S8/.test(cab) && /Versão vigente: \d+ · Situação:/.test(cab), 'Motor de Squad no padrão dos motores: cabeçalho comum, nome, sigla, versão · situação', cab.slice(0, 200));
+  afirma(!/Configuração dos Motores/.test(cab) && /Adequação à Gestão por Squad/.test(cab) && /S1–S8/.test(cab) && /Versão vigente: \d+ · Situação:/.test(cab), 'Motor de Squad no padrão dos motores: cabeçalho comum, nome, sigla, versão · situação', cab.slice(0, 200));
   afirma(await larguraOk(page), 'Motor de Squad sem rolagem lateral');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
