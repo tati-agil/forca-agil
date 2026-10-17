@@ -1120,7 +1120,7 @@
         '<div class="mfm-acoes"><button type="button" class="mfm-acao" id="mfVoltar">' + rotuloVoltar() + '</button>' +
         (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(voltaItem) + '">← Voltar ao registro</a>' : '') +
         (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver os Trabalhos</button>' : '') +
-        (podeManterEstruturas() ? '<a class="mfm-acao" id="mfmDefinicao" href="#arquitetura?arq=inicio">Definição oficial do Mapa</a>' : '') + '</div></div>';
+        (podeManterEstruturas() ? '<a class="mfm-acao" id="mfmDefinicao" href="#arquitetura?arq=inicio">Definição do Mapa</a>' : '') + '</div></div>';
       if (cadastroDisponivel() && autorizacaoResolvida() && podeLer()) h += '<div class="mfm-cenarios mfm-fontes" role="group" aria-label="Dados do Mapa"><span class="mfm-cenarios-rotulo">Dados:</span>' +
         [['cadastro', 'Estruturas cadastradas'], ['demo', 'Demonstração (fictícia)']].map(function (o) {
           return '<button type="button" class="mfm-cenario mfm-fonte' + (fonte === o[0] ? ' mfm-cenario--ativo' : '') + '" data-fonte="' + o[0] + '" aria-pressed="' + (fonte === o[0]) + '">' + o[1] + '</button>';

@@ -91,7 +91,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
       console.log('\n== 2 e 3. Configuração gravada: lida do banco, alterada pela tela, auditada ==');
       const { ctx, page, erros } = await abrir(browser, viewport, { MAPA_FLORESTA: GRAVADA });
       await page.waitForSelector('#avpDocsMapaFloresta .avp-docs-definicao-texto', { timeout: 8000 });
-      afirma(await texto(page, '#avpDocsMapaFlorestaTitulo') === 'Definição oficial — ' + GRAVADA.titulo && await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-texto') === GRAVADA.definicao &&
+      afirma(await texto(page, '#avpDocsMapaFlorestaTitulo') === 'Definição do Mapa — ' + GRAVADA.titulo && await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-texto') === GRAVADA.definicao &&
         await texto(page, '#avpDocsMapaFloresta .avp-docs-definicao-nota') === GRAVADA.nota, 'o card mostra título, definição e nota DO BANCO (não a constante do código)');
       afirma(await page.locator('#avpDocsMapaFloresta a[href="' + GRAVADA.link + '"]').count() === 1 && await page.locator('#avpMapaFabrica').count() === 0, 'link gravado e sem a marca de valor inicial');
       await page.click('#avpMapaEditarBtn');

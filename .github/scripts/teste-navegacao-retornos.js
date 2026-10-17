@@ -188,7 +188,7 @@ async function n9(browser, vp, tag) {
   await fim(r, 'N9');
 }
 async function n10(browser, vp, tag) {
-  console.log('\n== N10 (' + tag + '): Mapa → Definição oficial (seção do Mapa) → Voltar → Mapa ==');
+  console.log('\n== N10 (' + tag + '): Mapa → Definição do Mapa (seção do Mapa) → Voltar → Mapa ==');
   const r = await abrir(browser, vp, '#arquitetura?mf=mapa'); const page = r.page;
   await ate(page, () => !!document.getElementById('mfmDefinicao'), null, 'Mapa com o acesso à documentação', 15000);
   await page.click('#mfmDefinicao');

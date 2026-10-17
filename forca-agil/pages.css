@@ -3066,7 +3066,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mfm-bloco--plataformas .mfm-caixa { padding: 10px 12px; font-size: .95rem; }
 .mfm-bloco--plataformas .mfm-caixa { justify-content: flex-start; }
 /* CoEs: coluna estreita, um CoE por caixa; no celular, as caixas lado a lado */
-.mfm-bloco--coe { padding: 0 12px 14px; align-self: stretch; overflow: hidden;
+.mfm-bloco--coe { padding: 0 12px 14px; align-self: start; overflow: hidden; /* a coluna termina com as caixas (sem área vazia abaixo) */
   background: linear-gradient(180deg, color-mix(in srgb, var(--cor) 13%, #ffffff) 0%, color-mix(in srgb, var(--cor) 5%, #ffffff) 100%);
   border: 1px solid color-mix(in srgb, var(--cor) 40%, #ffffff); box-shadow: 0 8px 22px color-mix(in srgb, var(--cor) 18%, transparent); }
 .mfm-bloco--coe .mfm-bloco-topo { gap: 10px; margin: 0 -12px 14px; padding: 14px 12px; background: linear-gradient(155deg, var(--cor) 0%, color-mix(in srgb, var(--cor) 80%, #ffffff) 100%); }
@@ -3973,8 +3973,9 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .avp-mapa-como p { margin: 4px 0 0; }
 .avp-inicio-mapa { margin: 16px 0; }
 /* Gestão da Floresta no Início: o que sustenta as avaliações e o Mapa (só para quem pode abrir a Gestão) */
-.avp-inicio-gestao h3 { margin: 0 0 6px; }
-.avp-inicio-gestao-lista { margin: 8px 0 12px; padding-left: 18px; display: grid; gap: 4px; font-size: var(--arq-fs-texto); }
+.avp-inicio-gestao { margin: 20px 0 0; padding: 16px 0 0; border-top: 1px solid var(--line-strong); } /* acesso direto, sem cartão */
+.avp-inicio-gestao h3 { margin: 0 0 4px; }
+.avp-inicio-gestao p { margin: 0 0 12px; font-size: var(--arq-fs-texto); color: var(--ink-2); }
 .avp-inicio-gestao .avp-inicio-continuar-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .fl-gestao-painel > #flTaxVoltar { margin: 0 0 12px; }
 .fl-gestao-painel > #flTaxVoltar[hidden] { display: none; } /* .avp-voltar-link define display e venceria o hidden */
@@ -4098,7 +4099,8 @@ button.avp-mapa-link { background: none; border: 0; padding: 0; font: inherit; c
 /* Configuração das Avaliações: um grupo por avaliação → Questionário | Motor */
 .avp-admin-avals { display: grid; gap: 12px; }
 .avp-admin-aval { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px 20px; align-items: center;
-  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 10px; padding: 14px 16px; }
+  border-top: 1px solid var(--line-strong); padding: 14px 0 2px; } /* uma linha por avaliação, sem caixa dentro da caixa */
+.avp-admin-aval:first-child { border-top: 0; padding-top: 2px; }
 .avp-admin-aval-cab { min-width: 0; }
 .avp-admin-aval-titulo { margin: 0; font-family: inherit; font-size: 1.02rem; font-weight: 700; line-height: 1.3; color: var(--ink); }
 .avp-admin-aval-sigla { display: inline-block; margin-left: 4px; font-family: var(--font-mono); font-size: var(--arq-fs-meta); font-weight: 400; letter-spacing: .04em; color: var(--gold); white-space: nowrap; }
@@ -4110,7 +4112,7 @@ button.avp-mapa-link { background: none; border: 0; padding: 0; font: inherit; c
 .avp-admin-acesso span { font-size: var(--arq-fs-aux); line-height: 1.4; color: var(--ink-2); }
 .avp-admin-acesso:hover, .avp-admin-acesso:focus-visible { border-color: var(--gold); outline: none; }
 @media (max-width: 760px) { .avp-admin-aval { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 420px) { .avp-admin-aval { padding: 12px; } .avp-admin-aval-acessos { gap: 8px; } .avp-admin-acesso { padding: 10px; } }
+@media (max-width: 420px) { .avp-admin-aval-acessos { gap: 8px; } .avp-admin-acesso { padding: 10px; } }
 /* Mapa: tudo numa seção só — abrir, definição oficial (edição e histórico), jornada e partes */
 .avp-mapa-destaque.avp-admin-secao .avp-mapa-situacao { margin-top: 0; }
 .avp-mapa-destaque .avp-docs-definicao { margin: 14px 0 0; padding: 12px 14px; }

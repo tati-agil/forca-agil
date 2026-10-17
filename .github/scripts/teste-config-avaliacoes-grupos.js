@@ -74,11 +74,11 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
       console.log('\n== Três grupos: nome, sigla, descrição e Questionário | Motor ==');
       const grupos = await page.evaluate(() => [...document.querySelectorAll('#avpGrupoConfiguracao .avp-admin-aval')].map((g) => ({
         id: g.id, titulo: g.querySelector('.avp-admin-aval-titulo').textContent.trim(), desc: g.querySelector('.avp-admin-aval-desc').textContent.trim(),
-        acessos: [...g.querySelectorAll('.avp-admin-acesso')].map((b) => ({ id: b.id, rotulo: b.querySelector('strong').textContent.trim(), texto: b.querySelector('span').textContent.trim(), h: b.getBoundingClientRect().height }))
+        acessos: [...g.querySelectorAll('.avp-admin-acesso')].map((b) => ({ id: b.id, rotulo: b.querySelector('strong').textContent.trim(), texto: (b.querySelector('span') || {}).textContent || '', h: b.getBoundingClientRect().height }))
       })));
       afirma(JSON.stringify(grupos.map((g) => g.titulo)) === JSON.stringify(['Produto/Serviço P1–P16', 'Posicionamento Organizacional O1–O9', 'Adequação à Gestão por Squad S1–S8']), 'três grupos, um por avaliação', grupos.map((g) => g.titulo));
-      afirma(grupos.every((g) => g.desc.length > 20 && g.acessos.length === 2 && g.acessos[0].rotulo === 'Questionário' && g.acessos[1].rotulo === 'Motor' && g.acessos.every((a) => a.texto.length > 10)),
-        'cada grupo: descrição curta e dois acessos distintos (Questionário, Motor) com o que cada um contém');
+      afirma(grupos.every((g) => g.desc.length > 20 && g.acessos.length === 2 && g.acessos[0].rotulo === 'Questionário' && g.acessos[1].rotulo === 'Motor' && g.acessos.every((a) => !/Perguntas, ajudas/.test(a.texto))),
+        'cada grupo: descrição curta e acesso direto ao Questionário e ao Motor (sem a mesma descrição repetida em cada acesso)');
       afirma(JSON.stringify(grupos.map((g) => g.acessos.map((a) => a.id))) === JSON.stringify([['avpQuestP1P16Btn', 'avpConfigMotoresBtn'], ['avpQuestO1O9Btn', 'avpMotorPosicionamentoInicioBtn'], ['avpQuestS1S8Btn', 'avpMotorSquadInicioBtn']]),
         'cada acesso no grupo da própria avaliação');
       afirma(grupos.every((g) => g.acessos.every((a) => a.h >= 44)), 'alvos de toque ≥ 44 px');
@@ -89,7 +89,7 @@ const abrirGrupo = (page) => page.evaluate(() => { document.getElementById('avpG
       console.log('\n== Legibilidade dos títulos e textos ==');
       const tipo = await page.evaluate(() => {
         const cs = (s) => { const e = document.querySelector(s); const c = getComputedStyle(e); return { fam: c.fontFamily, tam: parseFloat(c.fontSize), peso: c.fontWeight, cor: c.color }; };
-        return { titulo: cs('#avpGrupoConfiguracaoTitulo'), desc: cs('#avpGrupoConfiguracao .avp-admin-secao-desc'), aval: cs('#avpAvalP1P16 .avp-admin-aval-titulo'), avalDesc: cs('#avpAvalP1P16 .avp-admin-aval-desc'), acesso: cs('#avpQuestP1P16Btn span') };
+        return { titulo: cs('#avpGrupoConfiguracaoTitulo'), desc: cs('#avpGrupoConfiguracao .avp-admin-secao-desc'), aval: cs('#avpAvalP1P16 .avp-admin-aval-titulo'), avalDesc: cs('#avpAvalP1P16 .avp-admin-aval-desc'), acesso: cs('#avpMotorPosicionamentoInicioBtn span') }; /* o único acesso com observação ("Só consulta") */
       });
       afirma(!/Anton/i.test(tipo.titulo.fam) && tipo.titulo.tam >= 17, 'título da seção: sem a Anton em negrito sintético, ≥ 17 px', tipo.titulo);
       afirma(tipo.desc.tam >= 14 && tipo.avalDesc.tam >= 14 && tipo.acesso.tam >= 13 && tipo.aval.tam >= 16, 'descrições ≥ 14 px (acessos ≥ 13 px), título do grupo ≥ 16 px', tipo);

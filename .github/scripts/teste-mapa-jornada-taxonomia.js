@@ -30,7 +30,7 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.j
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 const DESKTOP = { width: 1280, height: 900 };
 const CELULAR = { width: 375, height: 800 };
-const DESCRICAO_ADMIN = 'O Mapa da Floresta reúne a visão das estruturas organizacionais e de suas responsabilidades.';
+const DESCRICAO_ADMIN = 'Abrir Mapa: ver a representação organizacional. Definição do Mapa: consultar e administrar a definição oficial.';
 const DESCRICAO = 'Visualize as estruturas organizacionais e os produtos, serviços e responsabilidades associados a elas, conforme os registros disponíveis.';
 let falhas = 0;
 function afirma(c, msg, det) { console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det !== undefined ? ' → ' + (typeof det === 'string' ? det : JSON.stringify(det)) : '')); if (!c) falhas++; }
@@ -81,8 +81,8 @@ async function cenarioA(browser, vp, nome) {
   const ordem = await page.evaluate(() => { const secs = [...document.querySelectorAll('#adminAvaliacaoProduto details[data-secao-admin].avp-admin-secao')]; return secs.length > 1 && secs[0].id === 'avpAdminMapa'; });
   afirma(!!ordem, 'a seção "Mapa da Floresta" é a primeira, antes das seções de configuração');
   afirma((await page.innerText('#avpAdminMapaTitulo')).trim() === 'Mapa da Floresta' && (await page.innerText('#avpAdminMapa > summary .avp-admin-secao-desc')).trim() === DESCRICAO_ADMIN, 'título "Mapa da Floresta" e a descrição curta, visível mesmo recolhida');
-  afirma(await situacao(page, 'avpAdminMapaSituacao') === 'demonstrativo' && /modo demonstrativo, com exemplos fictícios que não representam relações reais/.test(await page.innerText('#avpAdminMapaSituacao')), 'sem cadastro de estruturas: diz que o Mapa é demonstrativo e que os exemplos não são relações reais');
-  afirma(await page.getAttribute('#avpAdminAbrirMapa', 'href') === '#arquitetura?mf=mapa' && (await page.innerText('#avpAdminAbrirMapa')).trim().toLowerCase() === 'abrir mapa da floresta' && await page.locator('#avpAdminMapa .btn--primary').count() === 1, 'ação principal "Abrir Mapa da Floresta" → #arquitetura?mf=mapa (a única ação amarela da seção)');
+  afirma(await page.locator('#avpAdminMapaSituacao').count() === 0, 'a origem dos dados não se repete na Gestão (fica no Início da Floresta, junto do Mapa)');
+  afirma(await page.getAttribute('#avpAdminAbrirMapa', 'href') === '#arquitetura?mf=mapa' && (await page.innerText('#avpAdminAbrirMapa')).trim().toLowerCase() === 'abrir mapa' && await page.locator('#avpAdminMapa .btn--primary').count() === 1 && /Definição do Mapa/.test(await page.innerText('#avpAdminMapa')), 'duas ações distintas: "Abrir Mapa" (#arquitetura?mf=mapa, a única amarela) e a "Definição do Mapa"');
   afirma(await page.locator('#avpAdminJornadaMapa').count() === 0, 'sem atalho repetido para os Trabalhos (eles estão no Início da Floresta)');
   afirma(await page.locator('#avpAdminDocsMapa').count() === 0, 'sem documentos de referência: nenhum link "Documentação relacionada"');
   afirma(await page.locator('#avpParteMapa').count() === 0 && await page.locator('#adminAvaliacaoProduto a[href="#arquitetura?mf=mapa"]').count() === 1, 'nenhum segundo "Abrir o Mapa" na mesma tela');
@@ -115,9 +115,9 @@ async function cenarioA(browser, vp, nome) {
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
   await ctx.close();
   /* com o cadastro de estruturas: a origem são os registros */
-  const c = await abrir(browser, vp, { cadastro: true });
-  await irAvaliacoesEMapa(c.page);
-  afirma(await situacao(c.page, 'avpAdminMapaSituacao') === 'cadastro' && /estruturas cadastradas na Gestão da Floresta e vínculos registrados nas fichas do Posicionamento/.test(await c.page.innerText('#avpAdminMapaSituacao')) && !/demonstrativo/.test(await c.page.innerText('#avpAdminMapaSituacao')), 'com cadastro: a origem são as estruturas cadastradas e os vínculos registrados');
+  const c = await abrir(browser, vp, { cadastro: true, hash: 'arquitetura' });
+  await c.page.waitForSelector('#avpInicioMapaSituacao', { timeout: 15000 });
+  afirma(await situacao(c.page, 'avpInicioMapaSituacao') === 'cadastro' && /estruturas cadastradas na Gestão da Floresta e vínculos registrados nas fichas do Posicionamento/.test(await c.page.innerText('#avpInicioMapaSituacao')) && !/demonstrativo/.test(await c.page.innerText('#avpInicioMapaSituacao')), 'com cadastro (Início): a origem são as estruturas cadastradas e os vínculos registrados');
   await c.ctx.close();
 }
 
@@ -126,6 +126,7 @@ async function cenarioB(browser, vp, nome) {
   console.log('\n== B. ' + nome + ': área Avaliação (sem ADMIN) — o Mapa no Início ==');
   const { ctx, page, erros } = await abrir(browser, vp, { email: 'avaliadora@previ.com.br', admin: false, tipo: 'avaliacao', hash: 'avaliacoes' });
   await page.waitForSelector('#avpInicioMapaSec', { timeout: 15000 });
+  afirma(await situacao(page, 'avpInicioMapaSituacao') === 'demonstrativo' && /modo demonstrativo, com exemplos fictícios que não representam relações reais/.test(await page.innerText('#avpInicioMapaSituacao')), 'sem cadastro de estruturas: o Início diz que o Mapa é demonstrativo e que os exemplos não são relações reais');
   afirma((await page.innerText('#avpInicioMapaTitulo')).trim() === 'Mapa da Floresta' && (await page.innerText('#avpInicioMapaSec .avp-mapa-desc')).trim() === DESCRICAO, 'o Início mostra o bloco "Mapa da Floresta", com a descrição');
   afirma(await page.getAttribute('#avpInicioMapa', 'href') === '#arquitetura?mf=mapa' && !(await page.$('#avpInicioJornada')), '"Abrir Mapa da Floresta" (a jornada está nos Trabalhos, sem atalho próprio)');
   afirma(await page.evaluate(() => { const m = document.getElementById('avpInicioMapaSec').getBoundingClientRect(), c = document.getElementById('avpInicioComecar').getBoundingClientRect(); return m.top >= c.bottom; }), 'o bloco vem depois de continuar e começar (não interrompe a escolha)');
