@@ -70,6 +70,40 @@ const medir = (page) => page.evaluate(() => {
   return out;
 });
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+const esquemaRaiz = (page) => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
+/* foco por teclado: percorre até n paradas de Tab dentro do domínio e devolve os controles cujo foco não aparece —
+   nem contorno, nem sombra, nem mudança de borda/fundo em relação ao mesmo controle sem foco */
+async function focoInvisivel(page, n) {
+  const vistos = [];
+  /* começa no primeiro controle do domínio (no ADMIN, menu e abas vêm antes): foca por programa e volta um passo,
+     para que o primeiro Tab já chegue a ele como foco de teclado */
+  const temInicio = await page.evaluate(() => {
+    const raiz = document.querySelector('#page-avaliacoes:not([hidden]), #adminPanelArquitetura.active, #adminPanelTaxonomia.active');
+    const alvo = raiz && Array.from(raiz.querySelectorAll('a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')).find((e) => !e.disabled && e.getBoundingClientRect().width > 0);
+    if (!alvo) return false; alvo.focus(); return true;
+  });
+  if (temInicio) await page.keyboard.press('Shift+Tab');
+  for (let i = 0; i < n; i++) {
+    await page.keyboard.press('Tab');
+    const f = await page.evaluate((i) => {
+      const e = document.activeElement;
+      if (!e || e === document.body || !e.closest('#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia')) return null;
+      const c = getComputedStyle(e);
+      window.__pvFoco = window.__pvFoco || {};
+      window.__pvFoco[i] = [c.outlineStyle, c.outlineWidth, c.boxShadow, c.borderTopColor, c.backgroundColor].join('|');
+      e.setAttribute('data-pv-foco', i);
+      return { i, el: e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + '.' + String(e.className).split(' ')[0], contorno: (c.outlineStyle !== 'none' && parseFloat(c.outlineWidth) > 0) || c.boxShadow !== 'none' };
+    }, i);
+    if (f) vistos.push(f);
+  }
+  const muda = await page.evaluate(() => {
+    if (document.activeElement) document.activeElement.blur();
+    const o = {};
+    document.querySelectorAll('[data-pv-foco]').forEach((e) => { const c = getComputedStyle(e); const i = e.getAttribute('data-pv-foco'); o[i] = window.__pvFoco[i] !== [c.outlineStyle, c.outlineWidth, c.boxShadow, c.borderTopColor, c.backgroundColor].join('|'); });
+    return o;
+  });
+  return { total: vistos.length, invisiveis: [...new Set(vistos.filter((f) => !f.contorno && !muda[f.i]).map((f) => f.el))] };
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -112,6 +146,10 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
         });
         afirma(id.fundo && id.estrelas, rotulo + ': fundo espacial intacto (nebulosa e estrelas)', id);
         afirma(!id.camposClaros.length, rotulo + ': nenhum campo de formulário com fundo claro', id.camposClaros);
+        /* barra de rolagem da página no tema escuro (a barra pertence ao <html>) */
+        afirma(await esquemaRaiz(r.page) === 'dark', rotulo + ': raiz da página com color-scheme escuro (barra de rolagem no tema)', await esquemaRaiz(r.page));
+        const fo = await focoInvisivel(r.page, 25);
+        afirma(fo.total > 0 && !fo.invisiveis.length, rotulo + ': foco por teclado visível em todos os controles percorridos (' + fo.total + ')', fo.invisiveis);
         if (hash === '#avaliacoes') {
           const h1 = await r.page.evaluate(() => { const e = document.querySelector('#page-avaliacoes .page-hero h1'); const c = getComputedStyle(e); return { fam: c.fontFamily.split(',')[0].replace(/["']/g, ''), w: c.fontWeight }; });
           afirma(h1.fam === 'Anton' && h1.w === '400', 'título da página: Anton (identidade), no peso que a fonte tem', h1);
@@ -134,6 +172,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
         const h1 = await r.page.evaluate(() => getComputedStyle(document.querySelector('.admin-hero h1')).fontWeight);
         afirma(h1 === '400', 'cabeçalho do ADMIN com aba da Arquitetura: sem negrito sintético', h1);
         afirma(await larguraOk(r.page), 'Taxonomia: sem rolagem lateral');
+        afirma(await esquemaRaiz(r.page) === 'dark', 'Taxonomia: raiz da página com color-scheme escuro');
+        const fo = await focoInvisivel(r.page, 25);
+        afirma(fo.total > 0 && !fo.invisiveis.length, 'Taxonomia: foco por teclado visível em todos os controles percorridos (' + fo.total + ')', fo.invisiveis);
         await r.ctx.close();
       }
       /* fora do domínio, nada muda */
@@ -147,6 +188,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
         });
         afirma(/system-ui/.test(fora.body), 'fora do domínio: o corpo do site continua com a mesma fonte', fora.body);
         if (fora.btn) afirma(fora.btn.fam === 'Space Mono' && fora.btn.fs === '12.48px', 'fora do domínio: botões do site com o tamanho de antes (0,78 rem)', fora.btn);
+        afirma(await esquemaRaiz(r.page) === 'normal', 'fora do domínio: a raiz da página continua sem color-scheme (o escuro vale só nas telas da Arquitetura)', await esquemaRaiz(r.page));
         await r.ctx.close();
       }
     }

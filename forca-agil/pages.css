@@ -4150,3 +4150,16 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 :is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) .admin-table th { font-size: var(--arq-fs-meta); }
 /* o cabeçalho do ADMIN é compartilhado: corrige o negrito sintético só quando a aba aberta é da Arquitetura */
 #page-admin:has(#adminPanelArquitetura.active:not([hidden]), #adminPanelTaxonomia.active:not([hidden])) .admin-hero h1 { font-weight: 400; }
+
+/* ===== ARQUITETURA ORGANIZACIONAL: FOCO E ROLAGEM (Padrão Visual Oficial, seção 4) =====
+   Auditoria de 17/10/2026 (Chromium e Edge no Windows, desktop e 375 px): campos, seletores, data, busca e modais do
+   domínio já eram escuros; nenhuma rolagem interna desnecessária, aninhada ou lateral. Dois problemas reais:
+   1. a raiz da página não declarava color-scheme: a barra de rolagem PRINCIPAL saía clara no Windows (os contêineres
+      do domínio já tinham color-scheme: dark, mas a barra da página pertence ao <html>). Só enquanto uma tela da
+      Arquitetura está aberta — as demais páginas do site continuam como estavam;
+   2. foco por teclado invisível em botões (.btn), na caixa "Mostrar encerradas" e nos campos da Taxonomia: a regra
+      antiga "#adminContent input:focus { outline: none }" apaga o contorno, e .btn nunca teve :focus-visible.
+      Contorno no acento do tema (na Taxonomia, --accent já é o ciano dela), só para teclado (:focus-visible); o Mapa
+      da Floresta mantém o seu contorno azul-escuro, próprio para a folha clara. */
+:root:has(#page-avaliacoes:not([hidden]), #page-admin:not([hidden]) :is(#adminPanelArquitetura, #adminPanelTaxonomia).active) { color-scheme: dark; }
+:is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) :is(a, button, input, select, textarea, summary, [tabindex]):not(.mfm-painel *, .mfm-detalhe *):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
