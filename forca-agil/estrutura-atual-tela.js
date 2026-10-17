@@ -42,6 +42,24 @@
   function unidade(id) { return (D.unidades || {})[id] || null; }
 
   var wrap = null, origem = null, st = { view: 'lista', id: null, form: null, erro: null, flash: null, gravando: false, encerradas: false, historico: null, sujo: false };
+  /* histórico da gravação do cadastro (estrutura-atual-config-auditoria, só acréscimo): recolhido; lido só ao abrir */
+  var histHab = { lista: undefined, aberto: false };
+  function carregarHistHab() {
+    histHab.lista = 'carregando'; render();
+    S().lerUmaVez(N().NOS.configAuditoria, 12000).then(function (v) {
+      v = v || {};
+      histHab.lista = Object.keys(v).map(function (k) { return v[k]; }).filter(Boolean).sort(function (a, b) { return (b.dataHora || 0) - (a.dataHora || 0); });
+      render();
+    }, function () { histHab.lista = null; render(); });
+  }
+  function histHabHtml() {
+    var l = histHab.lista, rot = function (x) { return x === 'LIBERADO' ? 'Liberada' : 'Desligada'; };
+    var corpo = l === undefined || l === 'carregando' ? '<p class="loading-msg">Carregando…</p>'
+      : l === null ? '<p class="avp-error-msg">Não foi possível carregar o histórico agora.</p>'
+      : !l.length ? '<p class="an-det">Nenhuma alteração registrada.</p>'
+      : '<ol class="an-eventos">' + l.map(function (h) { return '<li>' + esc(fmtData(h.dataHora)) + ' — ' + rot(h.anterior) + ' → ' + rot(h.habilitacao) + ' <span class="an-det">' + esc((h.usuario || {}).email || '') + ' · motivo: ' + esc(h.motivo || '') + '</span></li>'; }).join('') + '</ol>';
+    return '<details class="an-hab-ultima" id="eaMarcadorHistorico"' + (histHab.aberto ? ' open' : '') + '><summary>Histórico' + (Array.isArray(l) ? ' — ' + l.length + (l.length === 1 ? ' alteração' : ' alterações') : '') + '</summary>' + corpo + '</details>';
+  }
   var MENSAGENS = { NOME_OBRIGATORIO: 'Informe o nome da unidade.', NIVEL_INVALIDO: 'Escolha o nível organizacional.', NIVEL_OUTRO_OBRIGATORIO: 'Descreva o nível (em "Outro").',
     SIGLA_INVALIDA: 'A sigla tem até 30 caracteres.', FONTE_INVALIDA: 'A fonte tem até 500 caracteres.', VIGENCIA_INVALIDA: 'Informe a data de início da vigência.',
     SUPERIOR_INEXISTENTE: 'A unidade superior escolhida não existe mais.', SUPERIOR_ENCERRADA: 'A unidade superior escolhida está encerrada.', SUPERIOR_E_ELA_MESMA: 'Uma unidade não pode ser superior dela mesma.',
@@ -64,6 +82,11 @@
     wrap.addEventListener('input', function (ev) { if (ev.target && ev.target.closest('form')) st.sujo = true; });
     /* redesenhar com o histórico aberto dispara "toggle" de novo: só carrega se ainda não carregou (ou está carregando) esta unidade */
     wrap.addEventListener('toggle', function (ev) {
+      if (ev.target && ev.target.id === 'eaMarcadorHistorico') {
+        histHab.aberto = ev.target.open;
+        if (histHab.aberto && (histHab.lista === undefined || histHab.lista === null)) carregarHistHab();
+        return;
+      }
       if (!ev.target || ev.target.id !== 'eaHistorico') return;
       if (st.historico && st.historico.id === st.id) { st.historico.aberto = ev.target.open; return; }
       if (ev.target.open) carregarHistorico();
@@ -98,7 +121,7 @@
     var t = '<div class="ea-marcador" id="eaMarcador"><p><strong>Gravação do cadastro:</strong> <span class="an-chip an-chip--' + (lib ? 'ok' : 'pend') + '" id="eaMarcadorValor">' + (lib ? 'Liberada' : 'Desligada') + '</span> ' +
       (lib ? (perfilManter() ? '' : '<span class="an-det">Manter o cadastro é do admin geral e do perfil Avaliação + Configuração.</span>') : '<span class="an-det">Cadastro só para consulta.</span>') + '</p>' +
       '<p class="an-det" id="eaMarcadorQuem">Liberar ou desligar: só o admin geral.</p>' +
-      (reg ? '<details class="an-hab-ultima" id="eaMarcadorUltima"><summary>Última alteração</summary><p class="an-det">' + esc(fmtData(reg.alteradoEm)) + ' · ' + esc((reg.alteradoPor || {}).email || '') + (reg.motivo ? ' · motivo: ' + esc(reg.motivo) : '') + '</p></details>' : '');
+      (reg ? histHabHtml() : '');
     if (adminGeral()) t += '<details class="an-conceitos" id="eaMarcadorDet"><summary>' + (lib ? 'Desligar a gravação' : 'Liberar a gravação') + '</summary><form class="an-form" id="eaFormMarcador" data-nova="' + (lib ? 'DESLIGADO' : 'LIBERADO') + '">' +
       '<div class="avp-field"><label for="eaMarcadorMotivo">Motivo (obrigatório)</label><input type="text" id="eaMarcadorMotivo" maxlength="500"></div><p class="an-nota">Fica no histórico. Não depende da disponibilidade da Análise Organizacional.</p>' +
       '<div class="avp-actions-footer"><button type="submit" class="btn btn--sm btn--primary" id="eaMarcadorGravar">' + (lib ? 'Desligar' : 'Liberar') + '</button></div></form></details>';
@@ -251,7 +274,7 @@
       var i = S().identidade(); if (!i) return;
       var hp = N().payloadHabilitacao(habilitacao(), f.getAttribute('data-nova'), val('eaMarcadorMotivo'), { usuario: { uid: i.uid, email: i.email }, auditoriaId: S().novaChave(N().NOS.configAuditoria) }, S().agoraServidor());
       if (!hp.ok) { st.erro = msg(hp.erro); render(); return; }
-      S().gravar(hp.payload, PRAZO, function (err) { st.erro = err ? 'Não foi possível mudar o marcador.' : null; st.flash = err ? null : 'Marcador gravado (com motivo, no histórico).'; render(); });
+      S().gravar(hp.payload, PRAZO, function (err) { st.erro = err ? 'Não foi possível mudar o marcador.' : null; st.flash = err ? null : 'Marcador gravado (com motivo, no histórico).'; if (!err) histHab.lista = undefined; if (!err && histHab.aberto) { carregarHistHab(); return; } render(); });
       return;
     }
     if (!podeManter()) return;

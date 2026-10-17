@@ -74,8 +74,11 @@ async function criar(page, d, botao) {
     await page.evaluate(() => { document.getElementById('eaMarcadorDet').open = true; });
     await page.fill('#eaMarcadorMotivo', 'Homologação da GECON (teste)'); await page.click('#eaMarcadorGravar');
     await page.waitForSelector('#eaNovaBtn');
-    await page.waitForSelector('#eaMarcadorUltima');
-    afirma(!(await page.$eval('#eaMarcadorUltima', (d) => d.open)) && /Homologação da GECON \(teste\)/.test(await page.$eval('#eaMarcadorUltima', (d) => d.textContent)), 'a última alteração da gravação fica recolhida, com o motivo');
+    await page.waitForSelector('#eaMarcadorHistorico');
+    afirma(!(await page.$eval('#eaMarcadorHistorico', (d) => d.open)), 'o histórico da gravação começa recolhido');
+    await page.click('#eaMarcadorHistorico > summary');
+    await esperar(page, () => /Homologação da GECON \(teste\)/.test((document.getElementById('eaMarcadorHistorico') || {}).textContent || ''));
+    afirma(/Desligada → Liberada/.test(await texto(page, '#eaMarcadorHistorico')) && /1 alteração/.test(await texto(page, '#eaMarcadorHistorico summary')), 'aberto: cada mudança com anterior → nova, quem e o motivo (lido da auditoria existente)');
     const b = await banco(page);
     afirma(b['estrutura-atual-config'].habilitacao === 'LIBERADO' && Object.values(b['estrutura-atual-config-auditoria']).some((x) => x.anterior === 'DESLIGADO' && x.motivo === 'Homologação da GECON (teste)'), 'admin geral libera, com motivo e auditoria; aparece "Nova unidade"');
     afirma(!b['analises-organizacionais-config'], 'o marcador da Análise Organizacional não é tocado');

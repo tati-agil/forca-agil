@@ -1,4 +1,4 @@
-/* ADMIN › Avaliação e Mapa › Documentação e mapas (onde fica o Mapa da Floresta).
+/* ADMIN › Avaliação e Mapa › Outras referências › Documentos de referência (a definição do Mapa da Floresta fica na seção do Mapa).
  *
  * Formato inicial aprovado: título, descrição, link externo (https), autor e data — sem upload,
  * miniatura nem versionamento. Prova, em desktop e no celular (375 px):
@@ -54,21 +54,21 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
-    afirma(/Referências/.test(await page.locator('#adminAvaliacaoProduto').innerText()), 'o cartão fica no grupo "Referências" da tela inicial da Arquitetura');
+    afirma((await page.locator('#avpGrupoReferenciasTitulo').innerText()).trim() === 'Outras referências' && await page.locator('#avpGrupoReferencias #avpDocumentacaoBtn').count() === 1, 'o cartão fica em "Outras referências" na tela inicial');
+    /* a definição oficial do Mapa fica na SEÇÃO DO MAPA, no início (uma só apresentação) */
+    const DEFINICAO = 'É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
+      'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.';
+    await page.waitForSelector('#avpAdminMapa #avpDocsMapaFloresta .avp-docs-definicao-texto');
+    afirma((await page.locator('#avpDocsMapaFloresta .avp-docs-definicao-texto').textContent()).trim() === DEFINICAO, 'seção do Mapa: a definição aprovada, texto exato');
+    afirma((await page.locator('#avpDocsMapaFloresta .avp-docs-definicao-nota').textContent()).trim() === 'Não é um conceito da Taxonomia e não tem relação com o Mapa da Aposta.', '…e a nota auxiliar logo abaixo (separa do Mapa da Aposta)');
+    const est = await page.evaluate(() => { const t = document.querySelector('#avpDocsMapaFloresta .avp-docs-definicao-texto'); const cs = getComputedStyle(t); return { italico: cs.fontStyle === 'italic', px: parseFloat(cs.fontSize) }; });
+    afirma(!est.italico && est.px >= 15, 'definição legível (sem itálico, ' + est.px + ' px)');
     await page.click('#avpDocumentacaoBtn');
     await page.waitForSelector('#avpDocsNovoBtn');
     const intro = await page.locator('.avp-docs').innerText();
-    afirma(/Mapa da Floresta/.test(intro) && /Linhas, Centros de Excelência \(CoE\) e Áreas Especializadas/.test(intro) && /Mapa da Aposta/.test(intro),
-      'a tela explica o Mapa da Floresta e o separa do Mapa da Aposta');
-    afirma(await page.evaluate(() => location.hash) === '#admin?arq=documentacao', 'endereço próprio: #admin?arq=documentacao');
-    const DEFINICAO = 'É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
-      'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.';
-    afirma((await page.locator('#avpDocsMapaFloresta .avp-docs-definicao-texto').textContent()).trim() === DEFINICAO, 'card "Mapa da Floresta" com a definição aprovada, texto exato');
-    afirma((await page.locator('#avpDocsMapaFloresta .avp-docs-definicao-nota').textContent()).trim() === 'Não é um conceito da Taxonomia e não tem relação com o Mapa da Aposta.', '…e a nota auxiliar logo abaixo');
-    const est = await page.evaluate(() => { const t = document.querySelector('#avpDocsMapaFloresta .avp-docs-definicao-texto'); const cs = getComputedStyle(t);
-      const card = document.getElementById('avpDocsMapaFloresta').getBoundingClientRect(), btn = document.getElementById('avpDocsNovoBtn').getBoundingClientRect();
-      return { italico: cs.fontStyle === 'italic', px: parseFloat(cs.fontSize), antes: card.bottom <= btn.top + 1 }; });
-    afirma(!est.italico && est.px >= 15 && est.antes, 'definição legível (sem itálico, ' + est.px + ' px) e ANTES da ação de adicionar');
+    afirma(/Documentos de referência/.test(intro) && /definição oficial do Mapa da Floresta fica na seção do Mapa/.test(intro) && await page.locator('#avpDocsMapaFloresta').count() === 0,
+      'Documentos de referência: sem um segundo cartão do Mapa; diz onde a definição está');
+    afirma(await page.evaluate(() => location.hash) === '#admin?arq=documentacao', 'endereço próprio preservado: #admin?arq=documentacao');
     const det0 = page.locator('#avpDocsHistorico');
     afirma(await det0.count() === 1 && !(await det0.evaluate((d) => d.open)) && /Histórico — 0 alterações/.test(await det0.locator('summary').first().innerText()), 'sem nenhuma alteração ainda: "Histórico — 0 alterações", recolhido');
 

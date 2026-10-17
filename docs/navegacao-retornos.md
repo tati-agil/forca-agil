@@ -23,7 +23,8 @@ As entradas criadas por `faNav.ir()` têm `avp: 1`. Por isso a área Avaliação
 | Jornada (item) → "Acessar Adequação à Squad" | Squad | o item da Jornada | lista da Squad / Início | "← Voltar para a Jornada do Mapa" → o item |
 | ADMIN › Avaliações e Mapa → partes (Produto/Serviço, Posicionamento, Vínculo, Squad) | listas da Avaliação | Avaliações e Mapa | Início da Avaliação | "← Voltar para Avaliações e Mapa" → o ADMIN, na mesma área |
 | ADMIN › Avaliações e Mapa → Abrir Mapa / jornada | Mapa / Jornada | Avaliações e Mapa | ok desde o #384 | idem, sem perder a origem nos links internos do Mapa |
-| Documentação e mapas → Abrir Mapa | Mapa | Documentação | ok desde o #384 | idem |
+| Mapa → "Definição oficial do Mapa" | seção do Mapa no ADMIN (`#admin?arq=inicio`) | o Mapa | Documentação e mapas | "← Voltar para o Mapa da Floresta" → o Mapa |
+| ADMIN › qualquer funcionalidade → Voltar (da tela, do navegador ou depois de link direto) | início de Avaliações e Mapa | a seção de origem aberta | seções sempre abertas | a seção que contém a funcionalidade reabre |
 | Ficha de Produto/Serviço → "Posicionar" | Posicionamento (escolher) | a ficha | Início | "← Voltar para a avaliação de Produto/Serviço" |
 | Jornada (item) / Mapa (estrutura) → "Abrir Posicionamento" | Posicionamento | o item / a estrutura | Início | "← Voltar para a Jornada do Mapa" / "o Mapa da Floresta" |
 | Lista de Posicionamentos → ficha | ficha | a lista | o botão do topo ia ao Início (o do rodapé já voltava à lista) | "← Voltar para os Posicionamentos" → a lista |

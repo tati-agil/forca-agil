@@ -146,7 +146,7 @@
     [/^#avaliacoes\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],
     [/^#avaliacoes$/, 'o Início da Avaliação'],
     [/^#admin\?arq=estruturas/, 'as Estruturas do Mapa da Floresta'],
-    [/^#admin\?arq=documentacao/, 'Documentação e mapas'],
+    [/^#admin\?arq=documentacao/, 'os Documentos de referência'],
     [/^#admin/, 'Avaliações e Mapa']
   ];
   function rotuloOrigem(hash) { for (var i = 0; i < ROTULOS_ORIGEM.length; i++) if (ROTULOS_ORIGEM[i][0].test(hash || '')) return ROTULOS_ORIGEM[i][1]; return 'a tela anterior'; }
