@@ -127,7 +127,7 @@ async function abrir(browser, viewport, opts) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html' + (opts.hash || '#avaliacoes?po=escolher'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (opts.hash || '#arquitetura?po=escolher'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
@@ -196,22 +196,22 @@ async function fluxo(browser, nomeTela, viewport) {
   await f5(page);
   await esperarGate(page, 'desatualizado');
   afirma(!(await existe(page, '#poIniciarBtn')), 'F5 em ?item=pD: o bloqueio continua (depois de verificar o motor)');
-  await ir(page, '#avaliacoes?po=escolher&item=pE');
+  await ir(page, '#arquitetura?po=escolher&item=pE');
   await esperarGate(page, 'equivalente');
   gt = await gate(page);
   afirma(/logicamente equivalente/.test(gt.txt) && /Reconcilie-a em Produto\/Serviço/.test(gt.txt) && !(await existe(page, '#poIniciarBtn')), 'equivalente: explica e pede para reconciliar; sem iniciar', gt.txt);
   await print(page, 'equivalente', sufixo);
-  await ir(page, '#avaliacoes?po=escolher&item=pR');
+  await ir(page, '#arquitetura?po=escolher&item=pR');
   await esperarGate(page, 'reavaliacao-em-andamento');
   gt = await gate(page);
   afirma(/versão mais nova/.test(gt.txt) && /Conclua ou resolva/.test(gt.txt) && !(await existe(page, '#poIniciarBtn')), 'reavaliação de P1–P16 em andamento: explica; sem iniciar', gt.txt);
   await print(page, 'reavaliacao-produto', sufixo);
-  await ir(page, '#avaliacoes?po=escolher&item=pX');
+  await ir(page, '#arquitetura?po=escolher&item=pX');
   await esperarGate(page, 'excluida');
   afirma(/excluída/.test((await gate(page)).txt) && !(await existe(page, '#poIniciarBtn')), 'link direto para item com a ponta excluída: bloqueado, sem voltar para a v1');
 
   console.log('\n== 4. A base fica desatualizada com a tela aberta ==');
-  await ir(page, '#avaliacoes?po=escolher&item=pB');
+  await ir(page, '#arquitetura?po=escolher&item=pB');
   await page.waitForSelector('#avaliacoesPosicionamento #poIniciarBtn');
   await page.evaluate((v) => firebase.database().ref('avaliacoes-produto/pB/motorVersion').set(v), VELHO);
   await esperarGate(page, 'desatualizado');
@@ -219,7 +219,7 @@ async function fluxo(browser, nomeTela, viewport) {
   afirma(posicionamentosDo(await banco(page), 'pB').length === 0, '…e nada foi gravado para o item');
 
   console.log('\n== 5. Motor atual: inicia sobre a ponta da cadeia ==');
-  await ir(page, '#avaliacoes?po=escolher&item=pC');
+  await ir(page, '#arquitetura?po=escolher&item=pC');
   await page.waitForSelector('#avaliacoesPosicionamento #poIniciarBtn');
   afirma(!(await gate(page)), 'Motor atual: nenhum aviso de bloqueio');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
@@ -228,7 +228,7 @@ async function fluxo(browser, nomeTela, viewport) {
   afirma(criadas.length === 1 && criadas[0].avaliacaoArquiteturalId === 'pCv2', 'criada apontando para a v2 de Produto/Serviço (a ponta)', JSON.stringify(criadas.map((c) => c.avaliacaoArquiteturalId)));
 
   console.log('\n== 6. Reavaliar passa pelo mesmo gate ==');
-  await ir(page, '#avaliacoes?po=gW');
+  await ir(page, '#arquitetura?po=gW');
   await page.waitForSelector('#avaliacoesPosicionamento #poReavaliarBtn');
   await esperarGate(page, 'desatualizado');
   gt = await gate(page);
@@ -236,7 +236,7 @@ async function fluxo(browser, nomeTela, viewport) {
   afirma(await page.locator('#poReavaliarBtn').isDisabled(), '…e o botão Reavaliar fica travado');
   afirma(await larguraOk(page), 'sem rolagem horizontal (ficha)');
   await print(page, 'reavaliar-bloqueado', sufixo, 'ficha');
-  await ir(page, '#avaliacoes?po=gV');
+  await ir(page, '#arquitetura?po=gV');
   await page.waitForSelector('#avaliacoesPosicionamento #poReavaliarBtn:not([disabled])');
   afirma(!(await gate(page)), 'base com Motor atual: Reavaliar liberado, sem aviso');
 
@@ -245,7 +245,7 @@ async function fluxo(browser, nomeTela, viewport) {
   const statusDe = async (k) => ((await banco(page))['avaliacoes-posicionamento'][k] || {}).status;
   const concluirTravado = () => page.locator('#poConcluirBtn').isDisabled();
   /* K — base fica desatualizada ENQUANTO a pessoa edita (a tela não redesenha com edição em curso): o clique confere */
-  await ir(page, '#avaliacoes?po=rK');
+  await ir(page, '#arquitetura?po=rK');
   await page.waitForSelector('#avaliacoesPosicionamento #poConcluirBtn:not([disabled])');
   afirma(!(await gate(page)), 'base atual: Concluir habilitado, sem aviso');
   await page.fill('#avaliacoesPosicionamento .po-obs[data-q="O2"]', 'nota em edição');
@@ -271,13 +271,13 @@ async function fluxo(browser, nomeTela, viewport) {
   await page.waitForSelector('#avaliacoesPosicionamento #poResultado');
   afirma((await statusDe('rK')) === 'concluido', 'tudo atual: conclui normalmente');
   /* L — a avaliação P1–P16 vinculada vai para a Lixeira */
-  await ir(page, '#avaliacoes?po=rL');
+  await ir(page, '#arquitetura?po=rL');
   await page.waitForSelector('#avaliacoesPosicionamento #poConcluirBtn:not([disabled])');
   await set('avaliacoes-produto/pL/excluido', true);
   await esperarGate(page, 'excluida');
   afirma(await concluirTravado() && (await statusDe('rL')) === 'rascunho', 'base excluída: Concluir travado, rascunho intacto');
   /* M — a ponta da cadeia muda por reavaliação de P1–P16 */
-  await ir(page, '#avaliacoes?po=rM');
+  await ir(page, '#arquitetura?po=rM');
   await page.waitForSelector('#avaliacoesPosicionamento #poConcluirBtn:not([disabled])');
   await page.evaluate((p) => firebase.database().ref('avaliacoes-produto/pMv2').set(p), produto('pM', 'Item Rascunho M', { versao: 2, versaoAnteriorKey: 'pM', status: 'rascunho' }));
   await esperarGate(page, 'reavaliacao-em-andamento');
@@ -293,7 +293,7 @@ async function fluxo(browser, nomeTela, viewport) {
   await ctx.close();
 
   console.log('\n== 3. Configuração do motor lenta: "Verificando…" ==');
-  const lenta = await abrir(browser, viewport, { hash: '#avaliacoes?po=escolher&item=pA', delays: { 'motor-arquitetura-config': 3000 } });
+  const lenta = await abrir(browser, viewport, { hash: '#arquitetura?po=escolher&item=pA', delays: { 'motor-arquitetura-config': 3000 } });
   await esperarGate(lenta.page, 'verificando');
   gt = await gate(lenta.page);
   afirma(gt.txt === TXT_VERIF, 'enquanto o motor não chega: texto exato', gt.txt);
@@ -308,7 +308,7 @@ async function fluxo(browser, nomeTela, viewport) {
   const av = await abrir(browser, viewport, { email: AVAL });
   await av.page.waitForSelector('#avaliacoesPosicionamento #poSemPermissao');
   afirma(true, '"Avaliação" em Escolher item: só consulta');
-  await ir(av.page, '#avaliacoes?po=gV');
+  await ir(av.page, '#arquitetura?po=gV');
   await av.page.waitForSelector('#avaliacoesPosicionamento #poBlocoDecisao');
   afirma(!(await existe(av.page, '#poReavaliarBtn')) && !(await gate(av.page)), '"Avaliação" na ficha: sem Reavaliar e sem aviso de gate');
   afirma(!av.erros.length, 'nenhum erro de JS (Avaliação)', av.erros.join(' | '));

@@ -26,7 +26,7 @@
     return !(window.faAuth && window.faAuth.isEnrolledReady) || window.faAuth.isEnrolledReady();
   }
 
-  /* #avaliacoes (Avaliação de Produto/Serviço): admin geral ou quem está na
+  /* #arquitetura (Avaliação de Produto/Serviço): admin geral ou quem está na
      lista de autorizados (fa-avaliacao-autorizados) — tudo dentro de faAuth.
      Mesma regra de "não sei" das demais: só expulsa quem se SABE sem acesso. */
   function avaliacoesPronta() {
@@ -58,11 +58,15 @@
   function route() {
     const bruto = (location.hash || '').replace(/^#\/?/, '');
     let h = bruto.split('?')[0] || 'home';
+    /* Arquitetura Organizacional: o endereço é #arquitetura (head-init.js já reescreve o antigo #avaliacoes); a página
+       interna continua se chamando 'avaliacoes' (permissões, seção #page-avaliacoes, menu data-nav-page). */
+    if (h === 'arquitetura') h = 'avaliacoes';
+    else if (h === 'avaliacoes' && window.faRotaArquitetura) window.faRotaArquitetura.normalizar();
     /* Link antigo de uma avaliação (#admin?avp=<chave>, de quando a tela só
        existia dentro do Admin) continua abrindo a mesma avaliação, agora na
        área Avaliação. */
     if (h === 'admin' && /(^|[?&])avp=/.test(bruto)) {
-      history.replaceState(null, '', '#avaliacoes?' + bruto.split('?').slice(1).join('?'));
+      history.replaceState(null, '', '#arquitetura?' + bruto.split('?').slice(1).join('?'));
       h = 'avaliacoes';
     }
     return PAGES.indexOf(h) !== -1 ? h : 'home';
@@ -100,7 +104,7 @@
       return;
     }
 
-    location.hash = '#' + page;
+    location.hash = '#' + (page === 'avaliacoes' ? 'arquitetura' : page);
     if (opts && opts.anchor) {
       setTimeout(function () {
         var el = document.getElementById(opts.anchor);
@@ -195,7 +199,7 @@
     const el = document.getElementById('page-' + page);
     if (el) {
       el.hidden = false;
-      /* Mudar só a subtela dentro de #avaliacoes (abrir/fechar uma avaliação
+      /* Mudar só a subtela dentro de #arquitetura (abrir/fechar uma avaliação
          troca o hash) não pode jogar a pessoa de volta ao topo: a lista
          restaura a posição em que ela estava ao voltar. Trocar DE página
          continua começando no topo. */
@@ -232,7 +236,7 @@
   }
 
   /* Andar entre áreas da Arquitetura (#admin?arq=… → #admin?arq=…, só pelo Voltar/Avançar) é como
-     trocar de subtela em #avaliacoes: quem posiciona é a própria tela (render/rolarAdmin em
+     trocar de subtela em #arquitetura: quem posiciona é a própria tela (render/rolarAdmin em
      avaliacao-produto.js, no popstate). O hashchange chega numa tarefa DEPOIS do popstate; em
      máquina lenta, a subida genérica ao topo daqui rodava por último e desfazia a posição que a
      tela tinha acabado de devolver. */
@@ -685,7 +689,7 @@
   window.addEventListener('fa-facilitador-ready', function () {
     if (route() === 'facilitador') show('facilitador', true);
   });
-  /* O perfil na Avaliação de Produto/Serviço chegou: quem abriu #avaliacoes
+  /* O perfil na Avaliação de Produto/Serviço chegou: quem abriu #arquitetura
      (F5, link salvo) antes disso só agora sabe se fica ou sai. */
   window.addEventListener('fa-avaliacao-ready', function () {
     var r = route();

@@ -1,8 +1,8 @@
-/* INÍCIO DA AVALIAÇÃO — a área #avaliacoes organizada pelo trabalho da pessoa, não pelas funcionalidades.
+/* INÍCIO DA AVALIAÇÃO — a área #arquitetura organizada pelo trabalho da pessoa, não pelas funcionalidades.
  * Desktop e celular 375 px. Firebase falso em persistência real; hermético; nada é gravado.
  * O menu Avaliação abre o Início (sem ler o banco: aparece mesmo com a rede parada); três blocos — continuar ou
  * consultar (a Jornada, ação principal), começar um trabalho novo (natureza P1–P16 ou atuação organizacional) e
- * consultar os registros completos (P1–P16 em #avaliacoes?av=lista, Posicionamentos, Adequação à Squad, Mapa).
+ * consultar os registros completos (P1–P16 em #arquitetura?av=lista, Posicionamentos, Adequação à Squad, Mapa).
  * Os 8 casos da homologação (semente comum da Jornada, semente-jornada.js):
  *   1. Agilidade (CoE, vínculo válido): Início → Jornada → busca → detalhe → Mapa → volta ao MESMO objeto.
  *   2. Jurídico: o item P1–P16 "Representado pela atuação"; a atuação completa; sem Squad (Área Especializada).
@@ -58,7 +58,7 @@ const hash = (page) => page.evaluate(() => location.hash);
 const visivel = (page, sel) => page.locator(sel).first().isVisible().catch(() => false);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const esperar = (page, fn, arg, limite) => esperarCondicao(page, fn, arg, { limite: limite || 10000 });
-const noInicio = (page) => esperar(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#avaliacoes'; });
+const noInicio = (page) => esperar(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#arquitetura'; });
 const linha = (id) => '#mfItens .mf-linha[data-item="' + id + '"]';
 const card = (id) => '#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]';
 const naJornada = (page) => esperar(page, () => { const r = document.getElementById('mfResumo'); return !!r && /Jornada completa/.test(r.textContent); }, undefined, 15000);
@@ -70,13 +70,13 @@ async function abreItem(page, id) {
 async function rodada(browser, viewport, rotulo) {
   console.log('\n=== ' + rotulo + ' ===');
   /* rede parada para as avaliações: o Início não depende delas */
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { delays: { 'avaliacoes-produto': 60000, 'avaliacoes-posicionamento': 60000 } });
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', { delays: { 'avaliacoes-produto': 60000, 'avaliacoes-posicionamento': 60000 } });
   await noInicio(page);
   console.log('Início');
   afirma(!/Carregando/.test(await texto(page, '#avpInicio')), 'o Início aparece inteiro sem esperar o banco (avaliações ainda não chegaram)');
   afirma(/O que você deseja fazer\?/.test(await texto(page, '#avpInicio')) && await visivel(page, '#avpInicioContinuar') && await visivel(page, '#avpInicioComecar'),
     'continuar um trabalho e começar um trabalho (sem painel de conexões)');
-  afirma(await page.locator('#avpInicio .btn--primary').count() === 0 && (await texto(page, '#avpInicioTrabalhos')).trim() === 'Ver e continuar trabalhos' && (await page.getAttribute('#avpInicioTrabalhos', 'href')) === '#avaliacoes?tr=1' &&
+  afirma(await page.locator('#avpInicio .btn--primary').count() === 0 && (await texto(page, '#avpInicioTrabalhos')).trim() === 'Ver e continuar trabalhos' && (await page.getAttribute('#avpInicioTrabalhos', 'href')) === '#arquitetura?tr=1' &&
     /Consultar jornada até o Mapa/.test(await texto(page, '#avpInicioJornada')),
     'continuar leva aos Trabalhos de avaliação; a Jornada do Mapa é consulta, com nome próprio; nenhum botão domina o Início');
   afirma(/Avaliar um Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se um item constitui um Produto\/Serviço\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
@@ -103,27 +103,27 @@ async function rodada(browser, viewport, rotulo) {
   }
   await ctx.close();
 
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes'));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura'));
   await noInicio(page);
 
   console.log('Caso 1 — Agilidade (CoE, vínculo válido)');
   await page.click('#avpInicioJornada');
   await naJornada(page);
-  afirma(await hash(page) === '#avaliacoes?mf=catalogo', 'Início → Jornada', await hash(page));
+  afirma(await hash(page) === '#arquitetura?mf=catalogo', 'Início → Jornada', await hash(page));
   await page.fill('#mfBusca', 'agilidade');
   await esperar(page, () => document.querySelectorAll('#mfItens .mf-linha').length === 1);
   afirma(/Jornada completa/.test(await texto(page, linha('oAgi'))), 'busca: a Agilidade, "Jornada completa"');
   await abreItem(page, 'oAgi');
   afirma(await page.locator(card('oAgi') + ' .mf-abrir-squad').count() === 0, 'CoE: sem "Acessar Adequação à Squad"');
   const verMapa = await page.getAttribute(card('oAgi') + ' .mf-acao', 'href');
-  afirma(verMapa === '#avaliacoes?mf=mapa&e=coe-ag&item=oAgi', '"Localizar estrutura responsável no Mapa" leva à estrutura vinculada, guardando o objeto', verMapa);
+  afirma(verMapa === '#arquitetura?mf=mapa&e=coe-ag&item=oAgi', '"Localizar estrutura responsável no Mapa" leva à estrutura vinculada, guardando o objeto', verMapa);
   afirma((await texto(page, card('oAgi') + ' .mf-acao')).trim() === 'Localizar estrutura responsável no Mapa' && await page.getAttribute(card('oAgi') + ' .mf-acao', 'aria-label') === 'Localizar CoE de Agilidade no Mapa',
     'texto visível sem o nome; o nome da estrutura só no rótulo acessível', await page.getAttribute(card('oAgi') + ' .mf-acao', 'aria-label'));
   await page.click(card('oAgi') + ' .mf-acao');
   await page.waitForSelector('#mfmDetalheVoltarJornada', { timeout: 10000 });
   await page.click('#mfmDetalheVoltarJornada');
   await page.waitForSelector(card('oAgi'), { timeout: 10000 });
-  afirma(await hash(page) === '#avaliacoes?mf=catalogo&item=oAgi', 'do Mapa, o retorno contextual volta ao MESMO objeto (não ao Início)', await hash(page));
+  afirma(await hash(page) === '#arquitetura?mf=catalogo&item=oAgi', 'do Mapa, o retorno contextual volta ao MESMO objeto (não ao Início)', await hash(page));
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   await page.waitForSelector(card('oAgi'), { timeout: 15000 });
   afirma(true, 'F5 no detalhe: o mesmo objeto');
@@ -142,7 +142,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/Posicionamento disponível \(opcional\)/.test(await texto(page, linha('pSem'))), 'na lista: "Posicionamento disponível (opcional)"');
   await abreItem(page, 'pSem');
   const ini = await page.getAttribute(card('pSem') + ' .mf-acao', 'href');
-  afirma(ini === '#avaliacoes?po=escolher&item=pSem' && !/Próximo passo/.test(await texto(page, card('pSem'))), 'detalhe: "Iniciar o Posicionamento" disponível, não obrigatório', ini);
+  afirma(ini === '#arquitetura?po=escolher&item=pSem' && !/Próximo passo/.test(await texto(page, card('pSem'))), 'detalhe: "Iniciar o Posicionamento" disponível, não obrigatório', ini);
   await page.click('#mfVoltarLista');
   await page.waitForSelector(linha('pCapec'), { timeout: 10000 });
 
@@ -155,7 +155,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(await page.locator('#avaliacoesMapa').isHidden() && /Capec/.test(await texto(page, '#avaliacoesSquad')), 'abre a Adequação à Squad do item, no lugar da Jornada');
   await page.goBack();
   await page.waitForSelector(card('pCapec'), { timeout: 10000 });
-  afirma(await hash(page) === '#avaliacoes?mf=catalogo&item=pCapec' && await page.locator('#avaliacoesSquad').isHidden(), 'Voltar: o mesmo objeto na Jornada', await hash(page));
+  afirma(await hash(page) === '#arquitetura?mf=catalogo&item=pCapec' && await page.locator('#avaliacoesSquad').isHidden(), 'Voltar: o mesmo objeto na Jornada', await hash(page));
   afirma(await larguraOk(page), 'detalhe sem rolagem lateral');
   await page.click('#mfVoltarLista');
   await page.waitForSelector('#mfVoltar', { timeout: 10000 });
@@ -166,15 +166,15 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Caso 3 — nova avaliação de natureza');
   await page.click('#avpInicioNatureza');
   await page.waitForSelector('#avpCancelarInicialBtn', { timeout: 10000 });
-  afirma(await hash(page) === '#avaliacoes?nova=1' && /Início da Avaliação/.test(await texto(page, '#avpVoltarFormInicial')), 'formulário P1–P16; o "← Voltar" diz para onde vai', await texto(page, '#avpVoltarFormInicial'));
+  afirma(await hash(page) === '#arquitetura?nova=1' && /Início da Floresta/.test(await texto(page, '#avpVoltarFormInicial')), 'formulário P1–P16; o "← Voltar" diz para onde vai', await texto(page, '#avpVoltarFormInicial'));
   await page.click('#avpVoltarFormInicial');
   await noInicio(page);
-  afirma(true, '"← Voltar para o Início da Avaliação"');
+  afirma(true, '"← Voltar para o Início da Floresta"');
 
   console.log('Caso 4 — responsabilidade organizacional sem P1–P16 (Caminho A)');
   await page.click('#avpInicioAtuacao');
   await page.waitForSelector('#poFormAtuacao', { timeout: 10000 });
-  afirma(await hash(page) === '#avaliacoes?po=nova-atuacao' && /Qual responsabilidade deseja avaliar\?/.test(await texto(page, '#poFormAtuacao')), 'Caminho A abre direto o cadastro da responsabilidade (Porta 2)', await hash(page));
+  afirma(await hash(page) === '#arquitetura?po=nova-atuacao' && /Qual responsabilidade deseja avaliar\?/.test(await texto(page, '#poFormAtuacao')), 'Caminho A abre direto o cadastro da responsabilidade (Porta 2)', await hash(page));
   await page.goBack();
   await noInicio(page);
   afirma(true, 'Voltar do navegador: Início');
@@ -186,7 +186,7 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#avpTrabIrProdutos');
   await page.waitForSelector('#avpListaTitulo', { timeout: 10000 });
   await esperar(page, () => document.querySelectorAll('#avaliacoesPainel .avp-table tbody tr').length > 0, undefined, 15000);
-  afirma(await hash(page) === '#avaliacoes?av=lista' && await visivel(page, '#avpBusca') && await visivel(page, '#avpExportarBtn') && await visivel(page, '#avpLixeiraBtn') && await visivel(page, '#avpNovoBtn'),
+  afirma(await hash(page) === '#arquitetura?av=lista' && await visivel(page, '#avpBusca') && await visivel(page, '#avpExportarBtn') && await visivel(page, '#avpLixeiraBtn') && await visivel(page, '#avpNovoBtn'),
     'lista P1–P16 em ?av=lista: busca, Exportar, Lixeira e "+ Avaliar novo item"', await hash(page));
   await page.click('#avpExportarBtn');
   afirma(await visivel(page, '#avpExportarExcelFiltrados') && await visivel(page, '#avpExportarExcelTodas'), 'Exportar: as opções de sempre');
@@ -196,19 +196,19 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#avpLixeiraBtn');
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   await page.waitForSelector('#avpListaTitulo', { timeout: 15000 });
-  afirma(await hash(page) === '#avaliacoes?av=lista', 'F5 na lista: continua na lista');
+  afirma(await hash(page) === '#arquitetura?av=lista', 'F5 na lista: continua na lista');
   await page.click('#avpVoltarInicio');
   await page.waitForSelector('#avpTrabalhos', { timeout: 10000 });
   afirma(true, '"← Voltar" da lista: Trabalhos de avaliação (de onde ela foi aberta)');
   await page.click('#avpTrabIrPosicionamentos');
   await page.waitForSelector('#poLista', { timeout: 10000 });
   await esperar(page, () => !!document.getElementById('poExportarBtn'), undefined, 15000);
-  afirma(await hash(page) === '#avaliacoes?po=lista', 'Trabalhos → Posicionamentos: a lista com Exportar');
+  afirma(await hash(page) === '#arquitetura?po=lista', 'Trabalhos → Posicionamentos: a lista com Exportar');
   await page.click('#poVoltar');
   await page.waitForSelector('#avpTrabalhos', { timeout: 10000 });
   await page.click('#avpTrabIrSquad');
   await page.waitForSelector('#sqExportarBtn', { timeout: 15000 });
-  afirma(await hash(page) === '#avaliacoes?sq=lista' && await visivel(page, '#sqNovaBtn'), 'Trabalhos → Adequação à Squad: a lista com Exportar e "+ Nova avaliação de squad" (continua disponível sem o painel)', await hash(page));
+  afirma(await hash(page) === '#arquitetura?sq=lista' && await visivel(page, '#sqNovaBtn'), 'Trabalhos → Adequação à Squad: a lista com Exportar e "+ Nova avaliação de squad" (continua disponível sem o painel)', await hash(page));
   await page.goBack();
   await page.waitForSelector('#avpTrabalhos', { timeout: 10000 });
   await page.click('#avpTrabVoltar');
@@ -233,17 +233,17 @@ async function rodada(browser, viewport, rotulo) {
   await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   await noInicio(page);
   afirma(true, 'F5 no Início');
-  await page.evaluate(() => { location.hash = '#avaliacoes?avp=pCapec'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?avp=pCapec'; });
   await esperar(page, () => /Capec/.test((document.getElementById('avaliacoesPainel') || {}).innerText || ''), undefined, 15000);
   afirma(/Voltar/.test(await texto(page, '#avpVoltarListaResultado')), 'link direto antigo ?avp= abre a ficha P1–P16');
   await page.click('#avpVoltarListaResultado');
   await page.waitForSelector('#avpListaTitulo', { timeout: 10000 });
-  afirma(await hash(page) === '#avaliacoes?av=lista', 'da ficha, "← Voltar para avaliações" leva à lista P1–P16 (de onde as fichas são abertas)', await hash(page));
+  afirma(await hash(page) === '#arquitetura?av=lista', 'da ficha, "← Voltar para avaliações" leva à lista P1–P16 (de onde as fichas são abertas)', await hash(page));
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
   console.log('Perfis');
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { email: AVAL }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', { email: AVAL }));
   await noInicio(page);
   afirma(await page.locator('#avpInicioConsultar, .avp-como-fonte, #avpInicio [data-admin-destino]').count() === 0, 'perfil Avaliação (consulta): nenhum painel de conexões nem atalho para o ADMIN');
   afirma(!(await visivel(page, '#avpInicioAtuacao')) && /perfil Avaliação \+ Configuração/.test(await texto(page, '#avpInicioAtuacaoPerfil')) && await visivel(page, '#avpInicioNatureza'),
@@ -252,7 +252,7 @@ async function rodada(browser, viewport, rotulo) {
   await naJornada(page);
   afirma(true, 'perfil Avaliação: abre a Jornada');
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', { email: ADM }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', { email: ADM }));
   await noInicio(page);
   afirma(await visivel(page, '#avpInicioAtuacao') && await visivel(page, '#avpInicioNatureza'), 'admin geral: as duas portas');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));

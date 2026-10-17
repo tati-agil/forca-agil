@@ -250,11 +250,11 @@ async function suspensao(browser, viewport, rotulo) {
 }
 async function versoes(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 3. Avaliação — identificação das versões');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=lista', true);
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=lista', true);
   await page.waitForSelector('.po-linha');
   afirma(await page.locator('.po-linha .po-versoes-usadas').evaluateAll((t) => t.length >= 2 && t.every((x) => x.textContent.trim() === 'motor v1 · redação v1')), 'lista: coluna "Motor e redação" = motor v1 · redação v1');
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=gA', true));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=gA', true));
   await page.waitForSelector('#poResultado');
   afirma((await page.locator('#poResultado #poVersoesUsadas').innerText()).trim() === 'motor v1 · redação v1', 'ficha: motor v1 · redação v1');
   afirma(await page.locator('#poAtualizarMotorBtn').count() === 0, 'sem "Atualizar com motor atual" (v1 em vigor: dormente)');
@@ -513,7 +513,7 @@ async function textoModal(page) { await page.waitForSelector('.po-modal'); const
 async function ativacaoTela(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 6. H3-b — versão em vigor lida do banco, v2 na tela, ativação e retorno');
   /* 6a. vigência lenta: nada nasce enquanto não se sabe (nunca "v1 por falta") */
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(0), { delays: { 'posicionamento-motor-vigencia': 3500 } });
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=escolher&item=pE', false, ARQ, sementeH3b(0), { delays: { 'posicionamento-motor-vigencia': 3500 } });
   await page.waitForSelector('#poVerificandoMotor');
   afirma(/Verificando a versão do motor/.test(await textoDe(page, '#poVerificandoMotor')) && await page.locator('#poIniciarBtn').count() === 0, 'vigência lenta: "Verificando a versão do motor…", sem Iniciar');
   await page.waitForSelector('#poMotorEmVigor', { timeout: 10000 });
@@ -522,13 +522,13 @@ async function ativacaoTela(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* 6b. leitura recusada: não é v1 */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(0), { fail: ['posicionamento-motor-vigencia'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=escolher&item=pE', false, ARQ, sementeH3b(0), { fail: ['posicionamento-motor-vigencia'] }));
   await esperarCondicao(page, () => /Não foi possível ler a versão do motor/.test((document.getElementById('poVerificandoMotor') || {}).textContent || ''), undefined, { limite: 8000 });
   afirma(await page.locator('#poIniciarBtn').count() === 0, 'vigência recusada: "Não foi possível ler a versão do motor em vigor agora", sem Iniciar');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* 6c. v2 em vigor: a avaliação nova nasce na v2, com a redação publicada da trilha do motor */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(2)));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=escolher&item=pE', false, ARQ, sementeH3b(2)));
   await page.waitForSelector('#poMotorEmVigor');
   afirma(/Motor em vigor: v2/.test(await textoDe(page, '#poMotorEmVigor')), '"Motor em vigor: v2"');
   let antes = await banco(page);
@@ -543,7 +543,7 @@ async function ativacaoTela(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* 6d. v2 em vigor sem redação v2 publicada: não nasce */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=escolher&item=pE', false, ARQ, sementeH3b(2, false)));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=escolher&item=pE', false, ARQ, sementeH3b(2, false)));
   await page.waitForSelector('#poIniciarBtn');
   antes = await banco(page);
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
@@ -555,7 +555,7 @@ async function ativacaoTela(browser, viewport, rotulo) {
   const dbC = sementeH3b(2);
   dbC['avaliacoes-posicionamento'].rV = rascunho('pE', 'Item Novo', { O1: 'NAO', O2: 'SIM', O3: 'NAO' }, { versaoMotor: 2 });
   dbC['posicionamento-rascunho-por-item'].pE = 'rV';
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=rV', false, ARQ, dbC));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=rV', false, ARQ, dbC));
   await esperarCondicao(page, () => /^CONCLUIR$/.test(((document.querySelector('#poConcluirBtn') || {}).textContent || '').trim()), 'concluir liberado', { limite: 8000 });
   await page.click('#poConcluirBtn');
   afirma(/Fronteira confiável indisponível/.test(await textoModal(page)), 'funções não implantadas: "Fronteira confiável indisponível… O rascunho continua salvo"');
@@ -578,7 +578,7 @@ async function ativacaoTela(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* 6f. "Atualizar com motor atual": só com a vigência LIDA mais nova que a do registro */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=gA', false, ARQ, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=gA', false, ARQ, sementeH3b(2), { delays: { 'posicionamento-motor-vigencia': 3500 } }));
   await page.waitForSelector('#poReavaliarBtn');
   afirma(await page.locator('#poAtualizarMotorBtn').count() === 0, 'vigência ainda não lida: sem "Atualizar com motor atual"');
   await page.waitForSelector('#poAtualizarMotorBtn', { timeout: 10000 });

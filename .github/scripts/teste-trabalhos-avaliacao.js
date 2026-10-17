@@ -1,9 +1,9 @@
 /* TRABALHOS DE AVALIAÇÃO e TODAS AS RESPONSABILIDADES — encontrar um trabalho anterior sem lembrar o módulo, com
  * números reais. Firebase falso em persistência real; hermético; dados fictícios só no banco da página. Prova:
- *   A. Usuário novo: no Início, "Ver e continuar trabalhos" leva aos Trabalhos de avaliação (#avaliacoes?tr=1) — a
+ *   A. Usuário novo: no Início, "Ver e continuar trabalhos" leva aos Trabalhos de avaliação (#arquitetura?tr=1) — a
  *      Jornada do Mapa é consulta, com nome próprio; os números vêm dos registros (Produto/Serviço, responsabilidades,
  *      áreas) e "Continuar de onde parou" lista os rascunhos (P1–P16 e O1–O9) com link direto.
- *   B. Todas as responsabilidades (#avaliacoes?po=todas): as do Caminho A e as das análises de área numa lista só; a
+ *   B. Todas as responsabilidades (#arquitetura?po=todas): as do Caminho A e as das análises de área numa lista só; a
  *      responsabilidade da área já registrada na Porta 2 aparece UMA vez, com a área de origem e quem executa; a ainda
  *      sem O1–O9 também aparece, com "Abrir análise da área"; busca e filtros por área e situação.
  *   D. Resultado A validar: "Avaliação concluída"; a decisão final registrada por uma pessoa aparece separada da
@@ -63,22 +63,22 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
   try {
     for (const [vp, rot] of [[{ width: 1280, height: 900 }, 'desktop'], [{ width: 375, height: 812 }, '375 px']]) {
       console.log('\n== ' + rot + ' ==');
-      const { ctx, page, erros } = await abrir(browser, vp, '#avaliacoes');
+      const { ctx, page, erros } = await abrir(browser, vp, '#arquitetura');
       console.log('A. Usuário novo: continuar um trabalho');
       await page.waitForSelector('#avpInicioTrabalhos');
       afirma(/Ver e continuar trabalhos/.test(await texto(page, '#avpInicioTrabalhos')) && /Consultar jornada até o Mapa/.test(await texto(page, '#avpInicioJornada')) &&
         await page.evaluate(() => ['avpInicioNatureza', 'avpInicioAtuacao', 'avpInicioAnalise', 'avpInicioTrabalhos', 'avpInicioJornada'].every((i) => !!document.getElementById(i))),
         'no Início: começar (Produto/Serviço, responsabilidade, área), continuar e a Jornada como consulta — tudo à vista');
       await page.click('#avpInicioTrabalhos');
-      await esperar(page, () => location.hash === '#avaliacoes?tr=1' && !!document.getElementById('avpTrabalhos'));
+      await esperar(page, () => location.hash === '#arquitetura?tr=1' && !!document.getElementById('avpTrabalhos'));
       await esperar(page, () => document.getElementById('avpTrabRespProntas') && document.getElementById('avpTrabRespProntas').textContent !== '…' && document.getElementById('avpTrabAreasQtd') && document.getElementById('avpTrabAreasQtd').textContent !== '…');
       const n = await page.evaluate(() => Object.fromEntries(['avpTrabProdAndamento', 'avpTrabProdConcluidas', 'avpTrabRespProntas', 'avpTrabRespAndamento', 'avpTrabRespAvaliadas', 'avpTrabAreasQtd', 'avpTrabAreasProntas'].map((i) => [i, document.getElementById(i).textContent])));
       afirma(n.avpTrabRespAndamento === '1' && n.avpTrabRespAvaliadas === '2' && n.avpTrabRespProntas === '1' && n.avpTrabAreasQtd === '1' && n.avpTrabAreasProntas === '1', 'números reais: 1 em avaliação, 2 avaliadas, 1 pronta (a da área sem O1–O9), 1 área', n);
-      afirma(/Gerir a conformidade fiscal/.test(await texto(page, '#avpTrabPendentes')) && (await page.getAttribute('#avpTrabPendentes a[href="#avaliacoes?po=gRas"]', 'href')) === '#avaliacoes?po=gRas', '"Continuar de onde parou": o rascunho do O1–O9, com link direto');
+      afirma(/Gerir a conformidade fiscal/.test(await texto(page, '#avpTrabPendentes')) && (await page.getAttribute('#avpTrabPendentes a[href="#arquitetura?po=gRas"]', 'href')) === '#arquitetura?po=gRas', '"Continuar de onde parou": o rascunho do O1–O9, com link direto');
       afirma(await larguraOk(page), rot + ': Trabalhos sem rolagem lateral');
       console.log('B. Todas as responsabilidades');
       await page.click('#avpTrabIrResponsabilidades');
-      await esperar(page, () => location.hash === '#avaliacoes?po=todas' && document.querySelectorAll('#poTodasLista .po-todas-item').length > 0);
+      await esperar(page, () => location.hash === '#arquitetura?po=todas' && document.querySelectorAll('#poTodasLista .po-todas-item').length > 0);
       const itens = await page.$$eval('#poTodasLista .po-todas-item', (l) => l.map((x) => ({ t: x.querySelector('strong').textContent, s: x.getAttribute('data-situacao'), a: x.getAttribute('data-area'), txt: x.textContent })));
       const agi = itens.filter((x) => x.t === 'Disseminação de agilidade');
       afirma(agi.length === 1 && agi[0].a === 'an-gecon' && /Área: GECON/.test(agi[0].txt) && /Quem executa hoje: CONTA/.test(agi[0].txt) && /Ver resultado/.test(agi[0].txt), 'a da área já registrada na Porta 2 aparece uma vez, com área, quem executa e "Ver resultado"', agi);
@@ -95,7 +95,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
       afirma((await page.$$eval('#poTodasLista .po-todas-item:not([hidden])', (l) => l.length)) === 1, 'filtro por situação');
       afirma(await larguraOk(page), rot + ': lista consolidada sem rolagem lateral');
       console.log('D. Resultado A validar: concluída; decisão separada da recomendação');
-      await page.evaluate(() => { location.hash = '#avaliacoes?po=gV'; });
+      await page.evaluate(() => { location.hash = '#arquitetura?po=gV'; });
       await page.waitForSelector('#poSituacaoAvaliacao');
       afirma(/Avaliação concluída/.test(await texto(page, '#poSituacaoAvaliacao')) && /A validar/.test(await texto(page, '#poSituacaoAvaliacao')) && /registrar a decisão final/.test(await texto(page, '#poSituacaoAvaliacao')), 'A validar: "Avaliação concluída", e o próximo passo é a decisão final');
       if (rot === 'desktop') {

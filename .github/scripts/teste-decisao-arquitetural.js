@@ -39,7 +39,7 @@ async function jornada(browser, viewport, rot) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes?an=nova', { waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
+  await page.goto(BASE + '/index.html#arquitetura?an=nova', { waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page);
   const estruturasAntes = JSON.stringify((await page.evaluate(() => window.__CFG.__dbReal['estruturas-concretas'])) || null);
   const vinculosAntes = JSON.stringify((await page.evaluate(() => window.__CFG.__dbReal['estruturas-vinculos'])) || null);
   await page.waitForSelector('#anFormNova'); await page.fill('#anNome', 'GECON — Gerência de Contabilidade e Controladoria'); await page.click('#anCriarBtn');
@@ -90,7 +90,7 @@ async function jornada(browser, viewport, rot) {
     const sem = await page.$('#poRespSemOpcoes');
     if (sem) afirma(/continua válida sem estrutura vinculada/.test(await texto(page, '#poRespSemOpcoes')) && /não é preciso cadastrar/.test(await texto(page, '#poRespSemOpcoes')), 'sem estrutura do tipo: a recomendação continua válida; não é preciso cadastrar para concluir nem para continuar');
   } else afirma(true, '(bloco da estrutura responsável indisponível neste perfil/marcador)');
-  await page.evaluate(() => { location.hash = '#avaliacoes?mf=catalogo'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?mf=catalogo'; });
   await esperar(page, () => Array.from(document.querySelectorAll('#mfItens .mf-item')).some((x) => /contabilidade gerencial/.test(x.textContent)));
   const item = await page.evaluate(() => Array.from(document.querySelectorAll('#mfItens .mf-item')).find((x) => /contabilidade gerencial/.test(x.textContent)).textContent.replace(/\s+/g, ' '));
   afirma(/Avaliação concluída · estrutura responsável: opcional/.test(item) && !/Próximo passo/.test(item), 'Jornada: "Avaliação concluída · estrutura responsável: opcional" (nunca "Próximo passo: Cadastrar estrutura")', item);

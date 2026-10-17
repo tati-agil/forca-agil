@@ -117,7 +117,7 @@ async function abrir(browser, viewport, opts) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html' + (opts.hash || '#avaliacoes?po=lista'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (opts.hash || '#arquitetura?po=lista'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
@@ -171,7 +171,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(await larguraOk(page), 'lista sem rolagem horizontal');
 
   console.log('\n== 2–3. Ficha em três blocos e CONFIRMACAO ==');
-  await ir(page, '#avaliacoes?po=g1');
+  await ir(page, '#arquitetura?po=g1');
   await tela(page, 'poDecisaoForm');
   afirma(await existe(page, '#poBlocoRecomendacao') && await existe(page, '#poBlocoDecisao') && await existe(page, '#poBlocoHistorico'), 'três blocos: Recomendação automática, Decisão final, Histórico de versões');
   afirma(/^Pela recomendação automática, este resultado não libera/.test((await texto(page, '#poLiberaSquad')).trim()), 'bloco automático: "Pela recomendação automática…" (S1–S8)');
@@ -205,7 +205,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(true, '…com o nome atual da Taxonomia quando ela chega');
 
   console.log('\n== 3. RESOLUCAO_A_VALIDAR exige justificativa ==');
-  await ir(page, '#avaliacoes?po=a1');
+  await ir(page, '#arquitetura?po=a1');
   await tela(page, 'poDecisaoForm');
   afirma((await page.inputValue('#poCodigoFinal')) === '', 'A validar: nada pré-selecionado');
   afirma((await texto(page, '#poOrientacaoAValidar')).trim() === 'Se houver elementos suficientes, escolha um posicionamento firme e justifique. Se ainda não houver base para decidir, use Reavaliar.',
@@ -232,7 +232,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(await larguraOk(page), 'ficha sem rolagem horizontal');
 
   console.log('\n== 4. Reavaliar (vigente decidida) ==');
-  await ir(page, '#avaliacoes?po=g1');
+  await ir(page, '#arquitetura?po=g1');
   await tela(page, 'poReavaliarBtn');
   await page.click('#poReavaliarBtn');
   await confirmarModal(page);
@@ -249,7 +249,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(db['posicionamento-vigente-por-item'].p3 === 'g1' && db['posicionamento-rascunho-por-item'].p3 === nova, 'a v1 continua vigente; a reserva aponta para a v2');
   afirma((await page.locator('#poChecklist .po-resp.ativa').count()) === 3, 'respostas da v1 pré-preenchidas (O1–O3)');
   afirma(/continua vigente/.test(await texto(page, '#poReavaliacaoInfo')) && /Mudou a estrutura/.test(await texto(page, '#poReavaliacaoInfo')), 'aviso da reavaliação: a anterior continua vigente, com o motivo');
-  await ir(page, '#avaliacoes?po=g1');
+  await ir(page, '#arquitetura?po=g1');
   await tela(page, 'poReavaliacaoAndamento');
   afirma(await existe(page, '#poDecisaoFinal') && !(await existe(page, '#poReavaliarBtn')), 'na v1: aviso de reavaliação em andamento, decisão dela continua, sem outro Reavaliar');
   await page.click('#poReavaliacaoAndamento .po-abrir');
@@ -263,12 +263,12 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(db['posicionamento-decisoes'].g1.codigoFinal === 'COE', 'a decisão da v1 ficou intacta');
   afirma(await existe(page, '#poSemDecisao') && await existe(page, '#poDecisaoForm'), 'a v2 começa "Sem decisão registrada" e pode ser decidida');
   afirma(/2 versões/.test(await texto(page, '#poHistoricoVersoes summary')), 'histórico de versões: 2 versões');
-  await ir(page, '#avaliacoes?po=g1');
+  await ir(page, '#arquitetura?po=g1');
   await tela(page, 'poHistorica');
   afirma(await existe(page, '#poDecisaoFinal') && !(await existe(page, '#poDecisaoForm')) && !(await existe(page, '#poReavaliarBtn')), 'v1 histórica: mostra a decisão dela, sem decidir nem reavaliar');
 
   console.log('\n== 5. D4 — reavaliação em andamento bloqueia a decisão ==');
-  await ir(page, '#avaliacoes?po=h2');
+  await ir(page, '#arquitetura?po=h2');
   await tela(page, 'poDecisaoForm');
   afirma(/Revisão anual/.test(await texto(page, '#poMotivoReavaliacao')), 'h2 mostra o motivo da reavaliação que a criou');
   await page.click('#poReavaliarBtn');
@@ -277,17 +277,17 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   await page.click('.po-modal .po-modal-sim');
   await tela(page, 'poReavaliacaoInfo');
   const r3 = (await hash(page)).split('po=')[1];
-  await ir(page, '#avaliacoes?po=h2');
+  await ir(page, '#arquitetura?po=h2');
   await tela(page, 'poDecisaoBloqueada');
   afirma((await texto(page, '#poDecisaoBloqueada')).trim() === D4 && !(await existe(page, '#poDecisaoForm')), 'mensagem exata do D4 e nenhum formulário');
-  await ir(page, '#avaliacoes?po=' + r3);
+  await ir(page, '#arquitetura?po=' + r3);
   await tela(page, 'poDescartarBtn');
   await page.click('#poDescartarBtn');
   await page.waitForSelector('#poMotivoDescarte');
   await page.fill('#poMotivoDescarte', 'Não era necessário');
   await page.click('.po-modal .po-modal-sim');
   await tela(page, 'poDescartado');
-  await ir(page, '#avaliacoes?po=h2');
+  await ir(page, '#arquitetura?po=h2');
   await tela(page, 'poDecisaoForm');
   db = await banco(page);
   afirma(db['posicionamento-vigente-por-item'].p1 === 'h2' && db['avaliacoes-posicionamento'][r3].status === 'descartado', 'descartar a reavaliação: h2 continua vigente e o formulário volta');
@@ -298,10 +298,10 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
 
 async function perfilAvaliacao(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — perfil "Avaliação" só consulta ########');
-  const { ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#avaliacoes?po=h2' });
+  const { ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#arquitetura?po=h2' });
   await tela(page, 'poSemDecisao');
   afirma(!(await existe(page, '#poDecisaoForm')) && !(await existe(page, '#poReavaliarBtn')), 'sem formulário de decisão e sem Reavaliar');
-  await ir(page, '#avaliacoes?po=h1');
+  await ir(page, '#arquitetura?po=h1');
   await tela(page, 'poDecisaoFinal');
   afirma(/Tx AREA_ESPECIALIZADA/.test(await texto(page, '#poDecisaoFinal')) && /Área \(nome antigo\)/.test(await texto(page, '#poNomeDecisao')), 'lê a decisão: nome atual e nome registrado na decisão');
   await ctx.close();
@@ -310,18 +310,18 @@ async function perfilAvaliacao(browser, nomeTela, viewport) {
 
 async function redeLenta(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — decisões lentas e recusadas ########');
-  let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=h1', delays: { 'posicionamento-decisoes': 3000 } });
+  let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=h1', delays: { 'posicionamento-decisoes': 3000 } });
   await tela(page, 'poDecisaoCarregando');
   afirma(!(await existe(page, '#poSemDecisao')), 'decisões ainda não lidas: "Carregando…", nunca "Sem decisão registrada"');
   await tela(page, 'poDecisaoFinal');
   afirma(true, 'a leitura chegou: a decisão aparece');
   await ctx.close();
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
-  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=lista', delays: { 'posicionamento-decisoes': 3000 } }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=lista', delays: { 'posicionamento-decisoes': 3000 } }));
   await esperarCondicao(page, () => document.querySelectorAll('#poLista .po-linha').length >= 3, null, { descricao: 'as linhas chegarem antes das decisões' });
   afirma((await linhas(page)).every((l) => /Carregando/.test(l.decisao)), 'lista: coluna Decisão final "Carregando…" enquanto as decisões não chegam');
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=g1', fail: ['posicionamento-decisoes'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=g1', fail: ['posicionamento-decisoes'] }));
   await tela(page, 'poDecisaoErroLeitura');
   afirma(!(await existe(page, '#poSemDecisao')) && !(await existe(page, '#poDecisaoForm')), 'leitura recusada: "Não foi possível ler", sem "Sem decisão registrada" e sem formulário');
   afirma(await esperarAusencia(page, '#poSemDecisao', { janela: 1000, motivo: 'a leitura falha em ~10 ms no falso; 1 s sem "Sem decisão" prova que a falha não vira ausência' }), '…e continua assim');

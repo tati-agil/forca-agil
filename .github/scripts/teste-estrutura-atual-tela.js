@@ -138,7 +138,7 @@ async function criar(page, d, botao) {
     afirma(!(await existe(page, '#eaMarcadorDet')), 'Avaliação + Configuração mantém com o marcador liberado; não muda o marcador');
     await ctx.close();
     /* Avaliação não entra no ADMIN: consulta a Estrutura Atual pela Porta 2 (escolha da área e de quem executa) */
-    ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, { email: AVAL, db: dbLiberado, hash: '#avaliacoes' }));
+    ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, { email: AVAL, db: dbLiberado, hash: '#arquitetura' }));
     await esperar(page, () => { const l = window.faEstruturaAtualAdmin.unidadesAtivas(); return Array.isArray(l) && l.length > 0; });
     const lidas = await page.evaluate(() => window.faEstruturaAtualAdmin.unidadesAtivas().map((x) => x.unidade.sigla));
     afirma(lidas.indexOf('GECON') !== -1 && lidas.indexOf('CONTA') !== -1 && lidas.indexOf('NUCOT') === -1 && await page.evaluate(() => !document.getElementById('eaNovaBtn')), 'Avaliação: lê as unidades ativas (para a Porta 2), sem tela de edição', lidas);

@@ -53,7 +53,7 @@ const ate = (page, fn, arg, descricao) => esperarCondicao(page, fn, arg, { limit
         'recolhidas: o título e a descrição curta continuam visíveis');
       afirma(!(await visivel(page, '#avpQuestP1P16Btn')) && !(await visivel(page, '#avpUsuariosBtn')), 'recolhidas: os cartões não ocupam a página');
       afirma(await page.locator('#adminAvaliacaoProduto #avpDocsMapaFloresta').count() === 1 && await page.locator('#avpAdminMapa #avpMapaEditarBtn').count() === 1 && await page.locator('#avpAdminMapa #avpMapaHistorico').count() === 1 &&
-        await page.locator('#adminAvaliacaoProduto a[href="#avaliacoes?mf=mapa"]').count() === 1 && await page.locator('#avpAdminPartes, #avpAdminDocsMapa').count() === 0,
+        await page.locator('#adminAvaliacaoProduto a[href="#arquitetura?mf=mapa"]').count() === 1 && await page.locator('#avpAdminPartes, #avpAdminDocsMapa').count() === 0,
       'um único Mapa: Abrir, definição oficial, "Editar definição", histórico e a Jornada na mesma seção; sem lista de partes nem link de documentação repetidos');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
 

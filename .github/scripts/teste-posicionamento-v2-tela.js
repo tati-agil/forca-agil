@@ -139,7 +139,7 @@ async function admin(browser, viewport, rotulo) {
 }
 async function telaV2(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + '] 2. registro v2 sem redação v2 publicada');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=r2', false);
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=r2', false);
   await page.waitForSelector('#poRedacaoIndisponivel');
   afirma(/Redação desta versão do motor \(v2\) indisponível/.test(await page.locator('#poRedacaoIndisponivel').innerText()), 'trava: "Redação desta versão do motor (v2) indisponível"');
   afirma(await page.locator('.po-resp, .po-diag-resp, .po-pred-resp, #poConcluirBtn, #poSalvarBtn').count() === 0, 'nenhuma pergunta, resposta, Salvar ou Concluir');
@@ -149,7 +149,7 @@ async function telaV2(browser, viewport, rotulo) {
   await ctx.close();
 
   console.log('[' + rotulo + '] 3. registro v2 com a redação v2 publicada');
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=r2', true));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=r2', true));
   await page.waitForSelector('.po-diag[data-nivel="N1"]');
   afirma(/fluxo de valor ou capacidade em funcionamento/.test(await page.locator('.po-pergunta[data-q="O1"]').innerText()), 'O1 com a redação v2');
   afirma(await page.locator('.po-pred').count() === 0, '3 SIM: pede D1, ainda sem D2');
@@ -174,7 +174,7 @@ async function telaV2(browser, viewport, rotulo) {
   await ctx.close();
 
   console.log('[' + rotulo + '] 4. registro v1: nada mudou');
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=r1', true));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=r1', true));
   await page.waitForSelector('.po-pergunta[data-q="O3"]');
   afirma(await page.locator('.po-diag, .po-pred').count() === 0, 'v1: 3 SIM não pede diagnóstico nem predominância');
   afirma(!/fluxo de valor ou capacidade em funcionamento/.test(await page.locator('.po-pergunta[data-q="O1"]').innerText()), 'v1: a redação v1 de sempre (a v2 publicada não vaza)');

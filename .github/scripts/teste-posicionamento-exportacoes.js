@@ -124,7 +124,7 @@ async function abrir(browser, viewport, opts) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html' + (opts.hash || '#avaliacoes?po=lista'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (opts.hash || '#arquitetura?po=lista'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
@@ -212,7 +212,7 @@ async function fluxo(browser, nomeTela, viewport) {
   afirma(/Arquivo gerado com sucesso/.test(await texto(page, '#poExportarStatus')), 'aviso "Arquivo gerado com sucesso."');
 
   console.log('\n== 2. PDF ==');
-  await ir(page, '#avaliacoes?po=h2');
+  await ir(page, '#arquitetura?po=h2');
   await page.waitForSelector('#poResultado');
   await prontoParaClicar(page, '#poGerarPdfBtn');
   if (PRINTS) await page.locator('.po-ficha-acoes').screenshot({ path: path.join(PRINTS, 'botao-pdf-' + sufixo + '.png') });
@@ -227,22 +227,22 @@ async function fluxo(browser, nomeTela, viewport) {
   afirma(/Decisão final\s*Sem decisão registrada\./.test(t2), 'PDF: "Sem decisão registrada."');
   afirma(/Iniciada como reavaliação da v1/.test(t2) && /passou a vigente no lugar da v1/.test(t2), 'PDF: trilha lida');
   afirma(/Respostas O1–O9/.test(t2) && /Pergunta O2 — redação da época/.test(t2), 'PDF: respostas com o texto da época');
-  await ir(page, '#avaliacoes?po=h1');
+  await ir(page, '#arquitetura?po=h1');
   await page.waitForSelector('#poHistorica');
   await prontoParaClicar(page, '#poGerarPdfBtn');
   const p1 = await baixar(page, '#poGerarPdfBtn');
   const t1 = p1.texto.replace(/\s+/g, ' ');
   afirma(/Situação na exportação\s*Histórica/.test(t1) && /Confirmação da recomendação automática/.test(t1), 'histórica tem PDF, com a decisão dela');
-  await ir(page, '#avaliacoes?po=a1');
+  await ir(page, '#arquitetura?po=a1');
   await page.waitForSelector('#poResultado');
   await prontoParaClicar(page, '#poGerarPdfBtn');
   const pa = (await baixar(page, '#poGerarPdfBtn')).texto.replace(/\s+/g, ' ');
   afirma(/A validar — conflito de posicionamento/.test(pa) && /Resolução do "A validar"/.test(pa) && /Decisão após reunião — atuação em canais/.test(pa) && /Pela decisão final, a Adequação à Squad \(S1–S8\) pode ser realizada/.test(pa),
     'RESOLUCAO_A_VALIDAR: recomendação, tipo, justificativa e efeito GRAVADO da decisão');
-  await ir(page, '#avaliacoes?po=x1');
+  await ir(page, '#arquitetura?po=x1');
   await page.waitForSelector('#poDescartado');
   afirma(!(await existe(page, '#poGerarPdfBtn')), 'descartada: sem PDF');
-  await ir(page, '#avaliacoes?po=r1');
+  await ir(page, '#arquitetura?po=r1');
   await page.waitForSelector('#poChecklist');
   afirma(!(await existe(page, '#poGerarPdfBtn')), 'rascunho: sem PDF');
   await ctx.close();
@@ -251,25 +251,25 @@ async function fluxo(browser, nomeTela, viewport) {
 
 async function leituras(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — decisões lentas/recusadas e trilha recusada ########');
-  let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=h2', delays: { 'posicionamento-decisoes': 3500 } });
+  let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=h2', delays: { 'posicionamento-decisoes': 3500 } });
   await page.waitForSelector('#poGerarPdfBtn');
   afirma(await page.evaluate(() => { const b = document.querySelector('#poGerarPdfBtn'); return b.disabled && /carregando/i.test(b.innerText); }), 'decisões carregando: "Carregando…" e PDF desabilitado');
   await prontoParaClicar(page, '#poGerarPdfBtn');
   afirma(true, '…habilita quando as decisões chegam');
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=h2', fail: ['posicionamento-decisoes'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=h2', fail: ['posicionamento-decisoes'] }));
   await page.waitForSelector('#poExportarBloqueado');
   afirma(await page.evaluate(() => document.querySelector('#poGerarPdfBtn').disabled) && /para não registrar "Sem decisão" por engano/.test(await texto(page, '#poExportarBloqueado')), 'decisões recusadas: PDF bloqueado, com explicação');
-  await ir(page, '#avaliacoes?po=lista');
+  await ir(page, '#arquitetura?po=lista');
   await page.waitForSelector('#poExportarBtn');
   afirma(await page.evaluate(() => document.querySelector('#poExportarBtn').disabled) && await existe(page, '#poExportarBloqueado'), 'lista: Exportar bloqueado, com explicação');
   await ctx.close();
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
-  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=h2', fail: ['posicionamento-auditoria'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=h2', fail: ['posicionamento-auditoria'] }));
   await prontoParaClicar(page, '#poGerarPdfBtn');
   const p = (await baixar(page, '#poGerarPdfBtn')).texto.replace(/\s+/g, ' ');
   afirma(/Trilha indisponível/.test(p) && !/Nenhum evento registrado/.test(p) && /Sem decisão registrada\./.test(p) && /Respostas O1–O9/.test(p), 'auditoria recusada: PDF com "Trilha indisponível" e o resto completo');
-  await ir(page, '#avaliacoes?po=lista');
+  await ir(page, '#arquitetura?po=lista');
   await prontoParaClicar(page, '#poExportarBtn');
   await page.click('#poExportarBtn');
   await page.waitForSelector('#poExportarExcelTodas');
@@ -281,7 +281,7 @@ async function leituras(browser, nomeTela, viewport) {
 
 async function perfilAvaliacao(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — perfil "Avaliação" exporta (só leitura) ########');
-  const { ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#avaliacoes?po=d1' });
+  const { ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#arquitetura?po=d1' });
   await prontoParaClicar(page, '#poGerarPdfBtn');
   const p = (await baixar(page, '#poGerarPdfBtn')).texto.replace(/\s+/g, ' ');
   afirma(/Divergência da recomendação automática/.test(p) && /CoE \(nome na decisão\)/.test(p) && /Referência técnica da organização/.test(p), 'perfil Avaliação: PDF da divergência (nome registrado na decisão, justificativa)');

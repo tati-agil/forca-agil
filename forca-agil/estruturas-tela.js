@@ -317,7 +317,7 @@
       h += '<p class="est-intro">As estruturas organizacionais concretas — Linhas, Áreas Especializadas e Centros de Excelência — que aparecem no Mapa da Floresta. O tipo de cada uma é um dos oito posicionamentos firmes.</p>' +
         '<p class="est-intro est-tres" id="estTresCoisas">Três coisas diferentes: o <strong>tipo</strong> é recomendado pelo Posicionamento de cada item; a <strong>estrutura concreta</strong> é cadastrada aqui (pode existir antes de qualquer avaliação); o <strong>vínculo de responsabilidade</strong> é registrado na ficha do Posicionamento. O Mapa mostra as estruturas e os vínculos registrados.</p>';
       h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="estNova">Cadastrar estrutura</button>' : '') +
-        '<a class="btn" id="estVerMapa" href="#avaliacoes?mf=mapa">Ver Mapa completo</a></div>';
+        '<a class="btn" id="estVerMapa" href="#arquitetura?mf=mapa">Ver Mapa completo</a></div>';
       if (st.erroLeitura) return h + '<div class="avp-error-msg" id="estErroLeitura" role="alert">' + (st.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar as estruturas.' : 'Não foi possível ler as estruturas agora. ' + dicaLeitura()) + '</div>';
       if (st.estruturas === undefined) return h + '<p class="loading-msg" role="status">Carregando estruturas…</p>';
       var todas = Object.keys(st.estruturas).map(function (k) { return st.estruturas[k]; });
@@ -416,7 +416,7 @@
         if (!x.carregado) return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="loading-msg">Carregando…</span></li>';
         var sit = N().situacaoResponsavel(estado, o.objetoId, x.p || null, refsDaTela());
         return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="est-produto-nome">' + esc(x.nome || o.objetoId) + '</span>' + situacaoVinculoHtml(sit) +
-          '<a class="btn btn--sm est-abrir-po" href="#avaliacoes?po=' + encodeURIComponent((x.p && x.p.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
+          '<a class="btn btn--sm est-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x.p && x.p.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
       }).join('') + '</ul></section>';
     }
     /* Análise Organizacional (N4): o que a estrutura exerce SEGUNDO AS ANÁLISES — descritivo, com fonte, caráter e data;
@@ -482,11 +482,11 @@
       if (st.estruturas === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p>';
       if (!e) return h + '<p class="avp-error-msg" id="estNaoEncontrada">Esta estrutura não foi encontrada.</p>';
       if (st.flash) h += '<div class="avp-flash-success est-flash" id="estFlash" role="status" tabindex="-1"><p>' + esc(st.flash.texto) + '</p>' +
-        '<div class="est-flash-acoes">' + (!st.flash.encerrada ? '<a class="btn btn--sm btn--primary" id="estFlashMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Localizar esta estrutura no Mapa</a>' : '') +
+        '<div class="est-flash-acoes">' + (!st.flash.encerrada ? '<a class="btn btn--sm btn--primary" id="estFlashMapa" href="#arquitetura?mf=mapa&e=' + encodeURIComponent(e.id) + '">Localizar esta estrutura no Mapa</a>' : '') +
         (st.flash.nova && podeManter() ? '<button type="button" class="btn btn--sm" id="estFlashOutra">Cadastrar outra</button>' : '') + '</div></div>';
       h += fichaHtml(e) + produtosHtml(e) + exercidasHtml(e) + relacoesHtml(e) + associacaoHtml(e);
       h += '<div class="est-acoes">';
-      if (e.situacao === 'ativa') h += '<a class="btn" id="estVerNoMapa" href="#avaliacoes?mf=mapa&e=' + encodeURIComponent(e.id) + '">Localizar esta estrutura no Mapa</a>';
+      if (e.situacao === 'ativa') h += '<a class="btn" id="estVerNoMapa" href="#arquitetura?mf=mapa&e=' + encodeURIComponent(e.id) + '">Localizar esta estrutura no Mapa</a>';
       if (e.situacao === 'ativa' && podeManter()) h += '<button type="button" class="btn" id="estEditar">Editar</button><button type="button" class="btn btn--danger" id="estEncerrar">Encerrar</button>';
       h += '</div>';
       if (e.situacao !== 'ativa') h += '<p class="est-aviso-encerrada" id="estEncerradaAviso">Estrutura encerrada: não aparece no Mapa da Floresta e não pode ser alterada nem reativada. A ficha e o histórico continuam disponíveis para consulta. Para voltar a representá-la, cadastre uma nova.</p>';
@@ -534,7 +534,7 @@
     function subagrupadoresHtml() {
       var h = cabecalho('Subagrupadores das Linhas de Negócios', 'Voltar para ' + ((origem && origem.rotulo) || 'Avaliações e Mapa'), 'estVoltarOrigem') + abas('subagrupadores') + aviso() + flashHtml() + errosHtml();
       h += '<p class="est-intro">' + esc(INTRO_SG) + '</p>';
-      h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="sgNovo">Novo subagrupador</button>' : '') + '<a class="btn" href="#avaliacoes?mf=mapa">Ver Mapa completo</a></div>';
+      h += '<div class="est-acoes">' + (podeManter() ? '<button type="button" class="btn btn--primary" id="sgNovo">Novo subagrupador</button>' : '') + '<a class="btn" href="#arquitetura?mf=mapa">Ver Mapa completo</a></div>';
       if (st.erroLeitura) return h + '<div class="avp-error-msg" role="alert">Não foi possível ler os subagrupadores agora.</div>';
       if (st.subagrupadores === undefined || st.estruturas === undefined || st.associacoes === undefined) return h + '<p class="loading-msg" role="status">Carregando subagrupadores…</p>';
       var E = estadoSg(), ativos = N().subagrupadoresAtivos(E);
@@ -601,7 +601,7 @@
       if (st.subagrupadores === undefined || st.estruturas === undefined || st.associacoes === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p>';
       if (!g) return h + '<p class="avp-error-msg" id="sgNaoEncontrado">Este subagrupador não foi encontrado.</p>';
       var E = estadoSg(), ativos = N().subagrupadoresAtivos(E), pos = ativos.map(function (x) { return x.id; }).indexOf(g.id), linhas = N().linhasDoSubagrupador(E, g.id);
-      h += flashHtml(g.situacao === 'ativo' ? '<a class="btn btn--sm btn--primary" href="#avaliacoes?mf=mapa">Ver Mapa completo</a>' : '');
+      h += flashHtml(g.situacao === 'ativo' ? '<a class="btn btn--sm btn--primary" href="#arquitetura?mf=mapa">Ver Mapa completo</a>' : '');
       h += '<div class="est-ficha" id="sgFicha"><section class="est-secao"><h5 class="est-secao-titulo">Identificação</h5><dl class="est-dados">' +
         dado('Nome', esc(g.nome)) + dado('Aplica-se a', 'Linhas de Negócios') +
         dado('Posição no Mapa', g.situacao === 'ativo' ? (pos + 1) + 'º de ' + ativos.length : '<span class="est-vazio">fora do Mapa (encerrado)</span>') +
@@ -753,8 +753,8 @@
       else if (st.vista === 'sg-encerrar') h = podeManter() ? formSgEncerrarHtml() : subagrupadorHtml();
       else h = listaHtml();
       /* painel claro, na linguagem do Mapa da Floresta: texto escuro sobre fundo claro (o fundo estrelado fica na margem) */
-      if (voltaPo) h = '<a class="est-voltar-jornada" id="estVoltarPosicionamento" href="#avaliacoes?po=' + encodeURIComponent(voltaPo) + '&bloco=responsavel">← Voltar ao Posicionamento (estrutura responsável)</a>' + h;
-      else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#avaliacoes?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
+      if (voltaPo) h = '<a class="est-voltar-jornada" id="estVoltarPosicionamento" href="#arquitetura?po=' + encodeURIComponent(voltaPo) + '&bloco=responsavel">← Voltar ao Posicionamento (estrutura responsável)</a>' + h;
+      else if (voltaObjeto) h = '<a class="est-voltar-jornada" id="estVoltarJornada" href="#arquitetura?mf=catalogo&item=' + encodeURIComponent(voltaObjeto) + '">← Voltar à Jornada de Avaliação e Posicionamento</a>' + h;
       /* aberta de fora do ADMIN (o Mapa, por exemplo): o retorno à tela de origem fica à vista em qualquer vista do cadastro */
       else if (origem && origem.origemNav) h = '<button type="button" class="est-voltar-jornada" id="estVoltarOrigemNav">← Voltar para ' + esc(origem.origemNav.rotulo) + '</button>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';

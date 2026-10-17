@@ -95,7 +95,7 @@ async function responderF2b(page, valor, estrutura) {
   await esperar(page, (r) => { const o = document.getElementById('anObjetoF2b'); return !document.querySelector('#anFormResponder[data-q="F2b"]') && !!o && o.textContent.indexOf(r) === 0; }, rot);
 }
 async function abrirAnalise(page, nome, escopo, descricao) {
-  await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anFormNova');
+  await ir(page, '#arquitetura?an=nova'); await page.waitForSelector('#anFormNova');
   if (escopo || descricao) await page.evaluate(() => { document.getElementById('anNovaAvancado').open = true; });
   if (escopo) await page.check('#anFormNova input[value="' + escopo + '"]');
   await page.fill('#anNome', nome);
@@ -134,12 +134,12 @@ const analiseDoBanco = async (page, id) => (await banco(page))['analises-organiz
 
 async function entrada(browser) {
   console.log('\n== E. Entrada: Início, Responsabilidades Organizacionais ==');
-  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab: LIB });
+  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab: LIB });
   await page.waitForSelector('#anEntradaAtuacoes');
   afirma((await texto(page, '#poAtuacoes h3')).trim() === 'Responsabilidades Organizacionais' && (await texto(page, '#poAtuacoes .avp-intro')).trim() === 'Avalie e acompanhe o posicionamento arquitetural das responsabilidades pelo O1–O9.', 'título e subtítulo da tela de Responsabilidades Organizacionais');
-  afirma((await texto(page, '#poNovaAtuacaoBtn')).trim() === 'Nova responsabilidade' && (await texto(page, '#anEntradaNova')).trim() === 'Analisar uma área' && (await page.getAttribute('#anEntradaNova', 'href')) === '#avaliacoes?an=nova', 'ações "Nova responsabilidade" e "Analisar uma área"');
+  afirma((await texto(page, '#poNovaAtuacaoBtn')).trim() === 'Nova responsabilidade' && (await texto(page, '#anEntradaNova')).trim() === 'Analisar uma área' && (await page.getAttribute('#anEntradaNova', 'href')) === '#arquitetura?an=nova', 'ações "Nova responsabilidade" e "Analisar uma área"');
   afirma(!(await existe(page, '.an-caminho')) && (await texto(page, '#poRegistradasTitulo')).trim() === 'Responsabilidades registradas' && (await page.$$('#avaliacoesPosicionamento .avp-voltar-link, #avaliacoesPosicionamento #poVoltarLista')).length === 1, 'sem cartões repetidos; "Responsabilidades registradas"; um só "Voltar"');
-  await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicioCaminhoB');
+  await ir(page, '#arquitetura'); await page.waitForSelector('#avpInicioCaminhoB');
   const p1 = await texto(page, '#avpInicioCartaoNatureza'), p2 = await texto(page, '#avpInicioCartaoAtuacao');
   afirma(/Avaliar um Produto\/Serviço/.test(p1) && /Descubra se um item constitui um Produto\/Serviço\./.test(p1) && (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação', 'Início: Porta 1 com o texto aprovado');
   afirma(/Porta 2 · Posicionamento das responsabilidades · O1–O9/i.test(p2) &&
@@ -147,20 +147,20 @@ async function entrada(browser) {
   const [ca, cb] = await page.evaluate(() => ['avpInicioAtuacao', 'avpInicioAnalise'].map((i) => { const e = document.getElementById(i); const r = e.getBoundingClientRect(); return { cls: e.className, txt: e.textContent.trim(), h: r.height }; }));
   afirma(ca.cls === cb.cls && ca.txt === 'Avaliar responsabilidade' && cb.txt === 'Analisar área' && Math.abs(ca.h - cb.h) < 2, 'Início: os dois caminhos com botões de mesmo peso', [ca, cb]);
   await page.click('#avpInicioAnalise'); await page.waitForSelector('#anFormNova');
-  afirma(await page.evaluate(() => location.hash) === '#avaliacoes?an=nova', 'Caminho B abre "Analisar uma área"');
+  afirma(await page.evaluate(() => location.hash) === '#arquitetura?an=nova', 'Caminho B abre "Analisar uma área"');
   await page.goBack(); await page.waitForSelector('#avpInicioCartaoAtuacao');
   await page.click('#avpInicioAtuacao'); await page.waitForSelector('#poFormAtuacao');
-  afirma(await page.evaluate(() => location.hash) === '#avaliacoes?po=nova-atuacao', 'Caminho A abre o registro da responsabilidade');
+  afirma(await page.evaluate(() => location.hash) === '#arquitetura?po=nova-atuacao', 'Caminho A abre o registro da responsabilidade');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
   /* sem controle de disponibilidade: sem marcador ou com o estado antigo de homologação gravado, Avaliação + Configuração
      tem os dois caminhos — o Início mostra o Caminho B e a lista de responsabilidades, "Analisar uma área" */
   for (const [hab, rot] of [[null, 'sem marcador'], ['DESLIGADO', 'estado antigo DESLIGADO'], ['SOMENTE_ADMIN_GERAL', 'estado antigo SOMENTE_ADMIN_GERAL']]) {
-    ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab }));
+    ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab }));
     await page.waitForSelector('#poNovaAtuacaoBtn', { timeout: 20000 });
     await page.waitForSelector('#anEntradaAtuacoes', { timeout: 20000 });
     afirma(await existe(page, '#anEntradaNova') && await existe(page, '#poNovaAtuacaoBtn'), rot + ': "Analisar uma área" e "Nova responsabilidade" (o perfil decide, não um marcador)');
-    await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicioCartaoAtuacao');
+    await ir(page, '#arquitetura'); await page.waitForSelector('#avpInicioCartaoAtuacao');
     await esperar(page, () => !!document.getElementById('avpInicioAnalise'));
     afirma(!(await existe(page, '#avpInicioCaminhoBEstado')) && (await texto(page, '#avpInicioAnalise')).trim() === 'Analisar área' && await existe(page, '#avpInicioAtuacao'), rot + ': Início com o Caminho B ("Analisar área") e o Caminho A');
     afirma(!erros.length, rot + ': nenhum erro de página', erros.join(' | '));
@@ -170,7 +170,7 @@ async function entrada(browser) {
 
 async function caminhoA(browser) {
   console.log('\n== A. Caminho A: um campo, "Registrar e avaliar" ==');
-  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab: LIB });
+  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab: LIB });
   await page.waitForSelector('#poNovaAtuacaoBtn', { timeout: 20000 });
   await page.click('#poNovaAtuacaoBtn'); await page.waitForSelector('#poFormAtuacao');
   const campos = await page.$$eval('#poFormAtuacao input, #poFormAtuacao textarea, #poFormAtuacao select', (l) => l.filter((x) => x.offsetParent && !x.closest('details:not([open])')).map((x) => x.id));
@@ -193,9 +193,9 @@ async function caminhoA(browser) {
 
 async function governanca(browser) {
   console.log('\n== F. F2b opcional ==');
-  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { hab: LIB });
+  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=lista', { hab: LIB });
   await page.waitForSelector('#anNovaBtn', { timeout: 20000 });
-  await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anFormNova');
+  await ir(page, '#arquitetura?an=nova'); await page.waitForSelector('#anFormNova');
   afirma(await prop(page, 'input[name="anTemAtuacao"][value="nao"]', 'checked') && /Você quer aprofundar uma responsabilidade organizacional já registrada na Porta 2\?/.test(await texto(page, '#anAprofunda legend')) && await prop(page, '#anFormNova input[value="estrutura"]', 'checked'), 'nova análise: responsabilidade prévia opcional ("Não"); escopo já marcado');
   const id = await abrirAnalise(page, 'TESTE — Núcleo de Governança de TI', null);
   await page.waitForSelector('#anFormResponder[data-q="F2b"]', { state: 'attached' });
@@ -221,10 +221,10 @@ async function governanca(browser) {
 
 async function gecon(browser) {
   console.log('\n== G. GECON: área da Estrutura Atual, dez e depois doze responsabilidades, núcleos, O1–O9 e volta ==');
-  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=lista', { hab: LIB });
+  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=lista', { hab: LIB });
   await page.waitForSelector('#anNovaBtn', { timeout: 20000 });
   afirma((await texto(page, '#avaliacoesAnalise h2')).trim() === 'Análises Organizacionais' && /Acompanhe as responsabilidades de cada área\./.test(await texto(page, '#avaliacoesAnalise')) && (await texto(page, '#anNovaBtn')).trim() === 'Nova análise', 'lista: "Análises Organizacionais", com "Nova análise"');
-  await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anUnidadeAtual', { timeout: 20000 });
+  await ir(page, '#arquitetura?an=nova'); await page.waitForSelector('#anUnidadeAtual', { timeout: 20000 });
   const visiveis = await page.$$eval('#anFormNova input, #anFormNova textarea, #anFormNova select', (l) => l.filter((x) => x.offsetParent && !x.closest('details:not([open])')).map((x) => x.id));
   afirma(visiveis.join() === 'anUnidadeAtual,anNome' && /Continuar para as responsabilidades/.test(await texto(page, '#anCriarBtn')) && !(await prop(page, '#anNovaAvancado', 'open')), 'Passo 1: escolher a área na Estrutura Atual (ou digitar o nome); opções avançadas recolhidas', visiveis);
   await page.selectOption('#anUnidadeAtual', 'ua-gecon');
@@ -313,25 +313,25 @@ async function gecon(browser) {
   await page.click('#anVoltarAnalise'); await page.waitForSelector('#anResponsabilidades');
   await gravarDb(page, { ['avaliacoes-posicionamento/pos-r-' + obj]: { itemId: obj, itemNome: 'x', status: 'rascunho', origem: 'objeto-organizacional', versao: 1, revisao: 1 }, ['posicionamento-rascunho-por-item/' + obj]: 'pos-r-' + obj });
   await esperar(page, (kk) => /Em avaliação/.test((document.getElementById('anSituacao_' + kk) || {}).textContent || ''), k(7));
-  afirma((await texto(page, '#anIrProxima')).trim() === 'Continuar avaliação' && (await page.getAttribute('#anIrProxima', 'href')) === '#avaliacoes?po=pos-r-' + obj && /Continuar/.test(await texto(page, '#anAbrirPos_' + k(7))), 'em andamento: "Continuar avaliação" no próximo passo e "Continuar" na linha');
+  afirma((await texto(page, '#anIrProxima')).trim() === 'Continuar avaliação' && (await page.getAttribute('#anIrProxima', 'href')) === '#arquitetura?po=pos-r-' + obj && /Continuar/.test(await texto(page, '#anAbrirPos_' + k(7))), 'em andamento: "Continuar avaliação" no próximo passo e "Continuar" na linha');
   await gravarDb(page, { ['avaliacoes-posicionamento/pos-' + obj]: { itemId: obj, itemNome: 'Gerir o processo contábil.', status: 'concluido', origem: 'objeto-organizacional', versao: 1, revisao: 2, hipoteseInicial: 'NAO_SEI', resultadoAutomatico: { codigoResultado: 'AREA_ESPECIALIZADA', motivo: 'PAPEL_UNICO', regra: 'R', papeisDetectados: ['AREA_ESPECIALIZADA'] }, concluidoEm: '2026-10-14T12:00:00.000Z' },
     ['posicionamento-vigente-por-item/' + obj]: 'pos-' + obj, ['posicionamento-rascunho-por-item/' + obj]: null });
   await esperar(page, (kk) => /Avaliada/.test((document.getElementById('anSituacao_' + kk) || {}).textContent || ''), k(7));
   afirma(/Ver resultado/.test(await texto(page, '#anAbrirPos_' + k(7))) && /\(recomendação\)$/.test((await texto(page, '#anTipo_' + k(7))).trim()) && (await texto(page, '#anIrProxima')).trim() === 'Avaliar próxima', 'concluída: "Avaliada", "Ver resultado"; o próximo passo volta a "Avaliar próxima"');
   afirma(/^12 responsabilidades — 1 avaliada e 11 prontas para avaliar\.$/.test((await texto(page, '#anResumo')).trim()), 'resumo dos estados reais', await texto(page, '#anResumo'));
   /* resultado do O1–O9: "Voltar às responsabilidades da GECON" */
-  await ir(page, '#avaliacoes?po=pos-' + obj);
+  await ir(page, '#arquitetura?po=pos-' + obj);
   await page.waitForSelector('#anVoltarResponsabilidades', { timeout: 20000 });
   afirma((await texto(page, '#anVoltarResponsabilidades')).trim() === 'Voltar às responsabilidades da GECON', 'no resultado do O1–O9: "Voltar às responsabilidades da GECON"');
   await page.click('#anVoltarResponsabilidades'); await page.waitForSelector('#anResponsabilidades');
-  afirma(await page.evaluate((i) => location.hash === '#avaliacoes?an=' + encodeURIComponent(i), id), 'volta à lista da GECON para avaliar a próxima');
+  afirma(await page.evaluate((i) => location.hash === '#arquitetura?an=' + encodeURIComponent(i), id), 'volta à lista da GECON para avaliar a próxima');
   /* lista de análises: contagens, próxima ação e homônimas */
   await gravarDb(page, { ['analises-organizacionais/an-homonima']: Object.assign({}, a, { id: 'an-homonima', recortes: {}, revisao: 1, criadaEm: 1791713600000, auditoriaId: 'aud-h' }) });
-  await ir(page, '#avaliacoes?an=lista'); await page.waitForSelector('#anItemContagem_' + id); await page.waitForSelector('#anItemAcao_an-homonima');
+  await ir(page, '#arquitetura?an=lista'); await page.waitForSelector('#anItemContagem_' + id); await page.waitForSelector('#anItemAcao_an-homonima');
   afirma(/12 responsabilidades — 11 prontas · 1 avaliada/.test(await texto(page, '#anItemContagem_' + id)) && (await texto(page, '#anItemAcao_' + id)).trim() === 'Continuar análise' && (await texto(page, '#anItemAcao_an-homonima')).trim() === 'Adicionar responsabilidades', 'lista de análises: contagens reais e a próxima ação de cada uma', [await texto(page, '#anItemContagem_' + id), await texto(page, '#anItemAcao_' + id), await texto(page, '#anLista')]);
   afirma(/Aberta em/.test(await texto(page, '#anItemContexto_' + id)) && /código/.test(await texto(page, '#anItemContexto_an-homonima')), 'nomes repetidos: data, situação e código distinguem as análises');
   /* F5: retomada */
-  await ir(page, '#avaliacoes?an=' + encodeURIComponent(id)); await page.waitForSelector('#anResponsabilidades');
+  await ir(page, '#arquitetura?an=' + encodeURIComponent(id)); await page.waitForSelector('#anResponsabilidades');
   await recarregar(page, ctx);
   await page.waitForSelector('#anResponsabilidades', { timeout: 20000 });
   afirma((await page.$$('.an-linha[data-resp]')).length === 12 && (await situacaoDe(page, k(7))) === 'Avaliada', 'F5: a mesma lista e os mesmos estados');
@@ -347,7 +347,7 @@ async function legado(browser) {
   const db = comLegado(sementeAnalise(LIB)), T = 1791713600000, por = { id: 'u-x', email: ARQ };
   const r = (id, sep, ordem) => ({ id, descricao: 'Anterior ' + id, nome: 'Anterior ' + id, resultado: null, justificativa: null, entregas: {}, capacidades: {}, objetoId: null, fatos: null, separacao: sep ? { valor: sep, em: T, por } : null, situacao: 'ativo', versao: 1, ordem, criadoEm: T, criadoPor: por });
   Object.assign(db['analises-organizacionais']['an-legado'].recortes, { rq1: r('rq1', null, 1), rq2: r('rq2', 'nao-sei', 2), rq3: r('rq3', 'sim', 3) });
-  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=an-legado', { db });
+  const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=an-legado', { db });
   await page.waitForSelector('#anObjetoF2b', { timeout: 20000, state: 'attached' });
   afirma(/É informal/.test(await texto(page, '#anObjetoF2b')) && !/Núcleo de Governança/.test(await texto(page, '#avaliacoesAnalise')), 'F2b incoerente: a estrutura não aparece');
   afirma((await situacaoDe(page, 'rl1')) === 'Pronta para avaliar' && await existe(page, '#anCriarAtuacao_rl1') && await prop(page, '#anDetalhar', 'open'), 'delimitada pelas entregas (anterior): pronta; o detalhamento abre com as entregas');
@@ -377,16 +377,16 @@ async function legado(browser) {
 
 async function perfis(browser) {
   console.log('\n== K. Consulta e 375 px ==');
-  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?an=an-legado', { db: comLegado(sementeAnalise(LIB)), email: AVAL });
+  let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=an-legado', { db: comLegado(sementeAnalise(LIB)), email: AVAL });
   await page.waitForSelector('#anResponsabilidades', { timeout: 20000 });
   afirma(!(await existe(page, '#anFormResponsabilidade')) && !(await existe(page, '#anFormLote')) && !(await existe(page, '[id^="anMais_"]')) && /consultando/.test(await texto(page, '#anProximaAcao')), 'consulta: vê a lista, sem formulários nem "Mais"');
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#avaliacoes?po=atuacoes', { hab: LIB }));
+  ({ ctx, page, erros } = await abrir(browser, { width: 375, height: 812 }, '#arquitetura?po=atuacoes', { hab: LIB }));
   await page.waitForSelector('#anEntradaAtuacoes');
   afirma(await larguraOk(page) && !(await estouro(page)).length, '375: Responsabilidades Organizacionais sem rolagem lateral nem corte');
   await page.click('#poNovaAtuacaoBtn'); await page.waitForSelector('#poFormAtuacao');
   afirma(await larguraOk(page) && !(await estouro(page)).length, '375: Caminho A sem corte');
-  await ir(page, '#avaliacoes?an=nova'); await page.waitForSelector('#anUnidadeAtual', { timeout: 20000 });
+  await ir(page, '#arquitetura?an=nova'); await page.waitForSelector('#anUnidadeAtual', { timeout: 20000 });
   afirma(await larguraOk(page) && !(await estouro(page)).length, '375: "Analisar uma área" (com a Estrutura Atual) sem corte');
   await page.selectOption('#anUnidadeAtual', 'ua-gecon'); await page.click('#anCriarBtn');
   await esperar(page, () => /an=(?!nova|lista)/.test(location.hash) && !!document.getElementById('anLoteTexto'));
@@ -409,7 +409,7 @@ async function perfis(browser) {
   afirma(await larguraOk(page) && !corteC.length, '375: composição aberta, com detalhes e responsabilidade compartilhada, sem corte', corteC);
   const alturas = await page.$$eval('#avaliacoesAnalise .btn:not(.an-link), #avaliacoesAnalise .an-opcao', (ls) => ls.filter((l) => l.offsetParent).map((l) => l.getBoundingClientRect().height));
   afirma(alturas.every((h) => h >= 40), '375: alvos de toque com pelo menos 40 px', Math.min.apply(null, alturas));
-  await ir(page, '#avaliacoes?an=lista'); await page.waitForSelector('#anLista');
+  await ir(page, '#arquitetura?an=lista'); await page.waitForSelector('#anLista');
   afirma(await larguraOk(page) && !(await estouro(page)).length, '375: lista de análises (contagens e próxima ação) sem corte');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();

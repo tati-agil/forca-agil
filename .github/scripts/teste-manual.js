@@ -99,7 +99,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       console.log('\n== 5. "Avaliar oficina" × "Avaliação de Produto/Serviço" ==');
       afirma(r.areas.includes('Avaliar oficina') && r.areas.includes('Avaliação de Produto/Serviço') && !r.areas.includes('Avaliação'), 'duas áreas com os nomes explícitos, nenhuma chamada só "Avaliação"', r.areas.join(' | '));
       const aval = await page.evaluate(() => ({ oficina: document.querySelector('#manual-avaliar-oficina .man-oque').textContent, produto: document.querySelector('#manual-avaliacao-produto .man-oque').textContent }));
-      afirma(/#avaliacao\b/.test(aval.oficina) && /#avaliacoes/.test(aval.produto), 'cada uma diz o seu endereço (#avaliacao e #avaliacoes)');
+      afirma(/#avaliacao\b/.test(aval.oficina) && /#arquitetura/.test(aval.produto), 'cada uma diz o seu endereço (#avaliacao e #arquitetura)');
 
       console.log('\n== 6. Estados de uma pessoa numa turma ==');
       const est = await page.evaluate(() => ({

@@ -63,7 +63,7 @@ const texto = (page, sel) => page.evaluate((s) => { const e = document.querySele
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const ir = (page, hash) => page.evaluate((h) => { location.hash = h; }, hash);
 async function iniciar(page, item) {
-  await ir(page, '#avaliacoes?po=atuacoes&item=' + item);
+  await ir(page, '#arquitetura?po=atuacoes&item=' + item);
   await page.waitForSelector('#poHipoteseIniciar');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarAtuacaoBtn'); await page.waitForSelector('#poChecklist');
 }
@@ -71,7 +71,7 @@ const citacao = (page) => page.evaluate(() => { const d = document.getElementByI
 
 async function tela(browser, viewport, rotulo) {
   console.log('\n== B/C. ' + rotulo + ' ==');
-  const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=atuacoes');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=atuacoes');
   await iniciar(page, 'oAntes');
   const antes = await citacao(page);
   afirma(/observar onde termina a cadeia de valor/.test(antes), 'C. antes da correção: o apoio cita a ajuda oficial vigente (a antiga)', antes.slice(0, 80));
@@ -102,7 +102,7 @@ async function tela(browser, viewport, rotulo) {
   await page.waitForSelector('.po-pergunta[data-q="O9"]');
   afirma(/tendem a O9 — Plataforma de Gestão Corporativa/.test(await texto(page, '.po-pergunta[data-q="O9"] .po-ajuda-extra')), 'C. a Ajuda da própria O9 mostra o texto aprovado');
   const kAntes = (await banco(page))['posicionamento-rascunho-por-item'].oAntes;
-  await ir(page, '#avaliacoes?po=' + kAntes);
+  await ir(page, '#arquitetura?po=' + kAntes);
   await page.waitForSelector('#poChecklist');
   afirma(/observar onde termina a cadeia de valor/.test(await citacao(page)), 'C. avaliação começada antes (versão 1): continua com a redação dela');
   afirma(await larguraOk(page), 'C. sem rolagem lateral');

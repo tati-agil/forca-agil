@@ -161,7 +161,7 @@ async function abrirApp(browser, db, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes?av=lista', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura?av=lista', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
@@ -259,7 +259,7 @@ async function cenarioFabrica(browser, viewport, rotulo) {
   afirma(idem === 'nada-a-aplicar', 'aplicar de novo não faz nada (idempotente)', idem);
 
   console.log('== 4. ' + rotulo + ': avaliação nova depois da aplicação ==');
-  await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?av=lista'; });
   await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
   await page.click('#avpNovoBtn');
   await page.fill('#avpfNome', 'Motor de cálculo do benefício');

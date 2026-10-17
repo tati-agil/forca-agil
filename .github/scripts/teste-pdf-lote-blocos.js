@@ -110,7 +110,7 @@ async function exportar(browser, n, tams, viewport, so1) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#avaliacoes?av=lista');
+  await page.goto(BASE + '/index.html#arquitetura?av=lista');
   await page.waitForSelector('#avaliacoesPainel .avp-table tbody tr', { timeout: 15000 });
   await page.waitForTimeout(600);
   const ordemTela = await page.locator('.avp-item-nome').allTextContents();

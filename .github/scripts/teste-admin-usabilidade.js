@@ -179,7 +179,7 @@ async function larguras(browser) {
   const medidas = [];
   for (const w of [375, 640, 768, 1280, 1440, 1920]) {
     const vp = { width: w, height: w <= 400 ? 812 : 900 };
-    const { ctx, page, erros } = await abrir(browser, vp, '#avaliacoes');
+    const { ctx, page, erros } = await abrir(browser, vp, '#arquitetura');
     await esperar(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null; });
     const ini = await page.evaluate(() => { const a = document.getElementById('avpInicioTrabalhos').getBoundingClientRect() /* a primeira ação do Início (a Jornada do Mapa agora fica no bloco do Mapa, logo abaixo) */, h = document.querySelector('#page-avaliacoes .page-hero h1').getBoundingClientRect();
       return { acao: Math.round(a.top + scrollY), tituloAcao: Math.round(a.top - h.bottom), alto: document.documentElement.scrollHeight, vh: innerHeight }; });

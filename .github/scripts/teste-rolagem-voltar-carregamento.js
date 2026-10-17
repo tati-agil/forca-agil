@@ -12,7 +12,7 @@
  *
  * 2ª causa (achada por este teste): ao voltar, o hashchange chega numa tarefa depois do popstate;
  * a tela devolvia a posição no popstate e o router.js, no hashchange, subia ao topo por cima. Andar
- * entre áreas ?arq= agora é como trocar de subtela em #avaliacoes: quem posiciona é a tela.
+ * entre áreas ?arq= agora é como trocar de subtela em #arquitetura: quem posiciona é a tela.
  *
  * O carregamento é segurado de propósito (as imagens .png da página só são entregues quando o
  * teste libera), e o teste confere que a página ainda NÃO terminou de carregar antes de voltar —

@@ -117,7 +117,7 @@ async function abrirApp(browser, viewport, hash) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html' + (hash || '#avaliacoes?av=lista'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (hash || '#arquitetura?av=lista'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
@@ -126,12 +126,12 @@ const nosNatureza = async (page) => { const b = await banco(page); return JSON.s
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const linhaDe = (page, key) => page.locator('tr', { has: page.locator('[data-key="' + key + '"]') });
 async function irLista(page) {
-  await page.evaluate(() => { location.hash = '#avaliacoes?av=lista'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?av=lista'; });
   await page.waitForSelector('#avpNovoBtn', { timeout: 10000 });
   await esperarCondicao(page, () => document.querySelectorAll('.avp-act-ver').length >= 3, null, { descricao: 'a lista com as avaliações' });
 }
 async function abrirFicha(page, key) {
-  await page.evaluate((k) => { location.hash = '#avaliacoes?avp=' + encodeURIComponent(k); }, key);
+  await page.evaluate((k) => { location.hash = '#arquitetura?avp=' + encodeURIComponent(k); }, key);
   await page.waitForSelector('#avpCuradoriaCard, #avpCuradoriaLeitura', { timeout: 10000 });
 }
 async function gerarPdf(page) {
@@ -206,7 +206,7 @@ async function lerExcel(page) {
 
       console.log('\n== Salvar de novo uma avaliação existente: a natureza fica EXATAMENTE como estava ==');
       const antesRasc = (await banco(page))['avaliacoes-produto'].rasc;
-      await page.evaluate(() => { location.hash = '#avaliacoes?editar=rasc'; });
+      await page.evaluate(() => { location.hash = '#arquitetura?editar=rasc'; });
       await page.waitForSelector('#avpSalvarRascunhoBtn', { timeout: 10000 });
       await page.click('#avpSalvarRascunhoBtn');
       await esperarCondicao(page, () => { const r = window.__CFG.__dbReal['avaliacoes-produto'].rasc; return !!r && r.atualizadoEm !== '2026-09-29T10:00:00.000Z'; }, null, { descricao: 'o rascunho regravado' });
@@ -215,7 +215,7 @@ async function lerExcel(page) {
 
       console.log('\n== Reavaliar: a versão nova nasce sem natureza; a anterior fica intacta ==');
       const antesClube = (await banco(page))['avaliacoes-produto'].clube;
-      await page.evaluate(() => { location.hash = '#avaliacoes?reavaliar=clube'; });
+      await page.evaluate(() => { location.hash = '#arquitetura?reavaliar=clube'; });
       await page.waitForSelector('#avpSalvarRascunhoBtn', { timeout: 10000 });
       await page.click('#avpSalvarRascunhoBtn');
       await esperarCondicao(page, () => Object.values(window.__CFG.__dbReal['avaliacoes-produto']).some((v) => v.versaoAnteriorKey === 'clube'), null, { descricao: 'a reavaliação gravada' });

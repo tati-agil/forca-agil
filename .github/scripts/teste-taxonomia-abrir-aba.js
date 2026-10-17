@@ -42,7 +42,7 @@ const carregada = () => { const p = document.getElementById('adminPanelTaxonomia
 const esperarCarregada = (page, limite) => esperarCondicao(page, carregada, undefined, { limite: limite || 15000 });
 const naArquitetura = (page) => esperarCondicao(page, () => !!document.getElementById('avpAdminMapa') && /^#admin\?arq=inicio/.test(location.hash), undefined, { limite: 15000 });
 const atalhoTaxonomia = async (page) => { await page.waitForSelector('#admArqIrTaxonomia:not([hidden])', { timeout: 15000 }); await page.click('#admArqIrTaxonomia'); };
-const noInicio = (page) => esperarCondicao(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#avaliacoes'; }, undefined, { limite: 15000 });
+const noInicio = (page) => esperarCondicao(page, () => { const e = document.getElementById('avpInicio'); return !!e && e.offsetParent !== null && location.hash === '#arquitetura'; }, undefined, { limite: 15000 });
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 /* conta as leituras da Taxonomia (once/on por caminho), instalado com a página pronta, para provar que não há inicialização duplicada */
 const instalarContador = (page) => page.evaluate(() => {

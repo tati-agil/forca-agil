@@ -37,7 +37,7 @@ async function abrir(browser, viewport) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   /* A avaliação de Squad fica na área AVALIAÇÃO (o motor, no ADMIN › Avaliação e Mapa — ver abrirMotor). */
-  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   await page.waitForSelector('#avpInicio', { timeout: 8000 });
   return { ctx, page, erros };
@@ -50,7 +50,7 @@ const regrasHoje = (page) => page.evaluate(() => JSON.stringify({ v: window.faMo
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
-    await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+    await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
 
     console.log('\n== Início: item já cadastrado × novo item ==');

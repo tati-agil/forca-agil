@@ -93,7 +93,7 @@
       prova: ['teste-dashboard-escopo.js', 'Smoke com o Firebase real (smoke-site-real.js)'] },
 
     { id: 'avaliacao-produto', titulo: 'Avaliação de Produto/Serviço',
-      oque: 'Avaliação arquitetural de produtos e serviços e a Adequação à Squad (menu "Avaliação", endereço #avaliacoes).',
+      oque: 'Avaliação arquitetural de produtos e serviços e a Adequação à Squad (menu "Avaliação", endereço #arquitetura).',
       quem: 'Admin geral e quem está em "Usuários autorizados" (perfil funcional): "Avaliação" avalia; "Avaliação + Configuração" também faz a curadoria e a decisão arquitetural final.',
       importante: [
         'O acesso vem só da lista de Usuários autorizados (ADMIN › Avaliações e Mapa, gerida pelo admin geral) e vale na hora, sem recarregar.',
@@ -109,7 +109,7 @@
         'Catálogo do Mapa da Floresta, no botão de mesmo nome da lista (os três perfis, só consulta): mostra as três categorias do Mapa — Linha com as suas especializações, Área Especializada e CoE — e cada objeto avaliado com o que falta para ele chegar ao Mapa: Avaliação de Produto/Serviço válida, Posicionamento concluído ou decisão final de um "A validar" (que não é exclusão). Vale a decisão final; sem ela, a recomendação automática firme. Ainda não é o Mapa visual, e as estruturas concretas e os responsáveis ainda não aparecem: essa informação está indisponível nesta versão (virá com o cadastro das estruturas), o que é diferente de não existir.',
         'O Posicionamento vigente do item aparece na Adequação à Squad só como informação: nenhum item é bloqueado por ele (a antiga Exigência de Posicionamento foi retirada). Cada avaliação S guarda, ao ser criada, de onde veio a liberação naquele momento.',
       ],
-      links: [{ texto: 'Abrir a Avaliação de Produto/Serviço', href: '#avaliacoes?av=lista' }, { texto: 'Ver os conceitos em ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
+      links: [{ texto: 'Abrir a Avaliação de Produto/Serviço', href: '#arquitetura?av=lista' }, { texto: 'Ver os conceitos em ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
       fonte: ['auth.js (getAvaliacaoTipo) e nó fa-avaliacao-autorizados', 'database.rules.json', 'Conceitos: ADMIN › Taxonomia'],
       prova: ['teste-rules-perfis-avaliacao.js', 'teste-avaliacoes-acessos.js', 'teste-classificacoes-fonte-unica.js', 'teste-squad-endereco.js', 'teste-avaliacao-posicionamento.js', 'teste-rules-posicionamento.js', 'teste-regras-posicionamento-tabela.js', 'teste-posicionamento-decisao.js', 'teste-rules-posicionamento-decisao.js', 'teste-posicionamento-exportacoes.js', 'teste-posicionamento-exportacao-nucleo.js', 'teste-squad-liberacao.js', 'teste-rules-squad-liberacao.js', 'teste-mapa-floresta-catalogo.js'] },
 

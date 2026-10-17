@@ -56,7 +56,7 @@ const texto = (page, sel) => page.evaluate((s) => { const e = document.querySele
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length);
 async function ate(page, fn, arg, descricao, limite) { await esperarCondicao(page, fn, arg, { limite: limite || 12000, descricao }); }
-const fichaPo = (id) => (x) => location.hash.indexOf('#avaliacoes?po=' + x) === 0 && !!document.getElementById('poVoltar') && !document.querySelector('#avaliacoesSquad:not([hidden])');
+const fichaPo = (id) => (x) => location.hash.indexOf('#arquitetura?po=' + x) === 0 && !!document.getElementById('poVoltar') && !document.querySelector('#avaliacoesSquad:not([hidden])');
 async function fim(r, nome) {
   afirma(await larguraOk(r.page), nome + ': sem rolagem lateral');
   afirma(await escritas(r.page) === 0, nome + ': nada gravado');
@@ -66,7 +66,7 @@ async function fim(r, nome) {
 
 async function n1(browser, vp, tag) {
   console.log('\n== N1 (' + tag + '): Posicionamento → Squad nova → Voltar → Posicionamento ==');
-  const r = await abrir(browser, vp, '#avaliacoes?po=gS'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?po=gS'); const page = r.page;
   await ate(page, () => !!document.getElementById('poAvaliarSquadBtn'), null, 'ficha gS com o atalho da Squad');
   await page.click('#poAvaliarSquadBtn');
   await ate(page, () => !!document.getElementById('sqVoltarListaChecklist'), null, 'checklist da Squad');
@@ -79,7 +79,7 @@ async function n1(browser, vp, tag) {
 }
 async function n2(browser, vp, tag) {
   console.log('\n== N2 (' + tag + '): Posicionamento com Squad em andamento → Squad → Voltar → Posicionamento; F5 ==');
-  const r = await abrir(browser, vp, '#avaliacoes?po=gS', { squadEmAndamento: true }); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?po=gS', { squadEmAndamento: true }); const page = r.page;
   await ate(page, () => !!document.getElementById('poAvaliarSquadBtn'), null, 'ficha gS');
   await page.click('#poAvaliarSquadBtn');
   await ate(page, () => /[?&]sq=sqA/.test(location.hash) && !!document.getElementById('sqVoltarListaChecklist'), null, 'Squad em andamento do item');
@@ -94,7 +94,7 @@ async function n2(browser, vp, tag) {
 }
 async function n3(browser, vp, tag) {
   console.log('\n== N3 (' + tag + '): Jornada (item) → Posicionamento → Voltar → item; Voltar/Avançar ==');
-  const r = await abrir(browser, vp, '#avaliacoes?mf=catalogo&item=pAssess'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?mf=catalogo&item=pAssess'); const page = r.page;
   await ate(page, () => !!document.querySelector('.mf-abrir-po'), null, 'item da Jornada');
   const origem = await hashAgora(page);
   await page.click('.mf-abrir-po');
@@ -110,19 +110,19 @@ async function n3(browser, vp, tag) {
 }
 async function n4(browser, vp, tag) {
   console.log('\n== N4 (' + tag + '): ficha de Produto/Serviço → Posicionar → Voltar → ficha ==');
-  const r = await abrir(browser, vp, '#avaliacoes?avp=pSem'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?avp=pSem'); const page = r.page;
   await ate(page, () => !!document.getElementById('avpPosicionarBtn'), null, 'ficha pSem com "Posicionar"');
   await page.click('#avpPosicionarBtn');
   await ate(page, () => /po=escolher/.test(location.hash) && !!document.getElementById('poVoltar'), null, 'Posicionamento aberto pela ficha');
   afirma(await texto(page, '#poVoltar') === '← Voltar para a avaliação de Produto/Serviço', '"← Voltar para a avaliação de Produto/Serviço"', await texto(page, '#poVoltar'));
   await page.click('#poVoltar');
-  await ate(page, () => location.hash === '#avaliacoes?avp=pSem' && !!document.getElementById('avpPosicionarBtn'), null, 'de volta à ficha de Produto/Serviço');
+  await ate(page, () => location.hash === '#arquitetura?avp=pSem' && !!document.getElementById('avpPosicionarBtn'), null, 'de volta à ficha de Produto/Serviço');
   afirma(true, 'volta à ficha de Produto/Serviço (não ao Início)');
   await fim(r, 'N4');
 }
 async function n5(browser, vp, tag) {
   console.log('\n== N5 (' + tag + '): Início → Trabalhos → Jornada → Voltar → Trabalhos → Voltar → Início ==');
-  const r = await abrir(browser, vp, '#avaliacoes'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura'); const page = r.page;
   await ate(page, () => !!document.getElementById('avpInicioTrabalhos'), null, 'Início');
   await page.click('#avpInicioTrabalhos');
   await ate(page, () => !!document.getElementById('avpTrabIrJornada'), null, 'Trabalhos');
@@ -133,7 +133,7 @@ async function n5(browser, vp, tag) {
   await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('avpTrabVoltar'), null, 'de volta a Trabalhos');
   afirma(true, 'volta a Trabalhos');
   await page.click('#avpTrabVoltar');
-  await ate(page, () => location.hash === '#avaliacoes' && !!document.getElementById('avpInicio'), null, 'de volta ao Início');
+  await ate(page, () => location.hash === '#arquitetura' && !!document.getElementById('avpInicio'), null, 'de volta ao Início');
   await page.goForward();
   await ate(page, () => /tr=1/.test(location.hash) && !!document.getElementById('avpTrabVoltar'), null, 'Avançar → Trabalhos');
   afirma(true, 'Trabalhos → Voltar → Início é o Voltar do histórico (o Avançar devolve Trabalhos; sem ciclo)');
@@ -141,7 +141,7 @@ async function n5(browser, vp, tag) {
 }
 async function n6(browser, vp, tag) {
   console.log('\n== N6 (' + tag + '): Trabalhos → Adequação à Squad → Voltar → Trabalhos ==');
-  const r = await abrir(browser, vp, '#avaliacoes?tr=1'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?tr=1'); const page = r.page;
   await ate(page, () => !!document.getElementById('avpTrabIrSquad'), null, 'Trabalhos com a Adequação à Squad');
   await page.click('#avpTrabIrSquad');
   await ate(page, () => /sq=lista/.test(location.hash) && !!document.getElementById('sqVoltarArquitetura'), null, 'lista da Squad');
@@ -153,7 +153,7 @@ async function n6(browser, vp, tag) {
 }
 async function n7(browser, vp, tag) {
   console.log('\n== N7 (' + tag + '): Mapa → estrutura → objeto → Voltar → a estrutura no Mapa ==');
-  const r = await abrir(browser, vp, '#avaliacoes?mf=mapa&e=neg-1'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?mf=mapa&e=neg-1'); const page = r.page;
   await ate(page, () => !!document.querySelector('#mfmObjetos .mfm-objeto-nome'), null, 'detalhe da estrutura com os objetos', 15000);
   const origem = await hashAgora(page);
   await page.click('#mfmObjetos .mfm-objeto-nome');
@@ -166,13 +166,13 @@ async function n7(browser, vp, tag) {
 }
 async function n8(browser, vp, tag) {
   console.log('\n== N8 (' + tag + '): Jornada lista → item → Voltar para a lista (sem ciclo) ==');
-  const r = await abrir(browser, vp, '#avaliacoes?mf=catalogo'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?mf=catalogo'); const page = r.page;
   await ate(page, () => !!document.querySelector('.mf-linha-abrir'), null, 'lista da Jornada');
   await page.click('.mf-linha-abrir');
   await ate(page, () => /&item=/.test(location.hash) && !!document.getElementById('mfVoltarLista'), null, 'item');
   const item = await hashAgora(page);
   await page.click('#mfVoltarLista');
-  await ate(page, () => location.hash === '#avaliacoes?mf=catalogo' && !!document.querySelector('.mf-linha-abrir'), null, 'lista');
+  await ate(page, () => location.hash === '#arquitetura?mf=catalogo' && !!document.querySelector('.mf-linha-abrir'), null, 'lista');
   await page.goForward();
   await ate(page, (h) => location.hash === h, item, 'Avançar → o item');
   afirma(true, '"Voltar para a lista" volta no histórico: o Avançar devolve o item (sem empilhar a lista)');
@@ -180,7 +180,7 @@ async function n8(browser, vp, tag) {
 }
 async function n9(browser, vp, tag) {
   console.log('\n== N9 (' + tag + '): Mapa → cadastro / ficha da estrutura → Voltar → Mapa ==');
-  const r = await abrir(browser, vp, '#avaliacoes?mf=mapa&e=neg-1'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?mf=mapa&e=neg-1'); const page = r.page;
   await ate(page, () => !!document.getElementById('mfmAbrirCadastro'), null, 'detalhe com "abrir no cadastro"', 15000);
   const origem = await hashAgora(page);
   await page.click('#mfmAbrirCadastro');
@@ -193,19 +193,19 @@ async function n9(browser, vp, tag) {
 }
 async function n10(browser, vp, tag) {
   console.log('\n== N10 (' + tag + '): Mapa → Definição oficial (seção do Mapa) → Voltar → Mapa ==');
-  const r = await abrir(browser, vp, '#avaliacoes?mf=mapa'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?mf=mapa'); const page = r.page;
   await ate(page, () => !!document.getElementById('mfmDefinicao'), null, 'Mapa com o acesso à documentação', 15000);
   await page.click('#mfmDefinicao');
   await ate(page, () => /^#admin\?arq=inicio/.test(location.hash) && !!document.getElementById('avpInicioVoltarOrigem') && !!document.getElementById('avpDocsMapaFloresta'), null, 'seção do Mapa (definição oficial)');
   afirma(await texto(page, '#avpInicioVoltarOrigem') === '← Voltar para o Mapa da Floresta' && await page.evaluate(() => document.getElementById('avpAdminMapa').open), 'definição aberta pelo Mapa: seção do Mapa aberta, "← Voltar para o Mapa da Floresta"', await texto(page, '#avpInicioVoltarOrigem'));
   await page.click('#avpInicioVoltarOrigem');
-  await ate(page, () => /^#avaliacoes\?mf=mapa/.test(location.hash) && !!document.getElementById('mfmMapa'), null, 'de volta ao Mapa');
+  await ate(page, () => /^#(?:arquitetura|avaliacoes)\?mf=mapa/.test(location.hash) && !!document.getElementById('mfmMapa'), null, 'de volta ao Mapa');
   afirma(true, 'volta ao Mapa');
   await fim(r, 'N10');
 }
 async function n11(browser, vp, tag) {
   console.log('\n== N11 (' + tag + '): lista de Posicionamentos → ficha → Voltar → lista ==');
-  const r = await abrir(browser, vp, '#avaliacoes?po=lista'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?po=lista'); const page = r.page;
   await ate(page, () => !!document.querySelector('[data-po-abrir], .po-abrir, #poLista a, #poLista button'), null, 'lista de Posicionamentos');
   const sel = await page.evaluate(() => { const e = document.querySelector('.po-abrir, [data-po-abrir]'); return e ? (e.id ? '#' + e.id : (e.classList.contains('po-abrir') ? '.po-abrir' : '[data-po-abrir]')) : null; });
   if (!sel) { afirma(false, 'achar um item na lista de Posicionamentos'); await r.ctx.close(); return; }
@@ -213,14 +213,14 @@ async function n11(browser, vp, tag) {
   await ate(page, () => /po=g/.test(location.hash) && !!document.getElementById('poVoltar'), null, 'ficha aberta pela lista');
   afirma(await texto(page, '#poVoltar') === '← Voltar para os Posicionamentos', 'ficha aberta pela lista: "← Voltar para os Posicionamentos"', await texto(page, '#poVoltar'));
   await page.click('#poVoltar');
-  await ate(page, () => location.hash === '#avaliacoes?po=lista', null, 'de volta à lista');
+  await ate(page, () => location.hash === '#arquitetura?po=lista', null, 'de volta à lista');
   afirma(true, 'volta à lista de Posicionamentos (não ao Início)');
   await fim(r, 'N11');
 }
 
 async function n12(browser, vp, tag) {
   console.log('\n== N12 (' + tag + '): Jornada (item) → Squad → Voltar → item ==');
-  const r = await abrir(browser, vp, '#avaliacoes?mf=catalogo&item=pAssess'); const page = r.page;
+  const r = await abrir(browser, vp, '#arquitetura?mf=catalogo&item=pAssess'); const page = r.page;
   await ate(page, () => !!document.querySelector('.mf-abrir-squad'), null, 'item com o acesso à Squad');
   const origem = await hashAgora(page);
   await page.click('.mf-abrir-squad');

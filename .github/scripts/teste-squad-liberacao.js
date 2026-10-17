@@ -117,7 +117,7 @@ const squadsDe = (db, itemId) => Object.entries(db['avaliacoes-squad'] || {}).fi
 /* abre a Squad, "+ Nova", item já cadastrado, escolhe pelo nome */
 async function escolherItem(page, nome) {
   await page.waitForSelector('#avpInicio');
-  await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+  await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
   await page.click('#sqNovaBtn');
   await page.click('#sqfEscolhaExistente');
@@ -139,7 +139,7 @@ async function salvarRascunho(page) {
 
 async function desligada(browser, viewport, rotulo) {
   console.log('\n[' + rotulo + '] 1. informação contextual, sem bloqueio; a origem fica gravada na criação');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente());
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', semente());
   const chip = await escolherItem(page, 'Item Linha');
   afirma(/Squad liberada pelo Posicionamento/.test(chip), 'a busca de item mostra a situação do Posicionamento ("Squad liberada…")', chip);
   await esperarAviso(page, /liberada/);
@@ -179,9 +179,9 @@ async function independente(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 2. independência: um interruptor antigo gravado como ligado não muda nada');
   const rasc = { sAntigo: { itemId: 'pAE', itemNome: 'Item Área', avaliacaoArquiteturalId: 'pAE', questionarioCodigo: 'ADEQUACAO_SQUAD', questionnaireContentVersion: 1, status: 'rascunho',
     criadoEm: QUANDO, atualizadoEm: QUANDO, criadoPor: outra, atualizadoPor: outra, respostas: { S2: { codigoPergunta: 'S2', resposta: 'nao', questionnaireContentVersion: 1, dataResposta: QUANDO } }, excluido: false } };
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente({ exigir: true, squad: rasc }));
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', semente({ exigir: true, squad: rasc }));
   await page.waitForSelector('#avpInicio');
-  await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; });
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
   await page.click('#sqNovaBtn');
   await page.click('#sqfEscolhaExistente');
@@ -218,7 +218,7 @@ async function independente(browser, viewport, rotulo) {
 
 async function rede(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 3. rede lenta e leitura recusada: só informação, nada travado');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente(), ARQ, { delays: { 'posicionamento-decisoes': 3500 } });
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', semente(), ARQ, { delays: { 'posicionamento-decisoes': 3500 } });
   await escolherItem(page, 'Item Linha');
   afirma(/Verificando o Posicionamento/.test(await texto(page, '#sqPosicionamento')) && !(await page.locator('#sqSalvarRascunhoBtn').isDisabled()), 'leitura lenta: "Verificando…" informa, e a avaliação não espera por ela');
   await esperarAviso(page, /liberada/);
@@ -227,7 +227,7 @@ async function rede(browser, viewport, rotulo) {
   afirma(sL.origemLiberacao.situacao === 'liberado', 'quando a leitura chega antes de salvar, a origem é a real (liberado)');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente(), ARQ, { fail: ['posicionamento-decisoes'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', semente(), ARQ, { fail: ['posicionamento-decisoes'] }));
   await escolherItem(page, 'Item Linha');
   await esperarAviso(page, /Não foi possível verificar/);
   afirma(!(await page.locator('#sqSalvarRascunhoBtn').isDisabled()) && await page.locator('#sqPosicBloqueio').count() === 0, 'leitura recusada: "Não foi possível verificar" informa, nada bloqueia');
@@ -237,7 +237,7 @@ async function rede(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
   /* a leitura do interruptor antigo falhando (antes, travava a criação mesmo desligado) não muda nada */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente({ exigir: false }), ARQ, { fail: ['posicionamento-config'] }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura', semente({ exigir: false }), ARQ, { fail: ['posicionamento-config'] }));
   await escolherItem(page, 'Item Área');
   await esperarAviso(page, /não está liberada/);
   afirma(!(await page.locator('#sqSalvarRascunhoBtn').isDisabled()) && await page.locator('#sqPosicBloqueio').count() === 0, 'leitura do interruptor antigo recusada: nenhum bloqueio (a tela nem o lê mais)');
@@ -249,12 +249,12 @@ async function rede(browser, viewport, rotulo) {
 
 async function atalho(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 4. atalho na ficha do Posicionamento');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=gAE', semente());
+  let { ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=gAE', semente());
   await page.waitForSelector('#poResultado');
   await page.waitForSelector('#poGerarPdfBtn');
   afirma(await page.locator('#poAvaliarSquadBtn').count() === 0, 'Área Especializada: sem "Avaliar Adequação à Squad"');
   await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=gL', semente({ exigir: true })));
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#arquitetura?po=gL', semente({ exigir: true })));
   await page.waitForSelector('#poAvaliarSquadBtn');
   await page.click('#poAvaliarSquadBtn');
   await page.waitForSelector('#avaliacoesSquad #sqPosicionamento');
@@ -263,7 +263,7 @@ async function atalho(browser, viewport, rotulo) {
   await salvarRascunho(page);
   let db = await banco(page);
   afirma(squadsDe(db, 'pL').length === 1, 'cria a avaliação S do item');
-  await page.goto(BASE + '/index.html#avaliacoes?po=gL', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#arquitetura?po=gL', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#poAvaliarSquadBtn');
   await page.click('#poAvaliarSquadBtn');
   await esperarCondicao(page, () => /[?&]sq=(?!lista)/.test(location.hash), 'abriu o rascunho existente', { limite: 10000 });

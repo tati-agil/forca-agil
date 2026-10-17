@@ -68,7 +68,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
         'o card mostra a definição e a nota iniciais');
       afirma(await page.locator('#avpMapaFabrica').count() === 1, '…dito como "valor inicial — ainda não salvo no banco"');
       afirma(await page.locator('#adminAvaliacaoProduto #avpDocsMapaFloresta').count() === 1 && await page.locator('#avpAdminMapa #avpDocsMapaFloresta').count() === 1 &&
-        await page.locator('#adminAvaliacaoProduto a[href="#avaliacoes?mf=mapa"]').count() === 1, 'um único Mapa: a definição dentro da seção do Mapa, com um só "Abrir Mapa da Floresta"');
+        await page.locator('#adminAvaliacaoProduto a[href="#arquitetura?mf=mapa"]').count() === 1, 'um único Mapa: a definição dentro da seção do Mapa, com um só "Abrir Mapa da Floresta"');
       const h0 = page.locator('#avpMapaHistorico');
       afirma(await h0.count() === 1 && !(await h0.evaluate((d) => d.open)) && /Histórico — 0 alterações/.test(await texto(page, '#avpMapaHistorico summary')), 'histórico do card: "Histórico — 0 alterações", recolhido');
 

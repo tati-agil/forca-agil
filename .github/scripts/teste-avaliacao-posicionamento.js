@@ -2,7 +2,7 @@
  * Firebase falso em persistência real; hermético. A trava de verdade (regras) é provada no emulador em
  * teste-rules-posicionamento.js; aqui, o que a pessoa vê e o que a tela grava.
  *
- *   1. Endereços: #avaliacoes?po=lista → ?po=escolher → ?po=escolher&item=<id> → ?po=<avaliação> (checklist e
+ *   1. Endereços: #arquitetura?po=lista → ?po=escolher → ?po=escolher&item=<id> → ?po=<avaliação> (checklist e
  *      resultado); F5 em cada um restaura a mesma tela; Voltar/Avançar andam entre eles; cabeçalho próprio.
  *   2. Escolher item: só itens com Avaliação de Produto/Serviço concluída e não excluída; item com Posicionamento
  *      concluído → "Abrir" (nunca outro); item com rascunho → "Continuar" (nunca outro).
@@ -101,7 +101,7 @@ async function abrir(browser, viewport, opts) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   if (opts.atrasarModulo) await page.route('**/avaliacao-posicionamento.js*', async (r) => { await new Promise((ok) => setTimeout(ok, opts.atrasarModulo)); r.continue(); });
-  await page.goto(BASE + '/index.html' + (opts.hash || '#avaliacoes'), { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html' + (opts.hash || '#arquitetura'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
@@ -139,9 +139,9 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   await page.waitForSelector('#avpInicio', { timeout: 10000 });
 
   console.log('\n== 1. Lista e endereços ==');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=lista'; }); /* a lista de Posicionamentos (no Início, fica em Trabalhos de avaliação) */
+  await page.evaluate(() => { location.hash = '#arquitetura?po=lista'; }); /* a lista de Posicionamentos (no Início, fica em Trabalhos de avaliação) */
   await tela(page, 'poLista');
-  afirma(await hash(page) === '#avaliacoes?po=lista', 'lista em #avaliacoes?po=lista');
+  afirma(await hash(page) === '#arquitetura?po=lista', 'lista em #arquitetura?po=lista');
   afirma((await texto(page, '#page-avaliacoes .page-hero h1')) === 'Posicionamento Organizacional', 'cabeçalho: "Posicionamento Organizacional"');
   afirma(!(await visivel(page, '#avaliacoesPainel')) && !(await visivel(page, '#avaliacoesSquad')), 'a lista de Produto/Serviço e a Squad ficam ocultas');
   /* a lista só tem linhas quando a leitura das avaliações chega (rede lenta: antes disso, "Carregando…") */
@@ -150,10 +150,10 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   afirma(/Item Gama/.test(lista) && /Item Delta/.test(lista), 'lista mostra o concluído (Gama) e o rascunho (Delta)');
   await page.click('#poNovoBtn');
   await tela(page, 'poEscolher');
-  afirma(await hash(page) === '#avaliacoes?po=escolher', 'escolher em #avaliacoes?po=escolher');
+  afirma(await hash(page) === '#arquitetura?po=escolher', 'escolher em #arquitetura?po=escolher');
   await f5(page);
   await tela(page, 'poEscolher');
-  afirma(await hash(page) === '#avaliacoes?po=escolher', 'F5 em "Escolher item" restaura a mesma tela');
+  afirma(await hash(page) === '#arquitetura?po=escolher', 'F5 em "Escolher item" restaura a mesma tela');
   /* idem: as opções só aparecem quando produtos, reservas e vigentes chegam */
   await esperarCondicao(page, () => document.querySelectorAll('#avaliacoesPosicionamento .po-item-opcao').length >= 4, null, { descricao: 'as opções de item chegarem em Escolher item' });
   const opcoes = await page.evaluate(() => Array.from(document.querySelectorAll('#avaliacoesPosicionamento .po-item-opcao')).map((e) => e.dataset.item));
@@ -162,7 +162,7 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   afirma(/Continuar/i.test(await texto(page, '.po-item-opcao[data-item="p4"]')), 'Delta (rascunho): "Continuar"');
   await page.click('.po-item-opcao[data-item="p1"] .po-item-escolher');
   await tela(page, 'poIniciarBtn');
-  afirma(await hash(page) === '#avaliacoes?po=escolher&item=p1', 'item escolhido em ?po=escolher&item=p1');
+  afirma(await hash(page) === '#arquitetura?po=escolher&item=p1', 'item escolhido em ?po=escolher&item=p1');
   await f5(page);
   await tela(page, 'poIniciarBtn');
   afirma(/Item Alfa/.test(await texto(page, '#poEscolher')), 'F5 com o item escolhido restaura a mesma tela');
@@ -249,21 +249,21 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
 
   console.log('\n== 7. Voltar / Avançar ==');
   await page.goBack(); await tela(page, 'poItemSelecionado');
-  afirma(await hash(page) === '#avaliacoes?po=escolher&item=p1', 'Voltar: escolher (com o item)');
+  afirma(await hash(page) === '#arquitetura?po=escolher&item=p1', 'Voltar: escolher (com o item)');
   afirma((await page.locator('#poIniciarBtn').count()) === 0 && /Abrir/i.test(await texto(page, '#poItemSelecionado')), 'o item agora tem Posicionamento concluído: só "Abrir", sem "Iniciar"');
   await page.goBack(); await tela(page, 'poEscolher');
-  afirma(await hash(page) === '#avaliacoes?po=escolher' && (await page.locator('#poIniciarBtn').count()) === 0, 'Voltar: escolher');
+  afirma(await hash(page) === '#arquitetura?po=escolher' && (await page.locator('#poIniciarBtn').count()) === 0, 'Voltar: escolher');
   await page.goBack(); await tela(page, 'poLista');
-  afirma(await hash(page) === '#avaliacoes?po=lista', 'Voltar: lista');
+  afirma(await hash(page) === '#arquitetura?po=lista', 'Voltar: lista');
   await page.goForward(); await tela(page, 'poEscolher');
   await page.goForward(); await page.goForward(); await tela(page, 'poResultado');
-  afirma(await hash(page) === '#avaliacoes?po=' + id, 'Avançar até o resultado');
+  afirma(await hash(page) === '#arquitetura?po=' + id, 'Avançar até o resultado');
   await f5(page);
   await tela(page, 'poResultado');
   afirma(/Posicionamento organizacional recomendado/.test(await texto(page, '#poResultado')), 'F5 no resultado restaura o resultado');
 
   console.log('\n== 8. Firme (CoE) e item já concluído ==');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher&item=p2'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=escolher&item=p2'; });
   await tela(page, 'poIniciarBtn');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await tela(page, 'poChecklist');
@@ -273,16 +273,16 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   const res2 = await texto(page, '#poResultado');
   afirma(/Posicionamento organizacional recomendado: Tx COE/.test(res2), 'firme: "Posicionamento organizacional recomendado: <nome da Taxonomia>"', res2.slice(0, 200));
   afirma(/não libera a Adequação à Squad/i.test(res2), 'CoE: não libera a Adequação à Squad');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher&item=p2'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=escolher&item=p2'; });
   await page.waitForSelector('#avaliacoesPosicionamento #poEscolher');
   afirma((await page.locator('#poIniciarBtn').count()) === 0 && /Abrir/i.test(await texto(page, '#poEscolher')), 'item com Posicionamento concluído: sem "Iniciar", só "Abrir"');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=g1'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=g1'; });
   await tela(page, 'poResultado');
   const res3 = await texto(page, '#poResultado');
   afirma(/Nome atual na Taxonomia: Tx COE/.test(res3) && /Nome registrado na conclusão: Centro de Excelência \(nome antigo\)/.test(res3), 'nome atual × nome registrado na conclusão, distintos');
 
   console.log('\n== 9. Descarte ==');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=d1'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=d1'; });
   await tela(page, 'poChecklist');
   await page.click('#poDescartarBtn');
   await page.waitForSelector('.po-modal #poMotivoDescarte');
@@ -298,7 +298,7 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   db = await banco(page);
   afirma(db['avaliacoes-posicionamento'].d1.status === 'descartado' && db['avaliacoes-posicionamento'].d1.motivoDescarte === 'Item avaliado por engano' && !(db['posicionamento-rascunho-por-item'] || {}).p4 &&
     Object.values(db['posicionamento-auditoria'].d1 || {}).some((a) => a.tipo === 'descarte'), 'descartado: registro fica, motivo, reserva liberada, auditoria');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher&item=p4'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=escolher&item=p4'; });
   await tela(page, 'poIniciarBtn');
   afirma(true, 'depois do descarte, o item pode ser iniciado de novo');
 
@@ -326,17 +326,17 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
 
 async function perfilAvaliacao(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — perfil "Avaliação": só consulta ########');
-  const { ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#avaliacoes?po=lista' });
+  const { ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#arquitetura?po=lista' });
   await tela(page, 'poLista');
   afirma((await page.locator('#poNovoBtn').count()) === 0, 'sem "Avaliar posicionamento de um item"');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=d1'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=d1'; });
   await tela(page, 'poChecklist');
   afirma((await page.locator('#poSalvarBtn, #poConcluirBtn, #poDescartarBtn').count()) === 0 && (await page.locator('.po-resp:not([disabled])').count()) === 0,
     'rascunho só para leitura: sem salvar, concluir, descartar nem responder');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=escolher'; });
   await tela(page, 'poSemPermissao');
   afirma(/Avaliação \+ Configuração/.test(await texto(page, '#poSemPermissao')), '"Escolher item": explica que é do perfil Avaliação + Configuração');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=g1'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=g1'; });
   await tela(page, 'poResultado');
   afirma(true, 'consulta o resultado');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
@@ -346,13 +346,13 @@ async function perfilAvaliacao(browser, nomeTela, viewport) {
 
 async function redeLenta(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — rede lenta e Taxonomia recusada ########');
-  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=g1', delays: { 'avaliacoes-posicionamento': 2500 }, fail: ['taxonomia/organizacional'] });
+  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=g1', delays: { 'avaliacoes-posicionamento': 2500 }, fail: ['taxonomia/organizacional'] });
   await page.waitForSelector('#avaliacoesPosicionamento .loading-msg');
   afirma(!/não encontrada/i.test(await texto(page, '#avaliacoesPosicionamento')), 'link direto com leitura lenta: "Carregando…", nunca "não encontrada"');
   await tela(page, 'poResultado');
   afirma(/Nome registrado na conclusão: Centro de Excelência \(nome antigo\)/.test(await texto(page, '#poResultado')), 'chegou: resultado com o nome registrado');
   afirma(/Rótulo de contingência/.test(await texto(page, '#poResultado')), 'Taxonomia recusada: aviso de contingência');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=escolher&item=p1'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=escolher&item=p1'; });
   await tela(page, 'poIniciarBtn');
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
   await tela(page, 'poChecklist');
@@ -370,7 +370,7 @@ async function redeLenta(browser, nomeTela, viewport) {
 /* B1: gravação RECUSADA pelo banco nunca parece concluída — a tela avisa e não mostra o rascunho como criado */
 async function gravacaoRecusada(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — gravação recusada ########');
-  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=escolher&item=p1', fail: ['posicionamento-auditoria'] });
+  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=escolher&item=p1', fail: ['posicionamento-auditoria'] });
   await tela(page, 'poIniciarBtn');
   const antes = await banco(page);
   await page.click('#poHipoteseIniciar input[value="NAO_SEI"]'); await page.click('#poIniciarBtn');
@@ -387,26 +387,26 @@ async function gravacaoRecusada(browser, nomeTela, viewport) {
 
 async function fichaEVoltar(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — ficha do Produto/Serviço e volta à área Avaliação ########');
-  let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?avp=p1' });
+  let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?avp=p1' });
   await page.waitForSelector('#avpAcoesFicha');
   const h1Original = await texto(page, '#page-avaliacoes .page-hero h1');
   afirma((await page.locator('#avpPosicionarBtn').count()) === 1, 'Avaliação + Configuração: a ficha concluída tem "Posicionamento Organizacional"');
   await page.click('#avpPosicionarBtn');
   await tela(page, 'poItemSelecionado');
-  afirma(await hash(page) === '#avaliacoes?po=escolher&item=p1' && /Item Alfa/.test(await texto(page, '#poItemSelecionado')), 'o botão leva a ?po=escolher&item=p1, com o item já escolhido');
+  afirma(await hash(page) === '#arquitetura?po=escolher&item=p1' && /Item Alfa/.test(await texto(page, '#poItemSelecionado')), 'o botão leva a ?po=escolher&item=p1, com o item já escolhido');
   await page.click('#poVoltar');
   await page.waitForSelector('#avaliacoesPainel:not([hidden])');
   afirma(!(await visivel(page, '#avaliacoesPosicionamento')) && (await texto(page, '#page-avaliacoes .page-hero h1')) === h1Original, '"← Voltar para Avaliações": painel do Posicionamento fecha e o cabeçalho volta ao original');
-  await page.evaluate(() => { location.hash = '#avaliacoes?po=lista'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?po=lista'; });
   await tela(page, 'poLista');
-  await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; });
+  await page.evaluate(() => { location.hash = '#arquitetura?sq=lista'; });
   await page.waitForSelector('#avaliacoesSquad:not([hidden])');
   afirma(!(await visivel(page, '#avaliacoesPosicionamento')) && !/Posicionamento/.test(await texto(page, '#page-avaliacoes .page-hero h1')), 'ir para a Squad fecha o Posicionamento (o cabeçalho não fica com o título dele)');
   await page.goBack(); await tela(page, 'poLista');
   afirma(!(await visivel(page, '#avaliacoesSquad')) && (await texto(page, '#page-avaliacoes .page-hero h1')) === 'Posicionamento Organizacional', 'Voltar da Squad reabre o Posicionamento, sem a Squad por cima');
   await ctx.close();
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
-  ({ ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#avaliacoes?avp=p1' }));
+  ({ ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#arquitetura?avp=p1' }));
   await page.waitForSelector('#avpAcoesFicha');
   afirma((await page.locator('#avpPosicionarBtn').count()) === 0, 'perfil "Avaliação": a ficha não oferece iniciar Posicionamento');
   await ctx.close();
@@ -415,9 +415,9 @@ async function fichaEVoltar(browser, nomeTela, viewport) {
 
 async function moduloAtrasado(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — o arquivo do Posicionamento chega depois da página ########');
-  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=g1', atrasarModulo: 3000 });
+  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?po=g1', atrasarModulo: 3000 });
   await tela(page, 'poResultado');
-  afirma(await hash(page) === '#avaliacoes?po=g1' && !(await visivel(page, '#avaliacoesPainel')), 'link direto com avaliacao-posicionamento.js atrasado: abre o resultado mesmo assim');
+  afirma(await hash(page) === '#arquitetura?po=g1' && !(await visivel(page, '#avaliacoesPainel')), 'link direto com avaliacao-posicionamento.js atrasado: abre o resultado mesmo assim');
   await ctx.close();
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
 }
