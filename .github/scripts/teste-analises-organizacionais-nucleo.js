@@ -273,12 +273,12 @@ afirma(N.contagens(estado).responsabilidades === antes, 'uma responsabilidade re
 afirma(N.historico(eventos, 'jornada-A').every((e, i, l) => i === 0 || e.em >= l[i - 1].em) && N.historico(eventos, 'jornada-A').length > 10, 'histórico da análise em ordem cronológica');
 
 /* ---------------- J. marcador, evidência qualitativa e proposta sob concorrência (PR A) ---------------- */
-console.log('J. Marcador de homologação, evidência qualitativa (D7) e proposta sob concorrência');
-const acesso = (h, p) => { const a = N.acessoPelaHabilitacao(h, p); return [a.ler, a.gravar, a.registrarAprovacao].map(Number).join(''); };
-const G = { adminGeral: true }, AQ = { arquitetura: true }, AV = { avaliacao: true }, NADA = {};
-afirma([G, AQ, AV, NADA].every((p) => acesso(undefined, p) === '000' && acesso('DESLIGADO', p) === '000' && acesso('qualquer', p) === '000'), 'ausente, DESLIGADO ou valor desconhecido: ninguém lê nem grava');
-afirma(acesso('SOMENTE_ADMIN_GERAL', G) === '111' && [AQ, AV, NADA].every((p) => acesso('SOMENTE_ADMIN_GERAL', p) === '000'), 'SOMENTE_ADMIN_GERAL: só o admin geral');
-afirma(acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', G) === '111' && acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', AQ) === '110' && acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', AV) === '100' && acesso('LIBERADO_PARA_PERFIS_AUTORIZADOS', NADA) === '000', 'LIBERADO: perfis leem; Arquitetura grava; aprovação só do admin geral');
+console.log('J. Acesso pelos perfis oficiais, evidência qualitativa (D7) e proposta sob concorrência');
+const acesso = (p) => { const a = N.acessoPorPerfil(p); return [a.ler, a.gravar, a.registrarAprovacao].map(Number).join(''); };
+const G = { adminGeral: true, arquitetura: true }, AQ = { arquitetura: true }, AV = { avaliacao: true }, NADA = {};
+afirma(acesso(G) === '111' && acesso(AQ) === '110' && acesso(AV) === '100' && acesso(NADA) === '000' && acesso(undefined) === '000',
+  'perfis: admin geral lê, grava e aprova; Avaliação + Configuração lê e grava; Avaliação (consulta) só lê; sem perfil, nada');
+afirma(typeof N.acessoPelaHabilitacao === 'undefined' && typeof N.HABILITACAO === 'undefined', 'não há mais acesso por marcador de disponibilidade no núcleo');
 afirma(temErro(N.registrarEvidenciaQualitativa(estado, 'jornada-A', 'r4', { texto: ' ' }, ctx()), 'EVIDENCIA_SEM_TEXTO'), 'evidência qualitativa exige texto');
 const antesR4 = JSON.stringify(analise('jornada-A').recortes.r4.objetoId);
 aplicar(N.registrarEvidenciaQualitativa(estado, 'jornada-A', 'r4', { texto: 'O papel de parecer aparece nas exceções à política; o de padrão, na revisão anual', exemplo: 'Exceção 7/2026' }, ctx()), 'evidência qualitativa');

@@ -62,16 +62,14 @@
   /* contrato persistente do registro direto: a responsabilidade nasce já individualizada pela pessoa (sem pergunta sobre
      separar). Gravado no próprio registro, nunca deduzido; os registros anteriores (sem ele) seguem a regra de antes */
   var CONTRATO_DIRETO = 'registro-direto';
-  /* marcador de homologação (aprovado): ausente = DESLIGADO. As regras do banco aplicam o MESMO mapa — a tela só o
-     espelha para não oferecer o que o banco recusaria (a autorização nunca depende de esconder botão) */
-  var HABILITACAO = ['DESLIGADO', 'SOMENTE_ADMIN_GERAL', 'LIBERADO_PARA_PERFIS_AUTORIZADOS'];
-  function acessoPelaHabilitacao(habilitacao, perfil) {
+  /* ACESSO PELOS PERFIS OFICIAIS (sem controle de disponibilidade): consultam os três perfis da Avaliação; registram o
+     admin geral e "Avaliação + Configuração"; só o admin geral registra aprovação. As regras do banco aplicam o MESMO
+     mapa — a tela só o espelha para não oferecer o que o banco recusaria (a autorização nunca depende de esconder botão).
+     O antigo marcador de homologação (analises-organizacionais-config) não é mais lido nem gravado; o histórico dele fica. */
+  function acessoPorPerfil(perfil) {
     perfil = perfil || {};
-    var h = HABILITACAO.indexOf(habilitacao) !== -1 ? habilitacao : 'DESLIGADO';
     var geral = !!perfil.adminGeral, arq = !!perfil.arquitetura, aval = !!perfil.avaliacao;
-    if (h === 'SOMENTE_ADMIN_GERAL') return { habilitacao: h, ler: geral, gravar: geral, registrarAprovacao: geral };
-    if (h === 'LIBERADO_PARA_PERFIS_AUTORIZADOS') return { habilitacao: h, ler: geral || arq || aval, gravar: geral || arq, registrarAprovacao: geral };
-    return { habilitacao: h, ler: false, gravar: false, registrarAprovacao: false };
+    return { ler: geral || arq || aval, gravar: geral || arq, registrarAprovacao: geral };
   }
 
   /* ---------- matriz progressiva de navegação (F1–F17) ----------
@@ -938,7 +936,7 @@
     CERTEZA_RESPONSAVEL: CERTEZA_RESPONSAVEL.slice(), CARATER: CARATER.slice(), CRITERIOS_IDENTIDADE: CRITERIOS_IDENTIDADE.slice(),
     CRITERIOS_NUCLEARES: CRITERIOS_NUCLEARES.slice(), CONCLUSOES: CONCLUSOES.slice(), ALTERNATIVAS: ALTERNATIVAS.slice(),
     ALTERNATIVAS_RECUSADAS: ALTERNATIVAS_RECUSADAS.slice(), SITUACAO_FORMAL: SITUACAO_FORMAL.slice(), CATEGORIAS: CATEGORIAS.slice(),
-    MAX: clone(MAX), MATRIZ: clone(MATRIZ), HABILITACAO: HABILITACAO.slice(), acessoPelaHabilitacao: acessoPelaHabilitacao,
+    MAX: clone(MAX), MATRIZ: clone(MATRIZ), acessoPorPerfil: acessoPorPerfil,
     registrarEvidenciaQualitativa: registrarEvidenciaQualitativa,
     criarAnalise: criarAnalise, responder: responder, adicionarEntrega: adicionarEntrega, editarEntrega: editarEntrega, descartarEntrega: descartarEntrega,
     compararEntregas: compararEntregas, cadastroReferido: cadastroReferido,

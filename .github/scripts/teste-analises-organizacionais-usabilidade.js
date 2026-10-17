@@ -153,15 +153,17 @@ async function entrada(browser) {
   afirma(await page.evaluate(() => location.hash) === '#avaliacoes?po=nova-atuacao', 'Caminho A abre o registro da responsabilidade');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
-  for (const [hab, rot] of [[null, 'DESLIGADO'], ['SOMENTE_ADMIN_GERAL', 'SOMENTE_ADMIN_GERAL (Avaliação + Configuração)']]) {
+  /* sem controle de disponibilidade: sem marcador ou com o estado antigo de homologação gravado, Avaliação + Configuração
+     tem os dois caminhos — o Início mostra o Caminho B e a lista de responsabilidades, "Analisar uma área" */
+  for (const [hab, rot] of [[null, 'sem marcador'], ['DESLIGADO', 'estado antigo DESLIGADO'], ['SOMENTE_ADMIN_GERAL', 'estado antigo SOMENTE_ADMIN_GERAL']]) {
     ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#avaliacoes?po=atuacoes', { hab }));
-    await page.waitForSelector('#poNovaAtuacaoBtn', { timeout: 20000 }); await page.waitForTimeout(600);
-    afirma(!(await existe(page, '#anEntradaAtuacoes')) && await existe(page, '.avp-actions-bar #poNovaAtuacaoBtn'), rot + ': sem "Analisar uma área" (a Análise Organizacional não está disponível); "Nova responsabilidade" continua');
-    await page.click('#poNovaAtuacaoBtn'); await page.waitForSelector('#poFormAtuacao');
-    afirma((await texto(page, '#poSalvarAtuacaoBtn')).trim() === 'Registrar e avaliar' && !(await existe(page, 'input[name="poSeparar"]')), rot + ': Caminho A é o mesmo (um campo; o marcador da análise não interfere)');
+    await page.waitForSelector('#poNovaAtuacaoBtn', { timeout: 20000 });
+    await page.waitForSelector('#anEntradaAtuacoes', { timeout: 20000 });
+    afirma(await existe(page, '#anEntradaNova') && await existe(page, '#poNovaAtuacaoBtn'), rot + ': "Analisar uma área" e "Nova responsabilidade" (o perfil decide, não um marcador)');
     await ir(page, '#avaliacoes'); await page.waitForSelector('#avpInicioCartaoAtuacao');
-    await esperar(page, () => !!document.getElementById('avpInicioCaminhoBEstado') && !/Verificando/.test(document.getElementById('avpInicioCaminhoBEstado').textContent));
-    afirma(!(await existe(page, '#avpInicioAnalise')) && /ainda não disponível/i.test(await texto(page, '#avpInicioCaminhoBEstado')) && await existe(page, '#avpInicioAtuacao'), rot + ': Início sem botão do Caminho B (orientação, nenhum acesso alternativo); Caminho A continua');
+    await esperar(page, () => !!document.getElementById('avpInicioAnalise'));
+    afirma(!(await existe(page, '#avpInicioCaminhoBEstado')) && (await texto(page, '#avpInicioAnalise')).trim() === 'Analisar área' && await existe(page, '#avpInicioAtuacao'), rot + ': Início com o Caminho B ("Analisar área") e o Caminho A');
+    afirma(!erros.length, rot + ': nenhum erro de página', erros.join(' | '));
     await ctx.close();
   }
 }

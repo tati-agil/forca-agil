@@ -68,8 +68,8 @@ function sementePos(hab) {
   op((e, c) => N.excluirAnalise(e, 'anG', { motivo: 'teste' }, c));
   return db;
 }
-async function abrir(browser, viewport, hash, email, db) {
-  const cfg = { db: db || sementePos(), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, uidDoUsuario: true, prefixoChave: 'k' + (++abrir.n) + 'x', delayDefault: 10, persistenciaReal: true };
+async function abrir(browser, viewport, hash, email, db, extra) {
+  const cfg = { ...(extra || {}), db: db || sementePos(), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, uidDoUsuario: true, prefixoChave: 'k' + (++abrir.n) + 'x', delayDefault: 10, persistenciaReal: true };
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   page.setDefaultTimeout(20000);
@@ -159,8 +159,9 @@ async function jornada(browser, viewport, rotulo) {
   afirma(!erros.length, 'sem erro de página', erros);
   await ctx.close();
 
-  /* 3. sem leitura das análises (marcador desligado para o perfil): nunca "registrada individualmente" sem prova */
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=todas', ARQ, sementePos('SOMENTE_ADMIN_GERAL')));
+  /* 3. sem leitura das análises (o banco recusa a leitura): nunca "registrada individualmente" sem prova. O estado antigo de
+     homologação gravado (SOMENTE_ADMIN_GERAL) não decide mais nada — quem decide é o perfil, e aqui a leitura falha */
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=todas', ARQ, sementePos('SOMENTE_ADMIN_GERAL'), { fail: ['analises-organizacionais'] }));
   await page.waitForSelector('#poTodasLista');
   const semLeitura = await page.evaluate(() => Array.from(document.querySelectorAll('.po-todas-origem')).map((x) => x.getAttribute('data-origem')));
   afirma(semLeitura.length && semLeitura.every((x) => x === 'indisponivel') && !/Registrada individualmente/.test(await texto(page, '#poTodasLista')), '3. sem leitura das análises: "Origem não disponível agora", nunca "registrada individualmente"', semLeitura);

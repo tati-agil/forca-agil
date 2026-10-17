@@ -5189,17 +5189,11 @@
       html += secao('avpGrupoComplementares', 'Configurações complementares', 'Naturezas Complementares e documentos de referência.',
         cartoes(cartao('avpConfigNaturezasBtn', 'Naturezas Complementares', 'Opções utilizadas para descrever características adicionais dos itens da Avaliação de Produto/Serviço.') +
           cartao('avpDocumentacaoBtn', 'Documentos de referência', 'Artefatos da Arquitetura guardados como link para o arquivo, com autor, data e histórico.')), false, 'avp-admin-grupo--discreto');
-      /* 5. ACESSOS (só admin geral): permissão × disponibilidade. O controle da Análise Organizacional (Porta 2) mora aqui,
-         uma vez só (analises-organizacionais.js: mesma lógica, mesmo estado gravado, mesma auditoria). */
+      /* 5. ACESSOS (só admin geral): as permissões dos perfis — elas decidem o acesso a cada funcionalidade, inclusive à
+         Análise Organizacional (Porta 2), sem controle de disponibilidade à parte */
       if (souAdminGeral()) {
-        var temDisp = !!(window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.montarHabilitacao);
-        html += secao('avpAdminAcessos', 'Acessos', 'Permissões de usuários e disponibilidade de funcionalidades.',
-          '<p class="avp-admin-grupo-desc"><strong>Permissão</strong> define quem pode acessar. <strong>Disponibilidade</strong> define se a funcionalidade está liberada para quem tem permissão. Só o administrador geral altera.</p>' +
-          '<h5 class="avp-admin-subgrupo avp-acessos-secao" id="avpAcessosPermissoes">Permissões de usuários</h5>' +
-          cartoes(cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação e quem também acessa esta área do ADMIN, com histórico.')) +
-          (temDisp ? '<h5 class="avp-admin-subgrupo avp-acessos-secao" id="avpAcessosDisponibilidade">Disponibilidade de funcionalidades</h5>' +
-            '<div class="avp-disponibilidade" id="avpDispPorta2"><p class="avp-disp-nome"><strong>Análise Organizacional (Porta 2)</strong></p>' +
-            '<div id="anHabilitacaoAdmin"></div></div>' : ''), false, 'avp-acessos');
+        html += secao('avpAdminAcessos', 'Acessos', 'Permissões de usuários: quem acessa cada funcionalidade.',
+          cartoes(cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (consulta) e quem também configura e registra (Avaliação + Configuração), com histórico.')), false, 'avp-acessos');
       }
       wrap.innerHTML = html;
       /* lembrar o que a pessoa abriu ou fechou (vale ao voltar de uma funcionalidade) */
@@ -5231,8 +5225,6 @@
       if (voltarOrigem) voltarOrigem.addEventListener('click', sair(function () { if (window.faVoltarParaOrigem) window.faVoltarParaOrigem(origemMapa.hash, origemMapa.aba); else location.hash = origemMapa.hash; }));
       ligarAcessosDaJornada(wrap);
       if (!d.carregando && !d.erro) bindDefinicaoMapa(d);
-      var habAn = document.getElementById('anHabilitacaoAdmin');
-      if (habAn) window.faAnalisesOrganizacionais.montarHabilitacao(habAn);
     }
 
     /* ===================== HISTÓRICO RECOLHIDO (padrão único) =====================
