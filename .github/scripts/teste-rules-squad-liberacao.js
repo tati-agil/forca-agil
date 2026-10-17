@@ -1,12 +1,11 @@
 /* I2 — Regras do banco da integração Posicionamento Organizacional × Adequação à Squad. Roda no emulador real
  * (teste-rules.yml). A origem da liberação gravada é montada pelo núcleo real da tela (liberacaoSquad /
- * origemLiberacaoSquad). Prova:
- *   A. o interruptor posicionamento-config/exigirParaSquad: só admin geral, com motivo, auditoria nova na mesma
- *      gravação (com o estado anterior), em nome da própria sessão; nada se apaga nem se reescreve;
- *   B. exigência desligada: a criação de uma avaliação S não muda;
- *   C. exigência ligada: só cria S para item liberado pelo Posicionamento GRAVADO — a decisão final da avaliação
- *      vigente quando existe, senão a recomendação automática —, com a origem apontando para essa avaliação; rascunhos
- *      e avaliações S já existentes continuam sendo salvos, concluídos e excluídos;
+ * origemLiberacaoSquad). A antiga Exigência de Posicionamento (posicionamento-config/exigirParaSquad) foi retirada
+ * (decisão da responsável, 2026-10-17): a avaliação S1–S8 não depende do O1–O9. Prova:
+ *   A. o interruptor antigo e a auditoria dele: ninguém grava (nem o admin geral); o histórico continua legível;
+ *   B. a criação de uma avaliação S não depende do Posicionamento;
+ *   C. com o interruptor antigo gravado como LIGADO, nada muda: item sem Posicionamento, não liberado, A_VALIDAR sem
+ *      decisão e decisão final CoE criam S normalmente; rascunhos e avaliações existentes continuam;
  *   D. a origem da liberação é imutável (não muda, não some, não aparece depois em S antiga).
  *   E. Porta 2: objeto organizacional ENCERRADO não recebe nova avaliação S; a S que já existia continua sendo salva. */
 'use strict';
@@ -83,23 +82,18 @@ function squad(itemId, comOrigem) {
     return w;
   };
 
-  console.log('A. o interruptor: só admin geral, com motivo e auditoria na mesma gravação');
-  await caso('Avaliação + Configuração não altera', db(ARQ).ref().update(interruptor(ARQ, true, { anterior: false })), false);
-  await caso('perfil Avaliação não altera', db(AVAL).ref().update(interruptor(AVAL, true, { anterior: false })), false);
-  await caso('sem motivo é recusado', db(ADM).ref().update(interruptor(ADM, true, { anterior: false, motivo: '   ' })), false);
-  await caso('sem auditoria é recusado', db(ADM).ref().update(interruptor(ADM, true, { anterior: false, mexer: (w, aud) => { delete w[CFA + '/' + aud]; } })), false);
-  await caso('auditoria sozinha (órfã) é recusada', db(ADM).ref().update(interruptor(ADM, true, { anterior: false, mexer: (w) => { delete w[CF]; } })), false);
-  await caso('"anterior" errado na auditoria é recusado', db(ADM).ref().update(interruptor(ADM, true, { anterior: true })), false);
-  await caso('em nome de outra pessoa (uid) é recusado', db(ADM).ref().update(interruptor(ADM, true, { anterior: false, uid: 'outro' })), false);
-  await caso('admin geral LIGA, com motivo e auditoria', db(ADM).ref().update(interruptor(ADM, true, { anterior: false, aud: 'aud1' })), true);
-  await caso('reescrever a auditoria é recusado', db(ADM).ref(CFA + '/aud1/motivo').set('outro'), false);
-  await caso('apagar o interruptor é recusado', db(ADM).ref(CF).remove(), false);
-  await caso('reaproveitar uma auditoria existente é recusado', db(ADM).ref().update((() => { const w = interruptor(ADM, false, { anterior: true }); const a = Object.keys(w).find((x) => x.startsWith(CFA)); delete w[a]; w[CF].auditoriaId = 'aud1'; return w; })()), false);
-  await caso('admin geral DESLIGA (auditoria nova)', db(ADM).ref().update(interruptor(ADM, false, { anterior: true })), true);
-  const lidos = Object.values(await ler(CFA));
-  afirmaRegistro(lidos.length === 2 && lidos.some((a) => a.exigirParaSquad === true && a.anterior === false) && lidos.some((a) => a.exigirParaSquad === false && a.anterior === true), 'histórico: as duas alterações, com o estado anterior');
+  console.log('A. o interruptor antigo: ninguém grava; o histórico continua legível');
+  await admin(async (d) => { await d.ref(CFA + '/aud0').set({ exigirParaSquad: false, anterior: null, motivo: 'registro antigo', usuario: { uid: 'x', email: ADM }, dataHora: 1 }); });
+  await caso('admin geral NÃO grava mais o interruptor', db(ADM).ref().update(interruptor(ADM, true, { anterior: false })), false);
+  await caso('admin geral NÃO grava mais só o valor', db(ADM).ref(CF + '/exigirParaSquad').set(true), false);
+  await caso('admin geral NÃO acrescenta auditoria', db(ADM).ref(CFA + '/audN').set({ exigirParaSquad: true, anterior: false, motivo: 'm', usuario: { uid: 'uid-' + k(ADM), email: ADM }, dataHora: TS }), false);
+  await caso('Avaliação + Configuração não grava', db(ARQ).ref().update(interruptor(ARQ, true, { anterior: false })), false);
+  await caso('reescrever o histórico é recusado', db(ADM).ref(CFA + '/aud0/motivo').set('outro'), false);
+  await caso('apagar o histórico é recusado', db(ADM).ref(CFA + '/aud0').remove(), false);
+  await caso('admin geral lê o histórico', db(ADM).ref(CFA).once('value'), true);
+  afirmaRegistro((await ler(CFA + '/aud0')).motivo === 'registro antigo', 'o histórico antigo continua intacto');
 
-  console.log('B. exigência DESLIGADA: nada muda para a Squad');
+  console.log('B. a criação de uma avaliação S não depende do Posicionamento');
   await caso('cria S de item sem Posicionamento (sem origem)', db(AVAL).ref(SQ + '/s1').set(squad('iSem', false)), true);
   await caso('cria S de item Área Especializada (origem registrada)', db(AVAL).ref(SQ + '/s2').set(squad('iAE')), true);
   await caso('cria S de item novo (chave própria)', db(AVAL).ref(SQ + '/s3').set(Object.assign(squad('s3'), {})), true);
@@ -107,26 +101,24 @@ function squad(itemId, comOrigem) {
   console.log('E. Porta 2: objeto organizacional encerrado não recebe nova S');
   await admin(async (d) => { await d.ref('objetos-organizacionais/oEnc/situacao').set('encerrado'); await d.ref('objetos-organizacionais/oAtv/situacao').set('ativo'); });
   await caso('objeto ENCERRADO: nova S recusada', db(AVAL).ref(SQ + '/o1').set(squad('oEnc', false)), false);
-  await caso('objeto ativo: nova S aceita (exigência desligada)', db(AVAL).ref(SQ + '/o2').set(squad('oAtv', false)), true);
+  await caso('objeto ativo: nova S aceita', db(AVAL).ref(SQ + '/o2').set(squad('oAtv', false)), true);
   await admin(async (d) => { await d.ref('objetos-organizacionais/oAtv/situacao').set('encerrado'); });
   await caso('S que já existia continua sendo salva depois do encerramento do objeto', db(AVAL).ref(SQ + '/o2').set(Object.assign(squad('oAtv', false), { atualizadoEm: '2026-10-12T12:00:00.000Z' })), true);
 
-  console.log('C. exigência LIGADA: a criação exige o item liberado pelo Posicionamento GRAVADO');
+  console.log('C. com o interruptor antigo gravado como LIGADO, nada muda (independência do O1–O9)');
   await admin(async (d) => { await d.ref(CF).set({ exigirParaSquad: true, alteradoEm: 1, alteradoPor: { uid: 'x', email: ADM }, motivo: 'm', auditoriaId: 'z' }); });
-  await caso('item sem Posicionamento: recusada', db(AVAL).ref(SQ + '/c1').set(squad('iSem')), false);
-  await caso('item novo (chave própria): recusada', db(AVAL).ref(SQ + '/c2').set(squad('c2')), false);
-  await caso('Área Especializada (recomendação): recusada', db(AVAL).ref(SQ + '/c3').set(squad('iAE')), false);
-  await caso('A_VALIDAR sem decisão: recusada', db(AVAL).ref(SQ + '/c4').set(squad('iAVno')), false);
-  await caso('recomendação Linha, mas decisão final CoE: recusada (vale a decisão)', db(AVAL).ref(SQ + '/c5').set(squad('iDiv')), false);
-  await caso('A_VALIDAR com decisão final liberadora (Plataforma de Canais): aceita', db(AVAL).ref(SQ + '/c6').set(squad('iAV')), true);
-  await caso('recomendação Linha (Negócios), sem decisão: aceita', db(AVAL).ref(SQ + '/c7').set(squad('iL')), true);
-  await caso('item liberado, mas sem a origem da liberação: recusada', db(AVAL).ref(SQ + '/c8').set(squad('iL', false)), false);
-  await caso('origem apontando para outra avaliação de Posicionamento: recusada', db(AVAL).ref(SQ + '/c9').set(Object.assign(squad('iL'), { origemLiberacao: Object.assign(squad('iL').origemLiberacao, { avaliacaoPosicionamentoId: 'gAE' }) })), false);
-  await caso('origem dizendo "liberado" para item não liberado: recusada', db(AVAL).ref(SQ + '/c10').set(Object.assign(squad('iAE'), { origemLiberacao: Object.assign(squad('iL').origemLiberacao, { avaliacaoPosicionamentoId: 'gAE' }) })), false);
-  await caso('rascunho criado antes (item não liberado): continua sendo salvo', db(AVAL).ref(SQ + '/s2').set(Object.assign(squad('iAE'), { respostas: { S1: { resposta: 'sim' } } })), true);
+  await caso('item sem Posicionamento: aceita', db(AVAL).ref(SQ + '/c1').set(squad('iSem')), true);
+  await caso('item novo (chave própria): aceita', db(AVAL).ref(SQ + '/c2').set(squad('c2')), true);
+  await caso('Área Especializada (recomendação, não liberada): aceita', db(AVAL).ref(SQ + '/c3').set(squad('iAE')), true);
+  await caso('A_VALIDAR sem decisão: aceita', db(AVAL).ref(SQ + '/c4').set(squad('iAVno')), true);
+  await caso('recomendação Linha com decisão final CoE: aceita', db(AVAL).ref(SQ + '/c5').set(squad('iDiv')), true);
+  await caso('A_VALIDAR com decisão final liberadora: aceita', db(AVAL).ref(SQ + '/c6').set(squad('iAV')), true);
+  await caso('recomendação Linha (Negócios): aceita', db(AVAL).ref(SQ + '/c7').set(squad('iL')), true);
+  await caso('rascunho criado antes: continua sendo salvo', db(AVAL).ref(SQ + '/s2').set(Object.assign(squad('iAE'), { respostas: { S1: { resposta: 'sim' } } })), true);
   await caso('… e concluído', db(AVAL).ref(SQ + '/s2/status').set('concluido'), true);
   await caso('rascunho sem origem criado antes: continua sendo salvo', db(AVAL).ref(SQ + '/s1').set(squad('iSem', false)), true);
   await caso('exclusão lógica de uma S existente continua', db(AVAL).ref(SQ + '/s3').update({ excluido: true, justificativaExclusao: 'duplicada' }), true);
+  await caso('quem não tem perfil da Avaliação continua sem criar S', env.authenticatedContext('uid-sem', { email: 'sem.perfil@previ.com.br' }).database().ref(SQ + '/c9').set(squad('iL')), false);
 
   console.log('D. a origem da liberação é imutável');
   const s2 = await ler(SQ + '/s2');

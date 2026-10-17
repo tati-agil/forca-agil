@@ -1,20 +1,17 @@
-/* I2 — integração Posicionamento Organizacional × Adequação à Squad, na tela. Desktop e celular 375 px; Firebase
- * falso em persistência real; hermético. As regras do banco (que também barram a criação com a exigência ligada) são
- * provadas no emulador por teste-rules-squad-liberacao.js; a liberação lida do que está GRAVADO, pela tabela fixa do
- * motor, por teste-invariante-linha-squad.js. Aqui, o que a pessoa vê e o que a tela grava:
- *   1. Exigência DESLIGADA (padrão): a Squad mostra o Posicionamento vigente como aviso — liberado (recomendação
- *      automática), Área Especializada (não formada por Squads), item novo (sem Posicionamento) — e não bloqueia; a
- *      avaliação S grava, na criação, a origem da liberação (situação, avaliação de Posicionamento, código, origem).
- *   2. Exigência LIGADA: item não liberado não inicia (aviso de bloqueio, Salvar e Concluir travados, nada gravado),
- *      inclusive a recomendação Linha com decisão final CoE (vale a decisão) e o item novo; A_VALIDAR com decisão
- *      liberadora inicia ("decisão final"); um rascunho criado antes continua sendo salvo, só com o aviso.
- *   3. Rede lenta e leitura recusada: "Verificando…" (nada liberado nem bloqueado por suposição) e "Não foi possível
- *      verificar"; com a exigência desligada a leitura recusada não impede a avaliação e fica registrada como
- *      "nao-verificado".
- *   4. Atalho na ficha do Posicionamento: "Avaliar Adequação à Squad" só no item liberado; abre a Squad do item e,
- *      havendo rascunho S, abre esse rascunho (não duplica).
- *   5. ADMIN › Motor de Squad: o interruptor — admin geral liga com motivo (gravação + auditoria); Avaliação +
- *      Configuração só consulta. Sem rolagem horizontal; sem erro de JS. */
+/* I2 — Posicionamento Organizacional × Adequação à Squad, na tela. Desktop e celular 375 px; Firebase falso em
+ * persistência real; hermético. A Adequação à Squad (S1–S8) NÃO depende do O1–O9: o Posicionamento vigente aparece só como
+ * informação e a origem dele fica registrada na criação (rastreabilidade). A antiga Exigência de Posicionamento
+ * (posicionamento-config/exigirParaSquad) foi retirada por decisão da responsável (2026-10-17); as regras do banco são
+ * provadas no emulador por teste-rules-squad-liberacao.js. Aqui:
+ *   1. Informação contextual: liberado (recomendação automática), Área Especializada (não formada por Squads), item novo
+ *      (sem Posicionamento) — sem bloqueio; a criação grava a origem da liberação (situação, avaliação, código, origem).
+ *   2. Independência: com um interruptor ANTIGO gravado como ligado, nada muda — item não liberado (decisão final CoE),
+ *      item novo e rascunho anterior avaliam normalmente; a origem continua registrada.
+ *   3. Rede lenta e leitura recusada: "Verificando…" e "Não foi possível verificar" só informam (nada travado); recusada,
+ *      a origem fica "nao-verificado" (nunca "liberado"); a leitura do interruptor antigo falhando não muda nada.
+ *   4. Atalho na ficha do Posicionamento: "Avaliar Adequação à Squad" só no item liberado; não duplica.
+ *   5. ADMIN › Motor de Squad: sem o controle da exigência; o histórico dele continua no banco. Sem rolagem horizontal;
+ *      sem erro de JS. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -88,7 +85,11 @@ function semente(o) {
     'posicionamento-auditoria': {},
     taxonomia: { organizacional: { conceitos, fontes } }
   };
-  if (o.exigir !== undefined) db['posicionamento-config'] = { exigirParaSquad: o.exigir, alteradoEm: 1760000000000, alteradoPor: { uid: 'u-adm', email: ADM }, motivo: 'Decisão da área', auditoriaId: 'cfg1' };
+  /* o interruptor ANTIGO (retirado): gravado só para provar que não muda mais nada, e que o histórico fica */
+  if (o.exigir !== undefined) {
+    db['posicionamento-config'] = { exigirParaSquad: o.exigir, alteradoEm: 1760000000000, alteradoPor: { uid: 'u-adm', email: ADM }, motivo: 'Decisão da área', auditoriaId: 'cfg1' };
+    db['posicionamento-config-auditoria'] = { cfg1: { exigirParaSquad: o.exigir, anterior: false, motivo: 'Decisão da área', usuario: { uid: 'u-adm', email: ADM }, dataHora: 1760000000000 } };
+  }
   return db;
 }
 let seq = 0;
@@ -137,7 +138,7 @@ async function salvarRascunho(page) {
 }
 
 async function desligada(browser, viewport, rotulo) {
-  console.log('\n[' + rotulo + '] 1. exigência desligada: aviso, sem bloqueio; a origem fica gravada na criação');
+  console.log('\n[' + rotulo + '] 1. informação contextual, sem bloqueio; a origem fica gravada na criação');
   let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente());
   const chip = await escolherItem(page, 'Item Linha');
   afirma(/Squad liberada pelo Posicionamento/.test(chip), 'a busca de item mostra a situação do Posicionamento ("Squad liberada…")', chip);
@@ -155,7 +156,7 @@ async function desligada(browser, viewport, rotulo) {
   await page.fill('#sqfBusca', 'Item Área');
   await page.locator('.sq-busca-item').first().click();
   await esperarAviso(page, /não está liberada/);
-  afirma(/Área Especializada e CoE não são formadas por Squads/.test(await texto(page, '#sqPosicionamento')) && await page.locator('#sqPosicBloqueio').count() === 0, 'Área Especializada: aviso "não são formadas por Squads", sem bloqueio (exigência desligada)');
+  afirma(/Área Especializada e CoE não são formadas por Squads/.test(await texto(page, '#sqPosicionamento')) && await page.locator('#sqPosicBloqueio').count() === 0, 'Área Especializada: aviso "não são formadas por Squads", sem bloqueio');
   await salvarRascunho(page);
   db = await banco(page);
   const [[, sAE]] = squadsDe(db, 'pAE');
@@ -174,76 +175,74 @@ async function desligada(browser, viewport, rotulo) {
   await ctx.close();
 }
 
-async function ligada(browser, viewport, rotulo) {
-  console.log('[' + rotulo + '] 2. exigência ligada: só item liberado inicia; rascunho anterior continua');
+async function independente(browser, viewport, rotulo) {
+  console.log('[' + rotulo + '] 2. independência: um interruptor antigo gravado como ligado não muda nada');
   const rasc = { sAntigo: { itemId: 'pAE', itemNome: 'Item Área', avaliacaoArquiteturalId: 'pAE', questionarioCodigo: 'ADEQUACAO_SQUAD', questionnaireContentVersion: 1, status: 'rascunho',
     criadoEm: QUANDO, atualizadoEm: QUANDO, criadoPor: outra, atualizadoPor: outra, respostas: { S2: { codigoPergunta: 'S2', resposta: 'nao', questionnaireContentVersion: 1, dataResposta: QUANDO } }, excluido: false } };
   let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente({ exigir: true, squad: rasc }));
-  const antes = await banco(page);
   await page.waitForSelector('#avpInicio');
-  await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; }); /* a lista da Squad (no Início, fica em Trabalhos de avaliação) */
+  await page.evaluate(() => { location.hash = '#avaliacoes?sq=lista'; });
   await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
   await page.click('#sqNovaBtn');
   await page.click('#sqfEscolhaExistente');
   await page.fill('#sqfBusca', 'Item Divergente');
   await page.locator('.sq-busca-item').first().click();
-  await page.waitForSelector('#sqPosicBloqueio');
+  await esperarAviso(page, /não está liberada/);
   const avDiv = await texto(page, '#sqPosicionamento');
-  afirma(/Tx COE/.test(avDiv) && /decisão final/.test(avDiv) && /exigência de Posicionamento está ligada/.test(await texto(page, '#sqPosicBloqueio')),
-    'recomendação Negócios com decisão final CoE: vale a decisão — bloqueado, com o motivo', avDiv);
-  afirma(await page.locator('#sqSalvarRascunhoBtn').isDisabled() && await page.locator('#sqConcluirBtn').isDisabled(), 'Salvar e Concluir travados');
-  await page.click('.sq-choice-group[data-codigo="S1"] .sq-choice-btn[data-valor="sim"]');
-  await page.locator('#sqSalvarRascunhoBtn').click({ force: true });
-  afirma(JSON.stringify((await banco(page))['avaliacoes-squad']) === JSON.stringify(antes['avaliacoes-squad']), 'nada gravado');
-  await page.click('#sqCancelarChecklistBtn');
-  const conf = page.locator('.sq-modal-confirm-btn'); if (await conf.count()) await conf.click();
-  await page.waitForSelector('#sqNovaBtn');
+  afirma(/Tx COE/.test(avDiv) && /decisão final/.test(avDiv) && await page.locator('#sqPosicBloqueio').count() === 0 && !(await page.locator('#sqSalvarRascunhoBtn').isDisabled()),
+    'decisão final CoE (não liberado): o aviso informa, nada bloqueia (Salvar ativo)', avDiv);
+  await salvarRascunho(page);
+  let [[, sDiv]] = squadsDe(await banco(page), 'pDiv');
+  afirma(sDiv.origemLiberacao.situacao === 'nao-liberado' && sDiv.origemLiberacao.origem === 'decisao' && sDiv.origemLiberacao.codigo === 'COE', 'avalia e registra a origem: não liberado, decisão final CoE');
   await page.click('#sqNovaBtn');
   await page.click('#sqfEscolhaNovo');
-  await page.waitForSelector('#sqfNovoItemBloqueado');
-  afirma(/P1–P16/.test(await texto(page, '#sqfNovoItemBloqueado')) && await page.locator('#sqfNovoItemNome').count() === 0, 'item novo: bloqueado (precisa de P1–P16 e O1–O9 antes), sem o campo de nome');
-  await page.click('#sqfEscolhaExistente');
-  await page.fill('#sqfBusca', 'Item A validar');
-  await page.locator('.sq-busca-item').first().click();
-  await esperarAviso(page, /liberada/);
-  afirma(/decisão final/.test(await texto(page, '#sqPosicionamento')) && /Tx PLATAFORMA_CANAIS/.test(await texto(page, '#sqPosicionamento')) && await page.locator('#sqPosicBloqueio').count() === 0,
-    'A_VALIDAR com decisão final liberadora (Plataforma de Canais): liberado');
+  afirma(await page.locator('#sqfNovoItemBloqueado').count() === 0 && await page.locator('#sqfNovoItemNome').count() === 1, 'item novo, sem Posicionamento: pode ser avaliado (sem bloqueio)');
+  await page.fill('#sqfNovoItemNome', 'Item Sem O1–O9');
+  await page.click('#sqfNovoItemConfirmar');
+  await esperarAviso(page, /não tem Posicionamento/);
   await salvarRascunho(page);
-  const [[, sAV]] = squadsDe(await banco(page), 'pAV');
-  afirma(sAV.origemLiberacao.situacao === 'liberado' && sAV.origemLiberacao.origem === 'decisao' && sAV.origemLiberacao.codigo === 'PLATAFORMA_CANAIS', 'origem: decisão final, Plataforma de Canais');
-  /* o rascunho criado ANTES da exigência (item não liberado) continua */
+  const sN = Object.values((await banco(page))['avaliacoes-squad']).find((v) => v.itemNome === 'Item Sem O1–O9');
+  afirma(sN && sN.origemLiberacao.situacao === 'sem-posicionamento', 'item sem O1–O9 avaliado; origem "sem-posicionamento"');
+  /* o rascunho anterior continua como sempre */
   await page.locator('.sq-act-abrir[data-key="sAntigo"]').click();
-  await page.waitForSelector('#sqPosicionamento');
   await esperarAviso(page, /não está liberada/);
-  afirma(await page.locator('#sqPosicBloqueio').count() === 0 && !(await page.locator('#sqSalvarRascunhoBtn').isDisabled()), 'rascunho anterior de item não liberado: só o aviso, sem bloqueio');
   await salvarRascunho(page);
-  const sA = (await banco(page))['avaliacoes-squad'].sAntigo;
+  const db = await banco(page), sA = db['avaliacoes-squad'].sAntigo;
   afirma(sA.respostas.S1 && !sA.origemLiberacao, 'o rascunho anterior é salvo e não ganha origem depois');
+  afirma(JSON.stringify(db['posicionamento-config']) === JSON.stringify(semente({ exigir: true })['posicionamento-config']) &&
+    JSON.stringify(db['posicionamento-config-auditoria']) === JSON.stringify(semente({ exigir: true })['posicionamento-config-auditoria']), 'o registro antigo do interruptor e o histórico ficam intactos');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
 
 async function rede(browser, viewport, rotulo) {
-  console.log('[' + rotulo + '] 3. rede lenta e leitura recusada');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente({ exigir: true }), ARQ, { delays: { 'posicionamento-decisoes': 3500 } });
+  console.log('[' + rotulo + '] 3. rede lenta e leitura recusada: só informação, nada travado');
+  let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente(), ARQ, { delays: { 'posicionamento-decisoes': 3500 } });
   await escolherItem(page, 'Item Linha');
-  afirma(/Verificando o Posicionamento/.test(await texto(page, '#sqPosicionamento')) && await page.locator('#sqSalvarRascunhoBtn').isDisabled(), 'leitura lenta: "Verificando…", Salvar travado (nem liberado nem bloqueado por suposição)');
+  afirma(/Verificando o Posicionamento/.test(await texto(page, '#sqPosicionamento')) && !(await page.locator('#sqSalvarRascunhoBtn').isDisabled()), 'leitura lenta: "Verificando…" informa, e a avaliação não espera por ela');
   await esperarAviso(page, /liberada/);
-  afirma(!(await page.locator('#sqSalvarRascunhoBtn').isDisabled()), 'chegou: liberado, Salvar destravado');
+  await salvarRascunho(page);
+  let [[, sL]] = squadsDe(await banco(page), 'pL');
+  afirma(sL.origemLiberacao.situacao === 'liberado', 'quando a leitura chega antes de salvar, a origem é a real (liberado)');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
-  await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente({ exigir: true }), ARQ, { fail: ['posicionamento-decisoes'] }));
-  await escolherItem(page, 'Item Linha');
-  await esperarAviso(page, /Não foi possível verificar/);
-  afirma(await page.locator('#sqSalvarRascunhoBtn').isDisabled() && /Não foi possível verificar/.test(await texto(page, '#sqPosicBloqueio')), 'leitura recusada com a exigência ligada: "Não foi possível verificar", bloqueado');
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente(), ARQ, { fail: ['posicionamento-decisoes'] }));
   await escolherItem(page, 'Item Linha');
   await esperarAviso(page, /Não foi possível verificar/);
+  afirma(!(await page.locator('#sqSalvarRascunhoBtn').isDisabled()) && await page.locator('#sqPosicBloqueio').count() === 0, 'leitura recusada: "Não foi possível verificar" informa, nada bloqueia');
   await salvarRascunho(page);
   const [[, s]] = squadsDe(await banco(page), 'pL');
-  afirma(s.origemLiberacao.situacao === 'nao-verificado' && s.origemLiberacao.liberaSquad === false, 'leitura recusada com a exigência desligada: avalia e registra "nao-verificado" (nunca "liberado")');
+  afirma(s.origemLiberacao.situacao === 'nao-verificado' && s.origemLiberacao.liberaSquad === false, 'registra "nao-verificado" (nunca "liberado")');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* a leitura do interruptor antigo falhando (antes, travava a criação mesmo desligado) não muda nada */
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes', semente({ exigir: false }), ARQ, { fail: ['posicionamento-config'] }));
+  await escolherItem(page, 'Item Área');
+  await esperarAviso(page, /não está liberada/);
+  afirma(!(await page.locator('#sqSalvarRascunhoBtn').isDisabled()) && await page.locator('#sqPosicBloqueio').count() === 0, 'leitura do interruptor antigo recusada: nenhum bloqueio (a tela nem o lê mais)');
+  await salvarRascunho(page);
+  afirma(squadsDe(await banco(page), 'pAE').length === 1, 'a avaliação é salva');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
@@ -275,40 +274,26 @@ async function atalho(browser, viewport, rotulo) {
   await ctx.close();
 }
 
-async function interruptor(browser, viewport, rotulo) {
-  console.log('[' + rotulo + '] 5. ADMIN › Motor de Squad: o interruptor');
-  let { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motor-squad', semente(), ADM);
-  await page.waitForSelector('#sqExigirEstado[data-exigir]');
-  afirma(/Desligada/.test(await texto(page, '#sqExigirEstado')), 'sem registro: "Desligada"');
-  await page.click('#sqExigirBtn');
-  await page.waitForSelector('#sqExigirFlash');
-  afirma(/Informe o motivo/.test(await texto(page, '#sqExigirFlash')), 'motivo obrigatório');
-  await page.fill('#sqExigirMotivo', 'Posicionamento já em uso pela área');
-  await page.click('#sqExigirBtn');
-  await page.click('.sq-modal-confirm-btn');
-  await esperarCondicao(page, () => /ligada\./.test((document.getElementById('sqExigirFlash') || {}).textContent || ''), 'ligada', { limite: 10000 });
-  const db = await banco(page), cfg = db['posicionamento-config'], aud = db['posicionamento-config-auditoria'] && db['posicionamento-config-auditoria'][cfg && cfg.auditoriaId];
-  afirma(cfg && cfg.exigirParaSquad === true && cfg.motivo === 'Posicionamento já em uso pela área' && cfg.alteradoPor.email === ADM && cfg.alteradoPor.uid === 'u-' + chave(ADM) &&
-    aud && aud.exigirParaSquad === true && aud.anterior === false && aud.usuario.email === ADM, 'grava o interruptor e a auditoria (estado anterior, motivo, quem) juntos', JSON.stringify({ cfg, aud }));
-  await esperarCondicao(page, () => /Ligada/.test((document.getElementById('sqExigirEstado') || {}).textContent || ''), 'mostra ligada', { limite: 10000 });
-  afirma(/Desligar a exigência/i.test(await texto(page, '#sqExigirBtn')) && /Posicionamento já em uso/.test(await texto(page, '#sqExigirUltima')), 'mostra "Ligada", a última alteração e o botão para desligar',
-    (await texto(page, '#sqExigirBtn')) + ' | ' + (await page.locator('#sqExigirUltima').count() ? await texto(page, '#sqExigirUltima') : 'sem #sqExigirUltima'));
-  afirma(await larguraOk(page), 'sem rolagem horizontal');
-  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
-  await ctx.close();
-  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motor-squad', semente({ exigir: true }), ARQ));
-  await page.waitForSelector('#sqExigirEstado[data-exigir]');
-  afirma(/Ligada/.test(await texto(page, '#sqExigirEstado')) && await page.locator('#sqExigirSoAdmin').count() === 1 && await page.locator('#sqExigirBtn, #sqExigirMotivo').count() === 0,
-    'Avaliação + Configuração vê o estado, sem campo nem botão ("Só admin geral altera")');
-  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
-  await ctx.close();
+async function semInterruptor(browser, viewport, rotulo) {
+  console.log('[' + rotulo + '] 5. ADMIN › Motor de Squad: sem o controle da exigência; histórico preservado');
+  for (const email of [ADM, ARQ]) {
+    const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=motor-squad', semente({ exigir: false }), email);
+    await page.waitForSelector('#sqMotorSquad', { state: 'visible' });
+    afirma(await page.locator('#sqExigirCard, #sqExigirEstado, #sqExigirBtn, #sqExigirMotivo').count() === 0 && !/Exigência de Posicionamento/.test(await texto(page, '#sqMotorSquad')),
+      (email === ADM ? 'admin geral' : 'Avaliação + Configuração') + ': o Motor de Squad sem o controle da exigência');
+    const db = await banco(page);
+    afirma(JSON.stringify(db['posicionamento-config-auditoria']) === JSON.stringify(semente({ exigir: false })['posicionamento-config-auditoria']), 'o histórico do interruptor continua no banco, intacto');
+    afirma(await larguraOk(page), 'sem rolagem horizontal');
+    afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+    await ctx.close();
+  }
 }
 
 (async () => {
   const browser = await chromium.launch();
   try {
     for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) {
-      await desligada(browser, vp, r); await ligada(browser, vp, r); await rede(browser, vp, r); await atalho(browser, vp, r); await interruptor(browser, vp, r);
+      await desligada(browser, vp, r); await independente(browser, vp, r); await rede(browser, vp, r); await atalho(browser, vp, r); await semInterruptor(browser, vp, r);
     }
   } catch (e) { console.log('ERRO', e && e.stack || e); falhas++; }
   await browser.close();
