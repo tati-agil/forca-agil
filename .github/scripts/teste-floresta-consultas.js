@@ -76,8 +76,13 @@ async function gerarPdf(page, sel) {
       const ordem = [await topo(page, '#mfTrabListas'), await topo(page, '#mfTrabContinuarVaga'), await topo(page, '#mfCatalogo')];
       afirma(ordem[0] < ordem[1] && ordem[1] < ordem[2], 'Trabalhos: Consultar avaliações → Continuar de onde parou → Registros', ordem);
       afirma(await visivel(page, '#avpTrabIrPosicionamentos') && await visivel(page, '#avpTrabIrSquad') && await visivel(page, '#avpTrabIrAreas'), 'as quatro consultas à vista (nada recolhido)');
-      const grupos = await page.$$eval('#mfItens .mf-grupo-tipo', (gs) => gs.map((g) => g.textContent.replace(/\s+/g, ' ').trim()));
-      const ordemTipos = await page.$$eval('#mfItens > li', (ls) => ls.map((l) => l.classList.contains('mf-grupo-tipo') ? 'G' : (/Responsabilidade/.test(l.textContent) ? 'R' : 'P')).join(''));
+      /* a lista é redesenhada quando os dados chegam: espera os dois grupos e lê tudo de uma vez (no mesmo desenho) */
+      await esperarCondicao(page, () => document.querySelectorAll('#mfItens .mf-grupo-tipo').length === 2, null, { limite: 15000, descricao: 'os dois grupos de registros' });
+      const { grupos, ordemTipos } = await page.evaluate(() => {
+        const ls = [...document.querySelectorAll('#mfItens > li')];
+        return { grupos: ls.filter((l) => l.classList.contains('mf-grupo-tipo')).map((g) => g.textContent.replace(/\s+/g, ' ').trim()),
+          ordemTipos: ls.map((l) => l.classList.contains('mf-grupo-tipo') ? 'G' : (/Responsabilidade/.test(l.textContent) ? 'R' : 'P')).join('') };
+      });
       afirma(grupos.length === 2 && /^Produtos\/Serviços/.test(grupos[0]) && /^Responsabilidades organizacionais/.test(grupos[1]) && /^GP+GR+$/.test(ordemTipos), 'registros separados por tipo: Produtos/Serviços e Responsabilidades organizacionais', { grupos, ordemTipos });
       afirma(await semRolagemLateral(page), 'Trabalhos sem rolagem lateral');
 
