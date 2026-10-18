@@ -863,6 +863,12 @@
       "sobre": "PR 4: os 8 casos de referência (Capec e Assessoria completas, Jurídico P1–P16 representado pela atuação com o A validar explicado, Agilidade Porta 2, sem Posicionamento, A validar em análise sem obrigação de decidir, firme sem estrutura com cadastro de tipo pré-escolhido, estrutura disponível sem vínculo); resumo e filtro; ida e volta por endereço estável (F5); Mapa nas estruturas cadastradas, demonstração só por escolha; perfil de consulta; rede lenta; 375 px."
     },
     {
+      "arquivo": ".github/scripts/teste-alocacao-e1-e3.js",
+      "nome": "Alocação E1–E3: divergência deliberada justificada, colaboradoras e as três perguntas na tela e no Mapa (desktop e celular)",
+      "duracao": 40,
+      "sobre": "E2: a ficha mostra a divergência como decisão organizacional (não erro), com base intacta, motivo, justificativa, quem decidiu e quem registrou; reavaliação que coincide com a estrutura fica válida sem esconder a divergência; vincular em outro tipo exige motivo e justificativa. E3: colaboradoras com papel e justificativa, encerrar com motivo. E1: textos das três perguntas. Mapa: só estruturas, a Linha com várias responsabilidades e a colaboradora com o papel. Perfil de consulta sem ações; 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-recuperar-senha.js",
       "nome": "Recuperação de senha: Esqueci minha senha e Redefinir senha do ADMIN — link do Firebase, mensagens neutras, falhas com a causa (desktop e celular)",
       "duracao": 20,

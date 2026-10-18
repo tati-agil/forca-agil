@@ -152,7 +152,10 @@ const EST = { ae1: { tipo: AE, situacao: 'ativa' }, ce1: { tipo: CE, situacao: '
 const sf = (e) => N.situacaoFormal(Object.assign({ ref: REF, estruturas: EST }, e));
 afirma(sf({}) === 'sem-classificacao' && sf({ aValidar: true }) === 'classificacao-a-validar', 'sem código efetivo: sem classificação ou "a validar"');
 afirma(sf({ codigoEfetivo: AE, vinculoPrincipal: { estruturaId: 'ae1', situacao: 'ativo' } }) === 'compativel', 'vínculo principal de tipo compatível: compatível');
-afirma(sf({ codigoEfetivo: CE, vinculoPrincipal: { estruturaId: 'ae1', situacao: 'ativo' } }) === 'vinculo-a-revisar', 'vínculo de tipo diferente: a revisar (nunca aceito como compatível)');
+afirma(sf({ codigoEfetivo: CE, vinculoPrincipal: { estruturaId: 'ae1', situacao: 'ativo' } }) === 'vinculo-a-revisar', 'vínculo de tipo diferente SEM divergência registrada: a revisar (nunca aceito como compatível)');
+afirma(sf({ codigoEfetivo: CE, vinculoPrincipal: { estruturaId: 'ae1', situacao: 'ativo', divergencia: true, baseCodigo: CE } }) === 'alocada-com-divergencia', 'E2: tipo diferente com divergência justificada sobre o mesmo código efetivo: alocada por decisão organizacional (responsável formal existe)');
+afirma(sf({ codigoEfetivo: CE, vinculoPrincipal: { estruturaId: 'ae1', situacao: 'ativo', divergencia: true, baseCodigo: AE } }) === 'vinculo-a-revisar', 'E2: divergência registrada sobre OUTRO código efetivo (reavaliado depois): a revisar');
+afirma(N.alternativasPara('alocada-com-divergencia').map((a) => a.alternativa).join() === 'manter-consciente', 'E2: alocação divergente justificada só oferece manter (nada a corrigir)');
 afirma(sf({ codigoEfetivo: CE, fatos: { execucao: [{ estruturaId: 'ae1' }] } }) === 'exercida-sem-responsavel-formal-compativel', 'executada por estrutura de outro tipo: exercida sem responsável formal compatível');
 afirma(sf({ codigoEfetivo: CE, fatos: { execucao: [{ estruturaId: 'ce1' }] } }) === 'executada-sem-vinculo-formal', 'executada por estrutura do tipo, sem vínculo: falta só registrar o vínculo');
 afirma(sf({ codigoEfetivo: CE, fatos: { execucao: [{ estruturaId: 'enc' }] } }) === 'sem-estrutura', 'estrutura encerrada não conta');

@@ -249,22 +249,26 @@
     else et.push({ id: 'decisao', rotulo: 'Decisão final', estado: 'analise', texto: 'A validar — ' + (TEXTO_A_VALIDAR[pos.tipoAValidar] || 'requer análise.') });
     var semCad = !cad.habilitado, carregando = cad.habilitado && !cad.pronto && !cad.erro;
     var nTipo = ef && cad.tipos ? (cad.tipos[ef.codigo] || 0) : 0, v = cad.vinculo || null;
+    /* E2: alocação em estrutura de outro tipo, justificada, é etapa concluída (decisão organizacional, não pendência) */
+    var alocado = !!(v && (v.situacao === 'valido' || v.situacao === 'divergencia-deliberada'));
     /* sem o cadastro de estruturas habilitado, as etapas 4 e 5 não aparecem (o Catálogo avisa isso uma vez, no topo) */
     if (semCad) { /* nada */ }
     else if (!ef) et.push({ id: 'estrutura', rotulo: 'Estrutura concreta do tipo', estado: 'futuro', texto: '' });
     else if (cad.erro) et.push({ id: 'estrutura', rotulo: 'Estrutura concreta do tipo', estado: 'carregando', texto: 'Não foi possível ler as estruturas' });
     else if (carregando) et.push({ id: 'estrutura', rotulo: 'Estrutura concreta do tipo', estado: 'carregando', texto: 'Carregando…' });
-    else et.push({ id: 'estrutura', rotulo: 'Estrutura concreta do tipo', estado: nTipo ? 'ok' : (encerrada ? 'futuro' : 'atual'),
+    else if (alocado && v.situacao === 'divergencia-deliberada') et.push({ id: 'estrutura', rotulo: 'Estrutura concreta do tipo', estado: 'ok', texto: 'Alocada em estrutura de outro tipo, por decisão organizacional' });
+    else et.push({ id: 'estrutura', rotulo: 'Estrutura concreta do tipo', estado: nTipo || alocado ? 'ok' : (encerrada ? 'futuro' : 'atual'),
       texto: nTipo ? nTipo + (nTipo === 1 ? ' estrutura disponível' : ' estruturas disponíveis') + ' (não quer dizer vinculada)' : 'Nenhuma estrutura ativa deste tipo cadastrada' });
     var e4 = et[et.length - 1];
     if (semCad) { /* nada */ }
     else if (!ef) et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'futuro', texto: '' });
     else if (cad.erro || carregando) et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'carregando', texto: cad.erro ? 'Não foi possível ler' : 'Carregando…' });
     else if (v && v.situacao === 'valido') et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'ok', texto: 'Válido: ' + (v.estruturaNome || '') });
+    else if (v && v.situacao === 'divergencia-deliberada') et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'ok', texto: 'Divergência deliberada: ' + (v.estruturaNome || '') });
     else if (v && v.situacao === 'precisa-revisao') et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'revisao', texto: 'Precisa de revisão: ' + (v.estruturaNome || '') });
     else et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: e4.estado === 'ok' && !encerrada ? 'atual' : 'futuro', texto: 'Sem estrutura responsável' });
     if (ef && ctx.liberaSquad && ctx.liberaSquad(ef.codigo)) et.push({ id: 'squad', rotulo: 'Adequação à Squad', estado: 'opcional', texto: 'Opcional (ramo Linha)' });
-    var completa = !!(pos && ef && v && v.situacao === 'valido');
+    var completa = !!(pos && ef && alocado);
     var acao = null, h = ctx.hrefs || {};
     if (!encerrada) {
       var proxima = et.filter(function (e) { return e.estado === 'atual' || e.estado === 'analise' || e.estado === 'revisao'; })[0];
@@ -1081,10 +1085,13 @@
       var objs = Est().objetosDaEstrutura({ estruturas: cadastro.estruturas, vinculos: cadastro.vinculos }, e.id);
       if (!objs.length) return '<p class="mfm-sem-objetos" id="mfmSemObjetos">Nenhum produto, serviço ou atuação vinculado a esta estrutura.</p>';
       var porItem = {}; cat.itens.forEach(function (x) { porItem[x.itemId] = x; });
-      return '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
+      /* E3: primeiro as responsabilidades em que é a principal, depois as em que colabora */
+      objs = objs.slice().sort(function (a, b) { return (a.papel === 'colaboradora') - (b.papel === 'colaboradora'); });
+      return '<p class="mfm-objetos-intro" id="mfmObjetosIntro">Responsabilidades assumidas: uma estrutura pode assumir várias, de Produtos/Serviços e Capacidades diferentes.</p>' +
+        '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
         var x = porItem[o.objetoId] || null, s = situacaoVinculo(o.objetoId, x), v = cadastro.vinculos[o.vinculoId];
-        return '<li class="mfm-objeto" data-objeto="' + esc(o.objetoId) + '"><a class="mfm-objeto-nome" href="#arquitetura?tr=1&item=' + encodeURIComponent(o.objetoId) + '">' + esc(x ? x.nome : o.objetoId) + '</a>' +
-          '<span class="mfm-objeto-papel">Responsável principal ·' + window.faEstruturasAdmin.situacaoVinculoHtml(s) + '</span>' +
+        return '<li class="mfm-objeto" data-objeto="' + esc(o.objetoId) + '" data-papel="' + esc(o.papel) + '"><a class="mfm-objeto-nome" href="#arquitetura?tr=1&item=' + encodeURIComponent(o.objetoId) + '">' + esc(x ? x.nome : o.objetoId) + '</a>' +
+          '<span class="mfm-objeto-papel">' + window.faEstruturasAdmin.papelVinculoHtml(o, v, s) + '</span>' +
           (x && x.baseRevisao ? '<span class="mfm-objeto-desc mfm-objeto-aviso">Aviso: a base do Posicionamento precisa de revisão.' + esc(TEXTO_AVISO_VINCULO) + '</span>' : '') +
           '<a class="mfm-acao mfm-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x && x.posicionamento && x.posicionamento.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
       }).join('') + '</ul>';
