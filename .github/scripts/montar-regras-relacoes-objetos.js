@@ -63,6 +63,8 @@ function pontaOk(lado) {
     c(campoBase) + '.exists()',
     '(' + AV + ".child('itemId').val() === " + ponta + ' || (!' + AV + ".child('itemId').exists() && " + base + ' === ' + ponta + '))',
     AV + ".child('status').val() === 'concluido'", AV + ".child('excluido').val() !== true", AV + ".child('motorVersion').val() === '" + MOTOR_PRODUTO + "'",
+    /* a base é a versão VIGENTE do item (o índice da ponta da cadeia) — avaliação antiga, superada, é recusada */
+    "root.child('" + R.PONTA + "/' + " + ponta + ').val() === ' + base,
     '(' + nat + " === 'produto' ? " + DEC + " === 'produto' : (" + DEC + " === 'nao-produto' && " + camadaCompat + '))'
   ]);
   return '(' + nat + " === 'responsabilidade' ? (root.child('objetos-organizacionais/' + " + ponta + " + '/situacao').val() === 'ativo' && !" + c(campoBase) + '.exists()) : (' + p1p16 + '))';
@@ -169,6 +171,7 @@ const blocoNat = {
       TAX + ".child('ativo').val() === true", TAX + ".child('definicao/texto').exists()", TAX + ".child('naturezaDe').val() === " + v('camada'),
       '(' + AVN + ".child('itemId').val() === $objetoId || (!" + AVN + ".child('itemId').exists() && " + v('avaliacaoId') + ' === $objetoId))',
       AVN + ".child('status').val() === 'concluido'", AVN + ".child('excluido').val() !== true", AVN + ".child('motorVersion').val() === '" + MOTOR_PRODUTO + "'",
+      "root.child('" + R.PONTA + "/' + $objetoId).val() === " + v('avaliacaoId'), /* só a versão VIGENTE do item */
       AVN + ".child('camadaSugerida/id').val() === " + v('camada'), DECN + " === 'nao-produto'",
       v('registradaEm') + ' === now', ehAutor('registradaPor'),
       v('revisao') + ' === (data.exists() ? ' + d('revisao') + ' + 1 : 1)',
@@ -216,13 +219,51 @@ function taxonomiaComE4(tax) {
   return t;
 }
 
+/* ---------- versão VIGENTE de cada item P1–P16 (alternativa B, aprovada em 18/10/2026) ----------
+   avaliacoes-produto-ponta/<itemId> = a chave da PONTA da cadeia de reavaliações (mesmo em andamento ou excluída).
+   - nasce na MESMA gravação que cria a primeira versão do item, e avança um passo na MESMA gravação que cria uma
+     reavaliação (versaoAnteriorKey = a ponta atual): duas reavaliações da mesma ponta ao mesmo tempo → só uma entra;
+   - nunca volta, não pula, não aponta para registro de outro item, não se apaga;
+   - item antigo ainda sem índice (anterior a esta regra): a primeira gravação do índice é a da reconciliação
+     (reconciliar-versao-vigente.js, conta de serviço) ou a da próxima reavaliação; até lá, a E4 recusa o item;
+   - nenhuma versão de avaliação se apaga (histórico preservado), então o índice nunca aponta para o vazio. */
+const PONTA = R.PONTA, PROD = 'avaliacoes-produto';
+const REC = "newData.parent().parent().child('" + PROD + "/' + newData.val())";
+function blocoPonta(regras) {
+  const P = produtoComPonta(regras[PROD]); /* a mesma escrita das avaliações (já sem apagar) — idempotente */
+  return {
+    '.read': P['.read'],
+    $itemId: {
+      '.write': P.$key['.write'],
+      '.validate': and([
+        '$itemId.matches(/^[A-Za-z0-9_-]{1,60}$/)', 'newData.isString()', REC + '.exists()',
+        '(' + REC + ".child('itemId').val() === $itemId || (!" + REC + ".child('itemId').exists() && newData.val() === $itemId))",
+        '(!data.exists() || newData.val() === data.val() || ' + REC + ".child('versaoAnteriorKey').val() === data.val())"
+      ])
+    }
+  };
+}
+const ITEM_P = "(newData.child('itemId').exists() ? newData.child('itemId').val() : $key)";
+const PONTA_RAIZ = "root.child('" + PONTA + "/' + " + ITEM_P + ')';
+const PONTA_NOVA = "newData.parent().parent().child('" + PONTA + "/' + " + ITEM_P + ')';
+const CRIA_COM_PONTA = " && (data.exists() || (" + PONTA_NOVA + ".val() === $key && (newData.child('versaoAnteriorKey').exists() ? (!" + PONTA_RAIZ + '.exists() || ' + PONTA_RAIZ + ".val() === newData.child('versaoAnteriorKey').val()) : !" + PONTA_RAIZ + '.exists())))';
+const NAO_APAGA = ' && newData.exists()';
+function produtoComPonta(prod) {
+  const p = JSON.parse(JSON.stringify(prod));
+  const K = p.$key;
+  if (K['.write'].slice(-NAO_APAGA.length) !== NAO_APAGA) K['.write'] += NAO_APAGA;
+  if (K['.validate'].indexOf(CRIA_COM_PONTA) === -1) K['.validate'] += CRIA_COM_PONTA;
+  return p;
+}
+
 function montar(regras) {
   return {
     'relacoes-objetos-config': blocoCfg, [RAIZ]: blocoRel, [NAT]: blocoNat, [NAT_AUD]: blocoNatAud,
-    taxonomia: taxonomiaComE4(regras.taxonomia)
+    taxonomia: taxonomiaComE4(regras.taxonomia),
+    [PROD]: produtoComPonta(regras[PROD]), [PONTA]: blocoPonta(regras)
   };
 }
-module.exports = { montar, taxonomiaComE4, NOS: ['relacoes-objetos-config', RAIZ, NAT, NAT_AUD, 'taxonomia'] };
+module.exports = { montar, taxonomiaComE4, produtoComPonta, NOS: ['relacoes-objetos-config', RAIZ, NAT, NAT_AUD, 'taxonomia', PROD, PONTA] };
 
 if (require.main === module) {
   let s = fs.readFileSync(ARQUIVO, 'utf8');

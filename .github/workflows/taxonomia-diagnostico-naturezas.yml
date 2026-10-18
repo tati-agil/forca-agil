@@ -1,0 +1,36 @@
+name: Taxonomia — diagnóstico das naturezas (só leitura)
+
+# SÓ disparo manual. SÓ LEITURA: compara os conceitos arquiteturais que existem em produção com o modelo
+# aprovado de naturezas (forca-agil/naturezas-arquiteturais.js) e imprime o resultado. Não grava, não
+# cadastra e não migra nada — o script não tem nenhuma gravação.
+# Ver .github/scripts/diagnosticar-taxonomia-arquitetural.js.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnosticar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar firebase-admin
+        run: |
+          mkdir -p /tmp/diag-deps
+          cd /tmp/diag-deps
+          npm init -y
+          npm install firebase-admin@12
+
+      - name: Diagnosticar (só leitura)
+        env:
+          NODE_PATH: /tmp/diag-deps/node_modules
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          node .github/scripts/diagnosticar-taxonomia-arquitetural.js

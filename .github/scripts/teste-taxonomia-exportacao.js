@@ -117,7 +117,7 @@ const taxDb = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
     {
       const { ctx, page, erros, downloads, noCatalogo } = await abrir(browser, viewport);
       console.log('\n== 1. Botões ==');
-      afirma(noCatalogo === 0 && await page.locator('#taxIntegridade #taxAcoesGerais #taxExportar').count() === 1, 'a exportação fica em Integridade › Dados e manutenção, nunca no Catálogo');
+      afirma(noCatalogo === 1 && await page.locator('#taxIntegridade #taxAcoesGerais #taxExportar').count() === 1, 'a exportação completa tem acesso direto no Catálogo (tela principal) e continua em Verificações › Dados e histórico');
       afirma(await page.locator('#taxExportarExcel').isVisible() && await page.locator('#taxExportarJson').isVisible(), 'admin vê os dois botões de exportação');
       const rot = await page.evaluate(() => ['#taxExportarExcel', '#taxExportarJson'].map((q) => document.querySelector(q).textContent.trim()));
       afirma(/^baixar excel$/i.test(rot[0]) && /^baixar json$/i.test(rot[1]), 'rótulos exatos "Baixar Excel" e "Baixar JSON" (sem "(revisão)"/"(diagnóstico)")', rot.join(' / '));

@@ -128,7 +128,9 @@ async function main() {
       if (aval) {
         const s = await assertSucceeds(db(email).ref(NODE).once('value'));
         anota(rotulo + ': lê a lista, inclusive rascunhos', !!(s.val() && s.val().rasc1));
-        await assertSucceeds(db(email).ref(NODE + '/novo-' + emailKey(email)).set(rascunho({ itemId: 'n' })));
+        /* como o site: a primeira versão + o índice da versão vigente na mesma gravação (um item por pessoa) */
+        const novo = 'novo-' + emailKey(email);
+        await assertSucceeds(db(email).ref().update({ [NODE + '/' + novo]: rascunho({ itemId: novo }), ['avaliacoes-produto-ponta/' + novo]: novo }));
         await assertSucceeds(db(email).ref(NODE + '/conc1/excluido').set(true));
         await assertSucceeds(db(email).ref(NODE + '/conc1/excluido').set(null));
         anota(rotulo + ': cria, exclui e restaura (funcionalidades operacionais da aba)', true);

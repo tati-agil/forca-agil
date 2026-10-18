@@ -109,6 +109,9 @@
   'use strict';
 
   var NODE = 'avaliacoes-produto';
+  /* versão VIGENTE de cada item: avaliacoes-produto-ponta/<itemId> = chave da ponta da cadeia de reavaliações
+     (mesmo em andamento ou excluída) — gravada junto com a versão em salvarRegistro; as regras do banco a exigem */
+  var NODE_PONTA = 'avaliacoes-produto-ponta';
   /* Auditoria da Curadoria e da Decisão final: curadoria-auditoria/<avaliacaoId>/<pushKey>
      (só acrescenta linhas). A natureza complementar (campo retirado) tem a auditoria própria,
      hoje só para leitura: as linhas antigas continuam na trilha da ficha, do PDF e do Excel. */
@@ -7651,7 +7654,6 @@
         payload.motorVersionArquitetura = window.faMotorArquitetura.versaoAtual();
         payload.decisaoFinal = calc.resultadoAutomatico;
       }
-      var ref = db().ref(NODE + '/' + key);
       var respondido = false;
       /* Rede lenta é condição normal de celular (ver CLAUDE.md) — sem este
          relógio, "Salvando…" ficava preso para sempre e o clique parecia
@@ -7679,12 +7681,17 @@
          reavaliação da vN", na MESMA gravação (nunca uma sem a outra). */
       function gravar(linhaReavaliacao) {
         if (respondido) return;
-        if (!linhaReavaliacao) { ref.set(payload, function (err) { terminou(err, false); }); return; }
+        /* a versão em curso é a PONTA da cadeia do item: o índice da versão vigente vai na MESMA gravação (nasce com
+           a primeira versão, avança um passo com a reavaliação; salvar de novo a mesma versão não muda nada). As
+           regras do banco recusam criar versão sem mover o índice e reavaliar a partir de versão que não é a ponta. */
         var tudo = {};
-        var chaveAud = NODE_CURADORIA_AUDITORIA + '/' + key;
         tudo[NODE + '/' + key] = payload;
-        tudo[chaveAud + '/' + db().ref(chaveAud).push().key] = linhaReavaliacao;
-        db().ref().update(tudo, function (err) { terminou(err, true); });
+        tudo[NODE_PONTA + '/' + payload.itemId] = key;
+        if (linhaReavaliacao) {
+          var chaveAud = NODE_CURADORIA_AUDITORIA + '/' + key;
+          tudo[chaveAud + '/' + db().ref(chaveAud).push().key] = linhaReavaliacao;
+        }
+        db().ref().update(tudo, function (err) { terminou(err, !!linhaReavaliacao); });
       }
       if (!a.versaoAnteriorKey || reavAuditadas[key]) {
         gravar(null);
