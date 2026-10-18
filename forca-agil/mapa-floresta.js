@@ -1067,7 +1067,7 @@
         '<dt>Definição oficial</dt><dd class="mfm-definicao">' + definicaoTipoHtml(e.tipo) + '</dd>' +
         (sub ? '<dt>Subagrupador</dt><dd>' + esc(sub.nome) + ' <span class="mfm-nota">(exemplo)</span></dd>' : '') +
         squadsHtml(e.tipo, true) + '</dl>' +
-        '<h4 class="mfm-objetos-titulo">Produtos, serviços e atuações sob esta estrutura</h4>' +
+        '<h4 class="mfm-objetos-titulo">Responsabilidades assumidas por esta estrutura</h4>' +
         '<p class="mfm-ajuda">Eles não são caixas do Mapa: aparecem aqui, na estrutura responsável.</p>';
       h += objs.length ? '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
         return '<li class="mfm-objeto" data-objeto="' + esc(o.id) + '"><span class="mfm-objeto-nome">' + esc(o.nome) + '</span>' +
@@ -1112,7 +1112,7 @@
         squadsHtml(e.tipo, false, e.id) + relacoesDetalheHtml(e.id) +
         '<dt>Cadastrada</dt><dd>' + dataHora(e.criadaEm) + (e.criadaPor ? ' · ' + esc(e.criadaPor.email || e.criadaPor.id) : '') + '</dd>' +
         (e.alteradaEm ? '<dt>Última alteração</dt><dd>' + dataHora(e.alteradaEm) + (e.alteradaPor ? ' · ' + esc(e.alteradaPor.email || e.alteradaPor.id) : '') + '</dd>' : '') + '</dl>' +
-        '<h4 class="mfm-objetos-titulo">Produtos, serviços e atuações sob esta estrutura</h4>' +
+        '<h4 class="mfm-objetos-titulo">Responsabilidades assumidas por esta estrutura</h4>' +
         produtosDaEstruturaHtml(e) +
         (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#arquitetura?arq=estruturas&e=' + encodeURIComponent(e.id) + '">' + (gravacaoAtiva() ? 'Abrir a ficha no cadastro (editar ou encerrar)' : 'Abrir a ficha no cadastro') + '</a>' : '');
       return h + '</aside>';
