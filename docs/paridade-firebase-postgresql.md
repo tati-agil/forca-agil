@@ -22,7 +22,7 @@ da Floresta que grave dados. É requisito obrigatório, não meta. *(Redação o
     (`teste-estruturas-cenarios-referencia.js`) e o **segundo**, o Firebase Emulator pelo adaptador `estruturas-firebase.js`
     (`teste-rules-estruturas-concretas.js`, com as gravações diretas inválidas); a tela de cadastro (Etapa 4) grava pelo mesmo caso de
     uso e adaptador, só no Firebase Emulator (`teste-estruturas-jornada.js`); o conjunto `mapa-subagrupadores` v1 (Etapa 5) roda nos mesmos dois executores (memória: `teste-estruturas-cenarios-referencia.js`;
-    emulador: `teste-rules-mapa-subagrupadores.js`); os conjuntos `vinculos-responsavel` v1 (M3) e `relacoes-estruturas` v1
+    emulador: `teste-rules-mapa-subagrupadores.js`); os conjuntos `vinculos-responsavel` v2 (M3, E2 — alocação divergente justificada — e E3 — colaboradoras) e `relacoes-estruturas` v1
     (M6/M7) rodam nos mesmos dois executores (memória e `teste-rules-estruturas-concretas.js`); o executor do PostgreSQL
     ainda não existe (o índice único parcial de "uma associação ativa por Linha" é requisito dele) e o backend ainda não
     tem subagrupadores nem o recorte de `compõe` da decisão C2;
