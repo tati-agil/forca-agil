@@ -3536,10 +3536,10 @@
       var lin = function (rot, v, id) { return '<li><span class="avp-trab-num" id="' + id + '">' + num(v) + '</span> ' + rot + '</li>'; };
       var rr = rs && rs.responsabilidades ? rs.responsabilidades.por : null;
       var h = '<div class="avp-trab-grade">' +
-        '<section class="avp-trab-secao" id="avpTrabProdutos"><h3>Produtos/Serviços (P1–P16)</h3><ul class="avp-trab-nums">' +
+        '<section class="avp-trab-secao" id="avpTrabProdutos"><h3>Produto/Serviço (P1–P16)</h3><ul class="avp-trab-nums">' +
           lin('em andamento', rp ? rp.andamento.length : null, 'avpTrabProdAndamento') + lin('concluídas', rp ? rp.concluidas : null, 'avpTrabProdConcluidas') + lin('com resultado A validar', rp ? rp.avalidar : null, 'avpTrabProdAValidar') + '</ul>' +
           '<a class="btn btn--sm" id="avpTrabIrProdutos" href="#arquitetura?av=lista">Ver avaliações de Produto/Serviço</a></section>' +
-        '<section class="avp-trab-secao" id="avpTrabResponsabilidades"><h3>Responsabilidades Organizacionais (O1–O9)</h3>' +
+        '<section class="avp-trab-secao" id="avpTrabResponsabilidades"><h3>Posicionamento Organizacional (O1–O9)</h3>' +
           (rs && rs.erro ? '<p class="avp-error-msg">Não foi possível ler as responsabilidades agora.</p>' : '<ul class="avp-trab-nums">' +
           lin('prontas para avaliar', rr ? rr.pronta || 0 : null, 'avpTrabRespProntas') + lin('em avaliação', rr ? rr.andamento || 0 : null, 'avpTrabRespAndamento') +
           lin('avaliadas (O1–O9 concluído)', rr ? rr.avaliada || 0 : null, 'avpTrabRespAvaliadas') + lin('com resultado A validar (sem decisão final)', rr ? rr.avalidar || 0 : null, 'avpTrabRespAValidar') + '</ul>') +
@@ -3598,7 +3598,10 @@
         '<section class="avp-inicio-principal" id="avpInicioContinuar" aria-labelledby="avpInicioContinuarTitulo">' +
         '<h3 id="avpInicioContinuarTitulo">Continuar um trabalho</h3>' +
         '<p>Veja o que está em andamento e cada registro da Floresta: o que ele representa, o que já foi realizado, as avaliações relacionadas e o que pode ser feito a seguir.</p>' +
-        '<div class="avp-inicio-continuar-acoes">' + link('avpInicioTrabalhos', 'btn avp-inicio-acao', 'Ver e continuar trabalhos') + '</div></section>' +
+        '<div class="avp-inicio-continuar-acoes">' + link('avpInicioTrabalhos', 'btn avp-inicio-acao', 'Ver e continuar trabalhos') + '</div>' +
+        '<p class="avp-inicio-consultas" id="avpInicioConsultas">Consultar: <a href="#arquitetura?av=lista" id="avpInicioListaProdutos">Produto/Serviço</a> · ' +
+        '<a href="#arquitetura?po=lista" id="avpInicioListaPosicionamentos">Posicionamento</a> · <a href="#arquitetura?sq=lista" id="avpInicioListaSquad">Adequação à Squad</a> · ' +
+        '<a href="#arquitetura?an=lista" id="avpInicioListaAreas">Análises de áreas</a></p></section>' +
         '<section class="avp-inicio-comecar" id="avpInicioComecar" aria-labelledby="avpInicioComecarTitulo"><h3 id="avpInicioComecarTitulo">Começar um trabalho</h3>' +
         '<div class="avp-inicio-cartoes avp-inicio-cartoes--tres">' +
         '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1 · P1–P16</p><h4>Avaliar um Produto/Serviço</h4>' +
@@ -3634,8 +3637,8 @@
           abrirAdminDoInicio(el.getAttribute('data-admin-destino'), el.getAttribute('data-admin-aba') || null, el.getAttribute('data-admin-dominio') || null);
         });
       });
-      /* Gestão: a entrada guarda o Início como origem ("← Voltar para o Início da Floresta" é o Voltar do navegador) */
-      if (window.faNav) window.faNav.ligarLinks(wrap, '#avpInicioGestaoAbrir, #avpInicioTaxonomia');
+      /* Gestão e consultas: a entrada guarda o Início como origem ("← Voltar para o Início da Floresta") */
+      if (window.faNav) window.faNav.ligarLinks(wrap, '#avpInicioGestaoAbrir, #avpInicioTaxonomia, #avpInicioConsultas a');
       /* os nomes chegam depois (a tela não espera o banco): atualiza no lugar */
       if (P && !inicioOuveNomes) { inicioOuveNomes = true; P.onMudanca(function () { var el = document.getElementById('avpInicio'); if (el) P.atualizarDom(el); }); }
       if (P) P.atualizarDom(wrap);

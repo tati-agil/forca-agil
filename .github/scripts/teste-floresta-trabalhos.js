@@ -5,7 +5,7 @@
  *      responsabilidade, área e Adequação à Squad); sem o atalho separado da Jornada; Squad abre a tela de sempre e o
  *      Voltar do navegador volta ao Início.
  *   B. Trabalhos (#arquitetura?tr=1) numa tela só: "Continuar de onde parou", os registros (cada item uma vez, com a
- *      situação; busca funcionando) e as listas completas recolhidas; "← Voltar para A Floresta" volta ao Início.
+ *      situação; busca funcionando, separados por tipo), com as consultas de cada avaliação à vista, antes de tudo; "← Voltar para A Floresta" volta ao Início.
  *   C. Registro de um item (&item=): o que representa, o que já foi realizado, detalhes e registros relacionados; um só
  *      "Voltar" (para os Trabalhos quando veio da lista); abrir a ficha de Produto/Serviço a partir dele e voltar para
  *      o MESMO registro; F5 no registro.
@@ -13,7 +13,7 @@
  *      "Ver todos os trabalhos" leva à lista.
  *   E. Links antigos: "#avaliacoes?mf=catalogo&item=…" e "#arquitetura?mf=catalogo" abrem nos Trabalhos, sem entrada
  *      nova no histórico.
- *   F. Listas completas: abrir a de Produto/Serviço e voltar aos Trabalhos pelo Voltar do navegador.
+ *   F. Consultas: abrir a de Produto/Serviço e voltar aos Trabalhos pelo Voltar do navegador.
  *   G. Perfil Avaliação: as quatro entradas de Começar continuam (responsabilidade como texto de perfil).
  *   Sempre: nenhum erro de página e nenhuma rolagem lateral. */
 const { chromium } = require('playwright');
@@ -78,9 +78,9 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       afirma(await hash(r.page) === '#arquitetura?tr=1', '"Ver e continuar trabalhos" → #arquitetura?tr=1', await hash(r.page));
       afirma(await texto(r.page, '#page-avaliacoes .page-hero h1') === 'Trabalhos', 'título da página: "Trabalhos"', await texto(r.page, '#page-avaliacoes .page-hero h1'));
       await ver(r.page, '#avpTrabContinuar', '"Continuar de onde parou"');
-      const pos = await r.page.evaluate(() => ['mfTrabContinuarVaga', 'mfCatalogo', 'mfTrabListas'].map((id) => document.getElementById(id).getBoundingClientRect().top));
-      afirma(pos[0] < pos[1] && pos[1] < pos[2], 'uma tela: Continuar de onde parou → Registros → Listas completas', pos);
-      afirma(await r.page.evaluate(() => !document.getElementById('mfTrabListas').open) && !(await visivel(r.page, '#avpTrabIrProdutos')), 'listas completas recolhidas por padrão');
+      const pos = await r.page.evaluate(() => ['mfTrabListas', 'mfTrabContinuarVaga', 'mfCatalogo'].map((id) => document.getElementById(id).getBoundingClientRect().top));
+      afirma(pos[0] < pos[1] && pos[1] < pos[2], 'uma tela: Consultar avaliações → Continuar de onde parou → Registros', pos);
+      afirma(await visivel(r.page, '#avpTrabIrProdutos'), 'as consultas de cada avaliação à vista (nada recolhido)');
       const ids = await r.page.$$eval('#mfItens .mf-linha', (ls) => ls.map((l) => l.getAttribute('data-item')));
       afirma(ids.length > 0 && new Set(ids).size === ids.length, 'cada registro aparece uma vez (' + ids.length + ')', ids);
       afirma(/registro/.test(await texto(r.page, '#mfContador')), 'contador em "registros"', await texto(r.page, '#mfContador'));
@@ -157,9 +157,8 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       const n1 = await r.page.evaluate(() => history.length);
       afirma(await hash(r.page) === '#arquitetura?tr=1' && n1 === n0 + 1, '"#arquitetura?mf=catalogo" → "#arquitetura?tr=1", com UMA entrada no histórico', { hash: await hash(r.page), n0, n1 });
 
-      console.log('\n== F. Listas completas ==');
-      await r.page.click('#mfTrabListas > summary');
-      await ver(r.page, '#avpTrabIrProdutos', 'as listas completas');
+      console.log('\n== F. Consultas ==');
+      await ver(r.page, '#avpTrabIrProdutos', 'as consultas');
       afirma(await visivel(r.page, '#avpTrabIrSquad') && await visivel(r.page, '#avpTrabIrAreas'), 'listas de Produto/Serviço, responsabilidades, áreas e Squad');
       await r.page.click('#avpTrabIrProdutos');
       await naHash(r.page, '#arquitetura?av=lista', 'a lista de Produto/Serviço');

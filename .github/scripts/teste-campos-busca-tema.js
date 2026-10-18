@@ -99,8 +99,18 @@ async function conferir(page, sel, rotulo) {
     await r.ctx.close();
     /* Estrutura Atual com a gravação liberada: o formulário de unidade e os demais controles */
     r = await abrir(browser, vp, '#arquitetura?arq=estrutura-atual', { eaLiberada: true });
-    await esperarCondicao(r.page, () => !!document.getElementById('eaNovaBtn') && !!document.getElementById('eaMostrarEncerradas'), null, { limite: 15000, descricao: 'Estrutura Atual liberada' });
-    const chk = await r.page.evaluate(() => { const c = document.getElementById('eaMostrarEncerradas'), cs = getComputedStyle(c); return { accent: cs.accentColor, esquema: getComputedStyle(c.closest('.ea-tela')).colorScheme }; });
+    /* espera o controle JÁ dentro da tela (.ea-tela): num redesenho ele existe por um instante sem o contêiner */
+    await esperarCondicao(r.page, () => !!document.getElementById('eaNovaBtn') && !!document.querySelector('.ea-tela #eaMostrarEncerradas'), null, { limite: 15000, descricao: 'Estrutura Atual liberada' });
+    /* a tela é redesenhada quando os dados chegam: lê o controle de dentro de .ea-tela, tentando de novo por até 10 s */
+    const chk = await r.page.evaluate(() => new Promise((res) => {
+      const t0 = Date.now();
+      (function tentar() {
+        const c = document.querySelector('.ea-tela #eaMostrarEncerradas');
+        if (c) { const cs = getComputedStyle(c); return res({ accent: cs.accentColor, esquema: getComputedStyle(c.closest('.ea-tela')).colorScheme }); }
+        if (Date.now() - t0 > 10000) return res({ accent: 'auto', esquema: 'ausente' });
+        setTimeout(tentar, 50);
+      })();
+    }));
     afirma(chk.accent !== 'auto' && /dark/.test(chk.esquema), '"Mostrar encerradas": caixa no padrão do sistema (accent-color) e controles nativos no esquema escuro', chk);
     const g1 = await r.page.evaluate(() => (window.__ESCRITAS || []).length);
     await r.page.click('#eaNovaBtn'); await r.page.waitForSelector('#eaFormUnidade');

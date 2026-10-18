@@ -599,6 +599,12 @@
       "sobre": "As áreas de ADMIN › Avaliações e Mapa e ADMIN › Taxonomia dentro de A Floresta (#arquitetura?arq=<área>), com os mesmos módulos e permissões: admin geral (com Taxonomia e Usuários autorizados), Avaliação + Configuração (sem ADMIN, #admin leva à Gestão), Avaliação (sem acesso); #admin?arq= antigo reescrito; Voltar/F5. Hermético (Firebase falso), nada é gravado."
     },
     {
+      "arquivo": ".github/scripts/teste-floresta-consultas.js",
+      "nome": "A FLORESTA: consultas de cada avaliação a partir de Trabalhos — filtros, fichas, PDF e retornos (desktop e celular)",
+      "duracao": 80,
+      "sobre": "Percursos reais: Início com acesso direto às quatro consultas; Trabalhos com as consultas à vista e os registros separados por tipo; P1–P16 (busca Capec → ficha → Gerar PDF → Voltar com a busca preservada), O1–O9 (responsabilidades com filtros; ficha → PDF), S1–S8 (ficha → PDF → Voltar à lista) e análises de áreas. Hermético (Firebase falso), nada é gravado."
+    },
+    {
       "arquivo": ".github/scripts/teste-padrao-visual.js",
       "nome": "Padrão Visual Oficial — Arquitetura: tipografia legível com a identidade do Força Ágil (desktop e celular)",
       "duracao": 110,
