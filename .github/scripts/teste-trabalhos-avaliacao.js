@@ -77,7 +77,6 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
       afirma(/Gerir a conformidade fiscal/.test(await texto(page, '#avpTrabPendentes')) && (await page.getAttribute('#avpTrabPendentes a[href="#arquitetura?po=gRas"]', 'href')) === '#arquitetura?po=gRas', '"Continuar de onde parou": o rascunho do O1–O9, com link direto');
       afirma(await larguraOk(page), rot + ': Trabalhos sem rolagem lateral');
       console.log('B. Todas as responsabilidades');
-      await page.click('#mfTrabListas > summary'); /* as listas completas ficam recolhidas nos Trabalhos */
       await page.click('#avpTrabIrResponsabilidades');
       await esperar(page, () => location.hash === '#arquitetura?po=todas' && document.querySelectorAll('#poTodasLista .po-todas-item').length > 0);
       const itens = await page.$$eval('#poTodasLista .po-todas-item', (l) => l.map((x) => ({ t: x.querySelector('strong').textContent, s: x.getAttribute('data-situacao'), a: x.getAttribute('data-area'), txt: x.textContent })));

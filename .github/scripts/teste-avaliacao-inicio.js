@@ -62,10 +62,9 @@ const noInicio = (page) => esperar(page, () => { const e = document.getElementBy
 const linha = (id) => '#mfItens .mf-linha[data-item="' + id + '"]';
 const card = (id) => '#mfCatalogo .mf-item--detalhe[data-item="' + id + '"]';
 const naJornada = (page) => esperar(page, () => { const r = document.getElementById('mfResumo'); return !!r && /Registros completos/.test(r.textContent); }, undefined, 15000);
-/* Trabalhos: as listas completas ficam recolhidas (a escolha dura enquanto a página não recarrega) */
+/* Trabalhos: as consultas de cada avaliação vêm primeiro, à vista */
 async function abrirListas(page) {
-  await page.waitForSelector('#mfTrabListas > summary', { timeout: 10000 });
-  if (!(await page.evaluate(() => document.getElementById('mfTrabListas').open))) await page.click('#mfTrabListas > summary');
+  await page.waitForSelector('#mfTrabListas #avpTrabIrProdutos', { timeout: 10000 });
 }
 async function abreItem(page, id) {
   await page.click(linha(id) + ' .mf-linha-abrir');
@@ -186,10 +185,8 @@ async function rodada(browser, viewport, rotulo) {
 
   console.log('Caso 7 — avaliação antiga, exportar, Lixeira');
   await page.click('#avpInicioTrabalhos');
-  await page.waitForSelector('#mfTrabListas > summary', { timeout: 10000 });
-  await page.click('#mfTrabListas > summary'); /* as listas completas ficam recolhidas nos Trabalhos */
   await page.waitForSelector('#avpTrabIrProdutos', { timeout: 10000 });
-  afirma(await page.locator('#avpTrabIrProdutos, #avpTrabIrPosicionamentos, #avpTrabIrSquad').count() === 3 && await visivel(page, '#mfItens'), 'Trabalhos: os registros e as listas completas de Produto/Serviço, Posicionamentos e Adequação à Squad');
+  afirma(await page.locator('#avpTrabIrProdutos, #avpTrabIrPosicionamentos, #avpTrabIrSquad').count() === 3 && await visivel(page, '#mfItens'), 'Trabalhos: as consultas de Produto/Serviço, Posicionamentos e Adequação à Squad');
   await page.click('#avpTrabIrProdutos');
   await page.waitForSelector('#avpListaTitulo', { timeout: 10000 });
   await esperar(page, () => document.querySelectorAll('#avaliacoesPainel .avp-table tbody tr').length > 0, undefined, 15000);

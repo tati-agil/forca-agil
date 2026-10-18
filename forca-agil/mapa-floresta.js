@@ -356,7 +356,7 @@
       if (!meu && !identidadeOriginal) return;
       var t = !meu ? identidadeOriginal : modo === 'mapa'
         ? { eyebrow: 'Mapa da Floresta', h1: 'Mapa da Floresta', p: fonte === 'cadastro' ? 'As estruturas organizacionais concretas cadastradas: Linhas, Centros de Excelência e Áreas Especializadas.' : 'Demonstração com exemplos fictícios: as estruturas organizacionais e os produtos e serviços sob a responsabilidade de cada uma.' }
-        : { eyebrow: 'A Floresta', h1: 'Trabalhos', p: 'O que está em andamento e cada registro da Floresta: o que ele representa, o que já foi realizado, os registros relacionados e o que pode ser feito a seguir.' };
+        : { eyebrow: 'A Floresta', h1: 'Trabalhos', p: 'Consulte as avaliações de cada tipo, continue o que está em andamento e acompanhe cada registro até o Mapa.' };
       if (eyebrow) eyebrow.textContent = t.eyebrow;
       if (h1) h1.textContent = t.h1;
       if (p) p.textContent = t.p;
@@ -485,16 +485,20 @@
       if (modo === 'mapa') { renderMapaTela(); return; }
       var ativo = document.activeElement, foco = null;
       if (ativo && ativo.id && wrap.contains(ativo) && /^(INPUT|SELECT)$/.test(ativo.tagName)) foco = { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd };
-      /* A FLORESTA — TRABALHOS: o que está em andamento (bloco de avaliacao-produto.js), os registros (cada item ou
-         responsabilidade uma vez, com a situação) e, recolhidas, as listas completas de cada avaliação. No registro de
-         um item há um só "Voltar": para a tela de origem (ficha, Mapa, ADMIN…), quando houver, ou para os Trabalhos. */
+      /* A FLORESTA — TRABALHOS: primeiro as consultas de cada avaliação (Produto/Serviço, Posicionamento, Squad, análises
+         de áreas — as listas de sempre, com os seus filtros, fichas, PDF e Excel), depois o que está em andamento e, por
+         último, os registros (a antiga Jornada), separados por tipo. No registro de um item há um só "Voltar": para a tela
+         de origem (ficha, Mapa, ADMIN…), quando houver, ou para os Trabalhos. */
       var T = window.faTrabalhosFloresta, ext = voltaAdmin();
       var h = focoItem && (!ext || origemInterna()) ? '' : '<button type="button" class="avp-voltar-link" id="mfVoltar">' + rotuloVoltar() + '</button>';
       if (!focoItem) {
         if (T && T.preparar) T.preparar(atualizarBlocosTrabalhos);
+        h += '<section class="mf-trab-consultas" id="mfTrabListas" aria-labelledby="mfTrabListasTitulo"><h3 class="mf-registros-titulo" id="mfTrabListasTitulo">Consultar avaliações</h3>' +
+          '<p class="mf-ajuda">Cada lista tem os seus filtros, a ficha de cada avaliação, o PDF e a exportação para Excel.</p>' +
+          '<div id="mfTrabListasVaga">' + (T ? T.listasHtml() : '<p class="loading-msg" role="status">Carregando…</p>') + '</div></section>';
         h += '<div class="mf-trab-continuar" id="mfTrabContinuarVaga">' + (T ? T.continuarHtml() : '<p class="loading-msg" role="status">Carregando…</p>') + '</div>';
       }
-      h += '<div class="avp-form-card mf-card" id="mfCatalogo">' + (focoItem ? '' : '<div class="mf-registros-topo"><h3 class="mf-registros-titulo" id="mfRegistrosTitulo">Registros</h3>' +
+      h += '<div class="avp-form-card mf-card" id="mfCatalogo">' + (focoItem ? '' : '<div class="mf-registros-topo"><h3 class="mf-registros-titulo" id="mfRegistrosTitulo">Registros e jornada até o Mapa</h3>' +
           '<button type="button" class="btn btn--sm mf-ir-mapa" id="mfIrMapa">Ver Mapa completo</button></div>' +
           '<p class="mf-ajuda" id="mfRegistrosAjuda">Cada item avaliado como Produto/Serviço e cada responsabilidade organizacional aparece uma vez. Abra um registro para ver o que já foi realizado, as avaliações relacionadas e o que pode ser feito a seguir.</p>' +
           '');
@@ -527,9 +531,6 @@
       }
       if (focoItem) h += sobre;
       h += '</div>';
-      if (!focoItem) h += '<details class="avp-form-card mf-card mf-trab-listas" id="mfTrabListas"' + (state.listasAbertas ? ' open' : '') + '><summary>Listas completas por avaliação</summary>' +
-        '<p class="mf-ajuda">A lista de cada avaliação, com os números e as ações próprias dela (exportar, filtrar por resultado, excluir…).</p>' +
-        '<div id="mfTrabListasVaga">' + (T ? T.listasHtml() : '') + '</div></details>';
       wrap.innerHTML = h;
       bind();
       if (P()) P().atualizarDom(wrap);
@@ -617,7 +618,10 @@
       h += '<div class="mf-contador-linha"><span class="avp-total" id="mfContador" aria-live="polite">' + (recortado ? vis.length + ' de ' + itens.length : itens.length) + ' registro' + (itens.length === 1 ? '' : 's') + '</span>' +
         (recortado ? ' <button type="button" class="btn btn--sm" id="mfLimparFiltros">Limpar filtros</button>' : '') + '</div>';
       if (!vis.length) return h + '<p class="admin-empty" id="mfNenhumFiltro">Nenhum registro com esses filtros.</p></section>';
-      h += '<ul class="mf-itens mf-lista-simples" id="mfItens">' + vis.map(renderLinha).join('') + '</ul>';
+      var grupos = [['Produtos/Serviços', vis.filter(function (x) { return x.origem !== ORIGEM_PORTA2; })], ['Responsabilidades organizacionais', vis.filter(function (x) { return x.origem === ORIGEM_PORTA2; })]];
+      h += '<ul class="mf-itens mf-lista-simples" id="mfItens">' + grupos.filter(function (g) { return g[1].length; }).map(function (g) {
+        return '<li class="mf-grupo-tipo" role="presentation"><h5 class="mf-subtitulo">' + g[0] + ' <span class="mf-contagem">(' + g[1].length + ')</span></h5></li>' + g[1].map(renderLinha).join('');
+      }).join('') + '</ul>';
       return h + '</section>';
     }
 
@@ -876,7 +880,6 @@
       });
       ligarLinksMapa();
       Array.prototype.forEach.call(wrap.querySelectorAll('.mf-linha-abrir'), function (a) { a.addEventListener('click', function () { state.posicaoLista = window.scrollY || 0; }); });
-      var lst = byId('mfTrabListas'); if (lst) lst.addEventListener('toggle', function () { state.listasAbertas = lst.open; });
       var fav = byId('mfFiltrosAvancados'); if (fav) fav.addEventListener('toggle', function () { state.filtrosAbertos = fav.open; });
       var sa = byId('mfSoAcao'); if (sa) sa.addEventListener('click', function () { state.filtros.soAcao = !state.filtros.soAcao; render(); });
       var l = byId('mfLimparFiltros'); if (l) l.addEventListener('click', function () { state.filtros = { situacao: '', posicionamento: '', busca: '', soAcao: false }; render(); var s = byId('mfFiltroSituacao'); if (s) s.focus(); });

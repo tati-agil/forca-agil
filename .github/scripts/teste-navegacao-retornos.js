@@ -138,7 +138,6 @@ async function n6(browser, vp, tag) {
   console.log('\n== N6 (' + tag + '): Trabalhos → Adequação à Squad → Voltar → Trabalhos ==');
   const r = await abrir(browser, vp, '#arquitetura?tr=1'); const page = r.page;
   await ate(page, () => !!document.getElementById('avpTrabIrSquad'), null, 'Trabalhos com a Adequação à Squad');
-  await page.click('#mfTrabListas > summary'); /* as listas completas ficam recolhidas */
   await page.click('#avpTrabIrSquad');
   await ate(page, () => /sq=lista/.test(location.hash) && !!document.getElementById('sqVoltarArquitetura'), null, 'lista da Squad');
   afirma(/os Trabalhos/.test(await texto(page, '#sqVoltarArquitetura')), 'Squad aberta por Trabalhos: "← Voltar para os Trabalhos"', await texto(page, '#sqVoltarArquitetura'));

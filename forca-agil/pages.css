@@ -2973,6 +2973,16 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-ir-mapa { margin: 0 0 14px 10px; }
 /* A FLORESTA — Trabalhos: "Continuar de onde parou", registros (título + Mapa na mesma linha) e listas completas recolhidas */
 .mf-trab-continuar { margin: 0 0 16px; }
+.mf-trab-consultas { margin: 0 0 16px; } /* as listas de cada avaliação, à vista, antes de tudo */
+.mf-trab-consultas .mf-registros-titulo { margin-bottom: 4px; }
+.mf-grupo-tipo { list-style: none; border: 0; }
+@media (min-width: 900px) { /* registros em duas colunas no computador (a lista usava só uma faixa da largura) */
+  .mf-lista-simples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; align-items: start; }
+  .mf-lista-simples > .mf-grupo-tipo { grid-column: 1 / -1; }
+}
+.mf-grupo-tipo:not(:first-child) .mf-subtitulo { margin-top: 20px; }
+.avp-inicio-consultas { margin: 12px 0 0; font-size: var(--arq-fs-texto); color: var(--ink-2); }
+.avp-inicio-consultas a { display: inline-block; min-height: 44px; line-height: 44px; } /* área de toque no celular */
 .mf-registros-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px; }
 .mf-registros-titulo { margin: 0; font-family: var(--font-head); font-size: 1.1rem; line-height: 1.25; }
 .mf-registros-topo .mf-ir-mapa { margin: 0; }

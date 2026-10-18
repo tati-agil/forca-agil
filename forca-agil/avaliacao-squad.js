@@ -393,6 +393,8 @@
        ao abrir (iniciarOuAbrirParaItem) e também na entrada do histórico (navOrigem), para valer depois de um F5. Aberta pelo
        Início ou pela própria lista, não há origem externa e tudo continua como antes. */
     function origemSquad() {
+      /* avaliação aberta pela própria lista: o retorno da ficha/checklist é a lista (que continua com a origem dela) */
+      if (state.abertaDaLista && state.tela !== 'lista') return null;
       if (state.origemExterna) return state.origemExterna;
       var o = window.faNav && window.faNav.origem();
       return o && !/[?&]sq=/.test(o.hash) ? o : null;
@@ -539,7 +541,7 @@
         iniciarNovaAvaliacao({ itemId: null, itemNome: '', avaliacaoArquiteturalId: null });
       });
       wrap.querySelectorAll('.sq-act-abrir').forEach(function (btn) {
-        btn.addEventListener('click', function () { abrirExistente(btn.dataset.key); });
+        btn.addEventListener('click', function () { state.abertaDaLista = true; abrirExistente(btn.dataset.key); });
       });
       wrap.querySelectorAll('.sq-sel').forEach(function (cb) {
         cb.addEventListener('change', function () { state.selecionados[cb.dataset.key] = cb.checked; render(); });
@@ -885,6 +887,7 @@
       if (state.salvando) return;
       sqConfirm('Sair sem salvar as alterações desta visita?', function () {
         if (voltarParaOrigemExterna()) return; /* aberta de outra tela: volta para ela */
+        state.abertaDaLista = false;
         state.atual = null;
         state.tela = 'lista';
         render();
@@ -1181,7 +1184,7 @@
       }
       wrap.innerHTML = html;
 
-      function voltar() { if (voltarParaOrigemExterna()) return; state.tela = 'lista'; state.atual = null; state.flashResultado = null; render(); }
+      function voltar() { if (voltarParaOrigemExterna()) return; state.abertaDaLista = false; state.tela = 'lista'; state.atual = null; state.flashResultado = null; render(); }
       byId('sqVoltarListaResultado').addEventListener('click', voltar);
       byId('sqVoltarListaRodape').addEventListener('click', voltar);
       var flashClose = byId('sqFlashResultadoClose');
