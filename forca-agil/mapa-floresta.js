@@ -588,9 +588,9 @@
        topo é o dela, e este botão só leva aos Trabalhos; sem origem (link direto) → Voltar para os Trabalhos */
     function botaoVoltarLista() {
       var oi = origemInterna();
-      if (oi) return '<button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">' + (/[?&]mf=mapa/.test(oi.hash) ? '← Voltar para o Mapa da Floresta' : '← Voltar para os Trabalhos') + '</button>';
-      if (voltaAdmin()) return '<button type="button" class="btn btn--sm mf-voltar-lista mf-ver-trabalhos" id="mfVoltarLista">Ver todos os trabalhos</button>';
-      return '<button type="button" class="btn btn--sm mf-voltar-lista" id="mfVoltarLista">← Voltar para os Trabalhos</button>';
+      if (oi) return '<button type="button" class="avp-voltar-link mf-voltar-lista" id="mfVoltarLista">' + (/[?&]mf=mapa/.test(oi.hash) ? '← Voltar para o Mapa da Floresta' : '← Voltar para os Trabalhos') + '</button>';
+      if (voltaAdmin()) return '<button type="button" class="avp-voltar-link mf-voltar-lista mf-ver-trabalhos" id="mfVoltarLista">Ver todos os trabalhos</button>';
+      return '<button type="button" class="avp-voltar-link mf-voltar-lista" id="mfVoltarLista">← Voltar para os Trabalhos</button>';
     }
     function renderCatalogo(itens) {
       var cs = cats(), f = state.filtros, cont = C.contarPorSituacao(itens);

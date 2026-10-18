@@ -2,7 +2,7 @@
 
 > **Toda funcionalidade nova ou modificada deve seguir o Padrão Visual Oficial do FORÇA ÁGIL.**
 
-Versão 2 — 17/10/2026: foco por teclado e barra de rolagem (PR de campos, listas, rolagem e foco). Versão 1 — 17/10/2026: tipografia da Arquitetura Organizacional (PR #396). Decisão da responsável: a identidade visual
+Versão 3 — 18/10/2026: hierarquia das ações, estados de links e botões e verificação **obrigatória** em teste (§3-A, §6). Versão 2 — 17/10/2026: foco por teclado e barra de rolagem (PR de campos, listas, rolagem e foco). Versão 1 — 17/10/2026: tipografia da Arquitetura Organizacional (PR #396). Decisão da responsável: a identidade visual
 atual está aprovada e deve ser preservada; mudanças visuais só corrigem problemas comprovados de leitura ou uso. Este
 documento é a referência verificável — e acompanha a futura extração do Núcleo de Arquitetura Organizacional (a área
 herda esta identidade; não ganha um design próprio).
@@ -59,7 +59,33 @@ compartilhadas com o resto do site (`.btn`, `.admin-table`) só ganham ajuste es
 | Tabelas | `.admin-table` / `.avp-table`; cabeçalho `--arq-fs-meta`, corpo `--arq-fs-aux`, algarismos tabulares | no celular a lista vira cartões ou rola dentro do próprio contêiner |
 | Mensagens | `.avp-error-msg`, `.avp-flash-success`, `.loading-msg`, `.admin-empty` | "carregando" e "falhou" sempre distintos de "vazio" |
 | Modais | `.modal-overlay` + `.modal-box` (fundo `#060e1f`, borda `--accent`, barra de rolagem fina dourada) | |
-| Voltar | "← Voltar para <origem>" (`faNav`) | um por posição (topo/rodapé) |
+| Voltar | "← Voltar para <origem>" (`faNav`), classe `.avp-voltar-link` | um por posição (topo/rodapé); o Início se chama sempre "A Floresta" |
+
+## 3-A. Hierarquia das ações e estados (obrigatório)
+
+Cada ação tem a aparência da sua **importância no contexto**, não a de como a tela foi escrita:
+
+| Papel | Classe | Aparência | Regra |
+|---|---|---|---|
+| Ação principal | `.btn.btn--primary` | amarelo (`--gold`) com brilho | **no máximo uma por cartão/seção**; alternativas equivalentes nunca são amarelas uma e azul a outra |
+| Ação secundária | `.btn` (`.btn--sm` quando discreta) | contorno azul (`--line-strong`), fundo translúcido | escolhas alternativas têm o mesmo peso (todas `.btn`) |
+| Navegação e retorno | `.avp-voltar-link` | contorno e texto ciano (`--cyan`) | **todo** "← Voltar…" e "Ver todos…" de navegação; nunca `.btn` |
+| Acesso complementar | link textual (`a`), ou `.avp-mapa-link` | texto ciano claro (`--cyan-soft`), sublinhado no hover | nunca a cor padrão do navegador |
+
+Estados:
+
+| Estado | Links | Botões (`.btn`, `.btn--primary`, `.avp-voltar-link`) |
+|---|---|---|
+| normal | `--cyan-soft` (regra de especificidade zero em `#page-avaliacoes`; classe própria vence) | como na tabela acima |
+| **visitado** | **a mesma cor do normal** — nunca o lilás/roxo do navegador (o esquema escuro da área deixava `rgb(158,158,255)`, roxo depois de visitado) | igual ao normal |
+| hover | sublinhado | borda/fundo um tom mais claro (regra do componente) |
+| foco (teclado) | contorno de 2 px no acento (`:focus-visible`, §4) | idem |
+| ativo | sem mudança de cor | sem deslocamento |
+| desabilitado | — | opacidade reduzida e cursor "não permitido"; não recebe clique |
+
+Tamanho: o botão tem o tamanho do texto (como os demais primários do site); largura total só no celular, quando é a
+ação do próprio cartão. Contraste: texto ≥ 4,5:1 sobre o fundo realmente pintado (3:1 para texto grande); verde-escuro,
+cinza-escuro e similares não servem no fundo espacial — sucesso no site é o ciano.
 
 ## 4. Listas, seletores e rolagem
 
@@ -119,9 +145,20 @@ nesta auditoria. Barras customizadas (`::-webkit-scrollbar`) não foram criadas 
 - Sobrescritas geradas em massa por contêiner: corrigir a causa (token na regra do componente), não empilhar regras.
 - Controle interativo sem foco visível por teclado, ou `outline: none` sem alternativa.
 - Barra de rolagem clara sobre o fundo espacial (raiz sem `color-scheme: dark` numa tela da Arquitetura).
+- Link na cor padrão do navegador (lilás/azul, e roxo depois de visitado).
+- Duas ações amarelas no mesmo cartão, ou alternativas equivalentes com cores diferentes.
+- "← Voltar" com aparência de ação (azul ou amarelo) em vez da navegação ciano.
+- Botão esticado na largura do contêiner no computador (ex.: "Nova análise" com 1020 px).
+- Texto de status escuro sobre o fundo escuro (ex.: o verde `#1d7a3a`, 3,4:1).
 
 ## 6. Como validar uma tela nova ou alterada
 
+0. **Obrigatório em toda mudança visual:** `node .github/scripts/teste-padrao-visual-floresta.js` (com a raiz servida em
+   `127.0.0.1:8811`). Ele usa `padrao-visual-verificacoes.js` — verificações reutilizáveis sobre os estilos calculados e o
+   Tab real: link na cor do navegador, contraste, "← Voltar" sem estilo de navegação, dois amarelos no mesmo cartão,
+   botão esticado, foco invisível e rolagem lateral a 375 px — e começa provando que cada regra reprova uma regressão
+   injetada. Roda no CI (suíte hermética) e bloqueia o merge. Tela nova de A FLORESTA: acrescentar à lista `TELAS` dele;
+   outra área do site pode reutilizar `verificarTela(page, { escopo })`.
 1. Rodar `node .github/scripts/teste-padrao-visual.js` (servindo a raiz em `127.0.0.1:8811`): critérios explícitos
    sobre os estilos calculados — piso de 12,8 px, sem negrito sintético, Space Mono só em botões/sobretítulo/códigos,
    nada na Arial, Anton/Oswald nos títulos, fundo espacial presente, campos escuros, raiz com color-scheme escuro,

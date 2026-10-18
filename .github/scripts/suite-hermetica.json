@@ -605,6 +605,18 @@
       "sobre": "Percursos reais: Início com acesso direto às quatro consultas; Trabalhos com as consultas à vista e os registros separados por tipo; P1–P16 (busca Capec → ficha → Gerar PDF → Voltar com a busca preservada), O1–O9 (responsabilidades com filtros; ficha → PDF), S1–S8 (ficha → PDF → Voltar à lista) e análises de áreas. Hermético (Firebase falso), nada é gravado."
     },
     {
+      "arquivo": ".github/scripts/teste-floresta-retornos.js",
+      "nome": "A FLORESTA: retornos de cada entrada e as três entradas do O1–O9 (desktop e celular)",
+      "duracao": 90,
+      "sobre": "Cada entrada do Início volta ao Início (\"A Floresta\"), também por link direto e F5; a lista de análises volta à origem real; as três entradas do O1–O9 com os mesmos nomes e o mesmo peso; \"Avaliar uma responsabilidade\" sempre no mesmo formulário; \"+ Analisar uma área\" com o tamanho do texto. Hermético, nada gravado."
+    },
+    {
+      "arquivo": ".github/scripts/teste-padrao-visual-floresta.js",
+      "nome": "Padrão Visual Oficial — verificação obrigatória das telas de A FLORESTA (desktop e celular)",
+      "duracao": 90,
+      "sobre": "padrao-visual-verificacoes.js sobre os estilos calculados e o Tab real: link na cor do navegador (roxo quando visitado), contraste, \"← Voltar\" sem estilo de navegação, dois amarelos no mesmo cartão, botão esticado, foco invisível, rolagem lateral a 375 px. Começa provando que cada regra reprova uma regressão injetada. Hermético, nada gravado."
+    },
+    {
       "arquivo": ".github/scripts/teste-padrao-visual.js",
       "nome": "Padrão Visual Oficial — Arquitetura: tipografia legível com a identidade do Força Ágil (desktop e celular)",
       "duracao": 110,

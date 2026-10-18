@@ -85,11 +85,12 @@ async function rodada(browser, viewport, rotulo) {
     'continuar leva aos Trabalhos (com os registros da antiga Jornada); nenhum botão domina o Início');
   afirma(/Avaliar um Produto\/Serviço/.test(await texto(page, '#avpInicioCartaoNatureza')) && /Descubra se um item constitui um Produto\/Serviço\./.test(await texto(page, '#avpInicioCartaoNatureza')) &&
     (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação' &&
-    /Avaliar uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Já sabe qual responsabilidade deseja avaliar\?/.test(await texto(page, '#avpInicioOpcaoA')) &&
+    /Avaliar uma responsabilidade/.test(await texto(page, '#avpInicioOpcaoA')) && /Direto da responsabilidade, sem avaliação de Produto\/Serviço\./.test(await texto(page, '#avpInicioOpcaoA')) &&
     /Analisar uma área/.test(await texto(page, '#avpInicioOpcaoB')) && /Cadastre e avalie as responsabilidades de uma gerência, núcleo ou outra área\./.test(await texto(page, '#avpInicioOpcaoB')) &&
-    (await texto(page, '#avpInicioAtuacao')).trim() === 'Avaliar responsabilidade',
+    (await texto(page, '#avpInicioAtuacao')).trim() === 'Iniciar avaliação' &&
+    /Avaliar um item vinculado a Produto\/Serviço/.test(await texto(page, '#avpInicioOpcaoItem')),
     'começar: três atividades em linguagem simples (Produto/Serviço, uma responsabilidade, uma área)');
-  afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Avaliar responsabilidade"');
+  afirma(await visivel(page, '#avpInicioAtuacao'), 'Avaliação + Configuração: "Avaliar uma responsabilidade"');
   console.log('Portas (sem terceira porta)');
   afirma(/Porta 1 · P1–P16/i.test(await texto(page, '#avpInicioCartaoNatureza .avp-inicio-caminho')) && /Porta 2 · Posicionamento das responsabilidades · O1–O9/i.test(await texto(page, '#avpInicioCartaoAtuacao > .avp-inicio-caminho')),
     'Porta 1 e Porta 2 (as duas atividades de responsabilidade sob a mesma Porta 2 e o mesmo O1–O9)');
@@ -170,10 +171,10 @@ async function rodada(browser, viewport, rotulo) {
   console.log('Caso 3 — nova avaliação de natureza');
   await page.click('#avpInicioNatureza');
   await page.waitForSelector('#avpCancelarInicialBtn', { timeout: 10000 });
-  afirma(await hash(page) === '#arquitetura?nova=1' && /Início da Floresta/.test(await texto(page, '#avpVoltarFormInicial')), 'formulário P1–P16; o "← Voltar" diz para onde vai', await texto(page, '#avpVoltarFormInicial'));
+  afirma(await hash(page) === '#arquitetura?nova=1' && /Voltar para A Floresta/.test(await texto(page, '#avpVoltarFormInicial')), 'formulário P1–P16; o "← Voltar" diz para onde vai', await texto(page, '#avpVoltarFormInicial'));
   await page.click('#avpVoltarFormInicial');
   await noInicio(page);
-  afirma(true, '"← Voltar para o Início da Floresta"');
+  afirma(true, '"← Voltar para A Floresta"');
 
   console.log('Caso 4 — responsabilidade organizacional sem P1–P16 (Caminho A)');
   await page.click('#avpInicioAtuacao');

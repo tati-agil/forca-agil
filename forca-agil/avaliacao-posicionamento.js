@@ -801,8 +801,8 @@
     function rodapeVoltar() {
       var p2 = state.atual && ehPorta2(state.atual), oa = origemAreaDe(state.atual);
       /* veio de uma análise de área: a volta é para a lista daquela área (no resultado concluído, o bloco do próximo passo já leva lá) */
-      if (oa) return state.tela === 'resultado' && state.atual.status === 'concluido' ? '' : '<div class="avp-actions-footer"><a class="btn btn--sm" id="poVoltarAreaRodape" href="#arquitetura?an=' + encodeURIComponent(oa.analiseId) + '">← Voltar às responsabilidades de ' + esc(oa.nome) + '</a></div>';
-      return '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poVoltarLista" data-destino="' + (p2 ? 'todas' : 'lista') + '">← ' + (p2 ? 'Voltar às responsabilidades' : 'Voltar para a lista de posicionamentos') + '</button></div>';
+      if (oa) return state.tela === 'resultado' && state.atual.status === 'concluido' ? '' : '<div class="avp-actions-footer"><a class="avp-voltar-link" id="poVoltarAreaRodape" href="#arquitetura?an=' + encodeURIComponent(oa.analiseId) + '">← Voltar às responsabilidades de ' + esc(oa.nome) + '</a></div>';
+      return '<div class="avp-actions-footer"><button type="button" class="avp-voltar-link" id="poVoltarLista" data-destino="' + (p2 ? 'todas' : 'lista') + '">← ' + (p2 ? 'Voltar às responsabilidades' : 'Voltar para a lista de posicionamentos') + '</button></div>';
     }
     function badge(status) {
       var t = { rascunho: 'Rascunho', concluido: 'Concluída', descartado: 'Descartada' }[status] || status;
@@ -879,8 +879,9 @@
       var h = '<div class="avp-form-card" id="poLista"><h3>Posicionamento Organizacional</h3>' +
         '<p class="avp-intro">Recomenda que tipo de estrutura organizacional deve sustentar a responsabilidade associada a cada item (O1–O9). Não escolhe uma estrutura concreta.</p>';
       if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
-      if (podeEscrever()) h += '<div class="avp-actions-bar"><button type="button" class="btn btn--primary" id="poNovoBtn">+ Avaliar posicionamento de um item</button>' +
-        '<button type="button" class="btn" id="poAtuacoesBtn">+ Posicionar uma responsabilidade organizacional</button></div>' +
+      if (podeEscrever()) h += '<div class="avp-actions-bar"><button type="button" class="btn" id="poNovoBtn">Avaliar um item vinculado a Produto/Serviço</button>' +
+        '<button type="button" class="btn" id="poAtuacoesBtn">Avaliar uma responsabilidade</button></div>' +
+        '<p class="avp-ficha-meta" id="poEntradasNota">O mesmo questionário e o mesmo motor O1–O9 nas duas entradas: a primeira parte de um item com avaliação de Produto/Serviço (P1–P16); a segunda, direto da responsabilidade, sem P1–P16. <a href="#arquitetura?po=atuacoes" id="poVerAtuacoes">Ver as responsabilidades registradas</a></p>' +
         '<p class="avp-ficha-meta" id="poDuasPortas">Porta 1 — produto ou serviço: parte da Avaliação de Produto/Serviço (P1–P16). Porta 2 — responsabilidade organizacional: não precisa de P1–P16.</p>';
       /* sem o índice de vigentes, toda concluída pareceria histórica: espera os dois */
       if (!state.carregou.av || !state.carregou.vig) h += '<p class="loading-msg">Carregando…</p>';
@@ -914,7 +915,7 @@
     function renderEscolher() {
       var h = '<div class="avp-form-card" id="poEscolher"><h3>Escolher o item</h3>' +
         '<p class="avp-intro">Só itens cuja Avaliação de Produto/Serviço vigente está concluída e com Motor atual (qualquer classificação). Cada item tem um Posicionamento por vez.</p>' +
-        '<p class="avp-ficha-meta" id="poOutraPorta">Não é um produto ou serviço? <button type="button" class="btn btn--sm" id="poIrAtuacoes">Posicionar uma responsabilidade organizacional</button></p>';
+        '<p class="avp-ficha-meta" id="poOutraPorta">Não é um produto ou serviço? <button type="button" class="btn btn--sm" id="poIrAtuacoes">Avaliar uma responsabilidade</button></p>';
       if (!tudoCarregado() || !window.faQuestionarios.configCarregada(QCOD)) return h + '<p class="loading-msg">Carregando…</p></div>';
       if (state.itemEscolhido) {
         var it = itemDoGate(state.itemEscolhido);
@@ -1327,11 +1328,11 @@
       if (state.itemEscolhido) return h + renderAtuacao(state.itemEscolhido) + '</div>';
       /* as duas ações, sem cartões repetidos: "Nova responsabilidade" (Caminho A) e "Analisar uma área" (Caminho B,
          quando a Análise Organizacional estiver disponível para o perfil) */
-      var direto = podeEscrever() ? '<button type="button" class="btn btn--primary" id="poNovaAtuacaoBtn">Nova responsabilidade</button>' : '';
+      var direto = podeEscrever() ? '<button type="button" class="btn" id="poNovaAtuacaoBtn">Avaliar uma responsabilidade</button>' : '';
       var AO = window.faAnalisesOrganizacionais, entrada = AO && AO.entradaAtuacoesHtml ? AO.entradaAtuacoesHtml(direto) : '';
       if (entrada) h += entrada; else if (direto) h += '<div class="avp-actions-bar">' + direto + '</div>';
       h += '<h4 class="po-subtitulo" id="poRegistradasTitulo">Responsabilidades registradas</h4>' +
-        '<p class="po-todas-link"><a class="btn btn--sm" id="poVerTodasBtn" href="#arquitetura?po=todas">Ver todas as responsabilidades (também as das análises de área)</a></p>';
+        '<p class="po-todas-link"><a class="btn btn--sm" id="poVerTodasBtn" href="#arquitetura?po=todas">Ver todas as responsabilidades</a> <span class="avp-ficha-meta">também as das análises de área</span></p>';
       var lista = objetosOrdenados();
       if (!lista.length) h += '<p class="admin-empty" id="poSemAtuacoes">Nenhuma responsabilidade organizacional cadastrada.</p>';
       h += '<ul class="po-itens" id="poListaAtuacoes">' + lista.map(function (o) {
@@ -1419,8 +1420,8 @@
     }
     function renderAtuacao(id) {
       var ob = (state.objetos || {})[id];
-      if (!ob && excluidoDe(id)) return excluidoHtml(id) + '<button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
-      if (!ob) return '<p class="avp-error-msg" id="poAtuacaoAusente">Responsabilidade organizacional não encontrada.</p><button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
+      if (!ob && excluidoDe(id)) return excluidoHtml(id) + '<button type="button" class="avp-voltar-link" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
+      if (!ob) return '<p class="avp-error-msg" id="poAtuacaoAusente">Responsabilidade organizacional não encontrada.</p><button type="button" class="avp-voltar-link" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
       var h = '<div class="po-item-escolhido" id="poAtuacaoSelecionada">' + objetoDadosHtml(ob, null) + analiseHtml(id), sp = posicionamentoDoItem(id);
       if (sp) h += '<p class="po-item-situacao">' + (sp.tipo === 'vigente' ? 'Posicionamento concluído' : 'Rascunho em andamento') + '</p>' +
         '<button type="button" class="btn btn--sm po-item-abrir" data-key="' + esc(sp.key) + '">' + (sp.tipo === 'vigente' ? 'Abrir o Posicionamento' : 'Continuar o Posicionamento') + '</button>';
@@ -1438,7 +1439,7 @@
         '<button type="button" class="btn btn--sm" id="poEncerrarAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-encerramento' ? 'ENCERRANDO…' : 'Encerrar responsabilidade') + '</button>' : '') +
         '<button type="button" class="btn btn--sm btn--danger" id="poExcluirAtuacaoBtn"' + (ocupado() ? ' disabled' : '') + '>' + (state.salvando === 'atuacao-exclusao' ? 'EXCLUINDO…' : 'Excluir cadastro') + '</button></div>' +
         '<p class="avp-ficha-meta" id="poEncerrarExcluirAjuda">' + (ob.situacao === 'ativo' ? '<strong>Encerrar</strong> mantém o cadastro como encerrado (a responsabilidade existiu e deixou de existir). ' : '') + '<strong>Excluir</strong> é para o que foi cadastrado por engano: o cadastro sai; ficam só o motivo e o histórico das avaliações.</p>';
-      return h + '</div><button type="button" class="btn btn--sm" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
+      return h + '</div><button type="button" class="avp-voltar-link" id="poOutraAtuacao">← Voltar às responsabilidades</button>';
     }
     /* referência informativa: itens com Avaliação de Produto/Serviço (fora da Lixeira); os que já têm Posicionamento
        (vigente ou rascunho) ou outra responsabilidade ativa aparecem desabilitados, com o motivo — o banco recusa do mesmo jeito */
@@ -1897,7 +1898,7 @@
       var v = byId('poVoltar'); if (v) v.addEventListener('click', sairParaAvaliacoes);
       var vl = byId('poVoltarLista'); if (vl) vl.addEventListener('click', function () { if (confirmarSaida()) { var dst = vl.getAttribute('data-destino') === 'todas' ? 'todas' : 'lista'; limparAtual(); state.tela = dst; render(); } });
       var novo = byId('poNovoBtn'); if (novo) novo.addEventListener('click', function () { state.itemEscolhido = null; state.busca = ''; state.hipotese = null; state.tela = 'escolher'; render(); });
-      ['poAtuacoesBtn', 'poIrAtuacoes'].forEach(function (bid) { var b = byId(bid); if (b) b.addEventListener('click', function () { state.itemEscolhido = null; state.hipotese = null; state.flash = null; state.tela = 'atuacoes'; render(); }); });
+      ['poAtuacoesBtn', 'poIrAtuacoes'].forEach(function (bid) { var b = byId(bid); if (b) b.addEventListener('click', function () { state.itemEscolhido = null; state.hipotese = null; state.flash = null; state.objetoEditando = null; state.formAtuacao = null; state.tela = 'form-atuacao'; render(); }); });
       var nab = byId('poNovaAtuacaoBtn'); if (nab) nab.addEventListener('click', function () { state.objetoEditando = null; state.formAtuacao = null; state.flash = null; state.tela = 'form-atuacao'; render(); });
       wrap.querySelectorAll('.po-atuacao-abrir').forEach(function (b) { b.addEventListener('click', function () { state.itemEscolhido = b.closest('.po-atuacao').dataset.objeto; state.hipotese = null; state.flash = null; render(); }); });
       var oa = byId('poOutraAtuacao'); if (oa) oa.addEventListener('click', function () { state.itemEscolhido = null; state.hipotese = null; state.flash = null; render(); });

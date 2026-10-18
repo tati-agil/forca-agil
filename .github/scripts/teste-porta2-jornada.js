@@ -105,7 +105,8 @@ async function rodada(browser, viewport, rotulo) {
   console.log('1. As duas portas');
   await page.waitForSelector('#poAtuacoesBtn');
   afirma(!!(await page.$('#poNovoBtn')) && /não precisa de P1–P16/.test(await texto(page, '#poDuasPortas')), 'lista: Porta 1 e Porta 2 lado a lado, com a diferença explicada');
-  await page.click('#poAtuacoesBtn');
+  /* "Avaliar uma responsabilidade" abre o formulário (o mesmo do Início); a lista das registradas fica no link ao lado */
+  await page.click('#poVerAtuacoes');
   await page.waitForSelector('#poAtuacoes #poNovaAtuacaoBtn');
   afirma((await hash(page)) === '#arquitetura?po=atuacoes' && /Atuação a encerrar/.test(await texto(page, '#poListaAtuacoes')), 'lista das atuações em #arquitetura?po=atuacoes');
 

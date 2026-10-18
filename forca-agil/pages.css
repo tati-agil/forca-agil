@@ -2902,6 +2902,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-contagem { font-size: var(--arq-fs-meta); color: var(--ink-3); font-family: var(--font-mono); }
 .mf-categoria-rodape { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .mf-filtros { display: grid; gap: 0 14px; grid-template-columns: minmax(0, 1fr); }
+.mf-filtros > .mf-so-acao { justify-self: start; } /* botão do tamanho do texto, não da coluna */
 @media (min-width: 600px) { .mf-filtros { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .mf-filtros input[type="search"] { width: 100%; box-sizing: border-box; background: var(--space-1); border: 1px solid var(--line-strong); color: var(--ink); border-radius: 8px; padding: 9px 12px; font-size: .88rem; font-family: inherit; }
 .mf-filtros select { max-width: 100%; }
@@ -3329,7 +3330,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-proxima { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
 .mf-proxima .btn, .mf-representado .btn, .po-jornada-voltar, .est-voltar-jornada, .mfm-objeto-nome, .mf-so-acao { min-height: 44px; display: inline-flex; align-items: center; }
 .mf-proxima-rotulo { font-weight: 600; }
-.mf-completa { font-weight: 700; color: #1d7a3a; }
+.mf-completa { font-weight: 700; color: var(--cyan-soft); } /* o verde-escuro (#1d7a3a) tinha contraste 3,4:1 no fundo escuro; sucesso no site = ciano */
 .mf-resultado-p1 { font-size: .9rem; }
 .mf-item--foco { outline: 3px solid #0b5cad; outline-offset: 2px; border-radius: 6px; }
 .mf-so-acao--ativo { outline: 2px solid currentColor; font-weight: 700; }
@@ -3345,7 +3346,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-linha-nome { font-weight: 600; }
 .mf-linha-tipo { font-size: var(--arq-fs-aux); opacity: .75; }
 .mf-linha-situacao { font-size: .9rem; }
-.mf-linha-situacao[data-jornada="completa"] { color: #1d7a3a; }
+.mf-linha-situacao[data-jornada="completa"] { color: var(--cyan-soft); }
 .mf-proxima--disponivel .mf-proxima-rotulo { font-weight: 600; opacity: .85; }
 .mf-linha-abre { flex: 0 0 auto; font-size: 1.4rem; opacity: .6; }
 .mf-filtros-avancados, .mf-sobre { margin: 10px 0; }
@@ -3680,9 +3681,10 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 /* Início organizado pelo trabalho: continuar × começar (três cartões do mesmo peso; os dois da Porta 2 agrupados) */
 .avp-inicio-continuar-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .avp-inicio-link-jornada { color: var(--ink-2); font-size: .92rem; text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
-.avp-inicio-cartoes--tres { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: stretch; }
+.avp-inicio-cartoes--tres { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); align-items: stretch; } /* Porta 2 com as três entradas do O1–O9 */
 .avp-inicio-porta2 { display: grid; gap: 6px; min-width: 0; }
-.avp-inicio-porta2 .avp-inicio-opcoes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 0; }
+.avp-inicio-porta2 .avp-inicio-opcoes { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 0; } /* as entradas do O1–O9, lado a lado e com o mesmo peso */
+.avp-inicio-porta2 > .avp-inicio-nota { margin: 0 0 4px; }
 .avp-inicio-porta2 .avp-inicio-opcao { border-top: 1px solid var(--line-strong); padding: 14px 16px; }
 .avp-inicio-cartao > .avp-inicio-caminho { margin-bottom: 4px; }
 .avp-inicio-cartao--largo { grid-column: 1 / -1; } /* Adequação à Squad: linha própria, abaixo das duas portas */
@@ -4190,3 +4192,6 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
       da Floresta mantém o seu contorno azul-escuro, próprio para a folha clara. */
 :root:has(#page-avaliacoes:not([hidden])) { color-scheme: dark; } /* a Gestão da Floresta (inclusive a Taxonomia) está em #page-avaliacoes */
 :is(#page-avaliacoes, #adminPanelArquitetura, #adminPanelTaxonomia) :is(a, button, input, select, textarea, summary, [tabindex]):not(.mfm-painel *, .mfm-detalhe *):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* LINKS (Padrão Visual Oficial, docs/padrao-visual.md §3): normal e visitado na mesma cor; hover sublinha; foco = o contorno acima */
+:where(#page-avaliacoes) :where(a:link, a:visited):where(:not(.mfm-painel *, .mfm-detalhe *, .tax-ui *)) { color: var(--cyan-soft); }
+:where(#page-avaliacoes) :where(a:link, a:visited):where(:not(.btn, .avp-voltar-link, .mfm-painel *, .mfm-detalhe *, .tax-ui *)):hover { text-decoration: underline; }
