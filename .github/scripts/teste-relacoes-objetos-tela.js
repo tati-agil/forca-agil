@@ -58,6 +58,11 @@ async function abrir(browser, vp, hash, o) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
+  if (o.atrasarModulo) {
+    /* rede lenta só para o módulo da E4: o login termina antes de ele chegar (conta os eventos perdidos) */
+    await ctx.addInitScript(() => { window.__evAntesDoModulo = 0; ['fa-auth-ready', 'fa-auth-change', 'fa-avaliacao-ready', 'fa-admin-ready'].forEach((n) => window.addEventListener(n, () => { if (!window.faRelacoesObjetos) window.__evAntesDoModulo++; })); });
+    await page.route('**/forca-agil/relacoes-objetos.js', async (r) => { await new Promise((ok) => setTimeout(ok, o.atrasarModulo)); r.continue(); });
+  }
   await page.goto(BASE + '/index.html' + hash, { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
@@ -229,6 +234,19 @@ async function rodada(browser, vp, tag) {
   afirma(caixas.indexOf('cMotor') === -1 && caixas.indexOf('pCapec') === -1, 'o Mapa continua só com estruturas (nenhum objeto vira caixa)', caixas);
   afirma(r.erros.length === 0 && await larguraOk(page), 'sem erro de JS e sem rolagem lateral');
   await r.ctx.close();
+
+  console.log('9. Módulo da E4 que chega DEPOIS do login (rede lenta, sessão já guardada)');
+  /* reproduz o que acontecia no site publicado: o login (rápido, sessão guardada) dispara os eventos antes de o
+     relacoes-objetos.js (fim da lista de scripts) chegar; a ficha já foi desenhada sem ele e o resumo ficava vazio */
+  for (const [hash, rot] of [['#arquitetura?avp=pCapec', 'ficha P1–P16'], ['#arquitetura?po=gC', 'ficha do Posicionamento']]) {
+    r = await abrir(browser, vp, hash, { relacoes: relSemente, atrasarModulo: 2500 }); page = r.page;
+    await ate(page, () => !!window.faRelacoesObjetos, undefined, 'o módulo da E4 carregar', 20000);
+    const ordem = await page.evaluate(() => window.__evAntesDoModulo);
+    await ate(page, () => !!document.querySelector('.ro-resumo'), undefined, 'resumo na ' + rot + ' com o módulo atrasado', 15000);
+    afirma(/Relaciona-se com 1 objeto/.test(await texto(page, '.ro-resumo')) && ordem > 0, rot + ': com o login antes do módulo, o resumo aparece mesmo assim', ordem);
+    afirma(r.erros.length === 0, 'sem erro de JS', r.erros);
+    await r.ctx.close();
+  }
 }
 
 (async () => {
