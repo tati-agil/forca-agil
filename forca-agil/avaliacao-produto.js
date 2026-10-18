@@ -1917,10 +1917,10 @@
     html += '<h2 class="pdf-secao-titulo">Classificação arquitetural</h2>';
     html += '<div class="pdf-decisao-bloco">';
     html += '<p>' + esc(rotuloCamadaAtual(camada) || '—') + '</p>';
-    html += '<p class="pdf-meta-versoes">A classificação diz o que o objeto é. Ela não define a estrutura organizacional nem o posicionamento.</p>';
     /* Nome atual (Taxonomia) e, quando difere, o nome registrado na conclusão — que nunca é reescrito. */
     var camadaNaConclusaoPdf = rotuloCamadaNaConclusao(camada);
     if (camadaNaConclusaoPdf) html += '<p class="pdf-meta-versoes">Nome registrado na conclusão: ' + esc(camadaNaConclusaoPdf) + '</p>';
+    html += '<p class="pdf-meta-versoes">A classificação diz o que o objeto é. Ela não define a estrutura organizacional nem o posicionamento.</p>';
     var espDerivada = especializacaoDerivada(it);
     if (espDerivada) html += '<p>Especialização identificada pelo questionário: ' + esc(espDerivada) + '</p>';
     if (camada && camada.tipoAValidar) {
