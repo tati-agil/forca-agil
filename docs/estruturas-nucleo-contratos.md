@@ -145,7 +145,12 @@ entidade, que `historico(eventos, entidade, id)` ordena.
 ### Consultas e situações calculadas (não gravam nada)
 
 - `posicionamentoEfetivo(posicionamento, ref)`: decisão final, senão recomendação firme, senão nenhum.
-- `situacaoResponsavel(estado, objetoId, posicionamento, ref)` → `valido` | `divergencia-deliberada` | `ausente` | `precisa-revisao` | `nao-aplicavel`, com motivos; `divergenciaResolvida` { codigoAtual, avaliacaoId, origem } quando uma reavaliação passou a coincidir com o tipo de uma alocação divergente (a divergência e a base originais continuam no vínculo).
+- `situacaoResponsavel(estado, objetoId, posicionamento, ref)` → `valido` | `divergencia-deliberada` | `ausente` | `precisa-revisao` | `nao-aplicavel` | `indeterminada`, com motivos; `divergenciaResolvida` { codigoAtual, avaliacaoId, origem } quando uma reavaliação passou a coincidir com o tipo de uma alocação divergente (a divergência e a base originais continuam no vínculo); `tipoConferido` diz se o tipo da estrutura foi conferido, e `tipoConferidoPor` (`ligacoes` | `estruturas`) por qual fonte.
+  - Ligações oficiais em `ref`:
+    - `ref.ligacoes` lidas → o tipo é conferido.
+    - `ref.ligacoesPelasEstruturas` (quem não lê as ligações, como o perfil Avaliação, cuja leitura as regras recusam) → o tipo é conferido pelas próprias estruturas: `ligacoesComprovadas(estado, ref)`. Isso vale porque o núcleo (`tiposAdmitidos`) e as regras do banco só criam uma estrutura de tipo firme com a ligação do seu tipo registrada, e a ligação nunca é alterada nem removida. Não é preciso nenhum acesso a mais, e o resultado é provado idêntico ao das ligações oficiais em `teste-estruturas-nucleo.js`.
+    - Sem nenhuma das duas (por exemplo, a leitura falhou: `ref.ligacoesIndisponiveis`) → o que depende do tipo fica `indeterminada`, com o motivo `REFERENCIA_OFICIAL_INDISPONIVEL`, o mesmo do backend (`INDETERMINADA`). Nunca vira `valido` nem um falso `TIPO_NAO_CORRESPONDE`. A tela mostra "Não conferido" e "Conferir de novo", que relê as ligações sem recarregar o site.
+  - Motivos que não dependem do tipo continuam `precisa-revisao` em todos os casos: estrutura encerrada, código efetivo mudou sem divergência e posicionamento deixou de valer.
 - `situacaoColaboradoras(estado, objetoId, posicionamento, ref)` → cada colaboradora ativa: `ativa` | `precisa-revisao` (`ESTRUTURA_ENCERRADA`, `SEM_RESPONSAVEL_PRINCIPAL`, posicionamento sem valer); mudança de código efetivo não a afeta.
   - Mesmo código efetivo em outra avaliação continua válido (`baseEmOutraAvaliacao`).
 - `situacaoRelacao(estado, id, ref)` → `valida` | `a-revisar` | `encerrada`.

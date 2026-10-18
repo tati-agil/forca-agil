@@ -227,14 +227,56 @@ console.log('D2. E2 — alocação divergente justificada (R-E2-1 a R-E2-10) e E
   afirma(rEdu.eventos[0].depois.divergencia.justificativa === div.justificativa, 'a divergência entra no evento de histórico');
   const sEdu = N.situacaoResponsavel(e, 'itemEDU', capCoE, REF);
   afirma(sEdu.situacao === 'divergencia-deliberada' && !sEdu.motivos.length, 'situação: divergência deliberada (não é erro nem revisão)');
-  /* sem as ligações oficiais (o perfil de consulta não as lê): o tipo não é conferido — nunca um falso "não corresponde" */
+  /* sem NENHUMA informação das ligações oficiais: o que depende do tipo fica "indeterminada" — nunca um falso "não
+     corresponde" e nunca "válido" sem conferir */
   const semLig = Object.assign({}, REF, { ligacoes: undefined });
   const sCompSem = N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), semLig), sEduSem = N.situacaoResponsavel(e, 'itemEDU', capCoE, semLig);
-  afirma(sCompSem.situacao === 'valido' && !sCompSem.motivos.length,
-    'sem as ligações oficiais: vínculo compatível continua "válido" (nenhum TIPO_NAO_CORRESPONDE presumido)', JSON.stringify(sCompSem.motivos));
-  afirma(sEduSem.situacao === 'divergencia-deliberada' && !sEduSem.motivos.length, 'sem as ligações oficiais: a divergência registrada continua à vista ("divergência deliberada")', JSON.stringify(sEduSem));
+  afirma(sCompSem.situacao === 'indeterminada' && sCompSem.motivos.join() === 'REFERENCIA_OFICIAL_INDISPONIVEL' && sCompSem.tipoConferido === false,
+    'sem as ligações: vínculo compatível → indeterminada (nem TIPO_NAO_CORRESPONDE presumido nem "válido" sem conferir)', JSON.stringify(sCompSem));
+  afirma(sEduSem.situacao === 'indeterminada', 'sem as ligações: alocação divergente → indeterminada', sEduSem.situacao);
   const sMudouSem = N.situacaoResponsavel(e, 'itemES', posRec('COE', 'gES2'), semLig);
-  afirma(sMudouSem.situacao === 'precisa-revisao' && sMudouSem.motivos.join() === 'CODIGO_EFETIVO_MUDOU', 'sem as ligações: código efetivo mudou → revisão só pelo código, sem o tipo presumido', JSON.stringify(sMudouSem.motivos));
+  afirma(sMudouSem.situacao === 'precisa-revisao' && sMudouSem.motivos.join() === 'CODIGO_EFETIVO_MUDOU', 'sem as ligações: código efetivo mudou (sem divergência) → revisão real, só pelo código', JSON.stringify(sMudouSem.motivos));
+  const sEduMudouSem = N.situacaoResponsavel(e, 'itemEDU', posRec('ESTRATEGIA_CLIENTES', 'gE2'), semLig);
+  afirma(sEduMudouSem.situacao === 'indeterminada' && sEduMudouSem.motivos.join() === 'REFERENCIA_OFICIAL_INDISPONIVEL',
+    'sem as ligações: alocação divergente com código efetivo novo → indeterminada (se a divergência foi resolvida depende do tipo)', JSON.stringify(sEduMudouSem));
+  afirma(N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), REF).tipoConferido === true && N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), REF).tipoConferidoPor === 'ligacoes', 'o resultado diz se o tipo foi conferido e por quê (tipoConferido / tipoConferidoPor)');
+  /* quem não lê as ligações (perfil Avaliação): o tipo é conferido pelas próprias estruturas — toda estrutura de tipo firme
+     foi criada com a ligação do seu tipo, e a ligação nunca é removida (ligacoesComprovadas) */
+  const pelas = Object.assign({}, REF, { ligacoes: undefined, ligacoesPelasEstruturas: true });
+  const comp = N.ligacoesComprovadas(e, REF);
+  afirma(Object.keys(comp).every((c) => comp[c] === c && FIRMES.indexOf(c) !== -1) && comp.NEGOCIOS === 'NEGOCIOS' && comp.COE === 'COE' && !('SQUAD' in comp),
+    'ligações comprovadas: só tipos firmes de estruturas existentes, código → o mesmo código', JSON.stringify(comp));
+  const pComp = N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), pelas);
+  afirma(pComp.situacao === 'valido' && pComp.tipoConferido === true && pComp.tipoConferidoPor === 'estruturas', 'pelas estruturas: vínculo compatível → válido, com o tipo conferido', JSON.stringify(pComp));
+  afirma(N.situacaoResponsavel(e, 'itemEDU', capCoE, pelas).situacao === 'divergencia-deliberada', 'pelas estruturas: a divergência deliberada é identificada');
+  const pRes = N.situacaoResponsavel(e, 'itemEDU', posRec('ESTRATEGIA_CLIENTES', 'gE2'), pelas);
+  afirma(pRes.situacao === 'valido' && pRes.divergenciaResolvida && pRes.divergenciaResolvida.codigoAtual === 'ESTRATEGIA_CLIENTES', 'pelas estruturas: reavaliação que passou a coincidir com a estrutura → válido, divergência resolvida', JSON.stringify(pRes));
+  afirma(N.situacaoResponsavel(e, 'itemEDU', posRec('PLATAFORMA_CORPORATIVA', 'gE3'), pelas).motivos.join() === N.situacaoResponsavel(e, 'itemEDU', posRec('PLATAFORMA_CORPORATIVA', 'gE3'), REF).motivos.join() && N.situacaoResponsavel(e, 'itemEDU', posRec('PLATAFORMA_CORPORATIVA', 'gE3'), pelas).motivos.indexOf('CODIGO_EFETIVO_MUDOU') !== -1, 'pelas estruturas: divergente com código novo que não coincide → revisão real (os mesmos motivos das ligações oficiais)');
+  /* prova: pelas estruturas é EXATAMENTE o mesmo que pelas ligações oficiais, para todo vínculo e todo código firme
+     (recomendação e decisão), com as estruturas criadas pelo núcleo (que exige a ligação do tipo) */
+  const objetos = Object.keys(e.vinculos).map((k) => e.vinculos[k]).filter((x) => x.situacao === 'ativa' && x.papel !== 'colaboradora').map((x) => x.objetoId);
+  let iguais = 0, diferentes = [];
+  objetos.forEach((o) => FIRMES.forEach((c) => [posRec(c, 'gX-' + c), posDec('A_VALIDAR', c, 'gY-' + c)].forEach((pos) => {
+    const a = N.situacaoResponsavel(e, o, pos, REF), b = N.situacaoResponsavel(e, o, pos, pelas);
+    const ka = JSON.stringify([a.situacao, a.motivos, a.divergenciaResolvida || null]), kb = JSON.stringify([b.situacao, b.motivos, b.divergenciaResolvida || null]);
+    if (ka === kb) iguais++; else diferentes.push([o, c, ka, kb]);
+  })));
+  afirma(objetos.length >= 3 && iguais > 0 && !diferentes.length, 'pelas estruturas = pelas ligações oficiais em ' + iguais + ' combinações (vínculo × código firme × recomendação/decisão)', JSON.stringify(diferentes.slice(0, 3)));
+  /* falha definitiva de leitura das ligações (ref.ligacoesIndisponiveis): o que depende do tipo fica "indeterminada",
+     nunca "válido"; o que não depende do tipo continua real */
+  const falha = Object.assign({}, REF, { ligacoes: undefined, ligacoesIndisponiveis: true });
+  const fComp = N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), falha), fEdu = N.situacaoResponsavel(e, 'itemEDU', capCoE, falha);
+  afirma(fComp.situacao === 'indeterminada' && fComp.motivos.join() === 'REFERENCIA_OFICIAL_INDISPONIVEL' && fComp.tipoConferido === false,
+    'falha ao ler as ligações: vínculo compatível → indeterminada (REFERENCIA_OFICIAL_INDISPONIVEL, como no backend), nunca "válido"', JSON.stringify(fComp));
+  afirma(fEdu.situacao === 'indeterminada', 'falha ao ler as ligações: alocação divergente → indeterminada', fEdu.situacao);
+  const fMudou = N.situacaoResponsavel(e, 'itemES', posRec('COE', 'gES2'), falha);
+  afirma(fMudou.situacao === 'precisa-revisao' && fMudou.motivos.join() === 'CODIGO_EFETIVO_MUDOU', 'falha ao ler as ligações: código efetivo mudou continua revisão real (não depende do tipo)', JSON.stringify(fMudou.motivos));
+  afirma(N.situacaoResponsavel(e, 'itemES', null, falha).situacao === 'precisa-revisao', 'falha ao ler as ligações: posicionamento deixou de valer continua revisão real');
+  afirma(N.situacaoResponsavel(e, 'item9', posRec('COE', 'gZ'), falha).situacao === 'ausente', 'falha ao ler as ligações: sem vínculo continua "ausente" (nada a conferir)');
+  /* as referências chegam: divergências e inconsistências reais voltam a ser identificadas */
+  const ligTrocada = Object.assign({}, REF, { ligacoes: Object.assign({}, REF.ligacoes, { NEGOCIOS: 'COE' }) });
+  afirma(N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), ligTrocada).motivos.join() === 'TIPO_NAO_CORRESPONDE' && N.situacaoResponsavel(e, 'itemEDU', capCoE, REF).situacao === 'divergencia-deliberada',
+    'com as ligações lidas: tipo que não corresponde volta a ser revisão, e a divergência deliberada continua identificada');
   const ligSemNeg = Object.assign({}, REF, { ligacoes: Object.assign({}, REF.ligacoes, { NEGOCIOS: undefined }) });
   afirma(N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), ligSemNeg).motivos.indexOf('TIPO_NAO_CORRESPONDE') !== -1,
     'ligações lidas, mas sem a deste código: o tipo não corresponde (como antes de E2)');

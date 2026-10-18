@@ -3279,7 +3279,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 #poBlocoResponsavel select { width: 100%; max-width: 100%; min-height: 44px; }
 .po-resp-situacao--valido { background: rgba(24,194,186,.14); color: var(--cyan-soft); border: 1px solid rgba(24,194,186,.45); }
 .po-resp-situacao--precisa-revisao { background: rgba(245,197,24,.08); color: var(--gold-soft); border: 1px solid rgba(245,197,24,.40); }
-.po-resp-situacao--ausente, .po-resp-situacao--nao-aplicavel { background: rgba(143,160,196,.10); color: var(--ink-2); border: 1px solid var(--line-strong); }
+.po-resp-situacao--ausente, .po-resp-situacao--nao-aplicavel, .po-resp-situacao--indeterminada { background: rgba(143,160,196,.10); color: var(--ink-2); border: 1px solid var(--line-strong); }
 /* E2: divergência deliberada é decisão registrada, não erro — azul neutro, nunca o dourado de "revisão" */
 .po-resp-situacao--divergencia-deliberada { background: rgba(120,160,255,.12); color: var(--ink); border: 1px solid rgba(120,160,255,.45); }
 .po-resp-situacao--ativa { background: rgba(24,194,186,.10); color: var(--cyan-soft); border: 1px solid rgba(24,194,186,.35); }

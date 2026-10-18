@@ -428,34 +428,51 @@
      precisa de revisão: a estrutura foi encerrada, o posicionamento deixou de valer ou de ser firme, ou o código
        efetivo mudou e o tipo da estrutura não corresponde ao novo código (TIPO_NAO_CORRESPONDE: tipo diferente
        sem divergência registrada, p. ex. quando a ligação oficial mudou);
-     não aplicável: sem posicionamento efetivo e sem vínculo ativo.
+     não aplicável: sem posicionamento efetivo e sem vínculo ativo;
+     indeterminada (REFERENCIA_OFICIAL_INDISPONIVEL, como no backend): a leitura das ligações oficiais falhou, ou elas
+       não são lidas e a conclusão depende do tipo — não se afirma válido nem revisão.
      V8: a liberação para Squad (I2) não entra aqui — é outra informação, calculada à parte. */
   function situacaoResponsavel(estado, objetoId, posicionamento, ref) {
     var v = responsavelAtivo(estado, objetoId), ef = posicionamentoEfetivo(posicionamento, ref);
     if (!v) return { situacao: ef.codigo ? 'ausente' : 'nao-aplicavel', vinculo: null, efetivo: ef, motivos: ef.codigo ? [] : [ef.motivo] };
     var m = [], est = colecao(estado, 'estruturas')[v.estruturaId], divergente = false, resolvida = null;
-    var tipoAtual = ef.codigo && ref && ref.ligacoes ? ref.ligacoes[ef.codigo] : undefined;
+    /* Ligações oficiais (código do motor → conceito): ref.ligacoes lidas, ou — ref.ligacoesPelasEstruturas, para quem
+       não as lê — comprovadas pelas próprias estruturas (ligacoesComprovadas): o tipo é conferido. Sem nenhuma das duas
+       (leitura que falhou, ref.ligacoesIndisponiveis), o que depende do tipo fica "indeterminada" — nunca "válido" nem
+       um falso "não corresponde". Motivos que não dependem do tipo (estrutura encerrada, código efetivo mudou sem
+       divergência, posicionamento deixou de valer) continuam reais em todos os casos. */
+    var lig = ref && ref.ligacoes ? ref.ligacoes : (ref && ref.ligacoesPelasEstruturas ? ligacoesComprovadas(estado, ref) : null);
+    var tipoAtual = ef.codigo && lig ? lig[ef.codigo] : undefined;
     if (!ef.codigo) m.push(ef.motivo === 'SEM_POSICIONAMENTO_VIGENTE' ? 'POSICIONAMENTO_DEIXOU_DE_VALER' : 'POSICIONAMENTO_SEM_CODIGO_FIRME');
     else if (ef.codigo !== v.base.codigo) {
-      if (est && tipoAtual === est.tipo && v.divergencia) resolvida = { codigoAtual: ef.codigo, avaliacaoId: ef.avaliacaoId, origem: ef.origem };
-      else m.push('CODIGO_EFETIVO_MUDOU');
+      if (est && lig && tipoAtual === est.tipo && v.divergencia) resolvida = { codigoAtual: ef.codigo, avaliacaoId: ef.avaliacaoId, origem: ef.origem };
+      else if (!(est && !lig && v.divergencia)) m.push('CODIGO_EFETIVO_MUDOU'); /* sem as ligações, se a divergência foi resolvida depende do tipo */
     }
     if (!est || est.situacao !== SITUACAO.ATIVA) m.push('ESTRUTURA_ENCERRADA');
-    /* sem as ligações oficiais (perfil que não as lê, leitura pendente) o tipo não é conferido — nunca um falso "não
-       corresponde"; a divergência registrada no vínculo, sobre a mesma base, continua à vista */
-    if (ef.codigo && est && !(ref && ref.ligacoes)) { if (ef.codigo === v.base.codigo && v.divergencia) divergente = true; }
-    else if (ef.codigo && est && tipoAtual !== est.tipo) {
+    if (ef.codigo && est && lig && tipoAtual !== est.tipo) {
       if (ef.codigo === v.base.codigo && v.divergencia) divergente = true;
       else if (!resolvida) m.push('TIPO_NAO_CORRESPONDE');
     }
-    var r = { situacao: m.length ? 'precisa-revisao' : (divergente ? 'divergencia-deliberada' : 'valido'), vinculo: clone(v), efetivo: ef,
-      motivos: m.filter(function (x, i) { return m.indexOf(x) === i; }) };
+    var indeterminada = !m.length && !!ef.codigo && !!est && !lig;
+    var r = { situacao: m.length ? 'precisa-revisao' : indeterminada ? 'indeterminada' : (divergente ? 'divergencia-deliberada' : 'valido'), vinculo: clone(v), efetivo: ef,
+      motivos: indeterminada ? ['REFERENCIA_OFICIAL_INDISPONIVEL'] : m.filter(function (x, i) { return m.indexOf(x) === i; }) };
+    if (ef.codigo && est) { r.tipoConferido = !!lig; if (lig) r.tipoConferidoPor = ref.ligacoes ? 'ligacoes' : 'estruturas'; }
     if (!m.length && ef.avaliacaoId !== v.base.avaliacaoId) r.baseEmOutraAvaliacao = true; /* mesmo código (ou compatível), outra versão */
     if (resolvida && !m.length) r.divergenciaResolvida = resolvida;
     return r;
   }
   /* E3 (R-E3-4): situação CALCULADA de cada colaboradora ativa do objeto — a mudança de código efetivo não a afeta
      (colaboradora não é posicionada); fica para revisão sem estrutura ativa, sem principal ativo ou sem posicionamento */
+  /* Ligações oficiais COMPROVADAS pelas estruturas, para quem não lê as ligações: uma estrutura de tipo firme só é criada
+     com a ligação oficial do seu tipo registrada (o núcleo — tiposAdmitidos — e as regras do banco conferem na criação)
+     e a ligação nunca é alterada nem removida; logo toda estrutura de tipo firme, ativa ou encerrada, prova a ligação
+     do seu tipo (código → o mesmo código). Um código sem estrutura fica fora do mapa — e, para conferir um vínculo, isso
+     basta: o tipo da estrutura do vínculo está sempre no mapa, e um código ausente nunca é igual a ele. */
+  function ligacoesComprovadas(estado, ref) {
+    var firmes = ref && ref.codigosFirmes, lig = {};
+    valores(colecao(estado, 'estruturas')).forEach(function (s) { if (s && s.tipo && (!firmes || firmes.indexOf(s.tipo) !== -1)) lig[s.tipo] = s.tipo; });
+    return lig;
+  }
   function situacaoColaboradoras(estado, objetoId, posicionamento, ref) {
     var ef = posicionamentoEfetivo(posicionamento, ref), principal = responsavelAtivo(estado, objetoId), ests = colecao(estado, 'estruturas');
     return colaboradorasAtivas(estado, objetoId).map(function (c) {
@@ -708,7 +725,7 @@
     criarEstrutura: criarEstrutura, alterarEstrutura: alterarEstrutura, encerrarEstrutura: encerrarEstrutura,
     criarRelacao: criarRelacao, encerrarRelacao: encerrarRelacao, alterarRelacao: alterarRelacao, situacaoRelacao: situacaoRelacao,
     posicionamentoEfetivo: posicionamentoEfetivo, vincularResponsavel: vincularResponsavel, encerrarVinculo: encerrarVinculo,
-    substituirResponsavel: substituirResponsavel, situacaoResponsavel: situacaoResponsavel, responsavelAtivo: responsavelAtivo,
+    substituirResponsavel: substituirResponsavel, situacaoResponsavel: situacaoResponsavel, ligacoesComprovadas: ligacoesComprovadas, responsavelAtivo: responsavelAtivo,
     estruturasDoTipo: estruturasDoTipo, relacoesDaEstrutura: relacoesDaEstrutura, objetosDaEstrutura: objetosDaEstrutura,
     relacoesPossiveis: relacoesPossiveis, historico: historico, aplicar: aplicar, instante: instante,
     TIPO_COM_SUBAGRUPADOR: TIPO_COM_SUBAGRUPADOR, SITUACAO_SUBAGRUPADOR: clone(SUBAGRUPADOR),
