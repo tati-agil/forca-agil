@@ -53,8 +53,9 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
 const topo = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().top + window.scrollY : null; }, sel);
 /* "Gerar PDF": o botão existe e gera o arquivo (o download do navegador) */
 async function gerarPdf(page, sel) {
-  const [down] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }).catch(() => null), page.click(sel)]);
-  return !!down && /\.pdf$/i.test(down.suggestedFilename());
+  /* sem .catch: se o PDF não for gerado, a espera falha e o teste reprova (esperas caladas são proibidas) */
+  const [down] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click(sel)]);
+  return /\.pdf$/i.test(down.suggestedFilename());
 }
 
 (async () => {
