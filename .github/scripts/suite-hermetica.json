@@ -26,7 +26,8 @@
     ".github/scripts/teste-rules-exclusao-cadastros.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-analises-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-estrutura-atual.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-taxonomia-definicoes.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-taxonomia-definicoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-relacoes-objetos.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -867,6 +868,18 @@
       "nome": "Alocação E1–E3: divergência deliberada justificada, colaboradoras e as três perguntas na tela e no Mapa (desktop e celular)",
       "duracao": 40,
       "sobre": "E2: a ficha mostra a divergência como decisão organizacional (não erro), com base intacta, motivo, justificativa, quem decidiu e quem registrou; reavaliação que coincide com a estrutura fica válida sem esconder a divergência; vincular em outro tipo exige motivo e justificativa. E3: colaboradoras com papel e justificativa, encerrar com motivo. E1: textos das três perguntas. Mapa: só estruturas, a Linha com várias responsabilidades e a colaboradora com o papel. Perfil de consulta sem ações; 375 px."
+    },
+    {
+      "arquivo": ".github/scripts/teste-relacoes-objetos-nucleo.js",
+      "nome": "E4 — núcleo das relações entre objetos: matriz aprovada, naturezas, integridade pelo grafo e regras montadas",
+      "duracao": 2,
+      "sobre": "Puro: os 8 tipos + \"atua sobre\" e os 21 pares aprovados (nada herdado entre naturezas, nada de Modalidade/Subproduto); só Produto/Serviço é natureza conjunta, as camadas conjuntas pedem natureza registrada; a natureza que autoriza vem da avaliação que vale + decisão final + registro; autorrelação, duplicidade, recíproca e ciclo em \"compõe\" pelo grafo (também numa matriz sintética cíclica); gravações completas; situação calculada; database.rules.json = regras montadas da matriz."
+    },
+    {
+      "arquivo": ".github/scripts/teste-relacoes-objetos-tela.js",
+      "nome": "E4 — relações entre objetos na tela: registro do objeto, Porta 2, Taxonomia, resumos e Mapa (desktop e celular)",
+      "duracao": 60,
+      "sobre": "Natureza individual registrada uma vez por quem mantém (só com conceito oficial); relacionar só com as leituras e naturezas da matriz; as duas pontas; ida e volta entre registros e F5; encerrar com motivo; Porta 2 só \"atua sobre\" (não é alocação); perfil Avaliação sem controles; marcador false só consulta e ausente sem nada; conceito oficial na Taxonomia só com definição aprovada; resumos nas fichas e no detalhe da estrutura; o Mapa continua só com estruturas; 375 px."
     },
     {
       "arquivo": ".github/scripts/teste-recuperar-senha.js",

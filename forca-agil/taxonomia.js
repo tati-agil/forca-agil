@@ -2083,6 +2083,8 @@
           '<strong>Não foi possível conferir:</strong> ' + esc(comErro.join(' e ')) + '.') + '</p>' + blocos;
     }
     h += '</section>';
+    /* E4: conceitos oficiais das naturezas individuais (relacoes-objetos.js monta aqui; só com a liberação presente) */
+    h += '<div class="tax-naturezas-host" id="taxNaturezasHost"></div>';
     h += '<section class="tax-globais" id="taxAcoesGerais" aria-labelledby="taxDadosTitulo"><h4 class="tax-globais-titulo" id="taxDadosTitulo">Dados e histórico</h4>' + htmlExportar() +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="aba-historico" id="taxHistoricoGlobalBtn">Ver o histórico global</button></div>' + renderImportador() + '</section>';
     return h + '</section>';
@@ -2103,6 +2105,7 @@
     else if (st.espaco === 'admin' && podeEditar() && D.selecionado && (D.estado === 'carregando' || D.estado === 'ocioso')) html += '<section class="tax-admin" id="taxAdmin" aria-label="Administração do conceito"><button type="button" class="tax-lnk tax-voltar-catalogo" data-tax="voltar-catalogo" id="taxVoltarCatalogo">← Voltar ao catálogo</button><p class="loading-msg">Carregando o conceito…</p></section>';
     else html += renderCatalogo(dom);
     el.innerHTML = html + '</div>';
+    if (window.faRelacoesObjetos) window.faRelacoesObjetos.montarTaxonomia(document.getElementById('taxNaturezasHost'));
     if (foco !== null) { var b = document.getElementById('taxBusca'); if (b) { b.focus(); try { b.setSelectionRange(foco, foco); } catch (e) { /* tipo search sem seleção */ } } }
   }
 

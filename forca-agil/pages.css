@@ -4208,3 +4208,46 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 /* LINKS (Padrão Visual Oficial, docs/padrao-visual.md §3): normal e visitado na mesma cor; hover sublinha; foco = o contorno acima */
 :where(#page-avaliacoes) :where(a:link, a:visited):where(:not(.mfm-painel *, .mfm-detalhe *, .tax-ui *)) { color: var(--cyan-soft); }
 :where(#page-avaliacoes) :where(a:link, a:visited):where(:not(.btn, .avp-voltar-link, .mfm-painel *, .mfm-detalhe *, .tax-ui *)):hover { text-decoration: underline; }
+
+/* ===== E4 — Relações entre objetos (relacoes-objetos.js): seção no registro do objeto, resumos e Taxonomia =====
+   Mesmo vocabulário do registro (mf-*) e do bloco de estrutura responsável (po-resp-*): um só botão principal por
+   formulário, links na cor do site, "A revisar" em dourado discreto e "Não conferida" neutro. Celular: tudo quebra linha. */
+.ro-secao { margin: 14px 0 6px; display: flex; flex-direction: column; gap: 8px; }
+.ro-nota, .ro-ajuda { margin: 0; color: var(--ink-3); font-size: var(--arq-fs-aux, .9rem); }
+.ro-natureza { margin: 0; color: var(--ink-2); }
+.ro-natureza .ro-rot { color: var(--ink-3); font-family: var(--font-mono); font-size: var(--arq-fs-meta, .8rem); margin-right: 4px; }
+.ro-natureza--pendente { color: var(--gold-soft); }
+.ro-grupo { margin: 8px 0 2px; font-family: var(--font-mono); font-size: var(--arq-fs-meta, .8rem); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.ro-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ro-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; min-width: 0; }
+.ro-item--encerrada { opacity: .8; }
+.ro-item .ro-link { font-weight: 600; overflow-wrap: anywhere; }
+.ro-det { color: var(--ink-3); font-size: var(--arq-fs-aux, .9rem); overflow-wrap: anywhere; }
+.ro-obs { flex-basis: 100%; color: var(--ink-2); font-size: var(--arq-fs-aux, .9rem); overflow-wrap: anywhere; }
+.ro-leitura { color: var(--ink-3); font-size: var(--arq-fs-aux, .9rem); }
+.ro-sit--revisar { background: rgba(245,197,24,.08); color: var(--gold-soft); border: 1px solid rgba(245,197,24,.40); }
+.ro-sit--nao-conferida { background: rgba(143,160,196,.10); color: var(--ink-2); border: 1px solid var(--line-strong); }
+.ro-vazio { margin: 0; color: var(--ink-3); }
+.ro-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.ro-acoes .btn, .ro-escolhas .btn { min-height: 40px; }
+.ro-form { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: 8px; min-width: 0; }
+.ro-form textarea, .ro-form input[type="search"], .ro-form input[type="text"], .ro-form select { width: 100%; max-width: 100%; min-height: 40px; box-sizing: border-box; }
+.ro-frase { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ro-frase select { width: auto; flex: 1 1 12rem; }
+.ro-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ro-escolhas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ro-nat-indisp { color: var(--ink-3); font-size: var(--arq-fs-aux, .9rem); }
+.ro-candidatos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 18rem; overflow-y: auto; }
+.ro-cand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; padding: 8px; border-radius: 6px; min-height: 40px; cursor: pointer; }
+.ro-cand:hover { background: rgba(143,160,196,.08); }
+.ro-cand-nome { font-weight: 600; overflow-wrap: anywhere; }
+.ro-encerradas summary { cursor: pointer; color: var(--ink-3); }
+.ro-confirma { display: flex; gap: 8px; align-items: flex-start; }
+.ro-resumo { color: var(--ink-3); font-size: var(--arq-fs-aux, .9rem); }
+.ro-resumo a:link, .ro-resumo a:visited { color: var(--cyan-soft); }
+.ro-resumo a:hover { text-decoration: underline; }
+.ro-resumo-linha:empty, .ro-resumo-host:empty { display: none; }
+.est-produto .ro-resumo-host, .mfm-objeto .ro-resumo-host { flex-basis: 100%; }
+.ro-tax-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ro-tax-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ro-tax-item .ro-form { flex-basis: 100%; }

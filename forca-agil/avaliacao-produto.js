@@ -2629,6 +2629,7 @@
       var assinaturaDet = state.tela + '|' + (modo === 'admin' ? subtelaAdmin() : ((state.atual && state.atual._key) || ''));
       if (state.assinaturaDet !== assinaturaDet) { state.detAbertos = {}; state.assinaturaDet = assinaturaDet; }
       renderTela();
+      if (window.faRelacoesObjetos) window.faRelacoesObjetos.montarHosts(wrap); /* E4: resumo das relações do item (só leitura) */
       if (modo === 'admin' && state.rolarPara != null) {
         var alvoRolagem = state.rolarPara;
         state.rolarPara = null;
@@ -7883,6 +7884,7 @@
       if (camada.id) html += htmlAvisoContingencia([camada.id], 'avpClassifContingencia');
       /* E1: a primeira pergunta (o que é) não determina estrutura nem posicionamento */
       html += '<p class="avp-alt-outras" id="avpNaturezaNaoEstrutura">A classificação diz o que o objeto é. Ela não define a estrutura organizacional nem o posicionamento.</p>';
+      html += '<p class="avp-alt-outras ro-resumo-linha" data-ro-resumo="' + esc(a.itemId || a._key) + '"></p>'; /* E4: "Relaciona-se com N objetos" (só leitura) */
       var espDerivadaTela = especializacaoDerivada(a);
       if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
       if (camada.tipoAValidar) {
