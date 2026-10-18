@@ -63,6 +63,8 @@ async function main() {
     await a.ref('fa-avaliacao-autorizados/' + emailKey(ARQ)).set({ email: ARQ, tipo: 'avaliacao-arquitetura' });
     await a.ref('fa-avaliacao-autorizados/' + emailKey(AVAL)).set({ email: AVAL, tipo: 'avaliacao' });
     for (const k of Object.keys(ITENS)) await a.ref('avaliacoes-produto/' + k).set(Object.assign({ itemId: k, nome: 'Item ' + k }, ITENS[k]));
+    /* cada item tem uma versão só: ela é a vigente (índice reconciliado) */
+    for (const k of Object.keys(ITENS)) await a.ref(R.PONTA + '/' + k).set(k);
     await a.ref('objetos-organizacionais/o1').set({ nome: 'Atendimento (teste)', situacao: 'ativo' });
     await a.ref('objetos-organizacionais/o2').set({ nome: 'Antiga (teste)', situacao: 'encerrado' });
   });

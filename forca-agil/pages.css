@@ -3892,6 +3892,13 @@ details.avp-como[open] > summary { margin-bottom: 8px; }
 .tax-ui .tax-item { background: transparent; border: 0; border-radius: 8px; padding: 9px 10px; min-height: 42px; gap: 2px; color: var(--tx-texto); }
 .tax-ui .tax-item:hover { background: var(--tx-sup-2); }
 .tax-ui .tax-item--ativo, .tax-ui .tax-item--ativo:hover { background: var(--tx-sup-2); box-shadow: inset 3px 0 0 var(--tx-link); }
+/* modelo de naturezas: natureza prevista ainda sem conceito (sem botão), nota do grupo técnico, papel na ficha, conferência */
+.tax-ui .tax-previsto { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; min-height: 42px; box-sizing: border-box; color: var(--tx-texto-3); }
+.tax-ui .tax-previsto .tax-item-nome { font-weight: 500; }
+.tax-ui .tax-lista-nota { margin: 0 8px 4px; font-size: var(--arq-fs-meta); }
+.tax-ui .tax-papel { margin: 0 0 10px; color: var(--tx-texto-2); font-size: var(--arq-fs-texto); overflow-wrap: anywhere; }
+.tax-ui .tax-modelo-lista { margin: 6px 0 8px; padding-left: 18px; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.tax-ui .tax-modelo-lista code { font-size: var(--arq-fs-meta); }
 .tax-ui .tax-item--n1 { padding-left: 24px; }
 .tax-ui .tax-item--n2 { padding-left: 40px; }
 .tax-ui .tax-item-nome { font-weight: 500; }

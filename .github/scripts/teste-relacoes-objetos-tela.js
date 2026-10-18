@@ -39,6 +39,8 @@ function banco(o) {
     oCalc: item('oCalc', 'Cálculo de imposto (teste)', 'funcionalidade-operacao'),
     rCar: item('rCar', 'Regra de carência (teste)', 'regra-condicao')
   });
+  Object.assign(db['avaliacoes-produto-ponta'], { cMotor: 'cMotor', fSim: 'fSim', oCalc: 'oCalc', rCar: 'rCar' }); /* versão vigente de cada item novo */
+  if (o.semIndice) delete db['avaliacoes-produto-ponta'][o.semIndice]; /* item antigo ainda não reconciliado */
   db['objetos-natureza'] = { oCalc: { natureza: 'operacao', camada: 'funcionalidade-operacao', avaliacaoId: 'oCalc', revisao: 1, registradaEm: 1, registradaPor: { id: 'u', email: SJ.ARQ }, auditoriaId: 'a0' } };
   db.taxonomia.arquitetural = { conceitos: { funcionalidade: conceito('Funcionalidade', 'funcionalidade-operacao'), operacao: conceito('Operação', 'funcionalidade-operacao'), regra: conceito('Regra', 'regra-condicao') } };
   if (o.adminGeral) db['fa-admins'] = { [SJ.chave(SJ.ARQ)]: { email: SJ.ARQ, name: 'ADMIN' } };
@@ -232,6 +234,14 @@ async function rodada(browser, vp, tag) {
   afirma(/Relaciona-se com 1 objeto/.test(await texto(page, '#mfmObjetos .mfm-objeto[data-objeto="pCapec"] .ro-resumo')), 'detalhe da estrutura no Mapa: a responsabilidade mostra o resumo');
   const caixas = await page.$$eval('#mfmMapa [data-estrutura]', (cs) => cs.map((c) => c.getAttribute('data-estrutura')));
   afirma(caixas.indexOf('cMotor') === -1 && caixas.indexOf('pCapec') === -1, 'o Mapa continua só com estruturas (nenhum objeto vira caixa)', caixas);
+  afirma(r.erros.length === 0 && await larguraOk(page), 'sem erro de JS e sem rolagem lateral');
+  await r.ctx.close();
+
+  console.log('8b. Item antigo sem a versão vigente registrada (reconciliação pendente)');
+  r = await abrir(browser, vp, '#arquitetura?tr=1&item=fSim', { semIndice: 'fSim' }); page = r.page;
+  await secaoPronta(page);
+  afirma(/versão vigente deste item ainda não está registrada/.test(await texto(page, '#roNatureza')) && !(await existe(page, '.ro-nat-btn')) && !(await existe(page, '#roRelacionar')),
+    'sem o índice da versão vigente: explica a reconciliação pendente e não oferece natureza nem relação (o banco recusaria)', await texto(page, '#roNatureza'));
   afirma(r.erros.length === 0 && await larguraOk(page), 'sem erro de JS e sem rolagem lateral');
   await r.ctx.close();
 

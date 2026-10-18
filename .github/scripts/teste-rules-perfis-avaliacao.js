@@ -91,12 +91,12 @@ async function main() {
 
   console.log('\n== "Avaliação" avalia ==');
   await base();
-  await pode('cria uma avaliação nova sem curadoria nem decisão', db(AVAL).ref(NODE + '/nova').set(concluida({ itemId: 'nova' })));
+  await pode('cria uma avaliação nova sem curadoria nem decisão', db(AVAL).ref().update({ [NODE + '/nova']: concluida({ itemId: 'nova' }), ['avaliacoes-produto-ponta/nova']: 'nova' })); /* versão + índice da versão vigente juntos, como o site */
   await pode('conclui um rascunho seu (status, resultado automático)', db(AVAL).ref(NODE + '/nova').update({ status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto' }));
   await pode('reprocessa: muda o resultado automático e a decisão que o acompanha (não manual)',
     db(AVAL).ref(NODE + '/semCur').update({ resultadoAutomatico: 'produto', decisaoFinal: 'produto', motorVersion: 'v2' }));
   await pode('cria a reavaliação (v2) herdando a curadoria da v1, sem decisão (e sem a natureza retirada)',
-    db(AVAL).ref(NODE + '/v2').set(concluida(Object.assign({ itemId: 'v1', versao: 2, versaoAnteriorKey: 'v1', status: 'rascunho' }, CURADORIA))));
+    db(AVAL).ref().update({ [NODE + '/v2']: concluida(Object.assign({ itemId: 'v1', versao: 2, versaoAnteriorKey: 'v1', status: 'rascunho' }, CURADORIA)), ['avaliacoes-produto-ponta/v1']: 'v2' }));
   await pode('regrava o registro inteiro mantendo curadoria e natureza EXATAMENTE como estão (salvar de novo)',
     db(AVAL).ref(NODE + '/v1').set(concluida(Object.assign({}, CURADORIA, NATUREZA))));
   await pode('reprocessa uma avaliação COM curadoria (a curadoria fica como está)',

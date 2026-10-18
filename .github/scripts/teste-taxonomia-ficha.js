@@ -73,7 +73,8 @@ const visiveis = (page, sel) => page.locator(sel).evaluateAll((els) => els.filte
 
     console.log('\n== A. Catálogo: abre em consulta ==');
     afirma(/Catálogo de conceitos/.test(await texto(page, '#taxLocal')) && await page.locator('.tax-dominio[aria-selected="true"]').count() === 1, 'abre no Catálogo, com o seletor de domínio');
-    afirma(await page.locator('#taxConceitosBase, #taxConceitosBasePos, #taxExportar, #taxImportador, #taxAcoesGerais, #taxProtecaoIncompleta').count() === 0, 'nenhum painel de integração, exportação ou carga no Catálogo');
+    afirma(await page.locator('#taxConceitosBase, #taxConceitosBasePos, #taxImportador, #taxAcoesGerais, #taxProtecaoIncompleta').count() === 0, 'nenhum painel de integração ou carga no Catálogo');
+    afirma(await page.locator('.tax-raiz > #taxExportar #taxExportarExcel').count() === 1 && await page.locator('.tax-raiz > #taxExportar #taxExportarJson').count() === 1, 'a exportação completa (Excel e JSON) tem acesso direto no Catálogo');
     afirma(await page.locator('#taxIntegridadeLink, #taxVerificacoesLink').count() === 0 && !/Verificações do sistema|Integridade/.test(await texto(page, '.tax-topo')), 'o cabeçalho do Catálogo não tem link permanente para as Verificações');
 
     console.log('\n== A. Busca por nome e por código ==');

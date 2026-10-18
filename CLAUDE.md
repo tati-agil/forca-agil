@@ -76,7 +76,15 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   só Produto/Serviço é natureza conjunta — as individuais das camadas conjuntas são registradas por objeto, nunca na
   avaliação, e só com conceito oficial de definição aprovada; 8 tipos + "atua sobre" da Porta 2 e os 21 pares
   aprovados, regras geradas da mesma matriz por `montar-regras-relacoes-objetos.js`; nada muda natureza, posicionamento
-  ou alocação, e o Mapa continua só com estruturas); manual do ADMIN (`manual.js`).
+  ou alocação, e o Mapa continua só com estruturas; só com a versão VIGENTE do item, índice `avaliacoes-produto-ponta`
+  gravado junto com cada versão — itens antigos esperam a reconciliação manual `reconciliar-versao-vigente.js`, nunca
+  rodada sem autorização); manual do ADMIN (`manual.js`).
+- **Modelo único das naturezas arquiteturais** (`naturezas-arquiteturais.js`, carregado antes de `classificacoes.js`):
+  uma Taxonomia só, 15 naturezas (Produto/Serviço a única conjunta; Modalidade e Subproduto pendentes da E5, sem
+  conceito); os 11 códigos do motor são classificações — as 6 técnicas (`funcionalidade-operacao`, `processo-etapa`,
+  `regra-condicao`, `modalidade-subproduto`, `documento-informacao`, `a-validar`) ficam integralmente preservadas e
+  nunca viram naturezas; Opção só em `modalidade-subproduto` (Regra/Opção que seja Opção = reavaliação explícita). A E4
+  deriva dele; nunca crie uma segunda lista de naturezas nem conceito sem definição aprovada.
 
 ## Backend local e deploy
 

@@ -45,6 +45,8 @@ function semente() {
     'fa-avaliacao-autorizados': aut, 'avaliacoes-squad': {}, 'motor-squad-config': {},
     'estruturas-concretas-config': { gravacaoHabilitada: true },
     'relacoes-objetos-config': { gravacaoHabilitada: true }, /* E4: relações entre objetos ligadas no ambiente de testes */
+    /* versão vigente de cada item (o que a reconciliação grava; cada item aqui tem uma versão só, de chave = itemId) */
+    'avaliacoes-produto-ponta': { pCapec: 'pCapec', pAssess: 'pAssess', pJur: 'pJur', pSem: 'pSem', pVal: 'pVal', pPlat: 'pPlat', pVinc: 'pVinc' },
     'avaliacoes-produto': { pCapec: produto('pCapec', 'Capec'), pAssess: produto('pAssess', 'Assessoria Previdenciária'), pJur: produto('pJur', 'Jurídico (P1–P16)', 'a-validar'),
       pSem: produto('pSem', 'Objeto sem Posicionamento'), pVal: produto('pVal', 'Objeto A validar'), pPlat: produto('pPlat', 'Gestão de canais'), pVinc: produto('pVinc', 'Produto a vincular') },
     'objetos-organizacionais': { oJur: objeto('Assessoramento jurídico', { referenciaItemId: 'pJur' }), oAgi: objeto('Disseminação de agilidade'),

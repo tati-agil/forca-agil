@@ -33,31 +33,31 @@
 
   var VERSAO_MATRIZ = 1;
   var RAIZ = 'relacoes-objetos', NAT = 'objetos-natureza', NAT_AUD = 'objetos-natureza-auditoria';
+  /* índice da versão VIGENTE de cada item P1–P16 (a ponta da cadeia de reavaliações), mantido por avaliacao-produto.js */
+  var PONTA = 'avaliacoes-produto-ponta';
   var MARCADOR = 'relacoes-objetos-config/gravacaoHabilitada';
   var MAX = { observacao: 500, motivo: 500 };
   var ID = /^[A-Za-z0-9_-]{1,60}$/;
 
-  /* ---------- naturezas ---------- */
-  /* rótulo de FÁBRICA (contingência): o nome oficial vem da Taxonomia arquitetural */
-  var NATUREZAS = {
-    produto: { camada: 'produto-principal', rotulo: 'Produto/Serviço' },
-    componente: { camada: 'componente', rotulo: 'Componente' },
-    canal: { camada: 'canal', rotulo: 'Canal' },
-    capacidade: { camada: 'capacidade-organizacional', rotulo: 'Capacidade organizacional' },
-    'unidade-valor': { camada: 'unidade-valor-associada', rotulo: 'Unidade de valor associada' },
-    funcionalidade: { camada: 'funcionalidade-operacao', rotulo: 'Funcionalidade', individual: true },
-    operacao: { camada: 'funcionalidade-operacao', rotulo: 'Operação', individual: true },
-    processo: { camada: 'processo-etapa', rotulo: 'Processo', individual: true },
-    etapa: { camada: 'processo-etapa', rotulo: 'Etapa', individual: true },
-    regra: { camada: 'regra-condicao', rotulo: 'Regra', individual: true },
-    opcao: { camada: 'modalidade-subproduto', rotulo: 'Opção', individual: true },
-    documento: { camada: 'documento-informacao', rotulo: 'Documento', individual: true },
-    informacao: { camada: 'documento-informacao', rotulo: 'Informação', individual: true },
-    responsabilidade: { camada: null, rotulo: 'Responsabilidade organizacional', porta2: true }
-  };
-  /* camada do motor que já é uma natureza só (não precisa de registro) */
-  var NATUREZA_DA_CAMADA = { componente: 'componente', canal: 'canal', 'capacidade-organizacional': 'capacidade', 'unidade-valor-associada': 'unidade-valor' };
-  /* naturezas individuais que a E4 registra, por camada conjunta (Modalidade e Subproduto: E5) */
+  /* ---------- naturezas ----------
+     O MODELO é único e central: naturezas-arquiteturais.js (window.faNaturezasArquiteturais) — as 15 naturezas, a
+     identidade de cada uma na Taxonomia e a correspondência classificação do motor → naturezas. A E4 deriva daqui só as
+     que já podem ter relações (Modalidade e Subproduto, pendentes da E5, ficam de fora), na ordem histórica da matriz
+     v1 (a ordem gera as regras do banco: mudá-la mudaria o texto das regras sem mudar nada de significado).
+     rótulo de FÁBRICA (contingência): o nome oficial vem da Taxonomia arquitetural */
+  var M = raiz && raiz.faNaturezasArquiteturais ? raiz.faNaturezasArquiteturais : (typeof require === 'function' ? require('./naturezas-arquiteturais.js') : null);
+  if (!M) throw new Error('relacoes-objetos-nucleo: naturezas-arquiteturais.js precisa ser carregado antes');
+  var ORDEM_E4 = ['produto', 'componente', 'canal', 'capacidade', 'unidade-valor', 'funcionalidade', 'operacao', 'processo', 'etapa', 'regra', 'opcao', 'documento', 'informacao'];
+  var NATUREZAS = {};
+  ORDEM_E4.forEach(function (c) {
+    var n = M.natureza(c);
+    NATUREZAS[c] = n.modelo === 'individual' ? { camada: n.classificacao, conceito: n.conceito, rotulo: n.rotulo, individual: true } : { camada: n.classificacao, conceito: n.conceito, rotulo: n.rotulo };
+  });
+  NATUREZAS.responsabilidade = { camada: null, rotulo: 'Responsabilidade organizacional', porta2: true };
+  /* classificação do motor que já é uma natureza só (não precisa de registro) — Produto/Serviço vem da decisão final */
+  var NATUREZA_DA_CAMADA = {};
+  ORDEM_E4.forEach(function (c) { var n = M.natureza(c); if (n.modelo === 'direta' && c !== 'produto') NATUREZA_DA_CAMADA[n.classificacao] = c; });
+  /* naturezas individuais que a E4 registra, por classificação técnica do motor (Modalidade e Subproduto: E5) */
   var INDIVIDUAIS_DA_CAMADA = {};
   Object.keys(NATUREZAS).forEach(function (n) { var x = NATUREZAS[n]; if (x.individual) (INDIVIDUAIS_DA_CAMADA[x.camada] = INDIVIDUAIS_DA_CAMADA[x.camada] || []).push(n); });
   var CODIGOS_INDIVIDUAIS = Object.keys(NATUREZAS).filter(function (n) { return NATUREZAS[n].individual; });
@@ -156,12 +156,17 @@
        avaliação que vale — ponta da cadeia, concluída, não excluída, com Motor atual), registro: objetos-natureza/<id> }
      entrada Porta 2: { porta2: objetos-organizacionais/<id> }
      devolve { natureza, base } ou { natureza: null, motivo, base?, camada? } — nunca um palpite. */
+  /* e.indice (opcional) = avaliacoes-produto-ponta/<item>: a versão VIGENTE registrada no banco (ponta da cadeia de
+     reavaliações). Quando informado, a avaliação que vale tem de ser exatamente ela — é o que as regras do banco
+     conferem; null = índice ainda não reconciliado (item antigo) → nenhuma natureza, com o motivo. undefined = não
+     conferido aqui (uso puro, sem o índice). */
   function naturezaDoObjeto(e) {
     e = e || {};
     if (e.porta2) return e.porta2.situacao === 'ativo' ? { natureza: 'responsabilidade', base: null } : { natureza: null, motivo: 'OBJETO_ENCERRADO' };
     var g = e.gate;
     if (!g || g.situacao === 'verificando') return { natureza: null, motivo: 'VERIFICANDO', indisponivel: true };
     if (!g.libera || !g.avaliacao) return { natureza: null, motivo: 'SEM_AVALIACAO_VALIDA', gate: g.situacao };
+    if (e.indice !== undefined && e.indice !== g.chave) return { natureza: null, motivo: 'VERSAO_VIGENTE_NAO_CONFIRMADA', base: g.chave, indice: e.indice };
     var av = g.avaliacao, d = av.decisaoFinal || av.resultadoAutomatico, camada = av.camadaSugerida && av.camadaSugerida.id;
     if (d === 'produto') return { natureza: 'produto', base: g.chave };
     if (d !== 'nao-produto') return { natureza: null, motivo: 'A_VALIDAR', base: g.chave };
@@ -171,8 +176,9 @@
     var possiveis = INDIVIDUAIS_DA_CAMADA[camada];
     if (!possiveis) return { natureza: null, motivo: 'CAMADA_FORA_DA_E4', base: g.chave, camada: camada };
     var reg = e.registro;
-    if (!reg) return { natureza: null, motivo: 'NATUREZA_NAO_REGISTRADA', base: g.chave, camada: camada, possiveis: possiveis.slice() };
-    if (reg.camada !== camada || possiveis.indexOf(reg.natureza) === -1) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', base: g.chave, camada: camada, possiveis: possiveis.slice(), registrada: reg.natureza };
+    var ori = M.orientacao(camada); /* ex.: Regra/Opção que seja de fato Opção → reavaliação explícita, nunca reclassificação */
+    if (!reg) return { natureza: null, motivo: 'NATUREZA_NAO_REGISTRADA', base: g.chave, camada: camada, possiveis: possiveis.slice(), orientacao: ori };
+    if (reg.camada !== camada || possiveis.indexOf(reg.natureza) === -1) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', base: g.chave, camada: camada, possiveis: possiveis.slice(), registrada: reg.natureza, orientacao: ori };
     return { natureza: reg.natureza, base: g.chave, camada: camada, registrada: reg.natureza };
   }
 
@@ -325,7 +331,7 @@
   }
 
   var api = Object.freeze({
-    VERSAO_MATRIZ: VERSAO_MATRIZ, RAIZ: RAIZ, NAT: NAT, NAT_AUD: NAT_AUD, MARCADOR: MARCADOR, MAX: MAX,
+    VERSAO_MATRIZ: VERSAO_MATRIZ, RAIZ: RAIZ, NAT: NAT, NAT_AUD: NAT_AUD, PONTA: PONTA, MARCADOR: MARCADOR, MAX: MAX,
     NATUREZAS: NATUREZAS, NATUREZA_DA_CAMADA: NATUREZA_DA_CAMADA, INDIVIDUAIS_DA_CAMADA: INDIVIDUAIS_DA_CAMADA,
     CODIGOS_INDIVIDUAIS: CODIGOS_INDIVIDUAIS, NATUREZAS_P1P16: NATUREZAS_P1P16, TIPOS: TIPOS, PARES: PARES,
     parAdmitido: parAdmitido, validarMatriz: validarMatriz, temCiclo: temCiclo, alcanca: alcanca, chaveAtiva: chaveAtiva,

@@ -1,0 +1,41 @@
+name: Avaliações — índice da versão vigente (reconciliação)
+
+# SÓ disparo manual, nunca em push/PR: isto pode GRAVAR em produção (só índices novos em
+# avaliacoes-produto-ponta — nunca avaliações, nunca apaga, nunca corrige divergências sozinho).
+# Por padrão roda em DIAGNÓSTICO e SIMULAÇÃO (lista o que faria, não grava nada); só grava quando
+# "Confirmar gravação" é marcado ao disparar, e valida relendo logo depois.
+# Ver .github/scripts/reconciliar-versao-vigente.js.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Gravar de verdade (fora isso, roda em diagnóstico e simulação)'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  reconciliar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar firebase-admin
+        run: |
+          mkdir -p /tmp/indice-deps
+          cd /tmp/indice-deps
+          npm init -y
+          npm install firebase-admin@12
+
+      - name: Reconciliar o índice (diagnóstico e simulação por padrão)
+        env:
+          NODE_PATH: /tmp/indice-deps/node_modules
+          RECONCILIAR_CONFIRMAR: ${{ inputs.confirmar && 'sim' || 'nao' }}
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          node .github/scripts/reconciliar-versao-vigente.js

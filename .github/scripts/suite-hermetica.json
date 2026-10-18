@@ -27,7 +27,9 @@
     ".github/scripts/teste-rules-analises-organizacionais.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-estrutura-atual.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-taxonomia-definicoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-relacoes-objetos.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-relacoes-objetos.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-versao-vigente.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-reconciliar-versao-vigente.js": "reconciliação do índice: aplicação no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -874,6 +876,18 @@
       "nome": "E4 — núcleo das relações entre objetos: matriz aprovada, naturezas, integridade pelo grafo e regras montadas",
       "duracao": 2,
       "sobre": "Puro: os 8 tipos + \"atua sobre\" e os 21 pares aprovados (nada herdado entre naturezas, nada de Modalidade/Subproduto); só Produto/Serviço é natureza conjunta, as camadas conjuntas pedem natureza registrada; a natureza que autoriza vem da avaliação que vale + decisão final + registro; autorrelação, duplicidade, recíproca e ciclo em \"compõe\" pelo grafo (também numa matriz sintética cíclica); gravações completas; situação calculada; database.rules.json = regras montadas da matriz."
+    },
+    {
+      "arquivo": ".github/scripts/teste-naturezas-arquiteturais.js",
+      "nome": "Taxonomia — modelo único das naturezas arquiteturais: unicidade, compatibilidade e diagnóstico só de leitura",
+      "duracao": 2,
+      "sobre": "Puro: 15 naturezas com identidades distintas (Produto/Serviço a única conjunta), 6 classificações técnicas do motor preservadas e nunca naturezas; os 11 códigos = CAMADAS do motor (sem mudar o motor); Opção só em modalidade-subproduto, Regra/Opção só Regra com orientação de reavaliação; Modalidade e Subproduto pendentes (E5); a E4 e as regras derivam do modelo; diagnóstico determinístico, sem alterar a entrada, e o script de produção sem nenhuma gravação."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-naturezas.js",
+      "nome": "Taxonomia — catálogo arquitetural pelo modelo único, exportação na tela principal e conferência só de leitura (desktop e celular)",
+      "duracao": 25,
+      "sobre": "Exportação completa (Excel e JSON) com acesso direto no Catálogo; as 15 naturezas previstas (sem conceito = prevista, sem botão; Modalidade e Subproduto pendentes da E5), as 6 classificações técnicas do motor num grupo próprio e o fora do modelo à parte, cada conceito uma vez; ficha com o papel no modelo e a orientação de reavaliação para Regra/Opção que seja Opção; conferência em Verificações; nada gravado; 375 px."
     },
     {
       "arquivo": ".github/scripts/teste-relacoes-objetos-tela.js",

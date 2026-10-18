@@ -929,6 +929,26 @@
       if (aux.length) { html += '<p class="tax-lista-grupo">Conceito auxiliar</p>'; aux.forEach(function (c) { visto[c._codigo] = true; html += item(c, 0); }); }
       var resto = lista.filter(function (c) { return !visto[c._codigo]; });
       resto.forEach(function (c) { html += item(c, 1); });
+    } else if (window.faNaturezasArquiteturais) {
+      /* Arquitetural: UMA Taxonomia, organizada pelo modelo central (naturezas-arquiteturais.js) — as 15 naturezas previstas
+         (as ainda sem conceito aparecem como previstas, sem botão: nada é criado daqui), as classificações técnicas do
+         motor P1–P16 (preservadas, nunca naturezas) e o que estiver fora do modelo (para revisão). */
+      var NA = window.faNaturezasArquiteturais, porCod = {};
+      lista.forEach(function (c) { porCod[c._codigo] = c; });
+      html += '<p class="tax-lista-grupo" id="taxGrupoNaturezas">Naturezas arquiteturais · ' + NA.NATUREZAS.length + ' previstas</p>';
+      NA.NATUREZAS.forEach(function (n) {
+        var c = porCod[n.conceito];
+        if (c) { html += item(c, 0); return; }
+        html += '<div class="tax-previsto" data-natureza-prevista="' + esc(n.codigo) + '"><span class="tax-item-nome">' + esc(n.rotulo) + '</span><span class="tax-item-selos">' +
+          selo(n.modelo === 'pendente' ? 'definição pendente (' + n.pendencia + ')' : n.modelo === 'individual' ? 'a cadastrar' : 'conceito ausente', 'tax-selo--sem-def') + '</span></div>';
+      });
+      var tec = lista.filter(function (c) { return NA.ehClassificacaoTecnica(c._codigo); });
+      if (tec.length) {
+        html += '<p class="tax-lista-grupo" id="taxGrupoTecnicas">Classificações técnicas do motor P1–P16</p><p class="tax-ajuda tax-lista-nota">Preservadas para a compatibilidade com as avaliações. Não são naturezas.</p>';
+        tec.forEach(function (c) { html += item(c, 0); });
+      }
+      var fora = lista.filter(function (c) { return NA.papelDoConceito(c._codigo).papel === 'fora-do-modelo'; });
+      if (fora.length) { html += '<p class="tax-lista-grupo" id="taxGrupoFora">Fora do modelo de naturezas</p>'; fora.forEach(function (c) { html += item(c, 0); }); }
     } else lista.forEach(function (c) { html += item(c, 0); });
     return html + '</nav>';
   }
@@ -1971,6 +1991,8 @@
       return '<button type="button" role="tab" class="tax-dominio' + (ativo ? ' tax-dominio--ativo' : '') + '" aria-selected="' + ativo + '" data-tax="dominio" data-dominio="' + d + '">' + esc(DOMINIOS[d].rotulo) + '</button>';
     }).join('') + '</div>';
     h += '<p class="tax-pergunta" id="taxPergunta"><strong>' + esc(DOMINIOS[dom].titulo) + '</strong> · ' + esc(DOMINIOS[dom].pergunta) + '</p>';
+    /* acesso direto à exportação completa (a mesma das Verificações › Dados e histórico: Excel + JSON, os dois domínios) */
+    if (podeVerHG()) h += htmlExportar();
     if (D.estado === 'carregando' || D.estado === 'ocioso') return h + '<p class="loading-msg" id="taxCarregando">Carregando a Taxonomia…</p>';
     if (D.estado === 'erro') return h + '<div class="tax-aviso-erro" id="taxErro" role="alert"><p>Não foi possível carregar a Taxonomia agora. Confira a conexão.</p><button type="button" class="btn btn--sm" data-tax="recarregar">Tentar novamente</button></div>';
     if (D.estado === 'sem-acesso') return h + '<p class="tax-aviso-erro" id="taxSemAcesso" role="alert">Você não tem acesso a esta área.</p>';
@@ -1994,6 +2016,7 @@
       return '<span aria-hidden="true">›</span>' + (a.existe ? '<button type="button" class="tax-lnk" data-tax="selecionar" data-codigo="' + esc(a.codigo) + '">' + esc(a.nome) + '</button>' : '<span>' + esc(a.nome) + '</span>');
     }).join('') + '<span aria-hidden="true">›</span><span aria-current="page">' + esc(c.nome) + '</span></nav>';
     h += '<h3 class="tax-titulo">' + esc(c.nome) + '</h3>';
+    if (dom === 'arquitetural') h += htmlPapelNoModelo(codigo);
     if (c.ativo === false) h += '<p class="tax-ajuda" id="taxFichaInativo">Conceito inativo.</p>';
     h += '<section class="tax-sec tax-sec--definicao" id="taxSecDefinicao" aria-label="O que é?"><h4>O que é?</h4>' +
       (c.definicao ? '<p class="tax-definicao-texto" id="taxDefinicaoTexto">' + esc(c.definicao.texto) + '</p>' : '<p class="tax-ausencia" id="taxSemDefinicao">Não há definição oficial disponível para este conceito.</p>') + '</section>';
@@ -2010,6 +2033,27 @@
     h += renderComparar(dom, codigo);
     if (podeEditar()) h += '<div class="tax-ficha-rodape"><button type="button" class="btn btn--sm" data-tax="administrar" id="taxAdministrarBtn">Administrar conceito</button></div>';
     return h + '<div class="tax-voltar-rodape"><button type="button" class="btn" data-tax="voltar-lista">← Voltar aos conceitos</button></div></section>';
+  }
+  /* o papel do conceito no modelo único de naturezas (naturezas-arquiteturais.js): natureza (e em que classificação do
+     motor ela aparece) ou classificação técnica do motor (e a que naturezas corresponde). Só informa; não grava. */
+  function nomeArq(cod, fabrica) { var c = st.d.arquitetural.conceitos[cod]; return c && c.nome ? c.nome : fabrica; }
+  function htmlPapelNoModelo(codigo) {
+    var NA = window.faNaturezasArquiteturais;
+    if (!NA) return '';
+    var p = NA.papelDoConceito(codigo);
+    if (p.papel === 'natureza') {
+      var n = NA.natureza(p.natureza);
+      return '<p class="tax-papel" id="taxPapelModelo" data-papel="natureza"><strong>Natureza arquitetural' + (n.conjunta ? ' conjunta' : '') + '.</strong> ' +
+        (n.modelo === 'direta' ? 'No motor P1–P16, é a própria classificação.' : 'No motor P1–P16, aparece dentro da classificação técnica “' + esc(nomeArq(n.classificacao, n.classificacao)) + '”.') + '</p>';
+    }
+    if (p.papel === 'classificacao-tecnica') {
+      var ns = NA.naturezasDaClassificacao(codigo).map(function (x) { var n = NA.natureza(x); return nomeArq(n.conceito, n.rotulo) + (n.modelo === 'pendente' ? ' (definição pendente)' : ''); });
+      var ori = NA.orientacao(codigo);
+      return '<p class="tax-papel" id="taxPapelModelo" data-papel="classificacao-tecnica"><strong>Classificação técnica do motor P1–P16 — não é uma natureza arquitetural.</strong> ' +
+        (ns.length ? 'Corresponde a: ' + esc(ns.join(', ')) + '.' : 'Não corresponde a nenhuma natureza: indica que a avaliação ainda precisa de decisão.') + '</p>' +
+        (ori ? '<p class="tax-ajuda" id="taxPapelOrientacao">' + esc(ori.texto) + '</p>' : '');
+    }
+    return '<p class="tax-papel tax-papel--fora" id="taxPapelModelo" data-papel="fora-do-modelo"><strong>Fora do modelo de naturezas.</strong> Este conceito não é uma das 15 naturezas nem uma classificação do motor: revise-o antes de usá-lo.</p>';
   }
   /* COMPARAR: duas definições oficiais do mesmo domínio, lado a lado (um após o outro no celular), com a hierarquia de
      cada uma. Não interpreta, não classifica, não grava. Sem definição de um dos lados, ou com textos idênticos, diz que
@@ -2083,10 +2127,41 @@
           '<strong>Não foi possível conferir:</strong> ' + esc(comErro.join(' e ')) + '.') + '</p>' + blocos;
     }
     h += '</section>';
+    h += renderConferenciaModelo();
     /* E4: conceitos oficiais das naturezas individuais (relacoes-objetos.js monta aqui; só com a liberação presente) */
     h += '<div class="tax-naturezas-host" id="taxNaturezasHost" data-ro-tax="1"></div>';
     h += '<section class="tax-globais" id="taxAcoesGerais" aria-labelledby="taxDadosTitulo"><h4 class="tax-globais-titulo" id="taxDadosTitulo">Dados e histórico</h4>' + htmlExportar() +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="aba-historico" id="taxHistoricoGlobalBtn">Ver o histórico global</button></div>' + renderImportador() + '</section>';
+    return h + '</section>';
+  }
+  /* CONFERÊNCIA DO MODELO DE NATUREZAS (só leitura): os conceitos arquiteturais que existem × as 15 naturezas e as 6
+     classificações técnicas (faNaturezasArquiteturais.diagnosticar — a mesma função do diagnóstico de produção). Não
+     cadastra nem corrige nada: diz o que existe, o que falta e o que diverge. */
+  var SIT_NAT = { cadastrada: 'cadastrada', 'a-cadastrar': 'a cadastrar (definição aprovada)', pendente: 'definição pendente (E5)', ausente: 'conceito ausente', inconsistente: 'requer revisão' };
+  var PROB_NAT = { 'conceito-ausente': 'o conceito não existe', inativo: 'inativo', 'sem-definicao': 'sem definição', 'naturezaDe-divergente': 'ligado a outra classificação do motor', 'naturezaDe-indevido': 'marcado como natureza individual sem ser', 'cadastrado-antes-da-definicao-aprovada': 'cadastrado sem definição aprovada (pendente da E5)' };
+  function renderConferenciaModelo() {
+    var NA = window.faNaturezasArquiteturais, D = st.d.arquitetural;
+    var h = '<section class="tax-globais tax-modelo" id="taxConferenciaModelo" aria-labelledby="taxModeloTitulo"><h4 class="tax-globais-titulo" id="taxModeloTitulo">Modelo de naturezas arquiteturais</h4>';
+    if (!NA) return h + '<p class="tax-aviso-erro" role="alert">O modelo de naturezas não foi carregado.</p></section>';
+    if (D.estado !== 'ok') return h + '<p class="loading-msg" id="taxModeloStatus" role="status">' + (D.estado === 'erro' || D.estado === 'sem-acesso' ? 'Não foi possível ler os conceitos arquiteturais para conferir. <button type="button" class="btn btn--sm" data-tax="integridade" id="taxModeloTentar">Tentar novamente</button>' : 'Conferindo os conceitos arquiteturais…') + '</p></section>';
+    var dg = NA.diagnosticar(D.conceitos, st.lig.estado === 'ok' ? st.lig.mapa : undefined);
+    var cont = {}; dg.naturezas.forEach(function (x) { cont[x.situacao] = (cont[x.situacao] || 0) + 1; });
+    h += '<p class="' + (dg.ok ? 'tax-integracao-ok' : 'tax-verif-resumo') + '" id="taxModeloResumo" role="status" data-ok="' + (dg.ok ? '1' : '0') + '">' +
+      (dg.ok ? '<span class="tax-integracao-marca" aria-hidden="true">✓</span> ' : '') + '<strong>' + dg.naturezas.length + ' naturezas previstas:</strong> ' +
+      ['cadastrada', 'a-cadastrar', 'pendente', 'ausente', 'inconsistente'].filter(function (k) { return cont[k]; }).map(function (k) { return cont[k] + ' ' + SIT_NAT[k]; }).join(' · ') +
+      '. ' + dg.classificacoesTecnicas.filter(function (x) { return x.existe; }).length + ' de ' + dg.classificacoesTecnicas.length + ' classificações técnicas do motor preservadas.' + (dg.ok ? '' : ' Há pontos para revisar abaixo.') + '</p>';
+    h += '<details class="tax-recolhivel" id="taxModeloDetalhes" data-det="modelo"' + detAberto('modelo', !dg.ok) + '><summary class="tax-recolhivel-cab">Ver a conferência completa</summary><ul class="tax-modelo-lista" id="taxModeloNaturezas">' +
+      dg.naturezas.map(function (x) {
+        return '<li data-natureza="' + esc(x.natureza) + '" data-situacao="' + esc(x.situacao) + '"><strong>' + esc(x.nome || x.rotulo) + '</strong> <code>' + esc(x.conceito) + '</code> — ' + esc(SIT_NAT[x.situacao]) +
+          (x.problemas.length ? ': ' + esc(x.problemas.map(function (p) { return PROB_NAT[p] || p; }).join('; ')) : '') + '</li>';
+      }).join('') + '</ul><p class="tax-ajuda">Classificações técnicas do motor (não são naturezas):</p><ul class="tax-modelo-lista" id="taxModeloTecnicas">' +
+      dg.classificacoesTecnicas.map(function (x) {
+        return '<li data-codigo="' + esc(x.codigo) + '"><code>' + esc(x.codigo) + '</code> — ' + (x.existe ? 'preservada' + (x.ligada === true ? ', ligada à Avaliação' : x.ligada === false ? ', sem ligação registrada' : '') : 'sem conceito na Taxonomia') +
+          (x.problemas.length ? ': ' + esc(x.problemas.map(function (p) { return PROB_NAT[p] || p; }).join('; ')) : '') + '</li>';
+      }).join('') + '</ul>' +
+      (dg.foraDoModelo.length ? '<p class="tax-ajuda" id="taxModeloFora">Fora do modelo: ' + esc(dg.foraDoModelo.map(function (x) { return (x.nome || x.codigo) + ' (' + x.codigo + ')'; }).join(', ')) + '.</p>' : '') +
+      (dg.duplicados.length ? '<p class="tax-aviso-erro" id="taxModeloDuplicados" role="alert">Possível duplicidade: ' + esc(dg.duplicados.map(function (x) { return x.codigos.join(' = '); }).join('; ')) + '.</p>' : '') +
+      '<p class="tax-ajuda">Esta conferência só lê. O cadastro das naturezas individuais é feito pela administração, com a definição aprovada; nada é criado nem corrigido sozinho.</p></details>';
     return h + '</section>';
   }
   function render() {

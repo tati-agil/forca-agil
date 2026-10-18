@@ -26,7 +26,7 @@
   var PRAZO = 20000;
 
   /* ---------- estado (dados ao vivo; undefined = lendo, null = indisponível) ---------- */
-  var d = { marcador: undefined, registros: undefined, naturezas: undefined, produtos: undefined, objetos: undefined, conceitos: {}, vinculos: undefined, estruturas: undefined };
+  var d = { marcador: undefined, registros: undefined, naturezas: undefined, produtos: undefined, objetos: undefined, conceitos: {}, vinculos: undefined, estruturas: undefined, pontas: undefined };
   var ligado = false, pessoa = null, desligadores = [];
   var ui = {}; /* por objeto: { modo: null|'natureza'|'relacionar'|'encerrar', form, erros, flash, salvando } */
   var tax = { aberto: null, form: {}, erros: [], flash: null, salvando: false };
@@ -72,6 +72,7 @@
     dadosLigados = true;
     ouvir(N().RAIZ + '/registros', 'registros');
     ouvir(N().NAT, 'naturezas');
+    ouvir(N().PONTA, 'pontas'); /* versão vigente de cada item (o banco confere a base contra ela) */
     ouvir('avaliacoes-produto', 'produtos');
     ouvir('objetos-organizacionais', 'objetos', true);
     ouvir('estruturas-vinculos/registros', 'vinculos', true);
@@ -81,7 +82,7 @@
   function desligar() {
     desligadores.forEach(function (f) { try { f(); } catch (e) { /* já desligado */ } });
     desligadores = []; ligado = false; dadosLigados = false; pessoa = null;
-    d = { marcador: undefined, registros: undefined, naturezas: undefined, produtos: undefined, objetos: undefined, conceitos: {}, vinculos: undefined, estruturas: undefined };
+    d = { marcador: undefined, registros: undefined, naturezas: undefined, produtos: undefined, objetos: undefined, conceitos: {}, vinculos: undefined, estruturas: undefined, pontas: undefined };
     ui = {}; tax = { aberto: null, form: {}, erros: [], flash: null, salvando: false };
   }
   function aoMudarSessao() { if (sessao() !== pessoa) { desligar(); } ligar(); avisar(); }
@@ -112,7 +113,7 @@
   }
 
   /* ---------- leitura dos objetos ---------- */
-  function dadosProntos() { return d.registros !== undefined && d.naturezas !== undefined && d.produtos !== undefined && d.objetos !== undefined && N().CODIGOS_INDIVIDUAIS.every(function (c) { return d.conceitos[c] && d.conceitos[c].ativo !== undefined && d.conceitos[c].naturezaDe !== undefined && d.conceitos[c].temDefinicao !== undefined; }); }
+  function dadosProntos() { return d.registros !== undefined && d.naturezas !== undefined && d.pontas !== undefined && d.produtos !== undefined && d.objetos !== undefined && N().CODIGOS_INDIVIDUAIS.every(function (c) { return d.conceitos[c] && d.conceitos[c].ativo !== undefined && d.conceitos[c].naturezaDe !== undefined && d.conceitos[c].temDefinicao !== undefined; }); }
   function porta2(id) { var o = d.objetos && d.objetos[id]; return o && typeof o === 'object' && o.situacao ? o : null; }
   function gate(id) {
     var B = window.faBaseProdutoServico, P = window.faAvaliacaoPosicionamentoNucleo;
@@ -122,7 +123,7 @@
   function natureza(id) {
     var o = porta2(id);
     if (o) return N().naturezaDoObjeto({ porta2: o });
-    return N().naturezaDoObjeto({ gate: gate(id), registro: d.naturezas ? d.naturezas[id] : null });
+    return N().naturezaDoObjeto({ gate: gate(id), registro: d.naturezas ? d.naturezas[id] : null, indice: d.pontas ? (d.pontas[id] || null) : null });
   }
   function nomeObjeto(id) {
     var o = porta2(id); if (o) return o.nome || id;
@@ -134,7 +135,8 @@
     var x = N().NATUREZAS[n]; if (!x) return n;
     if (x.individual) { var c = d.conceitos[n]; return (c && c.nome && N().conceitoValido(n, conceitoInfo(n))) ? c.nome : x.rotulo; }
     var C = window.faClassificacoes;
-    if (x.camada && n !== 'produto' && C && C.nome) { var nm = C.nome(x.camada); if (nm) return nm; }
+    /* natureza direta (inclui Produto/Serviço): a identidade é o conceito de mesmo código da classificação — um nome só */
+    if (x.camada && C && C.nome) { var nm = C.nome(x.camada); if (nm) return nm; }
     return x.rotulo;
   }
   function ondeFicou(id) {
@@ -157,7 +159,8 @@
     CAMADA_FORA_DA_E4: 'Esta classificação ainda não tem relações nesta etapa.',
     NATUREZA_NAO_REGISTRADA: 'Natureza individual ainda não registrada.',
     NATUREZA_A_CONFIRMAR: 'A natureza registrada é de outra classificação (a avaliação mudou): confirme a natureza.',
-    OBJETO_ENCERRADO: 'Responsabilidade encerrada: não recebe novas relações.'
+    OBJETO_ENCERRADO: 'Responsabilidade encerrada: não recebe novas relações.',
+    VERSAO_VIGENTE_NAO_CONFIRMADA: 'A versão vigente deste item ainda não está registrada no banco (reconciliação pendente): não pode ter relações por enquanto.'
   };
   var MOTIVO_SIT = {
     REFERENCIA_INDISPONIVEL: 'não foi possível conferir agora',
@@ -197,7 +200,7 @@
     if (emTestes()) h += '<p class="avp-decisao-aviso ro-ambiente" role="note"><strong>Ambiente de testes.</strong> As relações ficam só no Firebase Emulator.' + (d.marcador === false ? ' <strong>Gravação suspensa:</strong> só consulta.' : '') + '</p>';
     else if (d.marcador === false) h += '<p class="avp-decisao-aviso ro-ambiente" role="note"><strong>Gravação suspensa.</strong> As relações estão disponíveis só para consulta.</p>';
     if (!dadosProntos()) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
-    if (d.registros === null || d.naturezas === null || d.produtos === null) return h + '<p class="avp-error-msg" role="alert">Não foi possível ler as relações agora. Verifique a conexão e tente de novo.</p></section>';
+    if (d.registros === null || d.naturezas === null || d.pontas === null || d.produtos === null) return h + '<p class="avp-error-msg" role="alert">Não foi possível ler as relações agora. Verifique a conexão e tente de novo.</p></section>';
     var st = u(id), nat = natureza(id), manter = podeManter();
     if (st.flash) h += '<p class="avp-flash-success ro-flash" id="roFlash" tabindex="-1">' + esc(st.flash) + '</p>';
     h += naturezaHtml(id, nat, st, manter);
@@ -223,8 +226,9 @@
     if (!possiveis || (nat.motivo !== 'NATUREZA_NAO_REGISTRADA' && nat.motivo !== 'NATUREZA_A_CONFIRMAR' && st.modo !== 'natureza')) return h;
     var cam = nat.camada || (nat.registrada && N().NATUREZAS[nat.registrada].camada);
     h += '<div class="ro-form" id="roFormNatureza"><p class="ro-ajuda">Qual é a natureza individual deste objeto? Registrada uma vez, por quem mantém; nunca deduzida e nunca gravada na avaliação.</p>';
-    if (cam === 'regra-condicao') h += '<p class="ro-ajuda" id="roAjudaOpcao">Se este objeto for uma Opção (alternativa escolhida pelo participante), ele precisa ser reavaliado (P13): nada é reclassificado aqui.</p>';
-    if (cam === 'modalidade-subproduto') h += '<p class="ro-ajuda" id="roAjudaModalidade">Modalidade e Subproduto ficam para uma etapa futura: se o objeto for um deles, ele fica sem natureza individual por enquanto.</p>';
+    var ori = window.faNaturezasArquiteturais && window.faNaturezasArquiteturais.orientacao(cam); /* texto único, do modelo central */
+    if (ori) h += '<p class="ro-ajuda ro-orientacao" id="roAjudaOpcao" role="note">' + esc(ori.texto) + '</p>';
+    if (cam === 'modalidade-subproduto') h += '<p class="ro-ajuda" id="roAjudaModalidade">Modalidade e Subproduto são naturezas distintas, com definição ainda pendente (E5): se o objeto for um deles, ele fica sem natureza individual por enquanto.</p>';
     if (!manter) return h + '<p class="ro-ajuda">Quem registra: Avaliação + Configuração ou administração geral.</p></div>';
     h += '<div class="ro-escolhas">' + possiveis.map(function (n) {
       var ok = N().conceitoValido(n, conceitoInfo(n));
