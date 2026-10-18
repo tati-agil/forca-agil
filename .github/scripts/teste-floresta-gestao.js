@@ -60,7 +60,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await r.page.click('#avpInicioGestaoAbrir');
       await ver(r.page, '#avpGrupoConfiguracao', 'o início da Gestão');
       afirma(await hash(r.page) === '#arquitetura?arq=inicio' && await h1(r.page) === 'Gestão da Floresta', 'Gestão em #arquitetura?arq=inicio, título "Gestão da Floresta"', { h: await hash(r.page), t: await h1(r.page) });
-      afirma(await texto(r.page, '#avpGestaoVoltar') === '← Voltar para o Início da Floresta', 'início da Gestão: "← Voltar para o Início da Floresta"', await texto(r.page, '#avpGestaoVoltar'));
+      afirma(await texto(r.page, '#avpGestaoVoltar') === '← Voltar para A Floresta', 'início da Gestão: "← Voltar para A Floresta"', await texto(r.page, '#avpGestaoVoltar'));
       afirma(await visivel(r.page, '#avpDocumentacaoBtn') && await visivel(r.page, '#avpTaxonomiaBtn') && await r.page.locator('#avaliacoesGestao :text-is("Documentos de referência")').count() === 0,
         'Referências: uma Documentação só e a Taxonomia (sem "Documentos de referência" repetido)');
       afirma(await visivel(r.page, '#avpUsuariosBtn'), 'Acessos: Usuários autorizados (admin geral)');
@@ -83,7 +83,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       afirma(await hash(r.page) === '#arquitetura?arq=inicio', 'Voltar: da Taxonomia para a Gestão');
       await r.page.click('#avpGestaoVoltar');
       await ver(r.page, '#avpInicioGestao', 'o Início da Floresta');
-      afirma(await hash(r.page) === '#arquitetura' && await h1(r.page) === 'A Floresta', '"← Voltar para o Início da Floresta": o Início, com o título de volta');
+      afirma(await hash(r.page) === '#arquitetura' && await h1(r.page) === 'A Floresta', '"← Voltar para A Floresta": o Início, com o título de volta');
       afirma(r.erros.length === 0, 'nenhum erro de página', r.erros);
       await r.ctx.close();
 

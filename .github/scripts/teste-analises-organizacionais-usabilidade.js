@@ -137,15 +137,15 @@ async function entrada(browser) {
   let { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab: LIB });
   await page.waitForSelector('#anEntradaAtuacoes');
   afirma((await texto(page, '#poAtuacoes h3')).trim() === 'Responsabilidades Organizacionais' && (await texto(page, '#poAtuacoes .avp-intro')).trim() === 'Avalie e acompanhe o posicionamento arquitetural das responsabilidades pelo O1–O9.', 'título e subtítulo da tela de Responsabilidades Organizacionais');
-  afirma((await texto(page, '#poNovaAtuacaoBtn')).trim() === 'Nova responsabilidade' && (await texto(page, '#anEntradaNova')).trim() === 'Analisar uma área' && (await page.getAttribute('#anEntradaNova', 'href')) === '#arquitetura?an=nova', 'ações "Nova responsabilidade" e "Analisar uma área"');
+  afirma((await texto(page, '#poNovaAtuacaoBtn')).trim() === 'Avaliar uma responsabilidade' && (await texto(page, '#anEntradaNova')).trim() === 'Analisar uma área' && (await page.getAttribute('#anEntradaNova', 'href')) === '#arquitetura?an=nova', 'ações "Avaliar uma responsabilidade" e "Analisar uma área"');
   afirma(!(await existe(page, '.an-caminho')) && (await texto(page, '#poRegistradasTitulo')).trim() === 'Responsabilidades registradas' && (await page.$$('#avaliacoesPosicionamento .avp-voltar-link, #avaliacoesPosicionamento #poVoltarLista')).length === 1, 'sem cartões repetidos; "Responsabilidades registradas"; um só "Voltar"');
   await ir(page, '#arquitetura'); await page.waitForSelector('#avpInicioCaminhoB');
   const p1 = await texto(page, '#avpInicioCartaoNatureza'), p2 = await texto(page, '#avpInicioCartaoAtuacao');
   afirma(/Avaliar um Produto\/Serviço/.test(p1) && /Descubra se um item constitui um Produto\/Serviço\./.test(p1) && (await texto(page, '#avpInicioNatureza')).trim() === 'Iniciar avaliação', 'Início: Porta 1 com o texto aprovado');
   afirma(/Porta 2 · Posicionamento das responsabilidades · O1–O9/i.test(p2) &&
-    /Avaliar uma responsabilidade/.test(p2) && /Já sabe qual responsabilidade deseja avaliar\?/.test(p2) && /Analisar uma área/.test(p2) && /Cadastre e avalie as responsabilidades de uma gerência, núcleo ou outra área\./.test(p2), 'Início: Porta 2 com as duas atividades (uma responsabilidade, uma área)');
-  const [ca, cb] = await page.evaluate(() => ['avpInicioAtuacao', 'avpInicioAnalise'].map((i) => { const e = document.getElementById(i); const r = e.getBoundingClientRect(); return { cls: e.className, txt: e.textContent.trim(), h: r.height }; }));
-  afirma(ca.cls === cb.cls && ca.txt === 'Avaliar responsabilidade' && cb.txt === 'Analisar área' && Math.abs(ca.h - cb.h) < 2, 'Início: os dois caminhos com botões de mesmo peso', [ca, cb]);
+    /Avaliar um item vinculado a Produto\/Serviço/.test(p2) && /Avaliar uma responsabilidade/.test(p2) && /Direto da responsabilidade, sem avaliação de Produto\/Serviço\./.test(p2) && /Analisar uma área/.test(p2) && /Cadastre e avalie as responsabilidades de uma gerência, núcleo ou outra área\./.test(p2) && /mesmo motor O1–O9/.test(p2), 'Início: Porta 2 com as três entradas do O1–O9 (item com P1–P16, uma responsabilidade, uma área) e o mesmo motor');
+  const [ca, cb, cc] = await page.evaluate(() => ['avpInicioAtuacao', 'avpInicioAnalise', 'avpInicioItem'].map((i) => { const e = document.getElementById(i); const r = e.getBoundingClientRect(); return { cls: e.className, txt: e.textContent.trim(), h: r.height }; }));
+  afirma(ca.cls === cb.cls && cb.cls === cc.cls && !/btn--primary/.test(ca.cls) && ca.txt === 'Iniciar avaliação' && cb.txt === 'Iniciar análise' && cc.txt === 'Iniciar avaliação' && Math.abs(ca.h - cb.h) < 2 && Math.abs(ca.h - cc.h) < 2, 'Início: as três entradas com botões de mesmo peso (nenhuma amarela)', [ca, cb, cc]);
   await page.click('#avpInicioAnalise'); await page.waitForSelector('#anFormNova');
   afirma(await page.evaluate(() => location.hash) === '#arquitetura?an=nova', 'Caminho B abre "Analisar uma área"');
   await page.goBack(); await page.waitForSelector('#avpInicioCartaoAtuacao');
@@ -159,10 +159,10 @@ async function entrada(browser) {
     ({ ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab }));
     await page.waitForSelector('#poNovaAtuacaoBtn', { timeout: 20000 });
     await page.waitForSelector('#anEntradaAtuacoes', { timeout: 20000 });
-    afirma(await existe(page, '#anEntradaNova') && await existe(page, '#poNovaAtuacaoBtn'), rot + ': "Analisar uma área" e "Nova responsabilidade" (o perfil decide, não um marcador)');
+    afirma(await existe(page, '#anEntradaNova') && await existe(page, '#poNovaAtuacaoBtn'), rot + ': "Analisar uma área" e "Avaliar uma responsabilidade" (o perfil decide, não um marcador)');
     await ir(page, '#arquitetura'); await page.waitForSelector('#avpInicioCartaoAtuacao');
     await esperar(page, () => !!document.getElementById('avpInicioAnalise'));
-    afirma(!(await existe(page, '#avpInicioCaminhoBEstado')) && (await texto(page, '#avpInicioAnalise')).trim() === 'Analisar área' && await existe(page, '#avpInicioAtuacao'), rot + ': Início com o Caminho B ("Analisar área") e o Caminho A');
+    afirma(!(await existe(page, '#avpInicioCaminhoBEstado')) && (await texto(page, '#avpInicioAnalise')).trim() === 'Iniciar análise' && await existe(page, '#avpInicioAtuacao'), rot + ': Início com o Caminho B ("Analisar uma área") e o Caminho A');
     afirma(!erros.length, rot + ': nenhum erro de página', erros.join(' | '));
     await ctx.close();
   }
@@ -223,7 +223,7 @@ async function gecon(browser) {
   console.log('\n== G. GECON: área da Estrutura Atual, dez e depois doze responsabilidades, núcleos, O1–O9 e volta ==');
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?an=lista', { hab: LIB });
   await page.waitForSelector('#anNovaBtn', { timeout: 20000 });
-  afirma((await texto(page, '#avaliacoesAnalise h2')).trim() === 'Análises Organizacionais' && /Acompanhe as responsabilidades de cada área\./.test(await texto(page, '#avaliacoesAnalise')) && (await texto(page, '#anNovaBtn')).trim() === 'Nova análise', 'lista: "Análises Organizacionais", com "Nova análise"');
+  afirma((await texto(page, '#avaliacoesAnalise h2')).trim() === 'Análises Organizacionais' && /Acompanhe as responsabilidades de cada área\./.test(await texto(page, '#avaliacoesAnalise')) && (await texto(page, '#anNovaBtn')).trim() === '+ Analisar uma área', 'lista: "Análises Organizacionais", com "+ Analisar uma área"');
   await ir(page, '#arquitetura?an=nova'); await page.waitForSelector('#anUnidadeAtual', { timeout: 20000 });
   const visiveis = await page.$$eval('#anFormNova input, #anFormNova textarea, #anFormNova select', (l) => l.filter((x) => x.offsetParent && !x.closest('details:not([open])')).map((x) => x.id));
   afirma(visiveis.join() === 'anUnidadeAtual,anNome' && /Continuar para as responsabilidades/.test(await texto(page, '#anCriarBtn')) && !(await prop(page, '#anNovaAvancado', 'open')), 'Passo 1: escolher a área na Estrutura Atual (ou digitar o nome); opções avançadas recolhidas', visiveis);

@@ -200,7 +200,7 @@ async function jornadaB(browser) {
   console.log('\n== B. Jornada B — Núcleo de Arquitetura de TI ==');
   const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, '#arquitetura?po=atuacoes', { hab: 'LIBERADO_PARA_PERFIS_AUTORIZADOS' });
   await page.waitForSelector('#anEntradaAtuacoes');
-  afirma(/Nova responsabilidade/.test(await texto(page, '#anEntradaAtuacoes #poNovaAtuacaoBtn')) && /Analisar uma área/.test(await texto(page, '#anEntradaNova')), 'Porta 2: "Nova responsabilidade" e "Analisar uma área"');
+  afirma(/Avaliar uma responsabilidade/.test(await texto(page, '#anEntradaAtuacoes #poNovaAtuacaoBtn')) && /Analisar uma área/.test(await texto(page, '#anEntradaNova')), 'Porta 2: "Avaliar uma responsabilidade" e "Analisar uma área"');
   await page.click('#anEntradaNova');
   await page.waitForSelector('#anFormNova');
   const escopos = await page.evaluate(() => Array.from(document.querySelectorAll('#anEscopo .an-opcao')).map((l) => l.textContent));
