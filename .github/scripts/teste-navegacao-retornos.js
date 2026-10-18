@@ -16,7 +16,8 @@
  *   N12. Jornada (item) → "Acessar Adequação à Squad" → "← Voltar para a Jornada do Mapa" → o item.
  *   N13. Gestão da Floresta → "Abrir Mapa da Floresta" → "← Voltar para a Gestão da Floresta" → a Gestão (Mapa aberto).
  *   N14. Ficha da estrutura no cadastro: Voltar do navegador pela origem real (Mapa, lista do cadastro, Posicionamento), F5
- *        sem entrada a mais no histórico, e link direto + F5 sem origem inventada.
+ *        sem entrada a mais no histórico, link direto + F5 sem origem inventada, e o atalho "Cadastrar estrutura do tipo
+ *        recomendado" (sem estrutura do tipo, com outras) → cadastro → F5 → volta ao mesmo Posicionamento.
  *   Em todos: nenhum erro de JS, sem rolagem lateral, nenhuma gravação. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -240,6 +241,30 @@ async function n14(browser, vp, tag) {
   await page.goBack(); await ate(page, () => location.href === 'about:blank', null, 'Voltar → antes do site');
   afirma(true, 'link direto + F5 → um Voltar do navegador sai do site (a página anterior a ele)');
   await r.ctx.close();
+  /* e) I1 depois do E2: Posicionamento sem estrutura ativa do tipo recomendado (Plataforma de Canais), com estruturas de
+        outros tipos → aviso + "Cadastrar estrutura do tipo recomendado" (a divergente continua possível) → cadastro com o
+        tipo escolhido, F5 → "Voltar ao Posicionamento" → a mesma ficha; Voltar/Avançar do navegador */
+  r = await abrir(browser, vp, '#arquitetura?po=gP'); page = r.page;
+  await ate(page, () => !!document.getElementById('poRespVincular'), null, 'bloco "Estrutura responsável" de gP', 15000);
+  await page.click('#poRespVincular');
+  await ate(page, () => !!document.getElementById('poRespSemDoTipo') && !!document.getElementById('poRespCadastrarTipo'), null, 'aviso e atalho de cadastro');
+  afirma(/não é obrigatório/.test(await texto(page, '#poRespSemDoTipo')) && await page.evaluate(() => !!document.querySelector('#poRespEstruturaSel optgroup[label^="De outro tipo"] option') && !document.querySelector('#poRespEstruturaSel optgroup[label^="Do tipo recomendado"]')),
+    'sem estrutura do tipo, com outras: oferece o cadastro do tipo recomendado sem exigir, e a alocação em outro tipo continua na escolha', await texto(page, '#poRespSemDoTipo'));
+  const href = await page.getAttribute('#poRespCadastrarTipo', 'href');
+  afirma(href === '#arquitetura?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat&po=gP', 'o atalho leva o tipo, o objeto e a volta no endereço', href);
+  await page.click('#poRespCadastrarTipo');
+  const cadastroI1 = (h) => location.hash === h && !!document.getElementById('estVoltarPosicionamento') && !!document.querySelector('#estTipos input[value="PLATAFORMA_CANAIS"]:checked');
+  await ate(page, cadastroI1, href, 'cadastro com o tipo já escolhido');
+  afirma(!(await page.isVisible('#poRespSemDoTipo').catch(() => false)), 'o cadastro abre e fica na tela (a ficha do Posicionamento não reabre por cima)');
+  antes = await f5(page); await ate(page, cadastroI1, href, 'F5 no cadastro', 15000);
+  afirma(await page.evaluate(() => history.length) === antes, 'F5 no cadastro: o caminho de volta continua, sem entrada a mais no histórico');
+  await page.click('#estVoltarPosicionamento');
+  await ate(page, () => /^#arquitetura\?po=gP(&|$)/.test(location.hash) && !!document.getElementById('poRespSituacao'), null, 'de volta ao Posicionamento');
+  afirma(true, '"Voltar ao Posicionamento" → a mesma ficha, no bloco da estrutura responsável');
+  await page.goBack(); await ate(page, cadastroI1, href, 'Voltar do navegador → cadastro');
+  await page.goForward(); await ate(page, () => /^#arquitetura\?po=gP(&|$)/.test(location.hash) && !!document.getElementById('poRespSituacao'), null, 'Avançar → Posicionamento');
+  afirma(true, 'Voltar e Avançar do navegador: cadastro ⇄ Posicionamento');
+  await fim(r, 'N14e');
 }
 async function n10(browser, vp, tag) {
   console.log('\n== N10 (' + tag + '): Mapa → Definição do Mapa (seção do Mapa) → Voltar → Mapa ==');

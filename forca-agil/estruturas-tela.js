@@ -1039,12 +1039,17 @@
       var doTipo = todas.filter(function (e) { return e.tipo === tipo; }), outras = todas.filter(function (e) { return e.tipo !== tipo; });
       var escolhida = bloco.estruturas[f.estruturaId], diverge = !!(escolhida && tipo && escolhida.tipo !== tipo);
       h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir ou reconfirmar a estrutura responsável') + '</h5>';
+      /* I1: o atalho leva ao cadastro com o tipo já escolhido e volta para este Posicionamento (nada é criado sozinho) */
+      var cadastrarTipo = tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#arquitetura?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
+        (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura do tipo recomendado</a></p>' : '';
       if (!todas.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa que possa receber a responsabilidade' + (v ? ', além da atual,' : '') + ' está cadastrada. ' +
         'O Posicionamento recomendou o tipo, mas não cria a estrutura nem exige uma estrutura exclusiva. A recomendação continua válida sem estrutura vinculada, e não é preciso cadastrar uma estrutura para concluir esta avaliação nem para continuar a análise da área. ' +
-        'Se houver decisão organizacional de criar uma estrutura, ela é cadastrada em Gestão da Floresta › Estruturas do Mapa da Floresta, e você volta para cá depois.</p>' +
-        (tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#arquitetura?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
-          (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura do tipo recomendado</a></p>' : '');
-      else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
+        'Se houver decisão organizacional de criar uma estrutura, ela é cadastrada em Gestão da Floresta › Estruturas do Mapa da Floresta, e você volta para cá depois.</p>' + cadastrarTipo;
+      /* nenhuma estrutura ativa do tipo recomendado, mas há de outros tipos: a alocação divergente justificada continua
+         possível, e o cadastro do tipo recomendado é oferecido sem ser exigido */
+      else if (tipo && !estruturasAlocaveis(ref).some(function (e) { return e.tipo === tipo; })) h += '<p class="est-intro" id="poRespSemDoTipo">Não há estrutura ativa do tipo recomendado (' + esc(nomeTipo(tipo)) + ') cadastrada. ' +
+        'Você pode alocar a responsabilidade numa estrutura de outro tipo, com motivo e justificativa organizacional, ou, se houver decisão organizacional de criar uma estrutura desse tipo, cadastrá-la e voltar para cá. O cadastro não é obrigatório.</p>' + cadastrarTipo;
+      if (todas.length) h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
         (doTipo.length ? '<optgroup label="Do tipo recomendado (' + esc(nomeTipo(tipo)) + ')">' + doTipo.map(function (e) { return opcaoEstrutura(e, f.estruturaId, v && e.id === v.estruturaId ? ' — atual (reconfirmar)' : ''); }).join('') + '</optgroup>' : '') +
         (outras.length ? '<optgroup label="De outro tipo: exige motivo e justificativa organizacional">' + outras.map(function (e) { return opcaoEstrutura(e, f.estruturaId, ' · ' + esc(nomeTipo(e.tipo)) + (v && e.id === v.estruturaId ? ' — atual (reconfirmar)' : '')); }).join('') + '</optgroup>' : '') +
         '</select></div>';

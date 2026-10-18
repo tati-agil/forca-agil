@@ -640,6 +640,9 @@
     function poDoEndereco() {
       var h = location.hash || '';
       if (h.split('?')[0] !== '#arquitetura') return {};
+      /* numa área da Gestão (?arq=…) o po= é só o caminho de volta do cadastro de estruturas (&po=<avaliação>, I1),
+         não uma ficha a abrir: lido como endereço desta tela, a ficha reabria por cima do cadastro */
+      if (/[?&]arq=/.test(h)) return {};
       var m = /[?&]po=([^&]*)/.exec(h), i = /[?&]item=([^&]*)/.exec(h);
       return { po: m ? decodeURIComponent(m[1]) : null, item: i ? decodeURIComponent(i[1]) : null };
     }
