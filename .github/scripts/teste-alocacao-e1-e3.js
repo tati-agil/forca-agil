@@ -39,8 +39,8 @@ function sementeE123() {
   V['colaboradoras-ativas'] = { pCapec: { 'pcn-1': 'v7' } };
   return db;
 }
-async function abrir(browser, viewport, hash, email) {
-  const cfg = { db: sementeE123(), user: { email: email || ARQ, emailVerified: true, uid: 'u-' + chave(email || ARQ) }, delayDefault: 10, persistenciaReal: true };
+async function abrir(browser, viewport, hash, email, extra) {
+  const cfg = Object.assign({ db: sementeE123(), user: { email: email || ARQ, emailVerified: true, uid: 'u-' + chave(email || ARQ) }, delayDefault: 10, persistenciaReal: true }, extra || {});
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   page.setDefaultTimeout(15000);
@@ -153,6 +153,73 @@ async function rodada(browser, vp, rotulo) {
   await bloco(page);
   afirma(await situacao(page) === 'divergencia-deliberada' && /Canais absorvidos/.test(await texto(page, '#poRespDivJustificativa')), 'consulta vê a divergência e a justificativa');
   afirma(!(await existe(page, '#poRespSubstituir')) && !(await existe(page, '#poRespColaborar')) && !(await existe(page, '#poRespEncerrar')), 'consulta não vê ações de gravar');
+  await ctx.close();
+
+  console.log('7. Perfil Avaliação (consulta) e as ligações oficiais: carregando × recusadas × sem resposta');
+  /* um caso de inconsistência real: alocada (com divergência) numa Área Especializada quando o posicionamento era CoE; o
+     posicionamento vigente passou a Negócios — nem a base nem o tipo da estrutura coincidem com ele */
+  const dbInc = sementeE123();
+  dbInc['estruturas-vinculos'].registros.v9 = reg('v9', 'pVinc', 'jur', 'gPV0', 'COE', 'recomendacao', { divergencia: { motivo: 'pessoas', justificativa: 'Equipe do Jurídico (fictício)' } });
+  dbInc['estruturas-vinculos']['ativo-por-objeto'].pVinc = 'v9';
+  const irPara = (h) => page.evaluate((x) => { location.hash = x; }, h);
+  const situacaoVira = (esperado, desc) => esperarCondicao(page, (s) => { const e = document.getElementById('poRespSituacao'); return !!e && e.getAttribute('data-situacao') === s; }, esperado, { limite: 15000, descricao: desc });
+  const lendo = () => page.evaluate(() => { const r = document.getElementById('poResponsavel'); return !!r && /Carregando a estrutura responsável/.test(r.textContent) && !document.getElementById('poRespSituacao'); });
+  /* 1 + 3) as regras reais RECUSAM ao perfil Avaliação a leitura das ligações (aqui: depois de 3 s, como numa rede lenta).
+     Enquanto lê: "Carregando…", sem conclusão. Depois: o tipo é conferido pelas próprias estruturas (sem acesso a mais) */
+  ({ ctx, page, erros } = await abrir(browser, vp, '#arquitetura?po=gC&bloco=responsavel', AVAL, { db: dbInc, fail: ['posicionamento-classificacoes'], delays: { 'posicionamento-classificacoes': 3000 } }));
+  await esperarCondicao(page, () => !!document.getElementById('poResponsavel'), undefined, { limite: 15000, descricao: 'o bloco' });
+  afirma(await lendo(), 'consulta, ligações ainda carregando: "Carregando…", sem situação (nenhuma conclusão antecipada)', await texto(page, '#poResponsavel'));
+  await situacaoVira('valido', 'gC conferido');
+  afirma(!(await existe(page, '#poRespRevisao')) && !(await existe(page, '#poRespIndeterminada')), 'consulta, leitura recusada: vínculo compatível conferido pelas estruturas → "Válido" (sem falso "Precisa de revisão")', await texto(page, '#poResponsavel'));
+  await irPara('#arquitetura?po=gP&bloco=responsavel'); await situacaoVira('divergencia-deliberada', 'gP');
+  afirma(true, 'consulta, leitura recusada: a alocação divergente é identificada ("Divergência deliberada")');
+  await irPara('#arquitetura?po=gA&bloco=responsavel'); await situacaoVira('valido', 'gA');
+  afirma(true, 'consulta, leitura recusada: divergência resolvida pela reavaliação → "Válido"');
+  await irPara('#arquitetura?po=gPV&bloco=responsavel'); await situacaoVira('precisa-revisao', 'gPV');
+  afirma(/posicionamento efetivo do item mudou/.test(await texto(page, '#poRespRevisao')), 'consulta, leitura recusada: a inconsistência real é identificada ("Precisa de revisão")', await texto(page, '#poRespRevisao'));
+  afirma(await larguraOk(page) && erros.length === 0, 'sem rolagem lateral e nenhum erro de página', erros);
+  await ctx.close();
+  /* 2) a leitura das ligações não responde (prazo de 20 s vencido): "Não conferido" — nunca "Válido" nem uma falsa revisão;
+     "Conferir de novo" recupera sem recarregar o site (a rede voltou: aqui, a recusa normal das regras ao perfil) */
+  ({ ctx, page, erros } = await abrir(browser, vp, '#arquitetura?po=gC&bloco=responsavel', AVAL, { db: dbInc, delays: { 'posicionamento-classificacoes': 600000 } }));
+  await page.evaluate(() => { window.__semRecarregar = 1; });
+  await esperarCondicao(page, () => !!document.getElementById('poResponsavel'), undefined, { limite: 15000, descricao: 'o bloco' });
+  afirma(await lendo(), 'consulta, sem resposta, enquanto espera: "Carregando…", sem conclusão');
+  await esperarCondicao(page, () => !!document.getElementById('poRespSituacao'), undefined, { limite: 30000, descricao: 'o prazo da leitura das ligações vencer' });
+  afirma(await situacao(page) === 'indeterminada' && /Não conferido/.test(await texto(page, '#poRespSituacao')) && /não foi possível ler as ligações oficiais/.test(await texto(page, '#poRespIndeterminada')) && !(await existe(page, '#poRespRevisao')) && await existe(page, '#poRespReconferir'),
+    'consulta, sem resposta: "Não conferido", com o motivo e "Conferir de novo" — nunca "Válido" nem "Precisa de revisão"', await texto(page, '#poResponsavel'));
+  await irPara('#arquitetura?po=gPV&bloco=responsavel'); await situacaoVira('indeterminada', 'gPV sem resposta');
+  afirma(true, 'consulta, sem resposta: alocação divergente com código novo também "Não conferido" (não se presume revisão)');
+  const papelNoMapa = (obj) => page.evaluate((o) => { const e = document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="' + o + '"] [data-situacao]'); return e ? e.getAttribute('data-situacao') : null; }, obj);
+  await irPara('#arquitetura?mf=mapa&e=neg-1');
+  await esperarCondicao(page, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="pCapec"] [data-situacao]'), undefined, { limite: 15000, descricao: 'o detalhe da Linha no Mapa' });
+  afirma(await papelNoMapa('pCapec') === 'indeterminada' && await larguraOk(page), 'consulta, sem resposta: o Mapa mostra a mesma situação ("Não conferido"), sem rolagem lateral', await texto(page, '#mfmObjetos'));
+  await irPara('#arquitetura?po=gC&bloco=responsavel'); await situacaoVira('indeterminada', 'gC de novo');
+  await page.evaluate(() => { window.__CFG.delays = {}; window.__CFG.fail = ['posicionamento-classificacoes']; }); /* a rede voltou (as regras recusam ao perfil, como sempre) */
+  await page.click('#poRespReconferir');
+  await situacaoVira('valido', 'gC reconferido');
+  afirma(!(await existe(page, '#poRespReconferir')), '"Conferir de novo": relê e passa a "Válido" (conferido pelas estruturas)');
+  await irPara('#arquitetura?po=gPV&bloco=responsavel'); await situacaoVira('precisa-revisao', 'gPV reconferido');
+  await irPara('#arquitetura?mf=mapa&e=neg-1');
+  await esperarCondicao(page, () => { const e = document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="pCapec"] [data-situacao]'); return !!e && e.getAttribute('data-situacao') === 'valido'; }, undefined, { limite: 15000, descricao: 'o Mapa reconferido' });
+  afirma(await page.evaluate(() => window.__semRecarregar === 1) && erros.length === 0, 'recuperado sem recarregar o site: o bloco (inconsistência real em gPV) e o Mapa já mostram a situação real', erros);
+  await ctx.close();
+  /* 2b) quem lê as ligações (Avaliação + Configuração), sem resposta → "Não conferido" no bloco e na ficha da estrutura →
+     "Conferir de novo" na ficha → as ligações oficiais lidas */
+  ({ ctx, page, erros } = await abrir(browser, vp, '#arquitetura?po=gC&bloco=responsavel', ARQ, { delays: { 'posicionamento-classificacoes': 600000 } }));
+  await page.evaluate(() => { window.__semRecarregar = 1; });
+  await esperarCondicao(page, () => !!document.getElementById('poRespReconferir'), undefined, { limite: 30000, descricao: 'o prazo vencer' });
+  afirma(await situacao(page) === 'indeterminada', 'configuração, sem resposta: "Não conferido"');
+  await irPara('#arquitetura?arq=estruturas&e=neg-1');
+  await esperarCondicao(page, () => !!document.querySelector('#estProdutos .est-produto[data-objeto="pCapec"] [data-situacao]') && !!document.getElementById('estReconferir'), undefined, { limite: 15000, descricao: 'a ficha da Linha' });
+  afirma(await page.$eval('#estProdutos .est-produto[data-objeto="pCapec"] [data-situacao]', (e) => e.getAttribute('data-situacao')) === 'indeterminada' && await larguraOk(page),
+    'configuração, sem resposta: a ficha da estrutura mostra "Não conferido" e "Conferir de novo", sem rolagem lateral', await texto(page, '#estProdutos'));
+  await page.evaluate(() => { window.__CFG.delays = {}; });
+  await page.click('#estReconferir');
+  await esperarCondicao(page, () => { const e = document.querySelector('#estProdutos .est-produto[data-objeto="pCapec"] [data-situacao]'); return !!e && e.getAttribute('data-situacao') === 'valido'; }, undefined, { limite: 15000, descricao: 'a ficha reconferida' });
+  afirma(!(await existe(page, '#estReconferir')), '"Conferir de novo" na ficha: relê as ligações oficiais e passa a "Válido"');
+  await irPara('#arquitetura?po=gC&bloco=responsavel'); await situacaoVira('valido', 'bloco depois da ficha');
+  afirma(await page.evaluate(() => window.__semRecarregar === 1) && erros.length === 0, 'sem recarregar o site: o bloco do Posicionamento também já mostra "Válido"', erros);
   await ctx.close();
 }
 

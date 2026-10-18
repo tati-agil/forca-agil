@@ -178,6 +178,7 @@
       }, function (c) { st.erroLeitura = c; render(); });
       if (!offsetLigado) { offsetLigado = true; db().ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; }); }
       lerLigacoes(function () { if (!wrap.hidden && st.vista === 'detalhe') render(); });
+      if (!ligar._reconferir) { ligar._reconferir = true; window.addEventListener('fa-estruturas-ligacoes', function () { if (!wrap.hidden && st.vista === 'detalhe') render(); }); }
       lerTaxRel(function () { if (!wrap.hidden && (st.vista === 'detalhe' || st.vista === 'lista')) render(); });
       if (P()) { P().iniciar(); if (!ligar._nomes) { ligar._nomes = true; P().onMudanca(function () { if (!wrap.hidden) render(); }); } }
     }
@@ -418,7 +419,8 @@
         var sit = N().situacaoResponsavel(estado, o.objetoId, x.p || null, refsDaTela());
         return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '" data-papel="' + esc(o.papel) + '"><span class="est-produto-nome">' + esc(x.nome || o.objetoId) + '</span>' + papelVinculoHtml(o, v, sit) +
           '<a class="btn btn--sm est-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x.p && x.p.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
-      }).join('') + '</ul></section>';
+      }).join('') + '</ul>' +
+        (ligacoesFalha ? '<p class="avp-decisao-aviso po-resp-indeterminada" id="estReconferirAviso" role="status"><strong>Não conferido:</strong> não foi possível ler as ligações oficiais para conferir o tipo agora. <button type="button" class="btn btn--sm" id="estReconferir">Conferir de novo</button></p>' : '') + '</section>';
     }
     /* Análise Organizacional (N4): o que a estrutura exerce SEGUNDO AS ANÁLISES — descritivo, com fonte, caráter e data;
        nunca vínculo (só aparece quando o marcador de homologação libera a leitura) */
@@ -768,6 +770,7 @@
       em('estVoltarOrigem', 'click', function () { if (confirmarDescarte()) sair(); });
       em('estVoltarOrigemNav', 'click', function () { if (confirmarDescarte()) sair(); });
       em('estVoltarLista', 'click', function () { if (confirmarDescarte()) irPara('lista'); });
+      em('estReconferir', 'click', function () { reconferirLigacoes(); });
       em('estVoltarFicha', 'click', function () { if (confirmarDescarte()) irPara('detalhe', st.id); });
       em('estCancelar', 'click', function () { if (!confirmarDescarte()) return; if (st.vista === 'nova') irPara('lista'); else irPara('detalhe', st.id); });
       em('estNova', 'click', function () { irPara('nova'); });
@@ -889,7 +892,7 @@
      confere tudo de novo). Manter = admin geral e avaliacao-arquitetura; avaliacao só consulta. Situação calculada
      pelo núcleo (situacaoResponsavel) — nada muda sozinho. Como o cadastro, só existe no AMBIENTE DE TESTES.
      ============================================================ */
-  var SITUACAO_VINCULO = { valido: 'Válido', 'divergencia-deliberada': 'Divergência deliberada', 'precisa-revisao': 'Precisa de revisão', ausente: 'Sem estrutura responsável', 'nao-aplicavel': 'Não se aplica' };
+  var SITUACAO_VINCULO = { valido: 'Válido', 'divergencia-deliberada': 'Divergência deliberada', 'precisa-revisao': 'Precisa de revisão', indeterminada: 'Não conferido', ausente: 'Sem estrutura responsável', 'nao-aplicavel': 'Não se aplica' };
   var MOTIVO_REVISAO = {
     CODIGO_EFETIVO_MUDOU: 'o posicionamento efetivo do item mudou desde o vínculo',
     POSICIONAMENTO_DEIXOU_DE_VALER: 'o item não tem mais Posicionamento vigente',
@@ -925,25 +928,45 @@
       default: return mensagem(e);
     }
   }
-  /* ligações oficiais (código do motor → conceito): undefined = lendo; null = não foi possível ler (o perfil avaliacao
-     não lê) — aí a situação é calculada sem conferir o tipo ("não sei" nunca vira "tipo não corresponde") */
-  var ligacoesLidas, lendoLigacoes = false, aoLerLigacoes = [], geracaoLigacoes = 0;
+  /* ligações oficiais (código do motor → conceito): undefined = lendo (as telas mostram "Carregando…"); null = não
+     lidas — recusadas ao perfil (o perfil avaliacao não lê: o tipo é conferido pelas próprias estruturas, que comprovam a
+     ligação do seu tipo — faEstruturasNucleo.ligacoesComprovadas, sem acesso a mais) ou falha de leitura (ligacoesFalha:
+     o que depende do tipo fica "Não conferido", e "Conferir de novo" relê sem recarregar o site) */
+  var ligacoesLidas, ligacoesFalha = false, lendoLigacoes = false, aoLerLigacoes = [], geracaoLigacoes = 0;
   function lerLigacoes(cb) {
     if (ligacoesLidas !== undefined) { cb(); return; }
     aoLerLigacoes.push(cb);
     if (lendoLigacoes || !disponivel()) return;
     lendoLigacoes = true;
     var g = geracaoLigacoes;
-    FB().lerLigacoes(window.firebase.database(), MOT().CODIGOS_FIRMES).then(function (l) {
+    FB().lerLigacoesDetalhado(window.firebase.database(), MOT().CODIGOS_FIRMES).then(function (r) {
       if (g !== geracaoLigacoes) return; /* resposta da sessão anterior */
-      ligacoesLidas = l; lendoLigacoes = false; var fs = aoLerLigacoes; aoLerLigacoes = []; fs.forEach(function (f) { f(); });
+      ligacoesLidas = r.ligacoes; ligacoesFalha = !!r.recusa && r.recusa !== 'RECUSADA';
+      lendoLigacoes = false; var fs = aoLerLigacoes; aoLerLigacoes = []; fs.forEach(function (f) { f(); });
     });
   }
-  function refsDaTela() { var r = { codigosFirmes: MOT().CODIGOS_FIRMES.slice() }; if (ligacoesLidas) r.ligacoes = ligacoesLidas; return r; }
+  function refsDaTela() {
+    var r = { codigosFirmes: MOT().CODIGOS_FIRMES.slice() };
+    if (ligacoesLidas) r.ligacoes = ligacoesLidas; else if (ligacoesFalha) r.ligacoesIndisponiveis = true; else if (ligacoesLidas === null) r.ligacoesPelasEstruturas = true;
+    return r;
+  }
+  /* falha temporária: relê as ligações e redesenha o bloco, a ficha e o Mapa — sem recarregar o site */
+  function reconferirLigacoes() {
+    if (lendoLigacoes) return;
+    ligacoesLidas = undefined; ligacoesFalha = false; geracaoLigacoes++;
+    var avisar = function () { try { window.dispatchEvent(new CustomEvent('fa-estruturas-ligacoes')); } catch (e) { /* navegador antigo: as telas releem ao reabrir */ } };
+    if (bloco.ligado) { bloco.refs = undefined; desenharBloco(); }
+    avisar(); /* a ficha e o Mapa mostram "Carregando…" enquanto relê */
+    lerLigacoes(function () { if (bloco.ligado) { bloco.refs = ligacoesLidas; desenharBloco(); } avisar(); });
+  }
+  function motivoVinculoTexto(m) {
+    if (m === 'REFERENCIA_OFICIAL_INDISPONIVEL') return 'não foi possível ler as ligações oficiais (código do Posicionamento → tipo de estrutura) para conferir o tipo agora';
+    return MOTIVO_REVISAO[m] || m;
+  }
   /* a situação do vínculo (etiqueta + motivos de revisão), igual na ficha, no bloco e no Mapa */
   function situacaoVinculoHtml(s) {
     var h = ' <span class="est-situacao po-resp-situacao po-resp-situacao--' + esc(s.situacao) + '" data-situacao="' + esc(s.situacao) + '">' + esc(SITUACAO_VINCULO[s.situacao] || s.situacao) + '</span>';
-    if (s.situacao === 'precisa-revisao') h += ' <span class="po-resp-motivos">' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '</span>';
+    if (s.situacao === 'precisa-revisao' || s.situacao === 'indeterminada') h += ' <span class="po-resp-motivos">' + s.motivos.map(function (m) { return esc(motivoVinculoTexto(m)); }).join('; ') + '</span>';
     return h;
   }
   /* o papel de uma estrutura numa responsabilidade (ficha da estrutura e detalhe do Mapa): E3 — colaboradora com o
@@ -1010,6 +1033,8 @@
     if (s.situacao === 'divergencia-deliberada') h += '<p class="est-intro po-resp-divergencia" id="poRespDivergencia" role="status">A estrutura (' + esc(nomeTipo(bloco.estruturas[v.estruturaId].tipo)) + ') é de tipo diferente do posicionamento efetivo (' + esc(nomeTipo(ef.codigo)) + ', ' + origemTexto(ef.origem) + '). É uma decisão organizacional registrada, não um erro: a recomendação e a decisão do Posicionamento continuam como estão.</p>';
     if (s.divergenciaResolvida) h += '<p class="est-intro po-resp-divergencia" id="poRespDivergenciaResolvida" role="status">Esta alocação foi registrada como divergente: na época, o posicionamento era ' + esc(nomeTipo(v.base.codigo)) + ' (' + origemTexto(v.base.origem) + '). A avaliação atual (' + esc(nomeTipo(s.divergenciaResolvida.codigoAtual)) + ', ' + origemTexto(s.divergenciaResolvida.origem) + ') passou a coincidir com o tipo da estrutura. A divergência original e a justificativa continuam registradas acima.</p>';
     if (s.situacao === 'precisa-revisao') h += '<p class="avp-decisao-aviso po-resp-revisao" id="poRespRevisao" role="status"><strong>Precisa de revisão:</strong> ' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '. O vínculo continua registrado até alguém reconfirmá-lo, substituí-lo ou encerrá-lo.</p>';
+    if (s.situacao === 'indeterminada') h += '<p class="avp-decisao-aviso po-resp-indeterminada" id="poRespIndeterminada" role="status"><strong>Não conferido:</strong> ' + s.motivos.map(function (m) { return esc(motivoVinculoTexto(m)); }).join('; ') + '. Não quer dizer que o vínculo está válido nem que precisa de revisão; ele continua registrado como está.' +
+      ' <button type="button" class="btn btn--sm" id="poRespReconferir">Conferir de novo</button></p>';
     if (v && bloco.avisoBase) h += '<p class="avp-decisao-aviso po-resp-base" id="poRespBase" role="status"><strong>Aviso:</strong> ' + esc(bloco.avisoBase) + ' Isso não muda a situação do vínculo; confira o Posicionamento.</p>';
     if (s.situacao === 'ausente') h += '<p class="est-intro" id="poRespAusente">Nenhuma estrutura responsável registrada. O posicionamento efetivo do item é ' + esc(nomeTipo(ef.codigo)) + ' (' + origemTexto(ef.origem) + '). Vincular uma estrutura é etapa separada e opcional: a avaliação já está concluída e não é preciso cadastrar uma estrutura nova para continuar.</p>';
     if (s.situacao === 'nao-aplicavel') h += '<p class="est-intro" id="poRespNaoAplicavel">O item não tem posicionamento efetivo firme (decisão final ou recomendação firme): ainda não cabe registrar a estrutura responsável.</p>';
@@ -1099,6 +1124,7 @@
     var q = function (id) { return el.querySelector('#' + id); };
     var abrirModo = function (modo, vinculoId) { bloco.modo = modo; bloco.form = { estruturaId: '', motivo: '', justificativa: '', vinculoId: vinculoId || null }; bloco.erros = []; bloco.flash = null; bloco.op = null; desenharBloco(); };
     [['poRespVincular', 'vincular'], ['poRespSubstituir', 'substituir'], ['poRespEncerrar', 'encerrar'], ['poRespColaborar', 'colaborar']].forEach(function (b) { var x = q(b[0]); if (x) x.addEventListener('click', function () { abrirModo(b[1]); }); });
+    var rc = q('poRespReconferir'); if (rc) rc.addEventListener('click', reconferirLigacoes);
     Array.prototype.forEach.call(el.querySelectorAll('.po-resp-colab-encerrar'), function (b) { b.addEventListener('click', function () { abrirModo('encerrar-colab', b.getAttribute('data-vinculo')); }); });
     var c = q('poRespCancelar'); if (c) c.addEventListener('click', function () { bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; desenharBloco(); });
     [['poRespMotivo', 'motivo', 'input'], ['poRespJustificativa', 'justificativa', 'input'], ['poRespDivMotivoSel', 'divMotivo', 'change'],
@@ -1178,7 +1204,7 @@
     pessoaBloco = quem;
     if (!trocou) return;
     if (bloco.desligar) bloco.desligar();
-    ligacoesLidas = undefined; lendoLigacoes = false; geracaoLigacoes++;
+    ligacoesLidas = undefined; ligacoesFalha = false; lendoLigacoes = false; geracaoLigacoes++;
     taxRel = undefined; lendoTaxRel = false; geracaoTaxRel++; /* outro perfil pode ler outras coisas */
     /* quem esperava as leituras continua esperando: recomeçam com a sessão nova (ou quando o marcador chegar) */
     if (disponivel() && aoLerLigacoes.length) lerLigacoes(function () {});

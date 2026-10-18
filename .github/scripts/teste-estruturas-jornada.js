@@ -614,11 +614,11 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await esperarCondicaoAte(p, () => /novo nome/.test((document.getElementById('estFicha') || {}).innerText || ''), undefined, { limite: 15000 });
       afirma(/Válido/.test(await texto(p, '#estProdutos .est-produto[data-objeto="item-m3"]')), 'só o nome da estrutura mudou: o vínculo continua "Válido" (decisão D)');
       afirma(await semRolagemLateral(p), 'computador: ficha da estrutura com os produtos, sem rolagem lateral');
-      /* perfil só de consulta: não lê as ligações oficiais — a situação continua "Válido", sem "tipo não corresponde" */
+      /* perfil só de consulta: as regras recusam as ligações oficiais; o tipo é conferido pelas estruturas (ligacoesComprovadas) */
       const cq2 = await sessao('consulta');
       await ir(cq2, '#arquitetura?po=pos-m3');
       await esperarCondicaoAte(cq2, () => !!document.getElementById('poRespSituacao'), undefined, { limite: 15000 });
-      afirma((await texto(cq2, '#poRespSituacao')) === 'Válido', 'perfil avaliacao (consulta): o vínculo aparece "Válido" (sem as ligações, a situação não confere o tipo — nunca um falso "Precisa de revisão")', await texto(cq2, '#poResponsavel'));
+      afirma((await texto(cq2, '#poRespSituacao')) === 'Válido', 'perfil avaliacao (consulta): as regras recusam as ligações e o tipo é conferido pelas estruturas — o vínculo aparece "Válido" (nunca um falso "Precisa de revisão" nem "Não conferido" permanente)', await texto(cq2, '#poResponsavel'));
       await ir(cq2, '#arquitetura?mf=catalogo&item=item-m3');
       await esperarCondicaoAte(cq2, (sel) => { const el = document.querySelector(sel); return !!el && !!el.querySelector('.mf-vinculo [data-situacao]'); }, itemCat, { limite: 15000 });
       afirma(/Válido/.test(await texto(cq2, itemCat)), 'perfil avaliacao (consulta): o Catálogo mostra a mesma situação "Válido"');

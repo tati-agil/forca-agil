@@ -266,6 +266,8 @@
     else if (v && v.situacao === 'valido') et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'ok', texto: 'Válido: ' + (v.estruturaNome || '') });
     else if (v && v.situacao === 'divergencia-deliberada') et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'ok', texto: 'Divergência deliberada: ' + (v.estruturaNome || '') });
     else if (v && v.situacao === 'precisa-revisao') et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'revisao', texto: 'Precisa de revisão: ' + (v.estruturaNome || '') });
+    /* referências oficiais indisponíveis: nem válido nem revisão — o vínculo existe, a conferência não foi possível */
+    else if (v && v.situacao === 'indeterminada') et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: 'carregando', texto: 'Não conferido: ' + (v.estruturaNome || '') });
     else et.push({ id: 'vinculo', rotulo: 'Estrutura responsável (vínculo)', estado: e4.estado === 'ok' && !encerrada ? 'atual' : 'futuro', texto: 'Sem estrutura responsável' });
     if (ef && ctx.liberaSquad && ctx.liberaSquad(ef.codigo)) et.push({ id: 'squad', rotulo: 'Adequação à Squad', estado: 'opcional', texto: 'Opcional (ramo Linha)' });
     var completa = !!(pos && ef && alocado);
@@ -967,8 +969,11 @@
         if (m.relacoes) cadastro.relacoes = m.relacoes;
         cadastro.erro = null; if (!wrap.hidden) render();
       }, function (cod) { cadastro.erro = cod; if (!wrap.hidden) render(); });
-      /* ligações oficiais para a situação do vínculo (null = o perfil não lê: a situação não confere o tipo) */
-      if (window.faEstruturasAdmin && window.faEstruturasAdmin.lerLigacoes) window.faEstruturasAdmin.lerLigacoes(function (ref) { cadastro.refs = ref; if (!wrap.hidden) render(); });
+      /* ligações oficiais para a situação do vínculo (o perfil que não as lê confere o tipo pelas estruturas; leitura que
+         falhou = "Não conferido"); "Conferir de novo" (fa-estruturas-ligacoes) relê sem recarregar o site */
+      var lerRefs = function () { if (window.faEstruturasAdmin && window.faEstruturasAdmin.lerLigacoes) window.faEstruturasAdmin.lerLigacoes(function (ref) { cadastro.refs = ref; if (!wrap.hidden) render(); }); };
+      lerRefs();
+      if (!ligarCadastro._reconferir) { ligarCadastro._reconferir = true; window.addEventListener('fa-estruturas-ligacoes', function () { if (!cadastro.desligar) return; cadastro.refs = undefined; if (!wrap.hidden) render(); lerRefs(); }); }
     }
     function desligarCadastro() { if (cadastro.desligar) { cadastro.desligar(); cadastro.desligar = null; } cadastro.estruturas = cadastro.subagrupadores = cadastro.associacoes = cadastro.vinculos = cadastro.relacoes = cadastro.refs = undefined; cadastro.erro = null; }
     function blocoDoTipo(tipo) { return BLOCOS.filter(function (b) { return b.codigos.indexOf(tipo) !== -1; })[0] || null; }

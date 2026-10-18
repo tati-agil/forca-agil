@@ -213,7 +213,12 @@
     return lerTaxonomiaDasRelacoes(umaVez, codigosLinha).then(null, function () { return null; });
   }
   function lerLigacoes(db, codigosFirmes) {
-    return criarPortas({ db: db || window.firebase.database(), codigosFirmes: codigosFirmes }).lerReferencias().then(function (r) { return r.ligacoes; }, function () { return null; });
+    return lerLigacoesDetalhado(db, codigosFirmes).then(function (r) { return r.ligacoes; });
+  }
+  /* { ligacoes, recusa }: recusa 'RECUSADA' = o perfil não lê as ligações (por desenho); outra = a leitura falhou */
+  function lerLigacoesDetalhado(db, codigosFirmes) {
+    return criarPortas({ db: db || window.firebase.database(), codigosFirmes: codigosFirmes }).lerReferencias()
+      .then(function (r) { return { ligacoes: r.ligacoes, recusa: null }; }, function (e) { return { ligacoes: null, recusa: (e && e.codigo) || 'SEM_RESPOSTA' }; });
   }
 
   function criarPortas(opcoes) {
@@ -309,7 +314,7 @@
     return { lerReferencias: lerReferencias, lerEstado: lerEstado, gravar: gravar, conferirOperacao: conferirOperacao, lerEventos: lerEventos, lerPosicionamento: lerPosicionamento };
   }
 
-  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, lerLigacoes: lerLigacoes, estruturasDoValor: estruturasDoValor, registrosDoValor: registrosDoValor,
+  var api = Object.freeze({ criarPortas: criarPortas, montarGravacao: montarGravacao, ouvir: ouvir, lerLigacoes: lerLigacoes, lerLigacoesDetalhado: lerLigacoesDetalhado, estruturasDoValor: estruturasDoValor, registrosDoValor: registrosDoValor,
     eventosDoValor: eventosDoValor, lerRelacoesConceituais: lerRelacoesConceituais, RAIZ: RAIZ, RAIZ_SUBAGRUPADORES: RAIZ_SUBAGRUPADORES, RAIZ_VINCULOS: RAIZ_VINCULOS, RAIZ_RELACOES: RAIZ_RELACOES, TRAVA_PRODUCAO: TRAVA_PRODUCAO });
   if (typeof window !== 'undefined') window.faEstruturasFirebase = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
