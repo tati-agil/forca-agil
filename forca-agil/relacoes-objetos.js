@@ -98,6 +98,17 @@
   function redesenharMontados() {
     montados = montados.filter(function (m) { return m.el && m.el.isConnected; });
     montados.forEach(function (m) { desenhar(m); });
+    montarPendentes();
+  }
+  /* pontos de encaixe que uma tela desenhou ANTES de este módulo chegar (rede lenta: o login, com a sessão guardada,
+     termina antes do fim da lista de scripts, e a tela não se redesenha depois) — montados aqui, sem depender dela */
+  function montarPendentes() {
+    if (!N() || typeof document === 'undefined') return;
+    var ja = montados.map(function (m) { return m.el; });
+    var pend = function (sel, tipo, attr) {
+      Array.prototype.forEach.call(document.querySelectorAll(sel), function (el) { if (ja.indexOf(el) === -1) montar(el, tipo, attr ? el.getAttribute(attr) : null); });
+    };
+    pend('[data-ro-secao]', 'secao', 'data-ro-secao'); pend('[data-ro-resumo]', 'resumo', 'data-ro-resumo'); pend('[data-ro-tax]', 'tax', null);
   }
 
   /* ---------- leitura dos objetos ---------- */
@@ -437,4 +448,10 @@
     /* para testes e diagnóstico: o que a tela calcula, sem gravar nada */
     naturezaDe: function (id) { return natureza(id); }, disponivel: function () { return ativo(); }
   });
+  /* chegou depois do login? liga já (os eventos de sessão podem ter passado) e monta o que as telas já desenharam */
+  aoMudarSessao();
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montarPendentes);
+    else montarPendentes();
+  }
 })();
