@@ -2531,7 +2531,7 @@
     }
     /* O mesmo "← Voltar", repetido no rodapé das telas longas (no celular o do topo fica longe). */
     function rodapeVoltar(id, destino) {
-      return '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="' + id + '">← Voltar para ' + esc(destino) + '</button></div>';
+      return '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="avp-voltar-link" id="' + id + '">← Voltar para ' + esc(destino) + '</button></div>';
     }
     function sairComAviso(c, acao) {
       if (c && c.sujo) {
@@ -2902,7 +2902,7 @@
         '<p class="admin-empty">A conexão está demorando e não foi possível carregar esta avaliação. Verifique sua internet.</p>' +
         '<div class="avp-actions-footer">' +
         '<button class="btn btn--primary" id="avpRecarregarTravado">TENTAR NOVAMENTE</button>' +
-        '<button class="btn" id="avpVoltarCarregandoTravado">← Voltar para avaliações</button>' +
+        '<button class="avp-voltar-link" id="avpVoltarCarregandoTravado">← Voltar para avaliações</button>' +
         '</div></div>';
       document.getElementById('avpRecarregarTravado').addEventListener('click', function () { location.reload(); });
       document.getElementById('avpVoltarCarregandoTravado').addEventListener('click', function () {
@@ -3014,7 +3014,7 @@
       var e = estadoDaEntrada();
       var o = e && e.origem;
       if (o && o.t === 'lista') return { historico: true, hash: hashLista(), rotulo: 'avaliações' };
-      if (o && o.t === 'inicio') return { historico: true, hash: hashInicio(), rotulo: 'o Início da Floresta' };
+      if (o && o.t === 'inicio') return { historico: true, hash: hashInicio(), rotulo: 'A Floresta' };
       if (o && o.t === 'avaliacao') return { historico: true, hash: hashAvaliacao(o.key), rotulo: 'a avaliação (v' + (o.v || 1) + ')' };
       var no = window.faNav && window.faNav.origem();
       if (no && no.hash !== location.hash) return { navOrigem: true, hash: no.hash, rotulo: no.rotulo };
@@ -3266,7 +3266,7 @@
       wrap.innerHTML =
         '<div class="avp-form-card">' +
         '<p class="admin-empty">' + esc(msg) + '</p>' +
-        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarNaoEncontrada">← Voltar para avaliações</button></div>' +
+        '<div class="avp-actions-footer"><button class="avp-voltar-link" id="avpVoltarNaoEncontrada">← Voltar para avaliações</button></div>' +
         '</div>';
       document.getElementById('avpVoltarNaoEncontrada').addEventListener('click', function () {
         irPara(hashLista(), { replace: true });
@@ -3276,7 +3276,7 @@
       wrap.innerHTML =
         '<div class="avp-form-card">' +
         '<p class="admin-empty">Você não possui permissão para visualizar esta avaliação.</p>' +
-        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarSemPermissao">← Voltar para avaliações</button></div>' +
+        '<div class="avp-actions-footer"><button class="avp-voltar-link" id="avpVoltarSemPermissao">← Voltar para avaliações</button></div>' +
         '</div>';
       document.getElementById('avpVoltarSemPermissao').addEventListener('click', function () {
         irPara(hashLista(), { replace: true });
@@ -3350,7 +3350,7 @@
        um com a sua finalidade. Não lê o banco: abre na hora, também no 4G. Cada destino é uma tela que já existe; ao
        abri-lo daqui, a entrada do histórico registra o Início como origem, e o "← Voltar" de lá volta para cá. */
     var DESTINOS_INICIO = {
-      avpInicioNatureza: '#arquitetura?nova=1', avpInicioAtuacao: '#arquitetura?po=nova-atuacao', avpInicioSquad: '#arquitetura?sq=lista',
+      avpInicioNatureza: '#arquitetura?nova=1', avpInicioAtuacao: '#arquitetura?po=nova-atuacao', avpInicioItem: '#arquitetura?po=escolher', avpInicioSquad: '#arquitetura?sq=lista',
       avpInicioTrabalhos: '#arquitetura?tr=1', avpInicioMapa: '#arquitetura?mf=mapa'
     };
     var inicioOuveNomes = false;
@@ -3446,7 +3446,7 @@
         aviso.innerHTML = ac === 'carregando' ? '<p class="loading-msg" role="status" id="flGestaoCarregando">Carregando…</p>'
           : '<div class="avp-form-card" id="flGestaoSemAcesso"><p>' + (area === 'taxonomia' ? 'A Taxonomia é mantida pela administração geral.'
             : 'A Gestão da Floresta é do perfil Avaliação + Configuração e da administração geral.') + ' Seu acesso não inclui esta área.</p>' +
-            '<a class="btn btn--sm" href="#arquitetura">← Voltar para A Floresta</a></div>';
+            '<a class="avp-voltar-link" href="#arquitetura">← Voltar para A Floresta</a></div>';
         return;
       }
       aviso.hidden = true; aviso.innerHTML = '';
@@ -3607,10 +3607,13 @@
         '<div class="avp-inicio-cartao" id="avpInicioCartaoNatureza"><p class="avp-inicio-caminho">Porta 1 · P1–P16</p><h4>Avaliar um Produto/Serviço</h4>' +
         '<p>Descubra se um item constitui um Produto/Serviço.</p>' + link('avpInicioNatureza', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' +
         /* Porta 2: dois começos para o mesmo O1–O9 — uma responsabilidade ou uma área */
-        '<div class="avp-inicio-porta2" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · Posicionamento das responsabilidades · O1–O9</p><div class="avp-inicio-opcoes">' +
+        '<div class="avp-inicio-porta2" id="avpInicioCartaoAtuacao"><p class="avp-inicio-caminho">Porta 2 · Posicionamento das responsabilidades · O1–O9</p>' +
+        '<p class="avp-inicio-nota" id="avpInicioPorta2Nota">O mesmo questionário e o mesmo motor O1–O9 nas três entradas; muda só a origem — e o vínculo, opcional, com uma avaliação de Produto/Serviço.</p><div class="avp-inicio-opcoes">' +
+        (podeIniciarPosicionamento() ? '<div class="avp-inicio-cartao avp-inicio-opcao" id="avpInicioOpcaoItem"><h4>Avaliar um item vinculado a Produto/Serviço</h4>' +
+          '<p>O item já tem uma avaliação de Produto/Serviço (P1–P16).</p>' + link('avpInicioItem', 'btn avp-inicio-acao', 'Iniciar avaliação') + '</div>' : '') +
         '<div class="avp-inicio-cartao avp-inicio-opcao" id="avpInicioOpcaoA"><h4>Avaliar uma responsabilidade</h4>' +
-        '<p>Já sabe qual responsabilidade deseja avaliar?</p>' +
-        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Avaliar responsabilidade')
+        '<p>Direto da responsabilidade, sem avaliação de Produto/Serviço.</p>' +
+        (podeIniciarPosicionamento() ? link('avpInicioAtuacao', 'btn avp-inicio-acao', 'Iniciar avaliação')
           : '<p class="avp-inicio-perfil" id="avpInicioAtuacaoPerfil">Avaliar uma responsabilidade é do perfil Avaliação + Configuração. As já registradas aparecem em "Ver e continuar trabalhos".</p>') + '</div>' +
         '<div class="avp-inicio-cartao avp-inicio-opcao" id="avpInicioOpcaoB"><h4>Analisar uma área</h4>' +
         '<p>Cadastre e avalie as responsabilidades de uma gerência, núcleo ou outra área.</p>' +
@@ -3662,7 +3665,7 @@
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
       var html = '';
-      if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="btn btn--sm" id="avpVoltarInicio">' + esc(window.faNav && window.faNav.origem() && window.faNav.origem().hash !== location.hash ? '← Voltar para ' + window.faNav.origem().rotulo : '← Início da Floresta') + '</button>' +
+      if (modo === 'operacional') html += '<div class="avp-lista-topo"><button type="button" class="avp-voltar-link" id="avpVoltarInicio">' + esc(window.faNav && window.faNav.origem() && window.faNav.origem().hash !== location.hash ? '← Voltar para ' + window.faNav.origem().rotulo : '← Voltar para A Floresta') + '</button>' +
         '<h2 class="avp-lista-titulo" id="avpListaTitulo">Avaliações de Produto/Serviço ou outra natureza (P1–P16)</h2></div>';
       if (state.flashLista) {
         html += '<div class="avp-flash-success" id="avpFlashLista">' + esc(state.flashLista) +
@@ -3719,7 +3722,7 @@
          exclusivamente no Admin. */
       if (pode()) {
         html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
-          (state.lixeira ? '← Voltar para avaliações' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
+          (state.lixeira ? 'Sair da Lixeira' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       }
       html += '</div>';
       if (state.flashExportacao) {
@@ -4765,7 +4768,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--sm" id="avpCfgSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
       html += '<button class="btn btn--primary btn--sm" id="avpCfgPublicarBtn">PUBLICAR NOVA VERSÃO</button>';
-      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">← Voltar para ' + esc(rotuloListaQuestionarios()) + '</button>';
+      html += '<button class="avp-voltar-link" id="avpCfgVoltarListaBtn">← Voltar para ' + esc(rotuloListaQuestionarios()) + '</button>';
       html += '</div>';
       if (c.confirmandoPublicacao) html += renderConfigConfirmarPublicacao();
       return html;
@@ -4917,7 +4920,7 @@
             resumo: 'Versão ' + a.versaoAnterior + ' → ' + a.novaVersao, anterior: a.valorAnterior, novo: a.valorNovo };
         }), { titulo: 'Histórico de alterações' });
       }
-      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">← Voltar para ' + esc(rotuloListaQuestionarios()) + '</button></div>';
+      html += '<div class="avp-actions-footer"><button class="avp-voltar-link" id="avpCfgAuditoriaVoltarBtn">← Voltar para ' + esc(rotuloListaQuestionarios()) + '</button></div>';
       return html;
     }
     function bindConfigAuditoria() {
@@ -6901,7 +6904,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="avpMotorArqSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
       html += '<button class="btn btn--primary" id="avpMotorArqSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
-      html += '<button class="btn" id="avpMotorArqCancelarBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Produto/Serviço (P1–P16)</button>';
+      html += '<button class="avp-voltar-link" id="avpMotorArqCancelarBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Produto/Serviço (P1–P16)</button>';
       html += '</div>';
       return html;
     }
@@ -7025,7 +7028,7 @@
       }
       if (c.erro) html += '<div class="avp-form-card"><p class="avp-error-msg">' + esc(c.erro) + '</p></div>';
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="avpMotorArqVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Editar regras</button>';
+      html += '<button class="avp-voltar-link" id="avpMotorArqVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Editar regras</button>';
       html += '<button class="btn btn--primary" id="avpMotorArqConfirmarPublicarBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR NOVA VERSÃO') + '</button>';
       html += '</div>';
       return html;
@@ -7123,7 +7126,7 @@
         });
       }
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="avpMotorArqCompararVoltarBtn">← Voltar para o conflito de publicação</button>';
+      html += '<button class="avp-voltar-link" id="avpMotorArqCompararVoltarBtn">← Voltar para o conflito de publicação</button>';
       html += '</div>';
       return html;
     }
@@ -7937,7 +7940,7 @@
       /* Rodapé: só a navegação. Reavaliar e GERAR PDF são ações do item e ficam no cabeçalho. O Posicionamento
          Organizacional deste item é outra avaliação (só quem grava O1–O9: Avaliação + Configuração, admin geral). */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
-      html += '<button class="btn" id="avpVoltarListaRodape">' + esc(rotuloVoltar()) + '</button>';
+      html += '<button class="avp-voltar-link" id="avpVoltarListaRodape">' + esc(rotuloVoltar()) + '</button>';
       if (modo === 'operacional' && podeDecidir() && vigente && a.status === 'concluido' && a.excluido !== true) {
         html += '<button class="btn" id="avpPosicionarBtn">Posicionamento Organizacional deste item</button>';
       }

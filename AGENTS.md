@@ -33,7 +33,10 @@ banco e a tabela de módulos, em `docs/referencia-tecnica.md` (consulte sob dema
   motores, questionários ou dados sem pedido explícito.
 - **Celular e computador são a mesma entrega**, e rede lenta é o caso normal (ver `CLAUDE.md`).
 - **Padrão Visual Oficial** (`docs/padrao-visual.md`): toda funcionalidade nova ou modificada segue a identidade
-  aprovada do FORÇA ÁGIL; validar com `teste-padrao-visual.js`.
+  aprovada do FORÇA ÁGIL. Antes de qualquer mudança visual: consultar o documento (§3-A: hierarquia amarelo/azul/ciano e
+  estados de links e botões), reutilizar classes existentes sem inventar cores, fontes ou estilos, verificar desktop e
+  375 px (links, botões, contraste, navegação) e rodar `teste-padrao-visual.js` e `teste-padrao-visual-floresta.js`
+  (obrigatório, bloqueia o merge). O padrão só muda com decisão expressa da dona.
 - **"Se pode editar, pode gravar"**: tela de edição sem gravação real é defeito (ver `CLAUDE.md`).
 - **Nada de segredos no Git.** Use `.env` (ignorado) e `.env.example`.
 - **Paridade Firebase × PostgreSQL** (`docs/paridade-firebase-postgresql.md`): uma fonte oficial de gravação por vez

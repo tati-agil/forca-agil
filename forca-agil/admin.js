@@ -77,7 +77,7 @@
     var el = document.getElementById('adminVoltaInicio');
     if (!el) {
       el = document.createElement('p'); el.className = 'admin-volta-inicio'; el.id = 'adminVoltaInicio'; el.hidden = true;
-      el.innerHTML = '<a href="#arquitetura" id="adminVoltaInicioLink">← Voltar ao Início da Floresta</a>';
+      el.innerHTML = '<a href="#arquitetura" id="adminVoltaInicioLink">← Voltar para A Floresta</a>';
       var abas = wrap.querySelector('.admin-tabs-bar');
       if (abas) abas.parentNode.insertBefore(el, abas.nextSibling); else wrap.insertBefore(el, wrap.firstChild);
     }
@@ -146,7 +146,7 @@
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?an=/, 'a Análise Organizacional'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?(avp|editar)=/, 'a avaliação de Produto/Serviço'],
     [/^#(?:arquitetura|avaliacoes)\?(.*&)?av=/, 'as avaliações de Produto/Serviço'],
-    [/^#(?:arquitetura|avaliacoes)$/, 'o Início da Floresta'],
+    [/^#(?:arquitetura|avaliacoes)$/, 'A Floresta'],
     [/^#admin/, 'o ADMIN']
   ];
   function rotuloOrigem(hash) { for (var i = 0; i < ROTULOS_ORIGEM.length; i++) if (ROTULOS_ORIGEM[i][0].test(hash || '')) return ROTULOS_ORIGEM[i][1]; return 'a tela anterior'; }

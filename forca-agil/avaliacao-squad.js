@@ -461,7 +461,7 @@
       else if (state.tela === 'carregando') { wrap.innerHTML = '<p class="loading-msg">Carregando…</p>'; }
       else if (state.tela === 'nao-encontrada') {
         wrap.innerHTML = '<p class="admin-empty">Avaliação de squad não encontrada.</p>' +
-          '<button class="btn" id="sqVoltarNaoEncontrada">← Voltar para Adequação à Squad</button>';
+          '<button class="avp-voltar-link" id="sqVoltarNaoEncontrada">← Voltar para Adequação à Squad</button>';
         byId('sqVoltarNaoEncontrada').addEventListener('click', function () { state.tela = 'lista'; render(); });
       }
       sincronizarEndereco();
@@ -529,7 +529,7 @@
         });
         html += '</tbody></table></div>';
       }
-      html += '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="sqVoltarArquiteturaRodape">← Voltar para ' + esc(rotuloSquad('A Floresta')) + '</button></div>';
+      html += '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="avp-voltar-link" id="sqVoltarArquiteturaRodape">← Voltar para ' + esc(rotuloSquad('A Floresta')) + '</button></div>';
       wrap.innerHTML = html;
 
       byId('sqVoltarArquitetura').addEventListener('click', sairParaAvaliacoes);
@@ -1175,7 +1175,7 @@
       html += '</tbody></table></div></div>';
 
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
-      html += '<button class="btn" id="sqVoltarListaRodape">← Voltar para ' + esc(rotuloSquad('Adequação à Squad')) + '</button>';
+      html += '<button class="avp-voltar-link" id="sqVoltarListaRodape">← Voltar para ' + esc(rotuloSquad('Adequação à Squad')) + '</button>';
       html += '<button class="btn btn--sm" id="sqGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
         (state.exportando ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
       html += '</div>';
@@ -1706,7 +1706,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqMotorSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
       html += '<button class="btn btn--primary" id="sqMotorSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
-      html += '<button class="btn" id="sqMotorCancelarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Adequação à Gestão por Squad (S1–S8)</button>';
+      html += '<button class="avp-voltar-link" id="sqMotorCancelarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Adequação à Gestão por Squad (S1–S8)</button>';
       html += '</div>';
       return html;
     }
@@ -1764,7 +1764,7 @@
       if (invalida) html += renderValidacaoInvalida(c.validacao);
       if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="sqMotorVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Editar regras</button>';
+      html += '<button class="avp-voltar-link" id="sqMotorVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Editar regras</button>';
       html += '<button class="btn btn--primary" id="sqMotorConfirmarPublicarBtn"' + (c.salvando || invalida ? ' disabled' : '') + '>' +
         (c.salvando ? 'PUBLICANDO…' : 'CONFIRMAR PUBLICAÇÃO') + '</button>';
       html += '</div>';
@@ -1888,7 +1888,7 @@
         });
       }
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="sqMotorCompararVoltarBtn">← Voltar para o conflito de publicação</button>';
+      html += '<button class="avp-voltar-link" id="sqMotorCompararVoltarBtn">← Voltar para o conflito de publicação</button>';
       html += '</div>';
       return html;
     }
@@ -1914,7 +1914,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--primary" id="sqMotorPublicarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>' +
         (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR TEXTOS') + '</button>';
-      html += '<button class="btn" id="sqMotorCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Adequação à Gestão por Squad (S1–S8)</button>';
+      html += '<button class="avp-voltar-link" id="sqMotorCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Adequação à Gestão por Squad (S1–S8)</button>';
       html += '</div>';
       return html;
     }

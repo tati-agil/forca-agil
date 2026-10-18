@@ -134,6 +134,15 @@ cinza fora das exceções do documento (Mapa da Floresta). Tamanhos de letra pel
 regra do componente, não por sobrescritas em massa; validar com `.github/scripts/teste-padrao-visual.js` e
 comparar com `screenshots/padrao-visual/` na mesma escala.
 
+**Antes de qualquer mudança visual (obrigatório, em toda sessão e PR):**
+1. consultar `docs/padrao-visual.md` (§3-A: amarelo = ação principal, no máximo uma por cartão; contorno azul `.btn` =
+   secundária, alternativas com o mesmo peso; ciano `.avp-voltar-link` = navegação e todo "← Voltar"; link textual =
+   complementar, nunca na cor do navegador, nem visitado);
+2. reutilizar as classes e componentes existentes — não inventar cores, fontes ou estilos;
+3. verificar desktop e 375 px, links (normal e visitado), botões, contraste e navegação (ida e volta);
+4. rodar `.github/scripts/teste-padrao-visual-floresta.js` (e acrescentar a tela nova à lista dele);
+5. só mudar o padrão com decisão expressa da dona, registrada no próprio documento.
+
 **Editar sem conseguir salvar não é uma funcionalidade menor — é quebrada.**
 Nas palavras dela: "se admin pode mexer, pode gravar. ou não deixa mexer ou
 deixa e salva." Toda tela é uma destas duas coisas, nunca uma terceira: só

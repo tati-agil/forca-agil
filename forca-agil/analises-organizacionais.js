@@ -291,9 +291,11 @@
     function infoPos() { var m = {}; Object.keys(D.vigentes || {}).forEach(function (o) { var p = posicionamentoDa(o); if (p.estado === 'concluido') m[o] = { codigoEfetivo: p.codigoEfetivo }; }); return m; }
     function renderLista(a) {
       var est = estado(), ids = Object.keys(est.analises).sort(function (x, y) { return (est.analises[y].criadaEm || 0) - (est.analises[x].criadaEm || 0); });
-      var h = voltar('#arquitetura?po=atuacoes', 'Voltar para Responsabilidades Organizacionais', 'anVoltarAtuacoes') + '<h2 class="an-titulo">Análises Organizacionais</h2>' +
+      /* o retorno da lista é a tela de onde ela foi aberta (Início, Trabalhos, Responsabilidades…); sem origem, o Início */
+      var oNav = window.faNav && window.faNav.origem(); oNav = oNav && !/[?&]an=/.test(oNav.hash) ? oNav : null;
+      var h = voltar(oNav ? oNav.hash : '#arquitetura', 'Voltar para ' + (oNav ? oNav.rotulo : 'A Floresta'), 'anVoltarAtuacoes') + '<h2 class="an-titulo">Análises Organizacionais</h2>' +
         '<p class="an-intro">Acompanhe as responsabilidades de cada área.</p>';
-      if (a.gravar) h += '<a class="btn btn--primary" id="anNovaBtn" href="#arquitetura?an=nova">Nova análise</a>';
+      if (a.gravar) h += '<div class="avp-actions-bar"><a class="btn btn--primary" id="anNovaBtn" href="#arquitetura?an=nova">+ Analisar uma área</a></div>';
       var ativas = ids.filter(function (id) { return est.analises[id].situacao !== 'descartada'; }), desc = ids.length - ativas.length;
       /* nomes repetidos: data de abertura, situação e o código da análise distinguem uma da outra */
       var porNome = {}; ativas.forEach(function (id) { var nn = normalizado(est.analises[id].nome); porNome[nn] = (porNome[nn] || 0) + 1; });
@@ -1319,7 +1321,7 @@
     /* as ações da tela de Responsabilidades Organizacionais: "Nova responsabilidade" e "Analisar uma área" (mesmo peso);
        "Análises Organizacionais" acompanha as áreas já abertas */
     return '<div class="an-entrada an-acoes" id="anEntradaAtuacoes">' + (botaoDireto || '') +
-      (a.gravar ? '<a class="btn btn--primary" id="anEntradaNova" href="#arquitetura?an=nova">Analisar uma área</a>' : '') +
+      (a.gravar ? '<a class="btn" id="anEntradaNova" href="#arquitetura?an=nova">Analisar uma área</a>' : '') +
       '<a class="btn btn--sm" id="anEntradaLista" href="#arquitetura?an=lista">Análises Organizacionais</a></div>';
   }
   /* Caminho A (direto) com "Sim, precisa separar" ou "Não sei": a responsabilidade não vai direto para o O1–O9; ela é
@@ -1348,7 +1350,7 @@
     ligarDados();
     if (!autorizacaoResolvida()) return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">Verificando o seu acesso…</p>';
     var a = acesso();
-    if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#arquitetura?an=nova" id="avpInicioAnalise">Analisar área</a></div>';
+    if (a.gravar) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#arquitetura?an=nova" id="avpInicioAnalise">Iniciar análise</a></div>';
     if (a.ler) return '<div id="avpInicioCaminhoB"><a class="btn avp-inicio-acao" href="#arquitetura?an=lista" id="avpInicioAnalise">Ver as análises de áreas</a><p class="avp-inicio-perfil">Abrir uma análise é do perfil Avaliação + Configuração.</p></div>';
     return '<p class="avp-inicio-perfil" id="avpInicioCaminhoBEstado">A análise de áreas é dos perfis da Avaliação.</p>';
   }
