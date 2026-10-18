@@ -133,6 +133,13 @@ export class EstruturasServico {
     const d = { ...dados, objetoId };
     return this.executar(acesso, 'vinculo.criar', d, chave, null, ['vinculo'], (e, ctx) => N.vincularResponsavel(e, d, p, ctx, ref));
   }
+  /* E3: estrutura colaboradora (mesmo registro de vínculo, papel 'colaboradora'); as regras são do núcleo */
+  async vincularColaboradora(acesso: Acesso, objetoId: string, dados: Record<string, unknown>, chave: string | null) {
+    const ref = await this.referencias();
+    const p = await this.posicionamento.vigenteDoObjeto(objetoId);
+    const d = { ...dados, objetoId };
+    return this.executar(acesso, 'vinculo.colaboradora', d, chave, null, ['vinculo'], (e, ctx) => N.vincularColaboradora(e, d, p, ctx, ref));
+  }
   async substituirResponsavel(acesso: Acesso, vinculoId: string, dados: Record<string, unknown>, motivo: unknown, chave: string | null) {
     const ref = await this.referencias();
     /* o objeto de um vínculo é imutável: dá para saber de quem é o Posicionamento antes da transação */
@@ -152,7 +159,7 @@ export class EstruturasServico {
     catch (e) { if (!(e instanceof ReferenciaOficialIndisponivel)) throw e; indisponivel = e.fonte; }
     const estado = await this.ler((sql) => this.repo.lerEstado(sql));
     if (indisponivel || !ref) return { objetoId, vinculo: N.responsavelAtivo(estado, objetoId), ...INDETERMINADA(indisponivel || 'taxonomia') };
-    return { objetoId, ...N.situacaoResponsavel(estado, objetoId, p, ref) };
+    return { objetoId, ...N.situacaoResponsavel(estado, objetoId, p, ref), colaboradoras: N.situacaoColaboradoras(estado, objetoId, p, ref) };
   }
   async obterVinculo(id: string) {
     const vinculo = (await this.ler((sql) => this.repo.lerEstado(sql))).vinculos[id];

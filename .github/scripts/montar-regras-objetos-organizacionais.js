@@ -38,6 +38,8 @@ const ESC = "auth != null && ((" + ADM + ") || " + TIPO + " === 'avaliacao-arqui
 const NODE = 'objetos-organizacionais', AUD = 'objetos-organizacionais-auditoria', IDX = 'objetos-organizacionais-por-referencia', EXC = 'objetos-organizacionais-excluidos';
 
 const RES = 'posicionamento-rascunho-por-item', VIG = 'posicionamento-vigente-por-item', VINC_ATIVO = 'estruturas-vinculos/ativo-por-objeto';
+/* E3: colaboradoras ativas também impedem encerrar e excluir (nenhuma estrutura fica respondendo por um cadastro que saiu) */
+const VINC_COLAB = 'estruturas-vinculos/colaboradoras-ativas';
 const ID = '/^[A-Za-z0-9_-]{1,60}$/';
 const CAMPOS = ['nome', 'descricao', 'finalidade', 'contexto'];
 const and = (xs) => xs.join(' && ');
@@ -79,6 +81,7 @@ const encerrar = and([
   /* sem rascunho de Posicionamento aberto e sem estrutura responsável ativa — antes e depois da gravação */
   "!root.child('" + RES + "').child($id).exists()", '!' + RAIZ_NOVA + ".child('" + RES + "').child($id).exists()",
   "!root.child('" + VINC_ATIVO + "').child($id).exists()", '!' + RAIZ_NOVA + ".child('" + VINC_ATIVO + "').child($id).exists()",
+  "!root.child('" + VINC_COLAB + "').child($id).exists()", '!' + RAIZ_NOVA + ".child('" + VINC_COLAB + "').child($id).exists()",
   '(' + c('referenciaItemId') + '.exists() ? !' + RAIZ_NOVA + ".child('" + IDX + "').child(" + REF + ').exists() : true)'
 ]));
 const blocoObj = {
@@ -170,7 +173,7 @@ const blocoExc = {
       v('nome') + ' === ' + OBJ_ANTES + ".child('nome').val()", v('excluidoEm') + ' === now', ehAutor('excluidoPor'),
       RAIZ_EXC + ".child('" + AUD + "').child($id).child(" + v('auditoriaId') + ").child('tipo').val() === 'exclusao'",
       /* nos dois níveis: nenhum rascunho aberto e nenhuma estrutura responsável ativa (antes e depois da gravação) */
-      semDep(RES), semDep(VINC_ATIVO),
+      semDep(RES), semDep(VINC_ATIVO), semDep(VINC_COLAB),
       /* a referência informativa sai do índice na mesma gravação (se ainda apontava para este objeto) */
       '(' + OBJ_ANTES + ".child('referenciaItemId').exists() ? " + RAIZ_EXC + ".child('" + IDX + "').child(" + OBJ_ANTES + ".child('referenciaItemId').val()).val() !== $id : true)",
       /* comum: sem Posicionamento concluído (vigente); excepcional (já avaliado): só o admin geral */

@@ -1,0 +1,1593 @@
+{
+  "conjunto": "vinculos-responsavel",
+  "versao": 2,
+  "formato": 2,
+  "descricao": "M3 do Mapa da Floresta: vínculo do item com a estrutura responsável principal (decisão G; V1–V5) e, desde a v2, E2 — alocação em estrutura de tipo diferente do posicionamento efetivo só com divergência justificada (motivo da lista fechada + justificativa; autoridade e referência opcionais), Squad nunca recebe alocação, reconfirmar = substituir pela mesma estrutura — e E3 — colaboradoras (mesmo registro, papel colaboradora; exige principal ativo de outra estrutura; justificativa obrigatória; sem duplicata; sem limite fixo). Esperado escrito a partir das regras aprovadas, nunca calculado pelo núcleo. estadoInicial.posicionamentos = o Posicionamento VIGENTE e concluído de cada item.",
+  "usuarios": {
+    "arq": {
+      "id": "u-arquitetura",
+      "email": "arquitetura@exemplo.com"
+    },
+    "adm": {
+      "id": "u-admin",
+      "email": "admin@exemplo.com"
+    }
+  },
+  "referencias": {
+    "padrao": {
+      "conceitos": {
+        "NEGOCIOS": {
+          "ativo": true
+        },
+        "COE": {
+          "ativo": true
+        },
+        "PLATAFORMA_CANAIS": {
+          "ativo": true
+        }
+      },
+      "ligacoes": {
+        "NEGOCIOS": "NEGOCIOS",
+        "COE": "COE",
+        "PLATAFORMA_CANAIS": "PLATAFORMA_CANAIS"
+      }
+    }
+  },
+  "cenarios": [
+    {
+      "id": "V01",
+      "titulo": "Vincular pela recomendação firme; um segundo responsável principal ativo para o mesmo item é recusado (V1, V2, V4)",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "justificativa": "Responsável pela jornada"
+          },
+          "ctx": {
+            "operacaoId": "op-v01-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-2"
+          },
+          "ctx": {
+            "operacaoId": "op-v01-2",
+            "novoId": "V-2",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "RESPONSAVEL_PRINCIPAL_JA_EXISTE"
+            ]
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": "Responsável pela jornada",
+            "situacao": "ativa",
+            "criadoEm": 1791800000000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v01-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800000000
+        }
+      ]
+    },
+    {
+      "id": "V02",
+      "titulo": "Recusas: sem posicionamento firme, sem Posicionamento vigente, tipo diferente sem divergência justificada, estrutura encerrada ou inexistente (V2, V3/E2)",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-b",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v02-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SEM_POSICIONAMENTO_EFETIVO"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-d",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v02-2",
+            "novoId": "V-2",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SEM_POSICIONAMENTO_EFETIVO"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "C-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v02-3",
+            "novoId": "V-3",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "DIVERGENCIA_SEM_JUSTIFICATIVA"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-9"
+          },
+          "ctx": {
+            "operacaoId": "op-v02-4",
+            "novoId": "V-4",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ESTRUTURA_ENCERRADA"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "X-404"
+          },
+          "ctx": {
+            "operacaoId": "op-v02-5",
+            "novoId": "V-5",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "ESTRUTURA_INEXISTENTE"
+            ]
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {}
+      },
+      "eventos": []
+    },
+    {
+      "id": "V03",
+      "titulo": "A decisão final prevalece sobre a recomendação A_VALIDAR: vínculo a um CoE com base na decisão",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-c",
+            "estruturaId": "C-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v03-1",
+            "novoId": "V-1",
+            "usuario": "adm",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-c",
+            "estruturaId": "C-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pc1",
+              "codigo": "COE",
+              "origem": "decisao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800000000,
+            "criadoPor": "adm",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v03-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "adm",
+          "em": 1791800000000
+        }
+      ]
+    },
+    {
+      "id": "V04",
+      "titulo": "Substituir exige motivo; encerra o atual e cria o novo na mesma operação (V5)",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v04-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "substituirResponsavel",
+          "entrada": {
+            "vinculoId": "V-1",
+            "estruturaId": "L-2"
+          },
+          "ctx": {
+            "operacaoId": "op-v04-2",
+            "novoId": "V-2",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "MOTIVO_OBRIGATORIO"
+            ]
+          }
+        },
+        {
+          "operacao": "substituirResponsavel",
+          "entrada": {
+            "vinculoId": "V-1",
+            "estruturaId": "L-2",
+            "motivo": "Reorganização da Linha"
+          },
+          "ctx": {
+            "operacaoId": "op-v04-3",
+            "novoId": "V-3",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "encerrada",
+            "criadoEm": 1791800000000,
+            "criadoPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Reorganização da Linha",
+              "em": 1791800002000,
+              "por": "arq",
+              "substituidoPor": "V-3"
+            }
+          },
+          "V-3": {
+            "id": "V-3",
+            "objetoId": "item-a",
+            "estruturaId": "L-2",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800002000,
+            "criadoPor": "arq",
+            "revisao": 1,
+            "substitui": "V-1"
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v04-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800000000
+        },
+        {
+          "id": "op-v04-3:1",
+          "tipo": "vinculo.encerrado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800002000,
+          "motivo": "Reorganização da Linha"
+        },
+        {
+          "id": "op-v04-3:2",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-3",
+          "usuario": "arq",
+          "em": 1791800002000,
+          "motivo": "Reorganização da Linha"
+        }
+      ]
+    },
+    {
+      "id": "V05",
+      "titulo": "Encerrar exige motivo; encerrado não muda de novo; depois de encerrar, o item pode ganhar outro responsável",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v05-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "encerrarVinculo",
+          "entrada": {
+            "vinculoId": "V-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v05-2",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "MOTIVO_OBRIGATORIO"
+            ]
+          }
+        },
+        {
+          "operacao": "encerrarVinculo",
+          "entrada": {
+            "vinculoId": "V-1",
+            "motivo": "Item descontinuado"
+          },
+          "ctx": {
+            "operacaoId": "op-v05-3",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "encerrarVinculo",
+          "entrada": {
+            "vinculoId": "V-1",
+            "motivo": "De novo"
+          },
+          "ctx": {
+            "operacaoId": "op-v05-4",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "VINCULO_ENCERRADO"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-2"
+          },
+          "ctx": {
+            "operacaoId": "op-v05-5",
+            "novoId": "V-5",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "encerrada",
+            "criadoEm": 1791800000000,
+            "criadoPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Item descontinuado",
+              "em": 1791800002000,
+              "por": "arq"
+            }
+          },
+          "V-5": {
+            "id": "V-5",
+            "objetoId": "item-a",
+            "estruturaId": "L-2",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800004000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v05-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800000000
+        },
+        {
+          "id": "op-v05-3:1",
+          "tipo": "vinculo.encerrado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800002000,
+          "motivo": "Item descontinuado"
+        },
+        {
+          "id": "op-v05-5:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-5",
+          "usuario": "arq",
+          "em": 1791800004000
+        }
+      ]
+    },
+    {
+      "id": "V06",
+      "titulo": "Concorrência: duas pessoas vinculam o mesmo item ao mesmo tempo → só uma entra; a mesma operação repetida não duplica",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "concorrentes": [
+            {
+              "operacao": "vincularResponsavel",
+              "entrada": {
+                "objetoId": "item-a",
+                "estruturaId": "L-1"
+              },
+              "ctx": {
+                "operacaoId": "op-v06-1",
+                "novoId": "V-1",
+                "usuario": "arq",
+                "agora": 1791800000000
+              },
+              "esperado": {
+                "ok": true,
+                "situacao": "gravada"
+              }
+            },
+            {
+              "operacao": "vincularResponsavel",
+              "entrada": {
+                "objetoId": "item-a",
+                "estruturaId": "L-2"
+              },
+              "ctx": {
+                "operacaoId": "op-v06-2",
+                "novoId": "V-2",
+                "usuario": "adm",
+                "agora": 1791800000000
+              },
+              "esperado": {
+                "ok": false,
+                "erros": [
+                  "CONFLITO_DE_REVISAO"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v06-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "repetida"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800000000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v06-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800000000
+        }
+      ]
+    },
+    {
+      "id": "V07",
+      "titulo": "Sem resposta depois de gravar: a gravação é conferida no banco antes de dizer qualquer coisa",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v07-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "falhaPersistencia": "sem-resposta-depois-de-gravar",
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800000000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v07-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800000000
+        }
+      ]
+    },
+    {
+      "id": "V08",
+      "titulo": "E2: alocação em estrutura de outro tipo — recusada sem divergência, com motivo fora da lista ou só com espaços; aceita com motivo e justificativa (autoridade e referência opcionais); a base fica intacta; dados de divergência num vínculo compatível são recusados; Squad não recebe alocação",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "C-1",
+            "divergencia": {
+              "motivo": "gosto",
+              "justificativa": "x"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-v08-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "MOTIVO_DIVERGENCIA_INVALIDO"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "C-1",
+            "divergencia": {
+              "motivo": "escala",
+              "justificativa": "   "
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-v08-2",
+            "novoId": "V-2",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "DIVERGENCIA_SEM_JUSTIFICATIVA"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "S-1",
+            "divergencia": {
+              "motivo": "escala",
+              "justificativa": "Sem massa crítica para um CoE próprio",
+              "autoridade": "Diretoria Executiva",
+              "referencia": "Ata 12/2026"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-v08-3",
+            "novoId": "V-3",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "TIPO_NAO_ALOCAVEL"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "divergencia": {
+              "motivo": "escala",
+              "justificativa": "Sem massa crítica para um CoE próprio",
+              "autoridade": "Diretoria Executiva",
+              "referencia": "Ata 12/2026"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-v08-4",
+            "novoId": "V-4",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "DIVERGENCIA_INDEVIDA"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "C-1",
+            "divergencia": {
+              "motivo": "escala",
+              "justificativa": "Sem massa crítica para um CoE próprio",
+              "autoridade": "Diretoria Executiva",
+              "referencia": "Ata 12/2026"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-v08-5",
+            "novoId": "V-5",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-5": {
+            "id": "V-5",
+            "objetoId": "item-a",
+            "estruturaId": "C-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800004000,
+            "criadoPor": "arq",
+            "revisao": 1,
+            "divergencia": {
+              "motivo": "escala",
+              "justificativa": "Sem massa crítica para um CoE próprio",
+              "autoridade": "Diretoria Executiva",
+              "referencia": "Ata 12/2026"
+            }
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v08-5:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-5",
+          "usuario": "arq",
+          "em": 1791800004000
+        }
+      ]
+    },
+    {
+      "id": "V09",
+      "titulo": "E2: reconfirmar = substituir pela MESMA estrutura; a divergência é exigida de novo e o vínculo antigo guarda a base e a divergência originais",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "C-1",
+            "divergencia": {
+              "motivo": "pessoas",
+              "justificativa": "Equipe já atua no CoE"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-v09-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "substituirResponsavel",
+          "entrada": {
+            "vinculoId": "V-1",
+            "estruturaId": "C-1",
+            "motivo": "Reconfirmação"
+          },
+          "ctx": {
+            "operacaoId": "op-v09-2",
+            "novoId": "V-2",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "DIVERGENCIA_SEM_JUSTIFICATIVA"
+            ]
+          }
+        },
+        {
+          "operacao": "substituirResponsavel",
+          "entrada": {
+            "vinculoId": "V-1",
+            "estruturaId": "C-1",
+            "motivo": "Reconfirmação",
+            "divergencia": {
+              "motivo": "prioridade",
+              "justificativa": "Mantida após revisão"
+            }
+          },
+          "ctx": {
+            "operacaoId": "op-v09-3",
+            "novoId": "V-3",
+            "usuario": "adm",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-a",
+            "estruturaId": "C-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "encerrada",
+            "criadoEm": 1791800000000,
+            "criadoPor": "arq",
+            "revisao": 2,
+            "divergencia": {
+              "motivo": "pessoas",
+              "justificativa": "Equipe já atua no CoE"
+            },
+            "encerramento": {
+              "motivo": "Reconfirmação",
+              "em": 1791800002000,
+              "por": "adm",
+              "substituidoPor": "V-3"
+            }
+          },
+          "V-3": {
+            "id": "V-3",
+            "objetoId": "item-a",
+            "estruturaId": "C-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800002000,
+            "criadoPor": "adm",
+            "revisao": 1,
+            "substitui": "V-1",
+            "divergencia": {
+              "motivo": "prioridade",
+              "justificativa": "Mantida após revisão"
+            }
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v09-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800000000
+        },
+        {
+          "id": "op-v09-3:1",
+          "tipo": "vinculo.encerrado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "adm",
+          "em": 1791800002000,
+          "motivo": "Reconfirmação"
+        },
+        {
+          "id": "op-v09-3:2",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-3",
+          "usuario": "adm",
+          "em": 1791800002000,
+          "motivo": "Reconfirmação"
+        }
+      ]
+    },
+    {
+      "id": "V10",
+      "titulo": "E3: colaboradoras — sem principal, sem justificativa, igual à principal, Squad ou duplicada são recusadas; principal e colaboradora de outro tipo convivem; encerrar exige motivo; encerrar o principal não promove a colaboradora",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularColaboradora",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "P-1",
+            "justificativa": "Adesão pelos canais"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "SEM_RESPONSAVEL_PRINCIPAL"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-2",
+            "novoId": "V-2",
+            "usuario": "arq",
+            "agora": 1791800001000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "vincularColaboradora",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "P-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-3",
+            "novoId": "V-3",
+            "usuario": "arq",
+            "agora": 1791800002000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "CAMPO_OBRIGATORIO"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularColaboradora",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "justificativa": "x"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-4",
+            "novoId": "V-4",
+            "usuario": "arq",
+            "agora": 1791800003000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "COLABORADORA_E_PRINCIPAL"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularColaboradora",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "S-1",
+            "justificativa": "x"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-5",
+            "novoId": "V-5",
+            "usuario": "arq",
+            "agora": 1791800004000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "TIPO_NAO_ALOCAVEL"
+            ]
+          }
+        },
+        {
+          "operacao": "vincularColaboradora",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "P-1",
+            "justificativa": "Adesão pelos canais"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-6",
+            "novoId": "V-6",
+            "usuario": "arq",
+            "agora": 1791800005000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "vincularColaboradora",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-2",
+            "justificativa": "Oferta cruzada de crédito"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-7",
+            "novoId": "V-7",
+            "usuario": "adm",
+            "agora": 1791800006000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "vincularColaboradora",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "P-1",
+            "justificativa": "repetida"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-8",
+            "novoId": "V-8",
+            "usuario": "arq",
+            "agora": 1791800007000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "COLABORADORA_JA_EXISTE"
+            ]
+          }
+        },
+        {
+          "operacao": "substituirResponsavel",
+          "entrada": {
+            "vinculoId": "V-2",
+            "estruturaId": "L-2",
+            "motivo": "x"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-9",
+            "novoId": "V-9",
+            "usuario": "arq",
+            "agora": 1791800008000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "COLABORADORA_E_PRINCIPAL"
+            ]
+          }
+        },
+        {
+          "operacao": "encerrarVinculo",
+          "entrada": {
+            "vinculoId": "V-7",
+            "motivo": ""
+          },
+          "ctx": {
+            "operacaoId": "op-v10-10",
+            "novoId": null,
+            "usuario": "arq",
+            "agora": 1791800009000
+          },
+          "esperado": {
+            "ok": false,
+            "erros": [
+              "MOTIVO_OBRIGATORIO"
+            ]
+          }
+        },
+        {
+          "operacao": "encerrarVinculo",
+          "entrada": {
+            "vinculoId": "V-7",
+            "motivo": "Fim da oferta cruzada"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-11",
+            "novoId": null,
+            "usuario": "adm",
+            "agora": 1791800010000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "operacao": "encerrarVinculo",
+          "entrada": {
+            "vinculoId": "V-2",
+            "motivo": "Responsável revisto"
+          },
+          "ctx": {
+            "operacaoId": "op-v10-12",
+            "novoId": null,
+            "usuario": "arq",
+            "agora": 1791800011000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-2": {
+            "id": "V-2",
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "encerrada",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Responsável revisto",
+              "em": 1791800011000,
+              "por": "arq"
+            }
+          },
+          "V-6": {
+            "id": "V-6",
+            "objetoId": "item-a",
+            "estruturaId": "P-1",
+            "papel": "colaboradora",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": "Adesão pelos canais",
+            "situacao": "ativa",
+            "criadoEm": 1791800005000,
+            "criadoPor": "arq",
+            "revisao": 1
+          },
+          "V-7": {
+            "id": "V-7",
+            "objetoId": "item-a",
+            "estruturaId": "L-2",
+            "papel": "colaboradora",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": "Oferta cruzada de crédito",
+            "situacao": "encerrada",
+            "criadoEm": 1791800006000,
+            "criadoPor": "adm",
+            "revisao": 2,
+            "encerramento": {
+              "motivo": "Fim da oferta cruzada",
+              "em": 1791800010000,
+              "por": "adm"
+            }
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v10-2:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-2",
+          "usuario": "arq",
+          "em": 1791800001000
+        },
+        {
+          "id": "op-v10-6:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-6",
+          "usuario": "arq",
+          "em": 1791800005000
+        },
+        {
+          "id": "op-v10-7:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-7",
+          "usuario": "adm",
+          "em": 1791800006000
+        },
+        {
+          "id": "op-v10-11:1",
+          "tipo": "vinculo.encerrado",
+          "entidade": "vinculo",
+          "entidadeId": "V-7",
+          "usuario": "adm",
+          "em": 1791800010000,
+          "motivo": "Fim da oferta cruzada"
+        },
+        {
+          "id": "op-v10-12:1",
+          "tipo": "vinculo.encerrado",
+          "entidade": "vinculo",
+          "entidadeId": "V-2",
+          "usuario": "arq",
+          "em": 1791800011000,
+          "motivo": "Responsável revisto"
+        }
+      ]
+    },
+    {
+      "id": "V11",
+      "titulo": "E3 sob concorrência: duas pessoas põem a MESMA estrutura como colaboradora ao mesmo tempo → só uma entra",
+      "referencias": "padrao",
+      "estadoInicial": "comum",
+      "passos": [
+        {
+          "operacao": "vincularResponsavel",
+          "entrada": {
+            "objetoId": "item-a",
+            "estruturaId": "L-1"
+          },
+          "ctx": {
+            "operacaoId": "op-v11-1",
+            "novoId": "V-1",
+            "usuario": "arq",
+            "agora": 1791800000000
+          },
+          "esperado": {
+            "ok": true,
+            "situacao": "gravada"
+          }
+        },
+        {
+          "concorrentes": [
+            {
+              "operacao": "vincularColaboradora",
+              "entrada": {
+                "objetoId": "item-a",
+                "estruturaId": "P-1",
+                "justificativa": "Canais"
+              },
+              "ctx": {
+                "operacaoId": "op-v11-2",
+                "novoId": "V-2",
+                "usuario": "arq",
+                "agora": 1791800001000
+              },
+              "esperado": {
+                "ok": true,
+                "situacao": "gravada"
+              }
+            },
+            {
+              "operacao": "vincularColaboradora",
+              "entrada": {
+                "objetoId": "item-a",
+                "estruturaId": "P-1",
+                "justificativa": "Canais (outra pessoa)"
+              },
+              "ctx": {
+                "operacaoId": "op-v11-3",
+                "novoId": "V-3",
+                "usuario": "adm",
+                "agora": 1791800001000
+              },
+              "esperado": {
+                "ok": false,
+                "erros": [
+                  "CONFLITO_DE_REVISAO"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "estadoFinal": {
+        "vinculos": {
+          "V-1": {
+            "id": "V-1",
+            "objetoId": "item-a",
+            "estruturaId": "L-1",
+            "papel": "responsavel-principal",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": null,
+            "situacao": "ativa",
+            "criadoEm": 1791800000000,
+            "criadoPor": "arq",
+            "revisao": 1
+          },
+          "V-2": {
+            "id": "V-2",
+            "objetoId": "item-a",
+            "estruturaId": "P-1",
+            "papel": "colaboradora",
+            "base": {
+              "avaliacaoId": "pa1",
+              "codigo": "NEGOCIOS",
+              "origem": "recomendacao"
+            },
+            "justificativa": "Canais",
+            "situacao": "ativa",
+            "criadoEm": 1791800001000,
+            "criadoPor": "arq",
+            "revisao": 1
+          }
+        }
+      },
+      "eventos": [
+        {
+          "id": "op-v11-1:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-1",
+          "usuario": "arq",
+          "em": 1791800000000
+        },
+        {
+          "id": "op-v11-2:1",
+          "tipo": "vinculo.criado",
+          "entidade": "vinculo",
+          "entidadeId": "V-2",
+          "usuario": "arq",
+          "em": 1791800001000
+        }
+      ]
+    }
+  ],
+  "estados": {
+    "comum": {
+      "estruturas": {
+        "L-1": {
+          "id": "L-1",
+          "tipo": "NEGOCIOS",
+          "nome": "Linha de Investimentos",
+          "sigla": null,
+          "descricao": null,
+          "situacao": "ativa",
+          "criadaEm": 1791713600000,
+          "criadaPor": "arq",
+          "revisao": 1
+        },
+        "L-2": {
+          "id": "L-2",
+          "tipo": "NEGOCIOS",
+          "nome": "Linha de Crédito",
+          "sigla": null,
+          "descricao": null,
+          "situacao": "ativa",
+          "criadaEm": 1791713600000,
+          "criadaPor": "arq",
+          "revisao": 1
+        },
+        "C-1": {
+          "id": "C-1",
+          "tipo": "COE",
+          "nome": "CoE de Dados",
+          "sigla": null,
+          "descricao": null,
+          "situacao": "ativa",
+          "criadaEm": 1791713600000,
+          "criadaPor": "arq",
+          "revisao": 1
+        },
+        "L-9": {
+          "id": "L-9",
+          "tipo": "NEGOCIOS",
+          "nome": "Linha Antiga",
+          "sigla": null,
+          "descricao": null,
+          "situacao": "encerrada",
+          "criadaEm": 1791713600000,
+          "criadaPor": "arq",
+          "revisao": 2,
+          "encerramento": {
+            "motivo": "Incorporada",
+            "em": 1791713700000,
+            "por": "arq"
+          }
+        },
+        "S-1": {
+          "id": "S-1",
+          "tipo": "SQUAD",
+          "nome": "Squad Crédito Digital",
+          "sigla": null,
+          "descricao": null,
+          "situacao": "ativa",
+          "criadaEm": 1791713600000,
+          "criadaPor": "arq",
+          "revisao": 1
+        },
+        "P-1": {
+          "id": "P-1",
+          "tipo": "PLATAFORMA_CANAIS",
+          "nome": "Plataforma de Canais",
+          "sigla": null,
+          "descricao": null,
+          "situacao": "ativa",
+          "criadaEm": 1791713600000,
+          "criadaPor": "arq",
+          "revisao": 1
+        }
+      },
+      "posicionamentos": {
+        "item-a": {
+          "avaliacaoId": "pa1",
+          "recomendacao": {
+            "codigoResultado": "NEGOCIOS"
+          }
+        },
+        "item-b": {
+          "avaliacaoId": "pb1",
+          "recomendacao": {
+            "codigoResultado": "A_VALIDAR"
+          }
+        },
+        "item-c": {
+          "avaliacaoId": "pc1",
+          "recomendacao": {
+            "codigoResultado": "A_VALIDAR"
+          },
+          "decisao": {
+            "codigoFinal": "COE"
+          }
+        }
+      }
+    }
+  }
+}

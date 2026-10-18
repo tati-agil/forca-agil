@@ -47,13 +47,13 @@
   var OPERACOES = ['criarEstrutura', 'alterarEstrutura', 'encerrarEstrutura',
     /* Etapa 5: subagrupadores das Linhas de Negócios (apresentação do Mapa) e a associação Linha × subagrupador */
     'criarSubagrupador', 'alterarSubagrupador', 'encerrarSubagrupador', 'associarLinha', 'substituirAssociacao', 'desassociarLinha',
-    /* M3 do Mapa: vínculo item × estrutura responsável principal */
-    'vincularResponsavel', 'substituirResponsavel', 'encerrarVinculo',
+    /* M3 do Mapa: vínculo item × estrutura responsável principal; E3: estruturas colaboradoras (mesmo registro, outro papel) */
+    'vincularResponsavel', 'substituirResponsavel', 'encerrarVinculo', 'vincularColaboradora',
     /* M6/M7 do Mapa: relações entre estruturas */
     'criarRelacao', 'alterarRelacao', 'encerrarRelacao'];
   /* operações que precisam das referências oficiais (ligações) e, as de vínculo, do Posicionamento vigente do item */
-  var COM_REFERENCIAS = { criarEstrutura: 1, vincularResponsavel: 1, substituirResponsavel: 1, criarRelacao: 1, alterarRelacao: 1 };
-  var COM_POSICIONAMENTO = { vincularResponsavel: 1, substituirResponsavel: 1 };
+  var COM_REFERENCIAS = { criarEstrutura: 1, vincularResponsavel: 1, substituirResponsavel: 1, vincularColaboradora: 1, criarRelacao: 1, alterarRelacao: 1 };
+  var COM_POSICIONAMENTO = { vincularResponsavel: 1, substituirResponsavel: 1, vincularColaboradora: 1 };
   /* onde o horário do contrato aparece (em milissegundos UTC): o adaptador Firebase grava o horário do SERVIDOR
      exatamente nesses campos — da estrutura e das cópias antes/depois guardadas no evento */
   var CAMPOS_DE_HORARIO = Object.freeze({
@@ -82,8 +82,10 @@
 
     function decidir(operacao, entrada, estado, ref, ctx, posicionamento) {
       var d = entrada || {};
-      if (operacao === 'vincularResponsavel') return N.vincularResponsavel(estado, { objetoId: d.objetoId, estruturaId: d.estruturaId, justificativa: d.justificativa }, posicionamento, ctx, ref);
-      if (operacao === 'substituirResponsavel') return N.substituirResponsavel(estado, d.vinculoId, { estruturaId: d.estruturaId, justificativa: d.justificativa }, d.motivo, posicionamento, ctx, ref);
+      /* E2: divergencia = { motivo, justificativa, autoridade?, referencia? } quando o tipo da estrutura difere do posicionamento efetivo */
+      if (operacao === 'vincularResponsavel') return N.vincularResponsavel(estado, { objetoId: d.objetoId, estruturaId: d.estruturaId, justificativa: d.justificativa, divergencia: d.divergencia }, posicionamento, ctx, ref);
+      if (operacao === 'substituirResponsavel') return N.substituirResponsavel(estado, d.vinculoId, { estruturaId: d.estruturaId, justificativa: d.justificativa, divergencia: d.divergencia }, d.motivo, posicionamento, ctx, ref);
+      if (operacao === 'vincularColaboradora') return N.vincularColaboradora(estado, { objetoId: d.objetoId, estruturaId: d.estruturaId, justificativa: d.justificativa, divergencia: d.divergencia }, posicionamento, ctx, ref);
       if (operacao === 'encerrarVinculo') return N.encerrarVinculo(estado, d.vinculoId, d.motivo, ctx);
       if (operacao === 'criarRelacao') return N.criarRelacao(estado, { origem: d.origem, tipo: d.tipo, destino: d.destino, justificativa: d.justificativa }, ctx, ref);
       if (operacao === 'alterarRelacao') return N.alterarRelacao(estado, d.relacaoId, d.novos, d.motivo, ctx, ref);
@@ -117,7 +119,7 @@
         if (!COM_POSICIONAMENTO[operacao]) return [ref, lidos[1], null];
         /* o item da substituição é o do vínculo atual (o núcleo recusa vínculo inexistente) */
         var v = operacao === 'substituirResponsavel' ? ((lidos[1] && lidos[1].vinculos) || {})[(entrada || {}).vinculoId] : null;
-        var objeto = operacao === 'vincularResponsavel' ? (entrada || {}).objetoId : v && v.objetoId;
+        var objeto = operacao === 'substituirResponsavel' ? v && v.objetoId : (entrada || {}).objetoId;
         if (!objeto || !portas.lerPosicionamento) return [ref, lidos[1], null];
         return portas.lerPosicionamento(objeto).then(function (p) { return [ref, lidos[1], p]; });
       }).then(function (lidos) {

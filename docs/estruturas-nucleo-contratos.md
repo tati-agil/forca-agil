@@ -137,14 +137,16 @@ entidade, que `historico(eventos, entidade, id)` ordena.
 | `criarRelacao(estado, { origem, tipo, destino, justificativa? }, ctx, ref)` | 5 tipos; Taxonomia admite; sem duplicidade ativa, autorrelação ou ciclo em `compõe` |
 | `alterarRelacao(estado, id, { origem?, tipo?, destino?, justificativa? }, motivo, ctx, ref)` | encerra a antiga e cria a nova (mesmas regras), com motivo |
 | `encerrarRelacao(estado, id, motivo, ctx)` | motivo obrigatório |
-| `vincularResponsavel(estado, { objetoId, estruturaId, papel?, justificativa? }, posicionamento, ctx, ref)` | um responsável principal ativo; posicionamento efetivo firme; tipo pela ligação oficial; base registrada |
-| `substituirResponsavel(estado, vinculoId, { estruturaId, justificativa? }, motivo, posicionamento, ctx, ref)` | encerra o atual e cria o novo, com motivo |
+| `vincularResponsavel(estado, { objetoId, estruturaId, justificativa?, divergencia? }, posicionamento, ctx, ref)` | um responsável principal ativo; posicionamento efetivo firme; estrutura de um tipo de posicionamento (nunca Squad: `TIPO_NAO_ALOCAVEL`); tipo igual ao da ligação oficial do código efetivo **ou**, por decisão organizacional, outro tipo com `divergencia` { motivo da lista `MOTIVOS_DIVERGENCIA`, justificativa, autoridade?, referencia? } (E2: `DIVERGENCIA_SEM_JUSTIFICATIVA`, `MOTIVO_DIVERGENCIA_INVALIDO`, `DIVERGENCIA_INDEVIDA` num vínculo compatível); base registrada |
+| `vincularColaboradora(estado, { objetoId, estruturaId, justificativa }, posicionamento, ctx, ref)` | E3: mesmo registro, `papel: 'colaboradora'`; exige principal ativo (`SEM_RESPONSAVEL_PRINCIPAL`) de outra estrutura (`COLABORADORA_E_PRINCIPAL`), justificativa e nenhuma colaboradora ativa da mesma estrutura (`COLABORADORA_JA_EXISTE`); sem regra de tipo nem divergência; sem limite fixo |
+| `substituirResponsavel(estado, vinculoId, { estruturaId, justificativa?, divergencia? }, motivo, posicionamento, ctx, ref)` | só do principal; encerra o atual e cria o novo, com motivo; a MESMA estrutura = reconfirmar sobre a base nova (E2) |
 | `encerrarVinculo(estado, id, motivo, ctx)` | motivo obrigatório |
 
 ### Consultas e situações calculadas (não gravam nada)
 
 - `posicionamentoEfetivo(posicionamento, ref)`: decisão final, senão recomendação firme, senão nenhum.
-- `situacaoResponsavel(estado, objetoId, posicionamento, ref)` → `valido` | `ausente` | `precisa-revisao` | `nao-aplicavel`, com motivos.
+- `situacaoResponsavel(estado, objetoId, posicionamento, ref)` → `valido` | `divergencia-deliberada` | `ausente` | `precisa-revisao` | `nao-aplicavel`, com motivos; `divergenciaResolvida` { codigoAtual, avaliacaoId, origem } quando uma reavaliação passou a coincidir com o tipo de uma alocação divergente (a divergência e a base originais continuam no vínculo).
+- `situacaoColaboradoras(estado, objetoId, posicionamento, ref)` → cada colaboradora ativa: `ativa` | `precisa-revisao` (`ESTRUTURA_ENCERRADA`, `SEM_RESPONSAVEL_PRINCIPAL`, posicionamento sem valer); mudança de código efetivo não a afeta.
   - Mesmo código efetivo em outra avaliação continua válido (`baseEmOutraAvaliacao`).
 - `situacaoRelacao(estado, id, ref)` → `valida` | `a-revisar` | `encerrada`.
 - `responsavelAtivo`, `estruturasDoTipo`, `relacoesDaEstrutura`, `objetosDaEstrutura`, `relacoesPossiveis`, `historico`, `tiposAdmitidos`, `relacaoConceitualAdmite`.

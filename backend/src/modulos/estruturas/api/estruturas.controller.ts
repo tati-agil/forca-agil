@@ -89,7 +89,13 @@ export class ResponsaveisController {
 
   @Post('objetos/:objetoId/responsavel') @Permissao('manter')
   vincular(@AcessoAtual() a: Acesso, @Param('objetoId') objetoId: string, @Body() b: unknown, @Headers('idempotency-key') k?: string) {
-    return this.servico.vincularResponsavel(a, identificador(objetoId, true), corpo(b, ['estruturaId', 'justificativa']), chaveIdempotencia(k));
+    return this.servico.vincularResponsavel(a, identificador(objetoId, true), corpo(b, ['estruturaId', 'justificativa', 'divergencia']), chaveIdempotencia(k));
+  }
+
+  /* E3: estrutura colaboradora de uma responsabilidade (exige o responsável principal ativo) */
+  @Post('objetos/:objetoId/colaboradoras') @Permissao('manter')
+  vincularColaboradora(@AcessoAtual() a: Acesso, @Param('objetoId') objetoId: string, @Body() b: unknown, @Headers('idempotency-key') k?: string) {
+    return this.servico.vincularColaboradora(a, identificador(objetoId, true), corpo(b, ['estruturaId', 'justificativa']), chaveIdempotencia(k));
   }
 
   @Get('vinculos/:id') @Permissao('consultar')
@@ -100,7 +106,7 @@ export class ResponsaveisController {
 
   @Post('vinculos/:id/substituicao') @Permissao('manter')
   substituir(@AcessoAtual() a: Acesso, @Param('id') id: string, @Body() b: unknown, @Headers('idempotency-key') k?: string) {
-    const { motivo, ...dados } = corpo(b, ['estruturaId', 'justificativa', 'motivo']);
+    const { motivo, ...dados } = corpo(b, ['estruturaId', 'justificativa', 'divergencia', 'motivo']);
     return this.servico.substituirResponsavel(a, identificador(id), dados, motivo, chaveIdempotencia(k));
   }
 

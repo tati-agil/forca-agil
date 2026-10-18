@@ -50,7 +50,7 @@
   var ALTERNATIVAS = ['manter-consciente', 'rever-delimitacao', 'integrar-recortes', 'distribuir-existentes', 'propor-estrutura', 'pendente'];
   /* N3: nenhuma alternativa de desenho troca a classificação nem contorna a compatibilidade do vínculo */
   var ALTERNATIVAS_RECUSADAS = ['reclassificar', 'alterar-classificacao', 'forcar-vinculo', 'vinculo-incompativel'];
-  var SITUACAO_FORMAL = ['sem-classificacao', 'classificacao-a-validar', 'compativel', 'vinculo-a-revisar',
+  var SITUACAO_FORMAL = ['sem-classificacao', 'classificacao-a-validar', 'compativel', 'alocada-com-divergencia', 'vinculo-a-revisar',
     'executada-sem-vinculo-formal', 'exercida-sem-responsavel-formal-compativel', 'sem-estrutura'];
   /* "esta estrutura" só existe quando o escopo é uma estrutura, uma responsabilidade ou uma atuação */
   var ESCOPOS_COM_ESTRUTURA_PROPRIA = ['estrutura', 'responsabilidade', 'atuacao-informal'];
@@ -832,7 +832,13 @@
     var compativel = function (id) { var e = est[id]; return !!(e && e.situacao === 'ativa' && tipoEsperado && e.tipo === tipoEsperado); };
     if (!entrada.codigoEfetivo) return entrada.aValidar ? 'classificacao-a-validar' : 'sem-classificacao';
     var v = entrada.vinculoPrincipal;
-    if (v && v.situacao === 'ativo') return compativel(v.estruturaId) ? 'compativel' : 'vinculo-a-revisar';
+    /* E2: vínculo de outro tipo COM divergência registrada sobre o MESMO código efetivo = decisão organizacional
+       registrada (responsável formal existe); sem divergência, ou com o código mudado depois, continua a revisar */
+    if (v && v.situacao === 'ativo') {
+      if (compativel(v.estruturaId)) return 'compativel';
+      var ev = est[v.estruturaId];
+      return v.divergencia && v.baseCodigo === entrada.codigoEfetivo && ev && ev.situacao === 'ativa' ? 'alocada-com-divergencia' : 'vinculo-a-revisar';
+    }
     var exec = ((entrada.fatos && entrada.fatos.execucao) || []).filter(function (f) { return f.estruturaId && est[f.estruturaId] && est[f.estruturaId].situacao === 'ativa'; });
     if (exec.some(function (f) { return compativel(f.estruturaId); })) return 'executada-sem-vinculo-formal';
     if (exec.length) return 'exercida-sem-responsavel-formal-compativel';
@@ -841,15 +847,16 @@
   /* alternativas de desenho para cada situação, com a consequência; nunca reclassificar (N3) */
   var ALTERNATIVAS_POR_SITUACAO = {
     'compativel': [['manter-consciente', 'Nada muda no cadastro.']],
+    'alocada-com-divergencia': [['manter-consciente', 'A responsabilidade foi alocada em estrutura de outro tipo por decisão organizacional justificada; a recomendação continua registrada e nada muda no cadastro.']],
     'executada-sem-vinculo-formal': [['manter-consciente', 'Registrar o vínculo principal com a estrutura que já executa, no Posicionamento.'], ['pendente', 'Registrar o que falta e quem decide.']],
     'exercida-sem-responsavel-formal-compativel': [
       ['manter-consciente', 'A estrutura continua exercendo sem responder formalmente; a pendência fica visível.'],
       ['rever-delimitacao', 'Se houver evidência de que é só atividade complementar, refazer o recorte e avaliar o novo recorte com o O1–O9.'],
       ['integrar-recortes', 'Juntar com outro recorte, se a comparação concluir que é a mesma responsabilidade ou que são integradas.'],
-      ['distribuir-existentes', 'Atribuir a uma estrutura existente do tipo da natureza recomendada.'],
+      ['distribuir-existentes', 'Atribuir a uma estrutura existente — do tipo recomendado ou, por decisão organizacional justificada, de outro tipo (registrado no Posicionamento).'],
       ['propor-estrutura', 'Constituir uma estrutura do tipo, com aprovação institucional e cadastro por quem pode; as pessoas podem ser compartilhadas.'],
       ['pendente', 'Registrar o que falta e quem decide.']],
-    'sem-estrutura': [['distribuir-existentes', 'Atribuir a uma estrutura existente do tipo.'], ['propor-estrutura', 'Constituir uma estrutura do tipo, com aprovação institucional.'], ['pendente', 'Registrar o que falta e quem decide.']],
+    'sem-estrutura': [['distribuir-existentes', 'Atribuir a uma estrutura existente (de outro tipo, só com justificativa organizacional).'], ['propor-estrutura', 'Constituir uma estrutura do tipo, com aprovação institucional.'], ['pendente', 'Registrar o que falta e quem decide.']],
     'vinculo-a-revisar': [['pendente', 'O vínculo existente não corresponde mais à natureza; revisar no Posicionamento.']],
     'classificacao-a-validar': [['rever-delimitacao', 'Aprofundar o "A validar" (recorte, conflito, evidência ou incoerência).'], ['pendente', 'Registrar o que falta e quem decide.']],
     'sem-classificacao': [['pendente', 'Concluir o O1–O9 deste recorte.']]

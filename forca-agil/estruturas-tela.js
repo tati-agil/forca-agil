@@ -406,7 +406,8 @@
       return x;
     }
     function produtosHtml(e) {
-      var h = '<section class="est-secao" aria-labelledby="estSecProdutos"><h5 class="est-secao-titulo" id="estSecProdutos">Produtos, serviços e atuações sob esta estrutura</h5>';
+      var h = '<section class="est-secao" aria-labelledby="estSecProdutos"><h5 class="est-secao-titulo" id="estSecProdutos">Responsabilidades assumidas por esta estrutura</h5>' +
+        '<p class="est-intro" id="estProdutosIntro">Uma estrutura pode assumir várias responsabilidades, de Produtos/Serviços e Capacidades diferentes, como responsável principal ou como colaboradora.</p>';
       garantirLeituras();
       if (st.vinculos === undefined || ligacoesLidas === undefined) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
       var estado = { estruturas: st.estruturas, vinculos: st.vinculos }, objs = N().objetosDaEstrutura(estado, e.id);
@@ -415,7 +416,7 @@
         var v = st.vinculos[o.vinculoId], x = itemVinculado(o.objetoId, v);
         if (!x.carregado) return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="loading-msg">Carregando…</span></li>';
         var sit = N().situacaoResponsavel(estado, o.objetoId, x.p || null, refsDaTela());
-        return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="est-produto-nome">' + esc(x.nome || o.objetoId) + '</span>' + situacaoVinculoHtml(sit) +
+        return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '" data-papel="' + esc(o.papel) + '"><span class="est-produto-nome">' + esc(x.nome || o.objetoId) + '</span>' + papelVinculoHtml(o, v, sit) +
           '<a class="btn btn--sm est-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x.p && x.p.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
       }).join('') + '</ul></section>';
     }
@@ -888,22 +889,34 @@
      confere tudo de novo). Manter = admin geral e avaliacao-arquitetura; avaliacao só consulta. Situação calculada
      pelo núcleo (situacaoResponsavel) — nada muda sozinho. Como o cadastro, só existe no AMBIENTE DE TESTES.
      ============================================================ */
-  var SITUACAO_VINCULO = { valido: 'Válido', 'precisa-revisao': 'Precisa de revisão', ausente: 'Sem estrutura responsável', 'nao-aplicavel': 'Não se aplica' };
+  var SITUACAO_VINCULO = { valido: 'Válido', 'divergencia-deliberada': 'Divergência deliberada', 'precisa-revisao': 'Precisa de revisão', ausente: 'Sem estrutura responsável', 'nao-aplicavel': 'Não se aplica' };
   var MOTIVO_REVISAO = {
     CODIGO_EFETIVO_MUDOU: 'o posicionamento efetivo do item mudou desde o vínculo',
     POSICIONAMENTO_DEIXOU_DE_VALER: 'o item não tem mais Posicionamento vigente',
     POSICIONAMENTO_SEM_CODIGO_FIRME: 'o Posicionamento vigente não tem mais um posicionamento firme (decisão final ou recomendação firme)',
-    ESTRUTURA_ENCERRADA: 'a estrutura responsável foi encerrada',
-    TIPO_NAO_CORRESPONDE: 'o tipo da estrutura não corresponde mais ao posicionamento efetivo'
+    ESTRUTURA_ENCERRADA: 'a estrutura foi encerrada',
+    TIPO_NAO_CORRESPONDE: 'o tipo da estrutura não corresponde mais ao posicionamento efetivo',
+    SEM_RESPONSAVEL_PRINCIPAL: 'não há estrutura responsável principal ativa'
   };
+  /* E2: motivos organizacionais de uma alocação divergente (a lista é a do núcleo; aqui só o rótulo) */
+  var ROTULO_MOTIVO_DIVERGENCIA = { pessoas: 'Pessoas (equipe e competências)', escala: 'Escala', custo: 'Custo', afinidade: 'Afinidade com a estrutura', prioridade: 'Prioridade organizacional', viabilidade: 'Viabilidade', outro: 'Outro' };
   function mensagemVinculo(e) {
     switch (e && e.codigo) {
       case 'RESPONSAVEL_PRINCIPAL_JA_EXISTE': return 'Este item já tem uma estrutura responsável principal ativa. Use "Substituir" ou encerre a atual.';
       case 'SEM_POSICIONAMENTO_EFETIVO': return 'O item não tem posicionamento efetivo firme (decisão final ou recomendação firme): o vínculo não pode ser registrado.';
       case 'LIGACAO_OFICIAL_AUSENTE': return 'A ligação oficial entre o código do Posicionamento e o conceito da Taxonomia não está registrada.';
+      case 'DIVERGENCIA_SEM_JUSTIFICATIVA': return 'A estrutura escolhida é de outro tipo: informe a justificativa organizacional da alocação.';
+      case 'MOTIVO_DIVERGENCIA_INVALIDO': return 'Escolha um dos motivos da lista.';
+      case 'DIVERGENCIA_INDEVIDA': return 'A estrutura escolhida é do tipo do posicionamento efetivo: não há divergência a justificar. Atualize a tela e tente de novo.';
+      case 'TIPO_NAO_ALOCAVEL': return 'Este tipo de estrutura não recebe responsabilidades (o Squad compõe uma Linha).';
+      case 'COLABORADORA_JA_EXISTE': return 'Esta estrutura já é colaboradora ativa deste item.';
+      case 'COLABORADORA_E_PRINCIPAL': return 'A mesma estrutura não pode ser responsável principal e colaboradora ao mesmo tempo. Encerre a participação dela antes.';
+      case 'SEM_RESPONSAVEL_PRINCIPAL': return 'Registre primeiro a estrutura responsável principal: a colaboradora participa de uma responsabilidade que já tem responsável.';
+      case 'SUBSTITUICAO_SO_DO_PRINCIPAL': return 'Uma colaboradora não é substituída: encerre a participação e registre outra.';
       case 'TIPO_INCOMPATIVEL': return 'A estrutura escolhida não é do tipo do posicionamento efetivo do item.';
       case 'ESTRUTURA_ENCERRADA': return 'A estrutura escolhida está encerrada.';
-      case 'ESTRUTURA_INEXISTENTE': case 'CAMPO_OBRIGATORIO': return 'Escolha a estrutura responsável.';
+      case 'ESTRUTURA_INEXISTENTE': return 'Escolha a estrutura.';
+      case 'CAMPO_OBRIGATORIO': return e.campo === 'justificativa' ? 'Explique o que esta estrutura faz na responsabilidade.' : e.campo === 'divergencia.motivo' ? 'Escolha o motivo da alocação em estrutura de outro tipo.' : 'Escolha a estrutura.';
       case 'VINCULO_INEXISTENTE': return 'Este vínculo não foi encontrado.';
       case 'VINCULO_ENCERRADO': return 'Este vínculo já foi encerrado.';
       case 'MOTIVO_OBRIGATORIO': return 'Informe o motivo.';
@@ -933,6 +946,13 @@
     if (s.situacao === 'precisa-revisao') h += ' <span class="po-resp-motivos">' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '</span>';
     return h;
   }
+  /* o papel de uma estrutura numa responsabilidade (ficha da estrutura e detalhe do Mapa): E3 — colaboradora com o
+     que faz; E2 — responsável principal alocado em tipo diferente diz o que era recomendado quando foi alocado */
+  function papelVinculoHtml(o, v, s) {
+    if (o.papel === 'colaboradora') return ' <span class="est-situacao po-resp-situacao po-resp-situacao--ativa" data-papel="colaboradora">Colabora</span> <span class="po-resp-motivos">' + esc((v && v.justificativa) || '') + '</span>';
+    return ' <span class="est-papel" data-papel="responsavel-principal">Responsável principal</span>' + situacaoVinculoHtml(s) +
+      (v && v.divergencia ? ' <span class="po-resp-motivos" data-divergencia="1">Alocação por decisão organizacional — recomendado: ' + esc(nomeTipo(v.base.codigo)) + '</span>' : '');
+  }
   var bloco = { itemId: null, el: null, posicionamento: null, estruturas: undefined, vinculos: undefined, refs: undefined, erroLeitura: null,
     modo: null, form: null, salvando: false, erros: [], op: null, flash: null, ligado: false, offset: 0 };
   function blocoDb() { return window.firebase.database(); }
@@ -949,56 +969,121 @@
   }
   function refsBloco() { return refsDaTela(); }
   function rotuloEstrutura(e) { return e ? esc(e.nome) + ' <span class="est-sigla">' + esc(natureza(e.tipo)) + ' · ' + esc(nomeTipo(e.tipo)) + '</span>' : '<span class="est-vazio">estrutura não encontrada</span>'; }
+  function origemTexto(origem) { return origem === 'decisao' ? 'decisão final' : 'recomendação automática'; }
+  /* E2: estruturas que podem receber a responsabilidade — ativas e de um tipo de posicionamento (nunca Squad) */
+  function estruturasAlocaveis(ref) {
+    return Object.keys(bloco.estruturas || {}).map(function (k) { return bloco.estruturas[k]; })
+      .filter(function (e) { return e.situacao === 'ativa' && N().tipoAlocavel(ref, e.tipo); })
+      .sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+  }
+  function opcaoEstrutura(e, sel, extra) { return '<option value="' + esc(e.id) + '"' + (sel === e.id ? ' selected' : '') + '>' + esc(e.nome) + (e.sigla ? ' (' + esc(e.sigla) + ')' : '') + (extra || '') + '</option>'; }
+  /* a divergência registrada no vínculo (E2): o que foi decidido, por quê, quem decidiu (se informado) e o documento */
+  function divergenciaHtml(v) {
+    var d = v.divergencia;
+    return '<div class="est-dado"><dt>Motivo da alocação em outro tipo</dt><dd id="poRespDivMotivo">' + esc(ROTULO_MOTIVO_DIVERGENCIA[d.motivo] || d.motivo) + '</dd></div>' +
+      '<div class="est-dado est-dado--largo"><dt>Justificativa organizacional</dt><dd id="poRespDivJustificativa">' + esc(d.justificativa) + '</dd></div>' +
+      '<div class="est-dado"><dt>Quem decidiu</dt><dd id="poRespDivAutoridade">' + (d.autoridade ? esc(d.autoridade) : '<span class="est-vazio">não informado</span>') + '</dd></div>' +
+      '<div class="est-dado"><dt>Referência da decisão</dt><dd id="poRespDivReferencia">' + (d.referencia ? esc(d.referencia) : '<span class="est-vazio">não informada</span>') + '</dd></div>';
+  }
   function htmlBloco() {
     if (bloco.erroLeitura) return '<div class="avp-error-msg" role="alert">' + (bloco.erroLeitura === 'RECUSADA' ? 'Seu acesso não permite consultar a estrutura responsável.' : 'Não foi possível ler a estrutura responsável agora. ' + dicaLeitura()) + '</div>';
     if (bloco.estruturas === undefined || bloco.vinculos === undefined || bloco.refs === undefined) return '<p class="loading-msg" role="status">Carregando a estrutura responsável…</p>';
     var estado = { estruturas: bloco.estruturas, vinculos: bloco.vinculos }, ref = refsBloco();
     var s = N().situacaoResponsavel(estado, bloco.itemId, bloco.posicionamento, ref), v = s.vinculo, ef = s.efetivo, manter = podeManter();
+    var colabs = N().situacaoColaboradoras(estado, bloco.itemId, bloco.posicionamento, ref);
     if (!manter) { bloco.modo = null; bloco.form = null; } /* gravação suspensa no meio de uma edição: o formulário some */
     var h = avisoSituacaoHtml(null, 'O vínculo fica só no Firebase Emulator.');
+    /* E1: a terceira pergunta, em uma frase — onde a responsabilidade efetivamente ficou */
+    h += '<p class="est-intro" id="poRespIntro">Onde a responsabilidade efetivamente ficou, por decisão organizacional. Pode ser uma estrutura de outro tipo, com justificativa. Uma mesma estrutura pode assumir várias responsabilidades, de Produtos/Serviços e Capacidades diferentes. Quem executa hoje no organograma é informado na Análise Organizacional, não aqui.</p>';
     if (bloco.flash) h += '<p class="avp-flash-success" id="poRespFlash" tabindex="-1">' + esc(bloco.flash) + '</p>';
     h += '<dl class="est-dados" id="poRespDados">' +
       '<div class="est-dado"><dt>Situação</dt><dd><span class="est-situacao po-resp-situacao po-resp-situacao--' + esc(s.situacao) + '" id="poRespSituacao" data-situacao="' + esc(s.situacao) + '">' + esc(SITUACAO_VINCULO[s.situacao] || s.situacao) + '</span></dd></div>';
     if (v) {
       var est = bloco.estruturas[v.estruturaId];
       h += '<div class="est-dado"><dt>Estrutura responsável principal</dt><dd id="poRespEstrutura">' + rotuloEstrutura(est) + '</dd></div>' +
-        '<div class="est-dado"><dt>Base do vínculo</dt><dd>' + esc(nomeTipo(v.base.codigo)) + ' · ' + (v.base.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + '</dd></div>' +
-        '<div class="est-dado"><dt>Registrado</dt><dd><span class="est-quando">' + dataHora(v.criadoEm) + '</span><span class="est-autor">' + quem(v.criadoPor) + '</span></dd></div>' +
+        '<div class="est-dado"><dt>Posicionamento quando foi alocada</dt><dd id="poRespBaseVinculo">' + esc(nomeTipo(v.base.codigo)) + ' · ' + origemTexto(v.base.origem) + '</dd></div>' +
+        (v.divergencia ? divergenciaHtml(v) : '') +
+        '<div class="est-dado"><dt>Registrado no sistema</dt><dd><span class="est-quando">' + dataHora(v.criadoEm) + '</span><span class="est-autor">' + quem(v.criadoPor) + '</span></dd></div>' +
         (v.justificativa ? '<div class="est-dado est-dado--largo"><dt>Justificativa</dt><dd>' + esc(v.justificativa) + '</dd></div>' : '');
     }
     h += '</dl>';
-    if (s.situacao === 'precisa-revisao') h += '<p class="avp-decisao-aviso po-resp-revisao" id="poRespRevisao" role="status"><strong>Precisa de revisão:</strong> ' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '. O vínculo continua registrado até alguém substituí-lo ou encerrá-lo.</p>';
+    if (s.situacao === 'divergencia-deliberada') h += '<p class="est-intro po-resp-divergencia" id="poRespDivergencia" role="status">A estrutura (' + esc(nomeTipo(bloco.estruturas[v.estruturaId].tipo)) + ') é de tipo diferente do posicionamento efetivo (' + esc(nomeTipo(ef.codigo)) + ', ' + origemTexto(ef.origem) + '). É uma decisão organizacional registrada, não um erro: a recomendação e a decisão do Posicionamento continuam como estão.</p>';
+    if (s.divergenciaResolvida) h += '<p class="est-intro po-resp-divergencia" id="poRespDivergenciaResolvida" role="status">Esta alocação foi registrada como divergente: na época, o posicionamento era ' + esc(nomeTipo(v.base.codigo)) + ' (' + origemTexto(v.base.origem) + '). A avaliação atual (' + esc(nomeTipo(s.divergenciaResolvida.codigoAtual)) + ', ' + origemTexto(s.divergenciaResolvida.origem) + ') passou a coincidir com o tipo da estrutura. A divergência original e a justificativa continuam registradas acima.</p>';
+    if (s.situacao === 'precisa-revisao') h += '<p class="avp-decisao-aviso po-resp-revisao" id="poRespRevisao" role="status"><strong>Precisa de revisão:</strong> ' + s.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '. O vínculo continua registrado até alguém reconfirmá-lo, substituí-lo ou encerrá-lo.</p>';
     if (v && bloco.avisoBase) h += '<p class="avp-decisao-aviso po-resp-base" id="poRespBase" role="status"><strong>Aviso:</strong> ' + esc(bloco.avisoBase) + ' Isso não muda a situação do vínculo; confira o Posicionamento.</p>';
-    if (s.situacao === 'ausente') h += '<p class="est-intro" id="poRespAusente">Nenhuma estrutura responsável registrada. O posicionamento efetivo do item é ' + esc(nomeTipo(ef.codigo)) + ' (' + (ef.origem === 'decisao' ? 'decisão final' : 'recomendação automática') + '). Vincular uma estrutura é etapa separada e opcional: a avaliação já está concluída e não é preciso cadastrar uma estrutura nova para continuar.</p>';
+    if (s.situacao === 'ausente') h += '<p class="est-intro" id="poRespAusente">Nenhuma estrutura responsável registrada. O posicionamento efetivo do item é ' + esc(nomeTipo(ef.codigo)) + ' (' + origemTexto(ef.origem) + '). Vincular uma estrutura é etapa separada e opcional: a avaliação já está concluída e não é preciso cadastrar uma estrutura nova para continuar.</p>';
     if (s.situacao === 'nao-aplicavel') h += '<p class="est-intro" id="poRespNaoAplicavel">O item não tem posicionamento efetivo firme (decisão final ou recomendação firme): ainda não cabe registrar a estrutura responsável.</p>';
+    /* E3: estruturas colaboradoras (o mesmo vínculo, outro papel) */
+    if (colabs.length || (manter && v)) {
+      h += '<h5 class="est-secao-titulo" id="poRespColabTitulo">Estruturas colaboradoras</h5>';
+      if (!colabs.length) h += '<p class="est-intro" id="poRespSemColab">Nenhuma estrutura colaboradora registrada. Uma colaboradora participa da responsabilidade sem responder por ela.</p>';
+      else h += '<ul class="po-resp-colabs" id="poRespColabs">' + colabs.map(function (c) {
+        var ec = bloco.estruturas[c.vinculo.estruturaId];
+        return '<li class="po-resp-colab" data-vinculo="' + esc(c.vinculo.id) + '">' + rotuloEstrutura(ec) +
+          ' <span class="est-situacao po-resp-situacao po-resp-situacao--' + esc(c.situacao) + '" data-situacao="' + esc(c.situacao) + '">' + (c.situacao === 'ativa' ? 'Colabora' : 'Precisa de revisão') + '</span>' +
+          (c.situacao !== 'ativa' ? ' <span class="po-resp-motivos">' + c.motivos.map(function (m) { return esc(MOTIVO_REVISAO[m] || m); }).join('; ') + '</span>' : '') +
+          '<p class="po-resp-colab-just">' + esc(c.vinculo.justificativa || '') + '</p>' +
+          '<p class="po-resp-colab-reg"><span class="est-quando">' + dataHora(c.vinculo.criadoEm) + '</span> <span class="est-autor">' + quem(c.vinculo.criadoPor) + '</span></p>' +
+          (manter && !bloco.modo ? '<button type="button" class="btn btn--sm po-resp-colab-encerrar" data-vinculo="' + esc(c.vinculo.id) + '">Encerrar participação</button>' : '') + '</li>';
+      }).join('') + '</ul>';
+    }
     if (bloco.erros.length) h += '<div class="avp-error-msg est-erros" id="poRespErros" role="alert" tabindex="-1"><strong>Não foi salvo.</strong><ul>' + bloco.erros.map(function (e) { return '<li>' + esc(mensagemVinculo(e)) + '</li>'; }).join('') + '</ul></div>';
     if (!manter) return h;
     var tipo = ef.codigo && ref.ligacoes ? ref.ligacoes[ef.codigo] : null;
-    var opcoes = tipo ? Object.keys(bloco.estruturas).map(function (k) { return bloco.estruturas[k]; }).filter(function (e) { return e.situacao === 'ativa' && e.tipo === tipo && (!v || e.id !== v.estruturaId); })
-      .sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); }) : [];
     var f = bloco.form || {};
     if (bloco.modo === 'vincular' || bloco.modo === 'substituir') {
-      h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir a estrutura responsável') + '</h5>';
-      if (!opcoes.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa do tipo ' + esc(nomeTipo(tipo)) + (v ? ' além da atual' : '') + ' está cadastrada. ' +
-        'O Posicionamento definiu o tipo, mas não cria a estrutura. A recomendação continua válida sem estrutura vinculada, e não é preciso cadastrar uma estrutura para concluir esta avaliação nem para continuar a análise da área. ' +
-        'Se houver decisão organizacional de criar uma estrutura deste tipo, ela é cadastrada em Gestão da Floresta › Estruturas do Mapa da Floresta, e você volta para cá depois.</p>' +
+      /* E2: todas as estruturas que podem receber a responsabilidade, em dois grupos; reconfirmar = escolher a atual */
+      var reconfirmar = v && (ef.avaliacaoId !== v.base.avaliacaoId || ef.codigo !== v.base.codigo);
+      var todas = estruturasAlocaveis(ref).filter(function (e) { return !v || e.id !== v.estruturaId || reconfirmar; })
+        .filter(function (e) { return !colabs.some(function (c) { return c.vinculo.estruturaId === e.id; }); });
+      var doTipo = todas.filter(function (e) { return e.tipo === tipo; }), outras = todas.filter(function (e) { return e.tipo !== tipo; });
+      var escolhida = bloco.estruturas[f.estruturaId], diverge = !!(escolhida && tipo && escolhida.tipo !== tipo);
+      h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (bloco.modo === 'vincular' ? 'Vincular estrutura responsável' : 'Substituir ou reconfirmar a estrutura responsável') + '</h5>';
+      if (!todas.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Nenhuma estrutura ativa que possa receber a responsabilidade' + (v ? ', além da atual,' : '') + ' está cadastrada. ' +
+        'O Posicionamento recomendou o tipo, mas não cria a estrutura nem exige uma estrutura exclusiva. A recomendação continua válida sem estrutura vinculada, e não é preciso cadastrar uma estrutura para concluir esta avaliação nem para continuar a análise da área. ' +
+        'Se houver decisão organizacional de criar uma estrutura, ela é cadastrada em Gestão da Floresta › Estruturas do Mapa da Floresta, e você volta para cá depois.</p>' +
         (tipo ? '<p><a class="btn btn--sm" id="poRespCadastrarTipo" href="#arquitetura?arq=estruturas&nova=' + encodeURIComponent(tipo) + '&objeto=' + encodeURIComponent(bloco.itemId) +
-          (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura deste tipo</a></p>' : '');
-      else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura (' + esc(nomeTipo(tipo)) + ') <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
-        opcoes.map(function (e) { return '<option value="' + esc(e.id) + '"' + (f.estruturaId === e.id ? ' selected' : '') + '>' + esc(e.nome) + (e.sigla ? ' (' + esc(e.sigla) + ')' : '') + '</option>'; }).join('') + '</select></div>';
+          (bloco.posicionamento && bloco.posicionamento.avaliacaoId ? '&po=' + encodeURIComponent(bloco.posicionamento.avaliacaoId) : '') + '">Cadastrar estrutura do tipo recomendado</a></p>' : '');
+      else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
+        (doTipo.length ? '<optgroup label="Do tipo recomendado (' + esc(nomeTipo(tipo)) + ')">' + doTipo.map(function (e) { return opcaoEstrutura(e, f.estruturaId, v && e.id === v.estruturaId ? ' — atual (reconfirmar)' : ''); }).join('') + '</optgroup>' : '') +
+        (outras.length ? '<optgroup label="De outro tipo: exige motivo e justificativa organizacional">' + outras.map(function (e) { return opcaoEstrutura(e, f.estruturaId, ' · ' + esc(nomeTipo(e.tipo)) + (v && e.id === v.estruturaId ? ' — atual (reconfirmar)' : '')); }).join('') + '</optgroup>' : '') +
+        '</select></div>';
+      if (diverge) {
+        h += '<fieldset class="est-campo po-resp-div" id="poRespDivCampos"><legend>Alocação em estrutura de outro tipo</legend>' +
+          '<p class="est-intro" id="poRespDivNota">A estrutura escolhida é do tipo ' + esc(nomeTipo(escolhida.tipo)) + '; o posicionamento efetivo é ' + esc(nomeTipo(ef.codigo)) + ' (' + origemTexto(ef.origem) + '). A recomendação continua registrada como está: aqui fica só onde a responsabilidade efetivamente ficou e por quê.</p>' +
+          '<div class="avp-field"><label for="poRespDivMotivoSel">Motivo <span class="est-obrig">(obrigatório)</span></label><select id="poRespDivMotivoSel"><option value="">Escolha…</option>' +
+          N().MOTIVOS_DIVERGENCIA.map(function (m) { return '<option value="' + m + '"' + (f.divMotivo === m ? ' selected' : '') + '>' + esc(ROTULO_MOTIVO_DIVERGENCIA[m] || m) + '</option>'; }).join('') + '</select></div>' +
+          '<div class="avp-field"><label for="poRespDivJust">Justificativa organizacional <span class="est-obrig">(obrigatório)</span></label><textarea id="poRespDivJust" maxlength="' + N().MAX.justificativa + '" rows="3">' + esc(f.divJustificativa || '') + '</textarea></div>' +
+          '<div class="avp-field"><label for="poRespDivAut">Quem decidiu <span class="est-opc">(opcional: instância ou autoridade que tomou a decisão; quem registra aqui não é apresentado como quem decidiu)</span></label><input type="text" id="poRespDivAut" maxlength="' + N().MAX.autoridade + '" value="' + esc(f.divAutoridade || '') + '"></div>' +
+          '<div class="avp-field"><label for="poRespDivRef">Referência da decisão <span class="est-opc">(opcional: ata, ato ou comunicado)</span></label><input type="text" id="poRespDivRef" maxlength="' + N().MAX.referencia + '" value="' + esc(f.divReferencia || '') + '"></div></fieldset>';
+      }
       if (bloco.modo === 'substituir') h += '<div class="avp-field est-campo"><label for="poRespMotivo">Motivo da substituição <span class="est-obrig">(obrigatório)</span></label><textarea id="poRespMotivo" maxlength="' + N().MAX.motivo + '" rows="2">' + esc(f.motivo || '') + '</textarea></div>';
-      h += '<div class="avp-field est-campo"><label for="poRespJustificativa">Justificativa <span class="est-opc">(opcional)</span></label><textarea id="poRespJustificativa" maxlength="' + N().MAX.justificativa + '" rows="2">' + esc(f.justificativa || '') + '</textarea></div>' +
-        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando || !opcoes.length ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : 'Salvar') + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
+      if (!diverge) h += '<div class="avp-field est-campo"><label for="poRespJustificativa">Justificativa <span class="est-opc">(opcional)</span></label><textarea id="poRespJustificativa" maxlength="' + N().MAX.justificativa + '" rows="2">' + esc(f.justificativa || '') + '</textarea></div>';
+      h += '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando || !todas.length ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : 'Salvar') + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
       return h;
     }
-    if (bloco.modo === 'encerrar') {
-      return h + '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">Encerrar o vínculo</h5><p class="est-intro">O item fica sem estrutura responsável; o vínculo encerrado continua registrado.</p>' +
+    if (bloco.modo === 'colaborar') {
+      var possiveis = estruturasAlocaveis(ref).filter(function (e) { return (!v || e.id !== v.estruturaId) && !colabs.some(function (c) { return c.vinculo.estruturaId === e.id; }); });
+      h += '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">Adicionar estrutura colaboradora</h5>' +
+        '<p class="est-intro">A colaboradora participa da responsabilidade sem responder por ela, e nunca passa a responsável principal sozinha.</p>';
+      if (!possiveis.length) h += '<p class="admin-empty" id="poRespSemOpcoes">Não há outra estrutura ativa que possa colaborar.</p>';
+      else h += '<div class="avp-field est-campo"><label for="poRespEstruturaSel">Estrutura <span class="est-obrig">(obrigatório)</span></label><select id="poRespEstruturaSel"><option value="">Escolha…</option>' +
+        possiveis.map(function (e) { return opcaoEstrutura(e, f.estruturaId, ' · ' + esc(nomeTipo(e.tipo))); }).join('') + '</select></div>';
+      h += '<div class="avp-field est-campo"><label for="poRespJustificativa">O que esta estrutura faz na responsabilidade <span class="est-obrig">(obrigatório)</span></label><textarea id="poRespJustificativa" maxlength="' + N().MAX.justificativa + '" rows="2">' + esc(f.justificativa || '') + '</textarea></div>' +
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando || !possiveis.length ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : 'Salvar') + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
+      return h;
+    }
+    if (bloco.modo === 'encerrar' || bloco.modo === 'encerrar-colab') {
+      var deColab = bloco.modo === 'encerrar-colab';
+      return h + '<form class="est-form po-resp-form" id="poRespForm" novalidate><h5 class="est-secao-titulo">' + (deColab ? 'Encerrar a participação da colaboradora' : 'Encerrar o vínculo') + '</h5><p class="est-intro">' +
+        (deColab ? 'A estrutura deixa de colaborar; o registro continua no histórico.' : 'O item fica sem estrutura responsável; o vínculo encerrado continua registrado. As colaboradoras não são promovidas: ficam para revisão.') + '</p>' +
         '<div class="avp-field est-campo"><label for="poRespMotivo">Motivo do encerramento <span class="est-obrig">(obrigatório)</span></label><textarea id="poRespMotivo" maxlength="' + N().MAX.motivo + '" rows="2">' + esc(f.motivo || '') + '</textarea></div>' +
-        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : 'Encerrar vínculo') + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--primary" id="poRespSalvar"' + (bloco.salvando ? ' disabled' : '') + '>' + (bloco.salvando ? 'Salvando…' : (deColab ? 'Encerrar participação' : 'Encerrar vínculo')) + '</button><button type="button" class="btn" id="poRespCancelar">Cancelar</button></div></form>';
     }
     h += '<div class="avp-actions-footer po-resp-acoes">';
     if (s.situacao === 'ausente') h += '<button type="button" class="btn" id="poRespVincular">Vincular estrutura responsável</button>';
-    if (v && ef.codigo) h += '<button type="button" class="btn" id="poRespSubstituir">Substituir</button>';
+    if (v && ef.codigo) h += '<button type="button" class="btn" id="poRespSubstituir">' + (s.situacao === 'precisa-revisao' ? 'Reconfirmar ou substituir' : 'Substituir') + '</button>';
+    if (v && ef.codigo) h += '<button type="button" class="btn" id="poRespColaborar">Adicionar colaboradora</button>';
     if (v) h += '<button type="button" class="btn" id="poRespEncerrar">Encerrar vínculo</button>';
     return h + '</div>';
   }
@@ -1007,11 +1092,19 @@
     if (!el || !el.isConnected) return;
     el.innerHTML = htmlBloco();
     var q = function (id) { return el.querySelector('#' + id); };
-    var abrirModo = function (modo) { bloco.modo = modo; bloco.form = { estruturaId: '', motivo: '', justificativa: '' }; bloco.erros = []; bloco.flash = null; bloco.op = null; desenharBloco(); };
-    [['poRespVincular', 'vincular'], ['poRespSubstituir', 'substituir'], ['poRespEncerrar', 'encerrar']].forEach(function (b) { var x = q(b[0]); if (x) x.addEventListener('click', function () { abrirModo(b[1]); }); });
+    var abrirModo = function (modo, vinculoId) { bloco.modo = modo; bloco.form = { estruturaId: '', motivo: '', justificativa: '', vinculoId: vinculoId || null }; bloco.erros = []; bloco.flash = null; bloco.op = null; desenharBloco(); };
+    [['poRespVincular', 'vincular'], ['poRespSubstituir', 'substituir'], ['poRespEncerrar', 'encerrar'], ['poRespColaborar', 'colaborar']].forEach(function (b) { var x = q(b[0]); if (x) x.addEventListener('click', function () { abrirModo(b[1]); }); });
+    Array.prototype.forEach.call(el.querySelectorAll('.po-resp-colab-encerrar'), function (b) { b.addEventListener('click', function () { abrirModo('encerrar-colab', b.getAttribute('data-vinculo')); }); });
     var c = q('poRespCancelar'); if (c) c.addEventListener('click', function () { bloco.modo = null; bloco.form = null; bloco.erros = []; bloco.op = null; desenharBloco(); });
-    [['poRespEstruturaSel', 'estruturaId', 'change'], ['poRespMotivo', 'motivo', 'input'], ['poRespJustificativa', 'justificativa', 'input']].forEach(function (b) {
+    [['poRespMotivo', 'motivo', 'input'], ['poRespJustificativa', 'justificativa', 'input'], ['poRespDivMotivoSel', 'divMotivo', 'change'],
+      ['poRespDivJust', 'divJustificativa', 'input'], ['poRespDivAut', 'divAutoridade', 'input'], ['poRespDivRef', 'divReferencia', 'input']].forEach(function (b) {
       var x = q(b[0]); if (x) x.addEventListener(b[2], function () { bloco.form[b[1]] = x.value; });
+    });
+    /* trocar a estrutura pode abrir ou fechar os campos da divergência: redesenha e devolve o foco à escolha */
+    var sel = q('poRespEstruturaSel');
+    if (sel) sel.addEventListener('change', function () {
+      bloco.form.estruturaId = sel.value;
+      if (bloco.modo !== 'colaborar') { desenharBloco(); var s2 = bloco.el && bloco.el.querySelector('#poRespEstruturaSel'); if (s2) s2.focus({ preventScroll: true }); }
     });
     var form = q('poRespForm');
     if (form) form.addEventListener('submit', function (ev) { ev.preventDefault(); salvarBloco(); });
@@ -1020,21 +1113,30 @@
     if (bloco.salvando) return;
     var u = window.firebase.auth().currentUser;
     if (!u) { bloco.erros = [{ codigo: 'CONTEXTO_SEM_USUARIO' }]; desenharBloco(); return; }
-    var estado = { estruturas: bloco.estruturas, vinculos: bloco.vinculos };
+    var estado = { estruturas: bloco.estruturas, vinculos: bloco.vinculos }, ref = refsBloco();
     var v = N().responsavelAtivo(estado, bloco.itemId), f = bloco.form || {}, modo = bloco.modo, operacao, entrada;
-    if (modo === 'vincular') { operacao = 'vincularResponsavel'; entrada = { objetoId: bloco.itemId, estruturaId: f.estruturaId, justificativa: f.justificativa }; }
-    else if (modo === 'substituir') { operacao = 'substituirResponsavel'; entrada = { vinculoId: v && v.id, estruturaId: f.estruturaId, motivo: f.motivo, justificativa: f.justificativa }; }
+    /* E2: com estrutura de outro tipo, a divergência vai junto (o núcleo e o banco conferem de novo) */
+    var ef = N().posicionamentoEfetivo(bloco.posicionamento, ref), tipo = ef.codigo && ref.ligacoes ? ref.ligacoes[ef.codigo] : null;
+    var escolhida = bloco.estruturas[f.estruturaId], divergencia = escolhida && tipo && escolhida.tipo !== tipo
+      ? { motivo: f.divMotivo || '', justificativa: f.divJustificativa || '', autoridade: f.divAutoridade || null, referencia: f.divReferencia || null } : undefined;
+    if (modo === 'vincular') { operacao = 'vincularResponsavel'; entrada = { objetoId: bloco.itemId, estruturaId: f.estruturaId, justificativa: divergencia ? null : f.justificativa, divergencia: divergencia }; }
+    else if (modo === 'substituir') { operacao = 'substituirResponsavel'; entrada = { vinculoId: v && v.id, estruturaId: f.estruturaId, motivo: f.motivo, justificativa: divergencia ? null : f.justificativa, divergencia: divergencia }; }
+    else if (modo === 'colaborar') { operacao = 'vincularColaboradora'; entrada = { objetoId: bloco.itemId, estruturaId: f.estruturaId, justificativa: f.justificativa }; }
+    else if (modo === 'encerrar-colab') { operacao = 'encerrarVinculo'; entrada = { vinculoId: f.vinculoId, motivo: f.motivo }; }
     else { operacao = 'encerrarVinculo'; entrada = { vinculoId: v && v.id, motivo: f.motivo }; }
     /* a MESMA tentativa reaproveita o identificador da operação: reenviar depois de "sem resposta" não duplica */
     bloco.op = bloco.op || { operacaoId: blocoDb().ref().push().key, novoId: blocoDb().ref().push().key };
     var ctx = { operacaoId: bloco.op.operacaoId, usuario: { id: u.uid, email: u.email }, agora: Date.now() + bloco.offset };
-    if (modo !== 'encerrar') ctx.novoId = bloco.op.novoId;
+    if (operacao !== 'encerrarVinculo') ctx.novoId = bloco.op.novoId;
     bloco.salvando = true; bloco.erros = []; desenharBloco();
     U().criar({ nucleo: N(), codigosFirmes: MOT().CODIGOS_FIRMES }).executar(operacao, entrada, ctx, FB().criarPortas({ db: blocoDb(), codigosFirmes: MOT().CODIGOS_FIRMES })).then(function (r) {
       bloco.salvando = false;
       if (r.ok) {
         bloco.op = null; bloco.modo = null; bloco.form = null;
-        bloco.flash = modo === 'vincular' ? 'Estrutura responsável registrada.' : modo === 'substituir' ? 'Estrutura responsável substituída. O vínculo anterior continua registrado, encerrado.' : 'Vínculo encerrado. Ele continua registrado.';
+        bloco.flash = modo === 'vincular' ? (divergencia ? 'Estrutura responsável registrada, com a justificativa da alocação em outro tipo.' : 'Estrutura responsável registrada.')
+          : modo === 'substituir' ? 'Estrutura responsável atualizada. O vínculo anterior continua registrado, encerrado.'
+          : modo === 'colaborar' ? 'Estrutura colaboradora registrada.'
+          : modo === 'encerrar-colab' ? 'Participação encerrada. Ela continua registrada.' : 'Vínculo encerrado. Ele continua registrado.';
         desenharBloco(); var fl = bloco.el && bloco.el.querySelector('#poRespFlash'); if (fl) fl.focus({ preventScroll: true });
         return;
       }
@@ -1093,6 +1195,8 @@
     montarResponsavel: montarResponsavel,
     /* M4: o Mapa e o Catálogo mostram a situação do vínculo com os mesmos textos e as mesmas ligações */
     situacaoVinculoHtml: situacaoVinculoHtml,
+    /* E2/E3: o papel (principal ou colaboradora) e a divergência, iguais na ficha da estrutura e no Mapa */
+    papelVinculoHtml: papelVinculoHtml,
     lerLigacoes: function (cb) { lerLigacoes(function () { cb(refsDaTela()); }); },
     /* M6/M7: o rótulo de cada tipo de relação (o Mapa mostra as relações só para consulta) */
     rotuloRelacao: function (tipo) { return ROTULO_RELACAO[tipo] || tipo; },

@@ -169,10 +169,10 @@ afirma(JSON.stringify(N.posicionamentoEfetivo(posDec('NEGOCIOS', 'AREA_ESPECIALI
 afirma(N.posicionamentoEfetivo(posRec('NEGOCIOS'), REF).origem === 'recomendacao', 'sem decisão: a recomendação firme');
 afirma(N.posicionamentoEfetivo(posRec('A_VALIDAR'), REF).codigo === null && N.posicionamentoEfetivo(posRec('LINHA'), REF).codigo === null && N.posicionamentoEfetivo(null, REF).motivo === 'SEM_POSICIONAMENTO_VIGENTE', 'A_VALIDAR sem decisão, código não firme ou sem Posicionamento: sem efetivo');
 afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'LNF1' }, posRec('A_VALIDAR'), ctx('V0'), REF), 'SEM_POSICIONAMENTO_EFETIVO'), 'A_VALIDAR sem decisão final: não vincula');
-afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'AE1' }, posRec('NEGOCIOS'), ctx('V0'), REF), 'TIPO_INCOMPATIVEL'), 'efetivo Negócios × estrutura Área Especializada: tipo incompatível');
-afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'LNF1' }, posRec('NEGOCIOS'), ctx('V0'), Object.assign({}, REF, { ligacoes: {} })), 'LIGACAO_OFICIAL_AUSENTE'), 'sem a correspondência oficial código ↔ conceito: não vincula');
-afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'SQA' }, posRec('NEGOCIOS'), ctx('V0'), REF), 'TIPO_INCOMPATIVEL'), 'Squad não é responsável principal (o tipo nunca corresponde a um posicionamento)');
-afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'LNF1', papel: 'atuacao-squad' }, posRec('NEGOCIOS'), ctx('V0'), REF), 'PAPEL_NAO_SUPORTADO'), 'outros papéis ainda não suportados (modelo preparado: campo papel)');
+afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'AE1' }, posRec('NEGOCIOS'), ctx('V0'), REF), 'DIVERGENCIA_SEM_JUSTIFICATIVA'), 'efetivo Negócios × estrutura Área Especializada sem motivo nem justificativa: recusado (E2)');
+afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'LNF1' }, posRec('NEGOCIOS'), ctx('V0'), Object.assign({}, REF, { ligacoes: {} })), 'TIPO_NAO_ALOCAVEL'), 'sem a correspondência oficial código ↔ conceito: nenhum tipo é alocável, não vincula');
+afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'SQA', divergencia: { motivo: 'escala', justificativa: 'x' } }, posRec('NEGOCIOS'), ctx('V0'), REF), 'TIPO_NAO_ALOCAVEL'), 'Squad não recebe alocação, nem com divergência justificada (compõe uma Linha)');
+afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'LNF1', papel: 'atuacao-squad' }, posRec('NEGOCIOS'), ctx('V0'), REF), 'RESPONSAVEL_PRINCIPAL_JA_EXISTE') === false && N.PAPEIS_VINCULO.join() === 'responsavel-principal,colaboradora', 'papéis: responsável principal e colaboradora (o campo papel de vincularResponsavel é sempre o principal)');
 exec(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'LNF1', justificativa: 'A Linha responsável (ilustrativo)' }, posRec('NEGOCIOS', 'gA1'), ctx('V1'), REF), 'vincula pela recomendação firme');
 afirma(JSON.stringify(estado.vinculos.V1.base) === JSON.stringify({ avaliacaoId: 'gA1', codigo: 'NEGOCIOS', origem: 'recomendacao' }) && estado.vinculos.V1.papel === 'responsavel-principal', 'base registrada: avaliação, código e origem');
 afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item1', estruturaId: 'LNF2' }, posRec('NEGOCIOS'), ctx('V9'), REF), 'RESPONSAVEL_PRINCIPAL_JA_EXISTE'), 'um responsável principal ativo por objeto');
@@ -182,7 +182,7 @@ afirma(temErro(N.vincularResponsavel(estado, { objetoId: 'item3', estruturaId: '
 afirma(temErro(N.substituirResponsavel(estado, 'V1', { estruturaId: 'LNF2' }, '', posRec('NEGOCIOS'), ctx('V1b'), REF), 'MOTIVO_OBRIGATORIO'), 'substituir exige motivo');
 exec(N.substituirResponsavel(estado, 'V1', { estruturaId: 'LNF2' }, 'Mudança de Linha responsável (ilustrativo)', posRec('NEGOCIOS', 'gA1'), ctx('V1b'), REF), 'substituir = encerrar o vínculo e criar o novo, juntos');
 afirma(estado.vinculos.V1.situacao === 'encerrada' && estado.vinculos.V1.encerramento.substituidoPor === 'V1b' && estado.vinculos.V1b.substitui === 'V1' && N.responsavelAtivo(estado, 'item1').id === 'V1b', 'o anterior fica encerrado apontando para o novo; um só ativo');
-afirma(temErro(N.substituirResponsavel(estado, 'V1b', { estruturaId: 'AE1' }, 'x', posRec('NEGOCIOS'), ctx('V1c'), REF), 'TIPO_INCOMPATIVEL'), 'a substituição passa pelas mesmas regras');
+afirma(temErro(N.substituirResponsavel(estado, 'V1b', { estruturaId: 'AE1' }, 'x', posRec('NEGOCIOS'), ctx('V1c'), REF), 'DIVERGENCIA_SEM_JUSTIFICATIVA'), 'a substituição passa pelas mesmas regras (tipo diferente exige divergência justificada)');
 afirma(N.objetosDaEstrutura(estado, 'LNF2').map((o) => o.objetoId).join() === 'item1' && !N.objetosDaEstrutura(estado, 'LNF1').length, 'consulta: objetos de cada estrutura (só vínculos ativos)');
 
 console.log('D. situação calculada e mudança de Posicionamento');
@@ -201,6 +201,80 @@ afirma(JSON.stringify(estado) === antes, 'calcular situações não altera nada 
 exec(N.encerrarEstrutura(estado, 'AE1', 'Reorganização (ilustrativo)', ctx()), 'encerra a estrutura responsável do item2');
 const encS = N.situacaoResponsavel(estado, 'item2', posDec('NEGOCIOS', 'AREA_ESPECIALIZADA', 'gB1'), REF);
 afirma(encS.situacao === 'precisa-revisao' && encS.motivos.join() === 'ESTRUTURA_ENCERRADA' && estado.vinculos.V2.situacao === 'ativa', 'estrutura encerrada: o vínculo continua registrado e passa a "precisa de revisão" (sem cascata)');
+
+console.log('D2. E2 — alocação divergente justificada (R-E2-1 a R-E2-10) e E3 — colaboradoras (R-E3-1 a R-E3-5)');
+{ /* num estado próprio, para não mexer nas seções seguintes */
+  let e = estado;
+  const ap = (r, msg) => { if (!r.ok) { afirma(false, msg, codigos(r)); return r; } const a = N.aplicar(e, r.mudancas); if (!a.ok) { afirma(false, msg + ' (aplicar)', a); return r; } e = a.estado; afirma(true, msg); return r; };
+  ap(N.criarEstrutura(e, { tipo: 'COE', nome: 'CoE de Educação (ilustrativo)' }, ctx('XCOE'), REF), 'cadastra um CoE');
+  ap(N.criarEstrutura(e, { tipo: 'ESTRATEGIA_CLIENTES', nome: 'Linha de Relacionamento (ilustrativo)' }, ctx('XLEC'), REF), 'cadastra uma Linha de Estratégia de Clientes');
+  ap(N.criarEstrutura(e, { tipo: 'PLATAFORMA_CANAIS', nome: 'Plataforma de Canais (ilustrativo)' }, ctx('XPCN'), REF), 'cadastra uma Plataforma de Canais');
+  ap(N.criarEstrutura(e, { tipo: 'PLATAFORMA_CORPORATIVA', nome: 'Plataforma Corporativa (ilustrativo)' }, ctx('XPCO'), REF), 'cadastra uma Plataforma Corporativa');
+  const capCoE = posRec('COE', 'gE1'), div = { motivo: 'escala', justificativa: 'Sem massa crítica para um CoE próprio (ilustrativo)', autoridade: 'Diretoria (ilustrativo)', referencia: 'Ata 12/2026 (ilustrativo)' };
+  /* cenário 1: dois Produtos/Serviços na mesma Linha */
+  ap(N.vincularResponsavel(e, { objetoId: 'itemES', estruturaId: 'LNF2' }, posRec('NEGOCIOS', 'gES'), ctx('VES'), REF), 'cenário 1: Empréstimo Simples na Linha de Crédito');
+  ap(N.vincularResponsavel(e, { objetoId: 'itemCARIM', estruturaId: 'LNF2' }, posRec('NEGOCIOS', 'gCA'), ctx('VCA'), REF), 'cenário 1: CARIM na MESMA Linha (nenhuma exclusividade)');
+  afirma(N.objetosDaEstrutura(e, 'LNF2').map((o) => o.objetoId).sort().join() === 'item1,itemCARIM,itemES', 'cenário 1: a Linha assume várias responsabilidades');
+  /* cenário 2: Capacidade recomendada como CoE e absorvida por uma Linha */
+  afirma(temErro(N.vincularResponsavel(e, { objetoId: 'itemEDU', estruturaId: 'XLEC' }, capCoE, ctx('V0'), REF), 'DIVERGENCIA_SEM_JUSTIFICATIVA'), 'cenário 2b: tipo diferente sem justificativa → recusado');
+  afirma(temErro(N.vincularResponsavel(e, { objetoId: 'itemEDU', estruturaId: 'XLEC', divergencia: { motivo: 'escala', justificativa: '  ' } }, capCoE, ctx('V0'), REF), 'DIVERGENCIA_SEM_JUSTIFICATIVA'), 'justificativa só com espaços → recusada');
+  afirma(temErro(N.vincularResponsavel(e, { objetoId: 'itemEDU', estruturaId: 'XLEC', divergencia: { motivo: 'gosto', justificativa: 'x' } }, capCoE, ctx('V0'), REF), 'MOTIVO_DIVERGENCIA_INVALIDO'), 'motivo fora da lista → recusado');
+  afirma(temErro(N.vincularResponsavel(e, { objetoId: 'itemEDU', estruturaId: 'XLEC', divergencia: { justificativa: 'x' } }, capCoE, ctx('V0'), REF), 'CAMPO_OBRIGATORIO'), 'motivo ausente → recusado');
+  afirma(N.MOTIVOS_DIVERGENCIA.join() === 'pessoas,escala,custo,afinidade,prioridade,viabilidade,outro', 'motivos: pessoas, escala, custo, afinidade, prioridade, viabilidade, outro');
+  const rEdu = ap(N.vincularResponsavel(e, { objetoId: 'itemEDU', estruturaId: 'XLEC', divergencia: div }, capCoE, ctx('VEDU'), REF), 'cenário 2a: absorvida pela Linha com motivo e justificativa');
+  const vEdu = e.vinculos.VEDU;
+  afirma(JSON.stringify(vEdu.base) === JSON.stringify({ avaliacaoId: 'gE1', codigo: 'COE', origem: 'recomendacao' }) && vEdu.divergencia.motivo === 'escala' && vEdu.divergencia.autoridade === 'Diretoria (ilustrativo)' && vEdu.divergencia.referencia === 'Ata 12/2026 (ilustrativo)' && vEdu.criadoPor.id === 'u-arq', 'a base (o que deveria ser) fica intacta; motivo, justificativa, autoridade e referência gravados; quem registrou é o autor');
+  afirma(rEdu.eventos[0].depois.divergencia.justificativa === div.justificativa, 'a divergência entra no evento de histórico');
+  const sEdu = N.situacaoResponsavel(e, 'itemEDU', capCoE, REF);
+  afirma(sEdu.situacao === 'divergencia-deliberada' && !sEdu.motivos.length, 'situação: divergência deliberada (não é erro nem revisão)');
+  /* cenário 3: mesmo tipo */
+  afirma(temErro(N.vincularResponsavel(e, { objetoId: 'itemAE', estruturaId: 'XCOE', divergencia: div }, posRec('COE', 'gAE'), ctx('V0'), REF), 'DIVERGENCIA_INDEVIDA'), 'cenário 3: mesmo tipo com dados de divergência → recusado');
+  ap(N.vincularResponsavel(e, { objetoId: 'itemAE', estruturaId: 'XCOE' }, posRec('COE', 'gAE'), ctx('VAE'), REF), 'cenário 3: mesmo tipo, compatível');
+  afirma(!('divergencia' in e.vinculos.VAE) && N.situacaoResponsavel(e, 'itemAE', posRec('COE', 'gAE'), REF).situacao === 'valido', 'compatível: válido, sem campo de divergência');
+  /* cenário 4: decisão final arquitetural diferente da recomendação */
+  const p4 = posDec('AREA_ESPECIALIZADA', 'NEGOCIOS', 'gD4');
+  ap(N.vincularResponsavel(e, { objetoId: 'item4a', estruturaId: 'LNF1' }, p4, ctx('V4A'), REF), 'cenário 4a: alocado no tipo da DECISÃO final → compatível');
+  afirma(e.vinculos.V4A.base.origem === 'decisao' && N.situacaoResponsavel(e, 'item4a', p4, REF).situacao === 'valido', 'cenário 4a: a divergência é só arquitetural (base = decisão)');
+  ap(N.vincularResponsavel(e, { objetoId: 'item4b', estruturaId: 'XCOE', divergencia: { motivo: 'afinidade', justificativa: 'Afinidade com o CoE existente (ilustrativo)' } }, posDec('AREA_ESPECIALIZADA', 'NEGOCIOS', 'gD5'), ctx('V4B'), REF), 'cenário 4b: divergente da decisão (mesmo coincidindo ou não com a recomendação) exige justificativa');
+  afirma(N.situacaoResponsavel(e, 'item4b', posDec('AREA_ESPECIALIZADA', 'NEGOCIOS', 'gD5'), REF).situacao === 'divergencia-deliberada', 'cenário 4b: divergência medida contra a decisão final');
+  /* cenário 5: reavaliação depois da alocação divergente */
+  const s5a = N.situacaoResponsavel(e, 'itemEDU', posRec('COE', 'gE2'), REF);
+  afirma(s5a.situacao === 'divergencia-deliberada' && s5a.baseEmOutraAvaliacao === true && s5a.vinculo.base.avaliacaoId === 'gE1', '5a: reavaliação mantém o código → segue divergência deliberada, base antiga preservada');
+  const s5b = N.situacaoResponsavel(e, 'itemEDU', posRec('ESTRATEGIA_CLIENTES', 'gE3'), REF);
+  afirma(s5b.situacao === 'valido' && s5b.divergenciaResolvida && s5b.divergenciaResolvida.codigoAtual === 'ESTRATEGIA_CLIENTES' && s5b.divergenciaResolvida.avaliacaoId === 'gE3' && s5b.vinculo.divergencia.justificativa === div.justificativa && s5b.vinculo.base.codigo === 'COE', '5b: reavaliação passa a coincidir com a estrutura → válido; a divergência original e a base continuam visíveis, e diz qual avaliação a tornou compatível');
+  const s5c = N.situacaoResponsavel(e, 'itemEDU', posRec('PLATAFORMA_HABILITADORA_NEGOCIOS', 'gE4'), REF);
+  afirma(s5c.situacao === 'precisa-revisao' && s5c.motivos.indexOf('CODIGO_EFETIVO_MUDOU') !== -1, '5c: reavaliação com outro código → precisa de revisão');
+  afirma(temErro(N.substituirResponsavel(e, 'VEDU', { estruturaId: 'XLEC' }, 'Reconfirmação após reavaliação', posRec('PLATAFORMA_HABILITADORA_NEGOCIOS', 'gE4'), ctx('V0'), REF), 'DIVERGENCIA_SEM_JUSTIFICATIVA'), '5c: reconfirmar sem justificativa nova → recusado');
+  ap(N.substituirResponsavel(e, 'VEDU', { estruturaId: 'XLEC', divergencia: { motivo: 'prioridade', justificativa: 'Mantida após a reavaliação (ilustrativo)' } }, 'Reconfirmação após reavaliação', posRec('PLATAFORMA_HABILITADORA_NEGOCIOS', 'gE4'), ctx('VEDU2'), REF), '5c: reconfirmar = substituir pela MESMA estrutura, com base e justificativa novas');
+  afirma(e.vinculos.VEDU.situacao === 'encerrada' && e.vinculos.VEDU.base.codigo === 'COE' && e.vinculos.VEDU.divergencia.motivo === 'escala' && e.vinculos.VEDU2.base.codigo === 'PLATAFORMA_HABILITADORA_NEGOCIOS' && e.vinculos.VEDU2.substitui === 'VEDU', '5c: o vínculo antigo continua no histórico com a base e a divergência originais');
+  afirma(N.situacaoResponsavel(e, 'itemEDU', posRec('A_VALIDAR', 'gE5'), REF).motivos.join() === 'POSICIONAMENTO_SEM_CODIGO_FIRME', '5e: nova vigente A_VALIDAR sem decisão → precisa de revisão');
+  /* cenário 6: principal e colaboradoras */
+  const pRU = posRec('NEGOCIOS', 'gRU');
+  afirma(temErro(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'XPCN', justificativa: 'Adesão pelo autoatendimento' }, pRU, ctx('V0'), REF), 'SEM_RESPONSAVEL_PRINCIPAL'), '6b: colaboradora sem principal ativo → recusada');
+  ap(N.vincularResponsavel(e, { objetoId: 'itemRU', estruturaId: 'LNF1' }, pRU, ctx('VRU'), REF), '6a: principal');
+  afirma(temErro(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'XPCN' }, pRU, ctx('V0'), REF), 'CAMPO_OBRIGATORIO'), '6b: colaboradora sem justificativa → recusada');
+  afirma(temErro(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'LNF1', justificativa: 'x' }, pRU, ctx('V0'), REF), 'COLABORADORA_E_PRINCIPAL'), '6b: colaboradora igual à principal → recusada');
+  afirma(temErro(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'SQA', justificativa: 'x' }, pRU, ctx('V0'), REF), 'TIPO_NAO_ALOCAVEL'), '6b: Squad não colabora como estrutura');
+  afirma(temErro(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'XPCN', justificativa: 'x', divergencia: div }, pRU, ctx('V0'), REF), 'DIVERGENCIA_INDEVIDA'), '6b: colaboradora não é posicionada (sem divergência)');
+  ap(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'XPCN', justificativa: 'Adesão pelo autoatendimento (ilustrativo)' }, pRU, ctx('VC1'), REF), '6a: colaboradora Plataforma de Canais (de outro tipo, sem regra de tipo)');
+  ap(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'XPCO', justificativa: 'Folha e conciliação (ilustrativo)' }, pRU, ctx('VC2'), REF), '6a: segunda colaboradora (sem limite fixo de quantidade)');
+  afirma(temErro(N.vincularColaboradora(e, { objetoId: 'itemRU', estruturaId: 'XPCN', justificativa: 'x' }, pRU, ctx('V0'), REF), 'COLABORADORA_JA_EXISTE'), '6b: colaboradora duplicada → recusada');
+  afirma(temErro(N.substituirResponsavel(e, 'VRU', { estruturaId: 'XPCN', divergencia: div }, 'x', pRU, ctx('V0'), REF), 'COLABORADORA_E_PRINCIPAL'), 'a principal não pode ser uma colaboradora ativa (encerrar a colaboradora antes)');
+  afirma(temErro(N.substituirResponsavel(e, 'VC1', { estruturaId: 'XPCO' }, 'x', pRU, ctx('V0'), REF), 'SUBSTITUICAO_SO_DO_PRINCIPAL'), 'colaboradora não se substitui (encerrar e criar outra)');
+  afirma(N.colaboradorasAtivas(e, 'itemRU').length === 2 && N.responsavelAtivo(e, 'itemRU').id === 'VRU' && N.situacaoColaboradoras(e, 'itemRU', pRU, REF).every((c) => c.situacao === 'ativa'), '6a: um principal e duas colaboradoras ativas');
+  afirma(N.objetosDaEstrutura(e, 'XPCN').map((o) => o.papel).join() === 'colaboradora', 'a estrutura colaboradora lista a responsabilidade com o papel');
+  afirma(N.situacaoColaboradoras(e, 'itemRU', posRec('COE', 'gRU2'), REF).every((c) => c.situacao === 'ativa'), 'mudança de código efetivo não afeta colaboradoras');
+  ap(N.encerrarVinculo(e, 'VRU', 'Responsável encerrado (ilustrativo)', ctx()), '6c: encerra o principal');
+  const sc = N.situacaoColaboradoras(e, 'itemRU', pRU, REF);
+  afirma(sc.length === 2 && sc.every((c) => c.situacao === 'precisa-revisao' && c.motivos.indexOf('SEM_RESPONSAVEL_PRINCIPAL') !== -1) && N.responsavelAtivo(e, 'itemRU') === null, '6c: colaboradoras ficam para revisão e nenhuma é promovida');
+  ap(N.encerrarVinculo(e, 'VC1', 'Fim da colaboração (ilustrativo)', ctx()), 'encerrar colaboradora exige motivo e fica no histórico');
+  afirma(temErro(N.encerrarVinculo(e, 'VC2', '', ctx()), 'MOTIVO_OBRIGATORIO'), 'encerrar colaboradora sem motivo → recusado');
+  /* unicidades sob concorrência (referência em memória do que a persistência garante) */
+  const base6 = N.aplicar(e, N.vincularResponsavel(e, { objetoId: 'itemX', estruturaId: 'LNF1' }, posRec('NEGOCIOS', 'gX'), ctx('VX'), REF).mudancas).estado;
+  const k1 = N.vincularColaboradora(base6, { objetoId: 'itemX', estruturaId: 'XPCN', justificativa: 'a' }, posRec('NEGOCIOS', 'gX'), ctx('K1'), REF), k2 = N.vincularColaboradora(base6, { objetoId: 'itemX', estruturaId: 'XPCN', justificativa: 'b' }, posRec('NEGOCIOS', 'gX'), ctx('K2'), REF);
+  afirma(k1.ok && k2.ok && N.violacoesDeUnicidade(N.aplicar(N.aplicar(base6, k1.mudancas).estado, k2.mudancas).estado, REF).some((v) => v.codigo === 'COLABORADORA_JA_EXISTE'), 'duas colaboradoras iguais decididas no mesmo estado → a persistência acusa a violação');
+  afirma(JSON.stringify(N.situacaoResponsavel(e, 'itemEDU', posRec('COE', 'gE2'), REF)) === JSON.stringify(N.situacaoResponsavel(e, 'itemEDU', posRec('COE', 'gE2'), REF)), 'situações são puras (nada muda sozinho)');
+}
 
 console.log('E. Squad e Capítulo; separação da liberação para Squad (I2)');
 afirma(estado.estruturas.SQA.tipo === 'SQUAD' && estado.estruturas.CAP1.tipo === 'CAPITULO', 'S1: Squad e Capítulo são estruturas concretas');

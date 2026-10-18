@@ -9,7 +9,7 @@
  *      fora dos 8 firmes / sem ligação / conceito inativo, campos inválidos, imutáveis, revisão, nada a alterar,
  *      reativação, apagar ou editar estrutura, evento ou operação, repetir operação;
  *   D. concorrência: duas gravações a partir da mesma revisão → só uma entra; mesma operação em paralelo → uma vez;
- *   E. M3 do Mapa — vínculo item × estrutura responsável (nó estruturas-vinculos): o conjunto vinculos-responsavel v1
+ *   E. M3 do Mapa — vínculo item × estrutura responsável (nó estruturas-vinculos): o conjunto vinculos-responsavel v2 (E2: alocação divergente justificada; E3: colaboradoras)
  *      pelo adaptador, autorização e trava, gravações diretas inválidas (V1–V5 conferidos no banco) e concorrência;
  *   F. M6/M7 — relações entre estruturas e Squad (nó estruturas-relacoes): o conjunto relacoes-estruturas v1 pelo
  *      adaptador, leituras mínimas da Taxonomia (C4), trava, adulterações (C1–C3, R1–R7) e concorrência. */
@@ -287,7 +287,7 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
   await conferirIntegridade('depois das gravações diretas e da concorrência');
 
   /* ===== E. M3 do Mapa: vínculo item × estrutura responsável principal (nó estruturas-vinculos) ===== */
-  console.log('\nE. vínculos item × estrutura responsável (M3) — conjunto vinculos-responsavel v1, autorização, adulterações e concorrência');
+  console.log('\nE. vínculos item × estrutura responsável (M3, E2, E3) — conjunto vinculos-responsavel v2, autorização, adulterações e concorrência');
   const EV = 'estruturas-vinculos';
   const semNulos = (v) => (Array.isArray(v) ? v.map(semNulos) : v && typeof v === 'object' ? Object.keys(v).reduce((o, kk) => { if (v[kk] !== null && v[kk] !== undefined) o[kk] = semNulos(v[kk]); return o; }, {}) : v);
   /* perfis, ligações, estruturas e o Posicionamento VIGENTE e concluído de cada item, como as telas os gravam */
@@ -317,8 +317,12 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
       delete r.ultimaOperacao; delete r.ultimoEvento;
       if (!ev || JSON.stringify(ord(r)) !== JSON.stringify(ord(ev.depois))) { ok = false; det = 'vínculo ≠ último evento ' + id; }
     });
-    const idx = v['ativo-por-objeto'] || {}, ativos = Object.values(regs).filter((x) => x.situacao === 'ativa');
+    const idx = v['ativo-por-objeto'] || {}, ativos = Object.values(regs).filter((x) => x.situacao === 'ativa' && x.papel !== 'colaboradora');
     if (Object.keys(idx).length !== ativos.length || ativos.some((x) => idx[x.objetoId] !== x.id)) { ok = false; det = 'índice ≠ vínculos ativos'; }
+    /* E3: índice das colaboradoras = colaboradoras ativas, por (item, estrutura) */
+    const ic = v['colaboradoras-ativas'] || {}, colabs = Object.values(regs).filter((x) => x.situacao === 'ativa' && x.papel === 'colaboradora');
+    const nIc = Object.values(ic).reduce((n, porEst) => n + Object.keys(porEst || {}).length, 0);
+    if (nIc !== colabs.length || colabs.some((x) => !ic[x.objetoId] || ic[x.objetoId][x.estruturaId] !== x.id)) { ok = false; det = 'índice das colaboradoras ≠ colaboradoras ativas'; }
     afirma(ok, rotulo + ': no banco, vínculo = depois do seu último evento, mesmo horário em evento e operação, índice = vínculos ativos', det);
   }
   const ord = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = ord(x[kk]); return o; }, {}) : x);
@@ -445,6 +449,57 @@ const casos = U.criar({ nucleo: N, codigosFirmes: FIRMES });
   const confV = await FB.criarPortas({ db: sessao(perdeuV.quem), codigosFirmes: FIRMES }).gravar(perdeuV.prep.op).then((x) => x.situacao, (e) => e.codigo);
   afirma(confV === 'CONFLITO_DE_REVISAO', 'o adaptador devolve CONFLITO_DE_REVISAO a quem perdeu a corrida do vínculo', confV);
   await integridadeVinculos('depois das gravações diretas e da concorrência');
+
+  /* E5. E2 — alocação divergente justificada e E3 — colaboradoras: gravações diretas válidas e adulteradas */
+  console.log('\nE5. E2 (divergência justificada) e E3 (colaboradoras) direto no banco');
+  await semRegras((db) => db.ref().update({ 'posicionamento-vigente-por-item/item-e': 'pe1', 'avaliacoes-posicionamento/pe1': { status: 'concluido', itemId: 'item-e', resultadoAutomatico: { codigoResultado: 'NEGOCIOS' } } }));
+  const DIVR = { motivo: 'escala', justificativa: 'Sem massa crítica para um CoE próprio', autoridade: 'Diretoria Executiva', referencia: 'Ata 12/2026' };
+  const d1 = await preparar(ARQ, 'vincularResponsavel', { objetoId: 'item-e', estruturaId: 'C-1', divergencia: DIVR }, { novoId: 'D1' });
+  for (const [nome, f] of [
+    ['tipo diferente SEM divergência', (m) => ambos(m, (x) => { delete x.divergencia; })],
+    ['motivo fora da lista', (m) => ambos(m, (x) => { x.divergencia.motivo = 'gosto'; })],
+    ['justificativa vazia', (m) => ambos(m, (x) => { x.divergencia.justificativa = ''; })],
+    ['divergência sem motivo', (m) => ambos(m, (x) => { delete x.divergencia.motivo; })],
+    ['campo a mais na divergência', (m) => ambos(m, (x) => { x.divergencia.extra = 'x'; })],
+    ['evento com divergência diferente do vínculo', (m) => { ev2(m).depois.divergencia.justificativa = 'outra'; }],
+    ['divergência num vínculo COMPATÍVEL (Linha de Negócios para Negócios)', (m) => ambos(m, (x) => { x.estruturaId = 'L-1'; })],
+    ['Squad como responsável principal, mesmo com divergência', (m) => ambos(m, (x) => { x.estruturaId = 'S-1'; })],
+    ['base forjada para esconder a divergência (Negócios vira CoE)', (m) => ambos(m, (x) => { x.base.codigo = 'COE'; delete x.divergencia; })]
+  ]) await caso('E2: ' + nome + ' é recusado', gravarComo(ARQ, adulterar(d1.multi, f)), false);
+  await caso('E2: perfil avaliacao (consulta) NÃO grava alocação divergente', gravarComo(AVAL, adulterar(d1.multi, (m) => { const p = { id: AVAL.id, email: AVAL.email }; reg2(m).criadoPor = p; ev2(m).usuario = p; ev2(m).depois.criadoPor = p; m[umV(m, 'operacoes')].usuario = p; })), false);
+  await caso('E2: alocação divergente com motivo e justificativa entra (a base continua sendo o posicionamento efetivo)', gravarComo(ARQ, d1.multi), true);
+  const gravadoD1 = (await bruto(EV + '/registros/D1')) || {};
+  afirma(gravadoD1.base && gravadoD1.base.codigo === 'NEGOCIOS' && gravadoD1.divergencia && gravadoD1.divergencia.autoridade === 'Diretoria Executiva' && gravadoD1.criadoPor.id === ARQ.id, 'E2: gravado com a base intacta, a divergência (motivo, justificativa, autoridade, referência) e quem registrou');
+  const fimD1 = await preparar(ARQ, 'encerrarVinculo', { vinculoId: 'D1', motivo: 'Reorganização' });
+  await caso('E2: encerrar mudando a justificativa da divergência é recusado', gravarComo(ARQ, adulterar(fimD1.multi, (m) => ambos(m, (x) => { x.divergencia.justificativa = 'reescrita'; }))), false);
+  await caso('E2: encerrar apagando a divergência é recusado', gravarComo(ARQ, adulterar(fimD1.multi, (m) => ambos(m, (x) => { delete x.divergencia; }))), false);
+  await caso('E2: encerrar a alocação divergente com motivo entra (a divergência fica no histórico)', gravarComo(ARQ, fimD1.multi), true);
+  /* E3 — item-c tem principal ativo (W2, CoE pela decisão) */
+  const k1 = await preparar(ADM, 'vincularColaboradora', { objetoId: 'item-c', estruturaId: 'P-1', justificativa: 'Atendimento pelos canais' }, { novoId: 'K1' });
+  const idxK = (m) => Object.keys(m).find((c) => c.indexOf(EV + '/colaboradoras-ativas/') === 0);
+  for (const [nome, f] of [
+    ['colaboradora sem justificativa', (m) => ambos(m, (x) => { delete x.justificativa; })],
+    ['colaboradora com divergência', (m) => ambos(m, (x) => { x.divergencia = { motivo: 'escala', justificativa: 'x' }; })],
+    ['colaboradora sem o índice próprio', (m) => { delete m[idxK(m)]; }],
+    ['colaboradora ocupando o índice do principal', (m) => { delete m[idxK(m)]; m[EV + '/ativo-por-objeto/item-c'] = 'K1'; }],
+    ['colaboradora na MESMA estrutura do principal', (m) => { ambos(m, (x) => { x.estruturaId = 'C-1'; }); const c = idxK(m); m[EV + '/colaboradoras-ativas/item-c/C-1'] = m[c]; delete m[c]; }],
+    ['colaboradora Squad', (m) => { ambos(m, (x) => { x.estruturaId = 'S-1'; }); const c = idxK(m); m[EV + '/colaboradoras-ativas/item-c/S-1'] = m[c]; delete m[c]; }],
+    ['colaboradora em item SEM principal ativo', (m) => { ambos(m, (x) => { x.objetoId = 'item-e'; x.base = { avaliacaoId: 'pe1', codigo: 'NEGOCIOS', origem: 'recomendacao' }; }); m[umV(m, 'operacoes')].objetoId = 'item-e'; const c = idxK(m); m[EV + '/colaboradoras-ativas/item-e/P-1'] = m[c]; delete m[c]; }],
+    ['colaboradora que "substitui" outro vínculo', (m) => ambos(m, (x) => { x.substitui = 'W2'; })]
+  ]) await caso('E3: ' + nome + ' é recusada', gravarComo(ADM, adulterar(k1.multi, f)), false);
+  await caso('E3: perfil avaliacao (consulta) NÃO grava colaboradora', gravarComo(AVAL, adulterar(k1.multi, (m) => { const p = { id: AVAL.id, email: AVAL.email }; reg2(m).criadoPor = p; ev2(m).usuario = p; ev2(m).depois.criadoPor = p; m[umV(m, 'operacoes')].usuario = p; })), false);
+  await caso('E3: colaboradora válida entra (vínculo + índice próprio + evento + operação)', gravarComo(ADM, k1.multi), true);
+  const k2 = adulterar(k1.multi, (m) => {
+    Object.keys(m).forEach((c) => { const v = m[c]; delete m[c]; m[c.split('K1').join('K2').split(k1.op.id).join('opx-dupk')] = JSON.parse(JSON.stringify(v).split('K1').join('K2').split(k1.op.id).join('opx-dupk')); });
+  });
+  await caso('E3: a mesma estrutura como segunda colaboradora ativa é recusada (índice)', gravarComo(ADM, k2), false);
+  await caso('E3: perfil avaliacao lê o índice das colaboradoras', sessao(AVAL).ref(EV + '/colaboradoras-ativas').once('value'), true);
+  await caso('E3: pessoa sem perfil NÃO lê o índice das colaboradoras', sessao(OUTRA).ref(EV + '/colaboradoras-ativas').once('value'), false);
+  const fimK1 = await preparar(ADM, 'encerrarVinculo', { vinculoId: 'K1', motivo: 'Fim da colaboração' });
+  await caso('E3: encerrar a colaboradora mantendo o índice é recusado', gravarComo(ADM, adulterar(fimK1.multi, (m) => { delete m[idxK(m)]; })), false);
+  await caso('E3: encerrar a colaboradora com motivo entra (libera o índice)', gravarComo(ADM, fimK1.multi), true);
+  await caso('apagar o índice de uma colaboradora é recusado (até para admin geral)', sessao(ADM).ref(EV + '/colaboradoras-ativas/item-c/P-1').set('K9'), false);
+  await integridadeVinculos('depois de E2 e E3 direto no banco');
 
   /* ===== F. M6/M7 do Mapa: relações entre estruturas e Squad (nó estruturas-relacoes) ===== */
   console.log('\nF. relações entre estruturas e Squad (M6/M7) — conjunto relacoes-estruturas v1, leituras (C4), adulterações (C1–C3) e concorrência');

@@ -68,7 +68,7 @@
   var INDICACAO = { 'indicios-de-identidade': 'Os critérios indicam a mesma responsabilidade.', 'indicios-de-distincao': 'Os critérios indicam responsabilidades distintas.', 'indicios-parciais': 'Os critérios são em parte iguais.', inconclusivo: 'Os critérios ainda não permitem concluir.' };
   var ALTERNATIVA = { 'manter-consciente': 'Manter como está, de forma consciente', 'rever-delimitacao': 'Rever a delimitação (com evidência nova)', 'integrar-recortes': 'Integrar responsabilidades já comparadas', 'distribuir-existentes': 'Distribuir entre estruturas que já existem', 'propor-estrutura': 'Propor uma estrutura (depende de aprovação institucional e de cadastro)', pendente: 'Deixar pendente, com o que falta' };
   var SITUACAO_FORMAL = {
-    compativel: ['Vínculo formal compatível', 'ok'], 'vinculo-a-revisar': ['Vínculo a revisar no Posicionamento', 'pend'],
+    compativel: ['Vínculo formal compatível', 'ok'], 'alocada-com-divergencia': ['Alocada em estrutura de outro tipo, por decisão organizacional', 'ok'], 'vinculo-a-revisar': ['Vínculo a revisar no Posicionamento', 'pend'],
     'executada-sem-vinculo-formal': ['Executada por estrutura do tipo, sem vínculo registrado', 'pend'],
     'exercida-sem-responsavel-formal-compativel': ['Exercida sem responsável formal compatível', 'pend'],
     'sem-estrutura': ['Sem estrutura do tipo recomendado', 'pend'], 'classificacao-a-validar': ['Classificação a validar', 'av'], 'sem-classificacao': ['Ainda sem classificação', 'neu']
@@ -139,7 +139,7 @@
   }
   function vinculoAtivoDe(objetoId) {
     var vs = D.vinculos || {};
-    for (var k in vs) if (Object.prototype.hasOwnProperty.call(vs, k) && vs[k].objetoId === objetoId && vs[k].situacao === 'ativa' && vs[k].papel === 'responsavel-principal') return { estruturaId: vs[k].estruturaId, situacao: 'ativo' };
+    for (var k in vs) if (Object.prototype.hasOwnProperty.call(vs, k) && vs[k].objetoId === objetoId && vs[k].situacao === 'ativa' && vs[k].papel === 'responsavel-principal') return { estruturaId: vs[k].estruturaId, situacao: 'ativo', divergencia: !!vs[k].divergencia, baseCodigo: vs[k].base && vs[k].base.codigo };
     return null;
   }
   /* situação formal: null = "não sei calcular agora" (cadastro de estruturas indisponível ou ainda lendo) */

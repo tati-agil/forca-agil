@@ -1579,8 +1579,10 @@
       var id = state.itemEscolhido, ob = (state.objetos || {})[id];
       if (!ob || ob.situacao !== 'ativo') return;
       if (state.reservas[id]) { aviso('Há um rascunho de Posicionamento em andamento para esta responsabilidade: conclua-o ou descarte-o antes de encerrá-la.'); return; }
-      S().lerUmaVez('estruturas-vinculos/ativo-por-objeto/' + id).then(function (v) { return v; }, function () { return null; }).then(function (v) {
-        if (v) { aviso('Esta responsabilidade tem estrutura responsável ativa: encerre o vínculo na ficha do Posicionamento antes de encerrar a responsabilidade.'); return; }
+      /* E3: colaboradoras ativas também impedem (as regras do banco conferem de novo) */
+      Promise.all([S().lerUmaVez('estruturas-vinculos/ativo-por-objeto/' + id), S().lerUmaVez('estruturas-vinculos/colaboradoras-ativas/' + id)]).then(function (r) { return r; }, function () { return [null, null]; }).then(function (r) {
+        if (r[0]) { aviso('Esta responsabilidade tem estrutura responsável ativa: encerre o vínculo na ficha do Posicionamento antes de encerrar a responsabilidade.'); return; }
+        if (r[1]) { aviso('Esta responsabilidade tem estruturas colaboradoras ativas: encerre a participação delas na ficha do Posicionamento antes de encerrar a responsabilidade.'); return; }
         modal('<h4>Encerrar esta responsabilidade?</h4><p>O registro não é apagado: fica como encerrado, com o motivo. Uma responsabilidade encerrada não recebe nova avaliação nem novo vínculo; ' +
           'o Posicionamento e a decisão que já existem continuam.</p><label for="poMotivoEncerrarAtuacao">Motivo *</label><textarea id="poMotivoEncerrarAtuacao" rows="3" maxlength="500"></textarea>',
           { sim: 'Encerrar', nao: 'Cancelar', aoSim: function (box) {
@@ -1595,16 +1597,17 @@
        geral, com confirmação explícita). Rascunho aberto ou estrutura responsável ativa bloqueiam. O banco confere tudo
        de novo na gravação — a leitura daqui é só para explicar antes. */
     function ehAdminGeral() { var A = window.faAuth, s = A && A.getSession && A.getSession(); return !!(A && A.isAdmin && s && A.isAdmin(s.email)); }
-    var TEXTO_BLOQUEIO_EXC = { RASCUNHO_ABERTO: 'há um rascunho de Posicionamento em andamento — conclua-o ou descarte-o antes', VINCULO_ATIVO: 'há estrutura responsável ativa — encerre o vínculo na ficha do Posicionamento antes' };
+    var TEXTO_BLOQUEIO_EXC = { RASCUNHO_ABERTO: 'há um rascunho de Posicionamento em andamento — conclua-o ou descarte-o antes', VINCULO_ATIVO: 'há estrutura responsável ativa — encerre o vínculo na ficha do Posicionamento antes', COLABORADORAS_ATIVAS: 'há estruturas colaboradoras ativas — encerre a participação delas na ficha do Posicionamento antes' };
     function pedirExclusaoAtuacao() {
       if (!podeEscrever() || ocupado()) return;
       var id = state.itemEscolhido, ob = (state.objetos || {})[id];
       if (!ob || !O()) return;
       state.salvando = 'atuacao-verificando'; render();
       var ler = function (c) { return S().lerUmaVez(c).then(function (v) { return { v: v }; }, function () { return { erro: true }; }); };
-      Promise.all([ler('estruturas-vinculos/ativo-por-objeto/' + id), ler(RES + '/' + id), ler(VIG + '/' + id)]).then(function (r) {
+      Promise.all([ler('estruturas-vinculos/ativo-por-objeto/' + id), ler(RES + '/' + id), ler(VIG + '/' + id), ler('estruturas-vinculos/colaboradoras-ativas/' + id)]).then(function (r) {
         state.salvando = null; render();
-        if (r[0].erro || r[1].erro || r[2].erro) { aviso('Não foi possível verificar as dependências desta responsabilidade agora. Nada foi excluído: tente de novo.'); return; }
+        if (r[0].erro || r[1].erro || r[2].erro || r[3].erro) { aviso('Não foi possível verificar as dependências desta responsabilidade agora. Nada foi excluído: tente de novo.'); return; }
+        if (r[3].v) { aviso('Esta responsabilidade não pode ser excluída agora: ' + TEXTO_BLOQUEIO_EXC.COLABORADORAS_ATIVAS + '.'); return; }
         var dep = { vinculoAtivo: !!r[0].v, rascunho: !!r[1].v, vigente: !!r[2].v }, n = O().nivelExclusao(dep);
         var origem = window.faAnalisesOrganizacionais && window.faAnalisesOrganizacionais.origemDe ? window.faAnalisesOrganizacionais.origemDe(id) : null;
         if (n.nivel === 'bloqueada') { aviso('Esta responsabilidade não pode ser excluída agora: ' + n.motivos.map(function (m) { return TEXTO_BLOQUEIO_EXC[m] || m; }).join('; ') + '.'); return; }
@@ -1756,11 +1759,13 @@
         : 'Pela recomendação automática, este resultado não libera a Adequação à Squad (S1–S8).') + '</p>';
       if (ra.codigoResultado === 'ESTRATEGIA_CLIENTES') h += '<p class="avp-decisao-aviso" id="poNotaEstrategiaClientes">Neste fluxo, quando O4 é SIM, a comparação com Plataforma (inclusive Canais) não é feita. ' +
         'Se esta responsabilidade também opera meios compartilhados de interação, considere isso na decisão final (divergência, com justificativa) ou recorte o objeto. A recomendação não muda por causa desta nota.</p>';
-      h += '<p class="avp-intro">O1–O9 recomenda o tipo de estrutura que deve sustentar, de forma permanente, a responsabilidade associada ao objeto. A associação a uma estrutura organizacional concreta é uma etapa posterior.</p>';
+      /* E1: a segunda pergunta (onde deveria estar) não determina a terceira (onde ficou) */
+      h += '<p class="avp-intro" id="poRecomendacaoSentido">Esta é a recomendação do tipo de estrutura que deveria sustentar, de forma permanente, a responsabilidade. Ela não exige criar uma estrutura exclusiva: uma estrutura existente pode assumir esta e outras responsabilidades. A estrutura organizacional concreta onde ela efetivamente ficou é registrada em Estrutura responsável.</p>';
       h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + '</p><p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
       h += explicacaoHtml(a) + renderRespostasLidas(a) + '</section>';
       h += hipoteseResultadoHtml(a, ra);
-      h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final (registrada por uma pessoa)</h4>' + renderDecisao(a, key, sit) + '</section>';
+      h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final (registrada por uma pessoa)</h4>' +
+        '<p class="avp-intro" id="poDecisaoSentido">A decisão final registra, com justificativa técnica, onde a responsabilidade deveria estar. Onde ela efetivamente ficou é registrado em Estrutura responsável.</p>' + renderDecisao(a, key, sit) + '</section>';
       /* M3 do Mapa: a estrutura responsável do item — só na versão vigente; quem lê e grava é o módulo de Estruturas
          (faEstruturasAdmin.montarResponsavel, ligado em bind), que só existe com a operação habilitada (marcador presente) */
       if (sit === 'vigente' && state.carregou.dec && blocoResponsavelDisponivel()) h += '<section class="po-bloco" id="poBlocoResponsavel"><h4 class="po-bloco-titulo">Estrutura responsável</h4><div id="poResponsavel"></div></section>';

@@ -19,6 +19,7 @@
      família VÍNCULO (M3 do Mapa; nó estruturas-vinculos — item × estrutura responsável principal):
        registros/<id>             o vínculo (+ ultimaOperacao, ultimoEvento)
        ativo-por-objeto/<item>    índice: o vínculo ATIVO de responsável principal do item (no máximo um, pelas regras)
+       colaboradoras-ativas/<item>/<estrutura>  índice (E3): a colaboradora ATIVA daquela estrutura no item (nenhuma duplicata)
        eventos/<operacao>:<n>     um evento por mudança (uma substituição tem dois)
        operacoes/<operacao>       (+ objetoId)
      família RELAÇÃO (M6/M7 do Mapa; nó estruturas-relacoes — relações entre estruturas, R1–R7 e C3):
@@ -104,7 +105,7 @@
   function indicesDe(m) {
     var d = m.depois;
     if (m.entidade === 'associacao-subagrupador') return [RAIZ_SUBAGRUPADORES + '/ativa-por-estrutura/' + d.estruturaId];
-    if (m.entidade === 'vinculo') return [RAIZ_VINCULOS + '/ativo-por-objeto/' + d.objetoId];
+    if (m.entidade === 'vinculo') return [d.papel === 'colaboradora' ? RAIZ_VINCULOS + '/colaboradoras-ativas/' + d.objetoId + '/' + d.estruturaId : RAIZ_VINCULOS + '/ativo-por-objeto/' + d.objetoId];
     if (m.entidade === 'relacao') return [RAIZ_RELACOES + '/ativa-por-chave/' + chaveRelacao(d)].concat(d.tipo === 'compoe' ? [RAIZ_RELACOES + '/compoe-ativa-por-origem/' + d.origem] : []);
     return [];
   }
@@ -290,7 +291,12 @@
                 });
               }
               if (m.entidade === 'vinculo' && m.antes === null) {
-                return Object.keys(s.vinculos || {}).some(function (k) { var x = s.vinculos[k]; return x.situacao === 'ativa' && x.objetoId === m.depois.objetoId && k !== m.depois.substitui; });
+                return Object.keys(s.vinculos || {}).some(function (k) {
+                  var x = s.vinculos[k], d = m.depois;
+                  if (x.situacao !== 'ativa' || x.objetoId !== d.objetoId || k === d.substitui) return false;
+                  /* principal: outro principal ativo; colaboradora: a mesma estrutura já colabora (E3) */
+                  return d.papel === 'colaboradora' ? (x.papel === 'colaboradora' && x.estruturaId === d.estruturaId) : x.papel !== 'colaboradora';
+                });
               }
               return false;
             });
