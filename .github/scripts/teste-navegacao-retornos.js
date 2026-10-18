@@ -15,6 +15,8 @@
  *   N11. Lista de Posicionamentos → ficha → "← Voltar para os Posicionamentos" → a lista (não o Início).
  *   N12. Jornada (item) → "Acessar Adequação à Squad" → "← Voltar para a Jornada do Mapa" → o item.
  *   N13. Gestão da Floresta → "Abrir Mapa da Floresta" → "← Voltar para a Gestão da Floresta" → a Gestão (Mapa aberto).
+ *   N14. Ficha da estrutura no cadastro: Voltar do navegador pela origem real (Mapa, lista do cadastro, Posicionamento), F5
+ *        sem entrada a mais no histórico, e link direto + F5 sem origem inventada.
  *   Em todos: nenhum erro de JS, sem rolagem lateral, nenhuma gravação. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -186,6 +188,59 @@ async function n9(browser, vp, tag) {
   afirma(true, 'volta ao Mapa, na mesma estrutura');
   await fim(r, 'N9');
 }
+/* F5 recarrega a entrada atual: nenhuma entrada a mais no histórico (antes, o Início provisório enquanto o marcador de
+   Estruturas chegava empilhava ?arq=inicio, trocado depois pela ficha — o primeiro Voltar ficava na mesma ficha) */
+const fichaEst = (id) => (x) => location.hash.indexOf('#arquitetura?arq=estruturas&e=' + x) === 0 && !!document.getElementById('estFicha');
+async function f5(page) { const n = await page.evaluate(() => history.length); await page.reload({ waitUntil: 'domcontentloaded' }); await esperarSessaoAssentada(page); return n; }
+async function n14(browser, vp, tag) {
+  console.log('\n== N14 (' + tag + '): ficha da estrutura — Voltar do navegador, com e sem F5, pela origem real ==');
+  /* a) Mapa → ficha → Voltar; Avançar; F5 → Voltar */
+  let r = await abrir(browser, vp, '#arquitetura?mf=mapa&e=neg-1'); let page = r.page;
+  await ate(page, () => !!document.getElementById('mfmAbrirCadastro'), null, 'detalhe com "abrir no cadastro"', 15000);
+  const mapa = await hashAgora(page);
+  await page.click('#mfmAbrirCadastro'); await ate(page, fichaEst('neg-1'), 'neg-1', 'ficha aberta pelo Mapa');
+  await page.goBack(); await ate(page, (h) => location.hash === h && !!document.getElementById('mfmDetalhe'), mapa, 'Voltar → Mapa');
+  afirma(true, 'Mapa → ficha → Voltar do navegador → o Mapa, na mesma estrutura');
+  await page.goForward(); await ate(page, fichaEst('neg-1'), 'neg-1', 'Avançar → ficha');
+  let antes = await f5(page); await ate(page, fichaEst('neg-1'), 'neg-1', 'F5 na ficha', 15000);
+  await ate(page, () => !!document.getElementById('estVoltarOrigemNav'), null, 'F5: a origem continua');
+  afirma(await texto(page, '#estVoltarOrigemNav') === '← Voltar para o Mapa da Floresta', 'F5 na ficha aberta pelo Mapa: a origem continua ("← Voltar para o Mapa da Floresta")', await texto(page, '#estVoltarOrigemNav'));
+  afirma(await page.evaluate(() => history.length) === antes, 'F5 na ficha não cria entrada no histórico', await page.evaluate(() => history.length) + ' × ' + antes);
+  await page.goBack(); await ate(page, (h) => location.hash === h && !!document.getElementById('mfmDetalhe'), mapa, 'F5 → Voltar → Mapa');
+  afirma(true, 'Mapa → ficha → F5 → um Voltar do navegador → o Mapa, na mesma estrutura');
+  await fim(r, 'N14a');
+  /* b) Cadastro (lista) → ficha → "Voltar para a lista"; F5 → idem. Dentro do cadastro, lista ⇄ ficha é subtela da área:
+        troca o endereço sem empilhar (o retorno é o da tela), como as demais subtelas da Gestão */
+  r = await abrir(browser, vp, '#arquitetura?arq=estruturas'); page = r.page;
+  const listaEst = () => location.hash === '#arquitetura?arq=estruturas' && !!document.getElementById('estLista');
+  await ate(page, () => !!document.querySelector('#estLista [data-estrutura="neg-1"]'), null, 'lista do cadastro', 15000);
+  await page.click('#estLista [data-estrutura="neg-1"]'); await ate(page, fichaEst('neg-1'), 'neg-1', 'ficha aberta pela lista');
+  await page.click('#estVoltarLista'); await ate(page, listaEst, null, 'botão → lista');
+  afirma(true, 'cadastro → ficha → "Voltar para a lista de estruturas" → a lista do cadastro');
+  await page.click('#estLista [data-estrutura="neg-1"]'); await ate(page, fichaEst('neg-1'), 'neg-1', 'ficha de novo');
+  antes = await f5(page); await ate(page, fichaEst('neg-1'), 'neg-1', 'F5 na ficha', 15000);
+  afirma(await page.evaluate(() => history.length) === antes, 'F5 na ficha aberta pelo cadastro não cria entrada no histórico');
+  await page.click('#estVoltarLista'); await ate(page, listaEst, null, 'F5 → botão → lista');
+  afirma(true, 'cadastro → ficha → F5 → "Voltar para a lista de estruturas" → a lista do cadastro');
+  await fim(r, 'N14b');
+  /* c) ficha → "Abrir Posicionamento" → Voltar → a ficha */
+  r = await abrir(browser, vp, '#arquitetura?arq=estruturas&e=neg-1'); page = r.page;
+  await ate(page, () => !!document.querySelector('#estProdutos .est-abrir-po'), null, 'ficha com "Abrir Posicionamento"', 15000);
+  await page.click('#estProdutos .est-abrir-po');
+  await ate(page, () => /^#arquitetura\?po=/.test(location.hash) && !!document.getElementById('poVoltar'), null, 'Posicionamento aberto pela ficha');
+  await page.goBack(); await ate(page, fichaEst('neg-1'), 'neg-1', 'Voltar → ficha');
+  afirma(true, 'ficha da estrutura → Posicionamento → Voltar do navegador → a mesma ficha');
+  await fim(r, 'N14c');
+  /* d) acesso direto por URL → F5 → Voltar: sem origem interna, e o Voltar sai do site (não fica na ficha) */
+  r = await abrir(browser, vp, '#arquitetura?arq=estruturas&e=neg-1'); page = r.page;
+  await ate(page, fichaEst('neg-1'), 'neg-1', 'ficha por link direto', 15000);
+  antes = await f5(page); await ate(page, fichaEst('neg-1'), 'neg-1', 'F5 na ficha', 15000);
+  afirma(!(await page.$('#estVoltarOrigemNav')) && /Voltar para a lista de estruturas/i.test(await texto(page, '#estVoltarLista')), 'link direto + F5: nenhuma origem inventada; o retorno da tela é a lista de estruturas', await texto(page, '#estVoltarLista'));
+  afirma(await page.evaluate(() => history.length) === antes, 'link direto + F5 não cria entrada no histórico');
+  await page.goBack(); await ate(page, () => location.href === 'about:blank', null, 'Voltar → antes do site');
+  afirma(true, 'link direto + F5 → um Voltar do navegador sai do site (a página anterior a ele)');
+  await r.ctx.close();
+}
 async function n10(browser, vp, tag) {
   console.log('\n== N10 (' + tag + '): Mapa → Definição do Mapa (seção do Mapa) → Voltar → Mapa ==');
   const r = await abrir(browser, vp, '#arquitetura?mf=mapa'); const page = r.page;
@@ -201,10 +256,9 @@ async function n10(browser, vp, tag) {
 async function n11(browser, vp, tag) {
   console.log('\n== N11 (' + tag + '): lista de Posicionamentos → ficha → Voltar → lista ==');
   const r = await abrir(browser, vp, '#arquitetura?po=lista'); const page = r.page;
-  await ate(page, () => !!document.querySelector('[data-po-abrir], .po-abrir, #poLista a, #poLista button'), null, 'lista de Posicionamentos');
-  const sel = await page.evaluate(() => { const e = document.querySelector('.po-abrir, [data-po-abrir]'); return e ? (e.id ? '#' + e.id : (e.classList.contains('po-abrir') ? '.po-abrir' : '[data-po-abrir]')) : null; });
-  if (!sel) { afirma(false, 'achar um item na lista de Posicionamentos'); await r.ctx.close(); return; }
-  await page.click(sel);
+  /* a linha da lista, não qualquer botão de #poLista: "Avaliar um item…" já está lá durante o "Carregando…" */
+  await ate(page, () => !!document.querySelector('#poLista .po-abrir'), null, 'linhas da lista de Posicionamentos');
+  await page.click('#poLista .po-abrir');
   await ate(page, () => /po=g/.test(location.hash) && !!document.getElementById('poVoltar'), null, 'ficha aberta pela lista');
   afirma(await texto(page, '#poVoltar') === '← Voltar para os Posicionamentos', 'ficha aberta pela lista: "← Voltar para os Posicionamentos"', await texto(page, '#poVoltar'));
   await page.click('#poVoltar');
@@ -245,7 +299,7 @@ async function n13(browser, vp, tag) {
   const browser = await chromium.launch();
   for (const [tag, vp] of [['desktop', DESKTOP], ['375 px', CELULAR]]) {
     console.log('\n######## ' + tag + ' ########');
-    for (const n of [n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12, n13]) {
+    for (const n of [n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11, n12, n13, n14]) {
       try { await n(browser, vp, tag); } catch (e) { afirma(false, n.name + ' (' + tag + '): ' + String(e.message || e).split('\n')[0]); }
     }
   }

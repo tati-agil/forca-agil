@@ -2688,6 +2688,10 @@
       var paginaAdmin = document.getElementById('page-avaliacoes');
       if (!sessaoAtual() || !paginaAdmin || paginaAdmin.hidden) return;
       var area = areaAtualAdmin();
+      /* F5 ou link direto numa área que espera o marcador/perfil chegar: o Início está na tela só no lugar dela
+         (reaberta por fa-estruturas-habilitacao / fa-avaliacao-ready) — não é navegação; empilhar ?arq=inicio aqui
+         deixava a mesma entrada duas vezes no histórico (o primeiro Voltar ficava na ficha) */
+      if (area === 'inicio' && (location.hash === estruturasPendente || location.hash === estruturaAtualPendente)) return;
       var desejado = '#arquitetura?arq=' + area + (area === 'motores' && state.configMotores && state.configMotores.motor === 'o' ? '&m=o' : '') +
         (area === 'questionarios' && state.config && state.config.filtro ? '&q=' + aliasDoQuestionario(state.config.filtro) : '');
       if (location.hash === desejado) return;
