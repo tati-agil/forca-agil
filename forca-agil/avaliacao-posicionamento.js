@@ -1771,6 +1771,7 @@
         '<p class="avp-intro" id="poDecisaoSentido">A decisão final registra, com justificativa técnica, onde a responsabilidade deveria estar. Onde ela efetivamente ficou é registrado em Estrutura responsável.</p>' + renderDecisao(a, key, sit) + '</section>';
       /* M3 do Mapa: a estrutura responsável do item — só na versão vigente; quem lê e grava é o módulo de Estruturas
          (faEstruturasAdmin.montarResponsavel, ligado em bind), que só existe com a operação habilitada (marcador presente) */
+      if (sit === 'vigente') h += '<p class="ro-resumo-linha" data-ro-resumo="' + esc(a.itemId) + '"></p>'; /* E4: "Relaciona-se com N objetos" (só leitura) */
       if (sit === 'vigente' && state.carregou.dec && blocoResponsavelDisponivel()) h += '<section class="po-bloco" id="poBlocoResponsavel"><h4 class="po-bloco-titulo">Estrutura responsável</h4><div id="poResponsavel"></div></section>';
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
       var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();
@@ -1995,6 +1996,7 @@
         var impR = baseReprocessadaComImpacto(state.atual, state.produtos);
         window.faEstruturasAdmin.montarResponsavel(resp, { itemId: state.atual.itemId, posicionamento: pr, avisoBase: impR ? textoBaseRevisao(impR) : null });
       }
+      if (window.faRelacoesObjetos) window.faRelacoesObjetos.montarHosts(wrap); /* E4: resumo das relações do item (só leitura) */
     }
 
     /* Muda uma resposta; se isso fechar um ramo, avisa o que sai (respostas, observações, diagnósticos). */

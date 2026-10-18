@@ -35,7 +35,7 @@ function semente() {
   const users = {}; [ARQ, AVAL].forEach((e) => { users[chave(e)] = { name: 'Pessoa', email: e, area: 'INFOR' }; });
   const conceitos = {}, fontes = {}, ligacoes = {};
   M.CODIGOS_FIRMES.concat(['LINHA', 'PLATAFORMA']).forEach((c, i) => {
-    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
+    conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, camada: 'A', definicao: { texto: 'Definição de ' + c, versao: 1, publicadaEm: '2026-10-01T09:00:00.000Z', publicadaPor: 'semente@teste' } };
   });
   M.CODIGOS_FIRMES.forEach((c) => { ligacoes[c] = { registradoEm: QUANDO, registradoPor: ARQ, auditoriaId: 'l' }; });
   const CA = M.avaliar(CONFLITO, { N1: 'mesma' }), raC = {};
@@ -44,6 +44,7 @@ function semente() {
     'fa-users': users, 'fa-admins': {}, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
     'fa-avaliacao-autorizados': aut, 'avaliacoes-squad': {}, 'motor-squad-config': {},
     'estruturas-concretas-config': { gravacaoHabilitada: true },
+    'relacoes-objetos-config': { gravacaoHabilitada: true }, /* E4: relações entre objetos ligadas no ambiente de testes */
     'avaliacoes-produto': { pCapec: produto('pCapec', 'Capec'), pAssess: produto('pAssess', 'Assessoria Previdenciária'), pJur: produto('pJur', 'Jurídico (P1–P16)', 'a-validar'),
       pSem: produto('pSem', 'Objeto sem Posicionamento'), pVal: produto('pVal', 'Objeto A validar'), pPlat: produto('pPlat', 'Gestão de canais'), pVinc: produto('pVinc', 'Produto a vincular') },
     'objetos-organizacionais': { oJur: objeto('Assessoramento jurídico', { referenciaItemId: 'pJur' }), oAgi: objeto('Disseminação de agilidade'),

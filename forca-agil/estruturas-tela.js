@@ -418,6 +418,7 @@
         if (!x.carregado) return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '"><span class="loading-msg">Carregando…</span></li>';
         var sit = N().situacaoResponsavel(estado, o.objetoId, x.p || null, refsDaTela());
         return '<li class="est-produto" data-objeto="' + esc(o.objetoId) + '" data-papel="' + esc(o.papel) + '"><span class="est-produto-nome">' + esc(x.nome || o.objetoId) + '</span>' + papelVinculoHtml(o, v, sit) +
+          '<span class="ro-resumo-host" data-ro-resumo="' + esc(o.objetoId) + '"></span>' +
           '<a class="btn btn--sm est-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x.p && x.p.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
       }).join('') + '</ul>' +
         (ligacoesFalha ? '<p class="avp-decisao-aviso po-resp-indeterminada" id="estReconferirAviso" role="status"><strong>Não conferido:</strong> não foi possível ler as ligações oficiais para conferir o tipo agora. <button type="button" class="btn btn--sm" id="estReconferir">Conferir de novo</button></p>' : '') + '</section>';
@@ -762,6 +763,7 @@
       else if (origem && origem.origemNav) h = '<button type="button" class="est-voltar-jornada" id="estVoltarOrigemNav">← Voltar para ' + esc(origem.origemNav.rotulo) + '</button>' + h;
       wrap.innerHTML = '<div class="est-tela est-painel" data-vista="' + st.vista + '">' + h + '</div>';
       bind();
+      if (window.faRelacoesObjetos) window.faRelacoesObjetos.montarHosts(wrap); /* E4: resumo das relações de cada responsabilidade (só leitura) */
       if (P()) P().atualizarDom && P().atualizarDom(wrap);
       if (foco) { var el = byId(foco.id); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(foco.ini, foco.fim); } catch (x) { /* rádio */ } } }
     }

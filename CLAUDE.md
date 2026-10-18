@@ -71,7 +71,12 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   do motor; Taxonomia (fonte única de nomes e definições); Porta 2 — responsabilidades organizacionais e Análise
   Organizacional (marcador próprio; registro direto `contrato: 'registro-direto'`, registros anteriores com a regra
   antiga); Estrutura Organizacional Atual (`estrutura-atual-*`, marcador próprio, separada das Estruturas do Mapa);
-  Estruturas Organizacionais Concretas e Catálogo do Mapa da Floresta; manual do ADMIN (`manual.js`).
+  Estruturas Organizacionais Concretas e Catálogo do Mapa da Floresta; E4 — relações entre objetos arquiteturais
+  (`relacoes-objetos-nucleo.js` + `relacoes-objetos.js`, marcador próprio `relacoes-objetos-config`, ausente em produção;
+  só Produto/Serviço é natureza conjunta — as individuais das camadas conjuntas são registradas por objeto, nunca na
+  avaliação, e só com conceito oficial de definição aprovada; 8 tipos + "atua sobre" da Porta 2 e os 21 pares
+  aprovados, regras geradas da mesma matriz por `montar-regras-relacoes-objetos.js`; nada muda natureza, posicionamento
+  ou alocação, e o Mapa continua só com estruturas); manual do ADMIN (`manual.js`).
 
 ## Backend local e deploy
 
@@ -101,7 +106,9 @@ mesmo jeito, sem perguntar.
 `docs/paridade-firebase-postgresql.md`. O FORÇA ÁGIL opera de verdade no Firebase atual, a fonte oficial única; a
 paridade é comprovada antes da troca de fonte, com reconciliação dos dados reais já gravados. Hoje não existe teste real
 de equivalência entre os dois bancos: não diga que existe. Uma fonte oficial de gravação por vez (o Firebase), horário
-do servidor, nenhuma gravação dupla; `compõe` no site só de Squad para uma especialização de Linha (decisão C2).
+do servidor, nenhuma gravação dupla; `compõe` entre ESTRUTURAS no site só de Squad para uma especialização de Linha
+(decisão C2). O "compõe" entre OBJETOS da E4 é outra relação (nó `relacoes-objetos`) e fica fora da paridade até o
+projeto de migração corporativa.
 
 **Celular e computador são a mesma entrega.** Nenhuma funcionalidade deste site
 está pronta se só funciona num dos dois. Isso não é um capricho de qualidade: as

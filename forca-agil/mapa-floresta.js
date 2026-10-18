@@ -539,6 +539,7 @@
       h += '</div>';
       wrap.innerHTML = h;
       bind();
+      if (window.faRelacoesObjetos) window.faRelacoesObjetos.montarHosts(wrap);
       if (P()) P().atualizarDom(wrap);
       if (foco) { var el = byId(foco.id); if (el) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) { /* select sem seleção */ } } }
       rolarFoco();
@@ -594,7 +595,7 @@
        topo é o dela, e este botão só leva aos Trabalhos; sem origem (link direto) → Voltar para os Trabalhos */
     function botaoVoltarLista() {
       var oi = origemInterna();
-      if (oi) return '<button type="button" class="avp-voltar-link mf-voltar-lista" id="mfVoltarLista">' + (/[?&]mf=mapa/.test(oi.hash) ? '← Voltar para o Mapa da Floresta' : '← Voltar para os Trabalhos') + '</button>';
+      if (oi) return '<button type="button" class="avp-voltar-link mf-voltar-lista" id="mfVoltarLista">' + (/[?&]mf=mapa/.test(oi.hash) ? '← Voltar para o Mapa da Floresta' : /[?&]item=/.test(oi.hash) ? '← Voltar para o registro' : '← Voltar para os Trabalhos') + '</button>';
       if (voltaAdmin()) return '<button type="button" class="avp-voltar-link mf-voltar-lista mf-ver-trabalhos" id="mfVoltarLista">Ver todos os trabalhos</button>';
       return '<button type="button" class="avp-voltar-link mf-voltar-lista" id="mfVoltarLista">← Voltar para os Trabalhos</button>';
     }
@@ -820,7 +821,8 @@
       if (x.baseRevisao) h += '<dt>Precisa de revisão</dt><dd class="mf-base-revisao">' + esc(N.textoBaseRevisao(x.baseRevisao)) + ' Nada foi alterado automaticamente.</dd>';
       if (x.objetoReferente) h += '<dt>Responsabilidade organizacional</dt><dd class="mf-objeto-referente" data-objeto="' + esc(x.objetoReferente.id) + '">Este item é referência informativa da responsabilidade “' + esc(x.objetoReferente.nome) + '” (Porta 2).</dd>';
       h += vinculoDoItemHtml(x);
-      h += '</dl><h5 class="mf-subtitulo">Registros relacionados</h5><div class="mf-item-acoes">';
+      /* E4: relações com outros objetos — o único lugar de manutenção (relacoes-objetos.js monta aqui) */
+      h += '</dl><div class="ro-host" data-ro-secao="' + esc(x.itemId) + '"></div><h5 class="mf-subtitulo">Registros relacionados</h5><div class="mf-item-acoes">';
       if (x.posicionamento) h += '<a class="btn btn--sm mf-abrir-po" href="#arquitetura?po=' + encodeURIComponent(x.posicionamento.avaliacaoId) + '">Abrir Posicionamento</a>';
       else if (x.rascunhoId) h += '<a class="btn btn--sm mf-abrir-po" href="#arquitetura?po=' + encodeURIComponent(x.rascunhoId) + '">Abrir rascunho do Posicionamento</a>';
       if (x.chaveBase) h += '<a class="btn btn--sm mf-abrir-avp" href="#arquitetura?' + (x.statusBase === 'rascunho' ? 'editar=' : 'avp=') + encodeURIComponent(x.chaveBase) + '">Abrir Avaliação de Produto/Serviço</a>';
@@ -1098,6 +1100,7 @@
         return '<li class="mfm-objeto" data-objeto="' + esc(o.objetoId) + '" data-papel="' + esc(o.papel) + '"><a class="mfm-objeto-nome" href="#arquitetura?tr=1&item=' + encodeURIComponent(o.objetoId) + '">' + esc(x ? x.nome : o.objetoId) + '</a>' +
           '<span class="mfm-objeto-papel">' + window.faEstruturasAdmin.papelVinculoHtml(o, v, s) + '</span>' +
           (x && x.baseRevisao ? '<span class="mfm-objeto-desc mfm-objeto-aviso">Aviso: a base do Posicionamento precisa de revisão.' + esc(TEXTO_AVISO_VINCULO) + '</span>' : '') +
+          '<span class="ro-resumo-host" data-ro-resumo="' + esc(o.objetoId) + '"></span>' +
           '<a class="mfm-acao mfm-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x && x.posicionamento && x.posicionamento.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
       }).join('') + '</ul>';
     }
@@ -1167,6 +1170,7 @@
       if (pronto && selecionada) h += detalheHtml(selecionada);
       wrap.innerHTML = h;
       bindMapa();
+      if (window.faRelacoesObjetos) window.faRelacoesObjetos.montarHosts(wrap);
       if (P()) P().atualizarDom(wrap);
     }
     function fecharDetalhe() {
