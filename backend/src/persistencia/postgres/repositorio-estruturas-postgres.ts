@@ -17,6 +17,7 @@ const TABELAS: Record<Entidade, { tabela: string; colunas: Record<string, Coluna
 /* restrições do banco que correspondem a regras do núcleo */
 const RESTRICAO_PARA_CODIGO: Record<string, string> = {
   estruturas_vinculos_responsavel_unico: 'RESPONSAVEL_PRINCIPAL_JA_EXISTE',
+  estruturas_vinculos_colaboradora_unica: 'COLABORADORA_JA_EXISTE',
   estruturas_relacoes_ativa_unica: 'RELACAO_DUPLICADA'
 };
 

@@ -21,6 +21,6 @@ describe('migrações versionadas (arquivos)', () => {
   });
 
   it('a pasta do projeto tem só a migração das Estruturas Concretas (nada de Avaliações, Taxonomia ou Mapa)', () => {
-    expect(listarMigracoes(join(__dirname, '..', 'migracoes')).map((m) => m.nome)).toEqual(['0001_estruturas_concretas.sql']);
+    expect(listarMigracoes(join(__dirname, '..', 'migracoes')).map((m) => m.nome)).toEqual(['0001_estruturas_concretas.sql', '0002_alocacao_divergente_colaboradoras.sql']);
   });
 });

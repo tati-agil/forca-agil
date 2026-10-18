@@ -39,9 +39,13 @@
   var TIPOS_RELACAO = ['compoe', 'aloca-em', 'atende', 'desenvolve-disciplina', 'pertence-a-disciplina'];
   /* só "compõe" é hierarquia de composição (sem ciclos); "pertence à disciplina" NÃO é tratada como composição */
   var RELACAO_HIERARQUICA = 'compoe';
-  var PAPEIS_VINCULO = ['responsavel-principal']; /* outros papéis entram aqui no futuro (M3: atuação em Squad) */
+  /* E3: a colaboradora é o MESMO registro de vínculo com outro papel (nunca vira principal sozinha) */
+  var PAPEIS_VINCULO = ['responsavel-principal', 'colaboradora'];
+  var PRINCIPAL = 'responsavel-principal', COLABORADORA = 'colaboradora';
+  /* E2: motivos organizacionais de uma alocação em estrutura de tipo diferente do posicionamento efetivo */
+  var MOTIVOS_DIVERGENCIA = ['pessoas', 'escala', 'custo', 'afinidade', 'prioridade', 'viabilidade', 'outro'];
   var SITUACAO = { ATIVA: 'ativa', ENCERRADA: 'encerrada' };
-  var MAX = { nome: 200, sigla: 30, descricao: 4000, motivo: 500, justificativa: 2000 };
+  var MAX = { nome: 200, sigla: 30, descricao: 4000, motivo: 500, justificativa: 2000, autoridade: 200, referencia: 500 };
 
   /* ---------------- utilitários puros ---------------- */
   function clone(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
@@ -305,38 +309,83 @@
   function vinculosAtivos(estado, objetoId, papel) {
     return valores(colecao(estado, 'vinculos')).filter(function (v) { return v.situacao === SITUACAO.ATIVA && v.objetoId === objetoId && (!papel || v.papel === papel); });
   }
-  function responsavelAtivo(estado, objetoId) { return vinculosAtivos(estado, objetoId, 'responsavel-principal')[0] || null; }
+  function responsavelAtivo(estado, objetoId) { return vinculosAtivos(estado, objetoId, PRINCIPAL)[0] || null; }
+  function colaboradorasAtivas(estado, objetoId) { return vinculosAtivos(estado, objetoId, COLABORADORA); }
+  /* só os tipos de POSICIONAMENTO recebem responsabilidade (Linhas, Área Especializada, CoE); o Squad compõe uma Linha */
+  function tipoAlocavel(ref, tipo) { return tiposAdmitidos(ref)[tipo] === 'posicionamento'; }
+  /* E2 (R-E2-3): { motivo, justificativa, autoridade?, referencia? } — quem decidiu (autoridade) e o documento
+     (referencia) são opcionais; quem REGISTROU é sempre o autor do vínculo, nunca apresentado como quem decidiu */
+  function validarDivergencia(e, div) {
+    if (!div || typeof div !== 'object') { e.push(erro('DIVERGENCIA_SEM_JUSTIFICATIVA')); return; }
+    if (vazio(div.motivo)) e.push(erro('CAMPO_OBRIGATORIO', { campo: 'divergencia.motivo' }));
+    else if (MOTIVOS_DIVERGENCIA.indexOf(div.motivo) === -1) e.push(erro('MOTIVO_DIVERGENCIA_INVALIDO', { motivo: div.motivo }));
+    if (vazio(div.justificativa)) e.push(erro('DIVERGENCIA_SEM_JUSTIFICATIVA'));
+    else checarTexto(e, 'justificativa', div.justificativa, true);
+    checarTexto(e, 'autoridade', div.autoridade, false);
+    checarTexto(e, 'referencia', div.referencia, false);
+  }
+  function divergenciaGravada(div) {
+    var o = { motivo: div.motivo, justificativa: texto(div.justificativa) };
+    if (!vazio(div.autoridade)) o.autoridade = texto(div.autoridade);
+    if (!vazio(div.referencia)) o.referencia = texto(div.referencia);
+    return o;
+  }
+  function temDivergencia(d) { return d.divergencia !== undefined && d.divergencia !== null; }
   function validarVinculoNovo(estado, d, p, ref, ignorarVinculoId) {
-    var e = [], papel = d.papel || 'responsavel-principal';
+    var e = [], papel = d.papel || PRINCIPAL;
     if (PAPEIS_VINCULO.indexOf(papel) === -1) return [erro('PAPEL_NAO_SUPORTADO', { papel: papel })];
     if (vazio(d.objetoId)) e.push(erro('CAMPO_OBRIGATORIO', { campo: 'objetoId' }));
     var est = colecao(estado, 'estruturas')[d.estruturaId];
     if (!est) e.push(erro('ESTRUTURA_INEXISTENTE', { id: d.estruturaId }));
     else if (est.situacao !== SITUACAO.ATIVA) e.push(erro('ESTRUTURA_ENCERRADA', { id: d.estruturaId }));
-    if (d.justificativa !== undefined && d.justificativa !== null) checarTexto(e, 'justificativa', d.justificativa, false);
+    else if (!tipoAlocavel(ref, est.tipo)) e.push(erro('TIPO_NAO_ALOCAVEL', { tipo: est.tipo }));
+    checarTexto(e, 'justificativa', d.justificativa, papel === COLABORADORA);  /* R-E3-2: a colaboração é sempre explicada */
     if (e.length) return e;
-    var outro = vinculosAtivos(estado, d.objetoId, papel).filter(function (v) { return v.id !== ignorarVinculoId; })[0];
-    if (outro) e.push(erro('RESPONSAVEL_PRINCIPAL_JA_EXISTE', { vinculoId: outro.id }));         /* V1 */
+    var principal = vinculosAtivos(estado, d.objetoId, PRINCIPAL).filter(function (v) { return v.id !== ignorarVinculoId; })[0];
+    if (papel === PRINCIPAL) {
+      if (principal) e.push(erro('RESPONSAVEL_PRINCIPAL_JA_EXISTE', { vinculoId: principal.id }));     /* V1 */
+      if (colaboradorasAtivas(estado, d.objetoId).some(function (c) { return c.estruturaId === d.estruturaId; })) e.push(erro('COLABORADORA_E_PRINCIPAL'));
+    } else {
+      if (temDivergencia(d)) e.push(erro('DIVERGENCIA_INDEVIDA'));                                   /* colaboradora não é posicionada */
+      if (!principal) e.push(erro('SEM_RESPONSAVEL_PRINCIPAL'));                                    /* R-E3-2 */
+      else if (principal.estruturaId === d.estruturaId) e.push(erro('COLABORADORA_E_PRINCIPAL'));
+      if (colaboradorasAtivas(estado, d.objetoId).some(function (c) { return c.estruturaId === d.estruturaId; })) e.push(erro('COLABORADORA_JA_EXISTE'));
+    }
     var ef = posicionamentoEfetivo(p, ref);
     if (!ef.codigo) { e.push(erro('SEM_POSICIONAMENTO_EFETIVO', { motivo: ef.motivo })); return e; } /* V2 */
     var conc = ref && ref.ligacoes ? ref.ligacoes[ef.codigo] : undefined;
-    if (!conc) e.push(erro('LIGACAO_OFICIAL_AUSENTE', { codigoEfetivo: ef.codigo }));
-    else if (est.tipo !== conc) e.push(erro('TIPO_INCOMPATIVEL', { tipoEstrutura: est.tipo, esperado: conc, codigoEfetivo: ef.codigo })); /* V3 */
+    if (!conc) { e.push(erro('LIGACAO_OFICIAL_AUSENTE', { codigoEfetivo: ef.codigo })); return e; }
+    if (papel !== PRINCIPAL) return e;
+    /* V3 revisado (E2): tipo igual = compatível, sem dados de divergência; tipo diferente = divergência deliberada,
+       só com motivo e justificativa organizacional. A base continua sendo o posicionamento efetivo (nunca alterado). */
+    if (est.tipo === conc) { if (temDivergencia(d)) e.push(erro('DIVERGENCIA_INDEVIDA', { tipoEstrutura: est.tipo, esperado: conc })); }
+    else validarDivergencia(e, d.divergencia);
     return e;
   }
   function novoVinculo(d, ef, id, ctx) {
-    return { id: id, objetoId: d.objetoId, estruturaId: d.estruturaId, papel: d.papel || 'responsavel-principal',
+    var v = { id: id, objetoId: d.objetoId, estruturaId: d.estruturaId, papel: d.papel || PRINCIPAL,
       base: { avaliacaoId: ef.avaliacaoId, codigo: ef.codigo, origem: ef.origem },                      /* V4 */
       justificativa: textoOuNulo(d.justificativa), situacao: SITUACAO.ATIVA, criadoEm: ctx.agora, criadoPor: autor(ctx), revisao: 1 };
+    if (temDivergencia(d)) v.divergencia = divergenciaGravada(d.divergencia);          /* só existe quando o tipo difere */
+    return v;
   }
-  function vincularResponsavel(estado, dados, posicionamento, ctx, ref) {
-    var e = validarCtx(ctx, true), d = dados || {};
+  function criarVinculo(estado, d, posicionamento, ctx, ref) {
+    var e = validarCtx(ctx, true);
     if (e.length) return falha(e);
     if (colecao(estado, 'vinculos')[ctx.novoId]) return falha([erro('IDENTIFICADOR_JA_USADO', { id: ctx.novoId })]);
     e = validarVinculoNovo(estado, d, posicionamento, ref, null);
     if (e.length) return falha(e);
     var v = novoVinculo(d, posicionamentoEfetivo(posicionamento, ref), ctx.novoId, ctx);
     return sucesso([mudanca('vinculo', v.id, null, v)], [evento(ctx, 1, 'vinculo.criado', 'vinculo', v.id, null, v)]);
+  }
+  function vincularResponsavel(estado, dados, posicionamento, ctx, ref) {
+    var d = dados || {};
+    return criarVinculo(estado, { objetoId: d.objetoId, estruturaId: d.estruturaId, justificativa: d.justificativa, divergencia: d.divergencia, papel: PRINCIPAL }, posicionamento, ctx, ref);
+  }
+  /* E3 (R-E3-1/2): colaboradora — mesmo registro, outro papel; exige responsável principal ativo e justificativa */
+  function vincularColaboradora(estado, dados, posicionamento, ctx, ref) {
+    var d = dados || {};
+    return criarVinculo(estado, { objetoId: d.objetoId, estruturaId: d.estruturaId, justificativa: d.justificativa, divergencia: d.divergencia, papel: COLABORADORA }, posicionamento, ctx, ref);
   }
   function encerrarVinculo(estado, id, motivo, ctx) {
     var e = validarCtx(ctx, false);
@@ -356,9 +405,11 @@
     var atual = colecao(estado, 'vinculos')[vinculoId];
     if (!atual) return falha([erro('VINCULO_INEXISTENTE', { id: vinculoId })]);
     if (atual.situacao !== SITUACAO.ATIVA) return falha([erro('VINCULO_ENCERRADO', { id: vinculoId })]);
+    if (atual.papel !== PRINCIPAL) return falha([erro('SUBSTITUICAO_SO_DO_PRINCIPAL', { id: vinculoId })]); /* colaboradora: encerrar e criar outra */
     if (colecao(estado, 'vinculos')[ctx.novoId]) return falha([erro('IDENTIFICADOR_JA_USADO', { id: ctx.novoId })]);
     motivoValido(e, motivo);
-    var nd = { objetoId: atual.objetoId, estruturaId: d.estruturaId, papel: atual.papel, justificativa: d.justificativa };
+    /* R-E2-9: substituir pela MESMA estrutura = reconfirmar a alocação sobre a base nova (com justificativa nova, se divergir) */
+    var nd = { objetoId: atual.objetoId, estruturaId: d.estruturaId, papel: atual.papel, justificativa: d.justificativa, divergencia: d.divergencia };
     e = e.concat(validarVinculoNovo(estado, nd, posicionamento, ref, vinculoId));
     if (e.length) return falha(e);
     var fim = encerrada(atual, motivo, ctx, { substituidoPor: ctx.novoId }), v = novoVinculo(nd, posicionamentoEfetivo(posicionamento, ref), ctx.novoId, ctx);
@@ -366,25 +417,51 @@
     return sucesso([mudanca('vinculo', vinculoId, atual, fim), mudanca('vinculo', v.id, null, v)],
       [evento(ctx, 1, 'vinculo.encerrado', 'vinculo', vinculoId, atual, fim, { motivo: texto(motivo) }), evento(ctx, 2, 'vinculo.criado', 'vinculo', v.id, null, v, { motivo: texto(motivo) })]);
   }
-  /* V6/V7: situação CALCULADA do responsável principal de um objeto — nada é alterado quando o Posicionamento muda.
-     válido: vínculo ativo, estrutura ativa e do tipo oficial do código efetivo ATUAL, igual ao da base (uma
-       reavaliação que mantém o mesmo código efetivo continua válida; a base original fica preservada);
+  /* V6/V7 + E2 (R-E2-7/8): situação CALCULADA do responsável principal de um objeto — nada é alterado quando o
+     Posicionamento muda e a base do vínculo nunca é reescrita.
+     válido: estrutura ativa e do tipo oficial do código efetivo ATUAL (uma reavaliação que mantém o mesmo código
+       continua válida; a que passa a coincidir com o tipo de uma alocação divergente também — divergenciaResolvida
+       diz qual avaliação e qual código tornaram o vínculo compatível, e a divergência original continua registrada);
+     divergencia-deliberada: estrutura ativa, mesmo código efetivo da base e tipo diferente, com a divergência
+       registrada (motivo e justificativa organizacional) — decisão organizacional, não erro;
      ausente: há posicionamento efetivo firme e nenhum vínculo ativo;
-     precisa de revisão: há vínculo ativo, mas o código efetivo mudou, deixou de existir, a estrutura foi encerrada
-       ou a ligação oficial do código deixou de apontar para o tipo dela;
+     precisa de revisão: a estrutura foi encerrada, o posicionamento deixou de valer ou de ser firme, ou o código
+       efetivo mudou e o tipo da estrutura não corresponde ao novo código (TIPO_NAO_CORRESPONDE: tipo diferente
+       sem divergência registrada, p. ex. quando a ligação oficial mudou);
      não aplicável: sem posicionamento efetivo e sem vínculo ativo.
      V8: a liberação para Squad (I2) não entra aqui — é outra informação, calculada à parte. */
   function situacaoResponsavel(estado, objetoId, posicionamento, ref) {
     var v = responsavelAtivo(estado, objetoId), ef = posicionamentoEfetivo(posicionamento, ref);
     if (!v) return { situacao: ef.codigo ? 'ausente' : 'nao-aplicavel', vinculo: null, efetivo: ef, motivos: ef.codigo ? [] : [ef.motivo] };
-    var m = [], est = colecao(estado, 'estruturas')[v.estruturaId];
+    var m = [], est = colecao(estado, 'estruturas')[v.estruturaId], divergente = false, resolvida = null;
+    var tipoAtual = ef.codigo && ref && ref.ligacoes ? ref.ligacoes[ef.codigo] : undefined;
     if (!ef.codigo) m.push(ef.motivo === 'SEM_POSICIONAMENTO_VIGENTE' ? 'POSICIONAMENTO_DEIXOU_DE_VALER' : 'POSICIONAMENTO_SEM_CODIGO_FIRME');
-    else if (ef.codigo !== v.base.codigo) m.push('CODIGO_EFETIVO_MUDOU');
+    else if (ef.codigo !== v.base.codigo) {
+      if (est && tipoAtual === est.tipo && v.divergencia) resolvida = { codigoAtual: ef.codigo, avaliacaoId: ef.avaliacaoId, origem: ef.origem };
+      else m.push('CODIGO_EFETIVO_MUDOU');
+    }
     if (!est || est.situacao !== SITUACAO.ATIVA) m.push('ESTRUTURA_ENCERRADA');
-    if (ef.codigo && est && ref && ref.ligacoes && ref.ligacoes[ef.codigo] !== est.tipo) m.push('TIPO_NAO_CORRESPONDE');
-    var r = { situacao: m.length ? 'precisa-revisao' : 'valido', vinculo: clone(v), efetivo: ef, motivos: m.filter(function (x, i) { return m.indexOf(x) === i; }) };
-    if (!m.length && ef.avaliacaoId !== v.base.avaliacaoId) r.baseEmOutraAvaliacao = true; /* mesmo código, outra versão: continua válido */
+    if (ef.codigo && est && tipoAtual !== est.tipo) {
+      if (ef.codigo === v.base.codigo && v.divergencia) divergente = true;
+      else if (!resolvida) m.push('TIPO_NAO_CORRESPONDE');
+    }
+    var r = { situacao: m.length ? 'precisa-revisao' : (divergente ? 'divergencia-deliberada' : 'valido'), vinculo: clone(v), efetivo: ef,
+      motivos: m.filter(function (x, i) { return m.indexOf(x) === i; }) };
+    if (!m.length && ef.avaliacaoId !== v.base.avaliacaoId) r.baseEmOutraAvaliacao = true; /* mesmo código (ou compatível), outra versão */
+    if (resolvida && !m.length) r.divergenciaResolvida = resolvida;
     return r;
+  }
+  /* E3 (R-E3-4): situação CALCULADA de cada colaboradora ativa do objeto — a mudança de código efetivo não a afeta
+     (colaboradora não é posicionada); fica para revisão sem estrutura ativa, sem principal ativo ou sem posicionamento */
+  function situacaoColaboradoras(estado, objetoId, posicionamento, ref) {
+    var ef = posicionamentoEfetivo(posicionamento, ref), principal = responsavelAtivo(estado, objetoId), ests = colecao(estado, 'estruturas');
+    return colaboradorasAtivas(estado, objetoId).map(function (c) {
+      var m = [], est = ests[c.estruturaId];
+      if (!est || est.situacao !== SITUACAO.ATIVA) m.push('ESTRUTURA_ENCERRADA');
+      if (!principal) m.push('SEM_RESPONSAVEL_PRINCIPAL');
+      if (!ef.codigo) m.push(ef.motivo === 'SEM_POSICIONAMENTO_VIGENTE' ? 'POSICIONAMENTO_DEIXOU_DE_VALER' : 'POSICIONAMENTO_SEM_CODIGO_FIRME');
+      return { situacao: m.length ? 'precisa-revisao' : 'ativa', vinculo: clone(c), motivos: m };
+    }).sort(function (a, b) { var ta = instante(a.vinculo.criadoEm), tb = instante(b.vinculo.criadoEm); return ta - tb || (a.vinculo.id < b.vinculo.id ? -1 : 1); });
   }
 
   /* ---------------- consultas puras ---------------- */
@@ -579,7 +656,16 @@
     valores(colecao(estado, 'vinculos')).forEach(function (x) {
       if (x.situacao !== SITUACAO.ATIVA || x.papel !== 'responsavel-principal') return;
       if (itens[x.objetoId]) v.push({ codigo: 'RESPONSAVEL_PRINCIPAL_JA_EXISTE', objetoId: x.objetoId });
-      itens[x.objetoId] = true;
+      itens[x.objetoId] = x.estruturaId;
+    });
+    /* E3: no máximo uma colaboradora ATIVA por (item, estrutura), e nunca a mesma estrutura do principal ativo */
+    var colabs = {};
+    valores(colecao(estado, 'vinculos')).forEach(function (x) {
+      if (x.situacao !== SITUACAO.ATIVA || x.papel !== COLABORADORA) return;
+      var ch = x.objetoId + '|' + x.estruturaId;
+      if (colabs[ch]) v.push({ codigo: 'COLABORADORA_JA_EXISTE', objetoId: x.objetoId, estruturaId: x.estruturaId });
+      colabs[ch] = true;
+      if (itens[x.objetoId] === x.estruturaId) v.push({ codigo: 'COLABORADORA_E_PRINCIPAL', objetoId: x.objetoId, estruturaId: x.estruturaId });
     });
     /* M6/M7: relação ativa duplicada e, com as referências, C3 */
     var chaves = {};
@@ -613,6 +699,8 @@
 
   var api = {
     TIPOS_RELACAO: TIPOS_RELACAO.slice(), RELACAO_HIERARQUICA: RELACAO_HIERARQUICA, PAPEIS_VINCULO: PAPEIS_VINCULO.slice(), SITUACAO: clone(SITUACAO), MAX: clone(MAX),
+    MOTIVOS_DIVERGENCIA: MOTIVOS_DIVERGENCIA.slice(), tipoAlocavel: tipoAlocavel,
+    vincularColaboradora: vincularColaboradora, colaboradorasAtivas: colaboradorasAtivas, situacaoColaboradoras: situacaoColaboradoras,
     tiposAdmitidos: tiposAdmitidos, relacaoConceitualAdmite: relacaoConceitualAdmite,
     criarEstrutura: criarEstrutura, alterarEstrutura: alterarEstrutura, encerrarEstrutura: encerrarEstrutura,
     criarRelacao: criarRelacao, encerrarRelacao: encerrarRelacao, alterarRelacao: alterarRelacao, situacaoRelacao: situacaoRelacao,

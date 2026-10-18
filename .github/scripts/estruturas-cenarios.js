@@ -27,7 +27,7 @@ const U = require(path.join(RAIZ, 'forca-agil', 'estruturas-casos-de-uso.js'));
 const MOTOR = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento-nucleo.js'));
 const ARQUIVO = path.join(__dirname, 'cenarios', 'estruturas-concretas.v1.json');
 const ARQUIVO_SUBAGRUPADORES = path.join(__dirname, 'cenarios', 'mapa-subagrupadores.v1.json');
-const ARQUIVO_VINCULOS = path.join(__dirname, 'cenarios', 'vinculos-responsavel.v1.json');
+const ARQUIVO_VINCULOS = path.join(__dirname, 'cenarios', 'vinculos-responsavel.v2.json');
 const ARQUIVO_RELACOES = path.join(__dirname, 'cenarios', 'relacoes-estruturas.v1.json');
 /* os códigos firmes do ramo Linha (C2: no site, "compõe" só de Squad para Linha) */
 const LINHA = MOTOR.CODIGOS_FIRMES.filter((c) => MOTOR.liberaSquadParaCodigoFirme(c) === true);

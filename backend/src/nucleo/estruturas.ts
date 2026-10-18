@@ -50,6 +50,9 @@ export interface NucleoEstruturas {
   substituirResponsavel(estado: Estado, vinculoId: string, dados: unknown, motivo: unknown, posicionamento: PosicionamentoVigente | null, ctx: Contexto, ref: Referencias): ResultadoOperacao;
   encerrarVinculo(estado: Estado, id: string, motivo: unknown, ctx: Contexto): ResultadoOperacao;
   situacaoResponsavel(estado: Estado, objetoId: string, posicionamento: PosicionamentoVigente | null, ref: Referencias): SituacaoCalculada;
+  /* E3: estruturas colaboradoras (mesmo registro de vínculo, papel 'colaboradora') */
+  vincularColaboradora(estado: Estado, dados: unknown, posicionamento: PosicionamentoVigente | null, ctx: Contexto, ref: Referencias): ResultadoOperacao;
+  situacaoColaboradoras(estado: Estado, objetoId: string, posicionamento: PosicionamentoVigente | null, ref: Referencias): SituacaoCalculada[];
   responsavelAtivo(estado: Estado, objetoId: string): Registro | null;
   relacoesDaEstrutura(estado: Estado, id: string, opcoes?: { incluirEncerradas?: boolean }): { saida: Registro[]; entrada: Registro[] };
   objetosDaEstrutura(estado: Estado, estruturaId: string): { objetoId: string; papel: string; vinculoId: string }[];

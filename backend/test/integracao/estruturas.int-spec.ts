@@ -152,11 +152,11 @@ describe('5–7. responsável principal de um objeto avaliado', () => {
     expect((await api().get('/api/objetos/objeto-sint-1/responsavel').set('Authorization', auth.consulta).expect(200)).body).toMatchObject({ situacao: 'valido', vinculo: { id: v.id } });
   });
 
-  it('A_VALIDAR sem decisão nunca vincula; com decisão final vale a decisão; tipo incompatível e Squad são recusados', async () => {
+  it('A_VALIDAR sem decisão nunca vincula; com decisão final vale a decisão; tipo diferente sem justificativa e Squad são recusados', async () => {
     expect(codigos(await vincular('objeto-sint-avalidar', neg.id).expect(422))).toEqual(['SEM_POSICIONAMENTO_EFETIVO']);
     expect(codigos(await vincular('objeto-sint-sem-posicionamento', neg.id).expect(422))).toEqual(['SEM_POSICIONAMENTO_EFETIVO']);
-    expect(codigos(await vincular('objeto-sint-decisao', coe.id).expect(422))).toEqual(['TIPO_INCOMPATIVEL']);
-    expect(codigos(await vincular('objeto-sint-decisao', squad.id).expect(422))).toEqual(['TIPO_INCOMPATIVEL']); /* objeto × Squad: não nesta entrega */
+    expect(codigos(await vincular('objeto-sint-decisao', coe.id).expect(422))).toEqual(['DIVERGENCIA_SEM_JUSTIFICATIVA']); /* E2: tipo diferente só com divergência justificada */
+    expect(codigos(await vincular('objeto-sint-decisao', squad.id).expect(422))).toEqual(['TIPO_NAO_ALOCAVEL']); /* Squad nunca recebe alocação */
     expect((await vincular('objeto-sint-decisao', neg.id).expect(201)).body.vinculo.base).toEqual({ avaliacaoId: 'aval-sint-3', codigo: 'NEGOCIOS', origem: 'decisao' });
   });
 
@@ -181,6 +181,53 @@ describe('5–7. responsável principal de um objeto avaliado', () => {
     expect(sit).toMatchObject({ situacao: 'precisa-revisao', motivos: ['CODIGO_EFETIVO_MUDOU', 'TIPO_NAO_CORRESPONDE'], vinculo: { id: s.vinculo.id, revisao: 1, base: { codigo: 'NEGOCIOS' } } });
     expect((await sql('SELECT revisao FROM estruturas_vinculos WHERE id = $1', [s.vinculo.id]))[0].revisao).toBe(1);
     expect((await api().post(`/api/vinculos/${s.vinculo.id}/encerramento`).set('Authorization', auth.arquitetura).send({ motivo: 'encerrado sintético' }).expect(200)).body.vinculo.situacao).toBe('encerrada');
+  });
+});
+
+describe('E2 e E3: alocação divergente justificada e estruturas colaboradoras (migração 0002)', () => {
+  let neg: { id: string }, coe: { id: string }, coe2: { id: string };
+  const DIV = { motivo: 'escala', justificativa: 'Sem massa crítica (sintética)', autoridade: 'Instância sintética', referencia: 'Ata sintética 1' };
+  beforeAll(async () => {
+    neg = await criar('SINT_NEGOCIOS', 'Negócios E2 (sintética)');
+    coe = await criar('SINT_COE', 'CoE E2 (sintética)');
+    coe2 = await criar('SINT_COE', 'CoE E3 (sintética)');
+    posicionamento.vigentes['objeto-sint-e2'] = { avaliacaoId: 'aval-sint-e2', recomendacao: { codigoResultado: 'COE' } };
+    posicionamento.vigentes['objeto-sint-e3'] = { avaliacaoId: 'aval-sint-e3', recomendacao: { codigoResultado: 'NEGOCIOS' } };
+  });
+  it('E2: aloca em tipo diferente com motivo e justificativa; a base fica intacta; a situação é "divergência deliberada"; o banco recusa reescrever a divergência', async () => {
+    const post = (b: Record<string, unknown>) => api().post('/api/objetos/objeto-sint-e2/responsavel').set('Authorization', auth.arquitetura).send(b);
+    expect(codigos(await post({ estruturaId: neg.id, divergencia: { motivo: 'gosto', justificativa: 'x' } }).expect(422))).toEqual(['MOTIVO_DIVERGENCIA_INVALIDO']);
+    expect(codigos(await post({ estruturaId: coe.id, divergencia: DIV }).expect(422))).toEqual(['DIVERGENCIA_INDEVIDA']);
+    const v = (await post({ estruturaId: neg.id, divergencia: DIV }).expect(201)).body.vinculo;
+    expect(v).toMatchObject({ estruturaId: neg.id, base: { avaliacaoId: 'aval-sint-e2', codigo: 'COE', origem: 'recomendacao' }, divergencia: DIV, criadoPor: { id: 'uid-arquitetura' } });
+    expect((await api().get('/api/objetos/objeto-sint-e2/responsavel').set('Authorization', auth.consulta).expect(200)).body).toMatchObject({ situacao: 'divergencia-deliberada', motivos: [], colaboradoras: [] });
+    await expect(sql("UPDATE estruturas_vinculos SET revisao = revisao + 1, dados = jsonb_set(jsonb_set(dados, '{divergencia,justificativa}', '\"reescrita\"'), '{revisao}', to_jsonb(revisao + 1)) WHERE id = $1", [v.id])).rejects.toThrow(/imutáveis/);
+    /* reavaliação que passa a coincidir com o tipo da estrutura: válido, e a divergência original continua visível */
+    posicionamento.vigentes['objeto-sint-e2'] = { avaliacaoId: 'aval-sint-e2b', recomendacao: { codigoResultado: 'NEGOCIOS' } };
+    expect((await api().get('/api/objetos/objeto-sint-e2/responsavel').set('Authorization', auth.consulta).expect(200)).body).toMatchObject({ situacao: 'valido', divergenciaResolvida: { codigoAtual: 'NEGOCIOS', avaliacaoId: 'aval-sint-e2b' }, vinculo: { base: { codigo: 'COE' }, divergencia: DIV } });
+  });
+  it('E3: colaboradora exige principal e justificativa; não repete a estrutura do principal nem a si mesma; o banco garante a forma', async () => {
+    const colab = (b: Record<string, unknown>) => api().post('/api/objetos/objeto-sint-e3/colaboradoras').set('Authorization', auth.arquitetura).send(b);
+    expect(codigos(await colab({ estruturaId: coe.id, justificativa: 'Apoio técnico (sintética)' }).expect(422))).toEqual(['SEM_RESPONSAVEL_PRINCIPAL']);
+    await api().post('/api/objetos/objeto-sint-e3/responsavel').set('Authorization', auth.arquitetura).send({ estruturaId: neg.id }).expect(201);
+    expect(codigos(await colab({ estruturaId: coe.id }).expect(422))).toEqual(['CAMPO_OBRIGATORIO']);
+    expect(codigos(await colab({ estruturaId: neg.id, justificativa: 'x' }).expect(422))).toEqual(['COLABORADORA_E_PRINCIPAL']);
+    expect(codigos(await api().post('/api/objetos/objeto-sint-e3/colaboradoras').set('Authorization', auth.consulta).send({ estruturaId: coe.id, justificativa: 'x' }))).toEqual([]); /* consulta não grava (403) */
+    const c1 = (await colab({ estruturaId: coe.id, justificativa: 'Apoio técnico (sintética)' }).expect(201)).body.vinculo;
+    expect(c1).toMatchObject({ papel: 'colaboradora', estruturaId: coe.id, justificativa: 'Apoio técnico (sintética)' });
+    expect(codigos(await colab({ estruturaId: coe.id, justificativa: 'repetida' }).expect(422))).toEqual(['COLABORADORA_JA_EXISTE']);
+    await colab({ estruturaId: coe2.id, justificativa: 'Segundo apoio (sintética)' }).expect(201);
+    const sit = (await api().get('/api/objetos/objeto-sint-e3/responsavel').set('Authorization', auth.consulta).expect(200)).body;
+    expect(sit.colaboradoras.map((c: { situacao: string; vinculo: { estruturaId: string } }) => [c.situacao, c.vinculo.estruturaId])).toEqual([['ativa', coe.id], ['ativa', coe2.id]]);
+    await expect(sql("UPDATE estruturas_vinculos SET revisao = revisao + 1, dados = jsonb_set(dados - 'justificativa', '{revisao}', to_jsonb(revisao + 1)) WHERE id = $1", [c1.id])).rejects.toThrow(/colaboradora_check/);
+    expect((await api().post(`/api/vinculos/${c1.id}/encerramento`).set('Authorization', auth.arquitetura).send({ motivo: 'fim sintético' }).expect(200)).body.vinculo).toMatchObject({ situacao: 'encerrada', papel: 'colaboradora' });
+  });
+  it('E3 sob concorrência: 6 pedidos simultâneos da MESMA colaboradora → uma só ativa (índice único parcial)', async () => {
+    posicionamento.vigentes['objeto-sint-e3c'] = { avaliacaoId: 'aval-sint-e3c', recomendacao: { codigoResultado: 'NEGOCIOS' } };
+    await api().post('/api/objetos/objeto-sint-e3c/responsavel').set('Authorization', auth.arquitetura).send({ estruturaId: neg.id }).expect(201);
+    const rs = await Promise.all(Array.from({ length: 6 }, () => api().post('/api/objetos/objeto-sint-e3c/colaboradoras').set('Authorization', auth.arquitetura).send({ estruturaId: coe.id, justificativa: 'Concorrência (sintética)' })));
+    expect(rs.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(Number((await sql("SELECT count(*)::int AS n FROM estruturas_vinculos WHERE objeto_id = 'objeto-sint-e3c' AND papel = 'colaboradora' AND situacao = 'ativa'"))[0].n)).toBe(1);
   });
 });
 
