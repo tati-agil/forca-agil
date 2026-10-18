@@ -81,6 +81,8 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     }
     const ir = async (p, hash) => { await p.evaluate((h) => { location.hash = h; }, hash); await espera(400); };
     const texto = (p, sel) => p.locator(sel).first().innerText().catch(() => '');
+    /* E2: as opções de estrutura vêm em dois grupos — "Do tipo recomendado" e "De outro tipo" (alocação divergente) */
+    const grupoOpcoes = (p, rotulo) => p.$$eval('#poRespEstruturaSel optgroup', (gs, r) => { const g = gs.find((x) => x.label.indexOf(r) === 0); return g ? Array.from(g.querySelectorAll('option')).map((o) => o.value).sort() : null; }, rotulo);
     const semRolagemLateral = (p) => p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
     /* ===== 1. Mapa vazio ===== */
@@ -433,11 +435,18 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma((await situacao(p)) === 'Sem estrutura responsável' && /Negócios|Linha de Negócios/.test(await texto(p, '#poRespAusente')), 'sem vínculo: situação "Sem estrutura responsável", com o posicionamento efetivo do item', await texto(p, '#poResponsavel'));
       await p.click('#poRespVincular');
       await p.waitForSelector('#poRespEstruturaSel');
-      const opcoes = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean).sort());
-      afirma(JSON.stringify(opcoes) === JSON.stringify([idNeg, 'neg-2'].sort()), 'só aparecem estruturas ATIVAS do tipo do posicionamento efetivo (nenhum CoE nem Área)', JSON.stringify(opcoes));
+      /* E2: dois grupos — as do tipo do posicionamento efetivo e as de outro tipo (alocação divergente, com motivo e
+         justificativa); nos dois, só estruturas ATIVAS de tipo alocável (código firme), nunca as encerradas */
+      const grupo = (rotulo) => p.$$eval('#poRespEstruturaSel optgroup', (gs, r) => { const g = gs.find((x) => x.label.indexOf(r) === 0); return g ? Array.from(g.querySelectorAll('option')).map((o) => o.value).sort() : null; }, rotulo);
+      const FIRMES = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento.js')).CODIGOS_FIRMES;
+      const regsAgora = (await S.banco('GET', 'estruturas-concretas/registros')).corpo || {};
+      const outrasEsperadas = Object.keys(regsAgora).filter((k) => regsAgora[k].situacao === 'ativa' && regsAgora[k].tipo !== 'NEGOCIOS' && FIRMES.indexOf(regsAgora[k].tipo) !== -1).sort();
+      const doTipo = await grupo('Do tipo recomendado'), deOutro = await grupo('De outro tipo');
+      afirma(JSON.stringify(doTipo) === JSON.stringify([idNeg, 'neg-2'].sort()) && outrasEsperadas.length > 0 && JSON.stringify(deOutro) === JSON.stringify(outrasEsperadas) && !(await p.$('#poRespSemDoTipo')),
+        'opções: as estruturas ATIVAS do tipo do posicionamento efetivo num grupo, as ativas de outro tipo em outro (nenhuma encerrada); há do tipo, então o atalho de cadastro não aparece', JSON.stringify({ doTipo, deOutro, outrasEsperadas }));
       await p.click('#poRespSalvar');
       await p.waitForSelector('#poRespErros');
-      afirma(/Escolha a estrutura responsável/.test(await texto(p, '#poRespErros')) && Object.keys(await vinculos()).length === 0, 'salvar sem escolher explica o que falta e não grava nada');
+      afirma(/Escolha a estrutura\./.test(await texto(p, '#poRespErros')) && Object.keys(await vinculos()).length === 0, 'salvar sem escolher explica o que falta ("Escolha a estrutura.") e não grava nada', await texto(p, '#poRespErros'));
       await p.selectOption('#poRespEstruturaSel', idNeg);
       await p.fill('#poRespJustificativa', 'Linha dona da jornada do produto');
       await p.click('#poRespSalvar');
@@ -449,7 +458,9 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       afirma(idx === ativos[0].id, 'o índice do item aponta para o vínculo ativo');
       await p.click('#poRespSubstituir');
       await p.waitForSelector('#poRespEstruturaSel');
-      afirma(JSON.stringify(await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean))) === '["neg-2"]', 'substituir: a estrutura atual não aparece de novo');
+      const todasSubst = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean));
+      afirma(JSON.stringify(await grupo('Do tipo recomendado')) === '["neg-2"]' && todasSubst.indexOf(idNeg) === -1 && JSON.stringify(await grupo('De outro tipo')) === JSON.stringify(outrasEsperadas),
+        'substituir: a estrutura atual não aparece de novo (base igual, nada a reconfirmar); as de outro tipo continuam como opção', JSON.stringify(todasSubst));
       await p.selectOption('#poRespEstruturaSel', 'neg-2');
       await p.click('#poRespSalvar');
       await p.waitForSelector('#poRespErros');
@@ -464,7 +475,7 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       /* D: a estrutura responsável encerrada → "Precisa de revisão", calculado pelo núcleo; nada muda sozinho */
       await S.banco('PATCH', 'estruturas-concretas/registros/neg-2', { situacao: 'encerrada', revisao: 2, encerramento: { motivo: 'Teste', em: 1791713700000, por: { id: 'semente', email: 'semente@teste' } } });
       await esperarCondicaoAte(p, () => (document.getElementById('poRespSituacao') || {}).textContent === 'Precisa de revisão', undefined, { limite: 15000 });
-      afirma((await situacao(p)) === 'Precisa de revisão' && /a estrutura responsável foi encerrada/.test(await texto(p, '#poRespRevisao')) && Object.values(await vinculos()).filter((v) => v.situacao === 'ativa').length === 1,
+      afirma((await situacao(p)) === 'Precisa de revisão' && /Precisa de revisão:\s*a estrutura foi encerrada/.test(await texto(p, '#poRespRevisao')) && Object.values(await vinculos()).filter((v) => v.situacao === 'ativa').length === 1,
         'estrutura responsável encerrada: "Precisa de revisão" com o motivo; o vínculo continua registrado (nada muda sozinho)');
       await p.click('#poRespEncerrar');
       await p.waitForSelector('#poRespMotivo');
@@ -516,10 +527,33 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       await ir(p, '#arquitetura?po=pos-can');
       await p.waitForSelector('#poRespVincular', { timeout: 15000 });
       await p.click('#poRespVincular');
-      await p.waitForSelector('#poRespSemOpcoes', { timeout: 15000 });
+      /* há estruturas ativas de OUTROS tipos (Linhas, CoE…), nenhuma do tipo recomendado: o atalho aparece ao lado da
+         alocação divergente justificada, que continua possível — cadastrar não é exigido */
+      await p.waitForSelector('#poRespSemDoTipo', { timeout: 15000 });
       const href = await p.getAttribute('#poRespCadastrarTipo', 'href');
-      afirma(href === '#arquitetura?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=item-can&po=pos-can' && /não cria a estrutura/.test(await texto(p, '#poRespSemOpcoes')),
-        'sem estrutura do tipo: explica e oferece "Cadastrar estrutura deste tipo" (tipo e volta no endereço)', href);
+      afirma(href === '#arquitetura?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=item-can&po=pos-can' && /Não há estrutura ativa do tipo recomendado/.test(await texto(p, '#poRespSemDoTipo')) && /não é obrigatório/.test(await texto(p, '#poRespSemDoTipo')) &&
+        /Cadastrar estrutura do tipo recomendado/i.test(await texto(p, '#poRespCadastrarTipo')) && !(await p.$('#poRespSemOpcoes')),
+        'sem estrutura do tipo, com estruturas de outros tipos: explica e oferece "Cadastrar estrutura do tipo recomendado" (tipo e volta no endereço), sem exigir', href);
+      const outrasCan = await p.$$eval('#poRespEstruturaSel optgroup', (gs) => { const g = gs.find((x) => x.label.indexOf('De outro tipo') === 0); return g ? g.querySelectorAll('option').length : 0; });
+      afirma(outrasCan > 0 && !(await p.$('#poRespEstruturaSel optgroup[label^="Do tipo recomendado"]')) && !(await p.isDisabled('#poRespSalvar')),
+        'a alocação divergente justificada continua possível (estruturas de outro tipo na escolha; Salvar ativo)', String(outrasCan));
+      await p.selectOption('#poRespEstruturaSel', { index: 1 });
+      await p.waitForSelector('#poRespDivCampos');
+      afirma(!!(await p.$('#poRespDivMotivoSel')) && !!(await p.$('#poRespDivJust')) && !!(await p.$('#poRespCadastrarTipo')), 'escolher uma de outro tipo pede motivo e justificativa; o atalho continua à vista');
+      {
+        const cel = await sessao('configuracao', 375);
+        await ir(cel, '#arquitetura?po=pos-can');
+        await cel.waitForSelector('#poRespVincular', { timeout: 15000 });
+        await cel.click('#poRespVincular'); await cel.waitForSelector('#poRespSemDoTipo', { timeout: 15000 });
+        const alvo = await cel.locator('#poRespCadastrarTipo').boundingBox();
+        afirma(alvo && alvo.height >= 40 && alvo.x >= 0 && alvo.x + alvo.width <= 375 && await semRolagemLateral(cel), '375 px: aviso e atalho de cadastro sem rolagem lateral, com área de toque adequada', JSON.stringify(alvo));
+        await cel.context().close();
+      }
+      await p.click('#poRespCancelar'); /* desiste da divergente: nada gravado, e o atalho volta a ser o caminho */
+      await p.waitForSelector('#poRespVincular', { timeout: 15000 });
+      await p.click('#poRespVincular');
+      await p.waitForSelector('#poRespCadastrarTipo', { timeout: 15000 });
+      afirma(Object.keys(((await S.banco('GET', 'estruturas-vinculos/ativo-por-objeto')).corpo) || {}).indexOf('item-can') === -1, 'nada foi vinculado ao item até aqui (escolher não grava)');
       await p.click('#poRespCadastrarTipo');
       await p.waitForSelector('#estVoltarPosicionamento', { timeout: 15000 });
       afirma(await p.isChecked('#estTipos input[value="PLATAFORMA_CANAIS"]') && (await contarEstruturas()) === antes, 'cadastro aberto com o tipo já escolhido; nada foi criado sozinho');
@@ -558,7 +592,9 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       const tCat = await texto(p, itemCat);
       afirma(/Precisa de revisão/.test(tCat) && /classificação mudou/.test(tCat), 'Catálogo: o item mostra o sinal da base reprocessada', tCat.slice(0, 400));
       afirma(/Estrutura responsável/.test(tCat) && /Linha de Investimentos/.test(tCat) && /Válido/.test(tCat) && /Aviso: a base do Posicionamento precisa de revisão/.test(tCat), 'Catálogo: a estrutura responsável do item, a situação do vínculo e o aviso', tCat.slice(0, 400));
-      afirma(/Ambiente de testes/.test(await texto(p, '#mfAvisoEstruturas')), 'Catálogo: no ambiente de testes, o aviso diz de onde vêm estruturas e vínculos');
+      /* o aviso fica em "Sobre estes registros" (recolhido; no registro de um item, depois dele): conferido pelo conteúdo */
+      afirma(await p.evaluate(() => { const a = document.querySelector('#mfSobre #mfAvisoEstruturas'); return !!a && /Ambiente de testes/.test(a.textContent) && /Firebase Emulator/.test(a.textContent); }),
+        'Catálogo: no ambiente de testes, o aviso (em "Sobre estes registros") diz de onde vêm estruturas e vínculos');
       /* Mapa: os produtos e serviços sob a estrutura */
       await ir(p, '#arquitetura?mf=mapa&e=' + idNeg);
       await esperarCondicaoAte(p, () => !!document.querySelector('#mfmObjetos .mfm-objeto[data-objeto="item-m3"]'), undefined, { limite: 15000 });
@@ -750,8 +786,8 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
       /* 2. substituir pela estrutura do tipo novo (CoE), com motivo — volta a "Válido", base = decisão final */
       await ir(p, '#arquitetura?po=pos-m3');
       await p.waitForSelector('#poRespSubstituir', { timeout: 15000 }); await p.click('#poRespSubstituir'); await p.waitForSelector('#poRespEstruturaSel');
-      const opcCoe = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean));
-      afirma(JSON.stringify(opcCoe) === JSON.stringify([idCoe]), 'substituir: só estruturas ativas do tipo do posicionamento efetivo (o CoE)', JSON.stringify(opcCoe));
+      const opcCoe = await grupoOpcoes(p, 'Do tipo recomendado'), opcCoeOutras = await grupoOpcoes(p, 'De outro tipo') || [];
+      afirma(JSON.stringify(opcCoe) === JSON.stringify([idCoe]) && opcCoeOutras.indexOf(idCoe) === -1, 'substituir: do tipo do posicionamento efetivo, só a estrutura ativa de CoE (as de outro tipo ficam no grupo da alocação divergente)', JSON.stringify([opcCoe, opcCoeOutras]));
       await p.selectOption('#poRespEstruturaSel', idCoe); await p.fill('#poRespMotivo', 'Decisão final passou a CoE'); await p.click('#poRespSalvar');
       await p.waitForSelector('#poRespFlash', { timeout: 15000 });
       const v2 = await vincAtivo();
@@ -849,8 +885,9 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
         (await texto(p, '#poRespSituacao')) === 'Sem estrutura responsável', 'ficha da atuação: bloco da atuação e da estrutura responsável ("Sem estrutura responsável")');
       await p.click('#poRespVincular');
       await p.waitForSelector('#poRespEstruturaSel');
-      const opcoesP2 = await p.$$eval('#poRespEstruturaSel option', (os) => os.map((o) => o.value).filter(Boolean));
-      afirma(opcoesP2.indexOf('ae-p2') !== -1 && opcoesP2.indexOf(idNeg) === -1 && opcoesP2.indexOf(idCoe) === -1, 'só estruturas ativas de Área Especializada são oferecidas', JSON.stringify(opcoesP2));
+      const opcoesP2 = await grupoOpcoes(p, 'Do tipo recomendado') || [], outrasP2 = await grupoOpcoes(p, 'De outro tipo') || [];
+      afirma(opcoesP2.indexOf('ae-p2') !== -1 && opcoesP2.indexOf(idNeg) === -1 && opcoesP2.indexOf(idCoe) === -1 && outrasP2.indexOf('ae-p2') === -1,
+        'do tipo recomendado, só estruturas ativas de Área Especializada (Linha e CoE só no grupo da alocação divergente)', JSON.stringify([opcoesP2, outrasP2]));
       await p.selectOption('#poRespEstruturaSel', 'ae-p2');
       await p.click('#poRespSalvar');
       await p.waitForSelector('#poRespFlash', { timeout: 15000 });

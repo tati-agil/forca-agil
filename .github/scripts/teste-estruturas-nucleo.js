@@ -227,6 +227,17 @@ console.log('D2. E2 — alocação divergente justificada (R-E2-1 a R-E2-10) e E
   afirma(rEdu.eventos[0].depois.divergencia.justificativa === div.justificativa, 'a divergência entra no evento de histórico');
   const sEdu = N.situacaoResponsavel(e, 'itemEDU', capCoE, REF);
   afirma(sEdu.situacao === 'divergencia-deliberada' && !sEdu.motivos.length, 'situação: divergência deliberada (não é erro nem revisão)');
+  /* sem as ligações oficiais (o perfil de consulta não as lê): o tipo não é conferido — nunca um falso "não corresponde" */
+  const semLig = Object.assign({}, REF, { ligacoes: undefined });
+  const sCompSem = N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), semLig), sEduSem = N.situacaoResponsavel(e, 'itemEDU', capCoE, semLig);
+  afirma(sCompSem.situacao === 'valido' && !sCompSem.motivos.length,
+    'sem as ligações oficiais: vínculo compatível continua "válido" (nenhum TIPO_NAO_CORRESPONDE presumido)', JSON.stringify(sCompSem.motivos));
+  afirma(sEduSem.situacao === 'divergencia-deliberada' && !sEduSem.motivos.length, 'sem as ligações oficiais: a divergência registrada continua à vista ("divergência deliberada")', JSON.stringify(sEduSem));
+  const sMudouSem = N.situacaoResponsavel(e, 'itemES', posRec('COE', 'gES2'), semLig);
+  afirma(sMudouSem.situacao === 'precisa-revisao' && sMudouSem.motivos.join() === 'CODIGO_EFETIVO_MUDOU', 'sem as ligações: código efetivo mudou → revisão só pelo código, sem o tipo presumido', JSON.stringify(sMudouSem.motivos));
+  const ligSemNeg = Object.assign({}, REF, { ligacoes: Object.assign({}, REF.ligacoes, { NEGOCIOS: undefined }) });
+  afirma(N.situacaoResponsavel(e, 'itemES', posRec('NEGOCIOS', 'gES'), ligSemNeg).motivos.indexOf('TIPO_NAO_CORRESPONDE') !== -1,
+    'ligações lidas, mas sem a deste código: o tipo não corresponde (como antes de E2)');
   /* cenário 3: mesmo tipo */
   afirma(temErro(N.vincularResponsavel(e, { objetoId: 'itemAE', estruturaId: 'XCOE', divergencia: div }, posRec('COE', 'gAE'), ctx('V0'), REF), 'DIVERGENCIA_INDEVIDA'), 'cenário 3: mesmo tipo com dados de divergência → recusado');
   ap(N.vincularResponsavel(e, { objetoId: 'itemAE', estruturaId: 'XCOE' }, posRec('COE', 'gAE'), ctx('VAE'), REF), 'cenário 3: mesmo tipo, compatível');

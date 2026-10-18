@@ -441,7 +441,10 @@
       else m.push('CODIGO_EFETIVO_MUDOU');
     }
     if (!est || est.situacao !== SITUACAO.ATIVA) m.push('ESTRUTURA_ENCERRADA');
-    if (ef.codigo && est && tipoAtual !== est.tipo) {
+    /* sem as ligações oficiais (perfil que não as lê, leitura pendente) o tipo não é conferido — nunca um falso "não
+       corresponde"; a divergência registrada no vínculo, sobre a mesma base, continua à vista */
+    if (ef.codigo && est && !(ref && ref.ligacoes)) { if (ef.codigo === v.base.codigo && v.divergencia) divergente = true; }
+    else if (ef.codigo && est && tipoAtual !== est.tipo) {
       if (ef.codigo === v.base.codigo && v.divergencia) divergente = true;
       else if (!resolvida) m.push('TIPO_NAO_CORRESPONDE');
     }
