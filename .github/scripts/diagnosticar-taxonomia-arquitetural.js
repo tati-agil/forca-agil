@@ -20,7 +20,7 @@ const SIT = { cadastrada: 'cadastrada', 'a-cadastrar': 'a cadastrar (definição
 function relatorio(dg) {
   const l = [];
   l.push('Naturezas previstas: ' + dg.naturezas.length + ' · problemas: ' + dg.problemas + (dg.ok ? ' · modelo coerente' : ''));
-  dg.naturezas.forEach((x) => l.push('  ' + (x.problemas.length ? '!' : '-') + ' ' + x.rotulo + ' [' + x.conceito + ']: ' + SIT[x.situacao] + (x.nome ? ' — nome atual "' + x.nome + '"' : '') + (x.problemas.length ? ' (' + x.problemas.join(', ') + ')' : '')));
+  dg.naturezas.forEach((x) => l.push('  ' + (x.problemas.length ? '!' : '-') + ' ' + x.rotulo + ' [' + x.conceito + ']: ' + (x.aguardaDefinicao && x.situacao === 'a-cadastrar' ? 'a cadastrar (definição aguardando aprovação)' : SIT[x.situacao]) + (x.nome ? ' — nome atual "' + x.nome + '"' : '') + (x.problemas.length ? ' (' + x.problemas.join(', ') + ')' : '')));
   l.push('Classificações técnicas do motor (não são naturezas):');
   dg.classificacoesTecnicas.forEach((x) => l.push('  ' + (x.problemas.length || !x.existe ? '!' : '-') + ' ' + x.codigo + ': ' + (x.existe ? 'preservada' + (x.nome ? ' ("' + x.nome + '")' : '') : 'SEM CONCEITO') + (x.ligada === true ? ', ligada à Avaliação' : x.ligada === false ? ', sem ligação' : '') + ' → ' + (x.naturezas.join(', ') || 'nenhuma natureza') + (x.problemas.length ? ' (' + x.problemas.join(', ') + ')' : '')));
   if (dg.foraDoModelo.length) { l.push('Fora do modelo:'); dg.foraDoModelo.forEach((x) => l.push('  ? ' + x.codigo + (x.nome ? ' ("' + x.nome + '")' : '') + (x.naturezaDe ? ' naturezaDe=' + x.naturezaDe : ''))); }

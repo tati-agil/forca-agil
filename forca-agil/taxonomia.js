@@ -944,7 +944,7 @@
         var c = porCod[n.conceito];
         if (c) { html += item(c, 0); return; }
         html += '<div class="tax-previsto" data-natureza-prevista="' + esc(n.codigo) + '"><span class="tax-item-nome">' + esc(n.rotulo) + '</span><span class="tax-item-selos">' +
-          selo(n.modelo === 'pendente' ? 'definição pendente (' + n.pendencia + ')' : n.modelo === 'individual' ? 'a cadastrar' : 'conceito ausente', 'tax-selo--sem-def') + '</span></div>';
+          selo(n.definicao === 'aguardando-aprovacao' ? 'definição aguardando aprovação' : n.modelo === 'individual' ? 'a cadastrar' : 'conceito ausente', 'tax-selo--sem-def') + '</span></div>';
       });
       /* as classificações técnicas do motor não são conceitos oficiais: não aparecem no catálogo (estão em Verificações) */
       var fora = lista.filter(function (c) { return NA.papelDoConceito(c._codigo).papel === 'fora-do-modelo'; });
@@ -2170,7 +2170,7 @@
   /* CONFERÊNCIA DO MODELO DE NATUREZAS (só leitura): os conceitos arquiteturais que existem × as 15 naturezas e as 6
      classificações técnicas (faNaturezasArquiteturais.diagnosticar — a mesma função do diagnóstico de produção). Não
      cadastra nem corrige nada: diz o que existe, o que falta e o que diverge. */
-  var SIT_NAT = { cadastrada: 'cadastrada', 'a-cadastrar': 'a cadastrar (definição aprovada)', pendente: 'definição pendente (E5)', ausente: 'conceito ausente', inconsistente: 'requer revisão' };
+  var SIT_NAT = { cadastrada: 'cadastrada', 'a-cadastrar': 'a cadastrar (definição aprovada)', aguardando: 'com definição aguardando aprovação', pendente: 'definição pendente (E5)', ausente: 'conceito ausente', inconsistente: 'requer revisão' };
   var PROB_NAT = { 'conceito-ausente': 'o conceito não existe', inativo: 'inativo', 'sem-definicao': 'sem definição', 'naturezaDe-divergente': 'ligado a outra classificação do motor', 'naturezaDe-indevido': 'marcado como natureza individual sem ser', 'cadastrado-antes-da-definicao-aprovada': 'cadastrado sem definição aprovada (pendente da E5)' };
   function renderConferenciaModelo() {
     var NA = window.faNaturezasArquiteturais, D = st.d.arquitetural;
@@ -2178,14 +2178,14 @@
     if (!NA) return h + '<p class="tax-aviso-erro" role="alert">O modelo de naturezas não foi carregado.</p></section>';
     if (D.estado !== 'ok') return h + '<p class="loading-msg" id="taxModeloStatus" role="status">' + (D.estado === 'erro' || D.estado === 'sem-acesso' ? 'Não foi possível ler os conceitos arquiteturais para conferir. <button type="button" class="btn btn--sm" data-tax="integridade" id="taxModeloTentar">Tentar novamente</button>' : 'Conferindo os conceitos arquiteturais…') + '</p></section>';
     var dg = NA.diagnosticar(D.conceitos, st.lig.estado === 'ok' ? st.lig.mapa : undefined);
-    var cont = {}; dg.naturezas.forEach(function (x) { cont[x.situacao] = (cont[x.situacao] || 0) + 1; });
+    var cont = {}; dg.naturezas.forEach(function (x) { var k = x.aguardaDefinicao && x.situacao === 'a-cadastrar' ? 'aguardando' : x.situacao; cont[k] = (cont[k] || 0) + 1; });
     h += '<p class="' + (dg.ok ? 'tax-integracao-ok' : 'tax-verif-resumo') + '" id="taxModeloResumo" role="status" data-ok="' + (dg.ok ? '1' : '0') + '">' +
       (dg.ok ? '<span class="tax-integracao-marca" aria-hidden="true">✓</span> ' : '') + '<strong>' + dg.naturezas.length + ' naturezas previstas:</strong> ' +
-      ['cadastrada', 'a-cadastrar', 'pendente', 'ausente', 'inconsistente'].filter(function (k) { return cont[k]; }).map(function (k) { return cont[k] + ' ' + SIT_NAT[k]; }).join(' · ') +
+      ['cadastrada', 'a-cadastrar', 'aguardando', 'pendente', 'ausente', 'inconsistente'].filter(function (k) { return cont[k]; }).map(function (k) { return cont[k] + ' ' + SIT_NAT[k]; }).join(' · ') +
       '. ' + dg.classificacoesTecnicas.filter(function (x) { return x.existe; }).length + ' de ' + dg.classificacoesTecnicas.length + ' classificações técnicas do motor preservadas.' + (dg.ok ? '' : ' Há pontos para revisar abaixo.') + '</p>';
     h += '<details class="tax-recolhivel" id="taxModeloDetalhes" data-det="modelo"' + detAberto('modelo', !dg.ok) + '><summary class="tax-recolhivel-cab">Ver a conferência completa</summary><ul class="tax-modelo-lista" id="taxModeloNaturezas">' +
       dg.naturezas.map(function (x) {
-        return '<li data-natureza="' + esc(x.natureza) + '" data-situacao="' + esc(x.situacao) + '"><strong>' + esc(x.nome || x.rotulo) + '</strong> <code>' + esc(x.conceito) + '</code> — ' + esc(SIT_NAT[x.situacao]) +
+        return '<li data-natureza="' + esc(x.natureza) + '" data-situacao="' + esc(x.situacao) + '"><strong>' + esc(x.nome || x.rotulo) + '</strong> <code>' + esc(x.conceito) + '</code> — ' + esc(x.aguardaDefinicao && x.situacao === 'a-cadastrar' ? 'a cadastrar (definição aguardando aprovação)' : SIT_NAT[x.situacao]) +
           (x.problemas.length ? ': ' + esc(x.problemas.map(function (p) { return PROB_NAT[p] || p; }).join('; ')) : '') + '</li>';
       }).join('') + '</ul><p class="tax-ajuda">Classificações técnicas do motor (não são naturezas):</p><ul class="tax-modelo-lista" id="taxModeloTecnicas">' +
       dg.classificacoesTecnicas.map(function (x) {

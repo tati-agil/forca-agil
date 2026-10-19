@@ -18,8 +18,9 @@
      Opção corresponde SÓ a modalidade-subproduto (decisão aprovada). Um objeto antigo classificado em Regra/Opção
      (regra-condicao) que seja de fato uma Opção exige REAVALIAÇÃO explícita de P1–P16 (nova versão, histórico
      preservado); nada é reclassificado sozinho e o motor não muda.
-   - Modalidade e Subproduto são naturezas distintas, previstas, com definição PENDENTE (E5): nenhum conceito oficial
-     delas é criado e nenhum objeto as recebe até lá.
+   - E5: Modalidade e Subproduto são naturezas INDIVIDUAIS e distintas (não formam conceito conjunto), registráveis nos
+     objetos da classificação modalidade-subproduto ao lado de Opção — mas só depois que o conceito oficial de cada uma
+     existir na Taxonomia, com a definição aprovada pela dona (definicao: 'aguardando-aprovacao' só muda rótulos).
    ============================================================ */
 (function (raiz) {
   'use strict';
@@ -35,8 +36,8 @@
     { codigo: 'etapa', conceito: 'etapa', rotulo: 'Etapa', classificacao: 'processo-etapa', modelo: 'individual' },
     { codigo: 'regra', conceito: 'regra', rotulo: 'Regra', classificacao: 'regra-condicao', modelo: 'individual' },
     { codigo: 'opcao', conceito: 'opcao', rotulo: 'Opção', classificacao: 'modalidade-subproduto', modelo: 'individual' },
-    { codigo: 'modalidade', conceito: 'modalidade', rotulo: 'Modalidade', classificacao: 'modalidade-subproduto', modelo: 'pendente', pendencia: 'E5' },
-    { codigo: 'subproduto', conceito: 'subproduto', rotulo: 'Subproduto', classificacao: 'modalidade-subproduto', modelo: 'pendente', pendencia: 'E5' },
+    { codigo: 'modalidade', conceito: 'modalidade', rotulo: 'Modalidade', classificacao: 'modalidade-subproduto', modelo: 'individual', definicao: 'aguardando-aprovacao' },
+    { codigo: 'subproduto', conceito: 'subproduto', rotulo: 'Subproduto', classificacao: 'modalidade-subproduto', modelo: 'individual', definicao: 'aguardando-aprovacao' },
     { codigo: 'informacao', conceito: 'informacao', rotulo: 'Informação', classificacao: 'documento-informacao', modelo: 'individual' },
     { codigo: 'documento', conceito: 'documento', rotulo: 'Documento', classificacao: 'documento-informacao', modelo: 'individual' },
     { codigo: 'componente', conceito: 'componente', rotulo: 'Componente', classificacao: 'componente', modelo: 'direta' },
@@ -105,6 +106,7 @@
       var c = conceitos[n.conceito], x = { natureza: n.codigo, conceito: n.conceito, modelo: n.modelo, rotulo: n.rotulo, problemas: [] };
       if (!c) {
         x.situacao = n.modelo === 'pendente' ? 'pendente' : n.modelo === 'individual' ? 'a-cadastrar' : 'ausente';
+        if (n.definicao === 'aguardando-aprovacao') x.aguardaDefinicao = true;
         if (x.situacao === 'ausente') x.problemas.push('conceito-ausente');
       } else {
         x.nome = c.nome || null;
