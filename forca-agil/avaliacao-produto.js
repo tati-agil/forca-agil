@@ -7887,7 +7887,11 @@
          conclusão aparece ao lado só quando difere; a definição é a vigente da Taxonomia. */
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + htmlNomeCamada(camada, 'fa-classif', 'avpCamadaNome') + '</strong>' +
         (a.camadaSugerida ? ' ' + htmlNaConclusao(camada, 'na conclusão: {}', 'avpCamadaNaConclusao') : '') + '</p>';
-      if (window.faClassificacoes && camada.id) html += window.faClassificacoes.definicaoHtml(camada.id, 'avpCamadaDefinicao');
+      /* o que o MOTOR classificou × a natureza OFICIAL: a definição da Taxonomia só é mostrada quando o código É uma natureza
+         (Produto/Serviço, Componente, Canal, Capacidade, Unidade de valor); classificação técnica histórica → diz que não é
+         natureza nem conceito oficial e quais naturezas oficiais correspondem (nunca uma definição concorrente) */
+      if (window.faClassificacoes && camada.id) html += window.faClassificacoes.ehTecnica && window.faClassificacoes.ehTecnica(camada.id)
+        ? window.faClassificacoes.naturezasHtml(camada.id, 'avpCamadaNaturezas') : window.faClassificacoes.definicaoHtml(camada.id, 'avpCamadaDefinicao');
       if (camada.id) html += htmlAvisoContingencia([camada.id], 'avpClassifContingencia');
       /* E1: a primeira pergunta (o que é) não determina estrutura nem posicionamento */
       html += '<p class="avp-alt-outras" id="avpNaturezaNaoEstrutura">A classificação diz o que o objeto é. Ela não define a estrutura organizacional nem o posicionamento.</p>';
