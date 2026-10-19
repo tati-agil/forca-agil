@@ -82,7 +82,7 @@
     var ns = M.naturezasDaClassificacao(id);
     if (!ns.length) return 'Resultado provisório do motor: ainda não há natureza arquitetural identificada para este objeto.';
     return 'Classificação técnica do motor — não é uma natureza arquitetural nem um conceito oficial. Naturezas oficiais correspondentes: ' +
-      ns.map(function (x) { return nomeNatureza(x) + (M.natureza(x).modelo === 'pendente' ? ' (definição pendente)' : ''); }).join(', ') + '.';
+      ns.map(function (x) { return nomeNatureza(x); }).join(', ') + '.';
   }
   function naturezasHtml(id, idElemento) {
     var t = textoNaturezas(id);

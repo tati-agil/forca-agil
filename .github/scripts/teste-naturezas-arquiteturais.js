@@ -6,7 +6,7 @@
    B. Compatibilidade: os 11 códigos do modelo = CAMADAS de avaliacao-produto.js = CAMADAS_VALIDAS de motor-arquitetura.js
       (o motor não muda); as identidades reaproveitadas são os códigos que já existiam.
    C. Correspondência aprovada: Opção SÓ em modalidade-subproduto; Regra/Opção (regra-condicao) → só Regra, com a
-      orientação de reavaliação; Modalidade e Subproduto distintas e pendentes (E5), fora da E4 e das regras.
+      orientação de reavaliação; E5: Modalidade e Subproduto individuais e distintas (de Opção também), registráveis na classificação modalidade-subproduto.
    D. A E4 deriva do modelo (núcleo e regras do banco): naturezas, classificações, códigos individuais — sem lista própria.
    E. Diagnóstico (só leitura): cenário de produção, conceitos a cadastrar, divergências, duplicidade, fora do modelo;
       determinístico, não altera a entrada (rodar de novo dá o mesmo resultado); o script de produção não grava nada.
@@ -56,9 +56,10 @@ anota('Opção corresponde SÓ a modalidade-subproduto', igual(NA.CLASSIFICACOES
 anota('Regra/Opção (regra-condicao) admite só Regra', igual(NA.naturezasDaClassificacao('regra-condicao'), ['regra']) && !NA.admite('regra-condicao', 'opcao'));
 const ori = NA.orientacao('regra-condicao');
 anota('Regra/Opção tem orientação: Opção exige reavaliação explícita, histórico preservado, nada muda sozinho', !!ori && ori.natureza === 'opcao' && /reavalie P1–P16/.test(ori.texto) && /histórico/.test(ori.texto) && /nada muda sozinho/.test(ori.texto));
-anota('Modalidade e Subproduto: distintas, na mesma classificação, pendentes (E5)', NA.natureza('modalidade').modelo === 'pendente' && NA.natureza('subproduto').modelo === 'pendente' && NA.natureza('modalidade').conceito !== NA.natureza('subproduto').conceito && NA.admite('modalidade-subproduto', 'modalidade') && NA.admite('modalidade-subproduto', 'subproduto'));
-anota('pendentes não são registráveis', igual(NA.naturezasDaClassificacao('modalidade-subproduto', { registraveis: true }), ['opcao']));
-anota('as 8 individuais aprovadas', igual(NA.NATUREZAS.filter((n) => n.modelo === 'individual').map((n) => n.codigo).sort(), ['documento', 'etapa', 'funcionalidade', 'informacao', 'opcao', 'operacao', 'processo', 'regra']));
+anota('E5: Modalidade e Subproduto individuais, distintas entre si e de Opção, na mesma classificação', NA.natureza('modalidade').modelo === 'individual' && NA.natureza('subproduto').modelo === 'individual' && NA.natureza('opcao').conceito !== NA.natureza('modalidade').conceito && NA.natureza('opcao').conceito !== NA.natureza('subproduto').conceito && NA.natureza('modalidade').conceito !== NA.natureza('subproduto').conceito && NA.admite('modalidade-subproduto', 'modalidade') && NA.admite('modalidade-subproduto', 'subproduto'));
+anota('modalidade-subproduto admite Opção, Modalidade e Subproduto (nenhuma deduzida)', igual(NA.naturezasDaClassificacao('modalidade-subproduto', { registraveis: true }), ['opcao', 'modalidade', 'subproduto']));
+anota('nenhum conceito nem definição embutidos no código (o modelo só tem identidade e classificação)', NA.NATUREZAS.every((n) => !('texto' in n) && !('definicao' in n)));
+anota('as 10 individuais (8 + Modalidade e Subproduto)', igual(NA.NATUREZAS.filter((n) => n.modelo === 'individual').map((n) => n.codigo).sort(), ['documento', 'etapa', 'funcionalidade', 'informacao', 'modalidade', 'opcao', 'operacao', 'processo', 'regra', 'subproduto']));
 
 console.log('D. A E4 deriva do modelo');
 anota('naturezas P1–P16 da E4 = as não pendentes do modelo', igual(R.NATUREZAS_P1P16.slice().sort(), NA.NATUREZAS.filter((n) => n.modelo !== 'pendente').map((n) => n.codigo).sort()));
@@ -68,7 +69,7 @@ anota('classificações por natureza direta (E4) = diretas do modelo, menos Prod
 anota('Opção na E4 só a partir de modalidade-subproduto', igual(Object.keys(R.INDIVIDUAIS_DA_CAMADA).filter((k) => R.INDIVIDUAIS_DA_CAMADA[k].indexOf('opcao') !== -1), ['modalidade-subproduto']));
 const regras = fs.readFileSync(path.join(RAIZ, 'database.rules.json'), 'utf8');
 const naRegra = (c) => regras.indexOf("$codigo === '" + c + "'") !== -1;
-anota('as regras do banco aceitam conceito individual só das 8 aprovadas', NA.NATUREZAS.filter((n) => n.modelo === 'individual').every((n) => naRegra(n.codigo)) && !naRegra('modalidade') && !naRegra('subproduto'));
+anota('as regras do banco aceitam conceito individual das 10 naturezas individuais (e só delas)', NA.NATUREZAS.filter((n) => n.modelo === 'individual').every((n) => naRegra(n.codigo)) && !naRegra('modalidade-subproduto') && !naRegra('produto'));
 anota('as regras nunca deixam Opção vir de regra-condicao', regras.indexOf("child('naturezaOrigem').val() === 'opcao' && root.child('avaliacoes-produto/' + newData.child('baseOrigem').val()).child('camadaSugerida/id').val() === 'modalidade-subproduto'") !== -1 &&
   regras.indexOf("'opcao' && root.child('avaliacoes-produto/' + newData.child('baseOrigem').val()).child('camadaSugerida/id').val() === 'regra-condicao'") === -1);
 const gate = (camada) => ({ situacao: 'atual', libera: true, chave: 'k', avaliacao: { decisaoFinal: 'nao-produto', camadaSugerida: { id: camada } } });
@@ -76,7 +77,7 @@ const rc = R.naturezaDoObjeto({ gate: gate('regra-condicao') });
 anota('objeto em Regra/Opção: só Regra possível, com a orientação do modelo', rc.motivo === 'NATUREZA_NAO_REGISTRADA' && igual(rc.possiveis, ['regra']) && rc.orientacao === ori);
 const op = R.naturezaDoObjeto({ gate: gate('regra-condicao'), registro: { natureza: 'opcao', camada: 'regra-condicao' } });
 anota('Opção registrada sobre Regra/Opção não vale (a confirmar), nunca vira natureza sozinha', op.natureza === null && op.motivo === 'NATUREZA_A_CONFIRMAR');
-anota('objeto em Modalidade/Subproduto: só Opção registrável', igual(R.naturezaDoObjeto({ gate: gate('modalidade-subproduto') }).possiveis, ['opcao']));
+anota('objeto em Modalidade/Subproduto: Opção, Modalidade ou Subproduto — a escolha é explícita', igual(R.naturezaDoObjeto({ gate: gate('modalidade-subproduto') }).possiveis, ['opcao', 'modalidade', 'subproduto']) && R.naturezaDoObjeto({ gate: gate('modalidade-subproduto') }).motivo === 'NATUREZA_NAO_REGISTRADA');
 
 console.log('E. Diagnóstico (só leitura)');
 const def = { texto: 'Definição (teste)', versao: 1 };
@@ -87,7 +88,7 @@ const lig = {}; doModelo.forEach((c) => { lig[c] = { registradoEm: 1, registrado
 const copia = JSON.parse(JSON.stringify(prod));
 const d1 = NA.diagnosticar(prod, lig), d2 = NA.diagnosticar(prod, lig);
 const sit = (d, c) => d.naturezas.filter((x) => x.natureza === c)[0].situacao;
-anota('cenário produção: 5 diretas cadastradas, 8 a cadastrar, 2 pendentes, nenhuma ausente', d1.naturezas.filter((x) => x.situacao === 'cadastrada').length === 5 && d1.naturezas.filter((x) => x.situacao === 'a-cadastrar').length === 8 && d1.naturezas.filter((x) => x.situacao === 'pendente').length === 2);
+anota('cenário: 5 diretas cadastradas, 10 individuais a cadastrar (inclui Modalidade e Subproduto), nenhuma ausente', d1.naturezas.filter((x) => x.situacao === 'cadastrada').length === 5 && d1.naturezas.filter((x) => x.situacao === 'a-cadastrar').length === 10 && !d1.naturezas.some((x) => x.aguardaDefinicao));
 anota('cenário produção: 6 classificações técnicas preservadas e ligadas', d1.classificacoesTecnicas.length === 6 && d1.classificacoesTecnicas.every((x) => x.existe && x.ligada === true));
 anota('cenário produção: coerente (nada fora do modelo, sem duplicidade)', d1.ok && !d1.foraDoModelo.length && !d1.duplicados.length, JSON.stringify(d1.duplicados));
 anota('determinístico: rodar de novo dá exatamente o mesmo resultado', igual(d1, d2));
@@ -98,7 +99,7 @@ anota('individual cadastrada corretamente → cadastrada, coerente', sit(NA.diag
 const errada = Object.assign({}, prod, { opcao: { nome: 'Opção', ordem: 106, ativo: true, naturezaDe: 'regra-condicao', definicao: def } });
 anota('Opção ligada a Regra/Opção → requer revisão (naturezaDe divergente)', sit(NA.diagnosticar(errada, lig), 'opcao') === 'inconsistente' && !NA.diagnosticar(errada, lig).ok);
 const pend = Object.assign({}, prod, { modalidade: { nome: 'Modalidade', ordem: 120, ativo: true, definicao: def } });
-anota('Modalidade cadastrada antes da E5 → requer revisão', sit(NA.diagnosticar(pend, lig), 'modalidade') === 'inconsistente');
+anota('Modalidade sem a ligação naturezaDe → requer revisão', sit(NA.diagnosticar(pend, lig), 'modalidade') === 'inconsistente');
 const semComp = Object.assign({}, prod); delete semComp.componente;
 anota('natureza direta sem conceito → conceito ausente', sit(NA.diagnosticar(semComp, lig), 'componente') === 'ausente' && !NA.diagnosticar(semComp, lig).ok);
 const inat = Object.assign({}, prod, { canal: Object.assign({}, prod.canal, { ativo: false }) });

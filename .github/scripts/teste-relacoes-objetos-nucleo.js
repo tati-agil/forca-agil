@@ -27,7 +27,7 @@ const naoPorta2 = R.PARES.filter((p) => p.tipo !== 'atua-sobre').map((p) => [p.t
 afirma(naoPorta2.length === 21 && JSON.stringify(naoPorta2) === JSON.stringify(aprovados), 'exatamente os 21 pares aprovados (1–21), nenhum a mais', naoPorta2.length);
 const porta2 = R.PARES.filter((p) => p.tipo === 'atua-sobre');
 afirma(porta2.length === R.NATUREZAS_P1P16.length && porta2.every((p) => p.de === 'responsabilidade' && p.para !== 'responsabilidade'), '"atua sobre": só da Porta 2 para objetos P1–P16 (nunca Porta 2 → Porta 2; "abrange" fora)');
-afirma(!R.NATUREZAS.modalidade && !R.NATUREZAS.subproduto && !R.PARES.some((p) => /modalidade|subproduto|informacao|unidade-valor/.test(p.de + p.para) && p.tipo !== 'atua-sobre'), 'nada de Modalidade/Subproduto (E5); Informação e Unidade de valor sem pares (fora da E4)');
+afirma(R.NATUREZAS.modalidade && R.NATUREZAS.modalidade.individual && R.NATUREZAS.subproduto && R.NATUREZAS.subproduto.individual && !R.PARES.some((p) => /informacao|unidade-valor/.test(p.de + p.para) && p.tipo !== 'atua-sobre'), 'E5: Modalidade e Subproduto são naturezas individuais; Informação e Unidade de valor sem pares além de "atua sobre"');
 afirma(!R.parAdmitido('usa', 'funcionalidade', 'componente') && !R.parAdmitido('dispara', 'funcionalidade', 'processo') && !R.parAdmitido('compoe', 'processo', 'produto'),
   'nada é herdado entre naturezas (o que vale para Operação não vale para Funcionalidade; Processo não herda de Etapa)');
 afirma(R.validarMatriz().length === 0, 'a matriz v1 é coerente e "compõe" não forma caminho cíclico entre naturezas', R.validarMatriz());
@@ -35,8 +35,8 @@ afirma(R.validarMatriz([{ tipo: 'compoe', de: 'componente', para: 'produto' }, {
 
 console.log('B. Naturezas');
 afirma(Object.keys(R.NATUREZAS).filter((n) => !R.NATUREZAS[n].individual && !R.NATUREZAS[n].porta2).sort().join() === 'canal,capacidade,componente,produto,unidade-valor', 'naturezas sem registro: Produto/Serviço (única conjunta) e as camadas já individuais');
-afirma(JSON.stringify(R.INDIVIDUAIS_DA_CAMADA) === JSON.stringify({ 'funcionalidade-operacao': ['funcionalidade', 'operacao'], 'processo-etapa': ['processo', 'etapa'], 'regra-condicao': ['regra'], 'modalidade-subproduto': ['opcao'], 'documento-informacao': ['documento', 'informacao'] }),
-  'camadas conjuntas → naturezas individuais da E4 (Opção em Modalidade/Subproduto, A2)', R.INDIVIDUAIS_DA_CAMADA);
+afirma(JSON.stringify(R.INDIVIDUAIS_DA_CAMADA) === JSON.stringify({ 'funcionalidade-operacao': ['funcionalidade', 'operacao'], 'processo-etapa': ['processo', 'etapa'], 'regra-condicao': ['regra'], 'modalidade-subproduto': ['opcao', 'modalidade', 'subproduto'], 'documento-informacao': ['documento', 'informacao'] }),
+  'classificações técnicas → naturezas individuais (Opção, Modalidade e Subproduto em modalidade-subproduto: A2 + E5)', R.INDIVIDUAIS_DA_CAMADA);
 const g = (camada, decisao, extra) => ({ situacao: 'atual', libera: true, chave: 'av1', avaliacao: Object.assign({ status: 'concluido', decisaoFinal: decisao, camadaSugerida: { id: camada } }, extra || {}) });
 const nat = (gate, registro) => R.naturezaDoObjeto({ gate, registro });
 afirma(nat(g('componente', 'produto')).natureza === 'produto', 'decisão final "produto" → Produto/Serviço, mesmo com outra camada automática');

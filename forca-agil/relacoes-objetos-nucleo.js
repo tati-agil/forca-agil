@@ -42,12 +42,13 @@
   /* ---------- naturezas ----------
      O MODELO é único e central: naturezas-arquiteturais.js (window.faNaturezasArquiteturais) — as 15 naturezas, a
      identidade de cada uma na Taxonomia e a correspondência classificação do motor → naturezas. A E4 deriva daqui só as
-     que já podem ter relações (Modalidade e Subproduto, pendentes da E5, ficam de fora), na ordem histórica da matriz
+     que podem ter relações (E5: Modalidade e Subproduto entram como individuais da classificação modalidade-subproduto), na ordem histórica da matriz
      v1 (a ordem gera as regras do banco: mudá-la mudaria o texto das regras sem mudar nada de significado).
      rótulo de FÁBRICA (contingência): o nome oficial vem da Taxonomia arquitetural */
   var M = raiz && raiz.faNaturezasArquiteturais ? raiz.faNaturezasArquiteturais : (typeof require === 'function' ? require('./naturezas-arquiteturais.js') : null);
   if (!M) throw new Error('relacoes-objetos-nucleo: naturezas-arquiteturais.js precisa ser carregado antes');
-  var ORDEM_E4 = ['produto', 'componente', 'canal', 'capacidade', 'unidade-valor', 'funcionalidade', 'operacao', 'processo', 'etapa', 'regra', 'opcao', 'documento', 'informacao'];
+  var ORDEM_E4 = ['produto', 'componente', 'canal', 'capacidade', 'unidade-valor', 'funcionalidade', 'operacao', 'processo', 'etapa', 'regra', 'opcao', 'documento', 'informacao',
+    'modalidade', 'subproduto']; /* E5: no fim, para as regras existentes não mudarem de lugar */
   var NATUREZAS = {};
   ORDEM_E4.forEach(function (c) {
     var n = M.natureza(c);

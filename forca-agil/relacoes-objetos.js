@@ -235,7 +235,7 @@
     h += '<div class="ro-form" id="roFormNatureza"><p class="ro-ajuda">Qual é a natureza individual deste objeto? Registrada uma vez, por quem mantém; nunca deduzida e nunca gravada na avaliação.</p>';
     var ori = window.faNaturezasArquiteturais && window.faNaturezasArquiteturais.orientacao(cam); /* texto único, do modelo central */
     if (ori) h += '<p class="ro-ajuda ro-orientacao" id="roAjudaOpcao" role="note">' + esc(ori.texto) + '</p>';
-    if (cam === 'modalidade-subproduto') h += '<p class="ro-ajuda" id="roAjudaModalidade">Modalidade e Subproduto são naturezas distintas, com definição ainda pendente (E5): se o objeto for um deles, ele fica sem natureza individual por enquanto.</p>';
+    if (cam === 'modalidade-subproduto') h += '<p class="ro-ajuda" id="roAjudaModalidade">Modalidade, Subproduto e Opção são naturezas distintas: escolha a que descreve este objeto. A classificação do motor não decide sozinha qual delas é.</p>';
     if (!manter) return h + '<p class="ro-ajuda">Quem registra: Avaliação + Configuração ou administração geral.</p></div>';
     h += '<div class="ro-escolhas">' + possiveis.map(function (n) {
       var ok = N().conceitoValido(n, conceitoInfo(n));

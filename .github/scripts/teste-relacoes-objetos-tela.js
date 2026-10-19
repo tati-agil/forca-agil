@@ -38,12 +38,13 @@ function banco(o) {
     cMotor: item('cMotor', 'Motor de cálculo de renda (teste)', 'componente'),
     fSim: item('fSim', 'Simulação de aposentadoria (teste)', 'funcionalidade-operacao'),
     oCalc: item('oCalc', 'Cálculo de imposto (teste)', 'funcionalidade-operacao'),
-    rCar: item('rCar', 'Regra de carência (teste)', 'regra-condicao')
+    rCar: item('rCar', 'Regra de carência (teste)', 'regra-condicao'),
+    mPerf: item('mPerf', 'Perfil de investimento (teste)', 'modalidade-subproduto')
   });
-  Object.assign(db['avaliacoes-produto-ponta'], { cMotor: 'cMotor', fSim: 'fSim', oCalc: 'oCalc', rCar: 'rCar' }); /* versão vigente de cada item novo */
+  Object.assign(db['avaliacoes-produto-ponta'], { cMotor: 'cMotor', fSim: 'fSim', oCalc: 'oCalc', rCar: 'rCar', mPerf: 'mPerf' }); /* versão vigente de cada item novo */
   if (o.semIndice) delete db['avaliacoes-produto-ponta'][o.semIndice]; /* item antigo ainda não reconciliado */
   db['objetos-natureza'] = { oCalc: { natureza: 'operacao', camada: 'funcionalidade-operacao', avaliacaoId: 'oCalc', revisao: 1, registradaEm: 1, registradaPor: { id: 'u', email: SJ.ARQ }, auditoriaId: 'a0' } };
-  db.taxonomia.arquitetural = { conceitos: { funcionalidade: conceito('Funcionalidade', 'funcionalidade-operacao'), operacao: conceito('Operação', 'funcionalidade-operacao'), regra: conceito('Regra', 'regra-condicao') } };
+  db.taxonomia.arquitetural = { conceitos: { funcionalidade: conceito('Funcionalidade', 'funcionalidade-operacao'), operacao: conceito('Operação', 'funcionalidade-operacao'), regra: conceito('Regra', 'regra-condicao'), opcao: conceito('Opção', 'modalidade-subproduto'), modalidade: conceito('Modalidade', 'modalidade-subproduto') } };
   if (o.adminGeral) db['fa-admins'] = { [SJ.chave(SJ.ARQ)]: { email: SJ.ARQ, name: 'ADMIN' } };
   if (o.marcador === null) delete db['relacoes-objetos-config'];
   else if (o.marcador !== undefined) db['relacoes-objetos-config'] = { gravacaoHabilitada: o.marcador };
@@ -94,6 +95,29 @@ async function rodada(browser, vp, tag) {
   afirma(nat && nat.natureza === 'funcionalidade' && nat.camada === 'funcionalidade-operacao' && nat.avaliacaoId === 'fSim' && nat.revisao === 1, 'gravou a natureza no objeto (identidade), com a avaliação que vale e revisão 1', nat);
   const av = await lerBanco(page, 'avaliacoes-produto/fSim');
   afirma(!av.natureza && !av.naturezaIndividual && av.camadaSugerida.id === 'funcionalidade-operacao', 'a avaliação P1–P16 não foi alterada');
+
+  console.log('1b. E5 — Modalidade, Subproduto e Opção (item de modalidade-subproduto)');
+  {
+    const r2 = await abrir(browser, vp, '#arquitetura?tr=1&item=mPerf'); const pg = r2.page;
+    await secaoPronta(pg);
+    afirma(/Natureza individual ainda não registrada/.test(await texto(pg, '#roNatureza')), 'E5: a classificação do motor não decide a natureza (nada deduzido)');
+    afirma(await pg.$$eval('.ro-nat-btn', (bs) => bs.map((b) => b.getAttribute('data-natureza')).join()) === 'opcao,modalidade', 'E5: Opção e Modalidade (com conceito oficial) oferecidas como naturezas distintas');
+    afirma(/Subproduto — ainda sem definição oficial na Taxonomia/.test(await texto(pg, '.ro-nat-indisp[data-natureza="subproduto"]')), 'E5: Subproduto sem conceito oficial aparece indisponível (nunca registrado sem definição aprovada)');
+    afirma(/Modalidade, Subproduto e Opção são naturezas distintas/.test(await texto(pg, '#roAjudaModalidade')), 'E5: orientação diz que são três naturezas distintas e que a escolha é explícita');
+    await pg.click('.ro-nat-btn[data-natureza="modalidade"]');
+    await ate(pg, () => /Natureza: Modalidade/.test((document.getElementById('roNatureza') || {}).textContent || ''), undefined, 'Modalidade registrada');
+    const nm = await lerBanco(pg, 'objetos-natureza/mPerf');
+    afirma(nm && nm.natureza === 'modalidade' && nm.camada === 'modalidade-subproduto' && nm.avaliacaoId === 'mPerf', 'E5: Modalidade registrada no objeto, com a avaliação vigente', nm);
+    afirma((await lerBanco(pg, 'avaliacoes-produto/mPerf')).camadaSugerida.id === 'modalidade-subproduto', 'E5: a avaliação (classificação histórica do motor) não foi alterada');
+    afirma(r2.erros.length === 0 && await larguraOk(pg), 'E5: sem erro de JS e sem rolagem lateral');
+    await r2.ctx.close();
+    const r3 = await abrir(browser, vp, '#arquitetura?tr=1&item=oAgi'); const p3 = r3.page;
+    await secaoPronta(p3);
+    await p3.click('#roRelacionar'); await p3.selectOption('#roLeitura', { label: 'atua sobre' });
+    await ate(p3, () => !!document.getElementById('roCandidatos'), undefined, 'candidatos de atua sobre');
+    afirma(!(await existe(p3, 'input[name="roOutro"][value="mPerf"]')), 'E5: item de Modalidade/Subproduto SEM natureza registrada não é candidato (a natureza tem de ser explícita)');
+    await r3.ctx.close();
+  }
 
   console.log('2. Relacionar');
   await page.click('#roRelacionar');

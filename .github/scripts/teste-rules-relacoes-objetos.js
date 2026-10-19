@@ -286,6 +286,25 @@ async function main() {
   await nega('evento não se apaga', db(ADMIN).ref(R.RAIZ + '/eventos/' + ev0).remove());
   await nega('operação não se reescreve', db(ADMIN).ref(R.RAIZ + '/operacoes/' + op0 + '/tipo').set('encerrarRelacao'));
 
+  /* ===== H. E5: Modalidade e Subproduto (naturezas individuais de modalidade-subproduto) ===== */
+  console.log('H. E5 — Modalidade e Subproduto');
+  await semear(async (a) => {
+    await a.ref('avaliacoes-produto/pMod').set(Object.assign({ itemId: 'pMod', nome: 'Item pMod' }, AV('modalidade-subproduto', 'nao-produto')));
+    await a.ref(R.PONTA + '/pMod').set('pMod');
+  });
+  await nega('sem o conceito oficial de Modalidade, a natureza não é registrada', up(ARQ, await natW('pMod', 'modalidade', ARQ, { conceito: { ativo: true, naturezaDe: 'modalidade-subproduto', temDefinicao: true } })));
+  await nega('conceito de Modalidade sem definição é recusado', up(ADMIN, conceito('modalidade', ADMIN, (c, b) => { delete c[b].definicao; Object.keys(c).filter((k) => k.indexOf('/definicoes/') !== -1).forEach((k) => delete c[k]); })));
+  await nega('conceito de Modalidade ligado a outra classificação é recusado', up(ADMIN, conceito('modalidade', ADMIN, (c, b) => { c[b].naturezaDe = 'regra-condicao'; })));
+  await nega('Avaliação + Configuração não cria o conceito de Subproduto', up(ARQ, conceito('subproduto', ARQ)));
+  await pode('admin geral cria o conceito "modalidade" (definição e naturezaDe = modalidade-subproduto)', up(ADMIN, conceito('modalidade', ADMIN)));
+  await pode('admin geral cria o conceito "subproduto", distinto de Modalidade', up(ADMIN, conceito('subproduto', ADMIN)));
+  await nega('cadastro duplicado de Modalidade é recusado', up(ADMIN, conceito('modalidade', ADMIN)));
+  await nega('Modalidade não é registrável num item de Regra/Opção (regra-condicao)', up(ARQ, await natW('pRegra', 'modalidade', ARQ, { gate: { situacao: 'atual', libera: true, chave: 'pRegra', avaliacao: Object.assign({}, ITENS.pRegra, { camadaSugerida: { id: 'modalidade-subproduto' } }) } })));
+  await pode('Avaliação + Configuração registra "Modalidade" num item de modalidade-subproduto (escolha explícita)', up(ARQ, await natW('pMod', 'modalidade', ARQ)));
+  anota('a natureza registrada é Modalidade, na classificação modalidade-subproduto, com a avaliação vigente', ((await ler(R.NAT + '/pMod')) || {}).natureza === 'modalidade' && ((await ler(R.NAT + '/pMod')) || {}).avaliacaoId === 'pMod');
+  await pode('responsabilidade da Porta 2 "atua sobre" a Modalidade', up(ARQ, await relW('o1', 'atua-sobre', 'pMod', ARQ)));
+  anota('pares com Modalidade/Subproduto além de "atua sobre" não existem na matriz até serem aprovados', !R.PARES.some((p) => (p.de === 'modalidade' || p.para === 'modalidade' || p.de === 'subproduto' || p.para === 'subproduto') && p.tipo !== 'atua-sobre'));
+
   await env.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   process.exit(falhas ? 1 : 0);

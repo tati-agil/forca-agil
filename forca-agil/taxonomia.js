@@ -944,7 +944,7 @@
         var c = porCod[n.conceito];
         if (c) { html += item(c, 0); return; }
         html += '<div class="tax-previsto" data-natureza-prevista="' + esc(n.codigo) + '"><span class="tax-item-nome">' + esc(n.rotulo) + '</span><span class="tax-item-selos">' +
-          selo(n.modelo === 'pendente' ? 'definição pendente (' + n.pendencia + ')' : n.modelo === 'individual' ? 'a cadastrar' : 'conceito ausente', 'tax-selo--sem-def') + '</span></div>';
+          selo(n.modelo === 'individual' ? 'a cadastrar' : 'conceito ausente', 'tax-selo--sem-def') + '</span></div>';
       });
       /* as classificações técnicas do motor não são conceitos oficiais: não aparecem no catálogo (estão em Verificações) */
       var fora = lista.filter(function (c) { return NA.papelDoConceito(c._codigo).papel === 'fora-do-modelo'; });
