@@ -80,7 +80,9 @@ function parte1() {
   const fq = carregarModulo();
   console.log('\n== Regressão: P1–P16 e S1–S8 iguais à referência do main ==');
   const atual = { CLASSIFICACAO_ARQUITETURAL: clone(fq.PADRAO.CLASSIFICACAO_ARQUITETURAL), ADEQUACAO_SQUAD: clone(fq.PADRAO.ADEQUACAO_SQUAD),
-    correcoesEditoriais: clone(fq.listarCorrecoesEditoriais()).filter((c) => c.codigo !== POS) };
+    /* a proposta do Caminho 1 (caminho1-ajudas-p1-p16) veio depois desta referência e tem prova própria (teste-caminho1.js:
+       ajustes pendentes sobre a redação vigente, aplicação vira versão nova, motor igual); o resto continua byte a byte */
+    correcoesEditoriais: clone(fq.listarCorrecoesEditoriais()).filter((c) => c.codigo !== POS && c.id !== 'caminho1-ajudas-p1-p16') };
   const hRef = crypto.createHash('sha256').update(JSON.stringify(REFERENCIA)).digest('hex');
   const hAtual = crypto.createHash('sha256').update(JSON.stringify(atual)).digest('hex');
   afirma(hRef === HASH_REFERENCIA, 'a referência gravada é a do main (sha256 ' + hRef.slice(0, 16) + '…)');

@@ -720,10 +720,18 @@
         (n.delimitada ? ' · Delimitadas em responsabilidades: <strong>' + n.delimitada + '</strong>' : '') + '</p>';
     }
     var SIMBOLO_ETAPA = { ok: '✓', atual: '●', futuro: '○', na: '—', revisao: '⚠', analise: '⚖', opcional: '◇', disponivel: '◇', carregando: '…' };
-    function trilhaHtml(j, idTrilha) {
+    /* Caminho 1: depois da Avaliação P1–P16 concluída, a NATUREZA do objeto (identificada, pendente, a confirmar, a
+       identificar…) — o mesmo estado da ficha P1–P16 (relacoes-objetos.js monta [data-ro-etapa]). É informação, não etapa
+       obrigatória: não muda jornada(), não trava o Posicionamento e não conta como "próximo passo" da jornada organizacional. */
+    function etapaNaturezaHtml(itemId) {
+      return '<li class="mf-natureza-etapa" data-natureza-item="' + esc(itemId) + '"><span class="mf-etapa-simbolo" aria-hidden="true">◆</span>' +
+        '<span class="mf-etapa-texto"><span class="mf-etapa-rotulo">Natureza arquitetural</span><span class="mf-etapa-detalhe" data-ro-etapa="' + esc(itemId) + '"></span></span></li>';
+    }
+    function trilhaHtml(j, idTrilha, itemNatureza) {
       return '<ol class="mf-trilha"' + (idTrilha ? ' id="' + idTrilha + '"' : '') + '>' + j.etapas.map(function (e) {
         return '<li class="mf-etapa mf-etapa--' + esc(e.estado) + '" data-etapa="' + esc(e.id) + '" data-estado="' + esc(e.estado) + '"><span class="mf-etapa-simbolo" aria-hidden="true">' + SIMBOLO_ETAPA[e.estado] + '</span>' +
-          '<span class="mf-etapa-texto"><span class="mf-etapa-rotulo">' + esc(e.rotulo) + '</span>' + (e.texto ? '<span class="mf-etapa-detalhe">' + esc(e.texto) + '</span>' : '') + '</span></li>';
+          '<span class="mf-etapa-texto"><span class="mf-etapa-rotulo">' + esc(e.rotulo) + '</span>' + (e.texto ? '<span class="mf-etapa-detalhe">' + esc(e.texto) + '</span>' : '') + '</span></li>' +
+          (itemNatureza && e.id === 'p1p16' && e.estado === 'ok' ? etapaNaturezaHtml(itemNatureza) : '');
       }).join('') + '</ol>';
     }
     function acaoHtml(j) {
@@ -754,7 +762,7 @@
             ' — análise de Produto/Serviço; não é pendência do Posicionamento da atuação.</p>' : '') +
           '<a class="btn btn--sm mf-acao" href="#arquitetura?tr=1&item=' + encodeURIComponent(j.representadoPor.id) + '">Ir para a atuação</a></div>';
       }
-      return '<div class="mf-jornada">' + trilhaHtml(j) + acaoHtml(j) + '</div>';
+      return '<div class="mf-jornada">' + trilhaHtml(j, null, x.origem === ORIGEM_PORTA2 ? null : x.itemId) + acaoHtml(j) + '</div>';
     }
     function situacaoCurta(x) {
       var j = jornadas[x.itemId];
@@ -783,6 +791,7 @@
       return '<li class="mf-item mf-linha" data-item="' + esc(x.itemId) + '" data-situacao="' + esc(x.situacao) + '"' + (j && j.representadoPor ? ' data-representado="1"' : '') + '>' +
         '<a class="mf-linha-abrir" href="#arquitetura?tr=1&item=' + encodeURIComponent(x.itemId) + '"><span class="mf-linha-texto"><span class="mf-linha-nome">' + esc(x.nome) + '</span>' +
         '<span class="mf-linha-tipo">' + tipo + (x.objeto && x.objeto.situacao === 'encerrado' ? ' · encerrada' : '') + '</span>' +
+        (x.origem !== ORIGEM_PORTA2 && x.situacao !== 'sem-base' && x.situacao !== 'verificando' ? '<span class="mf-linha-natureza">Natureza: <span data-ro-etapa="' + esc(x.itemId) + '"></span></span>' : '') +
         '<span class="mf-linha-situacao" data-jornada="' + esc(j ? (j.representadoPor ? 'representado' : j.completa ? 'completa' : j.analise ? 'analise' : j.encerrada ? 'encerrada' : j.disponivel ? 'disponivel' : 'proximo') : '') + '">' + esc(situacaoCurta(x)) + '</span></span>' +
         '<span class="mf-linha-abre" aria-hidden="true">›</span></a></li>';
     }

@@ -116,7 +116,7 @@
     var pend = function (sel, tipo, attr) {
       Array.prototype.forEach.call(document.querySelectorAll(sel), function (el) { if (ja.indexOf(el) === -1) montar(el, tipo, attr ? el.getAttribute(attr) : null); });
     };
-    pend('[data-ro-secao]', 'secao', 'data-ro-secao'); pend('[data-ro-resumo]', 'resumo', 'data-ro-resumo'); pend('[data-ro-natureza]', 'natureza', 'data-ro-natureza'); pend('[data-ro-tax]', 'tax', null);
+    pend('[data-ro-secao]', 'secao', 'data-ro-secao'); pend('[data-ro-resumo]', 'resumo', 'data-ro-resumo'); pend('[data-ro-natureza]', 'natureza', 'data-ro-natureza'); pend('[data-ro-etapa]', 'etapa', 'data-ro-etapa'); pend('[data-ro-tax]', 'tax', null);
   }
 
   /* ---------- leitura dos objetos ---------- */
@@ -131,6 +131,34 @@
     var o = porta2(id);
     if (o) return N().naturezaDoObjeto({ porta2: o });
     return N().naturezaDoObjeto({ gate: gate(id), registro: d.naturezas ? d.naturezas[id] : null, indice: d.pontas ? (d.pontas[id] || null) : null });
+  }
+  /* ESTADO DA NATUREZA (Caminho 1): o que a ficha P1–P16, a trilha dos Trabalhos e a linha da lista mostram — calculado
+     aqui, de naturezaDoObjeto, para nunca divergir entre telas. situacao: carregando | indisponivel | sem-avaliacao |
+     a-validar | direta | identificada | pendente | a-confirmar | a-identificar | nao-se-aplica. gravacao: liberada |
+     suspensa (marcador false: a identificação não pode ser registrada agora) | sem-perfil. Nada é gravado. */
+  var ROT_PEND = { recorte: 'recorte necessário', 'evidencia-insuficiente': 'evidência insuficiente', 'reavaliacao-necessaria': 'reavaliação P1–P16 necessária' };
+  function estadoNatureza(id) {
+    var grav = d.marcador === true ? (perfilManter() ? 'liberada' : 'sem-perfil') : 'suspensa';
+    var e = function (situacao, texto, extra) { var o = { situacao: situacao, texto: texto, gravacao: grav }; Object.keys(extra || {}).forEach(function (k) { o[k] = extra[k]; }); return o; };
+    if (d.marcador === undefined) return e('carregando', 'Verificando…');
+    if (!ativo()) return e('indisponivel', 'Identificação da natureza indisponível no momento.');
+    if (!dadosProntos()) return e('carregando', 'Verificando…');
+    if (d.naturezas === null || d.produtos === null || d.pontas === null) return e('indisponivel', 'Não foi possível ler a natureza agora.');
+    if (porta2(id)) return e('nao-se-aplica', 'Responsabilidade organizacional (Porta 2)');
+    var nat = natureza(id), reg = d.naturezas ? d.naturezas[id] : null;
+    if (nat.natureza && !nat.registrada) return e('direta', rotuloNatureza(nat.natureza), { natureza: nat.natureza });
+    if (nat.natureza) return e('identificada', 'Identificada: ' + rotuloNatureza(nat.natureza), { natureza: nat.natureza });
+    if (nat.motivo === 'IDENTIFICACAO_PENDENTE') return e('pendente', 'Pendente: ' + (ROT_PEND[reg && reg.pendencia && reg.pendencia.motivo] || 'a resolver'), { motivoPendencia: reg && reg.pendencia && reg.pendencia.motivo });
+    if (nat.motivo === 'NATUREZA_A_CONFIRMAR') return e('a-confirmar', 'A confirmar para a versão vigente');
+    if (nat.motivo === 'NATUREZA_NAO_REGISTRADA') return e('a-identificar', grav === 'suspensa' ? 'A identificar (registro suspenso no momento)' : 'A identificar');
+    if (nat.motivo === 'A_VALIDAR' || nat.motivo === 'DECISAO_INCOERENTE') return e('a-validar', 'Pendente: a classificação ficou "A validar"');
+    if (nat.motivo === 'VERIFICANDO') return e('carregando', 'Verificando…');
+    if (nat.motivo === 'SEM_AVALIACAO_VALIDA' || nat.motivo === 'VERSAO_VIGENTE_NAO_CONFIRMADA') return e('sem-avaliacao', 'Sem Avaliação de Produto/Serviço válida e atual');
+    return e('nao-se-aplica', 'Não se aplica');
+  }
+  function etapaHtml(id) {
+    var x = estadoNatureza(id);
+    return '<span class="ro-etapa" data-situacao="' + esc(x.situacao) + '" data-gravacao="' + esc(x.gravacao) + '">' + esc(x.texto) + '</span>';
   }
   function nomeObjeto(id) {
     var o = porta2(id); if (o) return o.nome || id;
@@ -264,7 +292,10 @@
           : reg.pendencia ? 'pendente — ' + esc(ROT_MOTIVO[reg.pendencia.motivo] || reg.pendencia.motivo) + ': ' + esc(reg.pendencia.justificativa) : '—') +
         ' <span class="ro-det">(' + esc((reg.registradaPor && reg.registradaPor.email) || '') + (reg.registradaEm ? ', ' + quando(reg.registradaEm) : '') + '; fica no histórico)</span></p></div>';
     } else {
-      h += '<p class="ro-natureza ro-natureza--pendente" id="roNatureza" data-motivo="' + esc(nat.motivo) + '">' + esc(nat.motivo === 'NATUREZA_NAO_REGISTRADA' ? 'Natureza arquitetural ainda não identificada.' : (MOTIVO_NAT[nat.motivo] || nat.motivo)) + '</p>';
+      var txtNat = nat.motivo === 'NATUREZA_NAO_REGISTRADA' ? 'Natureza arquitetural ainda não identificada.'
+        : nat.motivo === 'A_VALIDAR' ? 'A natureza ainda não pode ser identificada: o resultado da avaliação ficou "A validar". Próximo passo: reavaliar as respostas indicadas na classificação (ou recortar o objeto, se ele reúne coisas diferentes) — ou registrar a decisão final.'
+        : (MOTIVO_NAT[nat.motivo] || nat.motivo);
+      h += '<p class="ro-natureza ro-natureza--pendente" id="roNatureza" data-motivo="' + esc(nat.motivo) + '">' + esc(txtNat) + '</p>';
       if (nat.motivo !== 'NATUREZA_NAO_REGISTRADA' && nat.motivo !== 'NATUREZA_A_CONFIRMAR') return h;
     }
     var dif = I() && cam ? I().diferenciacao(cam) : null;
@@ -281,7 +312,9 @@
       return '<dt>' + esc(rotuloNatureza(a.natureza)) + '</dt><dd data-natureza="' + esc(a.natureza) + '">' + (c.defTexto ? esc(c.defTexto) : '<span class="ro-det">Ainda sem definição oficial na Taxonomia.</span>') + '</dd>';
     }).join('') + '</dl></div>';
     if (dif.exemplos) h += '<p class="ro-ajuda" id="roIdentExemplos">' + esc(dif.exemplos) + '</p>';
-    if (!manter) return h + '<p class="ro-ajuda">Quem identifica: Avaliação + Configuração ou administração geral.</p></div>';
+    if (!manter) return h + (perfilManter() && d.marcador === false
+      ? '<p class="ro-ajuda ro-suspensa" id="roIdentSuspensa" role="status">O registro da natureza está suspenso no momento, por decisão administrativa. A avaliação P1–P16 continua salva; quando o registro for liberado, a identificação poderá ser feita aqui. Até lá, use a orientação acima para preparar a justificativa.</p>'
+      : '<p class="ro-ajuda">Quem identifica: Avaliação + Configuração ou administração geral.</p>') + '</div>';
     h += '<fieldset class="ro-ident-alternativas"><legend>O objeto avaliado é…</legend>' + dif.alternativas.map(function (a) {
       var ok = !a.natureza || N().conceitoValido(a.natureza, conceitoInfo(a.natureza));
       return '<label class="ro-ident-alt' + (a.pendencia ? ' ro-ident-alt--pendencia' : '') + '"><input type="radio" name="roIdentAlt" value="' + esc(a.valor) + '"' + (f.alt === a.valor ? ' checked' : '') + (ok ? '' : ' disabled') + '> ' +
@@ -510,6 +543,7 @@
       if (a) a.addEventListener('click', function (ev) { if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey || !window.faNav) return; ev.preventDefault(); window.faNav.ir(a.getAttribute('href')); });
     } else if (m.tipo === 'tax') { m.el.innerHTML = taxHtml(); ligarTax(m.el); }
     else if (m.tipo === 'natureza') { m.el.innerHTML = naturezaFichaHtml(m.objetoId); ligarSecao(m.el, m.objetoId); }
+    else if (m.tipo === 'etapa') m.el.innerHTML = etapaHtml(m.objetoId);
   }
   function desenharMontadosDoObjeto(id) { montados.filter(function (m) { return m.el.isConnected && m.objetoId === id; }).forEach(desenhar); }
   function montar(el, tipo, objetoId) {
@@ -527,13 +561,16 @@
     Array.prototype.forEach.call(raiz.querySelectorAll('[data-ro-secao]'), function (el) { montar(el, 'secao', el.getAttribute('data-ro-secao')); });
     Array.prototype.forEach.call(raiz.querySelectorAll('[data-ro-resumo]'), function (el) { montar(el, 'resumo', el.getAttribute('data-ro-resumo')); });
     Array.prototype.forEach.call(raiz.querySelectorAll('[data-ro-natureza]'), function (el) { montar(el, 'natureza', el.getAttribute('data-ro-natureza')); });
+    Array.prototype.forEach.call(raiz.querySelectorAll('[data-ro-etapa]'), function (el) { montar(el, 'etapa', el.getAttribute('data-ro-etapa')); });
   }
   function montarTaxonomia(el) { if (el) montar(el, 'tax', null); }
 
   window.faRelacoesObjetos = Object.freeze({
     montarHosts: montarHosts, montarTaxonomia: montarTaxonomia,
     /* para testes e diagnóstico: o que a tela calcula, sem gravar nada */
-    naturezaDe: function (id) { return natureza(id); }, disponivel: function () { return ativo(); }
+    naturezaDe: function (id) { return natureza(id); }, disponivel: function () { return ativo(); },
+    /* Caminho 1: o estado da natureza de um item (o mesmo da ficha e dos Trabalhos) */
+    estadoNatureza: function (id) { return estadoNatureza(id); }
   });
   /* chegou depois do login? liga já (os eventos de sessão podem ter passado) e monta o que as telas já desenharam */
   aoMudarSessao();

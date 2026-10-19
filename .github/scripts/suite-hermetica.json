@@ -765,6 +765,12 @@
       "sobre": "Encerrar e Excluir lado a lado, com a diferença explicada; exclusão comum com motivo (o cadastro sai, ficam registro mínimo e evento); já avaliada: só o admin geral, com dependências à vista e confirmação explícita, e a ficha e a lista do Posicionamento mostram \"Cadastro excluído\" sem perder a avaliação; bloqueios por estrutura responsável ativa e rascunho aberto; responsabilidade só de texto sai da análise, citada em proposta é bloqueada, com cadastro leva à ficha dele; análise vazia excluída; análise com conteúdo só pelo admin geral; perfil de consulta sem botões; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-caminho1.js",
+      "nome": "Caminho 1: objeto arquitetural de ponta a ponta (P1–P16 → natureza → próximo passo), desktop e 375 px",
+      "duracao": 150,
+      "sobre": "Nova avaliação com etapas, progresso e prévia do resultado (do próprio motor, regra v7); identificação da natureza na própria ficha com definições oficiais e justificativa; o mesmo estado nas etapas da ficha, na trilha e na linha dos Trabalhos; Próximo passo: continuar (responsabilidade própria? Sim → O1–O9 e volta; Não → não precisa) ou concluir por aqui; diretas (Produto/Serviço, Canal, Componente, Capacidade); técnicas (Processo × Etapa, Informação × Documento, Modalidade × Subproduto × Opção, Regra → reavaliação); evidência insuficiente; dois testes SIM e P5 × P13; versão anterior \"a confirmar\" e reconfirmação; F5; registro suspenso, recusado e perfil de consulta; Excel e PDF; Porta 2 e Squad intocadas; proposta editorial aplicada vira versão nova, avaliação antiga mantém a sua, motor igual."
+    },
+    {
       "arquivo": ".github/scripts/teste-analises-exclusao-lista.js",
       "nome": "Análises Organizacionais: excluir pela lista (menu ⋯) e pelo botão de dentro, com o foco certo, desktop e 375 px",
       "duracao": 70,

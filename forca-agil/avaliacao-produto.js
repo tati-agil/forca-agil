@@ -633,7 +633,7 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   }
-  function semPrefixo(s) { return String(s || '').replace(/^(SIM|NÃO)\s*—\s*/, ''); }
+  function semPrefixo(s) { if (Array.isArray(s)) return s.join('; '); /* exemplos: lista */ return String(s || '').replace(/^(SIM|NÃO)\s*—\s*/, ''); }
   function fmtData(iso) {
     if (!iso) return '—';
     var d = new Date(iso);
@@ -1856,7 +1856,7 @@
     if (!naturezasExport.ok) return { natureza: '', situacao: 'Não foi possível ler a identificação agora', fundamento: '', base: '' };
     var reg = naturezasExport.mapa[it.itemId || it._key];
     if (!reg) return { natureza: '', situacao: 'Não identificada', fundamento: '', base: '' };
-    if (reg.avaliacaoId !== it._key) return { natureza: '', situacao: 'Registrada para outra versão da avaliação', fundamento: '', base: reg.avaliacaoId || '' };
+    if (reg.avaliacaoId !== it._key) return { natureza: '', situacao: 'A confirmar (identificada em outra versão da avaliação)', fundamento: '', base: reg.avaliacaoId || '' };
     if (reg.natureza) return { natureza: nomeNat(reg.natureza), situacao: reg.camada === camada ? 'Identificada' : 'A confirmar (a classificação mudou)',
       fundamento: reg.fundamento ? (reg.fundamento.rotulo + ' — ' + reg.fundamento.justificativa) : 'Registrada sem fundamento (registro anterior)', base: reg.avaliacaoId };
     if (reg.pendencia) return { natureza: '', situacao: 'Pendente — ' + (ROT_PENDENCIA[reg.pendencia.motivo] || reg.pendencia.motivo),
@@ -7313,12 +7313,62 @@
     }
 
     /* ===================== CHECKLIST ===================== */
+    /* ===================== CAMINHO 1 — a jornada do objeto arquitetural, de ponta a ponta =====================
+       Objeto → Perguntas P1–P16 → Classificação → Natureza (só quando a classificação agrupa naturezas) → Próximo passo
+       (concluir por aqui ou continuar a jornada organizacional). As etapas são as MESMAS no questionário e na ficha; a
+       natureza vem de relacoes-objetos.js ([data-ro-etapa] e [data-ro-natureza]), a mesma conta dos Trabalhos. O motor não
+       muda: a prévia roda computeResultado, a mesma função da conclusão, sobre as respostas da tela, sem gravar nada. */
+    var PERGUNTAS_TESTE = ['P9', 'P10', 'P11', 'P12', 'P13', 'P14', 'P15', 'P16'], DEPENDENCIA = ['P13', 'P14', 'P15', 'P16'];
+    function simCodigo(a, cod) { var def = TODAS_PERGUNTAS.filter(function (p) { return p.codigoEstavel === cod; })[0]; return !!(def && a.respostas[def.id] && a.respostas[def.id].valor === 'sim'); }
+    function etapasHtml(fase, a, extra) {
+      extra = extra || {};
+      var it = function (estado, num, rotulo, det) {
+        return '<li class="avp-etapa avp-etapa--' + estado + '"' + (estado === 'atual' ? ' aria-current="step"' : '') + '><span class="avp-etapa-num" aria-hidden="true">' + (estado === 'ok' ? '✓' : num) + '</span>' +
+          '<span class="avp-etapa-txt"><span class="avp-etapa-rot">' + rotulo + '</span>' + (det ? '<span class="avp-etapa-det">' + det + '</span>' : '') + '</span></li>';
+      };
+      var h = '<ol class="avp-etapas" id="avpEtapas" aria-label="Etapas da avaliação do objeto">';
+      if (fase === 'checklist') {
+        var n = TODAS_PERGUNTAS.filter(function (p) { return respostaValida(p, a); }).length;
+        h += it((a.nome || '').trim() ? 'ok' : 'atual', 1, 'Objeto', (a.nome || '').trim() ? esc(a.nome) : 'nome e descrição') +
+          it((a.nome || '').trim() ? 'atual' : 'futuro', 2, 'Perguntas P1–P16', n + ' de ' + TODAS_PERGUNTAS.length + ' respondidas') +
+          it('futuro', 3, 'Classificação', 'ao concluir') + it('futuro', 4, 'Natureza', 'quando a classificação agrupa naturezas') + it('futuro', 5, 'Próximo passo', 'concluir por aqui ou continuar');
+      } else {
+        var item = a.itemId || a._key;
+        h += it('ok', 1, 'Objeto', esc(a.nome || '')) + it('ok', 2, 'Perguntas P1–P16', 'respondidas') +
+          it('ok', 3, 'Classificação', htmlNomeCamada(a.camadaSugerida || camadaPorId('a-validar'))) +
+          it(extra.vigente ? 'atual' : 'futuro', 4, 'Natureza', extra.vigente ? '<span data-ro-etapa="' + esc(item) + '"></span>' : 'identificada na versão vigente') +
+          it('futuro', 5, 'Próximo passo', 'concluir por aqui ou continuar');
+      }
+      return h + '</ol>';
+    }
+    /* o que o motor vai concluir com as respostas da tela (só quando todas são válidas) */
+    function previaCaminhoHtml(a) {
+      var faltam = TODAS_PERGUNTAS.filter(function (p) { return !respostaValida(p, a); }).length;
+      if (faltam) return '<div class="avp-form-card avp-previa" id="avpPrevia" data-situacao="incompleta"><h4>Prévia do resultado</h4><p class="avp-natureza-ajuda">Responda as ' + faltam + ' pergunta' + (faltam === 1 ? '' : 's') + ' que falta' + (faltam === 1 ? '' : 'm') + ' para ver aqui o que o sistema vai concluir.</p></div>';
+      var c;
+      try { c = computeResultado(a).camadaSugerida; } catch (e) { return ''; }
+      var id = c && c.id, C = window.faClassificacoes, NA = window.faNaturezasArquiteturais;
+      var h = '<div class="avp-form-card avp-previa" id="avpPrevia" data-camada="' + esc(id || '') + '"><h4>Prévia do resultado</h4>' +
+        '<p>Com estas respostas, a classificação será: <strong>' + htmlNomeCamada(c) + '</strong>.</p>';
+      if (id === 'a-validar') {
+        var linhas = c.tipoAValidar ? linhasDetalheAValidarV7(c) : (c.motivos || []);
+        h += '<ul class="avp-previa-motivos">' + linhas.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' +
+          '<p class="avp-natureza-ajuda" id="avpPreviaAValidar">Revise as perguntas indicadas. Se o objeto reúne coisas diferentes, avalie cada parte como um item próprio. Você também pode concluir assim: o resultado fica "A validar" e a natureza fica pendente, sem nada ser classificado à força.</p>';
+      } else if (C && C.ehTecnica && C.ehTecnica(id) && NA) {
+        var nats = (NA.naturezasDaClassificacao(id) || []).map(function (n) { return C.nomeNatureza ? C.nomeNatureza(n) : n; });
+        h += '<p class="avp-natureza-ajuda" id="avpPreviaTecnica">É uma classificação técnica que agrupa naturezas. Depois de concluir, na própria ficha, você identifica qual delas descreve o objeto: ' + esc(listaComE(nats)) + (id === 'regra-condicao' ? ' (quem for, na verdade, uma Opção é encaminhado para reavaliação)' : '') + '.</p>';
+      } else {
+        h += '<p class="avp-natureza-ajuda" id="avpPreviaDireta">Esta classificação já identifica a natureza do objeto: não é preciso outra identificação.</p>';
+      }
+      return h + '<p class="avp-previa-nota">Prévia: nada foi gravado. O resultado vale quando você concluir.</p></div>';
+    }
     function renderChecklist() {
       var a = state.atual;
       var base = state.reavaliacaoBase;
       var reavaliando = !!base;
       var html = '<div class="avp-checklist">';
       html += '<button class="avp-voltar-link" id="avpVoltarLista">' + esc(rotuloVoltar()) + '</button>';
+      html += etapasHtml('checklist', a);
       html += '<div class="avp-form-card">';
       html += '<h3>' + esc(reavaliando ? 'Reavaliação — v' + a.versao : (a._key ? 'Editando avaliação' : 'Nova avaliação')) + '</h3>';
       if (reavaliando) {
@@ -7345,25 +7395,38 @@
          forma independente de outro Produto/Serviço" (autonomia) não podem
          ser SIM ao mesmo tempo — quando isso acontece, destaca as duas
          perguntas em vez de deixar o resultado final ser a única pista. */
-      var incoerenciaAtual = !!(a.respostas.autonomia && a.respostas.autonomia.valor === 'sim' &&
-        a.respostas.funcionalidade && a.respostas.funcionalidade.valor === 'sim');
+      /* incoerência e conflito vêm do PRÓPRIO motor (a regra publicada, qualquer versão), rodado sobre as respostas da tela
+         (não marcadas contam como NÃO): na v7, P5 = SIM com SIM em qualquer de P13–P16 é incoerência, e SIM em dois testes é
+         conflito ou recorte — mas a tela nunca afirma isso por conta própria */
+      var prevC = null;
+      try { prevC = computeResultado(a).camadaSugerida; } catch (e) { prevC = null; }
+      var incoerenciaAtual = !!(prevC && (prevC.tipoAValidar === 'incoerencia' || prevC.incoerencia));
+      var dependenciasSim = incoerenciaAtual ? DEPENDENCIA.filter(function (cod) { return simCodigo(a, cod); }) : [];
+      var testesSim = PERGUNTAS_TESTE.filter(function (cod) { return simCodigo(a, cod); });
+      var conflitoTestes = testesSim.length > 1 && !!(prevC && prevC.id === 'a-validar' && !incoerenciaAtual);
 
       html += '<h3 class="avp-secao-titulo">CRITÉRIOS PRINCIPAIS</h3>';
       html += '<p class="avp-secao-subtitulo">Perguntas 1 a ' + CRITERIOS.length + '</p>';
       html += '<div class="avp-criterios">';
       CRITERIOS.forEach(function (c) {
-        html += renderPergunta(c, a.respostas[c.id], base && base.respostas[c.id], incoerenciaAtual && c.id === 'autonomia');
+        html += renderPergunta(c, a.respostas[c.id], base && base.respostas[c.id], incoerenciaAtual && c.codigoEstavel === 'P5');
       });
       html += '</div>';
 
       html += '<div class="avp-exclusao-section">';
       html += '<h3 class="avp-exclusao-titulo">TESTES DE CLASSIFICAÇÃO</h3>';
       html += '<p class="avp-secao-subtitulo">Perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</p>';
-      html += '<p class="avp-exclusao-intro">Agora verifique se o item é, na realidade, outro tipo de elemento arquitetural.</p>';
+      html += '<p class="avp-exclusao-intro">Agora verifique se o item é, na realidade, outro tipo de elemento arquitetural. Marque SIM somente na pergunta que melhor descreve o que o objeto é.</p>';
       EXCLUSOES.forEach(function (e) {
-        html += renderPergunta(e, a.respostas[e.id], base && base.respostas[e.id], incoerenciaAtual && e.id === 'funcionalidade');
+        html += renderPergunta(e, a.respostas[e.id], base && base.respostas[e.id], incoerenciaAtual && dependenciasSim.indexOf(e.codigoEstavel) !== -1);
       });
+      if (conflitoTestes) html += '<div class="avp-form-card avp-aviso-testes" id="avpAvisoTestes" role="status"><p>⚠ Você marcou SIM em ' + testesSim.length + ' testes (perguntas ' +
+        esc(testesSim.map(function (cod) { return numeroGlobal(TODAS_PERGUNTAS.filter(function (p) { return p.codigoEstavel === cod; })[0]); }).join(', ')) +
+        '). Com essas respostas, o resultado fica "A validar": os testes são exclusivos entre si, e o objeto parece reunir coisas diferentes.</p>' +
+        (prevC.tipoAValidar ? '<ul class="avp-previa-motivos">' + linhasDetalheAValidarV7(prevC).map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' : '') +
+        '<p>Confira se cada SIM é mesmo o que o objeto é — ou avalie cada parte como um item próprio.</p></div>';
       html += '</div>';
+      html += previaCaminhoHtml(a);
 
       if (reavaliando) {
         var alteracoes = calcularAlteracoesReavaliacao(a, base);
@@ -7503,6 +7566,9 @@
         quandoCompatibilidadePronta(function () { salvarRegistro('concluido', function (payload, key) {
           state.salvando = null;
           state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
+          /* a ficha que abre agora é a do registro SALVO (concluído, com a chave): sem isso ela mostrava o formulário em
+             memória, sem o status — e a etapa da natureza e o próximo passo só apareciam ao reabrir a ficha */
+          var salvo = buscarItem(key); if (salvo) state.atual = clonarItem(salvo);
           state.decisaoForm = decisaoFormInicial(payload);
           state.especializacaoForm = especializacaoFormInicial(payload);
           state.reavaliacaoBase = null;
@@ -7540,7 +7606,7 @@
       var html = '<div class="avp-question' + essencialClass + pendenteClass + incoerenteClass + '" id="avpQuestion-' + def.id + '">';
       if (pendenteClass) html += '<p class="avp-field-invalid-msg">Responda esta pergunta antes de concluir.</p>';
       if (incoerente) {
-        html += '<p class="avp-field-invalid-msg avp-incoerencia-msg">⚠ Contradiz outra resposta do questionário (autonomia x funcionalidade). Revise.</p>';
+        html += '<p class="avp-field-invalid-msg avp-incoerencia-msg">⚠ Contradiz outra resposta do questionário: autonomia (pergunta 5) × algo que só existe dentro de outro Produto/Serviço (perguntas 13 a 16). Revise.</p>';
       }
       html += '<div class="avp-question-head">';
       html += '<span class="avp-question-num">' + numeroGlobal(def) + '.</span>';
@@ -7853,6 +7919,45 @@
       return html;
     }
 
+    /* PRÓXIMO PASSO: a pessoa escolhe. Concluir por aqui (nada a gravar: a avaliação já está salva; a natureza pendente
+       continua pendente e isso é dito) ou continuar a jornada organizacional — uma decisão a mais, nunca consequência da
+       classificação: só quando há responsabilidade organizacional própria; leva ao O1–O9 de sempre (Porta 1), com volta para
+       esta ficha; nada é cadastrado (estrutura, Squad, vínculo). A resposta fica guardada por item, nesta sessão. */
+    function proximoPassoHtml(a) {
+      var item = a.itemId || a._key, resp = state.jornadaResp && state.jornadaResp[item];
+      var h = '<section class="avp-secao avp-proximo" id="avpSecaoProximo" aria-labelledby="avpProximoTitulo"><h3 class="avp-secao-titulo" id="avpProximoTitulo" tabindex="-1">Próximo passo</h3>';
+      h += '<p class="avp-natureza-ajuda">A avaliação P1–P16 está concluída e salva. Agora você escolhe: encerrar aqui ou continuar a jornada organizacional. Se a natureza ainda estiver pendente ou a identificar, ela continua em aberto — e aparece assim nos Trabalhos — até ser resolvida.</p>';
+      h += '<div class="avp-proximo-opcoes">';
+      h += '<div class="avp-form-card avp-proximo-opcao" id="avpOpcaoConcluir"><h4>Concluir por aqui</h4>' +
+        '<p>O resultado fica disponível nos Trabalhos, para consulta ou retomada. Não é preciso fazer o Posicionamento, cadastrar estrutura, avaliar Squad nem chegar ao Mapa para considerar esta avaliação encerrada.</p>' +
+        '<a class="btn btn--primary" id="avpConcluirPorAqui" href="#arquitetura?tr=1&item=' + encodeURIComponent(item) + '">Concluir por aqui</a></div>';
+      h += '<div class="avp-form-card avp-proximo-opcao" id="avpOpcaoContinuar"><h4>Continuar a jornada organizacional</h4>' +
+        '<p>É uma decisão a mais, não uma consequência da classificação. Faz sentido quando existe uma responsabilidade organizacional própria por este objeto e é preciso recomendar que tipo de estrutura deve assumi-la (Posicionamento O1–O9). Nada é cadastrado automaticamente: nem estrutura, nem Squad, nem vínculo.</p>' +
+        '<fieldset class="avp-proximo-pergunta"><legend>Este objeto tem uma responsabilidade organizacional própria, que precisa ser posicionada?</legend>' +
+        [['sim', 'Sim'], ['nao', 'Não'], ['naosei', 'Ainda não sei']].map(function (o) {
+          return '<label class="avp-decisao-option"><input type="radio" name="avpJornadaResp" id="avpJornada_' + o[0] + '" value="' + o[0] + '"' + (resp === o[0] ? ' checked' : '') + '> ' + o[1] + '</label>';
+        }).join('') + '</fieldset>';
+      if (resp === 'sim') {
+        h += modo === 'operacional' && podeDecidir()
+          ? '<p class="avp-natureza-ajuda" id="avpJornadaSimTxt">Você vai para o Posicionamento Organizacional deste objeto (pela Porta 1, a partir desta avaliação). Ao terminar ou desistir, "Voltar" traz você de volta a esta ficha.</p><button type="button" class="btn btn--primary" id="avpPosicionarBtn">Ir para o Posicionamento Organizacional (O1–O9)</button>'
+          : '<p class="avp-natureza-ajuda" id="avpJornadaSemPerfil">O Posicionamento Organizacional é registrado pelo perfil Avaliação + Configuração ou pela administração geral. Você pode acompanhar o registro deste item nos Trabalhos.</p>';
+      } else if (resp === 'nao') {
+        h += '<p class="avp-natureza-ajuda" id="avpJornadaNaoTxt">Então não é preciso fazer o O1–O9 para este objeto: nem todo Produto/Serviço, Componente, Processo ou Funcionalidade precisa de um posicionamento próprio. A avaliação arquitetural está concluída — use "Concluir por aqui".</p>';
+      } else if (resp === 'naosei') {
+        h += '<p class="avp-natureza-ajuda" id="avpJornadaNaoSeiTxt">Se quem responde por este objeto é a mesma estrutura que responde pelo Produto/Serviço ao qual ele pertence, normalmente não é preciso posicioná-lo separadamente. Se não der para dizer agora, conclua por aqui: a continuação pode ser feita depois, a partir dos Trabalhos.</p>';
+      }
+      return h + '</div></div></section>';
+    }
+    function ligarProximoPasso(a) {
+      var item = a.itemId || a._key;
+      Array.prototype.forEach.call(wrap.querySelectorAll('input[name="avpJornadaResp"]'), function (rb) {
+        rb.addEventListener('change', function () {
+          state.jornadaResp = state.jornadaResp || {}; state.jornadaResp[item] = rb.value; render();
+          var alvo = document.getElementById('avpJornada_' + rb.value); if (alvo) alvo.focus({ preventScroll: true });
+        });
+      });
+      if (window.faNav) window.faNav.ligarLinks(wrap, '#avpConcluirPorAqui');
+    }
     function renderResultado() {
       var a = state.atual;
       var cadeia = cadeiaDeVersoes(a);
@@ -7878,6 +7983,7 @@
           '<button type="button" class="btn btn--sm" id="avpAbrirVigente" data-key="' + esc(cabecaVigente._key) + '">Abrir a versão vigente (v' + (cabecaVigente.versao || 1) + ')</button></div>';
       }
       html += renderCabecalhoFicha(a, vigente);
+      var noCaminho = a.status === 'concluido' && !a.excluido;
 
       var camada = a.camadaSugerida || camadaPorId('a-validar');
       var editavel = podeDecidir() && vigente;
@@ -7935,8 +8041,6 @@
       /* E1: a primeira pergunta (o que é) não determina estrutura nem posicionamento */
       html += '<p class="avp-alt-outras" id="avpNaturezaNaoEstrutura">A classificação diz o que o objeto é. Ela não define a estrutura organizacional nem o posicionamento.</p>';
       html += '<p class="avp-alt-outras ro-resumo-linha" data-ro-resumo="' + esc(a.itemId || a._key) + '"></p>'; /* E4: "Relaciona-se com N objetos" (só leitura) */
-      /* natureza arquitetural do objeto: identificada, pendente ou ainda não identificada (identificação orientada) */
-      if (a.status === 'concluido' && !a.excluido) html += '<div class="avp-natureza-host" data-ro-natureza="' + esc(a.itemId || a._key) + '"></div>';
       var espDerivadaTela = especializacaoDerivada(a);
       if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
       if (camada.tipoAValidar) {
@@ -7964,6 +8068,20 @@
       html += '</details>';
       html += '</div>';
       html += '</section>';
+
+      /* 1b — NATUREZA DO OBJETO (Caminho 1): logo depois da classificação, na própria ficha — nunca escondida em outra tela.
+         Classificação que já é natureza → mostrada; classificação técnica → identificação orientada aqui mesmo; "A validar"
+         → pendência com o próximo passo. A gravação é a de relacoes-objetos.js (marcador e regras do banco). */
+      if (noCaminho) {
+        html += etapasHtml('ficha', a, { vigente: vigente }); /* onde a pessoa está: depois do resultado, antes da natureza */
+        html += '<section class="avp-secao" id="avpSecaoNatureza" aria-labelledby="avpSecaoNaturezaTitulo">';
+        html += '<h3 class="avp-secao-titulo" id="avpSecaoNaturezaTitulo">Natureza do objeto</h3>';
+        html += '<p class="avp-natureza-ajuda">A classificação acima é o que o motor concluiu. Aqui fica o que o objeto é, entre as 15 naturezas arquiteturais da Taxonomia: quando a classificação já é uma natureza, ela aparece direto; quando agrupa naturezas, a identificação é feita aqui, com as definições oficiais e a sua justificativa.</p>';
+        html += vigente ? '<div class="avp-natureza-host" data-ro-natureza="' + esc(a.itemId || a._key) + '"></div>'
+          : '<p class="avp-natureza-ajuda" id="avpNaturezaVersaoAnterior">Esta é uma versão anterior: a natureza é identificada na versão vigente deste item.</p>';
+        html += '</section>';
+        if (vigente) html += proximoPassoHtml(a);
+      }
 
       /* 2 — O QUE UMA PESSOA COMPLEMENTOU: Curadoria (só informação humana). */
       html += '<section class="avp-secao" id="avpSecaoCuradoria">';
@@ -8002,9 +8120,6 @@
          Organizacional deste item é outra avaliação (só quem grava O1–O9: Avaliação + Configuração, admin geral). */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
       html += '<button class="avp-voltar-link" id="avpVoltarListaRodape">' + esc(rotuloVoltar()) + '</button>';
-      if (modo === 'operacional' && podeDecidir() && vigente && a.status === 'concluido' && a.excluido !== true) {
-        html += '<button class="btn" id="avpPosicionarBtn">Posicionamento Organizacional deste item</button>';
-      }
       /* PR 4: a jornada do item (etapas e próximo passo; também mostra se ele é referência de uma atuação da Porta 2) */
       if (modo === 'operacional' && a.status === 'concluido' && a.excluido !== true) html += '<a class="btn" id="avpVerJornadaBtn" href="#arquitetura?tr=1&item=' + encodeURIComponent(a.itemId || a._key) + '">Ver o registro deste item</a>';
       html += '</div>';
@@ -8130,6 +8245,7 @@
 
       var reavaliarBtn = document.getElementById('avpReavaliarBtn');
       if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { pedirReavaliacao(a._key); });
+      ligarProximoPasso(a);
       var posicionarBtn = document.getElementById('avpPosicionarBtn');
       if (posicionarBtn) posicionarBtn.addEventListener('click', function () {
         var dest = '#arquitetura?po=escolher&item=' + encodeURIComponent(a.itemId || a._key);

@@ -778,6 +778,94 @@
         { pergunta: 'O6', campo: 'textoAjuda.quandoNao', de: null,
           para: 'A estrutura é responsável pelo serviço que se acessa pelo canal, e não pelo canal em si; ou o canal é exclusivo de uma só solução (veja a O5).' }
       ]
+    },
+    /* PROPOSTA editorial do CAMINHO 1 (19/10/2026) — AGUARDA a aprovação da responsável: nada é publicado sozinho; só o
+       botão "Aplicar" do cartão, no ADMIN, cria a nova versão do questionário. Nenhuma pergunta muda de sentido, nenhuma
+       interpretação automática (SIM/NÃO) muda e NENHUMA regra do motor muda (motor-arquitetura-config continua na versão
+       publicada; teste-caminho1-ajudas-p1-p16.js confere). O que muda: P9–P14 e P16 ganham o que P1–P8 e P15 já tinham —
+       "o que estamos investigando", "quando marcar SIM", "quando marcar NÃO" e um exemplo com contraexemplo —, escritos a
+       partir das definições oficiais da Taxonomia Arquitetural (nenhuma definição nova) e do comportamento REAL da regra
+       publicada: os testes 9–16 são mutuamente exclusivos (SIM em dois ou mais → "A validar") e SIM em P5 com SIM em
+       P13–P16 é incoerência. P14 deixa de citar "regime tributário" entre os exemplos (a escolha entre regimes é Opção,
+       pergunta 13, segundo a definição oficial de Opção); P5 passa a avisar da incoerência com P13–P16. */
+    {
+      id: 'caminho1-ajudas-p1-p16',
+      codigo: 'CLASSIFICACAO_ARQUITETURAL',
+      titulo: 'Ajudas completas de P9–P16 e aviso de incoerência em P5 (Caminho 1)',
+      descricao: 'Proposta para aprovação: P9, P10, P11, P12, P13, P14 e P16 ganham "o que estamos investigando", "quando marcar SIM", "quando marcar NÃO" e exemplo com contraexemplo, ' +
+        'a partir das definições oficiais da Taxonomia; cada uma explica que os testes 9 a 16 são exclusivos entre si. P14 deixa de citar "regime tributário" (é Opção, pergunta 13). ' +
+        'P5 avisa que SIM nela com SIM em 13 a 16 é contraditório. Nenhuma pergunta, interpretação automática ou regra do motor muda.',
+      ajustes: [
+        { pergunta: 'P5', campo: 'textoAjuda.quandoSim',
+          de: 'O item continuaria fazendo sentido como solução própria mesmo se o Produto/Serviço ao qual está relacionado deixasse de existir.',
+          para: 'O item continuaria fazendo sentido como solução própria mesmo se o Produto/Serviço ao qual está relacionado deixasse de existir. Se você marcar SIM aqui, confira as perguntas 13 a 16: algo que é forma, regra, componente ou funcionalidade de outro Produto/Serviço não tem autonomia, e as duas respostas juntas levam o resultado para "A validar".' },
+
+        { pergunta: 'P9', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se o objeto é, antes de tudo, um meio pelo qual o público acessa, interage ou se relaciona com a organização e com seus produtos, serviços e informações — o que a Taxonomia chama de Canal. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+        { pergunta: 'P9', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O objeto é o meio de acesso ou de relacionamento em si — o aplicativo, o portal, a central telefônica, o atendimento presencial —, independentemente de quais produtos ou serviços se acessam por ele.' },
+        { pergunta: 'P9', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O objeto é algo que se acessa ou se faz por meio de um canal: um Produto/Serviço, uma informação ou uma ação. Um recurso usado dentro de um produto, mesmo que fique numa tela do aplicativo, é Funcionalidade (pergunta 16), e não Canal.' },
+        { pergunta: 'P9', campo: 'exemplo', de: null,
+          para: 'É Canal: o aplicativo da PREVI. Não são Canal: "Consultar saldo" dentro do aplicativo (Funcionalidade) e o extrato mostrado nele (Informação/Documento).' },
+
+        { pergunta: 'P10', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se o objeto é, antes de tudo, um conteúdo informacional disponibilizado ao público para consulta ou conhecimento (Informação) ou um artefato com forma própria entregue a ele (Documento). A escolha entre Informação e Documento é feita depois, na identificação da natureza. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+        { pergunta: 'P10', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O que chega ao público é a informação ou o artefato em si: um extrato, um informe de rendimentos, um contracheque, um demonstrativo.' },
+        { pergunta: 'P10', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O objeto produz, usa ou exibe a informação, mas é outra coisa: o encadeamento de atividades que apura os valores é Processo (pergunta 12); a consulta feita no aplicativo é Funcionalidade (pergunta 16); o portal onde o informe aparece é Canal (pergunta 9).' },
+        { pergunta: 'P10', campo: 'exemplo', de: null,
+          para: 'É artefato informacional: o informe de rendimentos anual. Não é: a apuração dos valores que alimentam o informe (Processo).' },
+
+        { pergunta: 'P11', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se o objeto é, antes de tudo, uma aptidão que a organização precisa desenvolver e sustentar para realizar atividades, apoiar soluções e alcançar resultados — a Capacidade organizacional da Taxonomia —, e não algo entregue pronto ao público. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+        { pergunta: 'P11', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O objeto descreve algo que a organização precisa saber ou conseguir fazer de forma contínua e que serve a várias atividades ou soluções: a gestão atuarial, a gestão de dados, a segurança da informação.' },
+        { pergunta: 'P11', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O objeto é uma entrega concreta (um produto, um documento, uma funcionalidade), um encadeamento de atividades com início e fim (Processo, pergunta 12) ou um elemento que compõe um Produto/Serviço específico (Componente, pergunta 15).' },
+        { pergunta: 'P11', campo: 'exemplo', de: null,
+          para: 'É Capacidade: a gestão atuarial. Não é: o motor de cálculo do benefício de um plano (Componente).' },
+
+        { pergunta: 'P12', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se o objeto é, antes de tudo, um encadeamento de atividades no tempo que produz um resultado (Processo) ou uma parte de um processo com resultado intermediário próprio (Etapa). A escolha entre Processo e Etapa é feita depois, na identificação da natureza. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+        { pergunta: 'P12', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O objeto descreve como algo é feito: uma sequência de atividades com começo e fim, como a concessão de um benefício, a habilitação de um pensionista ou a análise de um pedido.' },
+        { pergunta: 'P12', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O objeto é o resultado que o público recebe (avalie pelas perguntas 2 e 5), a aptidão que sustenta muitos processos (Capacidade, pergunta 11) ou uma ação delimitada dentro de um Produto/Serviço (Funcionalidade/Operação, pergunta 16).' },
+        { pergunta: 'P12', campo: 'exemplo', de: null,
+          para: 'É Processo: a concessão da aposentadoria. É Etapa: a habilitação, dentro da concessão. Não é: o benefício que o participante recebe.' },
+
+        { pergunta: 'P13', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se o objeto é, antes de tudo, uma forma, um desdobramento ou uma alternativa de um Produto/Serviço que já existe, e não uma solução própria. Na Taxonomia: Modalidade (forma específica de oferta ou de utilização), Subproduto (desdobramento identificável da oferta) e Opção (alternativa que o participante escolhe entre as que uma regra permite). Qual delas é decidido depois, na identificação da natureza. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+        { pergunta: 'P13', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O objeto só existe como variação, desdobramento ou escolha dentro de um Produto/Serviço de origem e preserva a natureza essencial dele: uma forma de recebimento do benefício, o perfil de investimento de um plano, a opção tributária entre os regimes.' },
+        { pergunta: 'P13', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O objeto existe como solução própria (pergunta 5), é a norma que limita as escolhas (Regra, pergunta 14) ou é a ação de escolher dentro do produto, como "Alterar perfil de investimento" (Funcionalidade, pergunta 16).' },
+        { pergunta: 'P13', campo: 'exemplo', de: null,
+          para: 'É desta pergunta: o perfil de investimento escolhido no plano; a opção tributária. Não são: a regra que diz quem pode mudar de perfil e quando (Regra) e a tela em que a mudança é pedida (Funcionalidade).' },
+
+        { pergunta: 'P14', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se o objeto é, antes de tudo, uma norma ou condição imposta que determina elegibilidade, prazo, limite ou comportamento de outro objeto — a Regra da Taxonomia. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+        { pergunta: 'P14', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O objeto estabelece o que pode ou não pode, quando e até quanto: a carência, um limite de empréstimo, um critério de elegibilidade, o prazo para pedir o resgate.' },
+        { pergunta: 'P14', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O objeto é uma alternativa que o participante escolhe entre as que uma regra permite: isso é Opção (pergunta 13), mesmo que a escolha tenha regras próprias. Também não é Regra o processo que aplica a regra (pergunta 12) nem a funcionalidade em que ela é consultada (pergunta 16).' },
+        { pergunta: 'P14', campo: 'exemplo', de: null,
+          para: 'É Regra: a carência para pedir empréstimo. Não é Regra: a escolha do participante entre os regimes tributários (Opção, pergunta 13).' },
+        { pergunta: 'P14', campo: 'exemplos',
+          de: ['elegibilidade', 'prazo', 'limite', 'carência', 'regime tributário'],
+          para: ['elegibilidade', 'prazo', 'limite', 'carência'] },
+
+        { pergunta: 'P16', campo: 'textoAjuda.significado', de: null,
+          para: 'Investiga se o objeto é, antes de tudo, algo que se faz dentro de um Produto/Serviço: um recurso que o público usa para consultar, solicitar, contratar, alterar ou administrar algo (Funcionalidade) ou uma ação delimitada e executável dentro de uma solução maior (Operação). A escolha entre as duas é feita depois, na identificação da natureza. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+        { pergunta: 'P16', campo: 'textoAjuda.quandoSim', de: null,
+          para: 'O objeto só faz sentido dentro de outro Produto/Serviço e consiste num recurso de uso ou numa ação: consultar saldo, alterar a contribuição, simular o benefício, solicitar um resgate.' },
+        { pergunta: 'P16', campo: 'textoAjuda.quandoNao', de: null,
+          para: 'O objeto é a própria solução (pergunta 5), o conteúdo mostrado (pergunta 10) ou o meio de acesso (pergunta 9). SIM aqui junto com SIM na pergunta 5 é contraditório — algo que só existe dentro de outro Produto/Serviço não tem autonomia — e leva o resultado para "A validar".' },
+        { pergunta: 'P16', campo: 'exemplo', de: null,
+          para: 'É desta pergunta: "Simular benefício" no aplicativo do plano. Não são: o plano de previdência (Produto/Serviço) e o aplicativo (Canal).' }
+      ]
     }
   ];
   function correcaoPorId(id) { return CORRECOES_EDITORIAIS.filter(function (c) { return c.id === id; })[0] || null; }
@@ -841,7 +929,10 @@
     });
     return depois;
   }
-  function mesmoTexto(a, b) { return vazio(a) ? vazio(b) : a === b; }
+  function mesmoTexto(a, b) {
+    if (Array.isArray(a) || Array.isArray(b)) return JSON.stringify(a || null) === JSON.stringify(b || null); /* exemplos: mesma lista, mesma ordem */
+    return vazio(a) ? vazio(b) : a === b;
+  }
   function contem(lista, v) { return lista.some(function (x) { return mesmoTexto(x, v); }); }
   /* Situação de cada ajuste contra o conteúdo VIGENTE agora:
      'pendente' (o campo ainda tem um texto anterior conhecido — ou não
