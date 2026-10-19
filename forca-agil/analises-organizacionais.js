@@ -241,6 +241,7 @@
     function aplicar() {
       var an = doEndereco();
       if (!an) { fechar(); return; }
+      if (an !== 'lista') { st.flashLista = null; st.excluirLista = null; }
       if (an === 'lista' || an === 'nova') { st.tela = an; st.id = null; } else { if (st.id !== an) { st.form = null; st.abertos = {}; } st.tela = 'analise'; st.id = an; }
       st.erro = null;
       mostrar(); ligarDados(); render();
@@ -296,7 +297,9 @@
       var h = voltar(oNav ? oNav.hash : '#arquitetura', 'Voltar para ' + (oNav ? oNav.rotulo : 'A Floresta'), 'anVoltarAtuacoes') + '<h2 class="an-titulo">Análises Organizacionais</h2>' +
         '<p class="an-intro">Acompanhe as responsabilidades de cada área.</p>';
       if (a.gravar) h += '<div class="avp-actions-bar"><a class="btn btn--primary" id="anNovaBtn" href="#arquitetura?an=nova">+ Analisar uma área</a></div>';
-      var ativas = ids.filter(function (id) { return est.analises[id].situacao !== 'descartada'; }), desc = ids.length - ativas.length;
+      if (st.flashLista) h += '<p class="avp-flash-success" id="anFlashLista" role="status" tabindex="-1">' + esc(st.flashLista) + '</p>';
+      /* a que acabou de ser excluída sai da lista na hora, sem esperar a leitura do banco (que confirma logo depois) */
+      var ativas = ids.filter(function (id) { return est.analises[id].situacao !== 'descartada' && !(st.excluidasAgora || {})[id]; }), desc = ids.filter(function (id) { return est.analises[id].situacao === 'descartada'; }).length;
       /* nomes repetidos: data de abertura, situação e o código da análise distinguem uma da outra */
       var porNome = {}; ativas.forEach(function (id) { var nn = normalizado(est.analises[id].nome); porNome[nn] = (porNome[nn] || 0) + 1; });
       if (!ativas.length) h += '<p class="admin-empty" id="anListaVazia">Nenhuma análise aberta ainda.</p>';
@@ -308,10 +311,16 @@
           .filter(function (c) { return c[0]; }).map(function (c) { return c[0] + ' ' + (c[0] === 1 ? c[1] : c[2]); });
         var prox = !ks.length ? 'Adicionar responsabilidades' : (n.pronta || n.andamento || n.pendente) ? 'Continuar análise' : 'Ver resultados';
         var homonima = porNome[normalizado(x.nome)] > 1;
-        return '<li><a class="an-item" data-analise="' + esc(id) + '" href="#arquitetura?an=' + encodeURIComponent(id) + '"><span class="an-item-nome">' + esc(x.nome) + '</span>' +
+        return '<li class="an-item-li" id="anItemLi_' + esc(id) + '"><a class="an-item" data-analise="' + esc(id) + '" href="#arquitetura?an=' + encodeURIComponent(id) + '"><span class="an-item-nome">' + esc(x.nome) + '</span>' +
           '<span class="an-item-det" id="anItemContagem_' + esc(id) + '">' + ks.length + ' responsabilidade' + (ks.length === 1 ? '' : 's') + (cont.length ? ' — ' + cont.join(' · ') : '') + '</span>' +
           (homonima ? '<span class="an-item-det an-item-homonima" id="anItemContexto_' + esc(id) + '">Aberta em ' + esc(fmtData(x.criadaEm)) + ' · ' + esc(situacaoTexto(N().situacaoDaAnalise(est, id, { posicionamentos: infoPos() }))) + ' · código ' + esc(String(id).slice(-6)) + '</span>' : '') +
-          '<span class="btn btn--sm' + (prox === 'Ver resultados' ? '' : ' btn--primary') + ' an-item-acao" id="anItemAcao_' + esc(id) + '">' + prox + '</span></a></li>';
+          '<span class="btn btn--sm' + (prox === 'Ver resultados' ? '' : ' btn--primary') + ' an-item-acao" id="anItemAcao_' + esc(id) + '">' + prox + '</span></a>' +
+          /* GERENCIAR (⋯), separado da ação principal: a exclusão abre a MESMA confirmação de dentro da análise
+             (renderExcluirAnalise + excluirAnalise), aqui mesmo na lista — sem entrar nem preencher nada */
+          (a.gravar ? '<details class="an-menu" id="anItemMenu_' + esc(id) + '"><summary class="btn btn--sm an-menu-btn" id="anItemMenuBtn_' + esc(id) + '" aria-label="Gerenciar a análise ' + esc(x.nome) + '">⋯</summary>' +
+            '<div class="an-menu-itens"><button type="button" class="btn btn--sm btn--danger" data-an="excluir-da-lista" data-analise="' + esc(id) + '" id="anItemExcluir_' + esc(id) + '">Excluir análise</button>' +
+            '<p class="an-nota">Excluir é para o que foi criado por engano. Para encerrar uma análise que não serve mais, abra-a e use "Descartar a análise".</p></div></details>' : '') +
+          (st.excluirLista === id ? renderExcluirAnalise(est, x, id, true) : '') + '</li>';
       }).join('') + '</ul>';
       if (desc) h += '<p class="an-nota">' + desc + ' análise' + (desc === 1 ? '' : 's') + ' descartada' + (desc === 1 ? '' : 's') + ' (mantidas no histórico).</p>';
       return h;
@@ -530,17 +539,21 @@
       h += '<div class="avp-actions-footer an-rodape"><button type="button" class="btn btn--sm" id="anExportarBtn" data-an="exportar">📊 Exportar Excel</button>' +
         (gravar ? '<button type="button" class="btn btn--sm" data-an="abrir-form" data-form="descartar" id="anDescartarBtn">Descartar a análise</button>' : '') +
         (acc.gravar ? '<button type="button" class="btn btn--sm btn--danger" data-an="abrir-form" data-form="excluir-analise" id="anExcluirBtn">Excluir a análise</button>' : '') + '</div>';
-      if (st.form && st.form.tipo === 'excluir-analise') h += renderExcluirAnalise(est, a);
-      if (st.form && st.form.tipo === 'descartar') h += '<form class="avp-form-card an-form" id="anFormDescartar"><div class="avp-field"><label for="anMotivoDescarte">Motivo do descarte</label><textarea id="anMotivoDescarte" maxlength="500" rows="2"></textarea></div><p class="an-nota">Nada é apagado: a análise fica no histórico como descartada.</p><div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarDescarte">Descartar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+      if (st.form && st.form.tipo === 'excluir-analise') h += renderExcluirAnalise(est, a, st.id, false);
+      if (st.form && st.form.tipo === 'descartar') h += '<form class="avp-form-card an-form" id="anFormDescartar" data-form="descartar"><div class="avp-field"><label for="anMotivoDescarte">Motivo do descarte</label><textarea id="anMotivoDescarte" maxlength="500" rows="2"></textarea></div><p class="an-nota">Nada é apagado: a análise fica no histórico como descartada.</p><div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarDescarte">Descartar</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
       return h;
     }
     /* EXCLUSÃO da análise (contrato em dois níveis): comum = vazia; excepcional = com conteúdo, só admin geral, com
        confirmação explícita e as dependências à vista (nada sai em cascata); com aprovação registrada, nunca */
     function ehAdminGeral() { var A = window.faAuth, s = A && A.getSession && A.getSession(); return !!(A && A.isAdmin && s && A.isAdmin(s.email)); }
-    function renderExcluirAnalise(est, a) {
-      var n = N().nivelExclusaoAnalise(est, a.id), h = '<form class="avp-form-card an-form" id="anFormExcluir" data-nivel="' + n.nivel + '"><h3>' + (n.nivel === 'excepcional' ? 'Exclusão excepcional da análise' : 'Excluir a análise?') + '</h3>';
-      if (n.nivel === 'bloqueada') return h + '<p class="avp-error-msg" id="anExcluirBloqueio">' + esc(mensagemErro({ codigo: n.motivos[0] })) + '</p><div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="cancelar">Fechar</button></div></form>';
-      if (n.nivel === 'excepcional' && !ehAdminGeral()) return h + '<p class="an-nota" id="anExcluirSoAdmin">Esta análise já tem conteúdo (responsabilidades, proposta ou referências). Excluí-la é uma exclusão excepcional, feita só pelo administrador geral. Se ela não serve mais, use "Descartar a análise".</p><div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="cancelar">Fechar</button></div></form>';
+    function renderExcluirAnalise(est, a, idAnalise, naLista) {
+      var aid = idAnalise || a.id, n = N().nivelExclusaoAnalise(est, aid);
+      var h = '<form class="avp-form-card an-form an-form-excluir" id="anFormExcluir" data-form="excluir-analise" data-analise="' + esc(aid) + '" data-nivel="' + n.nivel + '" aria-labelledby="anExcluirTitulo">' +
+        '<h3 id="anExcluirTitulo" tabindex="-1">' + (n.nivel === 'excepcional' ? 'Exclusão excepcional da análise' : 'Excluir a análise?') + '</h3>' +
+        '<p class="an-exc-ident" id="anExcluirIdent"><strong>' + esc(a.nome) + '</strong> · aberta em ' + esc(fmtData(a.criadaEm)) + ' · código ' + esc(String(aid).slice(-6)) + '</p>' +
+        (naLista && st.erro ? '<p class="avp-error-msg" role="alert" id="anExcluirErroBanco">' + esc(st.erro) + '</p>' : '');
+      if (n.nivel === 'bloqueada') return h + '<p class="avp-error-msg" id="anExcluirBloqueio" tabindex="-1" data-foco>' + esc(mensagemErro({ codigo: n.motivos[0] })) + '</p><div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="cancelar">Fechar</button></div></form>';
+      if (n.nivel === 'excepcional' && !ehAdminGeral()) return h + '<p class="an-nota" id="anExcluirSoAdmin" tabindex="-1" data-foco>Esta análise já tem conteúdo (responsabilidades, proposta ou referências). Excluí-la é uma exclusão excepcional, feita só pelo administrador geral. Se ela não serve mais, use "Descartar a análise".</p><div class="avp-actions-footer"><button type="button" class="btn btn--sm" data-an="cancelar">Fechar</button></div></form>';
       var rs = a.recortes || {}, ks = Object.keys(rs), comCad = ks.filter(function (k) { return rs[k].objetoId; });
       var props = Object.keys(est.propostas || {}).filter(function (k) { return est.propostas[k].analiseId === a.id; }).length;
       var soDentro = ks.length - comCad.length, pl = function (q, um, varios) { return q === 1 ? um : varios; };
@@ -555,7 +568,7 @@
       h += '<div class="avp-field' + (pend && pend.campo === 'motivo' ? ' an-campo-pendente' : '') + '"><label for="anMotivoExcluir">Motivo da exclusão *</label><textarea id="anMotivoExcluir" maxlength="500" rows="2"' + (pend && pend.campo === 'motivo' ? ' aria-invalid="true" aria-describedby="anExcluirErro"' : '') + '></textarea></div>' +
         (n.nivel === 'excepcional' ? '<label class="avp-decisao-option' + (pend && pend.campo === 'confirmo' ? ' an-campo-pendente' : '') + '"><input type="checkbox" id="anExcluirConfirmo"' + (pend && pend.campo === 'confirmo' ? ' aria-invalid="true" aria-describedby="anExcluirErro"' : '') + '> Confirmo a exclusão excepcional desta análise, com as consequências acima.</label>' : '') +
         (pend ? '<p class="avp-error-msg an-erro-junto" id="anExcluirErro" role="alert">' + esc(pend.texto) + '</p>' : '') +
-        '<div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarExcluir">' + (n.nivel === 'excepcional' ? 'Excluir (excepcional)' : 'Excluir a análise') + '</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
+        '<div class="avp-actions-footer"><button type="submit" class="btn btn--danger" id="anConfirmarExcluir"' + (st.gravando ? ' disabled' : '') + '>' + (st.gravando ? 'Excluindo…' : n.nivel === 'excepcional' ? 'Excluir (excepcional)' : 'Excluir a análise') + '</button><button type="button" class="btn btn--sm" data-an="cancelar">Cancelar</button></div></form>';
       return h;
     }
     /* a área ou o trabalho analisado (contexto). O texto livre é só apoio: nada é interpretado */
@@ -1049,6 +1062,19 @@
     /* marca: a responsabilidade cuja gravação está em curso (marcador na linha; clique repetido ignorado). Sem resposta no
        prazo, a linha fica "Aguardando confirmação do servidor" até a resposta tardia chegar */
     /* falta um requisito do formulário de exclusão: a mensagem aparece junto do botão, o campo fica destacado e recebe o foco */
+    /* formulários presentes antes de redesenhar, para achar o que acabou de abrir */
+    function assinaturaForm(fm) { return [fm.id, fm.getAttribute('data-form'), fm.getAttribute('data-recorte'), fm.getAttribute('data-entrega'), fm.getAttribute('data-analise')].join('|'); }
+    function assinaturasForms() { var m = {}; Array.prototype.forEach.call(wrap.querySelectorAll('form.an-form'), function (fm) { m[assinaturaForm(fm)] = true; }); return m; }
+    function focarFormAberto(antes, tipo) {
+      var forms = Array.prototype.slice.call(wrap.querySelectorAll('form.an-form'));
+      var fm = forms.filter(function (x) { return !antes[assinaturaForm(x)]; })[0] || wrap.querySelector('form.an-form[data-form="' + tipo + '"]');
+      if (!fm) return;
+      var alvo = (fm.id === 'anFormExcluir' && fm.querySelector('#anMotivoExcluir')) ||
+        Array.prototype.filter.call(fm.querySelectorAll('textarea, select, input'), function (e) { return e.type !== 'hidden' && !e.disabled && e.offsetParent !== null; })[0] ||
+        fm.querySelector('[data-foco]') || fm.querySelector('h3[tabindex], h4[tabindex]');
+      if (fm.scrollIntoView) fm.scrollIntoView({ block: 'center', behavior: 'instant' });
+      if (alvo && alvo.focus) alvo.focus({ preventScroll: true });
+    }
     function pedirCampo(p, idCampo) {
       st.erroExcluir = p; render();
       var e = document.getElementById(idCampo), m = wrap.querySelector('.an-erro-junto');
@@ -1202,11 +1228,16 @@
         st.erroExcluir = null;
         executar(function (est, c) { return N().excluirRecorte(est, id, rk5, { motivo: mx }, c); }, 'Responsabilidade excluída. O texto e o motivo ficaram no histórico da análise.');
       } else if (form.id === 'anFormExcluir') {
-        var mxa = val('anMotivoExcluir'), rev = (estado().analises[id] || {}).revisao;
+        var idx = form.getAttribute('data-analise') || id, naLista = st.tela === 'lista', mxa = val('anMotivoExcluir'), rev = (estado().analises[idx] || {}).revisao;
         if (!mxa.trim()) { pedirCampo({ campo: 'motivo', texto: 'Informe o motivo da exclusão para continuar.' }, 'anMotivoExcluir'); return; }
         if (form.getAttribute('data-nivel') === 'excepcional' && !(document.getElementById('anExcluirConfirmo') || {}).checked) { pedirCampo({ campo: 'confirmo', texto: 'Marque a confirmação da exclusão excepcional para continuar.' }, 'anExcluirConfirmo'); return; }
         st.erroExcluir = null;
-        executar(function (est, c) { return N().excluirAnalise(est, id, { motivo: mxa, revisaoEsperada: rev }, c); }, 'Análise excluída. O registro mínimo e o histórico foram preservados.', function () { location.hash = '#arquitetura?an=lista'; });
+        var nomeEx = (estado().analises[idx] || {}).nome || '';
+        executar(function (est, c) { return N().excluirAnalise(est, idx, { motivo: mxa, revisaoEsperada: rev }, c); }, null, function () {
+          st.excluirLista = null; st.origemFoco = null; st.excluidasAgora = st.excluidasAgora || {}; st.excluidasAgora[idx] = true;
+          st.flashLista = 'Análise "' + nomeEx + '" (código ' + String(idx).slice(-6) + ') excluída. O registro mínimo, o motivo e o histórico foram preservados; as responsabilidades com cadastro próprio na Porta 2 continuam existindo.';
+          if (naLista) { render(); var fl = document.getElementById('anFlashLista'); if (fl) fl.focus(); } else location.hash = '#arquitetura?an=lista';
+        });
       } else if (form.id === 'anFormDescartar') {
         var md = val('anMotivoDescarte');
         executar(function (est, c) { return N().descartarAnalise(est, id, { motivo: md }, c); }, 'Análise descartada. Nada foi apagado.');
@@ -1216,9 +1247,16 @@
       var b = ev.target.closest('[data-an]'); if (!b || !wrap.contains(b)) return;
       var acao = b.getAttribute('data-an');
       if (acao === 'abrir-form') {
-        st.erroExcluir = null;
+        st.erroExcluir = null; st.origemFoco = b.id || null;
+        var antes = assinaturasForms();
         st.form = { tipo: b.getAttribute('data-form'), recorte: b.getAttribute('data-recorte') || null, entrega: b.getAttribute('data-entrega') || null, q: b.getAttribute('data-q') || null }; st.erro = null; st.flashEntrega = null; render();
-        var f = st.form.tipo === 'alterar-objeto' ? wrap.querySelector('#anFormResponder input:checked, #anFormResponder input') : wrap.querySelector('form.an-form input, form.an-form textarea, form.an-form select'); if (f) f.focus();
+        if (st.form.tipo === 'alterar-objeto') { var fo = wrap.querySelector('#anFormResponder input:checked, #anFormResponder input'); if (fo) fo.focus(); }
+        else focarFormAberto(antes, st.form.tipo);
+      }
+      else if (acao === 'excluir-da-lista') {
+        var ide = b.getAttribute('data-analise'); if (!ide || st.gravando) return;
+        st.excluirLista = ide; st.erroExcluir = null; st.erro = null; st.flashLista = null; st.origemFoco = 'anItemMenuBtn_' + ide;
+        render(); focarFormAberto({}, 'excluir-analise');
       }
       else if (acao === 'avaliar') avaliarRecorte(b.getAttribute('data-recorte'), null);
       else if (acao === 'ajuda-separar') {
@@ -1255,7 +1293,10 @@
         if (!foco) { alvo.setAttribute('tabindex', '-1'); foco = alvo; }
         foco.focus({ preventScroll: true });
       }
-      else if (acao === 'cancelar') { st.form = null; st.erro = null; render(); }
+      else if (acao === 'cancelar') {
+        var volta = st.origemFoco; st.form = null; st.erro = null; st.erroExcluir = null; st.excluirLista = null; st.origemFoco = null; render();
+        var vb = volta && document.getElementById(volta); if (vb && wrap.contains(vb)) vb.focus(); /* volta para o botão de onde a pessoa saiu */
+      }
       else if (acao === 'responder') { var q = b.getAttribute('data-q'), v = b.getAttribute('data-v'), id = st.id; executar(function (est, c) { return N().responder(est, id, { pergunta: q, valor: v }, c); }, 'Resposta registrada.'); }
       else if (acao === 'exportar') exportar();
     });

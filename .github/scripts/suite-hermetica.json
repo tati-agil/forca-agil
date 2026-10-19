@@ -765,6 +765,12 @@
       "sobre": "Encerrar e Excluir lado a lado, com a diferença explicada; exclusão comum com motivo (o cadastro sai, ficam registro mínimo e evento); já avaliada: só o admin geral, com dependências à vista e confirmação explícita, e a ficha e a lista do Posicionamento mostram \"Cadastro excluído\" sem perder a avaliação; bloqueios por estrutura responsável ativa e rascunho aberto; responsabilidade só de texto sai da análise, citada em proposta é bloqueada, com cadastro leva à ficha dele; análise vazia excluída; análise com conteúdo só pelo admin geral; perfil de consulta sem botões; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-analises-exclusao-lista.js",
+      "nome": "Análises Organizacionais: excluir pela lista (menu ⋯) e pelo botão de dentro, com o foco certo, desktop e 375 px",
+      "duracao": 70,
+      "sobre": "Menu ⋯ separado da ação principal; \"Excluir análise\" abre a mesma confirmação (renderExcluirAnalise + excluirAnalise) na própria lista, com nome, data e código; homônimas: só a escolhida sai; sem motivo: erro junto do campo; com conteúdo: só a explicação para Avaliação + Configuração e exclusão excepcional com marca para o admin geral; aprovada: bloqueada; Cancelar não grava e devolve o foco; o botão de dentro foca o motivo (não \"Quais responsabilidades a área tem?\"), Descartar foca o próprio motivo; teclado, rolagem e Voltar; nada em cascata na Porta 2; perfil de consulta sem menu."
+    },
+    {
       "arquivo": ".github/scripts/teste-analises-organizacionais-usabilidade.js",
       "nome": "Porta 2 · Análise Organizacional: usabilidade — registro direto, lote, lista única, Estrutura Atual e composição (GECON)",
       "duracao": 90,

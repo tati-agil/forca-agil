@@ -3513,6 +3513,16 @@ a.avp-como-fonte:focus-visible { outline: 2px solid currentColor; outline-offset
 .an-item-det { grid-column: 1; color: var(--ink-2); font-size: .88rem; }
 .an-item .an-chip, .an-item-acao { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
 .an-item-homonima { font-size: var(--arq-fs-aux); }
+/* lista de análises: menu ⋯ (gerenciar) ao lado do cartão, fora do link; a confirmação da exclusão abre logo abaixo */
+.an-item-li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; align-items: start; }
+.an-item-li > .an-item { min-width: 0; }
+.an-item-li > .an-form-excluir { grid-column: 1 / -1; margin: 0; }
+.an-menu { position: relative; }
+.an-menu > summary { list-style: none; cursor: pointer; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+.an-menu > summary::-webkit-details-marker { display: none; }
+.an-menu-itens { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; width: min(280px, 80vw); display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel, var(--panel-2)); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.an-menu-itens .an-nota { margin: 0; overflow-wrap: anywhere; }
+.an-exc-ident { margin: 0 0 8px; overflow-wrap: anywhere; color: var(--ink-2); }
 .an-chip { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: var(--arq-fs-meta); font-weight: 700; white-space: nowrap; vertical-align: 1px; }
 .an-chip--ok { background: rgba(24,194,186,.14); color: var(--cyan-soft); border: 1px solid rgba(24,194,186,.45); }
 .an-chip--pend { background: rgba(245,197,24,.08); color: var(--gold-soft); border: 1px solid rgba(245,197,24,.4); }
