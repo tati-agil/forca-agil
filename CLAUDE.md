@@ -83,7 +83,9 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   uma Taxonomia só, 15 naturezas (Produto/Serviço a única conjunta; Modalidade e Subproduto pendentes da E5, sem
   conceito); os 11 códigos do motor são classificações — as 6 técnicas (`funcionalidade-operacao`, `processo-etapa`,
   `regra-condicao`, `modalidade-subproduto`, `documento-informacao`, `a-validar`) ficam integralmente preservadas e
-  nunca viram naturezas; Opção só em `modalidade-subproduto` (Regra/Opção que seja Opção = reavaliação explícita). A E4
+  nunca viram naturezas nem conceitos oficiais (fora do catálogo, da busca, do Comparar e da Visão consolidada; ficha e
+  exportação como "descrição técnica histórica"; a ficha P1–P16 mostra as naturezas oficiais correspondentes em vez da
+  descrição delas — `docs/auditoria-taxonomia.md`); Opção só em `modalidade-subproduto` (Regra/Opção que seja Opção = reavaliação explícita). A E4
   deriva dele; nunca crie uma segunda lista de naturezas nem conceito sem definição aprovada. O cadastro desses
   conceitos (cartão em Taxonomia › Verificações, só admin geral) independe do marcador da E4.
 

@@ -71,6 +71,11 @@ const TECNICAS = ['funcionalidade-operacao', 'processo-etapa', 'regra-condicao',
     const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#taxExportarJson')]);
     const json = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
     afirma(json.taxonomia && json.taxonomia.arquitetural && json.taxonomia.organizacional && json.taxonomia.arquitetural.conceitos.operacao, 'o JSON baixado do Catálogo é a exportação completa (os dois domínios)');
+    const consol = json.conceitosConsolidados || [], tecJ = json.classificacoesTecnicas || [];
+    afirma(!consol.some((c) => TECNICAS.indexOf(c.codigo) !== -1) && JSON.stringify(tecJ.map((t) => t.codigo).sort()) === JSON.stringify(TECNICAS.slice().sort()), 'JSON: as 6 classificações técnicas ficam FORA dos conceitos oficiais, em "classificacoesTecnicas"');
+    afirma(tecJ.every((t) => t.papel === 'classificacao-tecnica-historica' && !('definicaoVigente' in t)) && (tecJ.find((t) => t.codigo === 'regra-condicao') || {}).naturezasCorrespondentes === 'Regra', 'JSON: cada técnica marcada como dado histórico, com a descrição técnica (nunca "definição vigente") e as naturezas correspondentes');
+    afirma((consol.find((c) => c.codigo === 'produto-principal') || {}).papel === 'natureza-arquitetural-conjunta' && (consol.find((c) => c.codigo === 'operacao') || {}).papel === 'natureza-arquitetural' && (consol.find((c) => c.codigo === 'LINHA') || {}).papel === 'conceito-organizacional', 'JSON: cada conceito oficial com o papel (natureza conjunta, natureza, conceito organizacional)');
+    afirma(Object.keys(json.taxonomia.arquitetural.conceitos).length === 13, 'JSON: o nó "taxonomia" continua intacto (dado técnico preservado, nada apagado)');
     await esperarCondicao(page, () => /JSON baixado/.test((document.getElementById('taxExportarStatus') || {}).textContent || ''), null, { descricao: 'confirmação do download' });
     afirma(true, 'a tela confirma o download');
 
@@ -81,26 +86,22 @@ const TECNICAS = ['funcionalidade-operacao', 'processo-etapa', 'regra-condicao',
       nav.querySelectorAll('.tax-lista-grupo, .tax-item, .tax-previsto').forEach((e) => out.push(e.id || e.getAttribute('data-codigo') || ('prev:' + e.getAttribute('data-natureza-prevista'))));
       return out;
     });
-    const iNat = ordem.indexOf('taxGrupoNaturezas'), iTec = ordem.indexOf('taxGrupoTecnicas'), iFora = ordem.indexOf('taxGrupoFora');
-    const nat = ordem.slice(iNat + 1, iTec), tec = ordem.slice(iTec + 1, iFora), fora = ordem.slice(iFora + 1);
+    const iNat = ordem.indexOf('taxGrupoNaturezas'), iFora = ordem.indexOf('taxGrupoFora');
+    const nat = ordem.slice(iNat + 1, iFora), fora = ordem.slice(iFora + 1);
     afirma(nat.length === 15, '15 linhas de natureza (conceito ou prevista)', nat.join(','));
     afirma(JSON.stringify(nat.filter((x) => !/^prev:/.test(x)).sort()) === JSON.stringify(['canal', 'capacidade-organizacional', 'componente', 'operacao', 'produto-principal', 'unidade-valor-associada']), 'as naturezas com conceito: 5 identidades reaproveitadas + Operação');
     afirma(await page.locator('.tax-previsto').count() === 9 && await page.locator('.tax-previsto button, button.tax-previsto').count() === 0, '9 naturezas previstas sem conceito, sem botão (nada se cria daqui)');
     afirma(/definição pendente \(E5\)/.test(await texto(page, '.tax-previsto[data-natureza-prevista="modalidade"]')) && /definição pendente \(E5\)/.test(await texto(page, '.tax-previsto[data-natureza-prevista="subproduto"]')), 'Modalidade e Subproduto: distintas, "definição pendente (E5)"');
     afirma(/a cadastrar/.test(await texto(page, '.tax-previsto[data-natureza-prevista="funcionalidade"]')) && /a cadastrar/.test(await texto(page, '.tax-previsto[data-natureza-prevista="opcao"]')), 'individuais ainda sem conceito: "a cadastrar"');
-    afirma(JSON.stringify(tec.filter((x) => x !== 'prev:null').sort()) === JSON.stringify(TECNICAS.slice().sort()), 'as 6 classificações técnicas do motor num grupo próprio', tec.join(','));
-    afirma(/Não são naturezas/.test(await texto(page, '.tax-lista-nota')), 'o grupo técnico diz que não são naturezas');
+    afirma(ordem.indexOf('taxGrupoTecnicas') === -1 && !TECNICAS.some((t) => ordem.indexOf(t) !== -1), 'nenhuma classificação técnica no catálogo de conceitos (não são conceitos oficiais)', ordem.join(','));
+    await page.fill('#taxBusca', 'regra-condicao');
+    afirma(/Nenhum conceito/.test(await texto(page, '#taxBuscaResultado')), 'a busca também não as apresenta como conceito');
+    await page.fill('#taxBusca', '');
     afirma(JSON.stringify(fora) === JSON.stringify(['avulso']), 'o conceito fora do modelo fica à parte', fora.join(','));
     const todos = ordem.filter((x) => !/^tax|^prev:/.test(x));
-    afirma(todos.length === new Set(todos).size && todos.length === 13, 'cada conceito aparece uma vez só (11 do motor + Operação + avulso)', String(todos.length));
+    afirma(todos.length === new Set(todos).size && todos.length === 7, 'cada conceito oficial aparece uma vez só (5 naturezas diretas + Operação + avulso)', String(todos.length));
 
     console.log('\n== 3. Ficha: o papel no modelo ==');
-    await T.abrirConceito(page, 'regra-condicao');
-    afirma((await page.locator('#taxPapelModelo').getAttribute('data-papel')) === 'classificacao-tecnica' && /não é uma natureza arquitetural/.test(await texto(page, '#taxPapelModelo')), 'Regra/Opção: classificação técnica, não natureza');
-    afirma(/Corresponde a: Regra\./.test(await texto(page, '#taxPapelModelo')), 'Regra/Opção corresponde só a Regra');
-    afirma(/Opção/.test(await texto(page, '#taxPapelOrientacao')) && /reavalie P1–P16/.test(await texto(page, '#taxPapelOrientacao')) && /histórico/.test(await texto(page, '#taxPapelOrientacao')), 'orienta: se for de fato Opção, reavaliar P1–P16 (histórico preservado)');
-    await T.abrirConceito(page, 'modalidade-subproduto');
-    afirma(/Corresponde a: Opção, Modalidade \(definição pendente\), Subproduto \(definição pendente\)\./.test(await texto(page, '#taxPapelModelo')), 'Modalidade/Subproduto: Opção + Modalidade e Subproduto pendentes', await texto(page, '#taxPapelModelo'));
     await T.abrirConceito(page, 'componente');
     afirma((await page.locator('#taxPapelModelo').getAttribute('data-papel')) === 'natureza' && /própria classificação/.test(await texto(page, '#taxPapelModelo')), 'Componente: natureza, a própria classificação do motor (mesma identidade)');
     await T.abrirConceito(page, 'produto-principal');
@@ -120,6 +121,24 @@ const TECNICAS = ['funcionalidade-operacao', 'processo-etapa', 'regra-condicao',
     afirma(await page.locator('#taxModeloTecnicas li').count() === 6 && /ligada à Avaliação/.test(await texto(page, '#taxModeloTecnicas li[data-codigo="regra-condicao"]')), 'as 6 técnicas preservadas e ligadas à Avaliação');
     afirma(/avulso/.test(await texto(page, '#taxModeloFora')), 'o conceito fora do modelo é apontado');
     afirma(/só lê/.test(await texto(page, '#taxModeloDetalhes')), 'deixa claro que só lê');
+    /* a ficha de uma classificação técnica (aberta pela Conexão com a Avaliação) é dado técnico, nunca conceito */
+    const abrirTecnica = async (cod) => {
+      if (!(await page.locator('#taxIntegridade').count())) { await T.abrirConceito(page, 'componente'); await T.irIntegridade(page); } /* a ficha técnica não tem Administrar */
+      await page.evaluate(() => { document.querySelectorAll('#taxIntegridade details').forEach((d) => { d.open = true; }); });
+      await page.click('#taxIntegridade [data-tax="selecionar"][data-codigo="' + cod + '"]');
+      await esperarCondicao(page, () => !!document.getElementById('taxPapelModelo'), null, { descricao: 'ficha técnica de ' + cod });
+    };
+    await abrirTecnica('regra-condicao');
+    afirma((await page.locator('#taxPapelModelo').getAttribute('data-papel')) === 'classificacao-tecnica' && /não é conceito oficial nem natureza arquitetural/.test(await texto(page, '#taxPapelModelo')), 'Regra/Opção: classificação técnica histórica, não conceito oficial');
+    afirma(/Corresponde a: Regra\./.test(await texto(page, '#taxPapelModelo')), 'Regra/Opção corresponde só a Regra');
+    afirma(/Opção/.test(await texto(page, '#taxPapelOrientacao')) && /reavalie P1–P16/.test(await texto(page, '#taxPapelOrientacao')) && /histórico/.test(await texto(page, '#taxPapelOrientacao')), 'orienta: se for de fato Opção, reavaliar P1–P16 (histórico preservado)');
+    afirma(/não é definição oficial/.test(await texto(page, '#taxSecTecnica')) && !(await page.locator('#taxSecDefinicao').count()) && !(await page.locator('#taxAdministrarBtn').count()) && !(await page.locator('#taxCompararBtn').count()), 'a descrição antiga aparece como "descrição técnica histórica (não é definição oficial)", sem "O que é?", sem Comparar e sem Administrar');
+    await abrirTecnica('modalidade-subproduto');
+    afirma(/Corresponde a: Opção, Modalidade \(definição pendente\), Subproduto \(definição pendente\)\./.test(await texto(page, '#taxPapelModelo')), 'Modalidade/Subproduto: Opção + Modalidade e Subproduto pendentes', await texto(page, '#taxPapelModelo'));
+    await T.abrirConceito(page, 'componente');
+    await page.click('#taxCompararBtn');
+    afirma((await page.$$eval('#taxCompararSel option', (os) => os.map((o) => o.value))).every((v) => ['funcionalidade-operacao', 'processo-etapa', 'regra-condicao', 'modalidade-subproduto', 'documento-informacao', 'a-validar'].indexOf(v) === -1), 'Comparar só oferece conceitos oficiais (nenhuma classificação técnica)');
+    await page.click('#taxCompararFechar');
 
     console.log('\n== 5. Nada gravado, largura, erros ==');
     afirma((await escritas(page)) === e0, 'nenhuma gravação em nenhum passo');

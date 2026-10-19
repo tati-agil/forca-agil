@@ -890,13 +890,17 @@
   function podeEditar() { return !st.opcoes.somenteLeitura && ehAdmin() && adminPronto(); }
   function raiz() { return st.raiz || (st.raiz = document.getElementById('adminTaxonomia')); }
 
+  /* As 6 classificações técnicas históricas do motor P1–P16 (naturezas-arquiteturais.js) continuam no banco por
+     integridade (ligação, histórico, auditoria), mas NÃO são conceitos oficiais: ficam fora do catálogo, da busca, do
+     Comparar e da Visão consolidada; a ficha (aberta a partir das Verificações) as mostra como dado técnico. */
+  function tecnica(dom, cod) { var NA = window.faNaturezasArquiteturais; return dom === 'arquitetural' && !!(NA && NA.ehClassificacaoTecnica(cod)); }
   function selo(texto, classe) { return '<span class="tax-selo' + (classe ? ' ' + classe : '') + '">' + esc(texto) + '</span>'; }
 
   function ordenados(D) {
     return ordenaPor(chaves(D.conceitos).map(function (k) { return Object.assign({ _codigo: k }, D.conceitos[k]); }), 'ordem');
   }
   function renderLista(dom) {
-    var D = st.d[dom], lista = ordenados(D), q = normBusca(st.busca).trim();
+    var D = st.d[dom], lista = ordenados(D).filter(function (c) { return !tecnica(dom, c._codigo); }), q = normBusca(st.busca).trim();
     var html = '<nav class="tax-lista" aria-label="Conceitos da ' + esc(DOMINIOS[dom].titulo) + '">' +
       '<div class="tax-busca"><label class="tax-rotulo-campo" for="taxBusca">Buscar conceito</label><input type="search" id="taxBusca" value="' + esc(st.busca) + '" placeholder="Nome ou código" autocomplete="off"></div>';
     function item(c, nivel, comCaminho) {
@@ -942,11 +946,7 @@
         html += '<div class="tax-previsto" data-natureza-prevista="' + esc(n.codigo) + '"><span class="tax-item-nome">' + esc(n.rotulo) + '</span><span class="tax-item-selos">' +
           selo(n.modelo === 'pendente' ? 'definição pendente (' + n.pendencia + ')' : n.modelo === 'individual' ? 'a cadastrar' : 'conceito ausente', 'tax-selo--sem-def') + '</span></div>';
       });
-      var tec = lista.filter(function (c) { return NA.ehClassificacaoTecnica(c._codigo); });
-      if (tec.length) {
-        html += '<p class="tax-lista-grupo" id="taxGrupoTecnicas">Classificações técnicas do motor P1–P16</p><p class="tax-ajuda tax-lista-nota">Preservadas para a compatibilidade com as avaliações. Não são naturezas.</p>';
-        tec.forEach(function (c) { html += item(c, 0); });
-      }
+      /* as classificações técnicas do motor não são conceitos oficiais: não aparecem no catálogo (estão em Verificações) */
       var fora = lista.filter(function (c) { return NA.papelDoConceito(c._codigo).papel === 'fora-do-modelo'; });
       if (fora.length) { html += '<p class="tax-lista-grupo" id="taxGrupoFora">Fora do modelo de naturezas</p>'; fora.forEach(function (c) { html += item(c, 0); }); }
     } else lista.forEach(function (c) { html += item(c, 0); });
@@ -960,7 +960,7 @@
   /* Textos da área de integração por domínio. */
   var BASE_TXT = {
     arquitetural: { id: '', titulo: 'Conexão com a Avaliação', alvo: 'da Avaliação', itens: ['classificação conectada', 'classificações conectadas'],
-      ajuda: 'A Avaliação utiliza os nomes e as definições oficiais destes conceitos. Enquanto estiverem vinculados, não podem ser inativados.',
+      ajuda: 'A Avaliação usa o código e o nome registrados destes 11 códigos do motor. Nos 5 que são naturezas (Produto/Serviço, Componente, Canal, Capacidade Organizacional e Unidade de Valor Associada) usa também a definição oficial; os outros 6 são classificações técnicas históricas, preservadas por compatibilidade, e não são conceitos oficiais. Enquanto estiverem vinculados, não podem ser inativados.',
       impacto: 'Enquanto o vínculo não for registrado, o conceito pode ser inativado e a Avaliação pode passar a mostrar o rótulo de contingência no lugar do nome oficial.',
       ver: 'Ver classificações conectadas', semConceito: 'sem conceito nesta Taxonomia — a Avaliação usa o rótulo de contingência', orfas: 'Vínculos sem classificação correspondente no motor: ',
       botao: 'Registrar vínculos da Avaliação…' },
@@ -1692,19 +1692,23 @@
   function simNao(b) { return b ? 'Sim' : 'Não'; }
   /* Linhas das abas (cabeçalhos em português). Pura: recebe o bruto lido, não lê nem grava nada. */
   function linhasExportacao(bruto) {
-    var L = { Conceitos: [], 'Definições': [], Atributos: [], Perfis: [], 'Relações': [], 'Histórico': [] };
+    var L = { Conceitos: [], 'Definições': [], Atributos: [], Perfis: [], 'Relações': [], 'Histórico': [], 'Classificações técnicas': [] };
     ORDEM_DOMINIOS.forEach(function (dom) {
       var B = bruto[dom] || {}, cs = B.conceitos || {}, dv = B.definicoes || {};
       var nome = function (cod) { return (cs[cod] && cs[cod].nome) || ''; };
       ordenaPor(chaves(cs).map(function (k) { return Object.assign({ _cod: k }, cs[k]); }), 'ordem').forEach(function (c) {
         var d0 = c.definicao || null, nv = chaves(dv[c._cod] || {}).length;
+        if (tecnica(dom, c._cod)) {
+          L['Classificações técnicas'].push([DOMINIOS[dom].rotulo, c._cod, c.nome || '', PAPEL_TECNICA, naturezasDaTecnica(cs, c._cod), d0 ? d0.texto : '', d0 ? d0.versao : '', nv, c.ativo === false ? 'Não' : 'Sim']);
+          return;
+        }
         var integ = d0 && !(dv[c._cod] || {})['v' + d0.versao] ? 'a versão vigente não está no histórico' : '';
         L.Conceitos.push([DOMINIOS[dom].rotulo, c._cod, c.nome || '', c.camada ? (CAMADA_ROTULO[c.camada] || c.camada) : '', c.pai || '', c.pai ? nome(c.pai) : '',
           c.ativo === false ? 'Não' : 'Sim', d0 ? d0.texto : '', d0 ? d0.versao : '', d0 ? d0.publicadaEm || '' : '', d0 ? d0.publicadaPor || '' : '', nv,
           txt(c.ordem), listaCriterios(c).join(' | '), c.observacoes || '', c.perguntaDiscriminadora || '', txt(c.ordemDaPergunta), c.notaDeAplicacao || '',
           c.criadoEm || '', c.criadoPor || '', c.atualizadoEm || '', c.atualizadoPor || '', integ]);
       });
-      chaves(dv).sort().forEach(function (cod) {
+      chaves(dv).sort().filter(function (cod) { return !tecnica(dom, cod); }).forEach(function (cod) {
         chaves(dv[cod] || {}).map(function (k) { return dv[cod][k] || {}; }).sort(function (a, b) { return (a.versao || 0) - (b.versao || 0); }).forEach(function (v) {
           L['Definições'].push([DOMINIOS[dom].rotulo, cod, nome(cod), v.versao || '', simNao(cs[cod] && cs[cod].definicao && cs[cod].definicao.versao === v.versao), v.texto || '', v.publicadaEm || '', v.publicadaPor || '', ({ publicacao: 'publicação', 'carga-inicial': 'carga inicial', migracao: 'migração' })[v.origem] || txt(v.origem), v.motivo || '']);
         });
@@ -1754,7 +1758,7 @@
     ORDEM_DOMINIOS.forEach(function (dom) {
       var B = bruto[dom] || {}, cs = B.conceitos || {}, dv = B.definicoes || {}, atrs = B.atributos || {}, perfis = B.perfis || {}, rel = B.relacoes || {}, aud = B.auditoria || {};
       var nome = function (cod) { return (cs[cod] && cs[cod].nome) || null; };
-      ordenaPor(chaves(cs).map(function (k) { return Object.assign({ _cod: k }, cs[k]); }), 'ordem').forEach(function (c) {
+      ordenaPor(chaves(cs).map(function (k) { return Object.assign({ _cod: k }, cs[k]); }), 'ordem').filter(function (c) { return !tecnica(dom, c._cod); }).forEach(function (c) {
         var cod = c._cod, d0 = c.definicao || null;
         var versoes = chaves(dv[cod] || {}).map(function (k) { return dv[cod][k] || {}; }).sort(function (a, b) { return (a.versao || 0) - (b.versao || 0); });
         var pf = perfis[cod] || {};
@@ -1776,7 +1780,7 @@
         });
         var integ = d0 && !(dv[cod] || {})['v' + d0.versao] ? 'a versão vigente não está no histórico' : null;
         lista.push({
-          dominio: dom, dominioRotulo: DOMINIOS[dom].rotulo, codigo: cod, nome: c.nome || null, ordem: typeof c.ordem === 'number' ? c.ordem : null,
+          dominio: dom, dominioRotulo: DOMINIOS[dom].rotulo, codigo: cod, nome: c.nome || null, ordem: typeof c.ordem === 'number' ? c.ordem : null, papel: papelOficial(dom, cod),
           ativo: c.ativo !== false,
           camada: c.camada || null, camadaRotulo: c.camada ? (CAMADA_ROTULO[c.camada] || c.camada) : null,
           pai: c.pai ? { codigo: c.pai, nome: nome(c.pai) } : null,
@@ -1793,6 +1797,27 @@
       });
     });
     return lista;
+  }
+  /* papel de um conceito OFICIAL no modelo (as técnicas nunca chegam aqui) */
+  function papelOficial(dom, cod) {
+    if (dom !== 'arquitetural') return 'conceito-organizacional';
+    var NA = window.faNaturezasArquiteturais, p = NA ? NA.papelDoConceito(cod) : null;
+    if (!p || p.papel !== 'natureza') return 'fora-do-modelo';
+    return NA.natureza(p.natureza).conjunta ? 'natureza-arquitetural-conjunta' : 'natureza-arquitetural';
+  }
+  var PAPEL_TECNICA = 'Classificação técnica histórica do motor P1–P16 — não é conceito oficial';
+  function naturezasDaTecnica(cs, cod) {
+    var NA = window.faNaturezasArquiteturais;
+    return NA ? NA.naturezasDaClassificacao(cod).map(function (x) { var n = NA.natureza(x); return ((cs[n.conceito] && cs[n.conceito].nome) || n.rotulo) + (n.modelo === 'pendente' ? ' (definição pendente — E5)' : ''); }).join(', ') : '';
+  }
+  /* JSON: as classificações técnicas históricas, à parte dos conceitos oficiais (dado técnico, nunca conceito) */
+  function classificacoesTecnicas(bruto) {
+    var cs = (bruto.arquitetural || {}).conceitos || {};
+    return chaves(cs).filter(function (cod) { return tecnica('arquitetural', cod); }).sort().map(function (cod) {
+      var c = cs[cod] || {};
+      return { codigo: cod, nomeHistorico: c.nome || null, papel: 'classificacao-tecnica-historica', naturezasCorrespondentes: naturezasDaTecnica(cs, cod) || null,
+        descricaoTecnicaHistorica: c.definicao ? c.definicao.texto || null : null, ativo: c.ativo !== false };
+    });
   }
   var ABA_CONSOLIDADA = 'Visão consolidada por conceito'; /* 30 caracteres: cabe no limite de 31 do Excel */
   var CAB_CONSOLIDADA = ['Domínio', 'Código', 'Nome', 'Ativo', 'Camada / especialização', 'Conceito pai', 'Definição vigente',
@@ -1860,7 +1885,8 @@
     Atributos: ['Domínio', 'Código', 'Nome', 'Grupo', 'Tipo de valor', 'Valores permitidos', 'Ordem', 'Ativo'],
     Perfis: ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Atributo (código)', 'Atributo (nome)', 'Estado', 'Valor', 'Papel', 'Origem', 'Atualizado em'],
     'Relações': ['Domínio', 'Relação (id)', 'De (código)', 'De (nome)', 'Tipo', 'Tipo (por extenso)', 'Para (código)', 'Para (nome)', 'Nota', 'Situação', 'Encerrada em', 'Encerrada por', 'Motivo do encerramento'],
-    'Histórico': ['Domínio', 'Escopo (conceito)', 'Conceito (nome)', 'Data/hora', 'Autor (nome)', 'Autor (e-mail)', 'Tipo', 'Tipo (por extenso)', 'Campo', 'Valor anterior', 'Valor novo', 'Detalhes', 'Chave do evento']
+    'Histórico': ['Domínio', 'Escopo (conceito)', 'Conceito (nome)', 'Data/hora', 'Autor (nome)', 'Autor (e-mail)', 'Tipo', 'Tipo (por extenso)', 'Campo', 'Valor anterior', 'Valor novo', 'Detalhes', 'Chave do evento'],
+    'Classificações técnicas': ['Domínio', 'Código', 'Nome histórico', 'Papel', 'Naturezas oficiais correspondentes', 'Descrição técnica histórica (não é definição oficial)', 'Versão', 'Versões no histórico', 'Ativo']
   };
   function cabecalhoExport() {
     var u = usuarioAtual();
@@ -1877,8 +1903,9 @@
       if (formato === 'json') {
         try {
           var doc = Object.assign({}, cab, {
-            observacao: 'Nó "taxonomia" como foi lido (ramo a ramo, com as regras de leitura de admin), intacto em "taxonomia". "conceitosConsolidados" é uma VISÃO derivada dele: lista plana, um item por conceito, com o campo "dominio" (organizacional/arquitetural), indexada pelo código. Nada foi gravado durante a exportação.',
+            observacao: 'Nó "taxonomia" como foi lido (ramo a ramo, com as regras de leitura de admin), intacto em "taxonomia". "conceitosConsolidados" é uma VISÃO derivada dele, só com os conceitos OFICIAIS: lista plana, um item por conceito, com "dominio" e "papel", indexada pelo código. "classificacoesTecnicas" lista à parte as classificações técnicas históricas do motor P1–P16, que ficam no banco por compatibilidade e NÃO são conceitos oficiais. Nada foi gravado durante a exportação.',
             conceitosConsolidados: consolidarConceitos(r.bruto),
+            classificacoesTecnicas: classificacoesTecnicas(r.bruto),
             taxonomia: r.bruto
           });
           baixarBlob(new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' }), nome + '.json');
@@ -2018,6 +2045,12 @@
     h += '<h3 class="tax-titulo">' + esc(c.nome) + '</h3>';
     if (dom === 'arquitetural') h += htmlPapelNoModelo(codigo);
     if (c.ativo === false) h += '<p class="tax-ajuda" id="taxFichaInativo">Conceito inativo.</p>';
+    if (tecnica(dom, codigo)) {
+      return h + '<section class="tax-sec tax-sec--tecnica" id="taxSecTecnica" aria-label="Descrição técnica histórica"><h4>Descrição técnica histórica (não é definição oficial)</h4>' +
+        (c.definicao ? '<p class="tax-tecnica-texto" id="taxTecnicaTexto">' + esc(c.definicao.texto) + '</p>' : '<p class="tax-ausencia">Sem descrição registrada.</p>') +
+        '<p class="tax-ajuda">Registro técnico preservado para a compatibilidade com as avaliações já feitas (código, ligação e histórico). Não é administrado como conceito.</p></section>' +
+        '<div class="tax-voltar-rodape"><button type="button" class="btn" data-tax="voltar-lista">← Voltar aos conceitos</button></div></section>';
+    }
     h += '<section class="tax-sec tax-sec--definicao" id="taxSecDefinicao" aria-label="O que é?"><h4>O que é?</h4>' +
       (c.definicao ? '<p class="tax-definicao-texto" id="taxDefinicaoTexto">' + esc(c.definicao.texto) + '</p>' : '<p class="tax-ausencia" id="taxSemDefinicao">Não há definição oficial disponível para este conceito.</p>') + '</section>';
     var pai = c.pai ? D.conceitos[c.pai] : null;
@@ -2049,7 +2082,7 @@
     if (p.papel === 'classificacao-tecnica') {
       var ns = NA.naturezasDaClassificacao(codigo).map(function (x) { var n = NA.natureza(x); return nomeArq(n.conceito, n.rotulo) + (n.modelo === 'pendente' ? ' (definição pendente)' : ''); });
       var ori = NA.orientacao(codigo);
-      return '<p class="tax-papel" id="taxPapelModelo" data-papel="classificacao-tecnica"><strong>Classificação técnica do motor P1–P16 — não é uma natureza arquitetural.</strong> ' +
+      return '<p class="tax-papel" id="taxPapelModelo" data-papel="classificacao-tecnica"><strong>Classificação técnica histórica do motor P1–P16 — não é conceito oficial nem natureza arquitetural.</strong> ' +
         (ns.length ? 'Corresponde a: ' + esc(ns.join(', ')) + '.' : 'Não corresponde a nenhuma natureza: indica que a avaliação ainda precisa de decisão.') + '</p>' +
         (ori ? '<p class="tax-ajuda" id="taxPapelOrientacao">' + esc(ori.texto) + '</p>' : '');
     }
@@ -2061,7 +2094,7 @@
   function renderComparar(dom, codigo) {
     var D = st.d[dom], h = '<section class="tax-sec tax-comparar" id="taxSecComparar" aria-label="Comparar conceitos">';
     if (!D.comparando) return h + '<button type="button" class="btn btn--sm" data-tax="comparar-abrir" id="taxCompararBtn">Comparar com outro conceito</button></section>';
-    var outros = ordenados(D).filter(function (x) { return x._codigo !== codigo; });
+    var outros = ordenados(D).filter(function (x) { return x._codigo !== codigo && !tecnica(dom, x._codigo); });
     h += '<h4>Comparar conceitos</h4><label class="tax-rotulo-campo" for="taxCompararSel">Comparar “' + esc(D.conceitos[codigo].nome) + '” com</label>' +
       '<select id="taxCompararSel"><option value="">— escolha um conceito —</option>' + outros.map(function (o) {
         return '<option value="' + esc(o._codigo) + '"' + (D.compararCom === o._codigo ? ' selected' : '') + '>' + esc(o.nome) + '</option>';

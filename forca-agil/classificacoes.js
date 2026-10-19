@@ -27,7 +27,15 @@
    Padrão de sessão: só lê com sessão autorizada para a Avaliação;
    troca de pessoa/acesso desliga tudo (geração) e religa; resposta de leitura antiga é descartada.
 
+   CLASSIFICAÇÃO DO MOTOR × NATUREZA OFICIAL (unificação da Taxonomia): dos 11 códigos, 5 SÃO naturezas (a definição do
+   conceito é a oficial); os outros 6 (funcionalidade-operacao, processo-etapa, regra-condicao, modalidade-subproduto,
+   documento-informacao, a-validar) são CLASSIFICAÇÕES TÉCNICAS históricas — o nome registrado continua sendo mostrado
+   como "o que o motor classificou", mas a descrição delas NUNCA é apresentada como definição oficial: naturezasHtml()
+   diz que é classificação técnica e quais naturezas oficiais correspondem (nomes lidos dos conceitos das naturezas,
+   taxonomia/arquitetural/conceitos/<natureza>/nome; rótulo do modelo só como contingência).
+
    API: registrarCatalogo(lista, {sufixoConflito, sufixosAValidar}), codigos(), nome(id), definicao(id), estadoDefinicao(id), ativo(id),
+   ehTecnica(id), nomeNatureza(codigoNatureza), naturezasHtml(id, idElemento),
    estado() ('carregando'|'ok'|'contingencia'), usandoContingencia(id), onMudanca(cb), iniciar(),
    recarregar(), rotulo(camadaSugerida), rotuloNaConclusao(camadaSugerida), precisaAviso(ids),
    avisoHtml(ids, idElemento), definicaoHtml(id, idElemento, {comEstado, tag}), atualizarDom(raiz),
@@ -44,6 +52,7 @@
 
   /* Por código: undefined = ainda não respondeu; null = respondeu "não existe". */
   var lido = {};
+  var nomesNatureza = {};     /* conceito da natureza individual → nome lido da Taxonomia (undefined = lendo) */
   var demorando = false;
   var ativoModulo = false;
   var acessoAtual;            /* undefined = ainda não sincronizado; null = não pode ler */
@@ -56,7 +65,30 @@
 
   function db() { return firebase.database(); }
   function novoLido() { return { nome: undefined, erro: false, fonteId: undefined, texto: undefined, textoDe: null, ativo: undefined }; }
-  function limparLidos() { lido = {}; catalogo.forEach(function (c) { lido[c.id] = novoLido(); }); }
+  function limparLidos() { lido = {}; nomesNatureza = {}; catalogo.forEach(function (c) { lido[c.id] = novoLido(); }); }
+  function NA() { return window.faNaturezasArquiteturais || null; }
+  function ehTecnica(id) { var M = NA(); return !!(M && M.ehClassificacaoTecnica(id)); }
+  /* nome OFICIAL de uma natureza: o do seu conceito na Taxonomia (as diretas = o nome do código do motor) */
+  function nomeNatureza(cod) {
+    var M = NA(), n = M && M.natureza(cod);
+    if (!n) return cod || '';
+    if (n.modelo === 'direta') return nome(n.classificacao);
+    var v = nomesNatureza[n.conceito];
+    return typeof v === 'string' && v.trim() ? v.trim() : n.rotulo;
+  }
+  function textoNaturezas(id) {
+    var M = NA();
+    if (!M || !ehTecnica(id)) return '';
+    var ns = M.naturezasDaClassificacao(id);
+    if (!ns.length) return 'Resultado provisório do motor: ainda não há natureza arquitetural identificada para este objeto.';
+    return 'Classificação técnica do motor — não é uma natureza arquitetural nem um conceito oficial. Naturezas oficiais correspondentes: ' +
+      ns.map(function (x) { return nomeNatureza(x) + (M.natureza(x).modelo === 'pendente' ? ' (definição pendente)' : ''); }).join(', ') + '.';
+  }
+  function naturezasHtml(id, idElemento) {
+    var t = textoNaturezas(id);
+    if (!t) return '';
+    return '<p class="fa-classif-nat" data-fa-classif-nat="' + escAttr(id) + '"' + (idElemento ? ' id="' + idElemento + '"' : '') + '>' + escAttr(t) + '</p>';
+  }
 
   function registrarCatalogo(lista, opcoes) {
     catalogo = (lista || []).map(function (c) { return { id: c.id, label: c.label }; });
@@ -185,6 +217,10 @@
       if (comEstado) { el.setAttribute('data-fa-def-estado', est); el.classList.toggle('fa-classif-def--sem', !d); }
       el.hidden = !d && !comEstado;
     });
+    raiz.querySelectorAll('[data-fa-classif-nat]').forEach(function (el) {
+      var t = textoNaturezas(el.getAttribute('data-fa-classif-nat'));
+      if (el.textContent !== t) el.textContent = t;
+    });
     raiz.querySelectorAll('[data-fa-classif-aviso]').forEach(function (el) {
       var ids = String(el.getAttribute('data-fa-classif-aviso') || '').split(',').filter(Boolean);
       el.hidden = !precisaAviso(ids);
@@ -192,7 +228,7 @@
   }
 
   function assinatura() {
-    return JSON.stringify([estado(), demorando, codigos().map(function (id) {
+    return JSON.stringify([estado(), demorando, nomesNatureza, codigos().map(function (id) {
       return [nome(id), usandoContingencia(id), resolvido(id), definicao(id), estadoDefinicao(id), ativo(id)];
     })]);
   }
@@ -275,6 +311,14 @@
         lido[id].erro = true;
       }
     });
+    /* nomes oficiais das naturezas individuais (para dizer a que naturezas uma classificação técnica corresponde) */
+    var M = NA();
+    if (M) M.NATUREZAS.filter(function (n) { return n.modelo === 'individual'; }).forEach(function (n) {
+      try {
+        ouvintesFirebase.push(ouvir(RAIZ + '/conceitos/' + n.conceito + '/nome', minha, function (v) { nomesNatureza[n.conceito] = typeof v === 'string' ? v : null; notificar(); },
+          function () { nomesNatureza[n.conceito] = null; notificar(); }));
+      } catch (e) { nomesNatureza[n.conceito] = null; }
+    });
     notificar();
   }
   /* Pessoa ou acesso mudou → desliga tudo e, se a nova sessão pode ler, religa. */
@@ -309,6 +353,7 @@
     rotulo: rotulo, rotuloNaConclusao: rotuloNaConclusao,
     onMudanca: onMudanca, iniciar: iniciar, recarregar: recarregar,
     precisaAviso: precisaAviso, avisoHtml: avisoHtml, spanNome: spanNome, spanNaConclusao: spanNaConclusao,
-    definicaoHtml: definicaoHtml, atualizarDom: atualizarDom
+    definicaoHtml: definicaoHtml, atualizarDom: atualizarDom,
+    ehTecnica: ehTecnica, nomeNatureza: nomeNatureza, naturezasHtml: naturezasHtml
   };
 })();

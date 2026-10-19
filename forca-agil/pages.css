@@ -2548,7 +2548,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-sec { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 14px; }
 .tax-sec h4 { margin: 0 0 8px; font-size: .92rem; }
 .tax-situacao { margin: 0 0 6px; }
-.tax-definicao-texto, .tax-fonte-texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--arq-fs-texto); color: var(--ink); margin: 6px 0; }
+.tax-definicao-texto, .tax-fonte-texto, .tax-tecnica-texto { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--arq-fs-texto); color: var(--ink); margin: 6px 0; }
 .tax-fonte-origem { color: var(--ink-3); font-size: var(--arq-fs-meta); margin: 0; }
 .tax-fonte { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: var(--space-1); }
 .tax-fonte--vigente { border-color: rgba(24,194,186,.5); }
@@ -2733,7 +2733,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 /* (a integração tem página própria: nada a esconder no celular) */
 /* Avaliação: nome da classificação vindo da Taxonomia, nota da época e aviso de contingência */
 .fa-classif-epoca { font-size: var(--arq-fs-meta); font-weight: normal; color: var(--ink-3); }
-.fa-classif-def { font-size: var(--arq-fs-aux); color: var(--ink-2); margin: 4px 0 8px; overflow-wrap: anywhere; }
+.fa-classif-def, .fa-classif-nat { font-size: var(--arq-fs-aux); color: var(--ink-2); margin: 4px 0 8px; overflow-wrap: anywhere; }
 .fa-classif-aviso { font-size: var(--arq-fs-aux); color: var(--ink-3); border-left: 3px solid var(--gold); padding: 2px 8px; margin: 4px 0 8px; overflow-wrap: anywhere; }
 .fa-classif-aviso[hidden], .fa-classif-epoca[hidden], .fa-classif-def[hidden] { display: none; }
 .tax-hist-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }

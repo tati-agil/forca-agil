@@ -309,6 +309,10 @@ async function parteB(browser) {
   tela = await textoTela(page);
   afirma(tela.includes(RELACAO_NOVA) && tela.includes(JUSTIFICATIVA_NOVA), 'a tela mostra a relação e a justificativa novas');
   afirma(/Camada identificada:\s*Informação\/Documento/.test(await page.locator('.avp-alt-card').innerText()), 'a tela mostra a camada Informação/Documento');
+  /* unificação da Taxonomia: a classificação técnica do motor não é apresentada com definição oficial concorrente */
+  const natTxt = (await page.locator('#avpCamadaNaturezas').textContent().catch(() => '')) || '';
+  afirma(/não é uma natureza arquitetural nem um conceito oficial/.test(natTxt) && /Naturezas oficiais correspondentes: (Informação, Documento|Documento, Informação)\./.test(natTxt) && await page.locator('#avpCamadaDefinicao').count() === 0,
+    'classificação técnica: diz que não é natureza nem conceito oficial e cita as naturezas oficiais correspondentes, sem definição concorrente', natTxt);
   const p5 = await interpretacao(page, 'P5');
   afirma(p5.includes(P5_NAO_NOVO), 'T1: P5 = NÃO na tela: "' + p5.replace(/\s+/g, ' ').slice(0, 110) + '…"');
   afirma(!/depende estruturalmente de outro Produto\/Serviço/i.test(p5), 'T1: não aparece "depende estruturalmente de outro Produto/Serviço"');
