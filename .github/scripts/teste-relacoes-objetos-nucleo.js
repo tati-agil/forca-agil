@@ -42,11 +42,12 @@ const nat = (gate, registro) => R.naturezaDoObjeto({ gate, registro });
 afirma(nat(g('componente', 'produto')).natureza === 'produto', 'decisão final "produto" → Produto/Serviço, mesmo com outra camada automática');
 afirma(nat(g('canal', 'nao-produto')).natureza === 'canal' && nat(g('capacidade-organizacional', 'nao-produto')).natureza === 'capacidade', '"não produto" com camada individual → a natureza dela');
 afirma(nat(g('funcionalidade-operacao', 'nao-produto')).motivo === 'NATUREZA_NAO_REGISTRADA', 'camada conjunta sem registro → sem natureza (nunca deduzida)');
-afirma(nat(g('funcionalidade-operacao', 'nao-produto'), { natureza: 'operacao', camada: 'funcionalidade-operacao' }).natureza === 'operacao', 'camada conjunta com registro → a natureza registrada');
+afirma(nat(g('funcionalidade-operacao', 'nao-produto'), { natureza: 'operacao', camada: 'funcionalidade-operacao', avaliacaoId: 'av1' }).natureza === 'operacao', 'camada conjunta com registro da versão vigente → a natureza registrada');
+afirma(nat(g('funcionalidade-operacao', 'nao-produto'), { natureza: 'operacao', camada: 'funcionalidade-operacao', avaliacaoId: 'av0' }).motivo === 'NATUREZA_A_CONFIRMAR', 'registro de OUTRA versão, mesma classificação → "a confirmar" (não autoriza)');
 afirma(nat(g('componente', 'nao-produto'), { natureza: 'operacao', camada: 'funcionalidade-operacao' }).natureza === 'componente', 'camada individual: um registro antigo não muda nada');
 afirma(nat(g('processo-etapa', 'nao-produto'), { natureza: 'operacao', camada: 'funcionalidade-operacao' }).motivo === 'NATUREZA_A_CONFIRMAR', 'reavaliação mudou a camada conjunta → natureza "a confirmar"');
 afirma(nat(g('a-validar', 'a-validar')).motivo === 'A_VALIDAR' && nat(g('produto-principal', 'nao-produto')).motivo === 'DECISAO_INCOERENTE', '"a validar" e "não produto" com camada Produto/Serviço → nenhuma natureza');
-afirma(nat(g('modalidade-subproduto', 'nao-produto'), { natureza: 'opcao', camada: 'modalidade-subproduto' }).natureza === 'opcao', 'Opção registrada num item de Modalidade/Subproduto');
+afirma(nat(g('modalidade-subproduto', 'nao-produto'), { natureza: 'opcao', camada: 'modalidade-subproduto', avaliacaoId: 'av1' }).natureza === 'opcao', 'Opção registrada num item de Modalidade/Subproduto');
 afirma(nat({ situacao: 'verificando' }).indisponivel === true && nat({ situacao: 'excluida', libera: false }).motivo === 'SEM_AVALIACAO_VALIDA', 'motor ainda verificando → indisponível; sem avaliação que vale → sem natureza');
 afirma(R.naturezaDoObjeto({ porta2: { situacao: 'ativo' } }).natureza === 'responsabilidade' && R.naturezaDoObjeto({ porta2: { situacao: 'encerrado' } }).motivo === 'OBJETO_ENCERRADO', 'Porta 2: pela própria identidade, sem P1–P16');
 
@@ -86,13 +87,14 @@ afirma(e.ok && e.relacao.situacao === 'encerrada' && e.relacao.revisao === 2 && 
   'encerrar: final, revisão + 1, motivo, índice liberado, a relação continua registrada');
 afirma(codigos(R.encerrarRelacao({ registros: { r1: e.relacao } }, 'r1', 'de novo', { operacaoId: 'op22', usuario: U, agora: 9 })).indexOf('RELACAO_JA_ENCERRADA') !== -1, 'relação encerrada não se encerra de novo');
 const conc = { ativo: true, temDefinicao: true, naturezaDe: 'funcionalidade-operacao' };
-const FUND = { versao: 1, pergunta: 'Pergunta de teste', alternativa: 'alt', rotulo: 'Alternativa de teste', justificativa: 'Justificativa de teste' };
-let n = R.registrarNatureza('it1', 'operacao', g('funcionalidade-operacao', 'nao-produto'), null, conc, { auditoriaId: 'a1', usuario: U, agora: 5 }, FUND);
+/* fundamento coerente com a orientação: a alternativa da natureza e o snapshot da definição oficial dela */
+const FUND = (n) => ({ versao: 1, pergunta: 'Pergunta de teste', alternativa: n, rotulo: 'Alternativa de teste', justificativa: 'Justificativa de teste', definicoes: { [n]: { texto: 'Definição de teste', versao: 1 } } });
+let n = R.registrarNatureza('it1', 'operacao', g('funcionalidade-operacao', 'nao-produto'), null, conc, { auditoriaId: 'a1', usuario: U, agora: 5 }, FUND('operacao'));
 afirma(n.ok && n.registro.revisao === 1 && n.caminhos['objetos-natureza-auditoria/it1/a1'].tipo === 'registro', 'registrar natureza: registro (revisão 1) + auditoria nova na mesma gravação');
-afirma(codigos(R.registrarNatureza('it1', 'operacao', g('funcionalidade-operacao', 'nao-produto'), null, null, { auditoriaId: 'a2', usuario: U, agora: 5 }, FUND)).indexOf('CONCEITO_SEM_DEFINICAO_OFICIAL') !== -1, 'sem conceito oficial, não registra');
-afirma(codigos(R.registrarNatureza('it1', 'processo', g('funcionalidade-operacao', 'nao-produto'), null, { ativo: true, temDefinicao: true, naturezaDe: 'processo-etapa' }, { auditoriaId: 'a3', usuario: U, agora: 5 }, FUND)).indexOf('NATUREZA_FORA_DA_CAMADA') !== -1, 'natureza fora da camada da avaliação que vale, não registra');
-afirma(codigos(R.registrarNatureza('it1', 'operacao', g('funcionalidade-operacao', 'produto'), null, conc, { auditoriaId: 'a4', usuario: U, agora: 5 }, FUND)).indexOf('DECISAO_NAO_PERMITE') !== -1, 'decisão final "produto" não recebe natureza individual');
-const n2 = R.registrarNatureza('it1', 'funcionalidade', g('funcionalidade-operacao', 'nao-produto'), n.registro, conc, { auditoriaId: 'a5', usuario: U, agora: 6 }, FUND);
+afirma(codigos(R.registrarNatureza('it1', 'operacao', g('funcionalidade-operacao', 'nao-produto'), null, null, { auditoriaId: 'a2', usuario: U, agora: 5 }, FUND('operacao'))).indexOf('CONCEITO_SEM_DEFINICAO_OFICIAL') !== -1, 'sem conceito oficial, não registra');
+afirma(codigos(R.registrarNatureza('it1', 'processo', g('funcionalidade-operacao', 'nao-produto'), null, { ativo: true, temDefinicao: true, naturezaDe: 'processo-etapa' }, { auditoriaId: 'a3', usuario: U, agora: 5 }, FUND('processo'))).indexOf('NATUREZA_FORA_DA_CAMADA') !== -1, 'natureza fora da camada da avaliação que vale, não registra');
+afirma(codigos(R.registrarNatureza('it1', 'operacao', g('funcionalidade-operacao', 'produto'), null, conc, { auditoriaId: 'a4', usuario: U, agora: 5 }, FUND('operacao'))).indexOf('DECISAO_NAO_PERMITE') !== -1, 'decisão final "produto" não recebe natureza individual');
+const n2 = R.registrarNatureza('it1', 'funcionalidade', g('funcionalidade-operacao', 'nao-produto'), n.registro, conc, { auditoriaId: 'a5', usuario: U, agora: 6 }, FUND('funcionalidade'));
 afirma(n2.ok && n2.registro.revisao === 2 && n2.caminhos['objetos-natureza-auditoria/it1/a5'].anterior === 'operacao' && n2.caminhos['objetos-natureza-auditoria/it1/a5'].tipo === 'alteracao', 'corrigir a natureza: revisão + 1, auditoria "alteracao" com o valor anterior');
 const cc = R.criarConceitoNatureza('etapa', 'Etapa', 'Definição aprovada (teste).', { email: 'adm@previ.com.br', agoraIso: '2026-10-18T00:00:00Z', auditoriaKey: 'k1', ordem: 7 });
 const cb = cc.caminhos['taxonomia/arquitetural/conceitos/etapa'];

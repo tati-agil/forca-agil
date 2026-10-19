@@ -7,7 +7,11 @@
  *    definições; pendência no MESMO registro, sem natureza, com diagnóstico e justificativa; reavaliação só em Regra/Opção;
  *    pendência nunca autoriza relação; mudança de versão → "a confirmar"; nada é deduzido.
  * C. Casos (claros, ambíguos e contraditórios) para as naturezas individuais: a escolha registrada é sempre a da pessoa,
- *    e o que a orientação manda tratar como pendência fica pendência. */
+ *    e o que a orientação manda tratar como pendência fica pendência.
+ * D. Coerência do fundamento: alternativa incompatível com a natureza (ou com o motivo da pendência), versão da orientação
+ *    diferente da vigente, snapshot sem a definição da natureza escolhida ou com naturezas que a pergunta não mostra.
+ * E. Vínculo com a versão VIGENTE: identificação (natureza ou pendência) feita em outra versão fica "a confirmar", mesmo
+ *    com a mesma classificação; reconfirmação explícita para a vigente; o registro antigo fica na auditoria. */
 'use strict';
 const path = require('path');
 const RAIZ = path.join(__dirname, '..', '..');
@@ -45,14 +49,16 @@ console.log('B. Núcleo: fundamento e pendência');
 const U = { id: 'u1', email: 'arq@previ.com.br' };
 const g = (camada, dec, chave) => ({ situacao: 'atual', libera: true, chave: chave || 'it1', avaliacao: { decisaoFinal: dec || 'nao-produto', camadaSugerida: { id: camada } } });
 const conc = (n) => ({ ativo: true, temDefinicao: true, naturezaDe: R.NATUREZAS[n].camada });
-const fund = (alt, just, extra) => Object.assign({ versao: 1, pergunta: 'P', alternativa: alt, rotulo: 'R', justificativa: just }, extra || {});
+/* o snapshot leva a definição oficial da natureza escolhida (como a tela grava) */
+const fund = (alt, just, extra) => Object.assign({ versao: 1, pergunta: 'P', alternativa: alt, rotulo: 'R', justificativa: just }, R.NATUREZAS[alt] ? { definicoes: { [alt]: { texto: 'Def ' + alt, versao: 1 } } } : {}, extra || {});
 const codigos = (r) => (r.erros || []).map((e) => e.codigo);
 anota('identificação sem fundamento é recusada', codigos(R.registrarNatureza('it1', 'processo', g('processo-etapa'), null, conc('processo'), { auditoriaId: 'a', usuario: U, agora: 1 })).indexOf('FUNDAMENTO_OBRIGATORIO') !== -1);
 anota('identificação com justificativa em branco é recusada', codigos(R.registrarNatureza('it1', 'processo', g('processo-etapa'), null, conc('processo'), { auditoriaId: 'a', usuario: U, agora: 1 }, fund('processo', '   '))).indexOf('JUSTIFICATIVA_OBRIGATORIA') !== -1);
-const ok1 = R.registrarNatureza('it1', 'processo', g('processo-etapa'), null, conc('processo'), { auditoriaId: 'a1', usuario: U, agora: 1 }, fund('processo', 'Produz o resultado', { definicoes: { processo: { texto: 'Def P', versao: 2 }, etapa: { texto: 'Def E', versao: 1 }, xpto: { texto: 'x' } } }));
+const ok1 = R.registrarNatureza('it1', 'processo', g('processo-etapa'), null, conc('processo'), { auditoriaId: 'a1', usuario: U, agora: 1 }, fund('processo', 'Produz o resultado', { definicoes: { processo: { texto: 'Def P', versao: 2 }, etapa: { texto: 'Def E', versao: 1 } } }));
 anota('identificação com fundamento: registro e auditoria levam o mesmo snapshot (pergunta, alternativa, justificativa, definições da época)',
-  ok1.ok && ok1.registro.fundamento.justificativa === 'Produz o resultado' && ok1.registro.fundamento.definicoes.processo.versao === 2 && !ok1.registro.fundamento.definicoes.xpto && ok1.caminhos[R.NAT_AUD + '/it1/a1'].fundamento.justificativa === 'Produz o resultado');
-const pend = (motivo, extra) => Object.assign({ motivo, diagnostico: 'O que falta', justificativa: 'Por quê', versao: 1, pergunta: 'P', alternativa: motivo, rotulo: 'R' }, extra || {});
+  ok1.ok && ok1.registro.fundamento.justificativa === 'Produz o resultado' && ok1.registro.fundamento.definicoes.processo.versao === 2 && ok1.registro.fundamento.definicoes.etapa.texto === 'Def E' && ok1.caminhos[R.NAT_AUD + '/it1/a1'].fundamento.justificativa === 'Produz o resultado');
+/* a alternativa da pendência é a da orientação (Regra/Opção: "opcao-reavaliar" → reavaliação necessária) */
+const pend = (motivo, extra) => Object.assign({ motivo, diagnostico: 'O que falta', justificativa: 'Por quê', versao: 1, pergunta: 'P', alternativa: motivo === 'reavaliacao-necessaria' ? 'opcao-reavaliar' : motivo, rotulo: 'R' }, extra || {});
 anota('pendência sem diagnóstico é recusada', codigos(R.registrarPendencia('it1', g('processo-etapa'), null, pend('recorte', { diagnostico: '' }), { auditoriaId: 'p', usuario: U, agora: 1 })).indexOf('DIAGNOSTICO_OBRIGATORIO') !== -1);
 anota('pendência sem justificativa é recusada', codigos(R.registrarPendencia('it1', g('processo-etapa'), null, pend('recorte', { justificativa: ' ' }), { auditoriaId: 'p', usuario: U, agora: 1 })).indexOf('JUSTIFICATIVA_OBRIGATORIA') !== -1);
 anota('motivo de pendência fora dos três aprovados é recusado', codigos(R.registrarPendencia('it1', g('processo-etapa'), null, pend('outro'), { auditoriaId: 'p', usuario: U, agora: 1 })).indexOf('MOTIVO_PENDENCIA_INVALIDO') !== -1);
@@ -92,6 +98,42 @@ CASOS.forEach(([cl, valor, esp]) => {
 });
 anota('naturezas diretas (Produto/Serviço, Componente, Canal, Capacidade, Unidade de Valor) não pedem identificação', ['produto', 'componente', 'canal', 'capacidade', 'unidade-valor'].every((n) => !I.diferenciacao(NA.natureza(n).classificacao)));
 anota('as 15 naturezas são alcançáveis: 5 diretas + 10 pela identificação orientada', new Set(CASOS.filter((c) => c[2].natureza).map((c) => c[2].natureza)).size === 10);
+
+console.log('D. Coerência do fundamento (núcleo; o banco confere o mesmo em teste-rules-relacoes-objetos.js, seção J)');
+const ctxD = { auditoriaId: 'd', usuario: U, agora: 1 };
+const errN = (nat, cl, f) => codigos(R.registrarNatureza('o', nat, g(cl), null, conc(nat), ctxD, f));
+anota('natureza Funcionalidade com a alternativa "operacao" é recusada', errN('funcionalidade', 'funcionalidade-operacao', fund('operacao', 'j', { definicoes: { funcionalidade: { texto: 'D', versao: 1 } } })).indexOf('ALTERNATIVA_INCOMPATIVEL') !== -1);
+anota('natureza com alternativa de pendência ("recorte") é recusada', errN('etapa', 'processo-etapa', fund('recorte', 'j', { definicoes: { etapa: { texto: 'D', versao: 1 } } })).indexOf('ALTERNATIVA_INCOMPATIVEL') !== -1);
+anota('alternativa que não existe é recusada', errN('regra', 'regra-condicao', fund('xpto', 'j', { definicoes: { regra: { texto: 'D', versao: 1 } } })).indexOf('ALTERNATIVA_INCOMPATIVEL') !== -1);
+anota('versão da orientação diferente da vigente é recusada', errN('processo', 'processo-etapa', fund('processo', 'j', { versao: 2 })).indexOf('VERSAO_ORIENTACAO_DIFERENTE') !== -1);
+anota('identificação sem o snapshot da definição oficial da natureza escolhida é recusada', errN('processo', 'processo-etapa', fund('processo', 'j', { definicoes: undefined })).indexOf('DEFINICAO_OFICIAL_AUSENTE') !== -1 &&
+  errN('processo', 'processo-etapa', fund('processo', 'j', { definicoes: { etapa: { texto: 'D', versao: 1 } } })).indexOf('DEFINICAO_OFICIAL_AUSENTE') !== -1);
+anota('snapshot com natureza que a pergunta não mostra é recusado', errN('processo', 'processo-etapa', fund('processo', 'j', { definicoes: { processo: { texto: 'D', versao: 1 }, regra: { texto: 'R', versao: 1 } } })).indexOf('DEFINICOES_FORA_DA_PERGUNTA') !== -1);
+const errP = (cl, p) => codigos(R.registrarPendencia('o', g(cl), null, p, ctxD));
+anota('pendência "recorte" com a alternativa de evidência insuficiente é recusada', errP('processo-etapa', pend('recorte', { alternativa: 'evidencia-insuficiente' })).indexOf('ALTERNATIVA_INCOMPATIVEL') !== -1);
+anota('pendência com a alternativa de uma natureza é recusada', errP('processo-etapa', pend('evidencia-insuficiente', { alternativa: 'processo' })).indexOf('ALTERNATIVA_INCOMPATIVEL') !== -1);
+anota('"reavaliação necessária" sem a alternativa "opcao-reavaliar" é recusada', errP('regra-condicao', pend('reavaliacao-necessaria', { alternativa: 'recorte' })).indexOf('ALTERNATIVA_INCOMPATIVEL') !== -1);
+anota('pendência com versão da orientação diferente é recusada', errP('processo-etapa', pend('recorte', { versao: 3 })).indexOf('VERSAO_ORIENTACAO_DIFERENTE') !== -1);
+anota('pendência pode guardar as definições mostradas (sem exigir a de natureza nenhuma)', R.registrarPendencia('o', g('processo-etapa'), null, pend('recorte', { definicoes: { processo: { texto: 'D', versao: 1 } } }), ctxD).ok && R.registrarPendencia('o', g('processo-etapa'), null, pend('recorte'), ctxD).ok);
+
+console.log('E. Vínculo com a versão vigente');
+const vNat = R.registrarNatureza('it9', 'funcionalidade', g('funcionalidade-operacao', 'nao-produto', 'v1'), null, conc('funcionalidade'), { auditoriaId: 'e1', usuario: U, agora: 1 }, fund('funcionalidade', 'Recurso'));
+const mesma = R.naturezaDoObjeto({ gate: g('funcionalidade-operacao', 'nao-produto', 'v2'), registro: vNat.registro });
+anota('reavaliação com a MESMA classificação: a natureza da versão anterior fica "a confirmar" (não autoriza)', mesma.natureza === null && mesma.motivo === 'NATUREZA_A_CONFIRMAR' && mesma.confirmar === 'OUTRA_VERSAO' && mesma.avaliacaoRegistro === 'v1' && mesma.registrada === 'funcionalidade');
+const outraCl = R.naturezaDoObjeto({ gate: g('processo-etapa', 'nao-produto', 'v2'), registro: vNat.registro });
+anota('reavaliação com classificação DIFERENTE: "a confirmar"', outraCl.natureza === null && outraCl.motivo === 'NATUREZA_A_CONFIRMAR');
+anota('na própria versão em que foi identificada, vale', R.naturezaDoObjeto({ gate: g('funcionalidade-operacao', 'nao-produto', 'v1'), registro: vNat.registro }).natureza === 'funcionalidade');
+const vPend = R.registrarPendencia('it9', g('processo-etapa', 'nao-produto', 'v1'), null, pend('recorte'), { auditoriaId: 'e2', usuario: U, agora: 1 });
+const pMesma = R.naturezaDoObjeto({ gate: g('processo-etapa', 'nao-produto', 'v2'), registro: vPend.registro });
+anota('pendência de outra versão (mesma classificação) também fica "a confirmar", com a pendência anterior à vista', pMesma.motivo === 'NATUREZA_A_CONFIRMAR' && pMesma.confirmar === 'OUTRA_VERSAO' && pMesma.pendencia.motivo === 'recorte');
+const sit = R.situacaoRelacao({ situacao: 'ativa', tipo: 'compoe', naturezaOrigem: 'funcionalidade', naturezaDestino: 'produto' }, { origem: mesma, destino: { natureza: 'produto' } });
+anota('relação existente com ponta de outra versão: "a revisar" (nada é encerrado sozinho)', sit.situacao === 'a-revisar');
+const rec = R.registrarNatureza('it9', 'funcionalidade', g('funcionalidade-operacao', 'nao-produto', 'v2'), vNat.registro, conc('funcionalidade'), { auditoriaId: 'e3', usuario: U, agora: 2 }, fund('funcionalidade', 'Reconfirmado na v2'));
+anota('reconfirmação explícita para a versão vigente: aceita (não é "nada mudou"), revisão + 1, auditoria "alteracao" com a natureza anterior',
+  rec.ok && rec.registro.avaliacaoId === 'v2' && rec.registro.revisao === 2 && rec.caminhos[R.NAT_AUD + '/it9/e3'].tipo === 'alteracao' && rec.caminhos[R.NAT_AUD + '/it9/e3'].anterior === 'funcionalidade');
+anota('depois da reconfirmação, vale na versão vigente', R.naturezaDoObjeto({ gate: g('funcionalidade-operacao', 'nao-produto', 'v2'), registro: rec.registro }).natureza === 'funcionalidade');
+anota('reconfirmar na mesma versão, sem mudar nada: "nada mudou"', codigos(R.registrarNatureza('it9', 'funcionalidade', g('funcionalidade-operacao', 'nao-produto', 'v2'), rec.registro, conc('funcionalidade'), { auditoriaId: 'e4', usuario: U, agora: 3 }, fund('funcionalidade', 'x'))).indexOf('NADA_MUDOU') !== -1);
+anota('histórico: a auditoria da 1ª identificação (v1) continua com o fundamento da época', vNat.caminhos[R.NAT_AUD + '/it9/e1'].avaliacaoId === 'v1' && vNat.caminhos[R.NAT_AUD + '/it9/e1'].fundamento.justificativa === 'Recurso');
 
 console.log('\n' + (falhas ? 'FALHAS: ' + falhas + ' de ' + total : 'TUDO OK — ' + total + ' verificações'));
 process.exit(falhas ? 1 : 0);

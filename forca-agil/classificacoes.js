@@ -228,7 +228,10 @@
   }
 
   function assinatura() {
-    return JSON.stringify([estado(), demorando, codigos().map(function (id) {
+    /* sem o demorando cru: o que ele muda na tela já está em estado() e estadoDefinicao(). Com ele, o prazo de demora
+       (que fica armado depois que tudo chegou) avisava os ouvintes ~6 s depois, sem nada visível mudar — e quem redesenha
+       a tela inteira ao ser avisado (ex.: a Adequação à Squad) redesenhava à toa. */
+    return JSON.stringify([estado(), codigos().map(function (id) {
       return [nome(id), usandoContingencia(id), resolvido(id), definicao(id), estadoDefinicao(id), ativo(id)];
     })]);
   }

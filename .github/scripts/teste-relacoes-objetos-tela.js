@@ -41,9 +41,21 @@ function banco(o) {
     rCar: item('rCar', 'Regra de carência (teste)', 'regra-condicao'),
     mPerf: item('mPerf', 'Perfil de investimento (teste)', 'modalidade-subproduto')
   });
-  Object.assign(db['avaliacoes-produto-ponta'], { cMotor: 'cMotor', fSim: 'fSim', oCalc: 'oCalc', rCar: 'rCar', mPerf: 'mPerf' }); /* versão vigente de cada item novo */
+  /* reavaliações: fRea com a MESMA classificação (v1 → v2), pRea com classificação DIFERENTE (processo-etapa → funcionalidade-operacao) */
+  Object.assign(db['avaliacoes-produto'], {
+    fRea1: Object.assign(item('fRea', 'Consulta de saldo (teste)', 'funcionalidade-operacao'), { versao: 1 }),
+    fRea2: Object.assign(item('fRea', 'Consulta de saldo (teste)', 'funcionalidade-operacao'), { versao: 2, versaoAnteriorKey: 'fRea1' }),
+    pRea1: Object.assign(item('pRea', 'Concessão de benefício (teste)', 'processo-etapa'), { versao: 1 }),
+    pRea2: Object.assign(item('pRea', 'Concessão de benefício (teste)', 'funcionalidade-operacao'), { versao: 2, versaoAnteriorKey: 'pRea1' })
+  });
+  Object.assign(db['avaliacoes-produto-ponta'], { cMotor: 'cMotor', fSim: 'fSim', oCalc: 'oCalc', rCar: 'rCar', mPerf: 'mPerf', fRea: 'fRea2', pRea: 'pRea2' }); /* versão vigente de cada item novo */
   if (o.semIndice) delete db['avaliacoes-produto-ponta'][o.semIndice]; /* item antigo ainda não reconciliado */
-  db['objetos-natureza'] = { oCalc: { natureza: 'operacao', camada: 'funcionalidade-operacao', avaliacaoId: 'oCalc', revisao: 1, registradaEm: 1, registradaPor: { id: 'u', email: SJ.ARQ }, auditoriaId: 'a0' } };
+  db['objetos-natureza'] = { oCalc: { natureza: 'operacao', camada: 'funcionalidade-operacao', avaliacaoId: 'oCalc', revisao: 1, registradaEm: 1, registradaPor: { id: 'u', email: SJ.ARQ }, auditoriaId: 'a0' },
+    /* identificações feitas na versão ANTERIOR (v1) de cada item reavaliado */
+    fRea: { natureza: 'funcionalidade', camada: 'funcionalidade-operacao', avaliacaoId: 'fRea1', revisao: 1, registradaEm: 1, registradaPor: { id: 'u', email: SJ.ARQ }, auditoriaId: 'aF1',
+      fundamento: { versao: 1, pergunta: 'P', alternativa: 'funcionalidade', rotulo: 'Recurso oferecido', justificativa: 'Identificada na v1 (teste)', definicoes: { funcionalidade: { texto: 'Def', versao: 1 } } } },
+    pRea: { camada: 'processo-etapa', avaliacaoId: 'pRea1', revisao: 1, registradaEm: 1, registradaPor: { id: 'u', email: SJ.ARQ }, auditoriaId: 'aP1',
+      pendencia: { motivo: 'recorte', diagnostico: 'Reúne etapas distintas (teste)', justificativa: 'Pendente na v1 (teste)', versao: 1, pergunta: 'P', alternativa: 'recorte', rotulo: 'Recorte' } } };
   db.taxonomia.arquitetural = { conceitos: { funcionalidade: conceito('Funcionalidade', 'funcionalidade-operacao'), operacao: conceito('Operação', 'funcionalidade-operacao'), regra: conceito('Regra', 'regra-condicao'), opcao: conceito('Opção', 'modalidade-subproduto'), modalidade: conceito('Modalidade', 'modalidade-subproduto') } };
   if (o.adminGeral) db['fa-admins'] = { [SJ.chave(SJ.ARQ)]: { email: SJ.ARQ, name: 'ADMIN' } };
   if (o.marcador === null) delete db['relacoes-objetos-config'];
@@ -153,6 +165,31 @@ async function rodada(browser, vp, tag) {
       'ficha P1–P16: classificação técnica × natureza identificada; registro anterior aparece "sem fundamento"');
     afirma(r5.erros.length === 0 && await larguraOk(p5), 'ficha P1–P16: sem erro de JS e sem rolagem lateral');
     await r5.ctx.close();
+    /* reavaliação com a MESMA classificação: a identificação da v1 não vale para a v2 até ser reconfirmada */
+    const r6 = await abrir(browser, vp, '#arquitetura?tr=1&item=fRea'); const p6 = r6.page;
+    await secaoPronta(p6);
+    afirma(await existe(p6, '#roNatureza[data-motivo="NATUREZA_A_CONFIRMAR"][data-confirmar="OUTRA_VERSAO"]') && /outra versão da avaliação/.test(await texto(p6, '#roNatureza')),
+      'reavaliação com a mesma classificação: a natureza da versão anterior fica "a confirmar"', await texto(p6, '#roNatureza'));
+    afirma(/fRea1/.test(await texto(p6, '#roIdentAnterior')) && /Funcionalidade/.test(await texto(p6, '#roIdentAnterior')) && /Identificada na v1/.test(await texto(p6, '#roIdentAnterior')),
+      'a identificação anterior aparece como histórico (versão, natureza e fundamento)', await texto(p6, '#roIdentAnterior'));
+    afirma(!(await existe(p6, '#roRelacionar')) && await existe(p6, '#roFormNatureza'), 'antes da reconfirmação não oferece relacionar; oferece a identificação para a versão vigente');
+    await identificar(p6, 'funcionalidade', 'Reconfirmada para a versão vigente (teste)');
+    await ate(p6, () => /identificada:\s*Funcionalidade/.test((document.getElementById('roNatureza') || {}).textContent || ''), undefined, 'reconfirmada');
+    const nr = await lerBanco(p6, 'objetos-natureza/fRea');
+    const audR = Object.values((await lerBanco(p6, 'objetos-natureza-auditoria/fRea')) || {});
+    afirma(nr.avaliacaoId === 'fRea2' && nr.revisao === 2 && /Reconfirmada/.test(nr.fundamento.justificativa) && audR.some((x) => x.tipo === 'alteracao' && x.anterior === 'funcionalidade' && x.avaliacaoId === 'fRea2'),
+      'reconfirmação explícita: registro da versão vigente, revisão + 1, auditoria com a natureza anterior', nr);
+    afirma(await existe(p6, '#roRelacionar'), 'depois da reconfirmação, relacionar fica disponível');
+    afirma(r6.erros.length === 0 && await larguraOk(p6), 'reconfirmação: sem erro de JS e sem rolagem lateral');
+    await r6.ctx.close();
+    /* reavaliação com classificação DIFERENTE e pendência anterior */
+    const r7 = await abrir(browser, vp, '#arquitetura?avp=pRea2'); const p7 = r7.page;
+    await ate(p7, () => !!document.querySelector('#roSecaoNatureza #roNatureza'), undefined, 'natureza na ficha P1–P16 (pRea2)', 20000);
+    afirma(await existe(p7, '#roSecaoNatureza #roNatureza[data-motivo="NATUREZA_A_CONFIRMAR"]') && /pendente — Recorte/.test(await texto(p7, '#roSecaoNatureza #roIdentAnterior')) && !(await existe(p7, '#roSecaoNatureza #roRelacionar')),
+      'ficha P1–P16: classificação diferente — a pendência anterior aparece como histórico e nada autoriza relação', await texto(p7, '#roSecaoNatureza'));
+    afirma(/Funcionalidade/.test(await texto(p7, '#roSecaoNatureza #roIdentDefinicoes')), 'a identificação oferecida é a da classificação vigente (Funcionalidade/Operação)');
+    afirma(r7.erros.length === 0 && await larguraOk(p7), 'ficha P1–P16 (classificação diferente): sem erro de JS e sem rolagem lateral');
+    await r7.ctx.close();
     afirma(r2.erros.length === 0 && await larguraOk(pg), 'E5: sem erro de JS e sem rolagem lateral');
     await r2.ctx.close();
     const r3 = await abrir(browser, vp, '#arquitetura?tr=1&item=oAgi'); const p3 = r3.page;

@@ -16,6 +16,10 @@
       contador de versão do grafo — duas criações sobre a mesma versão: só uma entra.
    F. Encerrar: motivo obrigatório, final, libera o índice; nada se apaga; a relação pode ser registrada de novo.
    G. Eventos e operações só de acréscimo.
+   I. Identificação orientada: fundamento obrigatório e identificação PENDENTE no mesmo registro.
+   J. Coerência do fundamento (alternativa × natureza/motivo, versão da orientação, snapshot = definições oficiais de
+      agora) e vínculo com a versão VIGENTE: a natureza de outra versão nunca autoriza relação, mesmo com a mesma
+      classificação; reconfirmação explícita para a vigente; histórico preservado.
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -23,6 +27,7 @@ const path = require('path');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
 const RAIZ = path.join(__dirname, '..', '..');
 const R = require(path.join(RAIZ, 'forca-agil', 'relacoes-objetos-nucleo.js'));
+const IDN = require(path.join(RAIZ, 'forca-agil', 'identificacao-naturezas.js'));
 const MOTOR = require('./montar-regras-posicionamento.js').MOTOR_PRODUTO;
 
 let total = 0, falhas = 0;
@@ -118,10 +123,22 @@ async function main() {
   console.log('C. Natureza individual');
   const gate = async (k) => ({ situacao: 'atual', libera: true, chave: k, avaliacao: await ler('avaliacoes-produto/' + k) });
   const conc = async (cod) => { const c = await ler('taxonomia/arquitetural/conceitos/' + cod); return c ? { ativo: c.ativo, naturezaDe: c.naturezaDe, temDefinicao: !!(c.definicao && c.definicao.texto) } : null; };
+  /* o fundamento como a tela grava: a alternativa da natureza (ou da pendência), a versão vigente da orientação e o snapshot
+     das definições oficiais que a pergunta mostra, lidas da Taxonomia AGORA (a natureza escolhida sempre vai no snapshot;
+     se ela não tem definição, o texto é um marcador e o banco recusa, como deve) */
+  const fundDe = async (camada, alternativa, nat) => {
+    const dif = IDN.diferenciacao(camada), defs = {};
+    for (const a of (dif ? dif.alternativas : []).filter((x) => x.natureza)) {
+      const c = await ler('taxonomia/arquitetural/conceitos/' + a.natureza);
+      if (c && c.definicao && c.definicao.texto) defs[a.natureza] = { texto: c.definicao.texto, versao: c.definicao.versao || 1 };
+    }
+    if (nat && !defs[nat]) defs[nat] = { texto: '(sem definição oficial — teste)', versao: 1 };
+    return { versao: IDN.VERSAO, pergunta: 'Pergunta de teste', alternativa, rotulo: 'Alternativa de teste', justificativa: 'Justificativa de teste', definicoes: defs };
+  };
   const natW = async (obj, nat, e, opcoes) => {
     opcoes = opcoes || {};
     const g = opcoes.gate || await gate(obj);
-    const r = R.registrarNatureza(obj, nat, g, await ler(R.NAT + '/' + obj), opcoes.conceito || (await conc(nat)) || { ativo: true, naturezaDe: R.NATUREZAS[nat] && R.NATUREZAS[nat].camada, temDefinicao: true }, { auditoriaId: novaChave('na'), usuario: usuario(e), agora: TS }, opcoes.fundamento || { versao: 1, pergunta: 'Pergunta de teste', alternativa: 'alt', rotulo: 'Alternativa de teste', justificativa: 'Justificativa de teste' });
+    const r = R.registrarNatureza(obj, nat, g, await ler(R.NAT + '/' + obj), opcoes.conceito || (await conc(nat)) || { ativo: true, naturezaDe: R.NATUREZAS[nat] && R.NATUREZAS[nat].camada, temDefinicao: true }, { auditoriaId: novaChave('na'), usuario: usuario(e), agora: TS }, opcoes.fundamento || await fundDe(g.avaliacao && g.avaliacao.camadaSugerida && g.avaliacao.camadaSugerida.id, nat, nat));
     if (!r.ok) throw new Error('núcleo recusou: ' + JSON.stringify(r.erros));
     const c = js(r.caminhos);
     if (opcoes.ajuste) opcoes.ajuste(c);
@@ -307,9 +324,11 @@ async function main() {
 
   /* ===== I. Identificação orientada: fundamento obrigatório e identificação PENDENTE (o mesmo registro) ===== */
   console.log('I. Identificação orientada e pendências');
-  const PEND = (motivo, extra) => Object.assign({ motivo, diagnostico: 'O que falta esclarecer (teste)', justificativa: 'Justificativa da pendência (teste)', versao: 1, pergunta: 'Pergunta (teste)', alternativa: motivo, rotulo: 'Rótulo (teste)' }, extra || {});
-  const pendW = async (obj, p, e, ajuste) => {
-    const r = R.registrarPendencia(obj, await gate(obj), await ler(R.NAT + '/' + obj), p, { auditoriaId: novaChave('np'), usuario: usuario(e), agora: TS });
+  const PEND = (motivo, extra) => Object.assign({ motivo, diagnostico: 'O que falta esclarecer (teste)', justificativa: 'Justificativa da pendência (teste)', versao: 1, pergunta: 'Pergunta (teste)', alternativa: motivo === 'reavaliacao-necessaria' ? 'opcao-reavaliar' : motivo, rotulo: 'Rótulo (teste)' }, extra || {});
+  const pendW = async (obj, p, e, ajuste, gateDado) => {
+    const g = gateDado || await gate(obj);
+    if (!p.definicoes) p = Object.assign({}, p, { definicoes: (await fundDe(g.avaliacao.camadaSugerida.id, p.alternativa, null)).definicoes });
+    const r = R.registrarPendencia(obj, g, await ler(R.NAT + '/' + obj), p, { auditoriaId: novaChave('np'), usuario: usuario(e), agora: TS });
     if (!r.ok) throw new Error('núcleo recusou: ' + JSON.stringify(r.erros));
     const c = js(r.caminhos); if (ajuste) ajuste(c); return c;
   };
@@ -341,6 +360,66 @@ async function main() {
   await semear((a) => a.ref(R.MARCADOR).set(false));
   await nega('marcador desligado: ninguém registra pendência', up(ARQ, await pendW('pPend', PEND('recorte'), ARQ)));
   await marcador(true);
+
+  /* ===== J. Coerência do fundamento e vínculo com a versão vigente ===== */
+  console.log('J. Coerência do fundamento e versão vigente');
+  await semear(async (a) => {
+    await a.ref('avaliacoes-produto/pJ').set(Object.assign({ itemId: 'pJ', nome: 'Item pJ' }, AV('funcionalidade-operacao', 'nao-produto')));
+    await a.ref(R.PONTA + '/pJ').set('pJ');
+    await a.ref('avaliacoes-produto/pJp').set(Object.assign({ itemId: 'pJp', nome: 'Item pJp' }, AV('funcionalidade-operacao', 'nao-produto')));
+    await a.ref(R.PONTA + '/pJp').set('pJp');
+    await a.ref('objetos-organizacionais/oJ').set({ nome: 'Responsabilidade J (teste)', situacao: 'ativo' });
+  });
+  const AUDS = (c, fn) => { fn(c[R.NAT + '/pJ']); audsDe(c).forEach((k) => fn(c[k])); };
+  const temDef = async (n) => !!((await ler('taxonomia/arquitetural/conceitos/' + n + '/definicao/texto')));
+  anota('pré-condição: Funcionalidade e Operação têm definição oficial no emulador', (await temDef('funcionalidade')) && (await temDef('operacao')));
+  await nega('natureza = funcionalidade com fundamento.alternativa = operacao (gravação direta contraditória) é recusada', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { x.fundamento.alternativa = 'operacao'; }) })));
+  await nega('natureza com a alternativa de uma pendência ("recorte") é recusada', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { x.fundamento.alternativa = 'recorte'; }) })));
+  await nega('versão da orientação diferente da vigente é recusada', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { x.fundamento.versao = IDN.VERSAO + 1; }) })));
+  await nega('snapshot sem a definição oficial da natureza escolhida é recusado', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { delete x.fundamento.definicoes.funcionalidade; }) })));
+  await nega('snapshot com o texto da definição adulterado é recusado', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { x.fundamento.definicoes.funcionalidade.texto = 'Outra definição'; }) })));
+  await nega('snapshot com a versão da definição adulterada é recusado', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { x.fundamento.definicoes.funcionalidade.versao = 99; }) })));
+  await nega('snapshot sem a definição da OUTRA natureza que a pergunta mostrou (Operação) é recusado', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { delete x.fundamento.definicoes.operacao; }) })));
+  await nega('snapshot com natureza que a pergunta não mostra (Regra) é recusado', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => AUDS(c, (x) => { x.fundamento.definicoes.regra = { texto: 'R', versao: 1 }; }) })));
+  await nega('auditoria com snapshot diferente do registro é recusada', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { ajuste: (c) => audsDe(c).forEach((k) => { c[k].fundamento.definicoes.operacao.texto = 'Outra'; }) })));
+  const AUDSp = (c, fn) => { fn(c[R.NAT + '/pJp']); audsDe(c).forEach((k) => fn(c[k])); };
+  await nega('pendência "recorte" com a alternativa de evidência insuficiente é recusada', up(ARQ, await pendW('pJp', PEND('recorte'), ARQ, (c) => AUDSp(c, (x) => { x.pendencia.alternativa = 'evidencia-insuficiente'; }))));
+  await nega('pendência com a alternativa de uma natureza ("funcionalidade") é recusada', up(ARQ, await pendW('pJp', PEND('evidencia-insuficiente'), ARQ, (c) => AUDSp(c, (x) => { x.pendencia.alternativa = 'funcionalidade'; }))));
+  await nega('pendência com snapshot adulterado é recusada', up(ARQ, await pendW('pJp', PEND('recorte'), ARQ, (c) => AUDSp(c, (x) => { x.pendencia.definicoes.funcionalidade.texto = 'Outra'; }))));
+  await nega('"reavaliação necessária" sem a alternativa "opcao-reavaliar" (Regra/Opção) é recusada', up(ARQ, await pendW('pRegra2', PEND('reavaliacao-necessaria', { justificativa: 'Outra justificativa (teste)' }), ARQ, (c) => { const ks = [R.NAT + '/pRegra2'].concat(audsDe(c)); ks.forEach((k) => { c[k].pendencia.alternativa = 'recorte'; }); })));
+  await pode('pendência coerente, com o snapshot das definições mostradas', up(ARQ, await pendW('pJp', PEND('recorte'), ARQ)));
+  await pode('identificação coerente (Funcionalidade), com o snapshot das definições oficiais de agora', up(ARQ, await natW('pJ', 'funcionalidade', ARQ)));
+  await pode('com a natureza da versão vigente, a relação é aceita (responsabilidade atua sobre a Funcionalidade)', up(ARQ, await relW('o1', 'atua-sobre', 'pJ', ARQ)));
+
+  /* reavaliação com a MESMA classificação: a versão vigente passa a ser pJ2; objetos-natureza/pJ continua da pJ */
+  await semear(async (a) => {
+    await a.ref('avaliacoes-produto/pJ2').set(Object.assign({ itemId: 'pJ', nome: 'Item pJ', avaliacaoAnteriorId: 'pJ' }, AV('funcionalidade-operacao', 'nao-produto')));
+    await a.ref(R.PONTA + '/pJ').set('pJ2');
+    await a.ref('avaliacoes-produto/pJp2').set(Object.assign({ itemId: 'pJp', nome: 'Item pJp', avaliacaoAnteriorId: 'pJp' }, AV('processo-etapa', 'nao-produto')));
+    await a.ref(R.PONTA + '/pJp').set('pJp2');
+  });
+  const gJ2 = { situacao: 'atual', libera: true, chave: 'pJ2', avaliacao: await ler('avaliacoes-produto/pJ2') };
+  const nJ = R.naturezaDoObjeto({ gate: gJ2, registro: await ler(R.NAT + '/pJ'), indice: await ler(R.PONTA + '/pJ') });
+  anota('núcleo: depois da reavaliação com a mesma classificação, a natureza da versão anterior fica "a confirmar"', nJ.natureza === null && nJ.motivo === 'NATUREZA_A_CONFIRMAR' && nJ.confirmar === 'OUTRA_VERSAO', JSON.stringify(nJ));
+  await nega('BANCO: natureza registrada para outra versão (mesma classificação) NÃO autoriza relação pela versão vigente', up(ARQ, await relW('oJ', 'atua-sobre', 'pJ', ARQ, { natDestino: { natureza: 'funcionalidade', base: 'pJ2' } })));
+  await nega('BANCO: nem pela versão antiga (que deixou de ser a vigente)', up(ARQ, await relW('oJ', 'atua-sobre', 'pJ', ARQ, { natDestino: { natureza: 'funcionalidade', base: 'pJ' } })));
+  await nega('registrar (ou reconfirmar) a natureza na versão ANTIGA é recusado', up(ARQ, await natW('pJ', 'operacao', ARQ, { gate: { situacao: 'atual', libera: true, chave: 'pJ', avaliacao: await ler('avaliacoes-produto/pJ') } })));
+  const relAntes = Object.values((await ler(R.RAIZ + '/registros')) || {}).find((x) => x.origem === 'o1' && x.destino === 'pJ');
+  anota('a relação criada antes continua registrada (nada é encerrado sozinho) e fica "a revisar"', relAntes && relAntes.situacao === 'ativa' && R.situacaoRelacao(relAntes, { origem: { natureza: 'responsabilidade' }, destino: nJ }).situacao === 'a-revisar');
+  await pode('reconfirmação EXPLÍCITA para a versão vigente (mesma natureza, novo fundamento)', up(ARQ, await natW('pJ', 'funcionalidade', ARQ, { gate: gJ2 })));
+  const regJ = await ler(R.NAT + '/pJ'), audJ = Object.values((await ler(R.NAT_AUD + '/pJ')) || {});
+  anota('o registro passa a ser da versão vigente; a auditoria guarda a identificação da versão anterior com o fundamento da época',
+    regJ.avaliacaoId === 'pJ2' && regJ.revisao === 2 && audJ.some((x) => x.avaliacaoId === 'pJ' && x.fundamento && x.natureza === 'funcionalidade') && audJ.some((x) => x.avaliacaoId === 'pJ2' && x.tipo === 'alteracao' && x.anterior === 'funcionalidade'), JSON.stringify([regJ, audJ]));
+  const nJ2 = R.naturezaDoObjeto({ gate: gJ2, registro: await ler(R.NAT + '/pJ'), indice: await ler(R.PONTA + '/pJ') });
+  anota('núcleo: depois da reconfirmação, a natureza vale pela versão vigente', nJ2.natureza === 'funcionalidade' && nJ2.base === 'pJ2', JSON.stringify(nJ2));
+  await pode('depois da reconfirmação, a relação pela versão vigente é aceita', up(ARQ, await relW('oJ', 'atua-sobre', 'pJ', ARQ, { natDestino: nJ2 })));
+  /* reavaliação com classificação DIFERENTE: a pendência da versão anterior fica "a confirmar"; identificar na vigente */
+  const gJp2 = { situacao: 'atual', libera: true, chave: 'pJp2', avaliacao: await ler('avaliacoes-produto/pJp2') };
+  anota('núcleo: pendência da versão anterior (classificação mudou) fica "a confirmar"', R.naturezaDoObjeto({ gate: gJp2, registro: await ler(R.NAT + '/pJp') }).motivo === 'NATUREZA_A_CONFIRMAR');
+  await nega('BANCO: um objeto com identificação pendente não serve de ponta de relação', up(ARQ, await relW('oJ', 'atua-sobre', 'pJp', ARQ, { natDestino: { natureza: 'processo', base: 'pJp2' } })));
+  await pode('identificar a natureza (Processo) na versão vigente, com a nova classificação', up(ARQ, await natW('pJp', 'processo', ARQ, { gate: gJp2 })));
+  const audJp = Object.values((await ler(R.NAT_AUD + '/pJp')) || {});
+  anota('histórico: a pendência da versão anterior continua na auditoria', audJp.some((x) => x.tipo === 'pendencia' && x.avaliacaoId === 'pJp' && x.pendencia.motivo === 'recorte') && audJp.some((x) => x.avaliacaoId === 'pJp2' && x.natureza === 'processo'));
 
   await env.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

@@ -165,7 +165,7 @@
     DECISAO_INCOERENTE: 'A decisão final ("não produto") não combina com a classificação Produto/Serviço principal: revise a avaliação antes de relacionar.',
     CAMADA_FORA_DA_E4: 'Esta classificação ainda não tem relações nesta etapa.',
     NATUREZA_NAO_REGISTRADA: 'Natureza individual ainda não registrada.',
-    NATUREZA_A_CONFIRMAR: 'A natureza registrada é de outra classificação (a avaliação mudou): confirme a natureza.',
+    NATUREZA_A_CONFIRMAR: 'A natureza registrada é de outra versão ou de outra classificação da avaliação: confirme a natureza para a versão vigente.',
     OBJETO_ENCERRADO: 'Responsabilidade encerrada: não recebe novas relações.',
     IDENTIFICACAO_PENDENTE: 'Identificação da natureza pendente: o objeto não tem natureza registrada e não pode ter relações enquanto isso.',
     VERSAO_VIGENTE_NAO_CONFIRMADA: 'A versão vigente deste item ainda não está registrada no banco (reconciliação pendente): não pode ter relações por enquanto.'
@@ -191,7 +191,7 @@
     CONTEXTO_INCOMPLETO: 'Sessão não identificada. Entre de novo.',
     ESCOLHA_OBRIGATORIA: 'Escolha a alternativa que descreve o objeto.', JUSTIFICATIVA_OBRIGATORIA: 'Escreva a justificativa da identificação.',
     JUSTIFICATIVA_LONGA: 'A justificativa tem no máximo 2000 caracteres.', DIAGNOSTICO_OBRIGATORIO: 'Descreva o diagnóstico da pendência.',
-    DIAGNOSTICO_LONGO: 'O diagnóstico tem no máximo 2000 caracteres.', FUNDAMENTO_OBRIGATORIO: 'A identificação precisa do fundamento.', FUNDAMENTO_INCOMPLETO: 'A identificação precisa do fundamento.',
+    DIAGNOSTICO_LONGO: 'O diagnóstico tem no máximo 2000 caracteres.', FUNDAMENTO_OBRIGATORIO: 'A identificação precisa do fundamento.', FUNDAMENTO_INCOMPLETO: 'A identificação precisa do fundamento.', ALTERNATIVA_INCOMPATIVEL: 'A alternativa escolhida não corresponde a esta identificação. Recarregue a tela e escolha de novo.', VERSAO_ORIENTACAO_DIFERENTE: 'A orientação da identificação mudou. Recarregue a tela.', DEFINICOES_FORA_DA_PERGUNTA: 'As definições oficiais não correspondem a esta pergunta. Recarregue a tela.', DEFINICAO_OFICIAL_AUSENTE: 'A definição oficial desta natureza ainda não foi lida. Aguarde ou recarregue a tela.',
     MOTIVO_PENDENCIA_INVALIDO: 'Motivo de pendência inválido.', REAVALIACAO_SO_EM_REGRA: 'A reavaliação só se aplica à classificação Regra/Opção.',
     CLASSIFICACAO_SEM_IDENTIFICACAO: 'Esta classificação já é uma natureza: não há o que identificar.'
   };
@@ -253,6 +253,16 @@
         (p.motivo === 'recorte' ? '<p class="ro-ajuda">Próximo passo: avaliar cada elemento como item próprio.</p>' : '') + '</div>';
       if (manter && st.modo !== 'natureza') h += '<p class="ro-acoes"><button type="button" class="avp-voltar-link ro-lnk" id="roCorrigirNatureza">Retomar a identificação</button></p>';
       if (st.modo !== 'natureza') return h;
+    } else if (nat.motivo === 'NATUREZA_A_CONFIRMAR' && reg) {
+      /* a identificação vale só para a versão em que foi feita: a anterior aparece como HISTÓRICO e nada autoriza até a
+         reconfirmação explícita para a versão vigente (mesma classificação ou não) */
+      var outra = nat.confirmar === 'OUTRA_VERSAO';
+      h += '<div class="ro-natureza ro-natureza--pendente ro-pendencia" id="roNatureza" data-motivo="NATUREZA_A_CONFIRMAR" data-confirmar="' + esc(nat.confirmar || '') + '">' +
+        '<p><span class="ro-rot">Natureza a confirmar:</span> ' + esc(outra ? 'a identificação foi feita em outra versão da avaliação P1–P16. Ela não vale para a versão vigente até ser reconfirmada.' : 'a classificação técnica mudou desde a identificação.') + '</p>' +
+        '<p id="roIdentAnterior"><span class="ro-rot">Identificação anterior' + (reg.avaliacaoId ? ' (avaliação ' + esc(reg.avaliacaoId) + ')' : '') + ':</span> ' +
+        (reg.natureza ? esc(rotuloNatureza(reg.natureza)) + (reg.fundamento ? ' — ' + esc(reg.fundamento.rotulo) + ': ' + esc(reg.fundamento.justificativa) : '')
+          : reg.pendencia ? 'pendente — ' + esc(ROT_MOTIVO[reg.pendencia.motivo] || reg.pendencia.motivo) + ': ' + esc(reg.pendencia.justificativa) : '—') +
+        ' <span class="ro-det">(' + esc((reg.registradaPor && reg.registradaPor.email) || '') + (reg.registradaEm ? ', ' + quando(reg.registradaEm) : '') + '; fica no histórico)</span></p></div>';
     } else {
       h += '<p class="ro-natureza ro-natureza--pendente" id="roNatureza" data-motivo="' + esc(nat.motivo) + '">' + esc(nat.motivo === 'NATUREZA_NAO_REGISTRADA' ? 'Natureza arquitetural ainda não identificada.' : (MOTIVO_NAT[nat.motivo] || nat.motivo)) + '</p>';
       if (nat.motivo !== 'NATUREZA_NAO_REGISTRADA' && nat.motivo !== 'NATUREZA_A_CONFIRMAR') return h;

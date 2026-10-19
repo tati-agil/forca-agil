@@ -49,6 +49,10 @@
      rótulo de FÁBRICA (contingência): o nome oficial vem da Taxonomia arquitetural */
   var M = raiz && raiz.faNaturezasArquiteturais ? raiz.faNaturezasArquiteturais : (typeof require === 'function' ? require('./naturezas-arquiteturais.js') : null);
   if (!M) throw new Error('relacoes-objetos-nucleo: naturezas-arquiteturais.js precisa ser carregado antes');
+  /* a orientação versionada da identificação (identificacao-naturezas.js): de onde vem a coerência alternativa ↔ natureza
+     (ou ↔ motivo da pendência) que o núcleo e as regras conferem */
+  var IDN = raiz && raiz.faIdentificacaoNaturezas ? raiz.faIdentificacaoNaturezas : (typeof require === 'function' ? require('./identificacao-naturezas.js') : null);
+  if (!IDN) throw new Error('relacoes-objetos-nucleo: identificacao-naturezas.js precisa ser carregado antes');
   var ORDEM_E4 = ['produto', 'componente', 'canal', 'capacidade', 'unidade-valor', 'funcionalidade', 'operacao', 'processo', 'etapa', 'regra', 'opcao', 'documento', 'informacao',
     'modalidade', 'subproduto']; /* E5: no fim, para as regras existentes não mudarem de lugar */
   var NATUREZAS = {};
@@ -162,6 +166,7 @@
     else if (p.motivo === 'reavaliacao-necessaria' && camada !== 'regra-condicao') e.push(erro('REAVALIACAO_SO_EM_REGRA'));
     fundamentoValido(p, e, 'diagnostico');
     fundamentoValido(p, e, 'justificativa');
+    if (INDIVIDUAIS_DA_CAMADA[camada] && MOTIVOS_PENDENCIA.indexOf(p.motivo) !== -1) coerenciaFundamento(p, camada, { motivo: p.motivo }, e);
     if (atual && !atual.natureza && atual.pendencia && atual.pendencia.motivo === p.motivo && atual.camada === camada && atual.avaliacaoId === (gate && gate.chave) &&
       texto(atual.pendencia.justificativa) === texto(p.justificativa) && texto(atual.pendencia.diagnostico) === texto(p.diagnostico)) e.push(erro('NADA_MUDOU'));
     if (!ctx.auditoriaId || !ctx.usuario || !ctx.usuario.id || !ctx.usuario.email) e.push(erro('CONTEXTO_INCOMPLETO'));
@@ -212,12 +217,16 @@
     var reg = e.registro;
     var ori = M.orientacao(camada);
     /* identificação PENDENTE (estado exclusivo do mesmo registro): nunca vira natureza, nunca autoriza relação */
+    /* a identificação (natureza OU pendência) vale só para a versão da avaliação em que foi feita: numa reavaliação — mesmo
+       com a mesma classificação técnica — fica "a confirmar" até alguém reconfirmá-la explicitamente para a versão vigente.
+       O registro antigo continua lá (e na auditoria) como histórico; nunca autoriza relação. */
+    var confirmar = reg && (reg.avaliacaoId !== g.chave ? 'OUTRA_VERSAO' : (reg.camada !== camada ? 'CLASSIFICACAO_MUDOU' : null));
+    if (confirmar) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', confirmar: confirmar, avaliacaoRegistro: reg.avaliacaoId || null, base: g.chave, camada: camada, possiveis: possiveis.slice(), registrada: reg.natureza || null, pendencia: reg.natureza ? null : (reg.pendencia || null), orientacao: ori };
     if (reg && reg.pendencia && !reg.natureza) {
-      if (reg.camada !== camada) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', base: g.chave, camada: camada, possiveis: possiveis.slice(), orientacao: ori };
       return { natureza: null, motivo: 'IDENTIFICACAO_PENDENTE', base: g.chave, camada: camada, possiveis: possiveis.slice(), pendencia: reg.pendencia, orientacao: ori };
     } /* ex.: Regra/Opção que seja de fato Opção → reavaliação explícita, nunca reclassificação */
     if (!reg) return { natureza: null, motivo: 'NATUREZA_NAO_REGISTRADA', base: g.chave, camada: camada, possiveis: possiveis.slice(), orientacao: ori };
-    if (reg.camada !== camada || possiveis.indexOf(reg.natureza) === -1) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', base: g.chave, camada: camada, possiveis: possiveis.slice(), registrada: reg.natureza, orientacao: ori };
+    if (possiveis.indexOf(reg.natureza) === -1) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', confirmar: 'CLASSIFICACAO_MUDOU', avaliacaoRegistro: reg.avaliacaoId || null, base: g.chave, camada: camada, possiveis: possiveis.slice(), registrada: reg.natureza, orientacao: ori };
     return { natureza: reg.natureza, base: g.chave, camada: camada, registrada: reg.natureza };
   }
 
@@ -306,6 +315,20 @@
   /* fundamento (identificação orientada, identificacao-naturezas.js): { versao, pergunta, alternativa, rotulo, justificativa,
      definicoes: { <natureza>: { texto, versao } } } — guardado no registro e na auditoria, para que um texto novo nunca mude
      o fundamento de uma identificação antiga */
+  /* coerência com a orientação VIGENTE (identificacao-naturezas.js): a alternativa escolhida tem de existir na classificação
+     e levar exatamente à natureza (ou ao motivo da pendência) gravada; a versão da orientação é a atual; o snapshot das
+     definições oficiais traz a da natureza escolhida e só naturezas que a pergunta mostrou (as regras conferem o texto). */
+  function coerenciaFundamento(f, camada, alvo, e) {
+    if (!f || typeof f !== 'object' || !camada) return;
+    var dif = IDN.diferenciacao(camada), alt = dif ? IDN.alternativa(camada, texto(f.alternativa)) : null;
+    if (!dif) return;
+    if (Number(f.versao) !== IDN.VERSAO) e.push(erro('VERSAO_ORIENTACAO_DIFERENTE', { esperada: IDN.VERSAO }));
+    if (!alt || (alvo.natureza ? alt.natureza !== alvo.natureza : alt.pendencia !== alvo.motivo)) e.push(erro('ALTERNATIVA_INCOMPATIVEL'));
+    var mostradas = dif.alternativas.filter(function (a) { return a.natureza; }).map(function (a) { return a.natureza; });
+    var defs = f.definicoes && typeof f.definicoes === 'object' ? f.definicoes : {};
+    if (Object.keys(defs).some(function (k) { return mostradas.indexOf(k) === -1; })) e.push(erro('DEFINICOES_FORA_DA_PERGUNTA'));
+    if (alvo.natureza && !(defs[alvo.natureza] && texto(defs[alvo.natureza].texto))) e.push(erro('DEFINICAO_OFICIAL_AUSENTE'));
+  }
   function fundamentoValido(f, e, campo) {
     if (!f || typeof f !== 'object') { e.push(erro('FUNDAMENTO_OBRIGATORIO')); return null; }
     var j = texto(f[campo]);
@@ -329,6 +352,7 @@
     ctx = ctx || {};
     fundamentoValido(fundamento, e, 'justificativa');
     var camada = av && av.camadaSugerida && av.camadaSugerida.id, d = av && (av.decisaoFinal || av.resultadoAutomatico);
+    if (n && n.individual && camada === n.camada) coerenciaFundamento(fundamento, camada, { natureza: natureza }, e);
     if (!ID.test(String(objetoId || ''))) e.push(erro('OBJETO_INVALIDO'));
     if (!n || !n.individual) e.push(erro('NATUREZA_INVALIDA'));
     if (!av) e.push(erro('SEM_AVALIACAO_VALIDA'));
