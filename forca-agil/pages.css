@@ -2881,6 +2881,15 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .po-busca-barra { margin: 8px 0; }
 .po-filtros { margin: 0 0 8px; }
 .po-filtros .avp-filtro-rotulo { font-size: var(--arq-fs-aux); } /* rótulo de campo visível: tamanho auxiliar (Padrão Visual) */
+/* GERENCIAR (⋯): ação secundária separada da principal, nas listas de Responsabilidades, Posicionamento e Squad */
+.po-acoes-linha, .sq-acoes { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.po-todas-acao { flex-wrap: wrap; }
+.po-menu, .sq-menu { position: relative; }
+.po-menu > summary, .sq-menu > summary { list-style: none; cursor: pointer; min-width: 40px; text-align: center; }
+.po-menu > summary::-webkit-details-marker, .sq-menu > summary::-webkit-details-marker { display: none; }
+.po-menu-itens, .sq-menu-itens { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding: 8px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel, transparent); min-width: 0; max-width: 100%; }
+.po-menu-itens .avp-ficha-meta { margin: 0; overflow-wrap: anywhere; }
+.sq-gestao textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
 .po-versoes { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
 .po-versao { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .po-versao--atual { border-color: var(--accent-2); }
@@ -4227,6 +4236,23 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .ro-natureza { margin: 0; color: var(--ink-2); }
 .ro-natureza .ro-rot { color: var(--ink-3); font-family: var(--font-mono); font-size: var(--arq-fs-meta, .8rem); margin-right: 4px; }
 .ro-natureza--pendente { color: var(--gold-soft); }
+/* identificação orientada da natureza: classificação técnica × natureza; pergunta, definições, alternativas com "quando marcar" */
+.ro-classif-tecnica, .ro-fundamento { margin: 0; color: var(--ink-2); font-size: var(--arq-fs-aux, .9rem); overflow-wrap: anywhere; }
+.ro-classif-tecnica .ro-rot, .ro-fundamento .ro-rot, .ro-pendencia .ro-rot, .ro-ident-defs .ro-rot { color: var(--ink-3); font-family: var(--font-mono); font-size: var(--arq-fs-meta, .8rem); margin-right: 4px; }
+.ro-pendencia { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid rgba(245,197,24,.40); border-radius: 8px; }
+.ro-pendencia p { margin: 0; overflow-wrap: anywhere; }
+.ro-ident-titulo { margin: 0; font-size: var(--arq-fs-texto, .92rem); }
+.ro-ident-pergunta { margin: 0; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.ro-ident-defs dl { margin: 4px 0 0; display: grid; gap: 4px; }
+.ro-ident-defs dt { font-weight: 600; color: var(--ink-2); }
+.ro-ident-defs dd { margin: 0 0 4px; color: var(--ink-2); font-size: var(--arq-fs-aux, .9rem); overflow-wrap: anywhere; }
+.ro-ident-alternativas { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ro-ident-alternativas legend { padding: 0; margin-bottom: 4px; color: var(--ink-3); font-size: var(--arq-fs-aux, .9rem); }
+.ro-ident-alt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; min-width: 0; }
+.ro-ident-alt input { margin-top: 3px; flex: none; }
+.ro-ident-alt > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.ro-ident-alt--pendencia { border-style: dashed; }
+.ro-ident-quando { color: var(--ink-3); font-size: var(--arq-fs-aux, .9rem); }
 .ro-grupo { margin: 8px 0 2px; font-family: var(--font-mono); font-size: var(--arq-fs-meta, .8rem); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
 .ro-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .ro-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; min-width: 0; }

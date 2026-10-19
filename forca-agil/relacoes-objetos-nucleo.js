@@ -36,7 +36,9 @@
   /* índice da versão VIGENTE de cada item P1–P16 (a ponta da cadeia de reavaliações), mantido por avaliacao-produto.js */
   var PONTA = 'avaliacoes-produto-ponta';
   var MARCADOR = 'relacoes-objetos-config/gravacaoHabilitada';
-  var MAX = { observacao: 500, motivo: 500 };
+  var MAX = { observacao: 500, motivo: 500, justificativa: 2000, diagnostico: 2000 };
+  /* identificação PENDENTE (sem natureza): os três motivos aprovados; reavaliação só a partir de Regra/Opção */
+  var MOTIVOS_PENDENCIA = ['recorte', 'evidencia-insuficiente', 'reavaliacao-necessaria'];
   var ID = /^[A-Za-z0-9_-]{1,60}$/;
 
   /* ---------- naturezas ----------
@@ -144,6 +146,37 @@
   function erro(codigo, extra) { var e = { codigo: codigo }; Object.keys(extra || {}).forEach(function (k) { e[k] = extra[k]; }); return e; }
   function clone(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
 
+  /* ---------- identificação PENDENTE: o MESMO registro (objetos-natureza), sem natureza ----------
+     p = { motivo ('recorte' | 'evidencia-insuficiente' | 'reavaliacao-necessaria'), diagnostico, justificativa, versao,
+     pergunta, alternativa, rotulo }. Só nas classificações técnicas que admitem mais de uma natureza, ou em Regra/Opção;
+     reavaliação só a partir de Regra/Opção. Nunca atribui natureza; a auditoria é a mesma (tipo 'pendencia'). */
+  function registrarPendencia(objetoId, gate, atual, p, ctx) {
+    var e = [], av = gate && gate.libera ? gate.avaliacao : null;
+    ctx = ctx || {}; p = p || {};
+    var camada = av && av.camadaSugerida && av.camadaSugerida.id, d = av && (av.decisaoFinal || av.resultadoAutomatico);
+    if (!ID.test(String(objetoId || ''))) e.push(erro('OBJETO_INVALIDO'));
+    if (MOTIVOS_PENDENCIA.indexOf(p.motivo) === -1) e.push(erro('MOTIVO_PENDENCIA_INVALIDO'));
+    if (!av) e.push(erro('SEM_AVALIACAO_VALIDA'));
+    else if (d !== 'nao-produto') e.push(erro('DECISAO_NAO_PERMITE'));
+    else if (!INDIVIDUAIS_DA_CAMADA[camada]) e.push(erro('CLASSIFICACAO_SEM_IDENTIFICACAO'));
+    else if (p.motivo === 'reavaliacao-necessaria' && camada !== 'regra-condicao') e.push(erro('REAVALIACAO_SO_EM_REGRA'));
+    fundamentoValido(p, e, 'diagnostico');
+    fundamentoValido(p, e, 'justificativa');
+    if (atual && !atual.natureza && atual.pendencia && atual.pendencia.motivo === p.motivo && atual.camada === camada && atual.avaliacaoId === (gate && gate.chave) &&
+      texto(atual.pendencia.justificativa) === texto(p.justificativa) && texto(atual.pendencia.diagnostico) === texto(p.diagnostico)) e.push(erro('NADA_MUDOU'));
+    if (!ctx.auditoriaId || !ctx.usuario || !ctx.usuario.id || !ctx.usuario.email) e.push(erro('CONTEXTO_INCOMPLETO'));
+    if (e.length) return { ok: false, erros: e };
+    var rev = atual ? (atual.revisao || 1) + 1 : 1;
+    var pend = copiaFundamento(p, { motivo: p.motivo, diagnostico: texto(p.diagnostico) });
+    var rec = { camada: camada, avaliacaoId: gate.chave, revisao: rev, registradaEm: ctx.agora, registradaPor: { id: ctx.usuario.id, email: ctx.usuario.email }, auditoriaId: ctx.auditoriaId, pendencia: pend };
+    var aud = { tipo: 'pendencia', camada: camada, avaliacaoId: gate.chave, revisao: rev, em: ctx.agora, por: { id: ctx.usuario.id, email: ctx.usuario.email }, pendencia: pend };
+    if (atual && atual.natureza) aud.anterior = atual.natureza;
+    var c = {};
+    c[NAT + '/' + objetoId] = rec;
+    c[NAT_AUD + '/' + objetoId + '/' + ctx.auditoriaId] = aud;
+    return { ok: true, caminhos: c, registro: rec };
+  }
+
   /* ---------- conceito oficial de uma natureza individual (Taxonomia arquitetural) ----------
      c = { ativo, naturezaDe, temDefinicao } (o que as regras deixam os três perfis lerem). Só um conceito ativo, com
      definição publicada e ligado à camada certa permite registrar a natureza. */
@@ -177,7 +210,12 @@
     var possiveis = INDIVIDUAIS_DA_CAMADA[camada];
     if (!possiveis) return { natureza: null, motivo: 'CAMADA_FORA_DA_E4', base: g.chave, camada: camada };
     var reg = e.registro;
-    var ori = M.orientacao(camada); /* ex.: Regra/Opção que seja de fato Opção → reavaliação explícita, nunca reclassificação */
+    var ori = M.orientacao(camada);
+    /* identificação PENDENTE (estado exclusivo do mesmo registro): nunca vira natureza, nunca autoriza relação */
+    if (reg && reg.pendencia && !reg.natureza) {
+      if (reg.camada !== camada) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', base: g.chave, camada: camada, possiveis: possiveis.slice(), orientacao: ori };
+      return { natureza: null, motivo: 'IDENTIFICACAO_PENDENTE', base: g.chave, camada: camada, possiveis: possiveis.slice(), pendencia: reg.pendencia, orientacao: ori };
+    } /* ex.: Regra/Opção que seja de fato Opção → reavaliação explícita, nunca reclassificação */
     if (!reg) return { natureza: null, motivo: 'NATUREZA_NAO_REGISTRADA', base: g.chave, camada: camada, possiveis: possiveis.slice(), orientacao: ori };
     if (reg.camada !== camada || possiveis.indexOf(reg.natureza) === -1) return { natureza: null, motivo: 'NATUREZA_A_CONFIRMAR', base: g.chave, camada: camada, possiveis: possiveis.slice(), registrada: reg.natureza, orientacao: ori };
     return { natureza: reg.natureza, base: g.chave, camada: camada, registrada: reg.natureza };
@@ -265,9 +303,31 @@
      objetoId: o item P1–P16 (identidade, nunca a versão); natureza: código individual; gate: a avaliação que vale;
      atual: objetos-natureza/<objetoId> (ou null); conceito: o conceito oficial da natureza (conceitoValido);
      ctx = { auditoriaId, usuario: { id, email }, agora }. Uma gravação: o registro + a auditoria nova (só acréscimo). */
-  function registrarNatureza(objetoId, natureza, gate, atual, conceito, ctx) {
+  /* fundamento (identificação orientada, identificacao-naturezas.js): { versao, pergunta, alternativa, rotulo, justificativa,
+     definicoes: { <natureza>: { texto, versao } } } — guardado no registro e na auditoria, para que um texto novo nunca mude
+     o fundamento de uma identificação antiga */
+  function fundamentoValido(f, e, campo) {
+    if (!f || typeof f !== 'object') { e.push(erro('FUNDAMENTO_OBRIGATORIO')); return null; }
+    var j = texto(f[campo]);
+    if (!j) e.push(erro(campo === 'diagnostico' ? 'DIAGNOSTICO_OBRIGATORIO' : 'JUSTIFICATIVA_OBRIGATORIA'));
+    else if (j.length > MAX[campo]) e.push(erro(campo === 'diagnostico' ? 'DIAGNOSTICO_LONGO' : 'JUSTIFICATIVA_LONGA'));
+    if (!(Number(f.versao) >= 1) || !texto(f.pergunta) || !texto(f.alternativa)) e.push(erro('FUNDAMENTO_INCOMPLETO'));
+    return j;
+  }
+  function copiaFundamento(f, extra) {
+    var o = { versao: Number(f.versao), pergunta: texto(f.pergunta), alternativa: texto(f.alternativa), rotulo: texto(f.rotulo) || texto(f.alternativa), justificativa: texto(f.justificativa) };
+    if (f.definicoes && typeof f.definicoes === 'object') {
+      var dfs = {};
+      Object.keys(f.definicoes).forEach(function (k) { var x = f.definicoes[k]; if (NATUREZAS[k] && x && texto(x.texto)) dfs[k] = { texto: texto(x.texto), versao: Number(x.versao) || 1 }; });
+      if (Object.keys(dfs).length) o.definicoes = dfs;
+    }
+    Object.keys(extra || {}).forEach(function (k) { o[k] = extra[k]; });
+    return o;
+  }
+  function registrarNatureza(objetoId, natureza, gate, atual, conceito, ctx, fundamento) {
     var e = [], n = NATUREZAS[natureza], av = gate && gate.libera ? gate.avaliacao : null;
     ctx = ctx || {};
+    fundamentoValido(fundamento, e, 'justificativa');
     var camada = av && av.camadaSugerida && av.camadaSugerida.id, d = av && (av.decisaoFinal || av.resultadoAutomatico);
     if (!ID.test(String(objetoId || ''))) e.push(erro('OBJETO_INVALIDO'));
     if (!n || !n.individual) e.push(erro('NATUREZA_INVALIDA'));
@@ -279,9 +339,10 @@
     if (!ctx.auditoriaId || !ctx.usuario || !ctx.usuario.id || !ctx.usuario.email) e.push(erro('CONTEXTO_INCOMPLETO'));
     if (e.length) return { ok: false, erros: e };
     var rev = atual ? (atual.revisao || 1) + 1 : 1;
-    var rec = { natureza: natureza, camada: camada, avaliacaoId: gate.chave, revisao: rev, registradaEm: ctx.agora, registradaPor: { id: ctx.usuario.id, email: ctx.usuario.email }, auditoriaId: ctx.auditoriaId };
-    var aud = { tipo: atual ? 'alteracao' : 'registro', natureza: natureza, camada: camada, avaliacaoId: gate.chave, revisao: rev, em: ctx.agora, por: { id: ctx.usuario.id, email: ctx.usuario.email } };
-    if (atual) aud.anterior = atual.natureza;
+    var fund = copiaFundamento(fundamento);
+    var rec = { natureza: natureza, camada: camada, avaliacaoId: gate.chave, revisao: rev, registradaEm: ctx.agora, registradaPor: { id: ctx.usuario.id, email: ctx.usuario.email }, auditoriaId: ctx.auditoriaId, fundamento: fund };
+    var aud = { tipo: atual ? 'alteracao' : 'registro', natureza: natureza, camada: camada, avaliacaoId: gate.chave, revisao: rev, em: ctx.agora, por: { id: ctx.usuario.id, email: ctx.usuario.email }, fundamento: fund };
+    if (atual && atual.natureza) aud.anterior = atual.natureza;
     var c = {};
     c[NAT + '/' + objetoId] = rec;
     c[NAT_AUD + '/' + objetoId + '/' + ctx.auditoriaId] = aud;
@@ -337,7 +398,7 @@
     CODIGOS_INDIVIDUAIS: CODIGOS_INDIVIDUAIS, NATUREZAS_P1P16: NATUREZAS_P1P16, TIPOS: TIPOS, PARES: PARES,
     parAdmitido: parAdmitido, validarMatriz: validarMatriz, temCiclo: temCiclo, alcanca: alcanca, chaveAtiva: chaveAtiva,
     conceitoValido: conceitoValido, naturezaDoObjeto: naturezaDoObjeto, situacaoRelacao: situacaoRelacao,
-    criarRelacao: criarRelacao, encerrarRelacao: encerrarRelacao, registrarNatureza: registrarNatureza, criarConceitoNatureza: criarConceitoNatureza,
+    criarRelacao: criarRelacao, encerrarRelacao: encerrarRelacao, registrarNatureza: registrarNatureza, registrarPendencia: registrarPendencia, MOTIVOS_PENDENCIA: MOTIVOS_PENDENCIA, criarConceitoNatureza: criarConceitoNatureza,
     relacoesDoObjeto: relacoesDoObjeto, leiturasPossiveis: leiturasPossiveis, naturezasDaOutraPonta: naturezasDaOutraPonta
   });
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

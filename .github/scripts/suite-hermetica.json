@@ -29,7 +29,8 @@
     ".github/scripts/teste-rules-taxonomia-definicoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-relacoes-objetos.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-versao-vigente.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-reconciliar-versao-vigente.js": "reconciliação do índice: aplicação no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-reconciliar-versao-vigente.js": "reconciliação do índice: aplicação no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-squad-exclusao.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -876,6 +877,18 @@
       "nome": "E4 — núcleo das relações entre objetos: matriz aprovada, naturezas, integridade pelo grafo e regras montadas",
       "duracao": 2,
       "sobre": "Puro: os 8 tipos + \"atua sobre\" e os 21 pares aprovados (nada herdado entre naturezas, nada de Modalidade/Subproduto); só Produto/Serviço é natureza conjunta, as camadas conjuntas pedem natureza registrada; a natureza que autoriza vem da avaliação que vale + decisão final + registro; autorrelação, duplicidade, recíproca e ciclo em \"compõe\" pelo grafo (também numa matriz sintética cíclica); gravações completas; situação calculada; database.rules.json = regras montadas da matriz."
+    },
+    {
+      "arquivo": ".github/scripts/teste-gestao-registros.js",
+      "nome": "Gerenciar registros sem entrar na avaliação: Responsabilidades, lista O1–O9 e Squad (desktop e celular)",
+      "duracao": 40,
+      "sobre": "Menu ⋯ separado da ação principal; excluir um cadastro de teste pela lista, com motivo, sem abrir Avaliar; bloqueio por vínculo explicado; Porta 1 leva à Avaliação de Produto/Serviço de origem, sem exclusão isolada do O1–O9; Squad: excluir com justificativa, Lixeira e restaurar, com auditoria; 375 px."
+    },
+    {
+      "arquivo": ".github/scripts/teste-identificacao-naturezas.js",
+      "nome": "Identificação orientada da natureza individual: conteúdo × modelo, fundamento, pendências e casos",
+      "duracao": 2,
+      "sobre": "Puro: perguntas só para as classificações técnicas com mais de uma natureza; cada alternativa é uma natureza admitida; Opção nunca vem de Regra/Opção (vira reavaliação necessária); recorte e evidência insuficiente em todas; orientação aprovada e exemplos só validados; identificação exige fundamento com snapshot das definições; pendência no mesmo registro, sem natureza, nunca autoriza relação; casos claros, ambíguos e contraditórios."
     },
     {
       "arquivo": ".github/scripts/teste-naturezas-arquiteturais.js",

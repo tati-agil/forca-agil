@@ -77,6 +77,14 @@ const existe = (page, sel) => page.evaluate((s) => !!document.querySelector(s), 
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const lerBanco = (page, p) => page.evaluate((x) => window.firebase.database().ref(x).once('value').then((s) => s.val()), p);
 const ate = (page, fn, arg, descricao, limite) => esperarCondicao(page, fn, arg, { limite: limite || 15000, descricao });
+/* identificação orientada: escolhe a alternativa, escreve justificativa (e diagnóstico, se for pendência) e registra */
+async function identificar(page, alt, justificativa, diagnostico) {
+  await page.check('input[name="roIdentAlt"][value="' + alt + '"]');
+  if (diagnostico !== undefined) { await page.waitForSelector('#roIdentDiag'); await page.fill('#roIdentDiag', diagnostico); }
+  await page.fill('#roIdentJust', justificativa);
+  await page.click('#roIdentSalvar');
+}
+const alternativas = (page) => page.$$eval('input[name="roIdentAlt"]', (is) => is.map((i) => i.value + (i.disabled ? '(x)' : '')).join());
 const secaoPronta = (page) => ate(page, () => { const s = document.getElementById('roSecao'); return !!s && !s.querySelector('.loading-msg'); }, undefined, 'a seção de relações');
 
 async function rodada(browser, vp, tag) {
@@ -86,13 +94,25 @@ async function rodada(browser, vp, tag) {
   console.log('1. Natureza individual');
   r = await abrir(browser, vp, '#arquitetura?tr=1&item=fSim'); page = r.page;
   await secaoPronta(page);
-  afirma(/Natureza individual ainda não registrada/.test(await texto(page, '#roNatureza')), 'camada conjunta sem registro: a natureza não é deduzida');
-  afirma(await page.$$eval('.ro-nat-btn', (bs) => bs.map((b) => b.getAttribute('data-natureza')).join()) === 'funcionalidade,operacao', 'oferece só as naturezas da classificação (Funcionalidade, Operação), com conceito oficial');
+  afirma(/Natureza arquitetural ainda não identificada/.test(await texto(page, '#roNatureza')), 'classificação técnica sem registro: a natureza não é deduzida');
+  afirma(/Classificação técnica do motor:.*não é a natureza do objeto/.test(await texto(page, '#roClassifTecnica')), 'a classificação técnica do motor aparece separada, dizendo que não é a natureza');
+  afirma(/recurso que o público encontra e usa/.test(await texto(page, '#roIdentPergunta')) && /consultar saldo/.test(await texto(page, '#roIdentOrientacao')), 'pergunta orientadora e a explicação de que "consultar saldo" pode ser recurso ou ação');
+  afirma(/Definição aprovada de Funcionalidade/.test(await texto(page, '#roIdentDefinicoes')) && /Definição aprovada de Operação/.test(await texto(page, '#roIdentDefinicoes')), 'as definições oficiais das duas naturezas, lidas da Taxonomia');
+  afirma((await alternativas(page)) === 'funcionalidade,operacao,recorte,evidencia-insuficiente', 'alternativas: as duas naturezas + recorte + evidência insuficiente', await alternativas(page));
+  afirma(await page.locator('.ro-ident-quando').count() === 4, 'cada alternativa diz quando marcar');
   afirma(!(await existe(page, '#roRelacionar')), 'sem natureza, não oferece relacionar');
-  await page.click('.ro-nat-btn[data-natureza="funcionalidade"]');
-  await ate(page, () => /Natureza: Funcionalidade/.test((document.getElementById('roNatureza') || {}).textContent || ''), undefined, 'natureza registrada');
+  await page.click('#roIdentSalvar');
+  await ate(page, () => !!document.getElementById('roErros'), undefined, 'escolha obrigatória');
+  afirma(/Escolha a alternativa/.test(await texto(page, '#roErros')), 'sem escolher, não registra');
+  await page.check('input[name="roIdentAlt"][value="funcionalidade"]'); await page.click('#roIdentSalvar');
+  await ate(page, () => /justificativa/.test((document.getElementById('roErros') || {}).textContent || ''), undefined, 'justificativa obrigatória');
+  afirma(true, 'sem justificativa, não registra');
+  await identificar(page, 'funcionalidade', 'O público usa a simulação dentro do produto (teste)');
+  await ate(page, () => /identificada:\s*Funcionalidade/.test((document.getElementById('roNatureza') || {}).textContent || ''), undefined, 'natureza identificada');
+  afirma(/O público usa a simulação/.test(await texto(page, '#roFundamento')), 'a ficha mostra o fundamento (alternativa e justificativa)');
   const nat = await lerBanco(page, 'objetos-natureza/fSim');
-  afirma(nat && nat.natureza === 'funcionalidade' && nat.camada === 'funcionalidade-operacao' && nat.avaliacaoId === 'fSim' && nat.revisao === 1, 'gravou a natureza no objeto (identidade), com a avaliação que vale e revisão 1', nat);
+  afirma(nat && nat.natureza === 'funcionalidade' && nat.camada === 'funcionalidade-operacao' && nat.avaliacaoId === 'fSim' && nat.revisao === 1 && nat.fundamento && nat.fundamento.versao === 1 && /recurso/.test(nat.fundamento.pergunta) && nat.fundamento.definicoes && /Funcionalidade/.test(nat.fundamento.definicoes.funcionalidade.texto),
+    'gravou a natureza com o fundamento e o snapshot da pergunta e das definições da época', nat);
   const av = await lerBanco(page, 'avaliacoes-produto/fSim');
   afirma(!av.natureza && !av.naturezaIndividual && av.camadaSugerida.id === 'funcionalidade-operacao', 'a avaliação P1–P16 não foi alterada');
 
@@ -100,15 +120,39 @@ async function rodada(browser, vp, tag) {
   {
     const r2 = await abrir(browser, vp, '#arquitetura?tr=1&item=mPerf'); const pg = r2.page;
     await secaoPronta(pg);
-    afirma(/Natureza individual ainda não registrada/.test(await texto(pg, '#roNatureza')), 'E5: a classificação do motor não decide a natureza (nada deduzido)');
-    afirma(await pg.$$eval('.ro-nat-btn', (bs) => bs.map((b) => b.getAttribute('data-natureza')).join()) === 'opcao,modalidade', 'E5: Opção e Modalidade (com conceito oficial) oferecidas como naturezas distintas');
-    afirma(/Subproduto — ainda sem definição oficial na Taxonomia/.test(await texto(pg, '.ro-nat-indisp[data-natureza="subproduto"]')), 'E5: Subproduto sem conceito oficial aparece indisponível (nunca registrado sem definição aprovada)');
-    afirma(/Modalidade, Subproduto e Opção são naturezas distintas/.test(await texto(pg, '#roAjudaModalidade')), 'E5: orientação diz que são três naturezas distintas e que a escolha é explícita');
-    await pg.click('.ro-nat-btn[data-natureza="modalidade"]');
-    await ate(pg, () => /Natureza: Modalidade/.test((document.getElementById('roNatureza') || {}).textContent || ''), undefined, 'Modalidade registrada');
+    afirma(/Natureza arquitetural ainda não identificada/.test(await texto(pg, '#roNatureza')), 'E5: a classificação do motor não decide a natureza (nada deduzido)');
+    afirma((await alternativas(pg)) === 'modalidade,subproduto(x),opcao,recorte,evidencia-insuficiente', 'E5: Modalidade, Subproduto e Opção distintas; Subproduto sem conceito oficial fica indisponível', await alternativas(pg));
+    afirma(/Não basta existir uma escolha/.test(await texto(pg, '#roIdentOrientacao')) && /não define Modalidade/.test(await texto(pg, '#roIdentOrientacao')) && /pendente/.test(await texto(pg, '#roIdentOrientacao')), 'E5: orientação aprovada (o que o objeto é; regras próprias não definem Modalidade; sem distinção → pendente)');
+    afirma(/opção tributária/.test(await texto(pg, '#roIdentExemplos')) && !/perfil/i.test(await texto(pg, '#roIdentExemplos')), 'E5: só exemplos validados (opção tributária); nada de exemplo institucional não validado');
+    await identificar(pg, 'modalidade', 'Forma específica de utilizar o produto (teste)');
+    await ate(pg, () => /identificada:\s*Modalidade/.test((document.getElementById('roNatureza') || {}).textContent || ''), undefined, 'Modalidade registrada');
     const nm = await lerBanco(pg, 'objetos-natureza/mPerf');
     afirma(nm && nm.natureza === 'modalidade' && nm.camada === 'modalidade-subproduto' && nm.avaliacaoId === 'mPerf', 'E5: Modalidade registrada no objeto, com a avaliação vigente', nm);
     afirma((await lerBanco(pg, 'avaliacoes-produto/mPerf')).camadaSugerida.id === 'modalidade-subproduto', 'E5: a avaliação (classificação histórica do motor) não foi alterada');
+    /* Regra/Opção: quem é Opção vira pendência "reavaliação necessária" (Opção nunca é registrada em regra-condicao) */
+    const r4 = await abrir(browser, vp, '#arquitetura?tr=1&item=rCar'); const p4 = r4.page;
+    await secaoPronta(p4);
+    afirma((await alternativas(p4)) === 'regra,opcao-reavaliar,recorte,evidencia-insuficiente' && /admite só Regra/.test(await texto(p4, '#roIdentOrientacao')), 'Regra/Opção: só Regra como natureza; a alternativa "Opção" leva à reavaliação, nunca a registrar Opção');
+    await identificar(p4, 'opcao-reavaliar', 'O participante escolhe a alternativa entre as que a regra permite (teste)', 'O objeto é uma alternativa escolhida, não uma condição imposta (teste)');
+    await ate(p4, () => !!document.querySelector('#roNatureza[data-pendencia="reavaliacao-necessaria"]'), undefined, 'pendência registrada');
+    afirma(/Identificação pendente:\s*Reavaliação P1–P16 necessária/.test(await texto(p4, '#roNatureza')) && /reavaliar o P1–P16/.test(await texto(p4, '#roNatureza')) && /alternativa escolhida/.test(await texto(p4, '#roNatureza')), 'a ficha mostra a pendência, o diagnóstico, a justificativa e o próximo passo');
+    const np = await lerBanco(p4, 'objetos-natureza/rCar');
+    afirma(np && !np.natureza && np.pendencia && np.pendencia.motivo === 'reavaliacao-necessaria' && np.avaliacaoId === 'rCar' && np.pendencia.versao === 1, 'pendência gravada no mesmo registro, sem natureza, com a versão da avaliação e da orientação', np);
+    afirma(!(await existe(p4, '#roRelacionar')) && (await lerBanco(p4, 'avaliacoes-produto/rCar')).camadaSugerida.id === 'regra-condicao', 'pendência não autoriza relação; a classificação histórica não foi trocada');
+    await p4.click('#roCorrigirNatureza');
+    await identificar(p4, 'regra', 'Revisto: é uma condição imposta (teste)');
+    await ate(p4, () => /identificada:\s*Regra/.test((document.getElementById('roNatureza') || {}).textContent || ''), undefined, 'retomada: Regra identificada');
+    const auds = Object.values((await lerBanco(p4, 'objetos-natureza-auditoria/rCar')) || {});
+    afirma(auds.length === 2 && auds.some((x) => x.tipo === 'pendencia') && auds.some((x) => x.tipo === 'alteracao' && x.fundamento && !x.anterior), 'retomar a identificação: revisão + 1; a auditoria guarda a pendência e a identificação', auds.map((x) => x.tipo).join());
+    afirma(r4.erros.length === 0 && await larguraOk(p4), 'Regra/Opção: sem erro de JS e sem rolagem lateral');
+    await r4.ctx.close();
+    /* ficha P1–P16: a mesma etapa; registro anterior sem fundamento aparece como tal */
+    const r5 = await abrir(browser, vp, '#arquitetura?avp=oCalc'); const p5 = r5.page;
+    await ate(p5, () => !!document.querySelector('#roSecaoNatureza #roNatureza'), undefined, 'natureza na ficha P1–P16', 20000);
+    afirma(/Classificação técnica do motor/.test(await texto(p5, '#roSecaoNatureza')) && /identificada:\s*Operação/.test(await texto(p5, '#roSecaoNatureza #roNatureza')) && /Registrada sem fundamento/.test(await texto(p5, '#roSecaoNatureza #roFundamento')),
+      'ficha P1–P16: classificação técnica × natureza identificada; registro anterior aparece "sem fundamento"');
+    afirma(r5.erros.length === 0 && await larguraOk(p5), 'ficha P1–P16: sem erro de JS e sem rolagem lateral');
+    await r5.ctx.close();
     afirma(r2.erros.length === 0 && await larguraOk(pg), 'E5: sem erro de JS e sem rolagem lateral');
     await r2.ctx.close();
     const r3 = await abrir(browser, vp, '#arquitetura?tr=1&item=oAgi'); const p3 = r3.page;
@@ -167,7 +211,7 @@ async function rodada(browser, vp, tag) {
   console.log('5. Composição e Porta 2');
   r = await abrir(browser, vp, '#arquitetura?tr=1&item=cMotor'); page = r.page;
   await secaoPronta(page);
-  afirma(/Natureza: Componente/.test(await texto(page, '#roNatureza')), 'Componente: natureza vem da classificação (sem registro)');
+  afirma(/Natureza arquitetural:\s*Componente/.test(await texto(page, '#roNatureza')) && !(await existe(page, '#roClassifTecnica')), 'Componente: a natureza é a própria classificação (sem etapa de identificação)');
   await page.click('#roRelacionar'); await page.selectOption('#roLeitura', { label: 'faz parte de' });
   await ate(page, () => !!document.getElementById('roCandidatos'), undefined, 'candidatos');
   const prods = await page.$$eval('input[name="roOutro"]', (is) => is.map((i) => i.value));
@@ -194,7 +238,7 @@ async function rodada(browser, vp, tag) {
   const relSemente = { registros: { r1: { id: 'r1', origem: 'cMotor', tipo: 'compoe', destino: 'pCapec', naturezaOrigem: 'componente', naturezaDestino: 'produto', baseOrigem: 'cMotor', baseDestino: 'pCapec', versaoMatriz: 1, situacao: 'ativa', revisao: 1, criadaEm: 1, criadaPor: { id: 'u', email: SJ.ARQ }, ultimaOperacao: 'op1', ultimoEvento: 'op1:1' } } };
   r = await abrir(browser, vp, '#arquitetura?tr=1&item=pCapec', { email: SJ.AVAL, relacoes: relSemente }); page = r.page;
   await secaoPronta(page);
-  afirma(/Motor de cálculo de renda/.test(await texto(page, '#roLista')) && !(await existe(page, '#roRelacionar')) && !(await existe(page, '.ro-encerrar')) && !(await existe(page, '.ro-nat-btn')), 'perfil Avaliação vê as relações, sem nenhum controle');
+  afirma(/Motor de cálculo de renda/.test(await texto(page, '#roLista')) && !(await existe(page, '#roRelacionar')) && !(await existe(page, '.ro-encerrar')) && !(await existe(page, '#roIdentSalvar')), 'perfil Avaliação vê as relações, sem nenhum controle');
   await r.ctx.close();
   r = await abrir(browser, vp, '#arquitetura?tr=1&item=pCapec', { marcador: false, relacoes: relSemente }); page = r.page;
   await secaoPronta(page);
@@ -282,7 +326,7 @@ async function rodada(browser, vp, tag) {
   console.log('8b. Item antigo sem a versão vigente registrada (reconciliação pendente)');
   r = await abrir(browser, vp, '#arquitetura?tr=1&item=fSim', { semIndice: 'fSim' }); page = r.page;
   await secaoPronta(page);
-  afirma(/versão vigente deste item ainda não está registrada/.test(await texto(page, '#roNatureza')) && !(await existe(page, '.ro-nat-btn')) && !(await existe(page, '#roRelacionar')),
+  afirma(/versão vigente deste item ainda não está registrada/.test(await texto(page, '#roNatureza')) && !(await existe(page, '#roIdentSalvar')) && !(await existe(page, '#roRelacionar')),
     'sem o índice da versão vigente: explica a reconciliação pendente e não oferece natureza nem relação (o banco recusaria)', await texto(page, '#roNatureza'));
   afirma(r.erros.length === 0 && await larguraOk(page), 'sem erro de JS e sem rolagem lateral');
   await r.ctx.close();

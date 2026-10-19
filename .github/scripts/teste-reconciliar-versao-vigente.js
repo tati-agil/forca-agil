@@ -77,7 +77,7 @@ async function emulador() {
   const db = env.authenticatedContext(ek(ARQ), { email: ARQ }).database();
   let nAud = 0;
   const natureza = async (base) => JSON.parse(JSON.stringify(R.registrarNatureza('ant', 'operacao', { situacao: 'atual', libera: true, chave: base, avaliacao: await ler(REC.PROD + '/' + base) }, null,
-    { ativo: true, naturezaDe: 'funcionalidade-operacao', temDefinicao: true }, { auditoriaId: 'aud' + (++nAud), usuario: { id: ek(ARQ), email: ARQ }, agora: { '.sv': 'timestamp' } }).caminhos));
+    { ativo: true, naturezaDe: 'funcionalidade-operacao', temDefinicao: true }, { auditoriaId: 'aud' + (++nAud), usuario: { id: ek(ARQ), email: ARQ }, agora: { '.sv': 'timestamp' } }, { versao: 1, pergunta: 'Pergunta de teste', alternativa: 'operacao', rotulo: 'Ação', justificativa: 'Justificativa de teste' }).caminhos));
   async function aceita(rotulo, p) { try { await assertSucceeds(p); anota(rotulo, true); } catch (e) { anota(rotulo, false, 'NEGADO: ' + String(e.message || e).slice(0, 160)); } }
   async function recusa(rotulo, p) { try { await assertFails(p); anota(rotulo, true); } catch (e) { anota(rotulo, false, 'foi ACEITO'); } }
   const sondaNat = async (base) => { try { await db.ref().update(await natureza(base)); return true; } catch (e) { return false; } };

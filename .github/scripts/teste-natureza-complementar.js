@@ -155,7 +155,8 @@ async function lerExcel(page) {
 (async () => {
   console.log('== Código: o catálogo saiu do site; o motor não lê a natureza ==');
   afirma(!/naturezas-config\.js/.test(INDEX) && !fs.existsSync(path.join(RAIZ, 'forca-agil', 'naturezas-config.js')), 'naturezas-config.js fora do index.html e do repositório');
-  afirma(!/faNaturezas|renderNaturezaBloco|salvarNatureza|abrirConfigNaturezas|renderConfigNaturezas|gravarOpcaoNatureza/.test(SRC_AVP), 'avaliacao-produto.js: sem catálogo, sem tela de edição, sem salvamento da natureza');
+  /* faNaturezas\b: o catálogo antigo (naturezas-config.js); faNaturezasArquiteturais é o modelo central atual (E4) */
+  afirma(!/faNaturezas\b|renderNaturezaBloco|salvarNatureza|abrirConfigNaturezas|renderConfigNaturezas|gravarOpcaoNatureza/.test(SRC_AVP), 'avaliacao-produto.js: sem catálogo, sem tela de edição, sem salvamento da natureza');
   afirma(!/naturezaComplementar|naturezas-complementares|faNaturezas/.test(SRC_MOTOR), 'o motor arquitetural não lê a natureza complementar');
 
   const browser = await chromium.launch();

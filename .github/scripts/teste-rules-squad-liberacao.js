@@ -117,7 +117,8 @@ function squad(itemId, comOrigem) {
   await caso('rascunho criado antes: continua sendo salvo', db(AVAL).ref(SQ + '/s2').set(Object.assign(squad('iAE'), { respostas: { S1: { resposta: 'sim' } } })), true);
   await caso('… e concluído', db(AVAL).ref(SQ + '/s2/status').set('concluido'), true);
   await caso('rascunho sem origem criado antes: continua sendo salvo', db(AVAL).ref(SQ + '/s1').set(squad('iSem', false)), true);
-  await caso('exclusão lógica de uma S existente continua', db(AVAL).ref(SQ + '/s3').update({ excluido: true, justificativaExclusao: 'duplicada' }), true);
+  /* exclusão lógica como a tela grava (justificativa, autoria, horário do servidor e auditoria na mesma gravação) */
+  await caso('exclusão lógica de uma S existente continua', db(AVAL).ref().update({ [SQ + '/s3/excluido']: true, [SQ + '/s3/justificativaExclusao']: 'duplicada', [SQ + '/s3/excluidoEm']: { '.sv': 'timestamp' }, [SQ + '/s3/excluidoPor']: { email: AVAL, name: 'P' }, [SQ + '/s3/auditoriaExclusaoId']: 'aex', ['avaliacoes-squad-auditoria/s3/aex']: { tipo: 'exclusao', justificativa: 'duplicada', em: { '.sv': 'timestamp' }, por: { email: AVAL, name: 'P' } } }), true);
   await caso('quem não tem perfil da Avaliação continua sem criar S', env.authenticatedContext('uid-sem', { email: 'sem.perfil@previ.com.br' }).database().ref(SQ + '/c9').set(squad('iL')), false);
 
   console.log('D. a origem da liberação é imutável');

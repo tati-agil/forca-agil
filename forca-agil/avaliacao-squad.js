@@ -468,8 +468,60 @@
     }
 
     /* ===================== LISTA ===================== */
+    /* EXCLUSÃO LÓGICA e RESTAURAÇÃO (gerenciamento separado de Visualizar/Continuar): justificativa obrigatória, autoria do
+       token, horário do servidor e auditoria só de acréscimo (avaliacoes-squad-auditoria) na mesma gravação — as regras do
+       banco conferem tudo. Nada se apaga; respostas, snapshots, resultado e versões ficam intactos. Não mexe em P1–P16,
+       O1–O9 nem em vínculos. */
+    function htmlGestao() {
+      var g = state.gerindo; if (!g) return '';
+      var it = buscarItem(g.key); if (!it) return '';
+      var exc = g.acao === 'excluir';
+      return '<div class="avp-form-card sq-gestao" id="sqGestao" role="group" aria-labelledby="sqGestaoTitulo"><h4 id="sqGestaoTitulo">' + (exc ? 'Excluir esta avaliação de squad?' : 'Restaurar esta avaliação de squad?') + '</h4>' +
+        '<p class="po-item-nome">' + esc(it.itemNome) + '</p>' +
+        '<p class="avp-ficha-meta">' + (exc ? 'Ela sai da lista e vai para a Lixeira: nada é apagado (respostas, resultado e versões ficam guardados) e pode ser restaurada. A Avaliação de Produto/Serviço, o Posicionamento e os vínculos não mudam.'
+          : 'Ela volta para a lista, como estava. A exclusão anterior continua registrada na auditoria.') + '</p>' +
+        '<div class="avp-field"><label for="sqJustGestao">Justificativa <span class="est-obrig">(obrigatório)</span></label><textarea id="sqJustGestao" rows="3" maxlength="500">' + esc(g.justificativa || '') + '</textarea></div>' +
+        (g.erro ? '<p class="avp-error-msg" role="alert" id="sqGestaoErro">' + esc(g.erro) + '</p>' : '') +
+        '<div class="avp-actions-bar"><button type="button" class="btn ' + (exc ? 'btn--danger' : 'btn--primary') + '" id="sqConfirmarGestao"' + (g.salvando ? ' disabled' : '') + '>' + (g.salvando ? 'Gravando…' : (exc ? 'Excluir' : 'Restaurar')) + '</button>' +
+        '<button type="button" class="btn" id="sqCancelarGestao"' + (g.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+    }
+    function confirmarGestao() {
+      var g = state.gerindo; if (!g || g.salvando) return;
+      var just = String(g.justificativa || '').trim(), u = window.firebase && window.firebase.auth && window.firebase.auth().currentUser, ses = sessaoAtual();
+      if (!just) { g.erro = 'Escreva a justificativa.'; render(); return; }
+      if (!u) { g.erro = 'Sessão não identificada. Entre de novo.'; render(); return; }
+      var exc = g.acao === 'excluir', TS = { '.sv': 'timestamp' }, por = { email: u.email, name: (ses && ses.name) || u.email };
+      var audId = db().ref('avaliacoes-squad-auditoria/' + g.key).push().key, base = NODE + '/' + g.key + '/', up = {};
+      up[base + 'excluido'] = exc; up[base + 'auditoriaExclusaoId'] = audId;
+      if (exc) { up[base + 'excluidoEm'] = TS; up[base + 'excluidoPor'] = por; up[base + 'justificativaExclusao'] = just; }
+      else { up[base + 'restauradoEm'] = TS; up[base + 'restauradoPor'] = por; up[base + 'justificativaRestauracao'] = just; }
+      up['avaliacoes-squad-auditoria/' + g.key + '/' + audId] = { tipo: exc ? 'exclusao' : 'restauracao', justificativa: just, em: TS, por: por };
+      g.salvando = true; g.erro = null; render();
+      db().ref().update(up, function (err) {
+        if (err) { g.salvando = false; g.erro = 'O banco recusou a gravação. Confira se a situação mudou e tente de novo.'; render(); return; }
+        state.gerindo = null; state.flashLista = exc ? 'Avaliação de squad enviada para a Lixeira.' : 'Avaliação de squad restaurada.'; render();
+      });
+    }
+    function menuGestao(it, rotulo, classe) {
+      return '<details class="sq-menu"><summary class="btn btn--sm sq-menu-btn" aria-label="Gerenciar a avaliação de ' + esc(it.itemNome) + '">⋯</summary>' +
+        '<div class="sq-menu-itens"><button type="button" class="btn btn--sm ' + classe + '" data-key="' + it._key + '">' + rotulo + '</button></div></details>';
+    }
+    function renderLixeira() {
+      var excluidas = state.itens.filter(function (it) { return it.excluido; }).sort(function (a, b) { return String(b.excluidoEm || '').localeCompare(String(a.excluidoEm || '')); });
+      var html = '<p class="avp-lixeira-aviso" id="sqLixeiraAviso">🗑 Avaliações de squad excluídas. Elas não são apagadas do banco — use "Restaurar" no menu ⋯ para trazê-las de volta.</p>';
+      if (!excluidas.length) return html + '<p class="admin-empty" id="sqLixeiraVazia">A Lixeira está vazia.</p>';
+      html += '<div class="table-scroll-wrap"><table class="admin-table avp-table" id="sqLixeiraTabela"><thead><tr><th>Item</th><th>Status</th><th>Excluída em</th><th>Excluída por</th><th>Justificativa</th><th>Ações</th></tr></thead><tbody>';
+      excluidas.forEach(function (it) {
+        html += '<tr class="sq-linha-excluida" data-key="' + it._key + '"><td data-label="Item">' + esc(it.itemNome) + '</td><td data-label="Status">' + (it.status === 'concluido' ? 'Concluída' : 'Rascunho') + '</td>' +
+          '<td data-label="Excluída em">' + fmtData(it.excluidoEm) + '</td><td data-label="Excluída por">' + esc((it.excluidoPor && (it.excluidoPor.name || it.excluidoPor.email)) || '—') + '</td>' +
+          '<td data-label="Justificativa">' + esc(it.justificativaExclusao || '—') + '</td>' +
+          '<td data-label="Ações" class="sq-acoes"><button class="btn btn--sm sq-act-abrir" data-key="' + it._key + '">Visualizar</button>' + menuGestao(it, 'Restaurar', 'sq-act-restaurar') + '</td></tr>';
+      });
+      return html + '</tbody></table></div>';
+    }
     function renderLista() {
       var ativos = state.itens.filter(function (it) { return !it.excluido; });
+      var nExcluidas = state.itens.length - ativos.length;
       var filtro = (state.filtroTexto || '').trim().toLowerCase();
       var filtrados = filtro ? ativos.filter(function (it) { return (it.itemNome || '').toLowerCase().indexOf(filtro) !== -1; }) : ativos;
 
@@ -488,6 +540,7 @@
       html += '<div class="avp-actions-bar">';
       html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' de squad registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
       html += '<button class="btn btn--primary" id="sqNovaBtn">+ Nova avaliação de squad</button>';
+      if (nExcluidas || state.lixeira) html += '<button type="button" class="btn btn--sm" id="sqLixeiraBtn" aria-pressed="' + (state.lixeira ? 'true' : 'false') + '">' + (state.lixeira ? '← Voltar à lista' : '🗑 Lixeira (' + nExcluidas + ')') + '</button>';
       html += '<div class="avp-exportar-wrap">';
       html += '<button class="btn btn--sm" id="sqExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' + (state.exportando ? 'Gerando arquivo…' : 'Exportar ▾') + '</button>';
       if (state.menuExportarAberto) {
@@ -510,7 +563,10 @@
       }
       html += '<div class="avp-filters"><input type="search" class="avp-busca" id="sqFiltroTexto" autocomplete="off" aria-label="Filtrar por nome do item" placeholder="Filtrar por nome do item…" value="' + esc(state.filtroTexto) + '"></div>';
 
-      if (!filtrados.length) {
+      html += htmlGestao();
+      if (state.lixeira) {
+        html += renderLixeira();
+      } else if (!filtrados.length) {
         html += '<p class="admin-empty">' + (ativos.length ? 'Nenhuma avaliação de squad para esse filtro.' : 'Nenhuma avaliação de squad registrada ainda.') + '</p>';
       } else {
         html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
@@ -523,8 +579,8 @@
           html += '<td data-label="Versão do questionário">' + esc(it.questionnaireContentVersion || 1) + '</td>';
           html += '<td data-label="Responsável">' + esc((it.criadoPor && it.criadoPor.name) || '—') + '</td>';
           html += '<td data-label="Data">' + fmtData(it.criadoEm) + '</td>';
-          html += '<td data-label="Ações"><button class="btn btn--sm sq-act-abrir" data-key="' + it._key + '">' +
-            (it.status === 'concluido' ? 'Visualizar' : 'Continuar') + '</button></td>';
+          html += '<td data-label="Ações" class="sq-acoes"><button class="btn btn--sm sq-act-abrir" data-key="' + it._key + '">' +
+            (it.status === 'concluido' ? 'Visualizar' : 'Continuar') + '</button>' + menuGestao(it, 'Excluir', 'sq-act-excluir') + '</td>';
           html += '</tr>';
         });
         html += '</tbody></table></div>';
@@ -540,6 +596,13 @@
       byId('sqNovaBtn').addEventListener('click', function () {
         iniciarNovaAvaliacao({ itemId: null, itemNome: '', avaliacaoArquiteturalId: null });
       });
+      var lix = byId('sqLixeiraBtn'); if (lix) lix.addEventListener('click', function () { state.lixeira = !state.lixeira; state.gerindo = null; render(); });
+      wrap.querySelectorAll('.sq-act-excluir, .sq-act-restaurar').forEach(function (btn) {
+        btn.addEventListener('click', function () { state.gerindo = { key: btn.dataset.key, acao: btn.classList.contains('sq-act-excluir') ? 'excluir' : 'restaurar' }; render(); var t = byId('sqJustGestao'); if (t) t.focus(); });
+      });
+      var jg = byId('sqJustGestao'); if (jg) jg.addEventListener('input', function () { if (state.gerindo) state.gerindo.justificativa = jg.value; });
+      var cg = byId('sqConfirmarGestao'); if (cg) cg.addEventListener('click', confirmarGestao);
+      var xg = byId('sqCancelarGestao'); if (xg) xg.addEventListener('click', function () { state.gerindo = null; render(); });
       wrap.querySelectorAll('.sq-act-abrir').forEach(function (btn) {
         btn.addEventListener('click', function () { state.abertaDaLista = true; abrirExistente(btn.dataset.key); });
       });

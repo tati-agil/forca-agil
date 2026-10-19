@@ -56,10 +56,10 @@
     conceitosLidos = true;
     N().CODIGOS_INDIVIDUAIS.forEach(function (cod) {
       var base = 'taxonomia/arquitetural/conceitos/' + cod;
-      var c = d.conceitos[cod] = { nome: undefined, ativo: undefined, naturezaDe: undefined, temDefinicao: undefined };
+      var c = d.conceitos[cod] = { nome: undefined, ativo: undefined, naturezaDe: undefined, temDefinicao: undefined, defTexto: null, defVersao: null };
       ['nome', 'ativo', 'naturezaDe', 'definicao'].forEach(function (k) {
         var ref = db().ref(base + '/' + k);
-        var cb = function (s) { var v = s.val(); if (k === 'definicao') c.temDefinicao = !!(v && v.texto); else c[k] = v; avisar(); };
+        var cb = function (s) { var v = s.val(); if (k === 'definicao') { c.temDefinicao = !!(v && v.texto); c.defTexto = v && v.texto || null; c.defVersao = v && v.versao || null; } else c[k] = v; avisar(); };
         ref.on('value', cb, function () { if (k === 'definicao') c.temDefinicao = false; else c[k] = null; avisar(); });
         desligadores.push(function () { ref.off('value', cb); });
       });
@@ -116,7 +116,7 @@
     var pend = function (sel, tipo, attr) {
       Array.prototype.forEach.call(document.querySelectorAll(sel), function (el) { if (ja.indexOf(el) === -1) montar(el, tipo, attr ? el.getAttribute(attr) : null); });
     };
-    pend('[data-ro-secao]', 'secao', 'data-ro-secao'); pend('[data-ro-resumo]', 'resumo', 'data-ro-resumo'); pend('[data-ro-tax]', 'tax', null);
+    pend('[data-ro-secao]', 'secao', 'data-ro-secao'); pend('[data-ro-resumo]', 'resumo', 'data-ro-resumo'); pend('[data-ro-natureza]', 'natureza', 'data-ro-natureza'); pend('[data-ro-tax]', 'tax', null);
   }
 
   /* ---------- leitura dos objetos ---------- */
@@ -167,6 +167,7 @@
     NATUREZA_NAO_REGISTRADA: 'Natureza individual ainda não registrada.',
     NATUREZA_A_CONFIRMAR: 'A natureza registrada é de outra classificação (a avaliação mudou): confirme a natureza.',
     OBJETO_ENCERRADO: 'Responsabilidade encerrada: não recebe novas relações.',
+    IDENTIFICACAO_PENDENTE: 'Identificação da natureza pendente: o objeto não tem natureza registrada e não pode ter relações enquanto isso.',
     VERSAO_VIGENTE_NAO_CONFIRMADA: 'A versão vigente deste item ainda não está registrada no banco (reconciliação pendente): não pode ter relações por enquanto.'
   };
   var MOTIVO_SIT = {
@@ -187,7 +188,12 @@
     NATUREZA_FORA_DA_CAMADA: 'Essa natureza não pertence à classificação da avaliação.', NADA_MUDOU: 'Nada mudou.',
     NOME_OBRIGATORIO: 'Informe o nome.', DEFINICAO_OBRIGATORIA: 'Informe a definição aprovada.', CONFIRMACAO: 'Confirme que a definição foi aprovada.',
     RECUSADA: 'O banco recusou a gravação. Confira se a situação mudou e tente de novo.', SEM_RESPOSTA: 'Sem resposta do banco. Confira a conexão e tente de novo.',
-    CONTEXTO_INCOMPLETO: 'Sessão não identificada. Entre de novo.'
+    CONTEXTO_INCOMPLETO: 'Sessão não identificada. Entre de novo.',
+    ESCOLHA_OBRIGATORIA: 'Escolha a alternativa que descreve o objeto.', JUSTIFICATIVA_OBRIGATORIA: 'Escreva a justificativa da identificação.',
+    JUSTIFICATIVA_LONGA: 'A justificativa tem no máximo 2000 caracteres.', DIAGNOSTICO_OBRIGATORIO: 'Descreva o diagnóstico da pendência.',
+    DIAGNOSTICO_LONGO: 'O diagnóstico tem no máximo 2000 caracteres.', FUNDAMENTO_OBRIGATORIO: 'A identificação precisa do fundamento.', FUNDAMENTO_INCOMPLETO: 'A identificação precisa do fundamento.',
+    MOTIVO_PENDENCIA_INVALIDO: 'Motivo de pendência inválido.', REAVALIACAO_SO_EM_REGRA: 'A reavaliação só se aplica à classificação Regra/Opção.',
+    CLASSIFICACAO_SEM_IDENTIFICACAO: 'Esta classificação já é uma natureza: não há o que identificar.'
   };
   function msgs(erros) { return (erros || []).map(function (e) { return ERRO[e.codigo] || e.codigo; }).filter(function (x, i, a) { return a.indexOf(x) === i; }); }
 
@@ -217,33 +223,66 @@
     if (st.modo === 'relacionar') h += formRelacionarHtml(id, nat, st);
     return h + '</section>';
   }
+  /* ---------- NATUREZA DO OBJETO: classificação técnica do motor × natureza identificada × identificação pendente ----------
+     Identificação ORIENTADA (identificacao-naturezas.js): só quando a classificação técnica admite mais de uma natureza; pergunta,
+     orientação, definições oficiais (lidas ao vivo e guardadas na identificação), quando marcar cada alternativa e justificativa.
+     Nada é deduzido; uma pendência não atribui natureza nem autoriza relação. */
+  function I() { return window.faIdentificacaoNaturezas; }
+  var ROT_MOTIVO = { recorte: 'Recorte necessário', 'evidencia-insuficiente': 'Evidência insuficiente', 'reavaliacao-necessaria': 'Reavaliação P1–P16 necessária' };
+  function quando(ts) { if (typeof ts !== 'number') return ''; var dt = new Date(ts); return ('0' + dt.getDate()).slice(-2) + '/' + ('0' + (dt.getMonth() + 1)).slice(-2) + '/' + dt.getFullYear(); }
+  function nomeClassificacao(cam) { var C = window.faClassificacoes; return (C && C.nome && C.nome(cam)) || cam; }
   function naturezaHtml(id, nat, st, manter) {
     if (porta2(id)) return '<p class="ro-natureza" id="roNatureza"><span class="ro-rot">Natureza:</span> Responsabilidade organizacional (Porta 2)</p>';
-    var h = '';
+    var reg = d.naturezas ? d.naturezas[id] : null, cam = nat.camada || gateCamada(id), h = '';
+    var tecnica = cam && window.faNaturezasArquiteturais && window.faNaturezasArquiteturais.ehClassificacaoTecnica(cam);
+    if (tecnica) h += '<p class="ro-classif-tecnica" id="roClassifTecnica"><span class="ro-rot">Classificação técnica do motor:</span> ' + esc(nomeClassificacao(cam)) + ' <span class="ro-det">(não é a natureza do objeto)</span></p>';
     if (nat.natureza) {
-      h = '<p class="ro-natureza" id="roNatureza" data-natureza="' + esc(nat.natureza) + '"><span class="ro-rot">Natureza:</span> ' + esc(rotuloNatureza(nat.natureza));
-      if (nat.registrada && manter && st.modo !== 'natureza') h += ' <button type="button" class="avp-voltar-link ro-lnk" id="roCorrigirNatureza">Corrigir a natureza</button>';
-      h += '</p>';
+      h += '<p class="ro-natureza" id="roNatureza" data-natureza="' + esc(nat.natureza) + '"><span class="ro-rot">Natureza arquitetural' + (nat.registrada ? ' identificada' : '') + ':</span> ' + esc(rotuloNatureza(nat.natureza)) + '</p>';
+      if (nat.registrada && reg) {
+        h += reg.fundamento ? '<p class="ro-fundamento" id="roFundamento"><span class="ro-rot">Fundamento:</span> ' + esc(reg.fundamento.rotulo) + ' — ' + esc(reg.fundamento.justificativa) +
+          ' <span class="ro-det">(' + esc((reg.registradaPor && reg.registradaPor.email) || '') + (reg.registradaEm ? ', ' + quando(reg.registradaEm) : '') + ')</span></p>'
+          : '<p class="ro-fundamento ro-det" id="roFundamento">Registrada sem fundamento (registro anterior à identificação orientada).</p>';
+        if (manter && st.modo !== 'natureza') h += '<p class="ro-acoes"><button type="button" class="avp-voltar-link ro-lnk" id="roCorrigirNatureza">Rever a identificação</button></p>';
+      }
+      if (st.modo !== 'natureza') return h;
+    } else if (nat.motivo === 'IDENTIFICACAO_PENDENTE' && reg && reg.pendencia) {
+      var p = reg.pendencia;
+      h += '<div class="ro-natureza ro-natureza--pendente ro-pendencia" id="roNatureza" data-motivo="IDENTIFICACAO_PENDENTE" data-pendencia="' + esc(p.motivo) + '"><p><span class="ro-rot">Identificação pendente:</span> ' + esc(ROT_MOTIVO[p.motivo] || p.motivo) + '</p>' +
+        '<p><span class="ro-rot">Diagnóstico:</span> ' + esc(p.diagnostico) + '</p><p><span class="ro-rot">Justificativa:</span> ' + esc(p.justificativa) + ' <span class="ro-det">(' + esc((reg.registradaPor && reg.registradaPor.email) || '') + (reg.registradaEm ? ', ' + quando(reg.registradaEm) : '') + ')</span></p>' +
+        (p.motivo === 'reavaliacao-necessaria' ? '<p class="ro-ajuda">Próximo passo: reavaliar o P1–P16 deste item. A classificação atual fica no histórico; nada é trocado sozinho.</p>' : '') +
+        (p.motivo === 'recorte' ? '<p class="ro-ajuda">Próximo passo: avaliar cada elemento como item próprio.</p>' : '') + '</div>';
+      if (manter && st.modo !== 'natureza') h += '<p class="ro-acoes"><button type="button" class="avp-voltar-link ro-lnk" id="roCorrigirNatureza">Retomar a identificação</button></p>';
       if (st.modo !== 'natureza') return h;
     } else {
-      h = '<p class="ro-natureza ro-natureza--pendente" id="roNatureza" data-motivo="' + esc(nat.motivo) + '">' + esc(MOTIVO_NAT[nat.motivo] || nat.motivo) + '</p>';
+      h += '<p class="ro-natureza ro-natureza--pendente" id="roNatureza" data-motivo="' + esc(nat.motivo) + '">' + esc(nat.motivo === 'NATUREZA_NAO_REGISTRADA' ? 'Natureza arquitetural ainda não identificada.' : (MOTIVO_NAT[nat.motivo] || nat.motivo)) + '</p>';
+      if (nat.motivo !== 'NATUREZA_NAO_REGISTRADA' && nat.motivo !== 'NATUREZA_A_CONFIRMAR') return h;
     }
-    var possiveis = nat.possiveis || (nat.camada && N().INDIVIDUAIS_DA_CAMADA[nat.camada]) || (nat.registrada && N().NATUREZAS[nat.registrada] && N().INDIVIDUAIS_DA_CAMADA[gateCamada(id)]) || null;
-    if (!possiveis && nat.natureza && nat.registrada) possiveis = N().INDIVIDUAIS_DA_CAMADA[N().NATUREZAS[nat.registrada].camada];
-    if (!possiveis || (nat.motivo !== 'NATUREZA_NAO_REGISTRADA' && nat.motivo !== 'NATUREZA_A_CONFIRMAR' && st.modo !== 'natureza')) return h;
-    var cam = nat.camada || (nat.registrada && N().NATUREZAS[nat.registrada].camada);
-    h += '<div class="ro-form" id="roFormNatureza"><p class="ro-ajuda">Qual é a natureza individual deste objeto? Registrada uma vez, por quem mantém; nunca deduzida e nunca gravada na avaliação.</p>';
-    var ori = window.faNaturezasArquiteturais && window.faNaturezasArquiteturais.orientacao(cam); /* texto único, do modelo central */
-    if (ori) h += '<p class="ro-ajuda ro-orientacao" id="roAjudaOpcao" role="note">' + esc(ori.texto) + '</p>';
-    if (cam === 'modalidade-subproduto') h += '<p class="ro-ajuda" id="roAjudaModalidade">Modalidade, Subproduto e Opção são naturezas distintas: escolha a que descreve este objeto. A classificação do motor não decide sozinha qual delas é.</p>';
-    if (!manter) return h + '<p class="ro-ajuda">Quem registra: Avaliação + Configuração ou administração geral.</p></div>';
-    h += '<div class="ro-escolhas">' + possiveis.map(function (n) {
-      var ok = N().conceitoValido(n, conceitoInfo(n));
-      return ok ? '<button type="button" class="btn btn--sm ro-nat-btn" data-natureza="' + esc(n) + '"' + (st.salvando ? ' disabled' : '') + '>' + esc(rotuloNatureza(n)) + '</button>'
-        : '<span class="ro-nat-indisp" data-natureza="' + esc(n) + '">' + esc(N().NATUREZAS[n].rotulo) + ' — ainda sem definição oficial na Taxonomia</span>';
-    }).join('') + '</div>';
+    var dif = I() && cam ? I().diferenciacao(cam) : null;
+    if (!dif) return h;
+    return h + identificacaoHtml(id, dif, st, manter);
+  }
+  function identificacaoHtml(id, dif, st, manter) {
+    var f = st.form.ident || {}, alt = f.alt ? I().alternativa(dif.classificacao, f.alt) : null;
+    var h = '<div class="ro-form ro-ident" id="roFormNatureza" data-classificacao="' + esc(dif.classificacao) + '"><h6 class="ro-ident-titulo">Identificar a natureza arquitetural</h6>' +
+      '<p class="ro-ident-pergunta" id="roIdentPergunta">' + esc(dif.pergunta) + '</p><p class="ro-ajuda" id="roIdentOrientacao">' + esc(dif.orientacao) + '</p>';
+    var nats = dif.alternativas.filter(function (a) { return a.natureza; });
+    h += '<div class="ro-ident-defs" id="roIdentDefinicoes"><p class="ro-rot">Definições oficiais (Taxonomia)</p><dl>' + nats.map(function (a) {
+      var c = d.conceitos[a.natureza] || {};
+      return '<dt>' + esc(rotuloNatureza(a.natureza)) + '</dt><dd data-natureza="' + esc(a.natureza) + '">' + (c.defTexto ? esc(c.defTexto) : '<span class="ro-det">Ainda sem definição oficial na Taxonomia.</span>') + '</dd>';
+    }).join('') + '</dl></div>';
+    if (dif.exemplos) h += '<p class="ro-ajuda" id="roIdentExemplos">' + esc(dif.exemplos) + '</p>';
+    if (!manter) return h + '<p class="ro-ajuda">Quem identifica: Avaliação + Configuração ou administração geral.</p></div>';
+    h += '<fieldset class="ro-ident-alternativas"><legend>O objeto avaliado é…</legend>' + dif.alternativas.map(function (a) {
+      var ok = !a.natureza || N().conceitoValido(a.natureza, conceitoInfo(a.natureza));
+      return '<label class="ro-ident-alt' + (a.pendencia ? ' ro-ident-alt--pendencia' : '') + '"><input type="radio" name="roIdentAlt" value="' + esc(a.valor) + '"' + (f.alt === a.valor ? ' checked' : '') + (ok ? '' : ' disabled') + '> ' +
+        '<span><strong>' + esc(a.rotulo) + '</strong>' + (a.natureza ? ' <span class="ro-det">→ ' + esc(rotuloNatureza(a.natureza)) + '</span>' : ' <span class="ro-det">→ identificação pendente</span>') +
+        '<span class="ro-ident-quando">' + esc(a.quando) + (ok ? '' : ' (indisponível: ainda sem definição oficial na Taxonomia)') + '</span></span></label>';
+    }).join('') + '</fieldset>';
+    if (alt && alt.pendencia) h += '<div class="avp-field"><label for="roIdentDiag">' + esc(I().PENDENCIAS[alt.pendencia].diagnostico) + ' <span class="est-obrig">(obrigatório)</span></label><textarea id="roIdentDiag" rows="3" maxlength="2000">' + esc(f.diagnostico || '') + '</textarea></div>';
+    h += '<div class="avp-field"><label for="roIdentJust">Justificativa <span class="est-obrig">(obrigatório)</span></label><textarea id="roIdentJust" rows="3" maxlength="2000" placeholder="Que evidências do objeto sustentam esta escolha?">' + esc(f.justificativa || '') + '</textarea></div>';
     if (st.erros.length && st.modo === 'natureza') h += erroHtml(st.erros);
-    if (st.modo === 'natureza') h += '<button type="button" class="btn btn--sm" id="roCancelarNatureza">Cancelar</button>';
+    h += '<div class="ro-acoes"><button type="button" class="btn btn--primary btn--sm" id="roIdentSalvar"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'Salvando…' : (alt && alt.pendencia ? 'Registrar a identificação como pendente' : 'Registrar a natureza')) + '</button>' +
+      (st.modo === 'natureza' ? '<button type="button" class="btn btn--sm" id="roCancelarNatureza">Cancelar</button>' : '') + '</div>';
     return h + '</div>';
   }
   function gateCamada(id) { var g = gate(id); return g && g.avaliacao && g.avaliacao.camadaSugerida && g.avaliacao.camadaSugerida.id; }
@@ -327,7 +366,10 @@
     if ((b = q('#roConfirmarEncerrar'))) b.addEventListener('click', function () { salvarEncerramento(id); });
     if ((b = q('#roCorrigirNatureza'))) b.addEventListener('click', function () { st.modo = 'natureza'; st.erros = []; st.flash = null; re(); });
     if ((b = q('#roCancelarNatureza'))) b.addEventListener('click', function () { st.modo = null; st.erros = []; re(); });
-    Array.prototype.forEach.call(el.querySelectorAll('.ro-nat-btn'), function (x) { x.addEventListener('click', function () { salvarNatureza(id, x.getAttribute('data-natureza')); }); });
+    Array.prototype.forEach.call(el.querySelectorAll('input[name="roIdentAlt"]'), function (x) { x.addEventListener('change', function () { if (!x.checked) return; st.form.ident = Object.assign({}, st.form.ident, { alt: x.value }); st.erros = []; re(); }); });
+    var ij = q('#roIdentJust'); if (ij) ij.addEventListener('input', function () { st.form.ident = Object.assign({}, st.form.ident, { justificativa: ij.value }); });
+    var idg = q('#roIdentDiag'); if (idg) idg.addEventListener('input', function () { st.form.ident = Object.assign({}, st.form.ident, { diagnostico: idg.value }); });
+    if ((b = q('#roIdentSalvar'))) b.addEventListener('click', function () { salvarIdentificacao(id); });
     /* ida e volta entre registros: a origem fica guardada (o "Voltar" do outro registro volta para este) */
     Array.prototype.forEach.call(el.querySelectorAll('a.ro-link'), function (a) {
       a.addEventListener('click', function (ev) {
@@ -361,14 +403,35 @@
     gravar(r.caminhos, function () { st.salvando = false; st.modo = null; st.form = {}; st.flash = 'Relação encerrada. Ela continua registrada.'; desenharMontadosDoObjeto(id); },
       function (c) { st.salvando = false; st.erros = [{ codigo: c }]; desenharMontadosDoObjeto(id); });
   }
-  function salvarNatureza(id, nat) {
-    var st = u(id), us = usuario();
-    if (st.salvando) return;
-    var r = N().registrarNatureza(id, nat, gate(id), d.naturezas ? d.naturezas[id] : null, conceitoInfo(nat), { auditoriaId: chave(N().NAT_AUD + '/' + id), usuario: us, agora: TS });
+  /* grava a identificação: natureza (com fundamento) ou pendência — no mesmo registro, com o snapshot da orientação e das
+     definições oficiais da época */
+  function salvarIdentificacao(id) {
+    var st = u(id), us = usuario(), f = st.form.ident || {}, cam = gateCamada(id), dif = I() && cam ? I().diferenciacao(cam) : null;
+    if (st.salvando || !dif) return;
+    var alt = f.alt ? I().alternativa(cam, f.alt) : null;
+    if (!alt) { st.modo = 'natureza'; st.erros = [{ codigo: 'ESCOLHA_OBRIGATORIA' }]; desenharMontadosDoObjeto(id); return; }
+    var defs = {};
+    dif.alternativas.forEach(function (a) { var c = a.natureza && d.conceitos[a.natureza]; if (c && c.defTexto) defs[a.natureza] = { texto: c.defTexto, versao: c.defVersao || 1 }; });
+    var base = { versao: dif.versao, pergunta: dif.pergunta, alternativa: alt.valor, rotulo: alt.rotulo, justificativa: f.justificativa, definicoes: defs };
+    var ctx = { auditoriaId: chave(N().NAT_AUD + '/' + id), usuario: us, agora: TS }, atual = d.naturezas ? d.naturezas[id] : null;
+    var r = alt.natureza ? N().registrarNatureza(id, alt.natureza, gate(id), atual, conceitoInfo(alt.natureza), ctx, base)
+      : N().registrarPendencia(id, gate(id), atual, Object.assign({ motivo: alt.pendencia, diagnostico: f.diagnostico }, base), ctx);
     if (!r.ok) { st.modo = 'natureza'; st.erros = r.erros; desenharMontadosDoObjeto(id); return; }
     st.salvando = true; st.erros = []; desenharMontadosDoObjeto(id);
-    gravar(r.caminhos, function () { st.salvando = false; st.modo = null; st.flash = 'Natureza registrada: ' + rotuloNatureza(nat) + '.'; desenharMontadosDoObjeto(id); },
+    gravar(r.caminhos, function () { st.salvando = false; st.modo = null; st.form.ident = null; st.flash = alt.natureza ? 'Natureza identificada: ' + rotuloNatureza(alt.natureza) + '.' : 'Identificação registrada como pendente: ' + (ROT_MOTIVO[alt.pendencia] || alt.pendencia) + '.'; desenharMontadosDoObjeto(id); },
       function (c) { st.salvando = false; st.modo = 'natureza'; st.erros = [{ codigo: c }]; desenharMontadosDoObjeto(id); });
+  }
+
+
+  /* ---------- NATUREZA na ficha P1–P16: o mesmo componente da identificação (sem a lista de relações) ---------- */
+  function naturezaFichaHtml(id) {
+    if (!ativo() || porta2(id)) return '';
+    var h = '<section class="ro-secao ro-secao--natureza" id="roSecaoNatureza" data-objeto="' + esc(id) + '" aria-labelledby="roNatTitulo"><h5 class="mf-subtitulo ro-titulo" id="roNatTitulo">Natureza arquitetural</h5>';
+    if (!dadosProntos()) return h + '<p class="loading-msg" role="status">Carregando…</p></section>';
+    if (d.naturezas === null || d.pontas === null || d.produtos === null) return h + '<p class="avp-error-msg" role="alert">Não foi possível ler a natureza agora. Verifique a conexão e tente de novo.</p></section>';
+    var st = u(id), nat = natureza(id);
+    if (st.flash) h += '<p class="avp-flash-success ro-flash" id="roFlash" tabindex="-1">' + esc(st.flash) + '</p>';
+    return h + naturezaHtml(id, nat, st, podeManter()) + '</section>';
   }
 
   /* ---------- resumo nas outras telas (só leitura) ---------- */
@@ -436,6 +499,7 @@
       var a = m.el.querySelector('a.ro-resumo-link');
       if (a) a.addEventListener('click', function (ev) { if (ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey || !window.faNav) return; ev.preventDefault(); window.faNav.ir(a.getAttribute('href')); });
     } else if (m.tipo === 'tax') { m.el.innerHTML = taxHtml(); ligarTax(m.el); }
+    else if (m.tipo === 'natureza') { m.el.innerHTML = naturezaFichaHtml(m.objetoId); ligarSecao(m.el, m.objetoId); }
   }
   function desenharMontadosDoObjeto(id) { montados.filter(function (m) { return m.el.isConnected && m.objetoId === id; }).forEach(desenhar); }
   function montar(el, tipo, objetoId) {
@@ -452,6 +516,7 @@
     if (!raiz || !N()) return;
     Array.prototype.forEach.call(raiz.querySelectorAll('[data-ro-secao]'), function (el) { montar(el, 'secao', el.getAttribute('data-ro-secao')); });
     Array.prototype.forEach.call(raiz.querySelectorAll('[data-ro-resumo]'), function (el) { montar(el, 'resumo', el.getAttribute('data-ro-resumo')); });
+    Array.prototype.forEach.call(raiz.querySelectorAll('[data-ro-natureza]'), function (el) { montar(el, 'natureza', el.getAttribute('data-ro-natureza')); });
   }
   function montarTaxonomia(el) { if (el) montar(el, 'tax', null); }
 
