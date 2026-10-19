@@ -2128,7 +2128,7 @@
     }
     h += '</section>';
     h += renderConferenciaModelo();
-    /* E4: conceitos oficiais das naturezas individuais (relacoes-objetos.js monta aqui; só com a liberação presente) */
+    /* conceitos oficiais das naturezas individuais (relacoes-objetos.js monta aqui; administração da Taxonomia, independe do marcador da E4) */
     h += '<div class="tax-naturezas-host" id="taxNaturezasHost" data-ro-tax="1"></div>';
     h += '<section class="tax-globais" id="taxAcoesGerais" aria-labelledby="taxDadosTitulo"><h4 class="tax-globais-titulo" id="taxDadosTitulo">Dados e histórico</h4>' + htmlExportar() +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="aba-historico" id="taxHistoricoGlobalBtn">Ver o histórico global</button></div>' + renderImportador() + '</section>';

@@ -9,11 +9,13 @@
      - RESUMO "Relaciona-se com N objetos" nas fichas (P1–P16, Posicionamento) e no detalhe da estrutura (Mapa e
        cadastro): só leitura, com link para o registro ([data-ro-resumo]);
      - TAXONOMIA (Verificações do sistema, só administração geral): os conceitos oficiais das naturezas individuais —
-       criados aqui, um a um, com o nome e a definição APROVADOS; nenhum conceito nasce sem definição.
+       criados aqui, um a um, com o nome e a definição APROVADOS; nenhum conceito nasce sem definição. Isto é
+       administração da Taxonomia e NÃO depende do marcador da E4 (C41): o cartão e a leitura dos conceitos funcionam
+       com o marcador ausente, false ou true; só as relações entre objetos dependem dele.
    O Mapa da Floresta não muda: objetos não viram caixas e nenhuma linha entre objetos é desenhada.
 
-   Liberação: marcador relacoes-objetos-config/gravacaoHabilitada (ausente = tudo desligado, nada aparece; false = só
-   consulta; true = manutenção; nenhum cliente o grava). Consultam os três perfis da Avaliação; mantêm admin geral e
+   Liberação das RELAÇÕES: marcador relacoes-objetos-config/gravacaoHabilitada (ausente = relações desligadas, nada
+   delas aparece; false = só consulta; true = manutenção; nenhum cliente o grava). Consultam os três perfis da Avaliação; mantêm admin geral e
    Avaliação + Configuração; os conceitos da Taxonomia, só a administração geral.
    ============================================================ */
 (function () {
@@ -46,7 +48,12 @@
     ref.on('value', cb, err);
     desligadores.push(function () { ref.off('value', cb); });
   }
+  /* conceitos oficiais das naturezas individuais: lidos uma vez por sessão, por quem precisa deles (as relações, com o
+     marcador; o cartão da Taxonomia, sempre) — nunca dependem do marcador */
+  var conceitosLidos = false;
   function lerConceitos() {
+    if (conceitosLidos) return;
+    conceitosLidos = true;
     N().CODIGOS_INDIVIDUAIS.forEach(function (cod) {
       var base = 'taxonomia/arquitetural/conceitos/' + cod;
       var c = d.conceitos[cod] = { nome: undefined, ativo: undefined, naturezaDe: undefined, temDefinicao: undefined };
@@ -81,7 +88,7 @@
   }
   function desligar() {
     desligadores.forEach(function (f) { try { f(); } catch (e) { /* já desligado */ } });
-    desligadores = []; ligado = false; dadosLigados = false; pessoa = null;
+    desligadores = []; ligado = false; dadosLigados = false; conceitosLidos = false; pessoa = null;
     d = { marcador: undefined, registros: undefined, naturezas: undefined, produtos: undefined, objetos: undefined, conceitos: {}, vinculos: undefined, estruturas: undefined, pontas: undefined };
     ui = {}; tax = { aberto: null, form: {}, erros: [], flash: null, salvando: false };
   }
@@ -374,9 +381,9 @@
 
   /* ---------- Taxonomia: conceitos oficiais das naturezas individuais (só administração geral) ---------- */
   function taxHtml() {
-    if (!ativo() || !adminGeral()) return '';
-    var h = '<section class="tax-integracao ro-tax" id="roTaxonomia" aria-labelledby="roTaxTitulo"><h4 class="tax-integracao-titulo" id="roTaxTitulo">Naturezas individuais (relações entre objetos)</h4>' +
-      '<p class="tax-ajuda">Só Produto/Serviço é natureza conjunta. As naturezas abaixo são registradas uma a uma nos objetos das classificações conjuntas, e só depois que o conceito oficial existir aqui, com a definição <strong>aprovada</strong>. Nada é criado sozinho.</p>';
+    if (!adminGeral()) return ''; /* administração da Taxonomia: independe do marcador da E4 */
+    var h = '<section class="tax-integracao ro-tax" id="roTaxonomia" aria-labelledby="roTaxTitulo"><h4 class="tax-integracao-titulo" id="roTaxTitulo">Naturezas individuais — conceitos oficiais</h4>' +
+      '<p class="tax-ajuda">Só Produto/Serviço é natureza conjunta. Cada natureza individual abaixo ganha aqui o seu conceito oficial, uma vez, com o nome e a definição <strong>aprovados</strong>. Nada é criado sozinho.</p>';
     if (tax.flash) h += '<p class="tax-flash" role="status" id="roTaxFlash">' + esc(tax.flash) + '</p>';
     if (!N().CODIGOS_INDIVIDUAIS.every(function (c) { return d.conceitos[c] && d.conceitos[c].ativo !== undefined; })) return h + '<p class="loading-msg" role="status">Conferindo os conceitos…</p></section>';
     h += '<ul class="ro-tax-lista" id="roTaxLista">' + N().CODIGOS_INDIVIDUAIS.map(function (cod) {
@@ -435,6 +442,7 @@
     if (!el) return;
     ligar();
     if (ativo() && d.registros === undefined) ligarDados();
+    if (tipo === 'tax' && sessao() && N()) lerConceitos(); /* o cartão da Taxonomia lê os conceitos mesmo sem o marcador */
     montados = montados.filter(function (m) { return m.el !== el && m.el.isConnected; });
     var m = { el: el, tipo: tipo, objetoId: objetoId || null };
     montados.push(m); desenhar(m);
