@@ -15,14 +15,19 @@
         ambiguo     — nenhuma ou mais de uma ponta (cadeia quebrada ou bifurcada): listado, nunca escolhido;
         orfao       — índice de item sem versão, ou apontando para registro inexistente/de outro item.
    2. SIMULAÇÃO (padrão): mostra exatamente as gravações que faria. Nada é gravado.
-   3. GRAVAÇÃO (só com RECONCILIAR_CONFIRMAR=sim): grava SÓ os índices "criar", numa gravação atômica; nunca toca em
-      avaliações, nunca apaga nada, nunca corrige "divergente"/"ambiguo"/"orfao".
-   4. VALIDAÇÃO (depois de gravar): relê e confirma que todo item "criar" ficou "ok" e que nada mais mudou.
+   3. GRAVAÇÃO (só com RECONCILIAR_CONFIRMAR=sim E a ASSINATURA do plano validado em RECONCILIAR_ASSINATURA). Antes de
+      qualquer escrita, relê e INTERROMPE (sem gravar nada) se houver qualquer divergente, ambíguo ou órfão, ou se o
+      conjunto a criar não for exatamente o validado (assinatura = sha256 dos pares item=ponta, impressa na simulação).
+      Grava SÓ os índices "criar", cada um por transação "só se ainda não existir": se o site criou o índice no meio
+      tempo (uma reavaliação), aquele item não é tocado e é relatado. Nunca toca em avaliações, nunca apaga nada.
+   4. VALIDAÇÃO (depois de gravar): relê; confirma que cada índice criado aponta a ponta validada e que avaliacoes-produto
+      está idêntico ao lido antes da gravação (mesmo hash).
 
    Disparo manual em produção: workflow "Avaliações — índice da versão vigente" (simulação por padrão).
    Teste: teste-reconciliar-versao-vigente.js (planejamento puro + aplicação no emulador, com as regras reais).
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
+const crypto = require('crypto');
 
 const PROD = 'avaliacoes-produto', PONTA = 'avaliacoes-produto-ponta';
 
@@ -56,18 +61,39 @@ function planejar(produtos, indice) {
 }
 function gravacoes(plano) { const c = {}; plano.criar.forEach((x) => { c[PONTA + '/' + x.item] = x.ponta; }); return c; }
 
+/* assinatura do conjunto a criar: sha256 dos pares item=ponta em ordem — a mesma entrada dá sempre a mesma assinatura */
+function assinatura(plano) { return crypto.createHash('sha256').update(plano.criar.map((x) => x.item + '=' + x.ponta).sort().join('\n')).digest('hex'); }
+/* hash estável de um valor (chaves ordenadas) — para provar que avaliacoes-produto não mudou */
+function canon(v) { if (Array.isArray(v)) return v.map(canon); if (v && typeof v === 'object') { const o = {}; Object.keys(v).sort().forEach((k) => { o[k] = canon(v[k]); }); return o; } return v; }
+function hashDe(v) { return crypto.createHash('sha256').update(JSON.stringify(canon(v === undefined ? null : v))).digest('hex'); }
+
 async function ler(db, caminho) { return (await db.ref(caminho).once('value')).val(); }
 
-/* Lê, planeja, (se confirmar) grava só os "criar" numa gravação, e valida relendo. */
+/* Lê, planeja; com confirmar, confere as travas ANTES de escrever, grava só os "criar" (cada um só se ainda não existir)
+   e valida relendo. Trava violada → lança erro sem ter escrito nada. */
 async function aplicar(db, opcoes) {
   opcoes = opcoes || {};
   const [produtos, indice] = await Promise.all([ler(db, PROD), ler(db, PONTA)]);
-  const plano = planejar(produtos, indice), c = gravacoes(plano);
-  if (!opcoes.confirmar || !Object.keys(c).length) return { plano, gravou: false, gravacoes: c };
-  await db.ref().update(c);
-  const depois = planejar(await ler(db, PROD), await ler(db, PONTA));
-  const faltou = plano.criar.filter((x) => !depois.ok.some((y) => y.item === x.item && y.ponta === x.ponta));
-  return { plano, gravou: true, gravacoes: c, validacao: { ok: !faltou.length && depois.criar.length === 0, faltou, depois } };
+  const plano = planejar(produtos, indice), c = gravacoes(plano), ass = assinatura(plano);
+  if (!opcoes.confirmar) return { plano, assinatura: ass, gravou: false, gravacoes: c };
+  const travas = [];
+  if (plano.divergente.length || plano.ambiguo.length || plano.orfao.length) travas.push('há ' + plano.divergente.length + ' divergente(s), ' + plano.ambiguo.length + ' ambíguo(s) e ' + plano.orfao.length + ' órfão(s)');
+  if (!opcoes.assinatura) travas.push('assinatura do plano validado não informada');
+  else if (opcoes.assinatura !== ass) travas.push('o conjunto a criar mudou desde a validação (assinatura ' + ass + ' ≠ ' + opcoes.assinatura + ')');
+  if (!plano.criar.length) travas.push('nada a criar');
+  if (travas.length) { const e = new Error('INTERROMPIDO ANTES DE QUALQUER GRAVAÇÃO: ' + travas.join('; ')); e.plano = plano; e.assinatura = ass; throw e; }
+  const hashAntes = hashDe(produtos);
+  const gravados = [], jaExistiam = [];
+  for (const x of plano.criar) {
+    const t = await db.ref(PONTA + '/' + x.item).transaction((atual) => (atual === null ? x.ponta : undefined)); /* só se ainda não existir */
+    if (t.committed) gravados.push(x); else jaExistiam.push({ item: x.item, ponta: x.ponta, atual: t.snapshot.val() });
+  }
+  const [prodDepois, indDepois] = await Promise.all([ler(db, PROD), ler(db, PONTA)]);
+  const depois = planejar(prodDepois, indDepois);
+  const conferidos = gravados.filter((x) => indDepois && indDepois[x.item] === x.ponta);
+  const avaliacoesIntactas = hashDe(prodDepois) === hashAntes;
+  return { plano, assinatura: ass, gravou: gravados.length > 0, gravacoes: c,
+    validacao: { ok: conferidos.length === gravados.length && !jaExistiam.length && avaliacoesIntactas, gravados: gravados.length, conferidos: conferidos.length, jaExistiam, avaliacoesIntactas, depois } };
 }
 function relatorio(plano) {
   const l = [];
@@ -79,18 +105,27 @@ function relatorio(plano) {
   return l.join('\n');
 }
 
-module.exports = { planejar, gravacoes, aplicar, relatorio, PROD, PONTA };
+module.exports = { planejar, gravacoes, aplicar, relatorio, assinatura, hashDe, PROD, PONTA };
 
 if (require.main === module) {
   (async () => {
     const admin = require('firebase-admin');
     const confirmar = process.env.RECONCILIAR_CONFIRMAR === 'sim';
     admin.initializeApp({ credential: admin.credential.applicationDefault(), databaseURL: process.env.FA_DATABASE_URL || 'https://kyber-agil-default-rtdb.firebaseio.com' });
-    const r = await aplicar(admin.database(), { confirmar });
     console.log('Modo: ' + (confirmar ? 'GRAVAÇÃO' : 'diagnóstico e simulação (nada é gravado)'));
+    let r;
+    try { r = await aplicar(admin.database(), { confirmar, assinatura: (process.env.RECONCILIAR_ASSINATURA || '').trim() }); }
+    catch (e) { if (e.plano) { console.log(relatorio(e.plano)); console.log('Assinatura do plano atual: ' + e.assinatura); } console.error(e.message); process.exit(1); }
     console.log(relatorio(r.plano));
-    if (r.gravou) console.log('Gravado: ' + Object.keys(r.gravacoes).length + ' índice(s), numa gravação só. Validação: ' + (r.validacao.ok ? 'OK — todos os índices criados conferem.' : 'FALHOU — ' + JSON.stringify(r.validacao.faltou)));
-    else console.log(confirmar ? 'Nada a gravar.' : 'Simulação concluída. Para gravar, dispare de novo com "Confirmar gravação" marcado.');
-    process.exit(r.gravou && !r.validacao.ok ? 1 : 0);
+    console.log('Assinatura do plano: ' + r.assinatura);
+    if (!confirmar) console.log('Simulação concluída. Para gravar, dispare de novo com "Confirmar gravação" marcado e esta assinatura.');
+    else {
+      const v = r.validacao;
+      console.log('Gravados: ' + v.gravados + ' · conferidos na releitura: ' + v.conferidos + ' · já existiam (não tocados): ' + v.jaExistiam.length + (v.jaExistiam.length ? ' ' + JSON.stringify(v.jaExistiam) : ''));
+      console.log('Avaliações (avaliacoes-produto) idênticas antes e depois: ' + (v.avaliacoesIntactas ? 'sim' : 'NÃO'));
+      console.log('Depois: ok ' + v.depois.ok.length + ' · a criar ' + v.depois.criar.length + ' · divergentes ' + v.depois.divergente.length + ' · ambíguos ' + v.depois.ambiguo.length + ' · órfãos ' + v.depois.orfao.length);
+      console.log('Validação: ' + (v.ok ? 'OK' : 'FALHOU'));
+    }
+    process.exit(confirmar && !r.validacao.ok ? 1 : 0);
   })().catch((e) => { console.error(e); process.exit(1); });
 }

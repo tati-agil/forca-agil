@@ -84,23 +84,52 @@ async function emulador() {
   anota('antes: E4 recusa o item antigo sem índice (mesmo pela versão vigente)', !(await sondaNat('ant2')));
 
   let r;
+  const interrompe = async (opcoes) => { let erro = null; await semear(async (a) => { try { await REC.aplicar(a, opcoes); } catch (e) { erro = e; } }); return erro; };
   await semear(async (a) => { r = await REC.aplicar(a, { confirmar: false }); });
   anota('simulação: planeja 2 índices (ant → ant2, uni → uni) e 1 ambíguo (b)', itens(r.plano.criar) === 'ant,uni' && itens(r.plano.ambiguo) === 'b');
-  anota('simulação: não grava nada', !r.gravou && (await ler(REC.PONTA)) === null);
+  anota('simulação: não grava nada e imprime a assinatura do plano', !r.gravou && (await ler(REC.PONTA)) === null && /^[0-9a-f]{64}$/.test(r.assinatura));
+  const assComAmbiguo = r.assinatura;
 
-  await semear(async (a) => { r = await REC.aplicar(a, { confirmar: true }); });
-  anota('gravação: grava os 2 índices e a validação confirma', r.gravou && r.validacao.ok, JSON.stringify(r.validacao));
+  /* travas: com ambíguo presente, nada é gravado — nem os inequívocos */
+  let e1 = await interrompe({ confirmar: true, assinatura: assComAmbiguo });
+  anota('trava: com ambíguo, interrompe ANTES de qualquer gravação', !!e1 && /INTERROMPIDO ANTES/.test(e1.message) && /1 ambíguo/.test(e1.message) && (await ler(REC.PONTA)) === null, e1 && e1.message);
+  /* resolve o ambíguo (no teste: a bifurcação some) */
+  await semear((a) => a.ref(REC.PROD + '/bB').remove());
+  const antes2 = await ler(REC.PROD);
+  await semear(async (a) => { r = await REC.aplicar(a, { confirmar: false }); });
+  const ass = r.assinatura;
+  anota('nova simulação: 3 a criar (ant, b, uni), zero divergentes/ambíguos/órfãos', itens(r.plano.criar) === 'ant,b,uni' && !r.plano.ambiguo.length && !r.plano.divergente.length && !r.plano.orfao.length);
+  let e2 = await interrompe({ confirmar: true });
+  anota('trava: sem assinatura, interrompe sem gravar', !!e2 && /assinatura do plano validado não informada/.test(e2.message) && (await ler(REC.PONTA)) === null);
+  let e3 = await interrompe({ confirmar: true, assinatura: assComAmbiguo });
+  anota('trava: assinatura de outro conjunto (os dados mudaram desde a validação), interrompe sem gravar', !!e3 && /mudou desde a validação/.test(e3.message) && (await ler(REC.PONTA)) === null);
+  anota('a assinatura é determinística (mesma entrada, mesma assinatura)', REC.assinatura(r.plano) === ass && REC.assinatura({ criar: r.plano.criar.slice().reverse() }) === ass);
+
+  await semear(async (a) => { r = await REC.aplicar(a, { confirmar: true, assinatura: ass }); });
+  anota('gravação: grava os 3 índices, todos conferidos na releitura', r.gravou && r.validacao.ok && r.validacao.gravados === 3 && r.validacao.conferidos === 3 && !r.validacao.jaExistiam.length, JSON.stringify(r.validacao));
   const ponta = await ler(REC.PONTA);
-  anota('índice: ant → ant2 (ponta), uni → uni, b sem índice (ambíguo não é escolhido)', ponta && ponta.ant === 'ant2' && ponta.uni === 'uni' && !('b' in ponta), JSON.stringify(ponta));
-  anota('nenhuma avaliação foi tocada (histórico intacto)', JSON.stringify(await ler(REC.PROD)) === JSON.stringify(antes));
+  anota('índice: ant → ant2 (ponta), uni → uni, b → bA', ponta && ponta.ant === 'ant2' && ponta.uni === 'uni' && ponta.b === 'bA' && Object.keys(ponta).length === 3, JSON.stringify(ponta));
+  anota('nenhuma avaliação foi tocada (hash idêntico antes e depois)', r.validacao.avaliacoesIntactas && JSON.stringify(await ler(REC.PROD)) === JSON.stringify(antes2));
+  anota('depois: tudo ok, nada a criar', r.validacao.depois.ok.length === 3 && r.validacao.depois.criar.length === 0);
 
-  await semear(async (a) => { r = await REC.aplicar(a, { confirmar: true }); });
-  anota('rodar de novo: nada a gravar (idempotente)', !r.gravou && r.plano.criar.length === 0 && r.plano.ok.length === 2);
+  let e4 = await interrompe({ confirmar: true, assinatura: ass });
+  anota('rodar de novo: nada a criar → interrompe sem gravar (idempotente)', !!e4 && /nada a criar/.test(e4.message) && JSON.stringify(await ler(REC.PONTA)) === JSON.stringify(ponta));
 
   await recusa('depois: E4 continua recusando a versão antiga (ant1)', natureza('ant1').then((w) => db.ref().update(w)));
   anota('depois: E4 aceita o item pela versão vigente (ant2)', await sondaNat('ant2'));
   await aceita('depois: a próxima reavaliação segue pelo índice (ant3 a partir de ant2)', db.ref().update(JSON.parse(JSON.stringify({
     [REC.PROD + '/ant3']: { nome: 'Item ant', itemId: 'ant', versao: 3, versaoAnteriorKey: 'ant2', status: 'rascunho' }, [REC.PONTA + '/ant']: 'ant3' }))));
+  /* corrida: entre a validação e a escrita, uma reavaliação do site cria o índice de um item → ele não é sobrescrito */
+  await semear(async (a) => { await a.ref(REC.PROD + '/novo1').set(versao('novo1', 1, 'componente')); await a.ref(REC.PROD + '/novo2').set(versao('novo2', 1, 'componente')); });
+  await semear(async (a) => { r = await REC.aplicar(a, { confirmar: false }); });
+  const assCorrida = r.assinatura;
+  await semear(async (a) => {
+    const intercepta = { ref: (p) => { const ref = a.ref(p); if (p !== REC.PONTA + '/novo1') return ref;
+      return { transaction: async (fn) => { await a.ref(REC.PROD + '/novo1v2').set(versao('novo1', 2, 'componente', { versaoAnteriorKey: 'novo1' })); await a.ref(p).set('novo1v2'); return ref.transaction(fn); } }; } };
+    r = await REC.aplicar(intercepta, { confirmar: true, assinatura: assCorrida });
+  });
+  anota('corrida: o índice criado pelo site no meio tempo NÃO é sobrescrito; o item é relatado', (await ler(REC.PONTA + '/novo1')) === 'novo1v2' && r.validacao.jaExistiam.length === 1 && r.validacao.jaExistiam[0].item === 'novo1' && !r.validacao.ok);
+  anota('corrida: o outro item é gravado normalmente', (await ler(REC.PONTA + '/novo2')) === 'novo2' && r.validacao.gravados === 1);
   await env.cleanup();
 }
 

@@ -3,7 +3,8 @@ name: Avaliações — índice da versão vigente (reconciliação)
 # SÓ disparo manual, nunca em push/PR: isto pode GRAVAR em produção (só índices novos em
 # avaliacoes-produto-ponta — nunca avaliações, nunca apaga, nunca corrige divergências sozinho).
 # Por padrão roda em DIAGNÓSTICO e SIMULAÇÃO (lista o que faria, não grava nada); só grava quando
-# "Confirmar gravação" é marcado ao disparar, e valida relendo logo depois.
+# "Confirmar gravação" é marcado ao disparar COM a assinatura do plano validado; antes de qualquer escrita, interrompe
+# se houver divergente/ambíguo/órfão ou se o conjunto mudou; grava cada índice só se ainda não existir e valida relendo.
 # Ver .github/scripts/reconciliar-versao-vigente.js.
 on:
   workflow_dispatch:
@@ -13,6 +14,11 @@ on:
         required: true
         type: boolean
         default: false
+      assinatura:
+        description: 'Assinatura do plano validado (impressa pela simulação). Obrigatória para gravar: se o conjunto mudou, nada é gravado.'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   reconciliar:
@@ -35,6 +41,7 @@ jobs:
         env:
           NODE_PATH: /tmp/indice-deps/node_modules
           RECONCILIAR_CONFIRMAR: ${{ inputs.confirmar && 'sim' || 'nao' }}
+          RECONCILIAR_ASSINATURA: ${{ inputs.assinatura }}
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
