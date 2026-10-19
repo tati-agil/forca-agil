@@ -580,7 +580,7 @@
       registros: {}, reservas: {}, vigentes: {}, produtos: {}, decisoes: {},
       carregou: { av: false, res: false, vig: false, prod: false, dec: false, vigm: false, obj: false }, erroLeitura: false, erroDec: false, vigenciaMotor: null, erroVigencia: false,
       objetos: {}, erroObj: false, hipotese: null, objetoEditando: null, formAtuacao: null,
-      mostrarHistorico: false, formDecisao: null, exportando: null, flashExportacao: null, menuExportarAberto: false,
+      listaBusca: '', filtroSituacao: 'atuais', filtroOrigem: 'todas', mostrarExcluidos: false, formDecisao: null, exportando: null, flashExportacao: null, menuExportarAberto: false,
       atual: null, chave: null, revisaoBase: 0, sujo: false, conflito: false, salvando: null, naoConfirmada: null, revisaoEmGravacao: null,
       itemEscolhido: null, busca: '', pendente: null, flash: null
     }; }
@@ -841,14 +841,38 @@
         .sort(function (x, y) { return ((y.versao || 1) - (x.versao || 1)) || (String(y.criadoEm || '') < String(x.criadoEm || '') ? -1 : 1); });
     }
 
-    /* o que a lista mostra — a mesma conta para a tela e para "Excel — lista atual" */
+    /* o item da avaliação foi EXCLUÍDO pelos mecanismos que já existem (nada novo apaga nada): Porta 2 — cadastro excluído
+       (registro mínimo em objetos-organizacionais-excluidos); Porta 1 — a Avaliação de Produto/Serviço que vale está na
+       Lixeira (exclusão lógica). A avaliação O1–O9, a decisão e a trilha continuam gravadas; só saem da lista operacional. */
+    function itemExcluido(r) {
+      if (ehPorta2(r)) return !(state.objetos || {})[r.itemId] && !!excluidoDe(r.itemId);
+      var B0 = B();
+      return !!(B0 && state.produtos && B0.baseDoItem(r.itemId, state.produtos).situacao === 'excluida');
+    }
+    function normBusca(t) { return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+    var SITUACOES_FILTRO = [['atuais', 'Vigentes e em andamento'], ['vigente', 'Vigente'], ['rascunho', 'Rascunho'], ['reavaliacao', 'Reavaliação em andamento'], ['historica', 'Histórica'], ['descartado', 'Descartada'], ['todas', 'Todas as situações']];
+    var ORIGENS_FILTRO = [['todas', 'Porta 1 e Porta 2'], ['porta1', 'Porta 1 — produto ou serviço'], ['porta2', 'Porta 2 — responsabilidade organizacional']];
+    /* o que a lista mostra — a mesma conta para a tela e para "Excel — lista atual": busca + situação + origem; por
+       padrão, o que vale hoje e o que está em andamento, sem os itens excluídos */
     function conjuntosDaLista() {
-      var todas = Object.keys(state.registros).map(function (k) { return Object.assign({ _key: k, _sit: situacaoDe(k, state.registros[k]) }, state.registros[k]); })
+      var todas = Object.keys(state.registros).map(function (k) { var x = state.registros[k]; return Object.assign({ _key: k, _sit: situacaoDe(k, x), _excl: itemExcluido(x) }, x); })
         .sort(function (a, b) { return String(b.atualizadoEm || '') < String(a.atualizadoEm || '') ? -1 : 1; });
-      /* padrão: o que vale hoje (vigente) e o que está em andamento; histórico e descartadas no filtro */
       var antigas = todas.filter(function (r) { return r._sit === 'historica' || r._sit === 'descartado'; });
-      var lista = state.mostrarHistorico ? todas : todas.filter(function (r) { return r._sit !== 'historica' && r._sit !== 'descartado'; });
-      return { todas: todas, antigas: antigas, lista: lista };
+      var excluidas = todas.filter(function (r) { return r._excl; });
+      var q = normBusca(state.listaBusca).trim(), fs = state.filtroSituacao, fo = state.filtroOrigem;
+      var lista = todas.filter(function (r) {
+        if (r._excl && !state.mostrarExcluidos) return false;
+        if (fs === 'atuais' ? (r._sit === 'historica' || r._sit === 'descartado') : (fs !== 'todas' && r._sit !== fs)) return false;
+        if ((fo === 'porta1' && ehPorta2(r)) || (fo === 'porta2' && !ehPorta2(r))) return false;
+        if (q) { var ob = (state.objetos || {})[r.itemId], ex = excluidoDe(r.itemId); if (normBusca([r.itemNome, ob && ob.nome, ob && ob.descricao, ex && ex.nome].join(' ')).indexOf(q) === -1) return false; }
+        return true;
+      });
+      return { todas: todas, antigas: antigas, excluidas: excluidas, lista: lista };
+    }
+    function filtrosAtivos() { return !!(state.listaBusca.trim() || state.filtroSituacao !== 'atuais' || state.filtroOrigem !== 'todas' || state.mostrarExcluidos); }
+    function seletor(id, atual, opcoes, rotulo) {
+      return '<div class="avp-filtro"><label class="avp-filtro-rotulo" for="' + id + '">' + esc(rotulo) + '</label><select class="avp-select" id="' + id + '">' +
+        opcoes.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === atual ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></div>';
     }
     /* ---- exportação (G1): só leitura; o conteúdo vem de exportacoes-posicionamento.js (puro) ---- */
     /* não saber ≠ não ter: sem as decisões lidas, nenhum arquivo pode dizer "Sem decisão registrada" */
@@ -870,7 +894,7 @@
       if (state.menuExportarAberto && pronto && !ocupado) {
         h += '<div class="avp-exportar-menu" id="poExportarMenu">' +
           '<p class="avp-exportar-escopo">Lista atual: <strong>' + conj.lista.length + '</strong> avaliaç' + (conj.lista.length === 1 ? 'ão' : 'ões') +
-          (state.mostrarHistorico ? ' (com históricas e descartadas)' : ' (vigentes e em andamento)') + '</p>' +
+          (filtrosAtivos() ? ' (conforme a busca e os filtros)' : ' (vigentes e em andamento)') + '</p>' +
           '<button type="button" class="btn" id="poExportarExcelLista">📊 Excel — lista atual (' + conj.lista.length + ')</button>' +
           '<button type="button" class="btn" id="poExportarExcelTodas">📊 Excel — todas as avaliações (' + conj.todas.length + ')</button>' +
           '<p class="avp-exportar-nota">O Excel traz as abas Resumo, Respostas O1–O9, Histórico e Trilha. O PDF de uma avaliação concluída fica na ficha dela.</p></div>';
@@ -890,12 +914,18 @@
       if (!state.carregou.av || !state.carregou.vig) h += '<p class="loading-msg">Carregando…</p>';
       else if (state.erroLeitura) h += '<p class="avp-error-msg">Não foi possível ler as avaliações agora.</p>';
       else {
-        var conj = conjuntosDaLista(), todas = conj.todas, antigas = conj.antigas, lista = conj.lista;
+        var conj = conjuntosDaLista(), todas = conj.todas, lista = conj.lista;
         h += renderExportarLista(conj);
-        if (antigas.length) h += '<label class="avp-decisao-option po-filtro-historico"><input type="checkbox" id="poMostrarHistorico"' + (state.mostrarHistorico ? ' checked' : '') + '> ' +
-          'Mostrar versões históricas e descartadas (' + antigas.length + ')</label>';
+        if (todas.length) {
+          h += '<div class="avp-busca-barra po-busca-barra"><input type="search" id="poListaBusca" class="avp-busca" placeholder="Pesquisar pelo nome do item ou da responsabilidade..." aria-label="Pesquisar pelo nome do item ou da responsabilidade" value="' + esc(state.listaBusca) + '" autocomplete="off">' +
+            (filtrosAtivos() ? '<button type="button" class="avp-limpar-link" id="poLimparFiltros">Limpar filtros</button>' : '') + '</div>' +
+            '<div class="avp-filters po-filtros">' + seletor('poFiltroSituacao', state.filtroSituacao, SITUACOES_FILTRO, 'Situação') + seletor('poFiltroOrigem', state.filtroOrigem, ORIGENS_FILTRO, 'Origem') + '</div>';
+          if (conj.excluidas.length) h += '<label class="avp-decisao-option po-filtro-excluidos"><input type="checkbox" id="poMostrarExcluidos"' + (state.mostrarExcluidos ? ' checked' : '') + '> ' +
+            'Incluir itens excluídos (' + conj.excluidas.length + ') — o item foi para a Lixeira ou teve o cadastro excluído; a avaliação continua guardada como histórico</label>';
+          h += '<p class="avp-ficha-meta" id="poContagem" role="status">Mostrando ' + lista.length + ' de ' + todas.length + ' avaliaç' + (todas.length === 1 ? 'ão' : 'ões') + '.</p>';
+        }
         if (!todas.length) h += '<p class="admin-empty">Nenhuma avaliação de posicionamento ainda.</p>';
-        else if (!lista.length) h += '<p class="admin-empty">Nenhuma avaliação vigente ou em andamento.</p>';
+        else if (!lista.length) h += '<p class="admin-empty" id="poListaVazia">' + (filtrosAtivos() ? 'Nenhuma avaliação com essa busca e esses filtros.' : 'Nenhuma avaliação vigente ou em andamento.') + '</p>';
         else {
           h += '<div class="table-scroll-wrap"><table class="admin-table po-tabela"><thead><tr><th>Item</th><th>Versão</th><th>Motor e redação</th><th>Situação</th><th>Recomendação automática</th><th>Decisão final</th><th>Atualizado em</th><th></th></tr></thead><tbody>';
           lista.forEach(function (r) {
@@ -1969,7 +1999,11 @@
       var con = byId('poConcluirBtn'); if (con) con.addEventListener('click', concluir);
       var des = byId('poDescartarBtn'); if (des) des.addEventListener('click', pedirDescarte);
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);
-      var hist = byId('poMostrarHistorico'); if (hist) hist.addEventListener('change', function () { state.mostrarHistorico = hist.checked; render(); });
+      var lb = byId('poListaBusca'); if (lb) lb.addEventListener('input', function () { state.listaBusca = lb.value; render(); });
+      var fsit = byId('poFiltroSituacao'); if (fsit) fsit.addEventListener('change', function () { state.filtroSituacao = fsit.value; render(); });
+      var fori = byId('poFiltroOrigem'); if (fori) fori.addEventListener('change', function () { state.filtroOrigem = fori.value; render(); });
+      var mex = byId('poMostrarExcluidos'); if (mex) mex.addEventListener('change', function () { state.mostrarExcluidos = mex.checked; render(); });
+      var lf = byId('poLimparFiltros'); if (lf) lf.addEventListener('click', function () { state.listaBusca = ''; state.filtroSituacao = 'atuais'; state.filtroOrigem = 'todas'; state.mostrarExcluidos = false; render(); });
       var reav = byId('poReavaliarBtn'); if (reav) reav.addEventListener('click', pedirReavaliacao);
       var sqb = byId('poAvaliarSquadBtn'); if (sqb) sqb.addEventListener('click', abrirAdequacaoSquad);
       var atuM = byId('poAtualizarMotorBtn'); if (atuM) atuM.addEventListener('click', pedirAtualizacaoMotor);

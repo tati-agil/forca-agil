@@ -196,8 +196,12 @@ async function jornada(browser, viewport, rotulo) {
   afirma(/Duplicada, já avaliada/.test(await texto(page, '#poObjetoExcluido')), '3. a ficha do Posicionamento mostra "Cadastro excluído" com o motivo');
   await foto(page, 'cadastro-excluido-ficha');
   await ir(page, '#arquitetura?po=lista');
+  await page.waitForSelector('#poMostrarExcluidos');
+  afirma(!(await existe(page, '.po-linha[data-key="gA"]')), '3. a lista operacional do Posicionamento não mostra mais a avaliação do cadastro excluído');
+  afirma(/Incluir itens excluídos \(1\)/.test(await texto(page, '.po-filtro-excluidos')), '3. "Incluir itens excluídos (1)" para consultar o histórico');
+  await page.check('#poMostrarExcluidos');
   await page.waitForSelector('.po-linha[data-key="gA"]');
-  afirma(await existe(page, '.po-linha[data-key="gA"] .po-badge-excluida'), '3. a lista do Posicionamento mostra o selo "Cadastro excluído"');
+  afirma(await existe(page, '.po-linha[data-key="gA"] .po-badge-excluida'), '3. incluindo os excluídos, a avaliação aparece com o selo "Cadastro excluído"');
   afirma(!erros.length, 'sem erro de página (admin geral)', erros);
   await ctx.close();
 

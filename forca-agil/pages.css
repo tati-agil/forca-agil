@@ -2877,7 +2877,10 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .po-reavaliacao-info p { margin: 4px 0; }
 .po-heranca { font-size: var(--arq-fs-aux); color: var(--ink-2); border-left: 3px solid var(--gold); padding: 4px 8px; margin: 6px 0; }
 .po-heranca--pergunta { border-left-color: var(--red); color: var(--ink); }
-.po-filtro-historico { margin: 8px 0 12px; }
+.po-filtro-excluidos { margin: 8px 0 12px; }
+.po-busca-barra { margin: 8px 0; }
+.po-filtros { margin: 0 0 8px; }
+.po-filtros .avp-filtro-rotulo { font-size: var(--arq-fs-aux); } /* rótulo de campo visível: tamanho auxiliar (Padrão Visual) */
 .po-versoes { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
 .po-versao { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .po-versao--atual { border-color: var(--accent-2); }
