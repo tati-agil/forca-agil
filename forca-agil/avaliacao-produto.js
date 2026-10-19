@@ -7341,12 +7341,30 @@
       }
       return h + '</ol>';
     }
+    /* PRÉVIA: calculada como a gravação calcula — só depois de quandoCompatibilidadePronta (teste-a-validar-natureza.js:
+       nenhuma tela recalcula por conta própria; um resultado "apressado" nunca aparece diferente do que será gravado).
+       Guarda o resultado para a combinação de respostas da tela (chave) e redesenha quando ele chega; nada é gravado. */
+    function chavePrevia(a) { return TODAS_PERGUNTAS.map(function (p) { return (a.respostas[p.id] && a.respostas[p.id].valor) || '-'; }).join(''); }
+    function calcularPreviaCaminho(a) {
+      var k = chavePrevia(a);
+      if ((state.previaCaminho && state.previaCaminho.chave === k) || state.previaPendente === k) return;
+      state.previaPendente = k;
+      var respostas = JSON.parse(JSON.stringify(a.respostas || {})), sincrono = true;
+      quandoCompatibilidadePronta(function () {
+        if (state.previaPendente !== k) return;
+        var c = null;
+        try { c = computeResultado({ respostas: respostas }).camadaSugerida; } catch (e) { c = null; }
+        state.previaCaminho = { chave: k, camada: c }; state.previaPendente = null;
+        if (!sincrono && state.tela === 'checklist' && state.atual && chavePrevia(state.atual) === k) render();
+      });
+      sincrono = false;
+    }
+    function previaAtual(a) { return state.previaCaminho && state.previaCaminho.chave === chavePrevia(a) ? state.previaCaminho.camada : null; }
     /* o que o motor vai concluir com as respostas da tela (só quando todas são válidas) */
-    function previaCaminhoHtml(a) {
+    function previaCaminhoHtml(a, c) {
       var faltam = TODAS_PERGUNTAS.filter(function (p) { return !respostaValida(p, a); }).length;
       if (faltam) return '<div class="avp-form-card avp-previa" id="avpPrevia" data-situacao="incompleta"><h4>Prévia do resultado</h4><p class="avp-natureza-ajuda">Responda as ' + faltam + ' pergunta' + (faltam === 1 ? '' : 's') + ' que falta' + (faltam === 1 ? '' : 'm') + ' para ver aqui o que o sistema vai concluir.</p></div>';
-      var c;
-      try { c = computeResultado(a).camadaSugerida; } catch (e) { return ''; }
+      if (!c) return '<div class="avp-form-card avp-previa" id="avpPrevia" data-situacao="calculando"><h4>Prévia do resultado</h4><p class="avp-natureza-ajuda" role="status">Calculando…</p></div>';
       var id = c && c.id, C = window.faClassificacoes, NA = window.faNaturezasArquiteturais;
       var h = '<div class="avp-form-card avp-previa" id="avpPrevia" data-camada="' + esc(id || '') + '"><h4>Prévia do resultado</h4>' +
         '<p>Com estas respostas, a classificação será: <strong>' + htmlNomeCamada(c) + '</strong>.</p>';
@@ -7398,8 +7416,8 @@
       /* incoerência e conflito vêm do PRÓPRIO motor (a regra publicada, qualquer versão), rodado sobre as respostas da tela
          (não marcadas contam como NÃO): na v7, P5 = SIM com SIM em qualquer de P13–P16 é incoerência, e SIM em dois testes é
          conflito ou recorte — mas a tela nunca afirma isso por conta própria */
-      var prevC = null;
-      try { prevC = computeResultado(a).camadaSugerida; } catch (e) { prevC = null; }
+      calcularPreviaCaminho(a);
+      var prevC = previaAtual(a);
       var incoerenciaAtual = !!(prevC && (prevC.tipoAValidar === 'incoerencia' || prevC.incoerencia));
       var dependenciasSim = incoerenciaAtual ? DEPENDENCIA.filter(function (cod) { return simCodigo(a, cod); }) : [];
       var testesSim = PERGUNTAS_TESTE.filter(function (cod) { return simCodigo(a, cod); });
@@ -7426,7 +7444,7 @@
         (prevC.tipoAValidar ? '<ul class="avp-previa-motivos">' + linhasDetalheAValidarV7(prevC).map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' : '') +
         '<p>Confira se cada SIM é mesmo o que o objeto é — ou avalie cada parte como um item próprio.</p></div>';
       html += '</div>';
-      html += previaCaminhoHtml(a);
+      html += previaCaminhoHtml(a, prevC);
 
       if (reavaliando) {
         var alteracoes = calcularAlteracoesReavaliacao(a, base);
