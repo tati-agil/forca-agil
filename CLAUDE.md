@@ -80,8 +80,8 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   gravado junto com cada versão — itens antigos esperam a reconciliação manual `reconciliar-versao-vigente.js`, nunca
   rodada sem autorização); manual do ADMIN (`manual.js`).
 - **Modelo único das naturezas arquiteturais** (`naturezas-arquiteturais.js`, carregado antes de `classificacoes.js`):
-  uma Taxonomia só, 15 naturezas (Produto/Serviço a única conjunta; Modalidade e Subproduto pendentes da E5, sem
-  conceito); os 11 códigos do motor são classificações — as 6 técnicas (`funcionalidade-operacao`, `processo-etapa`,
+  uma Taxonomia só, 15 naturezas (Produto/Serviço a única conjunta; E5: Modalidade e Subproduto são naturezas individuais e
+  distintas, com definições aprovadas em 19/10/2026 e cadastro pela administração geral); os 11 códigos do motor são classificações — as 6 técnicas (`funcionalidade-operacao`, `processo-etapa`,
   `regra-condicao`, `modalidade-subproduto`, `documento-informacao`, `a-validar`) ficam integralmente preservadas e
   nunca viram naturezas nem conceitos oficiais (fora do catálogo, da busca, do Comparar e da Visão consolidada; ficha e
   exportação como "descrição técnica histórica"; a ficha P1–P16 mostra as naturezas oficiais correspondentes em vez da

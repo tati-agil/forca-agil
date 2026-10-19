@@ -58,7 +58,7 @@ const ori = NA.orientacao('regra-condicao');
 anota('Regra/Opção tem orientação: Opção exige reavaliação explícita, histórico preservado, nada muda sozinho', !!ori && ori.natureza === 'opcao' && /reavalie P1–P16/.test(ori.texto) && /histórico/.test(ori.texto) && /nada muda sozinho/.test(ori.texto));
 anota('E5: Modalidade e Subproduto individuais, distintas entre si e de Opção, na mesma classificação', NA.natureza('modalidade').modelo === 'individual' && NA.natureza('subproduto').modelo === 'individual' && NA.natureza('opcao').conceito !== NA.natureza('modalidade').conceito && NA.natureza('opcao').conceito !== NA.natureza('subproduto').conceito && NA.natureza('modalidade').conceito !== NA.natureza('subproduto').conceito && NA.admite('modalidade-subproduto', 'modalidade') && NA.admite('modalidade-subproduto', 'subproduto'));
 anota('modalidade-subproduto admite Opção, Modalidade e Subproduto (nenhuma deduzida)', igual(NA.naturezasDaClassificacao('modalidade-subproduto', { registraveis: true }), ['opcao', 'modalidade', 'subproduto']));
-anota('definições de Modalidade e Subproduto marcadas como aguardando aprovação (nada publicado pelo código)', NA.natureza('modalidade').definicao === 'aguardando-aprovacao' && NA.natureza('subproduto').definicao === 'aguardando-aprovacao');
+anota('nenhum conceito nem definição embutidos no código (o modelo só tem identidade e classificação)', NA.NATUREZAS.every((n) => !('texto' in n) && !('definicao' in n)));
 anota('as 10 individuais (8 + Modalidade e Subproduto)', igual(NA.NATUREZAS.filter((n) => n.modelo === 'individual').map((n) => n.codigo).sort(), ['documento', 'etapa', 'funcionalidade', 'informacao', 'modalidade', 'opcao', 'operacao', 'processo', 'regra', 'subproduto']));
 
 console.log('D. A E4 deriva do modelo');
@@ -88,7 +88,7 @@ const lig = {}; doModelo.forEach((c) => { lig[c] = { registradoEm: 1, registrado
 const copia = JSON.parse(JSON.stringify(prod));
 const d1 = NA.diagnosticar(prod, lig), d2 = NA.diagnosticar(prod, lig);
 const sit = (d, c) => d.naturezas.filter((x) => x.natureza === c)[0].situacao;
-anota('cenário: 5 diretas cadastradas, 10 a cadastrar (Modalidade e Subproduto com definição aguardando aprovação), nenhuma ausente', d1.naturezas.filter((x) => x.situacao === 'cadastrada').length === 5 && d1.naturezas.filter((x) => x.situacao === 'a-cadastrar').length === 10 && d1.naturezas.filter((x) => x.aguardaDefinicao).map((x) => x.natureza).join() === 'modalidade,subproduto');
+anota('cenário: 5 diretas cadastradas, 10 individuais a cadastrar (inclui Modalidade e Subproduto), nenhuma ausente', d1.naturezas.filter((x) => x.situacao === 'cadastrada').length === 5 && d1.naturezas.filter((x) => x.situacao === 'a-cadastrar').length === 10 && !d1.naturezas.some((x) => x.aguardaDefinicao));
 anota('cenário produção: 6 classificações técnicas preservadas e ligadas', d1.classificacoesTecnicas.length === 6 && d1.classificacoesTecnicas.every((x) => x.existe && x.ligada === true));
 anota('cenário produção: coerente (nada fora do modelo, sem duplicidade)', d1.ok && !d1.foraDoModelo.length && !d1.duplicados.length, JSON.stringify(d1.duplicados));
 anota('determinístico: rodar de novo dá exatamente o mesmo resultado', igual(d1, d2));
