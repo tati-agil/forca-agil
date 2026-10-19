@@ -146,6 +146,22 @@ async function abrir(browser, viewport, opts) {
   const erros = [];
   page.on('pageerror', (e) => { erros.push(String(e)); console.log('[PAGEERROR]', String(e)); });
   await ctx.addInitScript('window.__CFG = ' + JSON.stringify(cfg) + ';');
+  /* trabalho assíncrono CURTO pendente na página (temporizadores de até 1 s): as entregas do Firebase falso e os avisos
+     agrupados dos módulos (30 ms). Zero = nada do carregamento ainda pode redesenhar a tela — a espera do cenário 5 é
+     por esse estado, não por tempo. Os prazos longos (demora de 6 s, 15–20 s sem resposta) não contam, mas ficam guardados
+     para o teste poder vencê-los na hora (__vencerPrazos(ms)), sem esperar de verdade. */
+  await ctx.addInitScript(() => {
+    const st = window.setTimeout, ct = window.clearTimeout, pend = new Set(), longos = new Map();
+    window.__curtosPendentes = () => pend.size;
+    window.__vencerPrazos = (ms) => { let n = 0; longos.forEach((x, id) => { if (x.ms === ms) { longos.delete(id); ct.call(window, id); n++; x.fn.apply(window, x.args); } }); return n; };
+    window.setTimeout = function (fn, ms) {
+      const args = Array.prototype.slice.call(arguments, 2);
+      const id = st.call(window, function () { pend.delete(id); longos.delete(id); if (typeof fn === 'function') return fn.apply(this, args); }, ms);
+      if (!(ms > 1000)) pend.add(id); else if (typeof fn === 'function') longos.set(id, { ms, fn, args });
+      return id;
+    };
+    window.clearTimeout = function (id) { pend.delete(id); longos.delete(id); return ct.call(window, id); };
+  });
   await ctx.addInitScript(`
     window.__pdfs = [];
     new MutationObserver(function (ms) {
@@ -342,10 +358,28 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     await page.waitForSelector('#sqContextoClassificacao', { timeout: 15000 });
     await esperarCondicao(page, (n) => (document.getElementById('sqContextoClassificacao') || {}).textContent === n, NOVO_PP, { descricao: 'contexto da Squad com o nome da Taxonomia' });
     afirma(true, 'Squad: o contexto arquitetural mostra o nome atual (' + NOVO_PP + ')');
-    await page.evaluate(() => { window.__marcaSquad = document.querySelector('#avaliacoesSquad .avp-question, #avaliacoesSquad .sq-choice-group, #avaliacoesSquad .avp-form-card'); });
+    /* DETERMINÍSTICO: a Squad é redesenhada várias vezes no carregamento, por fontes legítimas (endereço, questionário,
+       motor, avaliações, os três nós do Posicionamento e o aviso agrupado de posicionamentos.js). Marcar assim que o nome
+       aparece deixava uma delas cair depois da marcação numa máquina lenta (375 px, CI). Marca-se só com a página
+       QUIETA (nenhum trabalho curto pendente); depois da troca, espera-se quietar de novo e só então se confere. */
+    const quieta = (rot) => esperarCondicao(page, () => window.__curtosPendentes() === 0, null, { descricao: rot });
+    await quieta('Squad carregada (nada curto pendente)');
+    await page.evaluate(() => {
+      window.__marcaSquad = document.querySelector('#avaliacoesSquad .avp-question, #avaliacoesSquad .sq-choice-group, #avaliacoesSquad .avp-form-card');
+      window.__redesenhosSquad = 0;
+      new MutationObserver((ms) => { window.__redesenhosSquad += ms.filter((m) => m.target.id === 'avaliacoesSquad').length; }).observe(document.getElementById('avaliacoesSquad'), { childList: true });
+    });
     await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/nome').set('Produto renomeado ao vivo'));
     await esperarCondicao(page, () => (document.getElementById('sqContextoClassificacao') || {}).textContent === 'Produto renomeado ao vivo', null, { descricao: 'contexto da Squad trocar no lugar' });
-    afirma(await page.evaluate(() => !!window.__marcaSquad && document.contains(window.__marcaSquad)), 'Squad: o nome trocou no lugar, sem redesenhar a tela');
+    await quieta('troca do nome propagada (nada curto pendente)');
+    const redesenhos = await page.evaluate(() => window.__redesenhosSquad);
+    afirma(await page.evaluate(() => !!window.__marcaSquad && document.contains(window.__marcaSquad)) && redesenhos === 0, 'Squad: o nome trocou no lugar, sem redesenhar a tela', 'redesenhos depois da troca: ' + redesenhos);
+    /* o prazo de demora (6 s) dos nomes da Taxonomia continua armado depois que tudo chegou; vencê-lo agora não pode
+       redesenhar nada (antes, posicionamentos.js avisava sem mudança visível e a Squad era redesenhada inteira) */
+    const vencidos = await page.evaluate(() => window.__vencerPrazos(6000));
+    await quieta('prazo de demora vencido (nada curto pendente)');
+    const redesenhos2 = await page.evaluate(() => window.__redesenhosSquad);
+    afirma(vencidos >= 1 && redesenhos2 === 0 && await page.evaluate(() => document.contains(window.__marcaSquad)), 'Squad: o prazo de demora vencido depois de tudo carregado não redesenha a tela', 'prazos vencidos: ' + vencidos + ', redesenhos: ' + redesenhos2);
     afirma(await page.locator('#sqContextoContingencia').isHidden(), 'Squad: sem aviso de contingência');
     afirma(await larguraOk(page), 'Squad sem rolagem horizontal');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');

@@ -137,7 +137,7 @@ async function main() {
   /* natureza individual */
   await up(AVAL, salvar('it4', versao('it4', 1, 'funcionalidade-operacao'), 'it4'));
   await up(AVAL, salvar('it4v2', versao('it4', 2, 'funcionalidade-operacao', { versaoAnteriorKey: 'it4' }), 'it4v2'));
-  const natW = async (base, aud) => R.registrarNatureza('it4', 'operacao', await gate(base), null, { ativo: true, naturezaDe: 'funcionalidade-operacao', temDefinicao: true }, { auditoriaId: aud, usuario: { id: ek(ARQ), email: ARQ }, agora: TS }, { versao: 1, pergunta: 'Pergunta de teste', alternativa: 'alt', rotulo: 'Alternativa de teste', justificativa: 'Justificativa de teste' }).caminhos;
+  const natW = async (base, aud) => R.registrarNatureza('it4', 'operacao', await gate(base), null, { ativo: true, naturezaDe: 'funcionalidade-operacao', temDefinicao: true }, { auditoriaId: aud, usuario: { id: ek(ARQ), email: ARQ }, agora: TS }, { versao: 1, pergunta: 'Pergunta de teste', alternativa: 'operacao', rotulo: 'Ação', justificativa: 'Justificativa de teste', definicoes: { operacao: { texto: 'Definição (teste)', versao: 1 } } }).caminhos;
   await nega('natureza individual com a avaliação ANTIGA é recusada', up(ARQ, await natW('it4', 'aAntiga')));
   await pode('natureza individual com a avaliação VIGENTE é aceita', up(ARQ, await natW('it4v2', 'aVigente')));
   /* a tela usa o índice: a natureza com a avaliação antiga nem é oferecida */

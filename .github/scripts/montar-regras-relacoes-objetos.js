@@ -17,6 +17,8 @@
  *     servidor; autoria do token; evento e operação na mesma gravação; encerrar exige motivo, é final e libera o índice;
  *   - natureza individual: só com o conceito oficial da Taxonomia ativo, com definição publicada e naturezaDe = a camada
  *     da avaliação que vale; revisão anterior + 1; auditoria nova na mesma gravação; nunca se apaga;
+ *     identificada (alternativa = a da natureza, orientação vigente, snapshot = definições oficiais de agora) ou pendente
+ *     (alternativa = a do motivo); numa relação, a natureza registrada tem de ser da MESMA versão da base (avaliacaoId);
  *   - Taxonomia: um conceito de natureza individual nasce com naturezaDe e definição; naturezaDe não muda nem se apaga.
  *
  *   node .github/scripts/montar-regras-relacoes-objetos.js --gravar   (reescreve os nós)
@@ -26,6 +28,7 @@
 const fs = require('fs');
 const path = require('path');
 const R = require(path.join(__dirname, '..', '..', 'forca-agil', 'relacoes-objetos-nucleo.js'));
+const IDN = require(path.join(__dirname, '..', '..', 'forca-agil', 'identificacao-naturezas.js'));
 const MOTOR_PRODUTO = require('./montar-regras-posicionamento.js').MOTOR_PRODUTO;
 const ARQUIVO = path.join(__dirname, '..', '..', 'database.rules.json');
 const K = "auth.token.email.replace('@','_').replace('.','_')";
@@ -57,7 +60,7 @@ function pontaOk(lado) {
   const REG = (k) => "root.child('" + NAT + "/' + " + ponta + " + '/" + k + "').val()";
   const camadaCompat = or(NATS_P1P16.map((n) => {
     const x = R.NATUREZAS[n];
-    return '(' + nat + " === '" + n + "' && " + CAM + " === '" + x.camada + "'" + (x.individual ? ' && ' + REG('natureza') + " === '" + n + "' && " + REG('camada') + ' === ' + CAM : '') + ')';
+    return '(' + nat + " === '" + n + "' && " + CAM + " === '" + x.camada + "'" + (x.individual ? ' && ' + REG('natureza') + " === '" + n + "' && " + REG('camada') + ' === ' + CAM + ' && ' + REG('avaliacaoId') + ' === ' + base : '') + ')';
   }));
   const p1p16 = and([
     c(campoBase) + '.exists()',
@@ -165,22 +168,44 @@ const AUDN = "newData.parent().parent().child('" + NAT_AUD + "/' + $objetoId + '
    (sem natureza: recorte, evidência insuficiente ou reavaliação P1–P16 necessária, com diagnóstico e justificativa). A
    pendência só existe nas classificações técnicas que admitem mais de uma natureza (ou Regra/Opção); a reavaliação só a
    partir de Regra/Opção. A auditoria da mesma gravação repete o fundamento ou a pendência (snapshot histórico). */
+const CLASSIF_IDENT = Object.keys(R.INDIVIDUAIS_DA_CAMADA);
+if (CLASSIF_IDENT.slice().sort().join() !== IDN.CLASSIFICACOES.slice().sort().join()) throw new Error('identificacao-naturezas.js e o modelo central divergem nas classificações');
+const ALTS = (k) => IDN.diferenciacao(k).alternativas;
+const ALT_NAT = or([].concat.apply([], CLASSIF_IDENT.map((k) => ALTS(k).filter((a) => a.natureza).map((a) =>
+  '(' + v('camada') + " === '" + k + "' && " + v('natureza') + " === '" + a.natureza + "' && " + v('fundamento/alternativa') + " === '" + a.valor + "')"))));
+const ALT_PEND = or([].concat.apply([], CLASSIF_IDENT.map((k) => ALTS(k).filter((a) => a.pendencia).map((a) =>
+  '(' + v('camada') + " === '" + k + "' && " + v('pendencia/motivo') + " === '" + a.pendencia + "' && " + v('pendencia/alternativa') + " === '" + a.valor + "')"))));
+/* snapshot das definições oficiais: para cada natureza que a pergunta mostra, exatamente a definição publicada AGORA na
+   Taxonomia (texto e versão) — ou nenhuma, se o conceito ainda não tem definição; nada além delas */
+const taxDef = (n, k) => "root.child('taxonomia/arquitetural/conceitos/" + n + "/definicao/" + k + "')";
+const SNAP = (campo) => and(CLASSIF_IDENT.map((k) => '(' + v('camada') + " !== '" + k + "' || (" + and(ALTS(k).filter((a) => a.natureza).map((a) => {
+  const sn = (x) => c(campo + '/definicoes/' + a.natureza + '/' + x);
+  return '(' + taxDef(a.natureza, 'texto') + '.exists() ? (' + sn('texto') + '.val() === ' + taxDef(a.natureza, 'texto') + '.val() && ' + sn('versao') + '.val() === (' +
+    taxDef(a.natureza, 'versao') + '.exists() ? ' + taxDef(a.natureza, 'versao') + '.val() : 1)) : !' + sn('texto') + '.exists())';
+})) + '))'));
+/* a auditoria da mesma gravação repete o snapshot do registro (texto e versão de cada definição) */
+const NATS_DAS_PERGUNTAS = R.CODIGOS_INDIVIDUAIS.filter((n) => CLASSIF_IDENT.some((k) => ALTS(k).some((x) => x.natureza === n)));
+const SNAP_AUD = (campo) => and([].concat.apply([], NATS_DAS_PERGUNTAS.map((n) => ['texto', 'versao'].map((x) => {
+  const p = campo + '/definicoes/' + n + '/' + x;
+  return "newData.parent().parent().child('" + NAT_AUD + "/' + $objetoId + '/' + " + v('auditoriaId') + ").child('" + p + "').val() === " + v(p);
+}))));
+const NATS_MOSTRADAS = (nivel) => or(CLASSIF_IDENT.map((k) => '(' + nivel + ".child('camada').val() === '" + k + "' && " + or(ALTS(k).filter((a) => a.natureza).map((a) => "$nat === '" + a.natureza + "'")) + ')'));
 const CAMADAS_IDENT = or(Object.keys(R.INDIVIDUAIS_DA_CAMADA).map((k) => v('camada') + " === '" + k + "'"));
 const MOTIVO_OK = or(R.MOTIVOS_PENDENCIA.map((m) => v('pendencia/motivo') + " === '" + m + "'"));
 const IDENTIFICADA = and([
   '!' + c('pendencia') + '.exists()', c('fundamento') + '.exists()',
-  CAMADA_DA_NAT,
+  CAMADA_DA_NAT, ALT_NAT, v('fundamento/versao') + ' === ' + IDN.VERSAO, SNAP('fundamento'), SNAP_AUD('fundamento'),
   TAX + ".child('ativo').val() === true", TAX + ".child('definicao/texto').exists()", TAX + ".child('naturezaDe').val() === " + v('camada'),
   AUDN + ".child('fundamento/justificativa').val() === " + v('fundamento/justificativa'), AUDN + ".child('fundamento/alternativa').val() === " + v('fundamento/alternativa'),
   AUDN + ".child('fundamento/versao').val() === " + v('fundamento/versao')
 ]);
 const PENDENTE = and([
-  '!' + c('fundamento') + '.exists()', c('pendencia') + '.exists()', CAMADAS_IDENT, MOTIVO_OK,
+  '!' + c('fundamento') + '.exists()', c('pendencia') + '.exists()', CAMADAS_IDENT, MOTIVO_OK, ALT_PEND, v('pendencia/versao') + ' === ' + IDN.VERSAO, SNAP('pendencia'), SNAP_AUD('pendencia'),
   '(' + v('pendencia/motivo') + " !== 'reavaliacao-necessaria' || " + v('camada') + " === 'regra-condicao')",
   AUDN + ".child('pendencia/motivo').val() === " + v('pendencia/motivo'), AUDN + ".child('pendencia/justificativa').val() === " + v('pendencia/justificativa'),
   AUDN + ".child('pendencia/diagnostico').val() === " + v('pendencia/diagnostico'), AUDN + ".child('pendencia/versao').val() === " + v('pendencia/versao')
 ]);
-const definicoesSnap = { $nat: { '.validate': "newData.hasChildren(['texto','versao'])", texto: textoObrig(8000), versao: num, $outro: { '.validate': false } } };
+const definicoesSnap = { $nat: { '.validate': "newData.hasChildren(['texto','versao']) && " + NATS_MOSTRADAS('newData.parent().parent().parent()'), texto: textoObrig(8000), versao: num, $outro: { '.validate': false } } };
 const fundamentoSchema = (comMotivo) => Object.assign({
   '.validate': "newData.hasChildren(['versao','pergunta','alternativa','rotulo','justificativa'" + (comMotivo ? ",'motivo','diagnostico'" : '') + '])',
   versao: { '.validate': 'newData.isNumber() && newData.val() >= 1 && newData.val() % 1 === 0' }, pergunta: textoObrig(2000), alternativa: textoObrig(60), rotulo: textoObrig(500),
