@@ -84,7 +84,8 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   conceito); os 11 códigos do motor são classificações — as 6 técnicas (`funcionalidade-operacao`, `processo-etapa`,
   `regra-condicao`, `modalidade-subproduto`, `documento-informacao`, `a-validar`) ficam integralmente preservadas e
   nunca viram naturezas; Opção só em `modalidade-subproduto` (Regra/Opção que seja Opção = reavaliação explícita). A E4
-  deriva dele; nunca crie uma segunda lista de naturezas nem conceito sem definição aprovada.
+  deriva dele; nunca crie uma segunda lista de naturezas nem conceito sem definição aprovada. O cadastro desses
+  conceitos (cartão em Taxonomia › Verificações, só admin geral) independe do marcador da E4.
 
 ## Backend local e deploy
 

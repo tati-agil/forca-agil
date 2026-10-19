@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const SJ = require('./semente-jornada');
+const R = require(path.join(__dirname, '..', '..', 'forca-agil', 'relacoes-objetos-nucleo.js'));
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -181,28 +182,45 @@ async function rodada(browser, vp, tag) {
   afirma(!(await existe(page, '#roSecao')), 'marcador ausente (produção hoje): nada da E4 aparece');
   await r.ctx.close();
 
-  console.log('7. Taxonomia');
-  r = await abrir(browser, vp, '#arquitetura?arq=taxonomia', { adminGeral: true }); page = r.page;
-  /* as Verificações do sistema ficam na Administração de um conceito (como em teste-classificacoes-fonte-unica.js) */
-  await ate(page, () => !!document.querySelector('.tax-dominio[data-dominio="arquitetural"]'), undefined, 'Taxonomia', 20000);
-  await page.click('.tax-dominio[data-dominio="arquitetural"]');
-  await ate(page, () => !!document.querySelector('.tax-item'), undefined, 'conceitos arquiteturais');
-  await page.click('.tax-item');
-  await page.click('#taxAdministrarBtn');
-  await ate(page, () => !!document.getElementById('taxVerificacoesLink'), undefined, 'link das Verificações');
-  await page.click('#taxVerificacoesLink');
-  await ate(page, () => !!document.querySelector('#roTaxLista [data-codigo="processo"]'), undefined, 'cartão das naturezas', 20000);
-  afirma(await page.$eval('#roTaxLista [data-codigo="operacao"]', (e) => e.getAttribute('data-pronto')) === '1' && /sem conceito oficial/.test(await texto(page, '#roTaxLista [data-codigo="processo"]')), 'mostra quais naturezas têm conceito oficial e quais não');
-  await page.click('.ro-tax-criar[data-codigo="processo"]');
-  await page.fill('#roTaxNome', 'Processo'); await page.fill('#roTaxDef', 'Encadeamento de atividades no tempo que produz um resultado (definição de teste).');
-  await page.click('#roTaxSalvar');
-  await ate(page, () => !!document.getElementById('roTaxErros'), undefined, 'confirmação exigida');
-  afirma(/aprovada/.test(await texto(page, '#roTaxErros')), 'sem a confirmação de que a definição foi aprovada, não cria');
-  await page.check('#roTaxAprovada'); await page.click('#roTaxSalvar');
-  await ate(page, () => /Conceito criado/.test((document.getElementById('roTaxFlash') || {}).textContent || ''), undefined, 'conceito criado', 20000);
-  const cp = await lerBanco(page, 'taxonomia/arquitetural/conceitos/processo');
-  afirma(cp && cp.naturezaDe === 'processo-etapa' && cp.ativo === true && cp.definicao && cp.definicao.versao === 1, 'conceito criado com naturezaDe da classificação e definição v1', cp);
-  afirma(r.erros.length === 0 && await larguraOk(page), 'sem erro de JS e sem rolagem lateral');
+  console.log('7. Taxonomia (o cadastro dos conceitos independe do marcador da E4 — C41)');
+  /* marcador ausente (produção hoje), false e true: o cartão aparece para a administração geral e cria o conceito pela
+     mesma rotina; o conceito que já existe não oferece "Criar" (sem duplicar) */
+  for (const [marc, cod, nome] of [[null, 'processo', 'Processo'], [false, 'etapa', 'Etapa'], [true, 'documento', 'Documento']]) {
+    const rot = 'marcador ' + (marc === null ? 'ausente' : String(marc));
+    r = await abrir(browser, vp, '#arquitetura?arq=taxonomia', { adminGeral: true, marcador: marc }); page = r.page;
+    /* as Verificações do sistema ficam na Administração de um conceito (como em teste-classificacoes-fonte-unica.js) */
+    await ate(page, () => !!document.querySelector('.tax-dominio[data-dominio="arquitetural"]'), undefined, 'Taxonomia', 20000);
+    await page.click('.tax-dominio[data-dominio="arquitetural"]');
+    await ate(page, () => !!document.querySelector('.tax-item'), undefined, 'conceitos arquiteturais');
+    await page.click('.tax-item');
+    await page.click('#taxAdministrarBtn');
+    await ate(page, () => !!document.getElementById('taxVerificacoesLink'), undefined, 'link das Verificações');
+    await page.click('#taxVerificacoesLink');
+    await ate(page, (c) => !!document.querySelector('#roTaxLista [data-codigo="' + c + '"]'), cod, 'cartão das naturezas (' + rot + ')', 20000);
+    afirma(/conceitos oficiais/.test(await texto(page, '#roTaxTitulo')) && !/relações entre objetos/.test(await texto(page, '#roTaxTitulo')), rot + ': o cartão é da Taxonomia ("Naturezas individuais — conceitos oficiais")');
+    afirma(await page.$eval('#roTaxLista [data-codigo="operacao"]', (e) => e.getAttribute('data-pronto')) === '1' && /sem conceito oficial/.test(await texto(page, '#roTaxLista [data-codigo="' + cod + '"]')), rot + ': mostra quais naturezas têm conceito oficial e quais não');
+    afirma(!(await existe(page, '.ro-tax-criar[data-codigo="operacao"]')) && !(await existe(page, '.ro-tax-criar[data-codigo="funcionalidade"]')), rot + ': conceito que já existe não oferece "Criar" (sem duplicar)');
+    await page.click('.ro-tax-criar[data-codigo="' + cod + '"]');
+    await page.fill('#roTaxNome', nome); await page.fill('#roTaxDef', 'Definição aprovada de ' + nome + ' (teste).');
+    if (marc === null) {
+      await page.click('#roTaxSalvar');
+      await ate(page, () => !!document.getElementById('roTaxErros'), undefined, 'confirmação exigida');
+      afirma(/aprovada/.test(await texto(page, '#roTaxErros')), 'sem a confirmação de que a definição foi aprovada, não cria');
+    }
+    await page.check('#roTaxAprovada'); await page.click('#roTaxSalvar');
+    await ate(page, () => /Conceito criado/.test((document.getElementById('roTaxFlash') || {}).textContent || ''), undefined, 'conceito criado', 20000);
+    const cp = await lerBanco(page, 'taxonomia/arquitetural/conceitos/' + cod);
+    const aud = await lerBanco(page, 'taxonomia/arquitetural/auditoria/' + cod);
+    afirma(cp && cp.naturezaDe === R.NATUREZAS[cod].camada && cp.ativo === true && cp.definicao && cp.definicao.versao === 1 && Object.values(aud || {}).some((a) => a.tipo === 'conceito_criado'), rot + ': conceito criado com naturezaDe da classificação, definição v1 e auditoria', cp);
+    afirma(!(await existe(page, '.ro-tax-criar[data-codigo="' + cod + '"]')) && (await page.$eval('#roTaxLista [data-codigo="' + cod + '"]', (e) => e.getAttribute('data-pronto'))) === '1', rot + ': depois de criado, pronto para uso e sem "Criar" de novo');
+    afirma((await lerBanco(page, R.MARCADOR)) === marc && (await lerBanco(page, R.RAIZ)) === null, rot + ': o marcador da E4 não muda e nenhuma relação é gravada');
+    afirma(r.erros.length === 0 && await larguraOk(page), rot + ': sem erro de JS e sem rolagem lateral');
+    await r.ctx.close();
+  }
+  /* sem administração geral (Avaliação + Configuração): a Taxonomia não é dela e o cartão não aparece */
+  r = await abrir(browser, vp, '#arquitetura?arq=taxonomia', { marcador: null }); page = r.page;
+  await page.waitForTimeout(1500);
+  afirma(!(await existe(page, '#roTaxonomia')) && !(await existe(page, '.ro-tax-criar')), 'sem administração geral: nenhum cartão de cadastro de conceitos');
   await r.ctx.close();
 
   console.log('8. F5, resumos e Mapa');

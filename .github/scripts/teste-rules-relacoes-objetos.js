@@ -93,7 +93,22 @@ async function main() {
   await nega('conceito de natureza individual sem naturezaDe é recusado', up(ADMIN, conceito('funcionalidade', ADMIN, (c, b) => { delete c[b].naturezaDe; })));
   await nega('naturezaDe diferente da camada que contém a natureza é recusado', up(ADMIN, conceito('funcionalidade', ADMIN, (c, b) => { c[b].naturezaDe = 'processo-etapa'; })));
   await nega('conceito de natureza individual sem definição é recusado', up(ADMIN, conceito('funcionalidade', ADMIN, (c, b) => { delete c[b].definicao; Object.keys(c).filter((k) => k.indexOf('/definicoes/') !== -1).forEach((k) => delete c[k]); })));
-  for (const cod of CONCEITOS) await pode('admin geral cria o conceito "' + cod + '" com definição e naturezaDe', up(ADMIN, conceito(cod, ADMIN)));
+  /* C41: o cadastro é administração da Taxonomia — vale com o marcador da E4 ausente, false ou true */
+  const SITUACAO_MARCADOR = [null, false, true];
+  for (let i = 0; i < CONCEITOS.length; i++) {
+    const cod = CONCEITOS[i], m = SITUACAO_MARCADOR[Math.min(i, 2)];
+    await semear((a) => a.ref(R.MARCADOR).set(m));
+    await pode('admin geral cria o conceito "' + cod + '" com definição e naturezaDe (marcador da E4 ' + (m === null ? 'ausente' : String(m)) + ')', up(ADMIN, conceito(cod, ADMIN)));
+  }
+  await marcador(true);
+  const antesDup = await ler('taxonomia/arquitetural/conceitos/funcionalidade');
+  await nega('cadastro duplicado: criar de novo um conceito que já existe é recusado', up(ADMIN, conceito('funcionalidade', ADMIN, (c, b) => { c[b].nome = 'Outro nome'; })));
+  await semear((a) => a.ref(R.MARCADOR).remove());
+  await nega('cadastro duplicado também é recusado com o marcador ausente', up(ADMIN, conceito('operacao', ADMIN)));
+  await marcador(true);
+  anota('o conceito existente ficou intacto', JSON.stringify(await ler('taxonomia/arquitetural/conceitos/funcionalidade')) === JSON.stringify(antesDup));
+  await nega('Avaliação + Configuração não cria conceito, nem com o marcador ausente', (async () => { await semear((a) => a.ref(R.MARCADOR).remove()); try { await up(ARQ, conceito('informacao', ARQ)); } finally { await marcador(true); } })());
+  await nega('perfil Avaliação não cria conceito', up(AVAL, conceito('informacao', AVAL)));
   await nega('naturezaDe não muda depois de criado', db(ADMIN).ref('taxonomia/arquitetural/conceitos/funcionalidade/naturezaDe').set('processo-etapa'));
   await nega('naturezaDe não se apaga', db(ADMIN).ref('taxonomia/arquitetural/conceitos/funcionalidade/naturezaDe').remove());
   anota('a auditoria registra "conceito_criado"', Object.values((await ler('taxonomia/arquitetural/auditoria/funcionalidade')) || {}).some((a) => a.tipo === 'conceito_criado'));
