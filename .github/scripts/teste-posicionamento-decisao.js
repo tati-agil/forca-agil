@@ -159,12 +159,42 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(JSON.stringify(ls.map((l) => l.key).sort()) === '["a1","g1","h2"]', 'padrão: só as vigentes (sem histórica nem descartada)', JSON.stringify(ls));
   afirma(ls.find((l) => l.key === 'h2').versao === 'v2' && ls.find((l) => l.key === 'g1').versao === 'v1', 'coluna Versão (v1, v2)');
   afirma(/Sem decisão registrada/.test(ls.find((l) => l.key === 'g1').decisao), 'coluna Decisão final: "Sem decisão registrada" (registro do PR E)');
-  afirma(/2/.test(await texto(page, '.po-filtro-historico')), 'filtro "Mostrar versões históricas e descartadas (2)"');
-  await page.check('#poMostrarHistorico');
-  await esperarCondicao(page, () => document.querySelectorAll('#poLista .po-linha').length === 5, null, { descricao: 'o filtro mostrar as 5' });
+  afirma(/Mostrando 3 de 5/.test(await texto(page, '#poContagem')), 'contagem: "Mostrando 3 de 5"');
+  const chaves = async () => (await linhas(page)).map((l) => l.key).sort().join();
+  const situacao = async (v, n) => { await page.selectOption('#poFiltroSituacao', v); await esperarCondicao(page, (k) => document.querySelectorAll('#poLista .po-linha').length === k, n, { descricao: 'filtro ' + v }); };
+  await situacao('historica', 1);
+  afirma((await chaves()) === 'h1' && (await linhas(page))[0].sit === 'historica' && /Tx AREA_ESPECIALIZADA/.test((await linhas(page))[0].decisao), 'situação "Histórica": só a v1 (com a decisão dela)');
+  await situacao('descartado', 1);
+  afirma((await chaves()) === 'x1', 'situação "Descartada": só a descartada');
+  await situacao('vigente', 3);
+  afirma((await chaves()) === 'a1,g1,h2', 'situação "Vigente": as 3 vigentes');
+  await situacao('todas', 5);
   ls = await linhas(page);
-  afirma(ls.find((l) => l.key === 'h1').sit === 'historica' && /Tx AREA_ESPECIALIZADA/.test(ls.find((l) => l.key === 'h1').decisao), 'histórica aparece com a decisão dela');
-  afirma(ls.find((l) => l.key === 'x1').sit === 'descartado', 'descartada aparece no filtro');
+  afirma(ls.find((l) => l.key === 'h1').sit === 'historica' && ls.find((l) => l.key === 'x1').sit === 'descartado', '"Todas as situações": históricas e descartadas continuam consultáveis');
+  await page.fill('#poListaBusca', 'ALFA');
+  await esperarCondicao(page, () => document.querySelectorAll('#poLista .po-linha').length === 2, null, { descricao: 'busca' });
+  afirma((await chaves()) === 'h1,h2' && await page.evaluate(() => document.activeElement && document.activeElement.id === 'poListaBusca'), 'busca pelo nome (sem distinguir maiúsculas): as duas versões do Item Alfa; o campo mantém o foco');
+  await page.fill('#poListaBusca', 'zzz');
+  await esperarCondicao(page, () => !!document.getElementById('poListaVazia'), null, { descricao: 'busca sem resultado' });
+  afirma(/Nenhuma avaliação com essa busca e esses filtros/.test(await texto(page, '#poListaVazia')), 'busca sem resultado: aviso claro');
+  await page.fill('#poListaBusca', '');
+  await page.selectOption('#poFiltroOrigem', 'porta2');
+  await esperarCondicao(page, () => !!document.getElementById('poListaVazia'), null, { descricao: 'origem Porta 2' });
+  afirma(await page.locator('#poLista .po-linha').count() === 0, 'origem "Porta 2": nenhuma (todas aqui são da Porta 1)');
+  await page.click('#poLimparFiltros');
+  await esperarCondicao(page, () => document.querySelectorAll('#poLista .po-linha').length === 3, null, { descricao: 'limpar filtros' });
+  afirma((await chaves()) === 'a1,g1,h2' && !(await page.locator('#poLimparFiltros').count()), '"Limpar filtros" volta ao padrão');
+  /* Porta 1: o item foi para a Lixeira do P1–P16 (exclusão lógica que já existe) → sai da lista operacional; a avaliação continua guardada */
+  await page.evaluate(() => window.firebase.database().ref('avaliacoes-produto/p3v2/excluido').set(true));
+  await esperarCondicao(page, () => !!document.getElementById('poMostrarExcluidos') && !document.querySelector('#poLista .po-linha[data-key="g1"]'), null, { descricao: 'item na Lixeira sai da lista' });
+  afirma((await chaves()) === 'a1,h2' && /Incluir itens excluídos \(1\)/.test(await texto(page, '.po-filtro-excluidos')), 'Porta 1: item cuja versão vigente do P1–P16 está na Lixeira sai da lista operacional, com "Incluir itens excluídos (1)"');
+  await page.check('#poMostrarExcluidos');
+  await esperarCondicao(page, () => !!document.querySelector('#poLista .po-linha[data-key="g1"]'), null, { descricao: 'incluir excluídos' });
+  afirma(true, 'incluindo os excluídos, a avaliação volta a ser consultável');
+  await page.evaluate(() => window.firebase.database().ref('avaliacoes-produto/p3v2/excluido').set(false));
+  await page.click('#poLimparFiltros');
+  await esperarCondicao(page, () => document.querySelectorAll('#poLista .po-linha').length === 3 && !document.getElementById('poMostrarExcluidos'), null, { descricao: 'restaurado' });
+  await situacao('todas', 5);
   if (celular) {
     afirma(await page.evaluate(() => getComputedStyle(document.querySelector('#poLista .po-linha')).display === 'block'), '375 px: cada linha é um cartão');
   }
