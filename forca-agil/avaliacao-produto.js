@@ -1832,6 +1832,37 @@
     ler(NODE_NATUREZA_AUDITORIA);
   }
   /* cb({ <chave>: { ok, linhas } }) — todas em paralelo. */
+  /* NATUREZA ARQUITETURAL nas exportações: lida de objetos-natureza no momento de gerar o arquivo (identificação orientada).
+     Não saber ≠ não ter: se a leitura falhar ou demorar, o arquivo diz "Não foi possível ler", nunca "não identificada". */
+  var naturezasExport = { ok: false, mapa: {} };
+  function lerNaturezas(cb) {
+    var feito = false;
+    var fim = function (ok, mapa) { if (feito) return; feito = true; clearTimeout(t); naturezasExport = { ok: ok, mapa: mapa || {} }; cb(); };
+    var t = setTimeout(function () { fim(false); }, TEMPO_TRILHA_MS);
+    try { db().ref('objetos-natureza').once('value', function (snap) { fim(true, snap.val()); }, function () { fim(false); }); } catch (e) { fim(false); }
+  }
+  var ROT_PENDENCIA = { recorte: 'Recorte necessário', 'evidencia-insuficiente': 'Evidência insuficiente', 'reavaliacao-necessaria': 'Reavaliação P1–P16 necessária' };
+  /* { natureza, situacao, fundamento, base } — classificação técnica do motor × natureza do objeto, nunca confundidas */
+  function identificacaoExport(it) {
+    var vazio = { natureza: '', situacao: '', fundamento: '', base: '' };
+    if (!it || it.status !== 'concluido') return vazio;
+    var C = window.faClassificacoes, NA = window.faNaturezasArquiteturais, camada = it.camadaSugerida && it.camadaSugerida.id;
+    var nomeNat = function (cod) { return C && C.nomeNatureza ? C.nomeNatureza(cod) : cod; };
+    var dec = it.decisaoFinal || it.resultadoAutomatico;
+    if (dec === 'produto') return { natureza: nomeNat('produto'), situacao: 'Natureza da própria classificação', fundamento: '', base: it._key };
+    if (dec !== 'nao-produto' || !camada || camada === 'a-validar') return { natureza: '', situacao: 'Não se aplica (classificação a validar)', fundamento: '', base: '' };
+    var direta = NA && NA.naturezaDoConceito(camada);
+    if (direta && direta.modelo === 'direta') return { natureza: nomeNat(direta.codigo), situacao: 'Natureza da própria classificação', fundamento: '', base: it._key };
+    if (!naturezasExport.ok) return { natureza: '', situacao: 'Não foi possível ler a identificação agora', fundamento: '', base: '' };
+    var reg = naturezasExport.mapa[it.itemId || it._key];
+    if (!reg) return { natureza: '', situacao: 'Não identificada', fundamento: '', base: '' };
+    if (reg.avaliacaoId !== it._key) return { natureza: '', situacao: 'Registrada para outra versão da avaliação', fundamento: '', base: reg.avaliacaoId || '' };
+    if (reg.natureza) return { natureza: nomeNat(reg.natureza), situacao: reg.camada === camada ? 'Identificada' : 'A confirmar (a classificação mudou)',
+      fundamento: reg.fundamento ? (reg.fundamento.rotulo + ' — ' + reg.fundamento.justificativa) : 'Registrada sem fundamento (registro anterior)', base: reg.avaliacaoId };
+    if (reg.pendencia) return { natureza: '', situacao: 'Pendente — ' + (ROT_PENDENCIA[reg.pendencia.motivo] || reg.pendencia.motivo),
+      fundamento: 'Diagnóstico: ' + reg.pendencia.diagnostico + ' · Justificativa: ' + reg.pendencia.justificativa, base: reg.avaliacaoId };
+    return vazio;
+  }
   function lerTrilhas(chaves, cb) {
     var unicas = [], vistas = {};
     chaves.forEach(function (k) { if (k && !vistas[k]) { vistas[k] = true; unicas.push(k); } });
@@ -1923,6 +1954,10 @@
     /* Nome atual (Taxonomia) e, quando difere, o nome registrado na conclusão — que nunca é reescrito. */
     var camadaNaConclusaoPdf = rotuloCamadaNaConclusao(camada);
     if (camadaNaConclusaoPdf) html += '<p class="pdf-meta-versoes">Nome registrado na conclusão: ' + esc(camadaNaConclusaoPdf) + '</p>';
+    var identPdf = identificacaoExport(it);
+    if (identPdf.situacao) html += '<p class="pdf-natureza">Natureza arquitetural: ' + esc(identPdf.natureza || '—') + ' (' + esc(identPdf.situacao) + ')</p>' +
+      (identPdf.fundamento ? '<p class="pdf-meta-versoes">Fundamento da identificação: ' + esc(identPdf.fundamento) + '</p>' : '') +
+      (identPdf.base ? '<p class="pdf-meta-versoes">Avaliação-base da identificação: ' + esc(identPdf.base) + '</p>' : '');
     html += '<p class="pdf-meta-versoes">A classificação diz o que o objeto é. Ela não define a estrutura organizacional nem o posicionamento.</p>';
     var espDerivada = especializacaoDerivada(it);
     if (espDerivada) html += '<p>Especialização identificada pelo questionário: ' + esc(espDerivada) + '</p>';
@@ -2117,14 +2152,14 @@
   function gerarPdf(itens, nomeArquivo, cbFim, todosOsItens) {
     /* A trilha (quem/quando/anterior → novo) vem da auditoria: uma leitura extra, com limite de espera;
        se falhar ou demorar, o PDF sai igual e marca "Trilha indisponível". */
-    lerTrilhas(itens.map(function (it) { return it._key; }), function (trilhas) {
+    lerNaturezas(function () { lerTrilhas(itens.map(function (it) { return it._key; }), function (trilhas) {
       var ctx = { todos: todosOsItens || itens, trilhas: trilhas };
       gerarPdfPorBlocos({
         nomeArquivo: nomeArquivo,
         planejar: function (medidor) { return planejarBlocosPdf(itens, medidor, ctx); },
         envolver: function (htmlBloco, indice) { return envolverBlocoPdf('<section class="pdf-av">' + htmlBloco + '</section>', indice === 0); }
       }, cbFim);
-    });
+    }); });
   }
   /* cfg = { nomeArquivo, planejar(medidor) → [htmlDeCadaBloco], envolver(htmlBloco, indice) → documento }.
      É o MESMO motor de blocos do PDF consolidado (altura limitada por canvas,
@@ -2268,6 +2303,8 @@
     { largura: 18, rotulo: 'Versão do motor' },
     { largura: 22, rotulo: 'Recomendação do sistema' }, { largura: 28, rotulo: 'Classificação arquitetural' },
     { largura: 28, rotulo: 'Rótulo registrado na conclusão' },
+    { largura: 24, rotulo: 'Natureza arquitetural' }, { largura: 30, rotulo: 'Situação da identificação da natureza' },
+    { largura: 46, rotulo: 'Fundamento da identificação' }, { largura: 26, rotulo: 'Avaliação-base da identificação' },
     { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 30, rotulo: 'Especialização identificada pelo questionário' },
     { largura: 26, rotulo: 'Especialização' }, { largura: 16, rotulo: 'Papel estrutural' },
     { largura: 30, rotulo: 'Natureza complementar (registro histórico)' }, { largura: 30, rotulo: 'Situação da curadoria' },
@@ -2283,7 +2320,9 @@
       (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
       concluido ? 'Concluído' : 'Rascunho', it.versao || 1, concluido ? (it.motorVersion || '') : '',
       concluido ? rotuloResultado(it.resultadoAutomatico) : '',
-      rotuloCamadaAtual(camada), (camada && camada.label) || '', (camada && camada.relacao) || '',
+      rotuloCamadaAtual(camada), (camada && camada.label) || '',
+      identificacaoExport(it).natureza, identificacaoExport(it).situacao, identificacaoExport(it).fundamento, identificacaoExport(it).base,
+      (camada && camada.relacao) || '',
       especializacaoDerivada(it), curadoriaRegistrada(it).especializacao, curadoriaRegistrada(it).papelEstrutural, rotuloNaturezaDoItem(it),
       situacaoCuradoria(it),
       concluido ? rotuloDecisaoFinal(it) : '',
@@ -3997,7 +4036,7 @@
       state.flashExportacao = null;
       render();
       var todos = state.itens;
-      lerTrilhas(versoesDoHistorico(itensParaExportar, todos).map(function (it) { return it._key; }), function (trilhas) {
+      lerNaturezas(function () { lerTrilhas(versoesDoHistorico(itensParaExportar, todos).map(function (it) { return it._key; }), function (trilhas) {
         gerarExcel(itensParaExportar, todos, nomeArquivoExcel(sufixo), function (erro) {
           state.exportando = null;
           state.flashExportacao = erro
@@ -4006,7 +4045,7 @@
           if (erro) console.error('[avaliacao-produto] erro ao gerar Excel:', erro);
           render();
         }, trilhas);
-      });
+      }); });
     }
     function executarExportacaoPdfLista(itensSelecionados, escopo) {
       if (state.exportando) return;
@@ -7896,6 +7935,8 @@
       /* E1: a primeira pergunta (o que é) não determina estrutura nem posicionamento */
       html += '<p class="avp-alt-outras" id="avpNaturezaNaoEstrutura">A classificação diz o que o objeto é. Ela não define a estrutura organizacional nem o posicionamento.</p>';
       html += '<p class="avp-alt-outras ro-resumo-linha" data-ro-resumo="' + esc(a.itemId || a._key) + '"></p>'; /* E4: "Relaciona-se com N objetos" (só leitura) */
+      /* natureza arquitetural do objeto: identificada, pendente ou ainda não identificada (identificação orientada) */
+      if (a.status === 'concluido' && !a.excluido) html += '<div class="avp-natureza-host" data-ro-natureza="' + esc(a.itemId || a._key) + '"></div>';
       var espDerivadaTela = especializacaoDerivada(a);
       if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
       if (camada.tipoAValidar) {

@@ -86,7 +86,9 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   nunca viram naturezas nem conceitos oficiais (fora do catálogo, da busca, do Comparar e da Visão consolidada; ficha e
   exportação como "descrição técnica histórica"; a ficha P1–P16 mostra as naturezas oficiais correspondentes em vez da
   descrição delas — `docs/auditoria-taxonomia.md`); Opção só em `modalidade-subproduto` (Regra/Opção que seja Opção = reavaliação explícita). A E4
-  deriva dele; nunca crie uma segunda lista de naturezas nem conceito sem definição aprovada. O cadastro desses
+  deriva dele; nunca crie uma segunda lista de naturezas nem conceito sem definição aprovada. A natureza individual de
+  um objeto é identificada por uma etapa ORIENTADA depois do P1–P16 (`identificacao-naturezas.js`; o motor não muda), com
+  fundamento ou pendência (recorte, evidência insuficiente, reavaliação) no mesmo `objetos-natureza`. O cadastro desses
   conceitos (cartão em Taxonomia › Verificações, só admin geral) independe do marcador da E4.
 
 ## Backend local e deploy

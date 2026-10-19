@@ -61,7 +61,7 @@
   var ouvintesFonte = {};     /* id → { ref, cb, fonteId } */
   var relogioDemora = null;
   var callbacks = [];
-  var relogioNotificar = null, assinaturaNotificada = null;
+  var relogioNotificar = null, assinaturaNotificada = null, assinaturaNaturezas = null;
 
   function db() { return firebase.database(); }
   function novoLido() { return { nome: undefined, erro: false, fonteId: undefined, texto: undefined, textoDe: null, ativo: undefined }; }
@@ -228,7 +228,7 @@
   }
 
   function assinatura() {
-    return JSON.stringify([estado(), demorando, nomesNatureza, codigos().map(function (id) {
+    return JSON.stringify([estado(), demorando, codigos().map(function (id) {
       return [nome(id), usandoContingencia(id), resolvido(id), definicao(id), estadoDefinicao(id), ativo(id)];
     })]);
   }
@@ -237,10 +237,13 @@
     clearTimeout(relogioNotificar);
     relogioNotificar = setTimeout(function () {
       relogioNotificar = null;
-      var a = assinatura();
-      if (a === assinaturaNotificada) return;
-      assinaturaNotificada = a;
+      var a = assinatura(), n = JSON.stringify(nomesNatureza);
+      if (a === assinaturaNotificada && n === assinaturaNaturezas) return;
+      var soNaturezas = a === assinaturaNotificada;
+      assinaturaNotificada = a; assinaturaNaturezas = n;
       if (typeof document !== 'undefined') atualizarDom(document);
+      /* os nomes das naturezas só trocam textos no lugar (data-fa-classif-nat): nenhuma tela precisa redesenhar por eles */
+      if (soNaturezas) return;
       callbacks.slice().forEach(function (cb) { try { cb(); } catch (e) { console.error('[classificacoes]', e); } });
     }, 30);
   }

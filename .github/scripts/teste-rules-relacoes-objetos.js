@@ -121,7 +121,7 @@ async function main() {
   const natW = async (obj, nat, e, opcoes) => {
     opcoes = opcoes || {};
     const g = opcoes.gate || await gate(obj);
-    const r = R.registrarNatureza(obj, nat, g, await ler(R.NAT + '/' + obj), opcoes.conceito || (await conc(nat)) || { ativo: true, naturezaDe: R.NATUREZAS[nat] && R.NATUREZAS[nat].camada, temDefinicao: true }, { auditoriaId: novaChave('na'), usuario: usuario(e), agora: TS });
+    const r = R.registrarNatureza(obj, nat, g, await ler(R.NAT + '/' + obj), opcoes.conceito || (await conc(nat)) || { ativo: true, naturezaDe: R.NATUREZAS[nat] && R.NATUREZAS[nat].camada, temDefinicao: true }, { auditoriaId: novaChave('na'), usuario: usuario(e), agora: TS }, opcoes.fundamento || { versao: 1, pergunta: 'Pergunta de teste', alternativa: 'alt', rotulo: 'Alternativa de teste', justificativa: 'Justificativa de teste' });
     if (!r.ok) throw new Error('núcleo recusou: ' + JSON.stringify(r.erros));
     const c = js(r.caminhos);
     if (opcoes.ajuste) opcoes.ajuste(c);
@@ -304,6 +304,43 @@ async function main() {
   anota('a natureza registrada é Modalidade, na classificação modalidade-subproduto, com a avaliação vigente', ((await ler(R.NAT + '/pMod')) || {}).natureza === 'modalidade' && ((await ler(R.NAT + '/pMod')) || {}).avaliacaoId === 'pMod');
   await pode('responsabilidade da Porta 2 "atua sobre" a Modalidade', up(ARQ, await relW('o1', 'atua-sobre', 'pMod', ARQ)));
   anota('pares com Modalidade/Subproduto além de "atua sobre" não existem na matriz até serem aprovados', !R.PARES.some((p) => (p.de === 'modalidade' || p.para === 'modalidade' || p.de === 'subproduto' || p.para === 'subproduto') && p.tipo !== 'atua-sobre'));
+
+  /* ===== I. Identificação orientada: fundamento obrigatório e identificação PENDENTE (o mesmo registro) ===== */
+  console.log('I. Identificação orientada e pendências');
+  const PEND = (motivo, extra) => Object.assign({ motivo, diagnostico: 'O que falta esclarecer (teste)', justificativa: 'Justificativa da pendência (teste)', versao: 1, pergunta: 'Pergunta (teste)', alternativa: motivo, rotulo: 'Rótulo (teste)' }, extra || {});
+  const pendW = async (obj, p, e, ajuste) => {
+    const r = R.registrarPendencia(obj, await gate(obj), await ler(R.NAT + '/' + obj), p, { auditoriaId: novaChave('np'), usuario: usuario(e), agora: TS });
+    if (!r.ok) throw new Error('núcleo recusou: ' + JSON.stringify(r.erros));
+    const c = js(r.caminhos); if (ajuste) ajuste(c); return c;
+  };
+  const audsDe = (c) => Object.keys(c).filter((k) => k.indexOf(R.NAT_AUD + '/') === 0);
+  await semear(async (a) => {
+    await a.ref('avaliacoes-produto/pPend').set(Object.assign({ itemId: 'pPend', nome: 'Item pPend' }, AV('processo-etapa', 'nao-produto')));
+    await a.ref(R.PONTA + '/pPend').set('pPend');
+    await a.ref('avaliacoes-produto/pRegra2').set(Object.assign({ itemId: 'pRegra2', nome: 'Item pRegra2' }, AV('regra-condicao', 'nao-produto')));
+    await a.ref(R.PONTA + '/pRegra2').set('pRegra2');
+  });
+  await nega('natureza sem fundamento é recusada', up(ARQ, await natW('pPend', 'processo', ARQ, { ajuste: (c) => { delete c[R.NAT + '/pPend'].fundamento; } })));
+  await nega('natureza com justificativa em branco é recusada', up(ARQ, await natW('pPend', 'processo', ARQ, { ajuste: (c) => { c[R.NAT + '/pPend'].fundamento.justificativa = '   '; audsDe(c).forEach((k) => { c[k].fundamento.justificativa = '   '; }); } })));
+  await nega('auditoria com fundamento diferente do registro é recusada', up(ARQ, await natW('pPend', 'processo', ARQ, { ajuste: (c) => { audsDe(c).forEach((k) => { c[k].fundamento.justificativa = 'Outra'; }); } })));
+  await nega('Avaliação (consulta) não registra pendência', up(AVAL, await pendW('pPend', PEND('evidencia-insuficiente'), AVAL)));
+  await nega('pendência sem diagnóstico é recusada', up(ARQ, await pendW('pPend', PEND('evidencia-insuficiente'), ARQ, (c) => { delete c[R.NAT + '/pPend'].pendencia.diagnostico; })));
+  await nega('registro com natureza E pendência ao mesmo tempo é recusado', up(ARQ, await pendW('pPend', PEND('recorte'), ARQ, (c) => { c[R.NAT + '/pPend'].natureza = 'processo'; })));
+  await nega('"reavaliação necessária" fora de Regra/Opção é recusada', up(ARQ, await pendW('pPend', PEND('evidencia-insuficiente'), ARQ, (c) => { c[R.NAT + '/pPend'].pendencia.motivo = 'reavaliacao-necessaria'; audsDe(c).forEach((k) => { c[k].pendencia.motivo = 'reavaliacao-necessaria'; }); })));
+  await pode('identificação PENDENTE (evidência insuficiente), com diagnóstico, justificativa, autoria e versão da avaliação', up(ARQ, await pendW('pPend', PEND('evidencia-insuficiente'), ARQ)));
+  const p1 = await ler(R.NAT + '/pPend');
+  anota('pendência gravada sem natureza, ligada à versão da avaliação, revisão 1', p1 && !p1.natureza && p1.pendencia.motivo === 'evidencia-insuficiente' && p1.avaliacaoId === 'pPend' && p1.revisao === 1 && p1.registradaPor.email === ARQ);
+  anota('pendência não autoriza relação (o núcleo não dá natureza ao objeto)', R.naturezaDoObjeto({ gate: await gate('pPend'), registro: p1 }).motivo === 'IDENTIFICACAO_PENDENTE');
+  await pode('da pendência para a natureza identificada (Processo), com fundamento', up(ARQ, await natW('pPend', 'processo', ARQ)));
+  const p2 = await ler(R.NAT + '/pPend'), auds = Object.values((await ler(R.NAT_AUD + '/pPend')) || {});
+  anota('revisão 2, natureza com fundamento, pendência removida do registro', p2.revisao === 2 && p2.natureza === 'processo' && p2.fundamento && !p2.pendencia);
+  anota('auditoria preserva as duas etapas (pendência e registro), só por acréscimo', auds.some((x) => x.tipo === 'pendencia' && x.pendencia.motivo === 'evidencia-insuficiente') && auds.some((x) => x.tipo === 'alteracao' && x.fundamento && !x.anterior));
+  await pode('Regra/Opção: Opção → "reavaliação P1–P16 necessária" (pendência), sem trocar a classificação', up(ARQ, await pendW('pRegra2', PEND('reavaliacao-necessaria'), ARQ)));
+  anota('a avaliação P1–P16 não foi alterada (classificação histórica preservada)', (await ler('avaliacoes-produto/pRegra2')).camadaSugerida.id === 'regra-condicao');
+  await nega('Opção nunca é registrada como natureza de Regra/Opção', up(ARQ, await natW('pRegra2', 'opcao', ARQ, { gate: { situacao: 'atual', libera: true, chave: 'pRegra2', avaliacao: Object.assign({}, ITENS.pRegra, { camadaSugerida: { id: 'modalidade-subproduto' } }) } })));
+  await semear((a) => a.ref(R.MARCADOR).set(false));
+  await nega('marcador desligado: ninguém registra pendência', up(ARQ, await pendW('pPend', PEND('recorte'), ARQ)));
+  await marcador(true);
 
   await env.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

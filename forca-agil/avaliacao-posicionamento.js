@@ -702,14 +702,14 @@
       aplicando = true;
       try {
         mostrarPainel();
-        if (po === 'lista') { limparAtual(); state.tela = 'lista'; }
+        if (po === 'lista') { var flL = state.tela === 'lista' ? state.flash : null; limparAtual(); state.flash = flL; state.tela = 'lista'; } /* mesmo endereço reaplicado: o aviso recém-mostrado fica */
         else if (po === 'escolher') { limparAtual(); if (state.itemEscolhido !== (item || null)) state.hipotese = null; state.itemEscolhido = item || null; state.tela = podeEscrever() ? 'escolher' : (autorizacaoResolvida() ? 'sem-permissao' : 'carregando'); }
         else if (po === 'atuacoes') {
           /* o mesmo endereço reaplicado (a tela já está nele) não apaga o aviso recém-mostrado */
           var mesma = state.tela === 'atuacoes' && state.itemEscolhido === (item || null), fl = mesma ? state.flash : null;
           limparAtual(); state.flash = fl; if (!mesma) state.hipotese = null; state.itemEscolhido = item || null; state.tela = 'atuacoes';
         }
-        else if (po === 'todas') { limparAtual(); state.tela = 'todas'; }
+        else if (po === 'todas') { var flT = state.tela === 'todas' ? state.flash : null; limparAtual(); state.flash = flT; state.tela = 'todas'; }
         else if (po === 'nova-atuacao' || po === 'editar-atuacao') {
           limparAtual(); var ed = po === 'editar-atuacao' ? (item || null) : null;
           if (state.objetoEditando !== ed || state.tela !== 'form-atuacao') state.formAtuacao = null;
@@ -937,7 +937,10 @@
               '<td data-label="Recomendação automática">' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</td>' +
               '<td data-label="Decisão final" class="po-col-decisao">' + textoDecisao(r._key, r) + '</td>' +
               '<td data-label="Atualizado em">' + esc(fmtData(r.atualizadoEm)) + '</td>' +
-              '<td data-label="Ações"><button type="button" class="btn btn--sm po-abrir" data-key="' + esc(r._key) + '">' + acao + '</button></td></tr>';
+              '<td data-label="Ações" class="po-acoes-linha"><button type="button" class="btn btn--sm po-abrir" data-key="' + esc(r._key) + '">' + acao + '</button>' +
+              (r.status === 'rascunho' && podeEscrever() ? menuGestao('<a class="btn btn--sm" href="#arquitetura?po=' + encodeURIComponent(r._key) + '">Abrir o rascunho para descartá-lo</a>' +
+                '<p class="avp-ficha-meta">Descartar um rascunho não apaga nada: ele fica como descartado, com o motivo.</p>', 'Gerenciar o rascunho de ' + r.itemNome)
+                : ehPorta2(r) ? menuObjetoPorta2(r.itemId) : menuOrigemPorta1(r)) + '</td></tr>';
           });
           h += '</tbody></table></div>';
         }
@@ -1378,6 +1381,37 @@
       return h + '</div>';
     }
 
+    /* GERENCIAR O CADASTRO a partir das listas, sem entrar na avaliação: Editar, Encerrar e Excluir cadastro da Porta 2 (as
+       MESMAS operações da ficha da responsabilidade, com os mesmos bloqueios e permissões — exclusão excepcional só da
+       administração geral, conferida de novo pelo banco). Porta 1: só o caminho para a Avaliação de Produto/Serviço de origem
+       (a Lixeira de lá tira o item inteiro). Nenhuma exclusão isolada de avaliação O1–O9. */
+    function menuGestao(conteudo, rotulo) {
+      return '<details class="po-menu"><summary class="btn btn--sm po-menu-btn" aria-label="' + esc(rotulo) + '">⋯</summary><div class="po-menu-itens">' + conteudo + '</div></details>';
+    }
+    function menuObjetoPorta2(id) {
+      var ob = (state.objetos || {})[id];
+      if (!ob || !podeEscrever()) return '';
+      var nome = (O() && O().registroSimplificado(ob)) ? ob.descricao : ob.nome, h = '';
+      if (ob.situacao === 'ativo') h += '<button type="button" class="btn btn--sm" data-po-gerir="editar" data-id="' + esc(id) + '">Editar cadastro</button>' +
+        '<button type="button" class="btn btn--sm" data-po-gerir="encerrar" data-id="' + esc(id) + '">Encerrar responsabilidade</button>';
+      h += '<button type="button" class="btn btn--sm btn--danger" data-po-gerir="excluir" data-id="' + esc(id) + '">Excluir cadastro</button>' +
+        '<p class="avp-ficha-meta">Encerrar mantém o cadastro como encerrado; excluir é para o que foi cadastrado por engano.</p>';
+      return menuGestao(h, 'Gerenciar o cadastro de ' + nome);
+    }
+    function menuOrigemPorta1(r) {
+      var B0 = B(), base = B0 && state.produtos ? B0.baseDoItem(r.itemId, state.produtos) : null;
+      if (!base || !base.chave) return '';
+      return menuGestao('<a class="btn btn--sm" href="#arquitetura?avp=' + encodeURIComponent(base.chave) + '">Abrir a Avaliação de Produto/Serviço de origem</a>' +
+        '<p class="avp-ficha-meta">Para retirar um item criado por engano, use a Lixeira dessa avaliação: ela retira o item inteiro (Produto/Serviço e Posicionamento) das listas, sem apagar o histórico.</p>', 'Gerenciar o item ' + r.itemNome);
+    }
+    function gerir(acao, id) {
+      if (!podeEscrever() || ocupado() || !id) return;
+      state.itemEscolhido = id; state.flash = null;
+      if (acao === 'editar') { state.objetoEditando = id; state.formAtuacao = null; state.tela = 'form-atuacao'; render(); return; }
+      if (acao === 'encerrar') pedirEncerramentoAtuacao();
+      else if (acao === 'excluir') pedirExclusaoAtuacao();
+    }
+
     /* "Ver todas as responsabilidades": as do Caminho A e as das análises de área, numa lista só — cada uma aparece uma
        vez (a da análise já registrada na Porta 2 é a própria responsabilidade, com acesso à origem). Só leitura: a
        situação vem dos registros que já existem (vigente, rascunho, decisão); nada é recalculado nem gravado */
@@ -1390,7 +1424,7 @@
       objetosOrdenados().forEach(function (o) {
         if (o.situacao !== 'ativo') return;
         var orig = porObj[o._id], sp = posicionamentoDoItem(o._id), oc = AO && AO.origemCompleta && ras !== null ? AO.origemCompleta(o._id) : { tipo: 'indisponivel' };
-        var l = { descricao: (O() && O().registroSimplificado(o)) ? o.descricao : o.nome, origem: oc.tipo, area: oc.nome || null, analiseId: oc.analiseId || null, nucleos: orig ? orig.nucleos : [] };
+        var l = { objetoId: o._id, descricao: (O() && O().registroSimplificado(o)) ? o.descricao : o.nome, origem: oc.tipo, area: oc.nome || null, analiseId: oc.analiseId || null, nucleos: orig ? orig.nucleos : [] };
         if (!sp) { l.sit = 'pronta'; l.href = '#arquitetura?po=atuacoes&item=' + encodeURIComponent(o._id); l.acao = 'Avaliar'; }
         else if (sp.tipo === 'rascunho') { l.sit = 'andamento'; l.href = '#arquitetura?po=' + encodeURIComponent(sp.key); l.acao = 'Continuar'; }
         else {
@@ -1420,6 +1454,7 @@
         '<div class="avp-field"><label for="poTodasArea">Área</label><select id="poTodasArea"><option value="">Todas</option><option value="-">Registradas individualmente</option>' +
         Object.keys(areas).sort(function (x, y) { return String(areas[x]).localeCompare(String(areas[y]), 'pt-BR'); }).map(function (k) { return '<option value="' + esc(k) + '">' + esc(areas[k]) + '</option>'; }).join('') + '</select></div>' +
         '<div class="avp-field"><label for="poTodasSituacao">Situação</label><select id="poTodasSituacao"><option value="">Todas</option>' + Object.keys(SIT_TODAS).filter(function (k) { return n[k]; }).map(function (k) { return '<option value="' + k + '">' + SIT_TODAS[k] + '</option>'; }).join('') + '</select></div></div>';
+      if (state.flash && !ocupado()) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (!L.length) return h + '<p class="admin-empty" id="poTodasVazia">Nenhuma responsabilidade registrada ainda.</p></div>';
       h += '<ul class="po-todas" id="poTodasLista">' + L.map(function (l) {
         return '<li class="po-todas-item" data-situacao="' + l.sit + '" data-area="' + esc(l.analiseId || (l.origem === 'individual' ? '-' : '?')) + '" data-busca="' + esc(String(l.descricao).toLowerCase()) + '">' +
@@ -1430,7 +1465,9 @@
           (l.tipo ? '<span class="po-todas-meta">Tipo recomendado: ' + l.tipo + '</span>' : '') +
           (l.decisao ? '<span class="po-todas-meta">Decisão final: ' + l.decisao + '</span>' : '') + '</div>' +
           '<div class="po-todas-acao"><span class="an-chip an-chip--' + ({ pronta: 'neu', andamento: 'atual', avaliada: 'ok', avalidar: 'av', pendente: 'pend' })[l.sit] + '">' + SIT_TODAS[l.sit] + '</span>' +
-          '<a class="btn btn--sm' + (l.sit === 'pronta' || l.sit === 'andamento' ? ' btn--primary' : '') + '" href="' + l.href + '">' + esc(l.acao) + '</a></div></li>';
+          '<a class="btn btn--sm' + (l.sit === 'pronta' || l.sit === 'andamento' ? ' btn--primary' : '') + '" href="' + l.href + '">' + esc(l.acao) + '</a>' +
+          (l.objetoId ? menuObjetoPorta2(l.objetoId) : (l.analiseId ? menuGestao('<a class="btn btn--sm" href="#arquitetura?an=' + encodeURIComponent(l.analiseId) + '">Gerenciar na análise da área</a>' +
+            '<p class="avp-ficha-meta">Esta responsabilidade ainda não tem cadastro próprio: ela é tratada na análise de origem.</p>', 'Gerenciar ' + l.descricao) : '')) + '</div></li>';
       }).join('') + '</ul><p class="admin-empty" id="poTodasNenhuma" hidden>Nenhuma responsabilidade com esses filtros.</p>';
       return h + '</div>';
     }
@@ -1999,6 +2036,9 @@
       var con = byId('poConcluirBtn'); if (con) con.addEventListener('click', concluir);
       var des = byId('poDescartarBtn'); if (des) des.addEventListener('click', pedirDescarte);
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);
+      Array.prototype.forEach.call(wrap.querySelectorAll('[data-po-gerir]'), function (bt) {
+        bt.addEventListener('click', function () { var dt = bt.closest('details'); if (dt) dt.open = false; gerir(bt.getAttribute('data-po-gerir'), bt.getAttribute('data-id')); });
+      });
       var lb = byId('poListaBusca'); if (lb) lb.addEventListener('input', function () { state.listaBusca = lb.value; render(); });
       var fsit = byId('poFiltroSituacao'); if (fsit) fsit.addEventListener('change', function () { state.filtroSituacao = fsit.value; render(); });
       var fori = byId('poFiltroOrigem'); if (fori) fori.addEventListener('change', function () { state.filtroOrigem = fori.value; render(); });

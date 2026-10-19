@@ -160,15 +160,40 @@ const TAX = "root.child('taxonomia/arquitetural/conceitos/' + " + v('natureza') 
 const AVN = "root.child('avaliacoes-produto/' + " + v('avaliacaoId') + ')';
 const DECN = '(' + AVN + ".child('decisaoFinal').exists() ? " + AVN + ".child('decisaoFinal').val() : " + AVN + ".child('resultadoAutomatico').val())";
 const AUDN = "newData.parent().parent().child('" + NAT_AUD + "/' + $objetoId + '/' + " + v('auditoriaId') + ')';
+/* identificação orientada (19/10/2026): o registro tem UM de dois estados exclusivos — natureza identificada (com o
+   fundamento: pergunta, alternativa, justificativa, versão da orientação e definições da época) ou identificação PENDENTE
+   (sem natureza: recorte, evidência insuficiente ou reavaliação P1–P16 necessária, com diagnóstico e justificativa). A
+   pendência só existe nas classificações técnicas que admitem mais de uma natureza (ou Regra/Opção); a reavaliação só a
+   partir de Regra/Opção. A auditoria da mesma gravação repete o fundamento ou a pendência (snapshot histórico). */
+const CAMADAS_IDENT = or(Object.keys(R.INDIVIDUAIS_DA_CAMADA).map((k) => v('camada') + " === '" + k + "'"));
+const MOTIVO_OK = or(R.MOTIVOS_PENDENCIA.map((m) => v('pendencia/motivo') + " === '" + m + "'"));
+const IDENTIFICADA = and([
+  '!' + c('pendencia') + '.exists()', c('fundamento') + '.exists()',
+  CAMADA_DA_NAT,
+  TAX + ".child('ativo').val() === true", TAX + ".child('definicao/texto').exists()", TAX + ".child('naturezaDe').val() === " + v('camada'),
+  AUDN + ".child('fundamento/justificativa').val() === " + v('fundamento/justificativa'), AUDN + ".child('fundamento/alternativa').val() === " + v('fundamento/alternativa'),
+  AUDN + ".child('fundamento/versao').val() === " + v('fundamento/versao')
+]);
+const PENDENTE = and([
+  '!' + c('fundamento') + '.exists()', c('pendencia') + '.exists()', CAMADAS_IDENT, MOTIVO_OK,
+  '(' + v('pendencia/motivo') + " !== 'reavaliacao-necessaria' || " + v('camada') + " === 'regra-condicao')",
+  AUDN + ".child('pendencia/motivo').val() === " + v('pendencia/motivo'), AUDN + ".child('pendencia/justificativa').val() === " + v('pendencia/justificativa'),
+  AUDN + ".child('pendencia/diagnostico').val() === " + v('pendencia/diagnostico'), AUDN + ".child('pendencia/versao').val() === " + v('pendencia/versao')
+]);
+const definicoesSnap = { $nat: { '.validate': "newData.hasChildren(['texto','versao'])", texto: textoObrig(8000), versao: num, $outro: { '.validate': false } } };
+const fundamentoSchema = (comMotivo) => Object.assign({
+  '.validate': "newData.hasChildren(['versao','pergunta','alternativa','rotulo','justificativa'" + (comMotivo ? ",'motivo','diagnostico'" : '') + '])',
+  versao: { '.validate': 'newData.isNumber() && newData.val() >= 1 && newData.val() % 1 === 0' }, pergunta: textoObrig(2000), alternativa: textoObrig(60), rotulo: textoObrig(500),
+  justificativa: textoObrig(2000), definicoes: definicoesSnap, $outro: { '.validate': false }
+}, comMotivo ? { motivo: str, diagnostico: textoObrig(2000) } : {});
 const blocoNat = {
   '.read': LEIT,
   $objetoId: {
     '.write': ESC + ' && newData.exists() && ' + MARC,
     '.validate': and([
       '$objetoId.matches(' + ID + ')',
-      "newData.hasChildren(['natureza','camada','avaliacaoId','revisao','registradaEm','registradaPor','auditoriaId'])",
-      CAMADA_DA_NAT,
-      TAX + ".child('ativo').val() === true", TAX + ".child('definicao/texto').exists()", TAX + ".child('naturezaDe').val() === " + v('camada'),
+      "newData.hasChildren(['camada','avaliacaoId','revisao','registradaEm','registradaPor','auditoriaId'])",
+      '(' + c('natureza') + '.exists() ? (' + IDENTIFICADA + ') : (' + PENDENTE + '))',
       '(' + AVN + ".child('itemId').val() === $objetoId || (!" + AVN + ".child('itemId').exists() && " + v('avaliacaoId') + ' === $objetoId))',
       AVN + ".child('status').val() === 'concluido'", AVN + ".child('excluido').val() !== true", AVN + ".child('motorVersion').val() === '" + MOTOR_PRODUTO + "'",
       "root.child('" + R.PONTA + "/' + $objetoId).val() === " + v('avaliacaoId'), /* só a versão VIGENTE do item */
@@ -176,12 +201,12 @@ const blocoNat = {
       v('registradaEm') + ' === now', ehAutor('registradaPor'),
       v('revisao') + ' === (data.exists() ? ' + d('revisao') + ' + 1 : 1)',
       "!root.child('" + NAT_AUD + "/' + $objetoId + '/' + " + v('auditoriaId') + ').exists()',
-      AUDN + ".child('tipo').val() === (data.exists() ? 'alteracao' : 'registro')",
+      AUDN + ".child('tipo').val() === (" + c('natureza') + ".exists() ? (data.exists() ? 'alteracao' : 'registro') : 'pendencia')",
       AUDN + ".child('natureza').val() === " + v('natureza'), AUDN + ".child('camada').val() === " + v('camada'),
       AUDN + ".child('avaliacaoId').val() === " + v('avaliacaoId'), AUDN + ".child('revisao').val() === " + v('revisao')
     ]),
     natureza: str, camada: str, avaliacaoId: idStr, revisao: { '.validate': 'newData.isNumber() && newData.val() >= 1 && newData.val() % 1 === 0' },
-    registradaEm: num, registradaPor: pessoa, auditoriaId: idStr, $outro: { '.validate': false }
+    registradaEm: num, registradaPor: pessoa, auditoriaId: idStr, fundamento: fundamentoSchema(false), pendencia: fundamentoSchema(true), $outro: { '.validate': false }
   }
 };
 const NATR = "root.child('" + NAT + "/' + $objetoId)";
@@ -192,11 +217,15 @@ const blocoNatAud = {
     $aud: {
       '.write': ESC + ' && !data.exists() && newData.exists() && ' + MARC,
       '.validate': and([
-        '$aud.matches(' + ID + ')', "newData.hasChildren(['tipo','natureza','camada','avaliacaoId','revisao','em','por'])", v('em') + ' === now', ehAutor('por'),
+        '$aud.matches(' + ID + ')', "newData.hasChildren(['tipo','camada','avaliacaoId','revisao','em','por'])", v('em') + ' === now', ehAutor('por'),
         NATN + ".child('auditoriaId').val() === $aud", NATN + ".child('revisao').val() === " + v('revisao'),
-        '(' + v('tipo') + " === 'registro' ? (!" + NATR + '.exists() && !' + c('anterior') + ".exists()) : (" + v('tipo') + " === 'alteracao' && " + v('anterior') + ' === ' + NATR + ".child('natureza').val()))"
+        /* registro: não havia nada; alteração: havia; pendência: havia ou não. "anterior" = a natureza que havia (nunca inventada) */
+        '(' + v('tipo') + " === 'registro' ? !" + NATR + '.exists() : (' + v('tipo') + " === 'alteracao' ? " + NATR + '.exists() : ' + v('tipo') + " === 'pendencia'))",
+        '(' + NATR + ".child('natureza').exists() ? " + v('anterior') + ' === ' + NATR + ".child('natureza').val() : !" + c('anterior') + '.exists())',
+        '(' + v('tipo') + " === 'pendencia' ? (" + c('pendencia') + '.exists() && !' + c('natureza') + '.exists()) : (' + c('natureza') + '.exists() && ' + c('fundamento') + '.exists()))'
       ]),
-      tipo: str, natureza: str, camada: str, avaliacaoId: idStr, revisao: num, em: num, por: pessoa, anterior: str, $outro: { '.validate': false }
+      tipo: str, natureza: str, camada: str, avaliacaoId: idStr, revisao: num, em: num, por: pessoa, anterior: str,
+      fundamento: fundamentoSchema(false), pendencia: fundamentoSchema(true), $outro: { '.validate': false }
     }
   }
 };
