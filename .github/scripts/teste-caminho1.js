@@ -137,6 +137,12 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 const etapaNatureza = (page) => texto(page, '#avpEtapas [data-etapa="natureza"] .avp-etapa-det');
 const estadoEtapa = (page, id) => page.evaluate((i) => { const li = document.querySelector('#avpEtapas [data-etapa="' + i + '"]'); return li ? li.getAttribute('data-estado') : null; }, id);
 const etapasSao = (page, nat, prox, desc) => ate(page, (x) => { const g = (i) => { const li = document.querySelector('#avpEtapas [data-etapa="' + i + '"]'); return li && li.getAttribute('data-estado'); }; return g('natureza') === x[0] && g('proximo') === x[1]; }, [nat, prox], desc);
+/* etapa Natureza + natureza no resumo + pendências no resumo, ao mesmo tempo (a mesma conta) */
+const tresIguais = (page, x, desc) => ate(page, (e) => {
+  const li = document.querySelector('#avpEtapas [data-etapa="natureza"]'), det = li && li.querySelector('.avp-etapa-det');
+  const rn = document.querySelector('#avpResumoAntesDeEscolher [data-resumo="natureza"]'), rp = document.querySelector('#avpResumoAntesDeEscolher [data-resumo="pendencias"]');
+  return !!(li && det && rn && rp) && li.getAttribute('data-estado') === e.estado && det.textContent.indexOf(e.nat) !== -1 && rn.textContent.indexOf(e.nat) !== -1 && new RegExp(e.pend).test(rp.textContent);
+}, x, desc);
 /* ordem da ficha: o próximo passo vem depois do resultado, da natureza, das complementações, da decisão e do histórico */
 const ordemOk = (page) => page.evaluate(() => { const ids = ['avpSecaoSistema', 'avpSecaoNatureza', 'avpSecaoCuradoria', 'avpSecaoDecisao', 'avpSecaoHistorico', 'avpSecaoProximo'].map((i) => document.getElementById(i));
   if (ids.some((e) => !e)) return false; for (let i = 1; i < ids.length; i++) if (!(ids[i - 1].compareDocumentPosition(ids[i]) & Node.DOCUMENT_POSITION_FOLLOWING)) return false; return true; });
@@ -198,6 +204,8 @@ async function rodada(browser, vp, rotulo) {
   afirma(/Definição aprovada de Funcionalidade/.test(await texto(page, '#avpSecaoNatureza #roIdentDefinicoes')) && /Definição aprovada de Operação/.test(await texto(page, '#avpSecaoNatureza #roIdentDefinicoes')), 'A. com as definições oficiais da Taxonomia');
   afirma(/A identificar/.test(await etapaNatureza(page)), 'A. a etapa "Natureza" diz que falta identificar', await etapaNatureza(page));
   await etapasSao(page, 'atual', 'disponivel', 'etapas antes de identificar');
+  await tresIguais(page, { estado: 'atual', nat: 'A identificar', pend: 'natureza do objeto está em aberto' }, 'antes do registro');
+  afirma(true, 'A. antes do registro: etapa "A identificar", resumo com a mesma natureza e a pendência da natureza');
   afirma(true, 'A. etapas reais: Natureza ATUAL (a identificar) e Próximo passo disponível, avisando que a natureza fica em aberto');
   afirma(/disponível — a natureza continua em aberto/.test(await texto(page, '#avpEtapas [data-etapa="proximo"]')), 'A. o próximo passo diz que dá para seguir, mas a natureza fica em aberto');
   afirma(await ordemOk(page), 'A. ordem da ficha: resultado → natureza → complementações → decisão → fundamentação → Próximo passo');
@@ -210,6 +218,8 @@ async function rodada(browser, vp, rotulo) {
   await ate(page, () => /identificada:\s*Operação/.test((document.querySelector('#avpSecaoNatureza #roNatureza') || {}).textContent || ''), undefined, 'natureza identificada');
   await ate(page, () => /Identificada: Operação/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa atualizada');
   await etapasSao(page, 'ok', 'atual', 'etapas depois de identificar');
+  await tresIguais(page, { estado: 'ok', nat: 'Identificada: Operação', pend: 'Pendências:\\s*nenhuma' }, 'depois do registro');
+  afirma(true, 'A. depois do registro, sem F5: etapa concluída, resumo "Identificada: Operação" e a pendência da natureza sumiu (Pendências: nenhuma)');
   afirma(true, 'A. sem recarregar: depois de registrar, Natureza CONCLUÍDA e Próximo passo vira a etapa atual');
   afirma(/Natureza:\s*Identificada: Operação/.test(await texto(page, '#avpResumoAntesDeEscolher')), 'A. o resumo antes de escolher também se atualiza', await texto(page, '#avpResumoAntesDeEscolher'));
   await foto(page, '4a-resumo-e-escolha', '#avpSecaoProximo');
@@ -304,6 +314,8 @@ async function rodada(browser, vp, rotulo) {
   await ate(page, () => /A validar/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa pendente');
   afirma(true, 'E. a etapa "Natureza" fica pendente');
   await etapasSao(page, 'pendente', 'disponivel', 'A validar');
+  const pendAV = await texto(page, '#avpResumoAntesDeEscolher [data-resumo="pendencias"]');
+  afirma(/"A validar" e ainda não há decisão final/.test(pendAV) && /natureza do objeto está em aberto/.test(pendAV), 'E. "A validar": o resumo lista as duas pendências reais (classificação sem decisão e natureza em aberto)', pendAV);
   afirma(/A validar/.test(await texto(page, '#avpResumoAntesDeEscolher')), 'E. "A validar": etapa com pendência e o resumo diz o que falta (reavaliar ou decidir)');
   await foto(page, '6b-etapas-a-validar', '#avpEtapas');
   await page.click('#avpVoltarListaResultado');
@@ -427,13 +439,21 @@ async function editorial(browser) {
   const ajudaP14 = await texto(page, '#avpHelp-regra');
   afirma(/escolha entre os regimes/.test(ajudaP14) && /Opção \(pergunta 13\)/.test(ajudaP14) && /Funcionalidade \(pergunta 16\)/.test(ajudaP14), 'H. P14 separa as condições do regime (Regra), a escolha entre regimes (Opção) e a tela da escolha (Funcionalidade)');
   await page.click('#avpQuestion-processo .avp-help-btn');
-  afirma(/pergunta 2 \(resultado próprio para o cliente\) é NÃO/.test(await texto(page, '#avpHelp-processo')), 'H. P12 explica por que, para um processo, a pergunta 2 é NÃO');
+  const ajudaP12 = await texto(page, '#avpHelp-processo');
+  afirma(/Todo processo produz algum resultado/.test(ajudaP12) && /investiga outra coisa/.test(ajudaP12) && /A validar/.test(ajudaP12) && !/pergunta 2[^.]*é NÃO/.test(ajudaP12),
+    'H. P12 distingue o resultado de um processo do resultado próprio de uma solução e diz o que acontece com SIM nas duas — sem prescrever "P2 é NÃO"');
   afirma(!erros.length, 'H. sem erro de página', erros);
   await ctx.close();
 }
 
 (async () => {
   afirma([M_FUNC, M_CANAL, M_PP, M_CONFLITO, M_INCOER].every((m) => m !== undefined), 'o motor real (regra v7) dá as respostas de cada caso (Funcionalidade, Canal, Produto/Serviço, dois testes SIM, P5 × P13)', [M_FUNC, M_CANAL, M_PP, M_CONFLITO, M_INCOER]);
+  /* a orientação da P12 descreve a regra publicada como ela é (sem prescrever resposta): conferido nas 65.536 combinações */
+  { const B = (c) => ORDEM.indexOf(c); const dist = (p2) => { const d = {}; for (let m = 0; m < 65536; m++) { if (((m >> 1) & 1) !== p2 || !((m >> 11) & 1)) continue; const c = camadaDe(m); d[c.id] = (d[c.id] || 0) + 1; } return d; };
+    const sim = dist(1), nao = dist(0); let uva = 0; for (let m = 0; m < 65536; m++) if (((m >> 11) & 1) && camadaDe(m).id === 'unidade-valor-associada') uva++;
+    afirma(B('resultado') === 1 && B('processo') === 11 && Object.keys(sim).join() === 'a-validar' && sim['a-validar'] === 16384, 'regra v7: P2 = SIM e P12 = SIM dá sempre "A validar" (16.384 combinações)', sim);
+    afirma(nao['processo-etapa'] === 64, 'regra v7: com P2 = NÃO e P12 = SIM, Processo/Etapa é possível (64 combinações)', nao);
+    afirma(uva === 0, 'regra v7: Unidade de valor nunca é alcançada com P12 = SIM (a precedência dela não interfere em P2 × P12)', uva); }
   const browser = await chromium.launch();
   await rodada(browser, { width: 1280, height: 900 }, 'COMPUTADOR (1280 px)');
   await rodada(browser, { width: 375, height: 740 }, 'CELULAR (375 px)');

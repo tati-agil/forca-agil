@@ -7380,13 +7380,25 @@
         default: return { estado: 'futuro', det: x.texto || '', proximo: 'disponivel', detProximo: 'concluir por aqui ou continuar' };
       }
     }
+    /* RESUMO ANTES DE ESCOLHER — um cálculo só, usado ao desenhar a ficha e ao atualizar quando a natureza muda: as
+       pendências vêm do estado real (classificação "A validar" sem decisão; natureza em aberto pela mesma conta das etapas) */
+    function itensResumoEscolha(a) {
+      var camP = a.camadaSugerida || camadaPorId('a-validar'), enP = etapaNaturezaDaFicha(a, true), pend = [];
+      /* a conclusão grava decisaoFinal = recomendação; o que vale é o resultado efetivo: continua "a-validar" → pendência */
+      if ((a.decisaoFinal || a.resultadoAutomatico) === 'a-validar') pend.push('a classificação ficou "A validar" e ainda não há decisão final — reavalie as respostas indicadas ou registre a decisão (acima)');
+      if (enP.estado !== 'ok' && enP.estado !== 'futuro') pend.push('a natureza do objeto está em aberto (seção "Natureza do objeto", acima)');
+      return '<li><strong>Avaliação P1–P16:</strong> concluída e salva</li>' +
+        '<li><strong>Classificação:</strong> ' + htmlNomeCamada(camP) + (a.decisaoManual ? ' · com decisão final registrada' : '') + '</li>' +
+        '<li data-resumo="natureza"><strong>Natureza:</strong> ' + esc(enP.det) + '</li>' +
+        '<li data-resumo="pendencias"><strong>Pendências:</strong> ' + (pend.length ? esc(pend.join('; ')) : 'nenhuma') + '</li>';
+    }
     function atualizarEtapasFicha() {
       var el = document.getElementById('avpEtapas');
       if (!el || el.getAttribute('data-ficha') !== '1' || !state.atual || state.tela !== 'resultado') return;
       var novo = etapasHtml('ficha', state.atual, { vigente: el.getAttribute('data-vigente') === '1' });
       if (el.outerHTML !== novo) el.outerHTML = novo;
       var resumo = document.getElementById('avpResumoAntesDeEscolher');
-      if (resumo) { var en = etapaNaturezaDaFicha(state.atual, true), li = resumo.querySelector('[data-resumo="natureza"]'); if (li) li.innerHTML = '<strong>Natureza:</strong> ' + esc(en.det); }
+      if (resumo) { var itens = itensResumoEscolha(state.atual); if (resumo.innerHTML !== itens) resumo.innerHTML = itens; }
     }
     /* o que o motor vai concluir com as respostas da tela (só quando todas são válidas) */
     function previaCaminhoHtml(a, c) {
@@ -7972,13 +7984,7 @@
     function proximoPassoHtml(a) {
       var item = a.itemId || a._key, resp = state.jornadaResp && state.jornadaResp[item];
       var h = '<section class="avp-secao avp-proximo" id="avpSecaoProximo" aria-labelledby="avpProximoTitulo"><h3 class="avp-secao-titulo" id="avpProximoTitulo" tabindex="-1">Próximo passo</h3>';
-      var camP = a.camadaSugerida || camadaPorId('a-validar'), enP = etapaNaturezaDaFicha(a, true), pend = [];
-      if (camP.id === 'a-validar' && !a.decisaoFinal) pend.push('a classificação ficou "A validar" e ainda não há decisão final — reavalie as respostas indicadas ou registre a decisão (acima)');
-      if (enP.estado !== 'ok' && enP.estado !== 'futuro') pend.push('a natureza do objeto está em aberto (seção "Natureza do objeto", acima)');
-      h += '<ul class="avp-resumo-escolha" id="avpResumoAntesDeEscolher"><li><strong>Avaliação P1–P16:</strong> concluída e salva</li>' +
-        '<li><strong>Classificação:</strong> ' + htmlNomeCamada(camP) + (a.decisaoFinal && a.decisaoFinal !== a.resultadoAutomatico ? ' · com decisão final registrada' : '') + '</li>' +
-        '<li data-resumo="natureza"><strong>Natureza:</strong> ' + esc(enP.det) + '</li>' +
-        '<li><strong>Pendências:</strong> ' + (pend.length ? esc(pend.join('; ')) : 'nenhuma') + '</li></ul>';
+      h += '<ul class="avp-resumo-escolha" id="avpResumoAntesDeEscolher">' + itensResumoEscolha(a) + '</ul>';
       h += '<p class="avp-natureza-ajuda">Agora você escolhe: encerrar aqui ou continuar a jornada organizacional. O que estiver pendente continua em aberto — e aparece assim nos Trabalhos — até ser resolvido; dá para voltar e escolher outro caminho a qualquer momento, sem perder nada.</p>';
       h += '<div class="avp-proximo-opcoes">';
       h += '<div class="avp-form-card avp-proximo-opcao" id="avpOpcaoConcluir"><h4>Concluir por aqui</h4>' +

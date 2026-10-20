@@ -786,8 +786,9 @@
        "o que estamos investigando", "quando marcar SIM", "quando marcar NÃO" e um exemplo com contraexemplo —, escritos a
        partir das definições oficiais da Taxonomia Arquitetural (nenhuma definição nova) e do comportamento REAL da regra
        publicada: os testes 9–16 são mutuamente exclusivos (SIM em dois ou mais → "A validar") e SIM em P5 com SIM em
-       P13–P16 é incoerência. P12 explica por que, para um processo ou etapa, a pergunta 2 é NÃO (o resultado é do
-       Produto/Serviço a que o processo serve — e a regra só classifica Processo/Etapa com P2 = NÃO). P13, P14 e P16
+       P13–P16 é incoerência. P12 distingue o resultado que um processo produz, o resultado que o cliente percebe e o
+       resultado próprio de uma solução (pergunta 2), e diz o que acontece quando as duas são SIM (pode ficar "A validar":
+       ver a prévia) — sem prescrever resposta para satisfazer a regra. P13, P14 e P16
        separam com rigor as condições de um regime tributário (Regra), a escolha do participante entre os regimes
        permitidos (Opção) e a tela em que ele escolhe (Funcionalidade) — "regime tributário" não é automaticamente Opção.
        P5 passa a avisar da incoerência com P13–P16. Matriz completa da revisão: docs/revisao-p1-p16-caminho1.md. */
@@ -796,7 +797,7 @@
       codigo: 'CLASSIFICACAO_ARQUITETURAL',
       titulo: 'Ajudas completas de P9–P16 e aviso de incoerência em P5 (Caminho 1)',
       descricao: 'Proposta para aprovação: P9, P10, P11, P12, P13, P14 e P16 ganham "o que estamos investigando", "quando marcar SIM", "quando marcar NÃO" e exemplo com contraexemplo, ' +
-        'a partir das definições oficiais da Taxonomia; cada uma explica que os testes 9 a 16 são exclusivos entre si. P12 explica por que, para um processo, a pergunta 2 é NÃO. ' +
+        'a partir das definições oficiais da Taxonomia; cada uma explica que os testes 9 a 16 são exclusivos entre si. P12 distingue o resultado de um processo do resultado próprio de uma solução (pergunta 2) e diz o que acontece quando as duas são SIM. ' +
         'P13, P14 e P16 separam as condições de um regime tributário (Regra), a escolha entre os regimes (Opção) e a tela da escolha (Funcionalidade). ' +
         'P5 avisa que SIM nela com SIM em 13 a 16 é contraditório. Nenhuma pergunta, interpretação automática ou regra do motor muda.',
       ajustes: [
@@ -832,7 +833,7 @@
           para: 'É Capacidade: a gestão atuarial. Não é: o motor de cálculo do benefício de um plano (Componente).' },
 
         { pergunta: 'P12', campo: 'textoAjuda.significado', de: null,
-          para: 'Investiga se o objeto é, antes de tudo, um encadeamento de atividades no tempo que produz um resultado (Processo) ou uma parte de um processo com resultado intermediário próprio (Etapa). A escolha entre Processo e Etapa é feita depois, na identificação da natureza. O resultado que um processo produz — o benefício concedido, por exemplo — é o resultado do Produto/Serviço ao qual ele serve: por isso, para um processo ou uma etapa, a pergunta 2 (resultado próprio para o cliente) é NÃO. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+          para: 'Investiga se o objeto é, antes de tudo, um encadeamento de atividades no tempo que produz um resultado (Processo) ou uma parte de um processo com resultado intermediário próprio (Etapa). A escolha entre Processo e Etapa é feita depois, na identificação da natureza. Todo processo produz algum resultado; a pergunta 2 investiga outra coisa: se o próprio objeto entrega ao cliente um resultado próprio e perceptível, como faz uma solução. O que o cliente percebe — o benefício concedido, por exemplo — costuma ser o resultado do Produto/Serviço a que o processo serve. Se você marcar SIM aqui e SIM na pergunta 2, confira a prévia antes de concluir: a combinação pode não chegar a uma classificação firme e ficar "A validar" — sinal de que talvez estejam juntos o processo (como se faz) e a solução que o cliente recebe (o que ele recebe), que podem ser avaliados como itens próprios. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
         { pergunta: 'P12', campo: 'textoAjuda.quandoSim', de: null,
           para: 'O objeto descreve como algo é feito: uma sequência de atividades com começo e fim, como a concessão de um benefício, a habilitação de um pensionista ou a análise de um pedido.' },
         { pergunta: 'P12', campo: 'textoAjuda.quandoNao', de: null,
