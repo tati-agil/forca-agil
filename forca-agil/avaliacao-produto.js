@@ -7322,22 +7322,22 @@
     function simCodigo(a, cod) { var def = TODAS_PERGUNTAS.filter(function (p) { return p.codigoEstavel === cod; })[0]; return !!(def && a.respostas[def.id] && a.respostas[def.id].valor === 'sim'); }
     function etapasHtml(fase, a, extra) {
       extra = extra || {};
-      var it = function (estado, num, rotulo, det) {
-        return '<li class="avp-etapa avp-etapa--' + estado + '"' + (estado === 'atual' ? ' aria-current="step"' : '') + '><span class="avp-etapa-num" aria-hidden="true">' + (estado === 'ok' ? '✓' : num) + '</span>' +
+      var it = function (estado, num, rotulo, det, idEtapa) {
+        return '<li class="avp-etapa avp-etapa--' + estado + '"' + (idEtapa ? ' data-etapa="' + idEtapa + '" data-estado="' + estado + '"' : '') + (estado === 'atual' ? ' aria-current="step"' : '') +
+          '><span class="avp-etapa-num" aria-hidden="true">' + (estado === 'ok' ? '✓' : estado === 'pendente' ? '!' : num) + '</span>' +
           '<span class="avp-etapa-txt"><span class="avp-etapa-rot">' + rotulo + '</span>' + (det ? '<span class="avp-etapa-det">' + det + '</span>' : '') + '</span></li>';
       };
-      var h = '<ol class="avp-etapas" id="avpEtapas" aria-label="Etapas da avaliação do objeto">';
+      var h = '<ol class="avp-etapas" id="avpEtapas" aria-label="Etapas da avaliação do objeto"' + (fase === 'ficha' ? ' data-ficha="1" data-vigente="' + (extra.vigente ? '1' : '0') + '"' : '') + '>';
       if (fase === 'checklist') {
         var n = TODAS_PERGUNTAS.filter(function (p) { return respostaValida(p, a); }).length;
         h += it((a.nome || '').trim() ? 'ok' : 'atual', 1, 'Objeto', (a.nome || '').trim() ? esc(a.nome) : 'nome e descrição') +
           it((a.nome || '').trim() ? 'atual' : 'futuro', 2, 'Perguntas P1–P16', n + ' de ' + TODAS_PERGUNTAS.length + ' respondidas') +
           it('futuro', 3, 'Classificação', 'ao concluir') + it('futuro', 4, 'Natureza', 'quando a classificação agrupa naturezas') + it('futuro', 5, 'Próximo passo', 'concluir por aqui ou continuar');
       } else {
-        var item = a.itemId || a._key;
-        h += it('ok', 1, 'Objeto', esc(a.nome || '')) + it('ok', 2, 'Perguntas P1–P16', 'respondidas') +
-          it('ok', 3, 'Classificação', htmlNomeCamada(a.camadaSugerida || camadaPorId('a-validar'))) +
-          it(extra.vigente ? 'atual' : 'futuro', 4, 'Natureza', extra.vigente ? '<span data-ro-etapa="' + esc(item) + '"></span>' : 'identificada na versão vigente') +
-          it('futuro', 5, 'Próximo passo', 'concluir por aqui ou continuar');
+        var en = etapaNaturezaDaFicha(a, extra.vigente);
+        h += it('ok', 1, 'Objeto', esc(a.nome || ''), 'objeto') + it('ok', 2, 'Perguntas P1–P16', 'respondidas', 'perguntas') +
+          it('ok', 3, 'Classificação', htmlNomeCamada(a.camadaSugerida || camadaPorId('a-validar')), 'classificacao') +
+          it(en.estado, 4, 'Natureza', esc(en.det), 'natureza') + it(en.proximo, 5, 'Próximo passo', esc(en.detProximo), 'proximo');
       }
       return h + '</ol>';
     }
@@ -7360,6 +7360,34 @@
       sincrono = false;
     }
     function previaAtual(a) { return state.previaCaminho && state.previaCaminho.chave === chavePrevia(a) ? state.previaCaminho.camada : null; }
+    /* ETAPAS 4 e 5 DA FICHA pelo estado REAL da natureza (relacoes-objetos.js › estadoNatureza — a mesma conta dos
+       Trabalhos): direta ou identificada → concluída; a identificar / a confirmar → atual (é a próxima coisa a fazer);
+       pendente, "A validar" ou registro suspenso → pendência visível. O próximo passo fica disponível sempre que a
+       avaliação P1–P16 está concluída: com a natureza resolvida é a etapa atual; senão é possível, mas a natureza fica em
+       aberto (e é isso que ele diz). Redesenhadas sozinhas quando a natureza muda (faRelacoesObjetos.aoMudar). */
+    function etapaNaturezaDaFicha(a, vigente) {
+      if (!vigente) return { estado: 'futuro', det: 'identificada na versão vigente', proximo: 'futuro', detProximo: 'na versão vigente' };
+      var R = window.faRelacoesObjetos, x = R && R.estadoNatureza ? R.estadoNatureza(a.itemId || a._key) : { situacao: 'carregando', texto: 'Verificando…' };
+      var aberto = 'disponível — a natureza continua em aberto';
+      switch (x.situacao) {
+        case 'direta': return { estado: 'ok', det: x.texto + ' (a própria classificação)', proximo: 'atual', detProximo: 'concluir por aqui ou continuar' };
+        case 'identificada': return { estado: 'ok', det: x.texto, proximo: 'atual', detProximo: 'concluir por aqui ou continuar' };
+        case 'a-identificar': return x.gravacao === 'suspensa' ? { estado: 'pendente', det: 'A identificar — registro suspenso no momento', proximo: 'disponivel', detProximo: aberto }
+          : { estado: 'atual', det: 'A identificar', proximo: 'disponivel', detProximo: aberto };
+        case 'a-confirmar': return { estado: x.gravacao === 'suspensa' ? 'pendente' : 'atual', det: x.texto + (x.gravacao === 'suspensa' ? ' — registro suspenso no momento' : ''), proximo: 'disponivel', detProximo: aberto };
+        case 'pendente': case 'a-validar': case 'sem-avaliacao': case 'indisponivel': return { estado: 'pendente', det: x.texto, proximo: 'disponivel', detProximo: aberto };
+        case 'carregando': return { estado: 'futuro', det: 'Verificando…', proximo: 'disponivel', detProximo: 'concluir por aqui ou continuar' };
+        default: return { estado: 'futuro', det: x.texto || '', proximo: 'disponivel', detProximo: 'concluir por aqui ou continuar' };
+      }
+    }
+    function atualizarEtapasFicha() {
+      var el = document.getElementById('avpEtapas');
+      if (!el || el.getAttribute('data-ficha') !== '1' || !state.atual || state.tela !== 'resultado') return;
+      var novo = etapasHtml('ficha', state.atual, { vigente: el.getAttribute('data-vigente') === '1' });
+      if (el.outerHTML !== novo) el.outerHTML = novo;
+      var resumo = document.getElementById('avpResumoAntesDeEscolher');
+      if (resumo) { var en = etapaNaturezaDaFicha(state.atual, true), li = resumo.querySelector('[data-resumo="natureza"]'); if (li) li.innerHTML = '<strong>Natureza:</strong> ' + esc(en.det); }
+    }
     /* o que o motor vai concluir com as respostas da tela (só quando todas são válidas) */
     function previaCaminhoHtml(a, c) {
       var faltam = TODAS_PERGUNTAS.filter(function (p) { return !respostaValida(p, a); }).length;
@@ -7944,17 +7972,24 @@
     function proximoPassoHtml(a) {
       var item = a.itemId || a._key, resp = state.jornadaResp && state.jornadaResp[item];
       var h = '<section class="avp-secao avp-proximo" id="avpSecaoProximo" aria-labelledby="avpProximoTitulo"><h3 class="avp-secao-titulo" id="avpProximoTitulo" tabindex="-1">Próximo passo</h3>';
-      h += '<p class="avp-natureza-ajuda">A avaliação P1–P16 está concluída e salva. Agora você escolhe: encerrar aqui ou continuar a jornada organizacional. Se a natureza ainda estiver pendente ou a identificar, ela continua em aberto — e aparece assim nos Trabalhos — até ser resolvida.</p>';
+      var camP = a.camadaSugerida || camadaPorId('a-validar'), enP = etapaNaturezaDaFicha(a, true), pend = [];
+      if (camP.id === 'a-validar' && !a.decisaoFinal) pend.push('a classificação ficou "A validar" e ainda não há decisão final — reavalie as respostas indicadas ou registre a decisão (acima)');
+      if (enP.estado !== 'ok' && enP.estado !== 'futuro') pend.push('a natureza do objeto está em aberto (seção "Natureza do objeto", acima)');
+      h += '<ul class="avp-resumo-escolha" id="avpResumoAntesDeEscolher"><li><strong>Avaliação P1–P16:</strong> concluída e salva</li>' +
+        '<li><strong>Classificação:</strong> ' + htmlNomeCamada(camP) + (a.decisaoFinal && a.decisaoFinal !== a.resultadoAutomatico ? ' · com decisão final registrada' : '') + '</li>' +
+        '<li data-resumo="natureza"><strong>Natureza:</strong> ' + esc(enP.det) + '</li>' +
+        '<li><strong>Pendências:</strong> ' + (pend.length ? esc(pend.join('; ')) : 'nenhuma') + '</li></ul>';
+      h += '<p class="avp-natureza-ajuda">Agora você escolhe: encerrar aqui ou continuar a jornada organizacional. O que estiver pendente continua em aberto — e aparece assim nos Trabalhos — até ser resolvido; dá para voltar e escolher outro caminho a qualquer momento, sem perder nada.</p>';
       h += '<div class="avp-proximo-opcoes">';
       h += '<div class="avp-form-card avp-proximo-opcao" id="avpOpcaoConcluir"><h4>Concluir por aqui</h4>' +
         '<p>O resultado fica disponível nos Trabalhos, para consulta ou retomada. Não é preciso fazer o Posicionamento, cadastrar estrutura, avaliar Squad nem chegar ao Mapa para considerar esta avaliação encerrada.</p>' +
         '<a class="btn btn--primary" id="avpConcluirPorAqui" href="#arquitetura?tr=1&item=' + encodeURIComponent(item) + '">Concluir por aqui</a></div>';
       h += '<div class="avp-form-card avp-proximo-opcao" id="avpOpcaoContinuar"><h4>Continuar a jornada organizacional</h4>' +
         '<p>É uma decisão a mais, não uma consequência da classificação. Faz sentido quando existe uma responsabilidade organizacional própria por este objeto e é preciso recomendar que tipo de estrutura deve assumi-la (Posicionamento O1–O9). Nada é cadastrado automaticamente: nem estrutura, nem Squad, nem vínculo.</p>' +
-        '<fieldset class="avp-proximo-pergunta"><legend>Este objeto tem uma responsabilidade organizacional própria, que precisa ser posicionada?</legend>' +
+        '<fieldset class="avp-proximo-pergunta" aria-describedby="avpJornadaNota"><legend>Este objeto tem uma responsabilidade organizacional própria, que precisa ser posicionada?</legend>' +
         [['sim', 'Sim'], ['nao', 'Não'], ['naosei', 'Ainda não sei']].map(function (o) {
           return '<label class="avp-decisao-option"><input type="radio" name="avpJornadaResp" id="avpJornada_' + o[0] + '" value="' + o[0] + '"' + (resp === o[0] ? ' checked' : '') + '> ' + o[1] + '</label>';
-        }).join('') + '</fieldset>';
+        }).join('') + '<p class="avp-previa-nota" id="avpJornadaNota">Esta resposta só orienta o próximo passo agora: não é gravada e pode ser trocada a qualquer momento.</p></fieldset>';
       if (resp === 'sim') {
         h += modo === 'operacional' && podeDecidir()
           ? '<p class="avp-natureza-ajuda" id="avpJornadaSimTxt">Você vai para o Posicionamento Organizacional deste objeto (pela Porta 1, a partir desta avaliação). Ao terminar ou desistir, "Voltar" traz você de volta a esta ficha.</p><button type="button" class="btn btn--primary" id="avpPosicionarBtn">Ir para o Posicionamento Organizacional (O1–O9)</button>'
@@ -8098,7 +8133,6 @@
         html += vigente ? '<div class="avp-natureza-host" data-ro-natureza="' + esc(a.itemId || a._key) + '"></div>'
           : '<p class="avp-natureza-ajuda" id="avpNaturezaVersaoAnterior">Esta é uma versão anterior: a natureza é identificada na versão vigente deste item.</p>';
         html += '</section>';
-        if (vigente) html += proximoPassoHtml(a);
       }
 
       /* 2 — O QUE UMA PESSOA COMPLEMENTOU: Curadoria (só informação humana). */
@@ -8136,10 +8170,14 @@
 
       /* Rodapé: só a navegação. Reavaliar e GERAR PDF são ações do item e ficam no cabeçalho. O Posicionamento
          Organizacional deste item é outra avaliação (só quem grava O1–O9: Avaliação + Configuração, admin geral). */
+      /* 5 — PRÓXIMO PASSO: a escolha vem depois de tudo o que a pessoa precisa ver (resultado, natureza, complementações,
+         decisão e a fundamentação), como consequência — com o resumo do que está resolvido e do que está pendente */
+      var comProximo = noCaminho && vigente;
+      if (comProximo) html += proximoPassoHtml(a);
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
       html += '<button class="avp-voltar-link" id="avpVoltarListaRodape">' + esc(rotuloVoltar()) + '</button>';
       /* PR 4: a jornada do item (etapas e próximo passo; também mostra se ele é referência de uma atuação da Porta 2) */
-      if (modo === 'operacional' && a.status === 'concluido' && a.excluido !== true) html += '<a class="btn" id="avpVerJornadaBtn" href="#arquitetura?tr=1&item=' + encodeURIComponent(a.itemId || a._key) + '">Ver o registro deste item</a>';
+      if (modo === 'operacional' && a.status === 'concluido' && a.excluido !== true && !comProximo) html += '<a class="btn" id="avpVerJornadaBtn" href="#arquitetura?tr=1&item=' + encodeURIComponent(a.itemId || a._key) + '">Ver o registro deste item</a>';
       html += '</div>';
 
       html += '</div>';
@@ -8264,6 +8302,7 @@
       var reavaliarBtn = document.getElementById('avpReavaliarBtn');
       if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { pedirReavaliacao(a._key); });
       ligarProximoPasso(a);
+      if (window.faRelacoesObjetos && window.faRelacoesObjetos.aoMudar) window.faRelacoesObjetos.aoMudar(atualizarEtapasFicha);
       var posicionarBtn = document.getElementById('avpPosicionarBtn');
       if (posicionarBtn) posicionarBtn.addEventListener('click', function () {
         var dest = '#arquitetura?po=escolher&item=' + encodeURIComponent(a.itemId || a._key);

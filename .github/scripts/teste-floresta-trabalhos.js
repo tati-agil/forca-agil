@@ -133,14 +133,15 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
 
       console.log('\n== D. Da ficha para o registro ==');
       r = await abrir(browser, vp, '#arquitetura?avp=pCapec');
-      await ver(r.page, '#avpVerJornadaBtn', 'a ficha de Capec');
-      afirma(await texto(r.page, '#avpVerJornadaBtn') === 'Ver o registro deste item', 'a ficha oferece "Ver o registro deste item"', await texto(r.page, '#avpVerJornadaBtn'));
-      await r.page.click('#avpVerJornadaBtn');
+      /* Caminho 1: na ficha vigente, o caminho para o registro é "Concluir por aqui" (no Próximo passo, sem botão repetido no rodapé) */
+      await ver(r.page, '#avpConcluirPorAqui', 'a ficha de Capec');
+      afirma(await texto(r.page, '#avpConcluirPorAqui') === 'Concluir por aqui' && !(await r.page.$('#avpVerJornadaBtn')), 'a ficha oferece "Concluir por aqui" (que leva ao registro), sem botão repetido', await texto(r.page, '#avpConcluirPorAqui'));
+      await r.page.click('#avpConcluirPorAqui');
       await ver(r.page, '#mfRepresenta-pCapec', 'o registro');
       afirma(/Voltar para a avaliação de Produto\/Serviço/.test(await texto(r.page, '#mfVoltar')) && await texto(r.page, '#mfVoltarLista') === 'Ver todos os trabalhos',
         'no registro: Voltar do topo para a ficha e "Ver todos os trabalhos"', { topo: await texto(r.page, '#mfVoltar'), lista: await texto(r.page, '#mfVoltarLista') });
       await r.page.click('#mfVoltar');
-      await ver(r.page, '#avpVerJornadaBtn', 'a ficha de novo');
+      await ver(r.page, '#avpConcluirPorAqui', 'a ficha de novo');
       afirma(/^#arquitetura\?avp=pCapec/.test(await hash(r.page)), 'Voltar: de volta à ficha de onde veio', await hash(r.page));
       afirma(r.erros.length === 0, 'nenhum erro de página', r.erros);
       await r.ctx.close();

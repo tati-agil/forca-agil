@@ -134,7 +134,12 @@ const foto = async (page, nome, sel) => { if (!process.env.FA_PRINTS) return; fs
   const arq = path.join(process.env.FA_PRINTS, nome + '-' + page.viewportSize().width + '.png');
   if (sel) { const el = page.locator(sel).first(); await el.scrollIntoViewIfNeeded(); await el.screenshot({ path: arq }); } else await page.screenshot({ path: arq }); };
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-const etapaNatureza = (page) => texto(page, '#avpEtapas [data-ro-etapa] .ro-etapa');
+const etapaNatureza = (page) => texto(page, '#avpEtapas [data-etapa="natureza"] .avp-etapa-det');
+const estadoEtapa = (page, id) => page.evaluate((i) => { const li = document.querySelector('#avpEtapas [data-etapa="' + i + '"]'); return li ? li.getAttribute('data-estado') : null; }, id);
+const etapasSao = (page, nat, prox, desc) => ate(page, (x) => { const g = (i) => { const li = document.querySelector('#avpEtapas [data-etapa="' + i + '"]'); return li && li.getAttribute('data-estado'); }; return g('natureza') === x[0] && g('proximo') === x[1]; }, [nat, prox], desc);
+/* ordem da ficha: o próximo passo vem depois do resultado, da natureza, das complementações, da decisão e do histórico */
+const ordemOk = (page) => page.evaluate(() => { const ids = ['avpSecaoSistema', 'avpSecaoNatureza', 'avpSecaoCuradoria', 'avpSecaoDecisao', 'avpSecaoHistorico', 'avpSecaoProximo'].map((i) => document.getElementById(i));
+  if (ids.some((e) => !e)) return false; for (let i = 1; i < ids.length; i++) if (!(ids[i - 1].compareDocumentPosition(ids[i]) & Node.DOCUMENT_POSITION_FOLLOWING)) return false; return true; });
 const fichaPronta = (page) => ate(page, () => !!document.querySelector('#avpSecaoNatureza #roNatureza'), undefined, 'natureza na ficha');
 async function responder(page, mascara) {
   for (let i = 0; i < ORDEM.length; i++) await page.locator('#avpQuestion-' + ORDEM[i] + ' .avp-choice-btn--' + ((mascara >> i) & 1 ? 'sim' : 'nao')).click();
@@ -192,11 +197,22 @@ async function rodada(browser, vp, rotulo) {
   afirma(await existe(page, '#avpSecaoNatureza #roFormNatureza') && (await alternativas(page)) === 'funcionalidade,operacao,recorte,evidencia-insuficiente', 'A. a identificação da natureza continua na própria ficha (sem ir a outra tela)', await alternativas(page));
   afirma(/Definição aprovada de Funcionalidade/.test(await texto(page, '#avpSecaoNatureza #roIdentDefinicoes')) && /Definição aprovada de Operação/.test(await texto(page, '#avpSecaoNatureza #roIdentDefinicoes')), 'A. com as definições oficiais da Taxonomia');
   afirma(/A identificar/.test(await etapaNatureza(page)), 'A. a etapa "Natureza" diz que falta identificar', await etapaNatureza(page));
+  await etapasSao(page, 'atual', 'disponivel', 'etapas antes de identificar');
+  afirma(true, 'A. etapas reais: Natureza ATUAL (a identificar) e Próximo passo disponível, avisando que a natureza fica em aberto');
+  afirma(/disponível — a natureza continua em aberto/.test(await texto(page, '#avpEtapas [data-etapa="proximo"]')), 'A. o próximo passo diz que dá para seguir, mas a natureza fica em aberto');
+  afirma(await ordemOk(page), 'A. ordem da ficha: resultado → natureza → complementações → decisão → fundamentação → Próximo passo');
+  afirma(!(await existe(page, '#avpVerJornadaBtn')) && (await page.$$('a[href="#arquitetura?tr=1&item=' + encodeURIComponent(itemNovo) + '"]')).length === 1, 'A. sem botão repetido: o caminho para o registro é só "Concluir por aqui"');
+  afirma(/Pendências:.*natureza do objeto está em aberto/.test(await texto(page, '#avpResumoAntesDeEscolher')), 'A. o resumo antes de escolher mostra a pendência da natureza', await texto(page, '#avpResumoAntesDeEscolher'));
+  await foto(page, '2b-etapas-a-identificar', '#avpEtapas');
   await foto(page, '2-etapas-e-identificacao', '#avpSecaoNatureza');
   afirma(await existe(page, '#avpSecaoProximo #avpOpcaoConcluir') && await existe(page, '#avpSecaoProximo #avpOpcaoContinuar') && !(await existe(page, '#avpPosicionarBtn')), 'B. próximo passo: concluir por aqui × continuar (o O1–O9 não é oferecido de cara)');
   await identificar(page, 'operacao', 'É a ação executada dentro do plano, acionada pela funcionalidade de simulação (teste)');
   await ate(page, () => /identificada:\s*Operação/.test((document.querySelector('#avpSecaoNatureza #roNatureza') || {}).textContent || ''), undefined, 'natureza identificada');
-  await ate(page, () => /Identificada: Operação/.test((document.querySelector('#avpEtapas [data-ro-etapa]') || {}).textContent || ''), undefined, 'etapa atualizada');
+  await ate(page, () => /Identificada: Operação/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa atualizada');
+  await etapasSao(page, 'ok', 'atual', 'etapas depois de identificar');
+  afirma(true, 'A. sem recarregar: depois de registrar, Natureza CONCLUÍDA e Próximo passo vira a etapa atual');
+  afirma(/Natureza:\s*Identificada: Operação/.test(await texto(page, '#avpResumoAntesDeEscolher')), 'A. o resumo antes de escolher também se atualiza', await texto(page, '#avpResumoAntesDeEscolher'));
+  await foto(page, '4a-resumo-e-escolha', '#avpSecaoProximo');
   const nat = (await banco0(page))['objetos-natureza'][itemNovo];
   afirma(nat && nat.natureza === 'operacao' && nat.avaliacaoId === novo._key && nat.fundamento && /ação executada/.test(nat.fundamento.justificativa) && nat.fundamento.definicoes && nat.fundamento.definicoes.operacao,
     'A. natureza gravada com o fundamento (justificativa e definições da época), ligada a esta versão da avaliação', nat);
@@ -207,6 +223,7 @@ async function rodada(browser, vp, rotulo) {
   await page.check('#avpJornada_nao');
   await page.waitForSelector('#avpJornadaNaoTxt');
   afirma(/não é preciso fazer o O1–O9/.test(await texto(page, '#avpJornadaNaoTxt')) && !(await existe(page, '#avpPosicionarBtn')), 'B. sem responsabilidade organizacional própria: explica que o O1–O9 não é necessário (item 17)');
+  afirma(/não é gravada e pode ser trocada/.test(await texto(page, '#avpJornadaNota')), 'B. a interface diz que a resposta só orienta a navegação (não é registrada)');
   await page.focus('#avpJornada_sim');
   await page.keyboard.press('Space');
   await page.waitForSelector('#avpPosicionarBtn');
@@ -226,6 +243,16 @@ async function rodada(browser, vp, rotulo) {
   afirma(/Concluída/.test(await texto(page, '.mf-trilha [data-etapa="p1p16"]')) && /Disponível, se este item tiver uma responsabilidade organizacional própria/.test(await texto(page, '.mf-trilha [data-etapa="posicionamento"]')),
     'B. "Concluir por aqui": o registro mostra a avaliação concluída e o Posicionamento só como opção (item 15/18)');
   afirma(/Identificada: Operação/.test(await texto(page, '.mf-natureza-etapa')), 'B. a trilha dos Trabalhos mostra o MESMO estado da natureza que a ficha');
+  /* retomar a partir dos Trabalhos: a ficha volta inteira e a pessoa pode escolher outro caminho */
+  await page.click('.mf-abrir-avp');
+  await ate(page, () => !!document.getElementById('avpSecaoProximo') && !!document.querySelector('#avpSecaoNatureza #roNatureza'), undefined, 'retomada pela ficha');
+  await etapasSao(page, 'ok', 'atual', 'etapas na retomada');
+  afirma(/identificada:\s*Operação/.test(await texto(page, '#avpSecaoNatureza #roNatureza')), 'B. retomada pelos Trabalhos: a ficha volta com a natureza e as etapas reais');
+  await page.check('#avpJornada_naosei');
+  await page.waitForSelector('#avpJornadaNaoSeiTxt');
+  afirma(!(await existe(page, '#avpPosicionarBtn')), 'B. dá para trocar de caminho ao retomar (Ainda não sei: orientação, sem O1–O9 de cara)');
+  await page.click('#avpConcluirPorAqui');
+  await ate(page, (i) => location.hash === '#arquitetura?tr=1&item=' + encodeURIComponent(i), itemNovo, 'de novo no registro');
   await foto(page, '5-trabalhos-trilha', '.mf-jornada');
   await page.evaluate(() => { location.hash = '#arquitetura?tr=1'; });
   await ate(page, (i) => !!document.querySelector('.mf-linha[data-item="' + i + '"] .mf-linha-natureza .ro-etapa'), itemNovo, 'linha da lista');
@@ -257,8 +284,10 @@ async function rodada(browser, vp, rotulo) {
   await novaAvaliacao(page, 'Aplicativo (Caminho 1)', M_CANAL);
   await fichaPronta(page);
   afirma(await existe(page, '#avpSecaoNatureza #roNatureza[data-natureza="canal"]') && !(await existe(page, '#avpSecaoNatureza #roFormNatureza')), 'C. Canal: a natureza aparece direto, sem outra identificação');
-  await ate(page, () => /Canal/.test((document.querySelector('#avpEtapas [data-ro-etapa]') || {}).textContent || ''), undefined, 'etapa Canal');
+  await ate(page, () => /Canal/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa Canal');
   afirma(true, 'C. a etapa "Natureza" mostra Canal');
+  await etapasSao(page, 'ok', 'atual', 'Canal direta');
+  afirma(/própria classificação/.test(await etapaNatureza(page)), 'C. natureza direta: etapa concluída ("a própria classificação") e próximo passo atual');
   await page.click('#avpVoltarListaResultado');
   await novaAvaliacao(page, 'Plano de previdência (Caminho 1)', M_PP);
   await fichaPronta(page);
@@ -272,8 +301,11 @@ async function rodada(browser, vp, rotulo) {
   });
   await fichaPronta(page);
   afirma(/A validar/.test(await texto(page, '#avpSecaoNatureza #roNatureza')) && /Próximo passo/.test(await texto(page, '#avpSecaoNatureza #roNatureza')), 'E. natureza pendente com o próximo passo (nada classificado à força)');
-  await ate(page, () => /A validar/.test((document.querySelector('#avpEtapas [data-ro-etapa]') || {}).textContent || ''), undefined, 'etapa pendente');
+  await ate(page, () => /A validar/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa pendente');
   afirma(true, 'E. a etapa "Natureza" fica pendente');
+  await etapasSao(page, 'pendente', 'disponivel', 'A validar');
+  afirma(/A validar/.test(await texto(page, '#avpResumoAntesDeEscolher')), 'E. "A validar": etapa com pendência e o resumo diz o que falta (reavaliar ou decidir)');
+  await foto(page, '6b-etapas-a-validar', '#avpEtapas');
   await page.click('#avpVoltarListaResultado');
   /* E. P5 × P13 */
   await page.click('#avpNovoBtn'); await page.fill('#avpfNome', 'Incoerente (Caminho 1)'); await page.click('#avpIniciarBtn'); await page.waitForSelector('#avpEtapas');
@@ -292,8 +324,16 @@ async function rodada(browser, vp, rotulo) {
   await identificar(page, 'evidencia-insuficiente', 'Ainda não se sabe se é o processo inteiro (teste)', 'Falta saber onde o objeto começa e termina (teste)');
   await ate(page, () => !!document.querySelector('#avpSecaoNatureza #roNatureza[data-pendencia="evidencia-insuficiente"]'), undefined, 'pendência');
   afirma(/Evidência insuficiente/.test(await texto(page, '#avpSecaoNatureza #roNatureza')) && !(await banco0(page))['objetos-natureza'].pProc.natureza, 'D. evidência insuficiente: pendência registrada, sem natureza');
-  await ate(page, () => /Pendente: evidência insuficiente/.test((document.querySelector('#avpEtapas [data-ro-etapa]') || {}).textContent || ''), undefined, 'etapa pendente');
+  await ate(page, () => /Pendente: evidência insuficiente/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa pendente');
   afirma(true, 'D. a etapa mostra a pendência (não chama de concluída)');
+  await etapasSao(page, 'pendente', 'disponivel', 'pendência');
+  afirma(true, 'D. pendência registrada: etapa "pendente", sem dizer que a natureza está concluída');
+  await foto(page, '8-etapas-pendente', '#avpEtapas');
+  await page.check('#avpJornada_nao');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await esperarSessaoAssentada(page);
+  await ate(page, () => !!document.getElementById('avpSecaoProximo'), undefined, 'F5 com resposta momentânea');
+  afirma(await page.evaluate(() => !document.querySelector('input[name="avpJornadaResp"]:checked')) && /não é gravada/.test(await texto(page, '#avpJornadaNota')), 'B. F5: a resposta momentânea some (nunca pareceu registrada) e a pessoa escolhe de novo');
   for (const [k, esperado] of [['dInf', 'informacao,documento,recorte,evidencia-insuficiente'], ['mMod', 'modalidade,subproduto,opcao,recorte,evidencia-insuficiente'], ['rReg', 'regra,opcao-reavaliar,recorte,evidencia-insuficiente']]) {
     await page.evaluate((x) => { location.hash = '#arquitetura?avp=' + x; }, k);
     await ate(page, (x) => location.hash.indexOf(x) > 0 && !!document.querySelector('#avpSecaoNatureza #roFormNatureza'), k, 'ficha ' + k);
@@ -309,19 +349,23 @@ async function rodada(browser, vp, rotulo) {
   }
   await page.evaluate(() => { location.hash = '#arquitetura?avp=fRea2'; });
   await ate(page, () => !!document.querySelector('#avpSecaoNatureza #roNatureza[data-motivo="NATUREZA_A_CONFIRMAR"]'), undefined, 'a confirmar');
-  await ate(page, () => /A confirmar/.test((document.querySelector('#avpEtapas [data-ro-etapa]') || {}).textContent || ''), undefined, 'etapa a confirmar');
+  await ate(page, () => /A confirmar/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa a confirmar');
   afirma(/fRea1/.test(await texto(page, '#roIdentAnterior')), 'F. reavaliação: a identificação da versão anterior fica "a confirmar", com o histórico à vista');
+  await etapasSao(page, 'atual', 'disponivel', 'a confirmar');
+  afirma(true, 'F. "a confirmar": a etapa Natureza fica atual (há algo a fazer)');
   /* F5 na ficha (o banco falso volta à semente a cada recarga: a ficha semeada é a prova do endereço) */
   await page.reload({ waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   await ate(page, () => !!document.querySelector('#avpSecaoNatureza #roNatureza[data-motivo="NATUREZA_A_CONFIRMAR"]') && !!document.getElementById('avpSecaoProximo'), undefined, 'F5');
   afirma(true, 'I. F5 na ficha: volta à mesma ficha, com a natureza e o próximo passo');
   await identificar(page, 'funcionalidade', 'Reconfirmada para a versão vigente (teste)');
-  await ate(page, () => /Identificada: Funcionalidade/.test((document.querySelector('#avpEtapas [data-ro-etapa]') || {}).textContent || ''), undefined, 'reconfirmada');
+  await ate(page, () => /Identificada: Funcionalidade/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'reconfirmada');
   afirma((await banco0(page))['objetos-natureza'].fRea.avaliacaoId === 'fRea2', 'F. reconfirmação explícita para a versão vigente');
+  await etapasSao(page, 'ok', 'atual', 'reconfirmada');
+  afirma(true, 'F. reconfirmada: etapa concluída, sem recarregar');
   await page.evaluate(() => { location.hash = '#arquitetura?avp=fRea1'; });
   await ate(page, () => !!document.getElementById('avpNaturezaVersaoAnterior'), undefined, 'versão anterior');
-  afirma(!(await existe(page, '#avpSecaoProximo')), 'F. versão anterior: só consulta (natureza e próximo passo ficam na vigente)');
+  afirma(!(await existe(page, '#avpSecaoProximo')) && await estadoEtapa(page, 'natureza') === 'futuro', 'F. versão anterior: só consulta (natureza e próximo passo ficam na vigente)');
   afirma(!erros.length, 'D/F. sem erro de página', erros);
   await ctx.close();
 
@@ -331,7 +375,9 @@ async function rodada(browser, vp, rotulo) {
   await fichaPronta(page);
   afirma(await existe(page, '#roIdentSuspensa') && !(await existe(page, '#roIdentSalvar')) && /suspenso/.test(await texto(page, '#roIdentSuspensa')), 'G. registro suspenso: a ficha explica e não oferece gravar');
   await foto(page, '7-registro-suspenso', '#roIdentSuspensa');
-  await ate(page, () => /suspenso/.test((document.querySelector('#avpEtapas [data-ro-etapa]') || {}).textContent || ''), undefined, 'etapa suspensa');
+  await foto(page, '7b-etapas-suspenso', '#avpEtapas');
+  await ate(page, () => /suspenso/.test((document.querySelector('#avpEtapas [data-etapa="natureza"] .avp-etapa-det') || {}).textContent || ''), undefined, 'etapa suspensa');
+  afirma(await estadoEtapa(page, 'natureza') === 'pendente' && await estadoEtapa(page, 'proximo') === 'disponivel', 'G. registro suspenso: etapa com pendência ("registro suspenso"), sem fingir identificação; dá para concluir por aqui');
   afirma(/Processo/.test(await texto(page, '#avpSecaoNatureza #roIdentDefinicoes')) && /Concluir por aqui/.test(await texto(page, '#avpSecaoProximo')), 'G. a orientação e o resultado P1–P16 continuam disponíveis; dá para concluir por aqui');
   await ctx.close();
   ({ ctx, page, erros } = await abrir(browser, vp, '#arquitetura?avp=pProc'));
@@ -376,7 +422,12 @@ async function editorial(browser) {
   await page.click('#avpNovoBtn'); await page.fill('#avpfNome', 'Vendo as ajudas novas'); await page.click('#avpIniciarBtn'); await page.waitForSelector('#avpEtapas');
   await page.click('#avpQuestion-funcionalidade .avp-help-btn');
   afirma(/O que significa:/.test(await texto(page, '#avpHelp-funcionalidade')) && /exclusivos|somente na que melhor descreve/.test(await texto(page, '#avpHelp-funcionalidade')), 'H. a ajuda nova da P16 aparece (significado, quando SIM/NÃO, exemplo)');
-  afirma(!/regime tributário/.test(await texto(page, '#avpQuestion-regra .avp-exemplos')), 'H. P14 não cita mais "regime tributário" (é Opção)');
+  afirma(/condições de um regime tributário/.test(await texto(page, '#avpQuestion-regra .avp-exemplos')), 'H. P14: "condições de um regime tributário" (Regra), não o regime como escolha');
+  await page.click('#avpQuestion-regra .avp-help-btn');
+  const ajudaP14 = await texto(page, '#avpHelp-regra');
+  afirma(/escolha entre os regimes/.test(ajudaP14) && /Opção \(pergunta 13\)/.test(ajudaP14) && /Funcionalidade \(pergunta 16\)/.test(ajudaP14), 'H. P14 separa as condições do regime (Regra), a escolha entre regimes (Opção) e a tela da escolha (Funcionalidade)');
+  await page.click('#avpQuestion-processo .avp-help-btn');
+  afirma(/pergunta 2 \(resultado próprio para o cliente\) é NÃO/.test(await texto(page, '#avpHelp-processo')), 'H. P12 explica por que, para um processo, a pergunta 2 é NÃO');
   afirma(!erros.length, 'H. sem erro de página', erros);
   await ctx.close();
 }

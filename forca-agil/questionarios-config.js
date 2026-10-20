@@ -786,14 +786,18 @@
        "o que estamos investigando", "quando marcar SIM", "quando marcar NÃO" e um exemplo com contraexemplo —, escritos a
        partir das definições oficiais da Taxonomia Arquitetural (nenhuma definição nova) e do comportamento REAL da regra
        publicada: os testes 9–16 são mutuamente exclusivos (SIM em dois ou mais → "A validar") e SIM em P5 com SIM em
-       P13–P16 é incoerência. P14 deixa de citar "regime tributário" entre os exemplos (a escolha entre regimes é Opção,
-       pergunta 13, segundo a definição oficial de Opção); P5 passa a avisar da incoerência com P13–P16. */
+       P13–P16 é incoerência. P12 explica por que, para um processo ou etapa, a pergunta 2 é NÃO (o resultado é do
+       Produto/Serviço a que o processo serve — e a regra só classifica Processo/Etapa com P2 = NÃO). P13, P14 e P16
+       separam com rigor as condições de um regime tributário (Regra), a escolha do participante entre os regimes
+       permitidos (Opção) e a tela em que ele escolhe (Funcionalidade) — "regime tributário" não é automaticamente Opção.
+       P5 passa a avisar da incoerência com P13–P16. Matriz completa da revisão: docs/revisao-p1-p16-caminho1.md. */
     {
       id: 'caminho1-ajudas-p1-p16',
       codigo: 'CLASSIFICACAO_ARQUITETURAL',
       titulo: 'Ajudas completas de P9–P16 e aviso de incoerência em P5 (Caminho 1)',
       descricao: 'Proposta para aprovação: P9, P10, P11, P12, P13, P14 e P16 ganham "o que estamos investigando", "quando marcar SIM", "quando marcar NÃO" e exemplo com contraexemplo, ' +
-        'a partir das definições oficiais da Taxonomia; cada uma explica que os testes 9 a 16 são exclusivos entre si. P14 deixa de citar "regime tributário" (é Opção, pergunta 13). ' +
+        'a partir das definições oficiais da Taxonomia; cada uma explica que os testes 9 a 16 são exclusivos entre si. P12 explica por que, para um processo, a pergunta 2 é NÃO. ' +
+        'P13, P14 e P16 separam as condições de um regime tributário (Regra), a escolha entre os regimes (Opção) e a tela da escolha (Funcionalidade). ' +
         'P5 avisa que SIM nela com SIM em 13 a 16 é contraditório. Nenhuma pergunta, interpretação automática ou regra do motor muda.',
       ajustes: [
         { pergunta: 'P5', campo: 'textoAjuda.quandoSim',
@@ -828,7 +832,7 @@
           para: 'É Capacidade: a gestão atuarial. Não é: o motor de cálculo do benefício de um plano (Componente).' },
 
         { pergunta: 'P12', campo: 'textoAjuda.significado', de: null,
-          para: 'Investiga se o objeto é, antes de tudo, um encadeamento de atividades no tempo que produz um resultado (Processo) ou uma parte de um processo com resultado intermediário próprio (Etapa). A escolha entre Processo e Etapa é feita depois, na identificação da natureza. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
+          para: 'Investiga se o objeto é, antes de tudo, um encadeamento de atividades no tempo que produz um resultado (Processo) ou uma parte de um processo com resultado intermediário próprio (Etapa). A escolha entre Processo e Etapa é feita depois, na identificação da natureza. O resultado que um processo produz — o benefício concedido, por exemplo — é o resultado do Produto/Serviço ao qual ele serve: por isso, para um processo ou uma etapa, a pergunta 2 (resultado próprio para o cliente) é NÃO. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
         { pergunta: 'P12', campo: 'textoAjuda.quandoSim', de: null,
           para: 'O objeto descreve como algo é feito: uma sequência de atividades com começo e fim, como a concessão de um benefício, a habilitação de um pensionista ou a análise de um pedido.' },
         { pergunta: 'P12', campo: 'textoAjuda.quandoNao', de: null,
@@ -841,26 +845,26 @@
         { pergunta: 'P13', campo: 'textoAjuda.quandoSim', de: null,
           para: 'O objeto só existe como variação, desdobramento ou escolha dentro de um Produto/Serviço de origem e preserva a natureza essencial dele: uma forma de recebimento do benefício, o perfil de investimento de um plano, a opção tributária entre os regimes.' },
         { pergunta: 'P13', campo: 'textoAjuda.quandoNao', de: null,
-          para: 'O objeto existe como solução própria (pergunta 5), é a norma que limita as escolhas (Regra, pergunta 14) ou é a ação de escolher dentro do produto, como "Alterar perfil de investimento" (Funcionalidade, pergunta 16).' },
+          para: 'O objeto existe como solução própria (pergunta 5), é a norma que estabelece as condições e limita as escolhas — como as condições de cada regime tributário (Regra, pergunta 14) — ou é a ação de escolher dentro do produto, como "Alterar perfil de investimento" (Funcionalidade, pergunta 16).' },
         { pergunta: 'P13', campo: 'exemplo', de: null,
           para: 'É desta pergunta: o perfil de investimento escolhido no plano; a opção tributária. Não são: a regra que diz quem pode mudar de perfil e quando (Regra) e a tela em que a mudança é pedida (Funcionalidade).' },
 
         { pergunta: 'P14', campo: 'textoAjuda.significado', de: null,
           para: 'Investiga se o objeto é, antes de tudo, uma norma ou condição imposta que determina elegibilidade, prazo, limite ou comportamento de outro objeto — a Regra da Taxonomia. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
         { pergunta: 'P14', campo: 'textoAjuda.quandoSim', de: null,
-          para: 'O objeto estabelece o que pode ou não pode, quando e até quanto: a carência, um limite de empréstimo, um critério de elegibilidade, o prazo para pedir o resgate.' },
+          para: 'O objeto estabelece o que pode ou não pode, quando e até quanto: a carência, um limite de empréstimo, um critério de elegibilidade, o prazo para pedir o resgate, as condições de um regime tributário.' },
         { pergunta: 'P14', campo: 'textoAjuda.quandoNao', de: null,
-          para: 'O objeto é uma alternativa que o participante escolhe entre as que uma regra permite: isso é Opção (pergunta 13), mesmo que a escolha tenha regras próprias. Também não é Regra o processo que aplica a regra (pergunta 12) nem a funcionalidade em que ela é consultada (pergunta 16).' },
+          para: 'O objeto é a alternativa que o participante escolhe entre as que uma regra permite — por exemplo, a escolha entre os regimes tributários que o plano oferece: isso é Opção (pergunta 13), mesmo que a escolha tenha regras próprias. A tela ou o recurso em que ele faz a escolha é Funcionalidade (pergunta 16), e o encadeamento de atividades que aplica a regra é Processo (pergunta 12).' },
         { pergunta: 'P14', campo: 'exemplo', de: null,
-          para: 'É Regra: a carência para pedir empréstimo. Não é Regra: a escolha do participante entre os regimes tributários (Opção, pergunta 13).' },
+          para: 'É Regra: a carência para pedir empréstimo; as condições de um regime tributário (por exemplo, como a alíquota varia com o tempo de acumulação). Não são Regra: a escolha do participante entre os regimes (Opção, pergunta 13) e a funcionalidade "Escolher o regime tributário" (Funcionalidade, pergunta 16).' },
         { pergunta: 'P14', campo: 'exemplos',
           de: ['elegibilidade', 'prazo', 'limite', 'carência', 'regime tributário'],
-          para: ['elegibilidade', 'prazo', 'limite', 'carência'] },
+          para: ['elegibilidade', 'prazo', 'limite', 'carência', 'condições de um regime tributário'] },
 
         { pergunta: 'P16', campo: 'textoAjuda.significado', de: null,
           para: 'Investiga se o objeto é, antes de tudo, algo que se faz dentro de um Produto/Serviço: um recurso que o público usa para consultar, solicitar, contratar, alterar ou administrar algo (Funcionalidade) ou uma ação delimitada e executável dentro de uma solução maior (Operação). A escolha entre as duas é feita depois, na identificação da natureza. As perguntas 9 a 16 são testes de natureza: marque SIM somente na que melhor descreve o que o objeto é. SIM em mais de uma delas leva o resultado para "A validar", porque indica que o objeto reúne coisas diferentes ou ainda precisa ser recortado.' },
         { pergunta: 'P16', campo: 'textoAjuda.quandoSim', de: null,
-          para: 'O objeto só faz sentido dentro de outro Produto/Serviço e consiste num recurso de uso ou numa ação: consultar saldo, alterar a contribuição, simular o benefício, solicitar um resgate.' },
+          para: 'O objeto só faz sentido dentro de outro Produto/Serviço e consiste num recurso de uso ou numa ação: consultar saldo, alterar a contribuição, simular o benefício, escolher o regime tributário, solicitar um resgate.' },
         { pergunta: 'P16', campo: 'textoAjuda.quandoNao', de: null,
           para: 'O objeto é a própria solução (pergunta 5), o conteúdo mostrado (pergunta 10) ou o meio de acesso (pergunta 9). SIM aqui junto com SIM na pergunta 5 é contraditório — algo que só existe dentro de outro Produto/Serviço não tem autonomia — e leva o resultado para "A validar".' },
         { pergunta: 'P16', campo: 'exemplo', de: null,

@@ -4314,8 +4314,10 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .avp-etapa--ok .avp-etapa-num { border-color: var(--accent-2); color: var(--accent-2); }
 .avp-etapa--atual .avp-etapa-num { border-color: var(--gold-soft); color: var(--gold-soft); }
 .avp-etapa--atual .avp-etapa-rot { color: var(--ink); }
-/* a etapa Natureza fica como concluída quando a natureza está identificada ou é a própria classificação */
-.avp-etapa:has(.ro-etapa[data-situacao="identificada"]) .avp-etapa-num, .avp-etapa:has(.ro-etapa[data-situacao="direta"]) .avp-etapa-num { border-color: var(--accent-2); color: var(--accent-2); }
+.avp-etapa--pendente .avp-etapa-num { border-color: var(--gold-soft); color: var(--gold-soft); border-style: dashed; }
+.avp-etapa--pendente .avp-etapa-det { color: var(--gold-soft); }
+.avp-etapa--disponivel .avp-etapa-num { border-style: dashed; }
+.avp-resumo-escolha { list-style: none; margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .avp-previa h4, .avp-proximo-opcao h4 { margin: 0 0 6px; }
 .avp-previa-motivos { margin: 4px 0 8px; padding-left: 1.2em; overflow-wrap: anywhere; }
 .avp-previa-nota { margin: 6px 0 0; font-size: var(--arq-fs-aux, .85rem); color: var(--ink-2); }
@@ -4330,5 +4332,5 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
   .avp-etapas { gap: 2px 10px; margin: 4px 0 6px; }
   .avp-etapa { flex: 0 1 auto; align-items: center; }
   .avp-etapa-num { width: 1.4em; height: 1.4em; }
-  .avp-etapa:not(.avp-etapa--atual) .avp-etapa-det { display: none; }
+  .avp-etapa:not(.avp-etapa--atual):not([data-etapa="natureza"]) .avp-etapa-det { display: none; }
 }

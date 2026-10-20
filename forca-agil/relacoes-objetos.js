@@ -103,10 +103,12 @@
     setTimeout(function () { avisoPendente = false; redesenharMontados(); }, 0);
   }
   var montados = []; /* { el, tipo: 'secao'|'resumo'|'tax', objetoId } */
+  var aoMudarCbs = []; /* Caminho 1: a ficha P1–P16 redesenha só as etapas quando a natureza muda */
   function redesenharMontados() {
     montados = montados.filter(function (m) { return m.el && m.el.isConnected; });
     montados.forEach(function (m) { desenhar(m); });
     montarPendentes();
+    aoMudarCbs.forEach(function (cb) { try { cb(); } catch (e) { console.error('[relacoes-objetos]', e); } });
   }
   /* pontos de encaixe que uma tela desenhou ANTES de este módulo chegar (rede lenta: o login, com a sessão guardada,
      termina antes do fim da lista de scripts, e a tela não se redesenha depois) — montados aqui, sem depender dela */
@@ -570,7 +572,8 @@
     /* para testes e diagnóstico: o que a tela calcula, sem gravar nada */
     naturezaDe: function (id) { return natureza(id); }, disponivel: function () { return ativo(); },
     /* Caminho 1: o estado da natureza de um item (o mesmo da ficha e dos Trabalhos) */
-    estadoNatureza: function (id) { return estadoNatureza(id); }
+    estadoNatureza: function (id) { return estadoNatureza(id); },
+    aoMudar: function (cb) { if (typeof cb === 'function' && aoMudarCbs.indexOf(cb) === -1) aoMudarCbs.push(cb); }
   });
   /* chegou depois do login? liga já (os eventos de sessão podem ter passado) e monta o que as telas já desenharam */
   aoMudarSessao();
