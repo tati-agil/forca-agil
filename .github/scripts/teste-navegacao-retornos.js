@@ -114,6 +114,9 @@ async function n3(browser, vp, tag) {
 async function n4(browser, vp, tag) {
   console.log('\n== N4 (' + tag + '): ficha de Produto/Serviço → Posicionar → Voltar → ficha ==');
   const r = await abrir(browser, vp, '#arquitetura?avp=pSem'); const page = r.page;
+  /* Caminho 1: continuar a jornada organizacional é uma escolha (responsabilidade própria? Sim) */
+  await ate(page, () => !!document.getElementById('avpJornada_sim'), null, 'ficha pSem com "Continuar a jornada organizacional"');
+  await page.check('#avpJornada_sim');
   await ate(page, () => !!document.getElementById('avpPosicionarBtn'), null, 'ficha pSem com "Posicionar"');
   await page.click('#avpPosicionarBtn');
   await ate(page, () => /po=escolher/.test(location.hash) && !!document.getElementById('poVoltar'), null, 'Posicionamento aberto pela ficha');

@@ -390,7 +390,11 @@ async function fichaEVoltar(browser, nomeTela, viewport) {
   let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#arquitetura?avp=p1' });
   await page.waitForSelector('#avpAcoesFicha');
   const h1Original = await texto(page, '#page-avaliacoes .page-hero h1');
-  afirma((await page.locator('#avpPosicionarBtn').count()) === 1, 'Avaliação + Configuração: a ficha concluída tem "Posicionamento Organizacional"');
+  /* Caminho 1: o O1–O9 é uma continuação ESCOLHIDA ("Continuar a jornada organizacional" → há responsabilidade própria? Sim) */
+  afirma((await page.locator('#avpPosicionarBtn').count()) === 0 && (await page.locator('#avpJornada_sim').count()) === 1, 'Avaliação + Configuração: a ficha concluída oferece continuar a jornada organizacional (o O1–O9 não vem de cara)');
+  await page.check('#avpJornada_sim');
+  await page.waitForSelector('#avpPosicionarBtn');
+  afirma((await page.locator('#avpPosicionarBtn').count()) === 1, 'com responsabilidade própria (Sim), a ficha leva ao "Posicionamento Organizacional"');
   await page.click('#avpPosicionarBtn');
   await tela(page, 'poItemSelecionado');
   afirma(await hash(page) === '#arquitetura?po=escolher&item=p1' && /Item Alfa/.test(await texto(page, '#poItemSelecionado')), 'o botão leva a ?po=escolher&item=p1, com o item já escolhido');
@@ -408,7 +412,9 @@ async function fichaEVoltar(browser, nomeTela, viewport) {
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
   ({ ctx, page, erros } = await abrir(browser, viewport, { email: AVAL, hash: '#arquitetura?avp=p1' }));
   await page.waitForSelector('#avpAcoesFicha');
-  afirma((await page.locator('#avpPosicionarBtn').count()) === 0, 'perfil "Avaliação": a ficha não oferece iniciar Posicionamento');
+  await page.check('#avpJornada_sim');
+  await page.waitForSelector('#avpJornadaSemPerfil');
+  afirma((await page.locator('#avpPosicionarBtn').count()) === 0, 'perfil "Avaliação": a ficha não oferece iniciar Posicionamento (explica quem registra)');
   await ctx.close();
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
 }

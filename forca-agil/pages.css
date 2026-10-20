@@ -3350,6 +3350,12 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-etapa--atual .mf-etapa-simbolo, .mf-etapa--atual .mf-etapa-rotulo { color: #0b5cad; }
 .mf-etapa--revisao .mf-etapa-simbolo { color: #a15c00; }
 .mf-etapa--analise .mf-etapa-simbolo { color: #7a3fb0; }
+/* Caminho 1: a natureza do objeto na trilha e na lista dos Trabalhos (informação, não etapa obrigatória) */
+.mf-natureza-etapa { display: flex; align-items: flex-start; gap: 6px; min-width: 0; flex: 1 1 150px; }
+.mf-natureza-etapa .mf-etapa-simbolo { color: var(--accent-2); }
+.mf-linha-natureza { display: block; font-size: var(--arq-fs-aux); color: var(--ink-2); overflow-wrap: anywhere; }
+.ro-etapa[data-situacao="identificada"], .ro-etapa[data-situacao="direta"] { color: var(--ink); font-weight: 600; }
+.ro-etapa[data-situacao="pendente"], .ro-etapa[data-situacao="a-confirmar"], .ro-etapa[data-situacao="a-validar"], .ro-etapa[data-situacao="a-identificar"] { color: var(--gold-soft); }
 .mf-etapa--futuro, .mf-etapa--na { opacity: .7; }
 .mf-trilha--compacta .mf-etapa { flex: 1 1 130px; }
 .mf-proxima { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
@@ -4297,3 +4303,34 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .ro-tax-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .ro-tax-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .ro-tax-item .ro-form { flex-basis: 100%; }
+
+/* ===== Caminho 1 — etapas da avaliação do objeto, prévia do resultado e próximo passo ===== */
+.avp-etapas { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.avp-etapa { display: flex; align-items: flex-start; gap: 6px; min-width: 0; flex: 1 1 130px; }
+.avp-etapa-num { flex: 0 0 auto; width: 1.6em; height: 1.6em; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: var(--arq-fs-aux, .85rem); font-weight: 700; border: 1px solid var(--line-strong); color: var(--ink-2); }
+.avp-etapa-txt { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.avp-etapa-rot { font-weight: 600; color: var(--ink-2); }
+.avp-etapa-det { font-size: var(--arq-fs-aux, .85rem); color: var(--ink-2); }
+.avp-etapa--ok .avp-etapa-num { border-color: var(--accent-2); color: var(--accent-2); }
+.avp-etapa--atual .avp-etapa-num { border-color: var(--gold-soft); color: var(--gold-soft); }
+.avp-etapa--atual .avp-etapa-rot { color: var(--ink); }
+.avp-etapa--pendente .avp-etapa-num { border-color: var(--gold-soft); color: var(--gold-soft); border-style: dashed; }
+.avp-etapa--pendente .avp-etapa-det { color: var(--gold-soft); }
+.avp-etapa--disponivel .avp-etapa-num { border-style: dashed; }
+.avp-resumo-escolha { list-style: none; margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.avp-previa h4, .avp-proximo-opcao h4 { margin: 0 0 6px; }
+.avp-previa-motivos { margin: 4px 0 8px; padding-left: 1.2em; overflow-wrap: anywhere; }
+.avp-previa-nota { margin: 6px 0 0; font-size: var(--arq-fs-aux, .85rem); color: var(--ink-2); }
+.avp-aviso-testes { border-color: rgba(245,197,24,.45); overflow-wrap: anywhere; }
+.avp-proximo-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+.avp-proximo-opcao { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.avp-proximo-pergunta { border: 0; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.avp-proximo-pergunta legend { padding: 0; margin-bottom: 4px; font-weight: 600; }
+.ro-suspensa { border-left: 3px solid var(--gold-soft); padding-left: 8px; }
+/* celular: as etapas viram uma linha compacta (o detalhe só na etapa atual), para o resultado continuar perto do topo */
+@media (max-width: 600px) {
+  .avp-etapas { gap: 2px 10px; margin: 4px 0 6px; }
+  .avp-etapa { flex: 0 1 auto; align-items: center; }
+  .avp-etapa-num { width: 1.4em; height: 1.4em; }
+  .avp-etapa:not(.avp-etapa--atual):not([data-etapa="natureza"]) .avp-etapa-det { display: none; }
+}
