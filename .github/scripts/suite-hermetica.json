@@ -765,6 +765,12 @@
       "sobre": "Encerrar e Excluir lado a lado, com a diferença explicada; exclusão comum com motivo (o cadastro sai, ficam registro mínimo e evento); já avaliada: só o admin geral, com dependências à vista e confirmação explícita, e a ficha e a lista do Posicionamento mostram \"Cadastro excluído\" sem perder a avaliação; bloqueios por estrutura responsável ativa e rascunho aberto; responsabilidade só de texto sai da análise, citada em proposta é bloqueada, com cadastro leva à ficha dele; análise vazia excluída; análise com conteúdo só pelo admin geral; perfil de consulta sem botões; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-exportar-regras-motores.js",
+      "nome": "Regras dos motores em PDF (Arquitetural, Posicionamento, Squad), desktop e 375 px",
+      "duracao": 60,
+      "sobre": "Módulo puro: condições aninhadas viram frases, campos usados, itens de lógica filtrados, texto escapado, nome de arquivo seguro. Na tela: os três botões geram PDFs conferidos contra os dados da própria página — todas as regras na ordem de precedência, texto vigente das perguntas, versão em vigor, perguntas fora de regra, frases da definição do Posicionamento e tabela Linha × Squad, Eixo A / Eixo B / Combinação com rótulos — e nada é gravado."
+    },
+    {
       "arquivo": ".github/scripts/teste-caminho1.js",
       "nome": "Caminho 1: objeto arquitetural de ponta a ponta (P1–P16 → natureza → próximo passo), desktop e 375 px",
       "duracao": 150,
