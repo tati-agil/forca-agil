@@ -35,7 +35,7 @@ const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g
 const ADM = 'adm@previ.com.br';
 const AK = chave(ADM);
 
-function banco(publicoRestrito) {
+function banco(publicoRestrito, categoria) {
   const users = {}; users[AK] = { name: 'ADMIN', email: ADM, area: 'INFOR' };
   const admins = {}; admins[AK] = { email: ADM, name: 'ADMIN' };
   return {
@@ -47,7 +47,7 @@ function banco(publicoRestrito) {
         publicoRestrito: publicoRestrito,
         topicos: 'Tópicos abordados neste evento.',
         itinerario: [],
-        publicoDesc: 'Executivos', publicoLabel: 'Obrigatória',
+        publicoDesc: categoria || 'Executivos', publicoLabel: 'Obrigatória',
       },
     },
     turmas: { tA: { label: 'TURMA A', eventoKey: 'ev1', order: 1, dias: ['2027-09-16'] } },
@@ -57,13 +57,13 @@ function banco(publicoRestrito) {
   };
 }
 
-async function lerChipPublico(browser, publicoRestrito) {
+async function lerChipPublico(browser, publicoRestrito, categoria) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
   await page.addInitScript('window.__CFG = ' + JSON.stringify({
-    db: banco(publicoRestrito), user: { email: ADM, emailVerified: true, uid: 'u1' }, delayDefault: 20,
+    db: banco(publicoRestrito, categoria), user: { email: ADM, emailVerified: true, uid: 'u1' }, delayDefault: 20,
   }) + ';');
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
@@ -100,6 +100,12 @@ async function lerChipPublico(browser, publicoRestrito) {
     anota('nunca mais diz "aberta a todos" quando é restrito',
       !/aberta a todos/i.test(restrito.texto), `veio "${restrito.texto}"`);
     if (restrito.erros.length) anota('sem erro de JS (evento restrito)', false, restrito.erros[0]);
+
+    /* categoria Gerentes (opção do painel): mesma frase, no plural */
+    const gerentes = await lerChipPublico(browser, false, 'Gerentes');
+    anota('categoria Gerentes: chip diz "aberta a todos os Gerentes da Previ"',
+      /aberta a todos os\s*Gerentes da Previ/i.test(gerentes.texto), `veio "${gerentes.texto}"`);
+    if (gerentes.erros.length) anota('sem erro de JS (Gerentes)', false, gerentes.erros[0]);
   } catch (e) {
     falhas++;
     console.error('  FALHA inesperada: ' + e.message);
