@@ -13,6 +13,7 @@ const path = require('path');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const { verificarTela } = require('./padrao-visual-verificacoes');
 const SJ = require('./semente-jornada');
+const RG = require('./responder-guiada');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -33,13 +34,20 @@ const TELAS = [
   ['#arquitetura?sq=lista', '#sqExportarBtn'],
   ['#arquitetura?an=lista', '#anNovaBtn'],
   ['#arquitetura?arq=inicio', '#avpGrupoConfiguracao'],
-  ['#arquitetura?mf=mapa', '.mfm-painel']
+  ['#arquitetura?mf=mapa', '.mfm-painel'],
+  /* avaliação guiada (v22): uma pergunta e a revisão (rascunhos semeados abaixo) */
+  ['#arquitetura?editar=gRasc', '#avpGuiadaCartao'],
+  ['#arquitetura?editar=gRev', '#avpGuiadaRevisao']
 ];
 
 async function abrir(browser, vp, hash) {
   const db = SJ.semente();
   db['fa-admins'] = { [SJ.chave(SJ.ARQ)]: { email: SJ.ARQ, name: 'ADMIN' } };
   db['analises-organizacionais-config'] = { habilitacao: 'LIBERADO_PARA_PERFIS_AUTORIZADOS' };
+  const rascunhoGuiado = (nome, respostas) => ({ nome, descricao: '', publico: '', necessidade: '', observacoesGerais: '', status: 'rascunho', versao: 1, itemId: nome, respostas: {},
+    guiada: { versao: 22, respostas, observacoes: {} }, criadoEm: '2026-10-20T10:00:00.000Z', atualizadoEm: '2026-10-20T10:00:00.000Z', responsavel: { email: SJ.ARQ, name: 'ADMIN' } });
+  db['avaliacoes-produto'].gRasc = rascunhoGuiado('Rascunho guiado', { P1: 'S', P2: 'S' });
+  db['avaliacoes-produto'].gRev = rascunhoGuiado('Revisão guiada', RG.guiadaDe(RG.pDaMascara(0x7f)));
   const ctx = await browser.newContext({ viewport: vp });
   const page = await ctx.newPage();
   const erros = [];

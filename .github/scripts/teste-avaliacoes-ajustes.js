@@ -12,6 +12,7 @@
  *      anterior fica intacta e consultável no histórico.
  * Desktop e celular (375 px). Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -187,12 +188,13 @@ const opcoes = (page, sel) => page.locator(sel + ' option').allInnerTexts();
     await page.click('.avp-act-ver[data-key="k1"]');
     await page.waitForSelector('#avpReavaliarBtn');
     await page.click('#avpReavaliarBtn');
-    await page.waitForSelector('#avpConcluirBtn');
+    await page.waitForSelector('#avpGuiadaCartao');
     afirma(/← Voltar para a avaliação \(v1\)/i.test(await page.locator('#avpVoltarLista').innerText()), 'checklist da reavaliação tem o Voltar com o destino: "← Voltar para a avaliação (v1)" (de onde a reavaliação começou)');
-    afirma(await page.locator('#avpQuestion-solucao .avp-choice-btn--sim.active').count() === 1, 'a reavaliação parte das respostas anteriores (todas as perguntas podem ser mudadas)');
-    await page.locator('#avpQuestion-solucao .avp-choice-btn--nao').click();
-    await page.locator('#avpQuestion-autonomia .avp-choice-btn--nao').click();
-    await page.click('#avpConcluirBtn');
+    /* a v1 foi respondida no questionário antigo: a reavaliação é guiada (v22) e começa em branco — nada é convertido */
+    afirma(/começa com as perguntas em branco/.test(await page.locator('#avpGuiadaDados').textContent()) && await page.locator('input[name="avpGuiadaResp"]:checked').count() === 0,
+      'a reavaliação de uma avaliação antiga começa guiada e em branco (as respostas antigas não são convertidas)');
+    await RG.responderGuiada(page, RG.pDosIds({ necessidade: 'sim', resultado: 'sim', fronteira: 'sim' }));
+    await RG.concluirGuiada(page);
     await page.waitForSelector('#avpVoltarListaResultado', { timeout: 8000 });
     await page.waitForTimeout(300);
     const dep = await banco(page);

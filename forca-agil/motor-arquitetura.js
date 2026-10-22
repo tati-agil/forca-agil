@@ -25,10 +25,13 @@
    (all/any/not/equals) com PRECEDÊNCIA explícita (ordem), nunca pontos,
    score, percentuais, votação ou contagem de SIM para escolher camada.
 
-   P6 (jornada), P7 (medição) e P8 (gestão) são critérios complementares/
-   informativos e NÃO entram em nenhuma condição das regras abaixo — mesmo
-   comportamento do identificarCamada original. Uma versão futura poderia
-   passar a usá-los, mas isso seria uma mudança de REGRA (nova
+   P6 (jornada) e P7 (medição) são critérios complementares/informativos e NÃO
+   entram em nenhuma condição das regras de fábrica nem das versões publicadas
+   até a 7. P8 (gestão) ERA informativo nas regras de fábrica, mas desde a
+   versão 5 é DECISIVO: P8 = SIM é condição de Produto/Serviço principal e de
+   Unidade de valor associada, e faz parte da proteção do núcleo na
+   Capacidade organizacional (versão 6) — é o que vale na versão 7 publicada.
+   Passar a usar P6/P7 seria uma mudança de REGRA (nova
    motorVersionArquitetura), nunca uma alteração textual.
 
    IDENTIDADE x APRESENTAÇÃO — o código de cada camada (ex.:

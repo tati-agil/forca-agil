@@ -17,6 +17,7 @@
  *   avaliações novas de recorte, incoerência e caso misto mostram rótulo, detalhe e justificativa; a
  *   avaliação concluída antes fica byte a byte igual. Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -307,9 +308,9 @@ async function parteB(browser, R) {
         await page.click('#avpNovoBtn');
         await page.fill('#avpfNome', nome);
         await page.click('#avpIniciarBtn');
-        await page.waitForSelector('#avpQuestion-funcionalidade');
-        for (let i = 0; i < ORDEM.length; i++) await page.locator('#avpQuestion-' + ORDEM[i] + ' .avp-choice-btn--' + (sims.includes('P' + (i + 1)) ? 'sim' : 'nao')).click();
-        await page.click('#avpConcluirBtn');
+        const P = {}; ORDEM.forEach((id, i) => { P['P' + (i + 1)] = sims.includes('P' + (i + 1)) ? 'S' : 'N'; });
+        await RG.responderGuiada(page, P); /* avaliação nova = avaliação guiada (v22) */
+        await RG.concluirGuiada(page);
         await page.waitForSelector('#avpAValidarDetalhe', { timeout: 10000 });
         const db = await banco(page);
         const nova = Object.values(db['avaliacoes-produto']).find((i) => i.nome === nome);

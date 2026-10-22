@@ -28,6 +28,7 @@ const vm = require('vm');
 const SJ = require('./semente-jornada');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const { arquivoTemporario } = require('./arquivo-temporario');
+const RG = require('./responder-guiada');
 const XLSX = require(path.join(__dirname, '..', '..', 'forca-agil', 'xlsx.mini.min.js'));
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
@@ -147,9 +148,8 @@ const tresIguais = (page, x, desc) => ate(page, (e) => {
 const ordemOk = (page) => page.evaluate(() => { const ids = ['avpSecaoSistema', 'avpSecaoNatureza', 'avpSecaoCuradoria', 'avpSecaoDecisao', 'avpSecaoHistorico', 'avpSecaoProximo'].map((i) => document.getElementById(i));
   if (ids.some((e) => !e)) return false; for (let i = 1; i < ids.length; i++) if (!(ids[i - 1].compareDocumentPosition(ids[i]) & Node.DOCUMENT_POSITION_FOLLOWING)) return false; return true; });
 const fichaPronta = (page) => ate(page, () => !!document.querySelector('#avpSecaoNatureza #roNatureza'), undefined, 'natureza na ficha');
-async function responder(page, mascara) {
-  for (let i = 0; i < ORDEM.length; i++) await page.locator('#avpQuestion-' + ORDEM[i] + ' .avp-choice-btn--' + ((mascara >> i) & 1 ? 'sim' : 'nao')).click();
-}
+/* avaliação guiada (v22): responde as perguntas guiadas que levam a esta combinação de P1–P16, até a revisão */
+async function responder(page, mascara) { await RG.responderGuiada(page, mascara); }
 async function novaAvaliacao(page, nome, mascara, antesDeConcluir) {
   await page.waitForSelector('#avpNovoBtn');
   await page.click('#avpNovoBtn');
@@ -158,7 +158,7 @@ async function novaAvaliacao(page, nome, mascara, antesDeConcluir) {
   await page.waitForSelector('#avpEtapas');
   await responder(page, mascara);
   if (antesDeConcluir) await antesDeConcluir();
-  await page.click('#avpConcluirBtn');
+  await RG.concluirGuiada(page);
   await page.waitForSelector('#avpSecaoSistema', { timeout: 30000 });
   await ate(page, (n) => Object.values((window.__CFG.__dbReal || {})['avaliacoes-produto'] || {}).some((x) => x.nome === n && x.status === 'concluido'), nome, 'avaliação "' + nome + '" concluída');
   const db = await banco0(page);
@@ -186,15 +186,15 @@ async function rodada(browser, vp, rotulo) {
   await page.fill('#avpfNome', 'Simulação de renda (Caminho 1)');
   await page.click('#avpIniciarBtn');
   await page.waitForSelector('#avpEtapas');
-  afirma(/Perguntas P1–P16/.test(await texto(page, '#avpEtapas')) && /Natureza/.test(await texto(page, '#avpEtapas')) && /Próximo passo/.test(await texto(page, '#avpEtapas')), 'A. as etapas do caminho aparecem desde o início (Objeto → Perguntas → Classificação → Natureza → Próximo passo)');
-  afirma(/0 de 16 respondidas/.test(await texto(page, '#avpEtapas')) && await page.evaluate(() => document.getElementById('avpPrevia').getAttribute('data-situacao')) === 'incompleta', 'A. progresso real (0 de 16) e prévia ainda incompleta');
+  afirma(/Perguntas guiadas/.test(await texto(page, '#avpEtapas')) && /Natureza/.test(await texto(page, '#avpEtapas')) && /Próximo passo/.test(await texto(page, '#avpEtapas')), 'A. as etapas do caminho aparecem desde o início (Objeto → Perguntas → Classificação → Natureza → Próximo passo)');
+  afirma(/0 de \d+ respondidas/.test(await texto(page, '#avpEtapas')) && await existe(page, '#avpGuiadaCartao') && !(await existe(page, '#avpPrevia')), 'A. progresso real (0 respondidas) e uma pergunta por vez; a prévia só na revisão');
   await responder(page, M_FUNC);
   await ate(page, () => !!document.querySelector('#avpPrevia[data-camada="funcionalidade-operacao"]'), undefined, 'prévia');
-  afirma(/16 de 16/.test(await texto(page, '#avpEtapas')) && /Funcionalidade/.test(await texto(page, '#avpPreviaTecnica')) && /Operação/.test(await texto(page, '#avpPreviaTecnica')), 'A. prévia: classificação técnica e as naturezas que serão diferenciadas na ficha', await texto(page, '#avpPrevia'));
+  afirma(/(\d+) de \1 respondidas/.test(await texto(page, '#avpEtapas')) && /Funcionalidade/.test(await texto(page, '#avpPreviaTecnica')) && /Operação/.test(await texto(page, '#avpPreviaTecnica')), 'A. prévia: classificação técnica e as naturezas que serão diferenciadas na ficha', await texto(page, '#avpPrevia'));
   afirma(/nada foi gravado/.test(await texto(page, '#avpPrevia')) && !Object.values((await banco0(page))['avaliacoes-produto']).some((x) => x.nome === 'Simulação de renda (Caminho 1)'), 'A. a prévia não grava nada');
   afirma(await larguraOk(page), 'A. questionário sem rolagem lateral');
   await foto(page, '1-previa-tecnica', '#avpPrevia');
-  await page.click('#avpConcluirBtn');
+  await RG.concluirGuiada(page);
   await page.waitForSelector('#avpSecaoSistema', { timeout: 30000 });
   await fichaPronta(page);
   const novo = Object.entries((await banco0(page))['avaliacoes-produto']).map(([k, v]) => Object.assign({ _key: k }, v)).find((x) => x.nome === 'Simulação de renda (Caminho 1)');
@@ -305,9 +305,9 @@ async function rodada(browser, vp, rotulo) {
   await page.click('#avpVoltarListaResultado');
   /* E. dois testes SIM */
   await novaAvaliacao(page, 'Objeto misturado (Caminho 1)', M_CONFLITO, async () => {
-    afirma(await existe(page, '#avpAvisoTestes') && /exclusivos entre si/.test(await texto(page, '#avpAvisoTestes')), 'E. SIM em dois testes: aviso na hora, junto dos testes');
+    afirma(await existe(page, '#avpGuiadaPontos') && /Mais de uma natureza/.test(await texto(page, '#avpGuiadaPontos')), 'E. duas naturezas: aviso na revisão, antes de concluir');
     afirma(await existe(page, '#avpPrevia[data-camada="a-validar"]') && await existe(page, '#avpPreviaAValidar'), 'E. a prévia mostra "A validar" e o que fazer, antes de concluir');
-    await foto(page, '6-aviso-dois-testes', '#avpAvisoTestes');
+    await foto(page, '6-aviso-dois-testes', '#avpGuiadaPontos');
   });
   await fichaPronta(page);
   afirma(/A validar/.test(await texto(page, '#avpSecaoNatureza #roNatureza')) && /Próximo passo/.test(await texto(page, '#avpSecaoNatureza #roNatureza')), 'E. natureza pendente com o próximo passo (nada classificado à força)');
@@ -322,8 +322,8 @@ async function rodada(browser, vp, rotulo) {
   /* E. P5 × P13 */
   await page.click('#avpNovoBtn'); await page.fill('#avpfNome', 'Incoerente (Caminho 1)'); await page.click('#avpIniciarBtn'); await page.waitForSelector('#avpEtapas');
   await responder(page, M_INCOER);
-  await ate(page, () => !!document.querySelector('#avpQuestion-autonomia.avp-question--incoerente'), undefined, 'incoerência');
-  afirma(await existe(page, '#avpQuestion-autonomia.avp-question--incoerente') && await existe(page, '#avpQuestion-modalidade.avp-question--incoerente'), 'E. P5 × P13 marcadas como contraditórias (não só P5 × P16)');
+  await ate(page, () => !!document.querySelector('#avpPrevia[data-camada="a-validar"]'), undefined, 'prévia A validar');
+  afirma(/Autonomia \(P5\) = SIM/.test(await texto(page, '#avpGuiadaPontos')) && /P13–P16/.test(await texto(page, '#avpGuiadaPontos')), 'E. P5 × P13 apontadas como contraditórias na revisão (incoerência)');
   afirma(await existe(page, '#avpPrevia[data-camada="a-validar"]'), 'E. a prévia avisa que o resultado ficaria "A validar"');
   afirma(!erros.length, 'C/E. sem erro de página', erros);
   await ctx.close();
@@ -431,15 +431,16 @@ async function editorial(browser) {
   afirma(JSON.stringify(db['motor-arquitetura-config']) === motorAntes && /"versaoPublicada":7/.test(motorAntes), 'H. regras do motor intocadas (a mesma configuração publicada, v7, antes e depois)');
   await page.click('#avpVoltarListaResultado');
   await page.waitForSelector('#avpNovoBtn');
-  await page.click('#avpNovoBtn'); await page.fill('#avpfNome', 'Vendo as ajudas novas'); await page.click('#avpIniciarBtn'); await page.waitForSelector('#avpEtapas');
-  await page.click('#avpQuestion-funcionalidade .avp-help-btn');
-  afirma(/O que significa:/.test(await texto(page, '#avpHelp-funcionalidade')) && /exclusivos|somente na que melhor descreve/.test(await texto(page, '#avpHelp-funcionalidade')), 'H. a ajuda nova da P16 aparece (significado, quando SIM/NÃO, exemplo)');
-  afirma(/condições de um regime tributário/.test(await texto(page, '#avpQuestion-regra .avp-exemplos')), 'H. P14: "condições de um regime tributário" (Regra), não o regime como escolha');
-  await page.click('#avpQuestion-regra .avp-help-btn');
-  const ajudaP14 = await texto(page, '#avpHelp-regra');
+  /* a avaliação nova é guiada (v22): a redação oficial de P1–P16 já não é a tela de resposta — a versão publicada é
+     conferida no cadastro do questionário (a mesma fonte da ficha, do PDF e do questionário dos rascunhos antigos) */
+  const conteudoNovo = (cod) => page.evaluate((x) => { const c = window.faQuestionarios.conteudoPergunta('CLASSIFICACAO_ARQUITETURAL', x[0], x[1]);
+    return [c.textoAjuda ? [c.textoAjuda.significado, c.textoAjuda.quandoSim, c.textoAjuda.quandoNao].join(' ') : '', c.exemplo || '', (c.exemplos || []).join('; ')].join(' | '); }, [cod, res.r.novaVersao]);
+  const ajudaP16 = await conteudoNovo('P16');
+  afirma(/exclusivos|somente na que melhor descreve/.test(ajudaP16), 'H. a ajuda nova da P16 está publicada na versão nova');
+  afirma(/condições de um regime tributário/.test(await conteudoNovo('P14')), 'H. P14: "condições de um regime tributário" (Regra), não o regime como escolha');
+  const ajudaP14 = await conteudoNovo('P14');
   afirma(/escolha entre os regimes/.test(ajudaP14) && /Opção \(pergunta 13\)/.test(ajudaP14) && /Funcionalidade \(pergunta 16\)/.test(ajudaP14), 'H. P14 separa as condições do regime (Regra), a escolha entre regimes (Opção) e a tela da escolha (Funcionalidade)');
-  await page.click('#avpQuestion-processo .avp-help-btn');
-  const ajudaP12 = await texto(page, '#avpHelp-processo');
+  const ajudaP12 = await conteudoNovo('P12');
   afirma(/Todo processo produz algum resultado/.test(ajudaP12) && /investiga outra coisa/.test(ajudaP12) && /A validar/.test(ajudaP12) && !/pergunta 2[^.]*é NÃO/.test(ajudaP12),
     'H. P12 distingue o resultado de um processo do resultado próprio de uma solução e diz o que acontece com SIM nas duas — sem prescrever "P2 é NÃO"');
   afirma(!erros.length, 'H. sem erro de página', erros);

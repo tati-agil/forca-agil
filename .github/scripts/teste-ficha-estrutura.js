@@ -14,6 +14,16 @@
  *   - navegação existente não piora (Voltar, versão anterior).
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
+/* reavaliação guiada (v22), começando em branco: responde as perguntas que levam às MESMAS respostas P1–P16 da versão
+   de origem (lidas do banco pela chave do endereço ?reavaliar=) e conclui */
+async function reavaliarComAsMesmasRespostas(page) {
+  await page.waitForSelector('#avpGuiadaCartao');
+  const valores = await page.evaluate(() => { const k = decodeURIComponent((/[?&]reavaliar=([^&]+)/.exec(location.hash) || [])[1] || '');
+    const r = ((window.__CFG.__dbReal['avaliacoes-produto'] || {})[k] || {}).respostas || {}; const v = {}; Object.keys(r).forEach((id) => { v[id] = r[id].valor; }); return v; });
+  await RG.responderGuiada(page, RG.pDosIds(valores));
+  await RG.concluirGuiada(page);
+}
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -369,8 +379,7 @@ async function passo(nome, fn) { try { await fn(); } catch (e) { afirma(false, n
     const antes = await banco(page);
     await abrirResultado(page, 'cadx');
     await page.click('#avpReavaliarBtn');
-    await page.waitForSelector('#avpConcluirBtn', { timeout: 5000 });
-    await page.click('#avpConcluirBtn');
+    await reavaliarComAsMesmasRespostas(page);
     await page.waitForSelector('#avpCuradoriaCard', { timeout: 8000 });
     await page.waitForTimeout(400);
     const b = await banco(page);

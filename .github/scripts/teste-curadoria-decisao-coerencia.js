@@ -22,6 +22,16 @@
  *        conta nem aparece, e NADA é apagado do banco.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
+/* reavaliação guiada (v22), começando em branco: responde as perguntas que levam às MESMAS respostas P1–P16 da versão
+   de origem (lidas do banco pela chave do endereço ?reavaliar=) e conclui */
+async function reavaliarComAsMesmasRespostas(page) {
+  await page.waitForSelector('#avpGuiadaCartao');
+  const valores = await page.evaluate(() => { const k = decodeURIComponent((/[?&]reavaliar=([^&]+)/.exec(location.hash) || [])[1] || '');
+    const r = ((window.__CFG.__dbReal['avaliacoes-produto'] || {})[k] || {}).respostas || {}; const v = {}; Object.keys(r).forEach((id) => { v[id] = r[id].valor; }); return v; });
+  await RG.responderGuiada(page, RG.pDosIds(valores));
+  await RG.concluirGuiada(page);
+}
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarCondicaoAte } = require('./esperas');
@@ -326,17 +336,17 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
       await esperarCondicao(page, () => !document.querySelector('.modal-box .avp-modal-confirm-btn'), null, { descricao: 'o aviso fechar depois de cancelar' });
     }
     let b = await banco(page);
-    afirma(JSON.stringify(b['avaliacoes-produto']) === JSON.stringify(antes['avaliacoes-produto']) && !b['curadoria-auditoria'] && await page.locator('#avpConcluirBtn').count() === 0, 'cancelar não cria nada: nem avaliação, nem auditoria, nem checklist');
+    afirma(JSON.stringify(b['avaliacoes-produto']) === JSON.stringify(antes['avaliacoes-produto']) && !b['curadoria-auditoria'] && await page.locator('#avpSalvarRascunhoBtn').count() === 0, 'cancelar não cria nada: nem avaliação, nem auditoria, nem checklist');
 
     /* reavaliar de novo: o aviso volta (decisão manual) e, confirmando, abre o checklist. Antes o clique
        e o aviso eram opcionais (compatibilidade com um código antigo em que o 1º clique já abria o checklist). */
     await page.click('#avpReavaliarBtn');
     await page.waitForSelector('.avp-modal-confirm-btn', { timeout: 4000 });
     await page.click('.avp-modal-confirm-btn');
-    const checklist = await aparece(page, '#avpConcluirBtn', 4000);
+    const checklist = await aparece(page, '#avpGuiadaCartao', 4000);
     afirma(checklist, 'confirmando, abre a reavaliação (checklist)');
     if (checklist) {
-      await page.click('#avpConcluirBtn');
+      await reavaliarComAsMesmasRespostas(page);
       await esperarV2(page, antes);
     }
     b = await banco(page);
@@ -383,9 +393,9 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     await page.click('#avpReavaliarBtn');
     /* a prova de "sem pergunta" é o checklist abrir direto (antes: janela de 800 ms esperando o aviso NÃO
        aparecer, e o checklist podia faltar calado) */
-    await page.waitForSelector('#avpConcluirBtn', { timeout: 4000 });
+    await page.waitForSelector('#avpGuiadaCartao', { timeout: 4000 });
     afirma(await page.locator('.avp-modal-confirm-btn').count() === 0, 'sem decisão manual não há o que descartar: abre direto, sem pergunta extra');
-    await page.click('#avpConcluirBtn');
+    await reavaliarComAsMesmasRespostas(page);
     await esperarV2(page, antes);
     const b = await banco(page);
     const novas = Object.keys(b['avaliacoes-produto']).filter((k) => !antes['avaliacoes-produto'][k]);
@@ -403,8 +413,7 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     await page.click('#avpReavaliarBtn');
     await page.waitForSelector('.avp-modal-confirm-btn', { timeout: 4000 });
     await page.click('.avp-modal-confirm-btn');
-    await page.waitForSelector('#avpConcluirBtn', { timeout: 4000 });
-    await page.click('#avpConcluirBtn');
+    await reavaliarComAsMesmasRespostas(page);
     /* o fim da tentativa é o aviso de erro na tela (antes: 1,5 s fixos, sem olhar se a pessoa era avisada) */
     const avisou = await esperarCondicaoAte(page, () => Array.from(document.querySelectorAll('.modal-box')).some((m) => /Não foi possível salvar a avaliação/.test(m.textContent)), null, { limite: 8000 });
     afirma(avisou, 'a recusa do banco aparece na tela ("Não foi possível salvar a avaliação")');

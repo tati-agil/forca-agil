@@ -90,6 +90,11 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   um objeto é identificada por uma etapa ORIENTADA depois do P1–P16 (`identificacao-naturezas.js`; o motor não muda), com
   fundamento ou pendência (recorte, evidência insuficiente, reavaliação) no mesmo `objetos-natureza`. O cadastro desses
   conceitos (cartão em Taxonomia › Verificações, só admin geral) independe do marcador da E4.
+- **Avaliação guiada (v22)** (`avaliacao-guiada.js`, puro, carregado antes de `avaliacao-produto.js`): é a experiência de
+  perguntas de toda avaliação nova/cópia/reavaliação de Produto/Serviço. Só TRADUZ respostas para P1–P16 ("Não sei" nunca
+  vira NÃO); quem classifica é o motor publicado. Grava `guiada` (com `textos`, a cópia da redação apresentada, lida por ficha/PDF/Excel) + a tradução em `respostas` (mesmo formato); P6/P7 podem
+  ficar não confirmados só enquanto a regra publicada não os lê. Registros antigos não são convertidos. Testes que criam
+  avaliação respondem pela guiada com `responder-guiada.js` (`teste-avaliacao-guiada.js`).
 
 ## Backend local e deploy
 

@@ -40,11 +40,13 @@
  *   "A validar", sem rolagem horizontal, sem erro de JS.
  * Hermético: sem rede, sem segredo. Dados fictícios. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const P8 = require('./explicacao-p8-da-epoca'); /* o P8 acrescentado à explicação (PR #420) sai antes da digital da época */
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -201,7 +203,7 @@ function digitalDaEpoca(r) {
       if (b.tipo === 'autonomia') i[4] = semPrefixo(justSim[4]);
       if (b.tipo === 'natureza') { const k = Number(b.pergunta.slice(1)) - 1; i[k] = semPrefixo(justSim[k]); }
     }
-    h.update(comMotivoDaEpoca(JSON.stringify([m, xx, j, i])) + '\n');
+    h.update(comMotivoDaEpoca(JSON.stringify([m, P8.estadoSemP8(xx), P8.justificativaSemP8(j, x.camadaSugerida.id), i])) + '\n');
   });
   return h.digest('hex');
 }
@@ -489,7 +491,7 @@ async function parteA() {
     const muts = (...pares) => pares.reduce((t, [a1, b1]) => { if (!t) return null; const r = t.replace(a1, b1); return r === t ? null : r; }, SRC.avp);
     const SEM_ESPERA_PREVIA_LOTE = ['function abrirModalAtualizarMotor() { quandoCompatibilidadePronta(function () { montarModalAtualizarMotor(); }); }', 'function abrirModalAtualizarMotor() { montarModalAtualizarMotor(); }'];
     [['lote sem a espera', muts(['quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA', '(function () {\n        var n = Math.min(CONCORRENCIA'], SEM_ESPERA_PREVIA_LOTE)],
-      ['Concluir sem a espera', mut("quandoCompatibilidadePronta(function () { salvarRegistro('concluido'", "(function () { salvarRegistro('concluido'")],
+      ['Concluir sem a espera', mut('quandoCompatibilidadePronta(function () {\n        if (posConferir && !posConferir())', '(function () {\n        if (posConferir && !posConferir())')],
       ['Reprocessar individual sem a espera', muts(['quandoCompatibilidadePronta(function () {\n        var previa = previaConfirmada;', '(function () {\n        var previa = previaConfirmada;'], ['quandoCompatibilidadePronta(function () {\n            /* prévia individual', '(function () {\n            /* prévia individual'])],
       ['lote com um ramo novo que inicia um worker sem a espera', muts(['      quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA', '      if (fila.length > 100) { workersAtivos = 1; worker(); }\n      quandoCompatibilidadePronta(function () {\n        var n = Math.min(CONCORRENCIA'], SEM_ESPERA_PREVIA_LOTE)],
       ['caminho novo (prévia na tela) calculando sem a espera', mut('    function renderResultado() {', '    function previaDoResultado() { return computeResultado(state.atual); }\n    function renderResultado() { previaDoResultado();')],
@@ -627,9 +629,8 @@ async function parteB(browser) {
     await page.click('#avpNovoBtn');
     await page.fill('#avpfNome', NOVA.nome);
     await page.click('#avpIniciarBtn');
-    await page.waitForTimeout(150);
-    for (let i = 0; i < ORDEM.length; i++) await page.locator('#avpQuestion-' + ORDEM[i] + ' .avp-choice-btn--' + ((NOVA.mascara >> i) & 1 ? 'sim' : 'nao')).click();
-    await page.click('#avpConcluirBtn');
+    await RG.responderGuiada(page, NOVA.mascara); /* avaliação nova = avaliação guiada (v22) */
+    await RG.concluirGuiada(page);
     await page.waitForSelector('#avpSecaoSistema', { timeout: 8000 });
     await page.waitForTimeout(300);
     await abrirPorQue(page);

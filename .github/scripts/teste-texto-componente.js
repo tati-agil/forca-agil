@@ -32,6 +32,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const P8 = require('./explicacao-p8-da-epoca'); /* o P8 acrescentado à explicação (PR #420) sai antes da digital da época */
 /* Única diferença INTENCIONAL de texto desde a impressão digital (ajuste pós-publicação da P15):
    o motivo de Componente passou a ser "É principalmente um elemento estrutural que compõe outro
    Produto/Serviço". O rótulo antigo é recolocado antes de calcular — se o hash continua o de
@@ -144,7 +145,7 @@ function varrer(src, config) {
       comp.push({ m, p6: atual.respostas.jornada.valor, p13: atual.respostas.modalidade.valor, just });
       just = 'JUSTIFICATIVA_COMPONENTE';
     }
-    h.update(comMotivoDaEpoca(JSON.stringify([m, x, just])) + '\n');
+    h.update(comMotivoDaEpoca(JSON.stringify([m, P8.estadoSemP8(x), P8.justificativaSemP8(just, x.camadaSugerida.id)])) + '\n');
   }
   return { versao: M.versaoAtual(), digital: h.digest('hex'), comp };
 }
