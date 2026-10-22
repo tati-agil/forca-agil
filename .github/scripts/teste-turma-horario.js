@@ -23,6 +23,10 @@
  *   3. tentar salvar com término igual ou antes do início é recusado, com
  *      mensagem de erro, e NADA é gravado;
  *   4. nenhum erro de JavaScript não tratado.
+ *
+ * SALA (campo opcional, também para turmas já existentes): a turma antiga, sem
+ * sala, abre "✎ Editar turma" com o campo Sala vazio; preenchido e salvo, grava
+ * turmas/<key>/sala e aparece no card da turma no ADMIN e no card público.
  */
 
 const { chromium } = require('playwright');
@@ -101,6 +105,9 @@ async function abrirEdicaoDaTurma(page) {
     anota('turma sem horário salvo abre com 09:00–13:00 preenchido',
       valoresIniciais === '09:00' && valoresFinais === '13:00',
       `veio "${valoresIniciais}"–"${valoresFinais}"`);
+    const salaInicial = await page.$eval('#turmaFormSala', (i) => i.value);
+    anota('turma antiga (sem sala) abre com o campo Sala, vazio, para preencher', salaInicial === '', `veio "${salaInicial}"`);
+    await page.fill('#turmaFormSala', 'Salas 9 e 10 (Treinamentos)');
 
     // Tenta salvar horário inválido (término antes do início) — deve recusar.
     await page.fill('#turmaFormHoraInicio', '10:00');
@@ -124,6 +131,10 @@ async function abrirEdicaoDaTurma(page) {
     anota('horário novo é gravado em turmas/tA',
       !!gravacaoTurma && gravacaoTurma.valor.horarioInicio === '14:00' && gravacaoTurma.valor.horarioFim === '18:00',
       JSON.stringify(gravacaoTurma));
+    anota('a sala é gravada em turmas/tA/sala', !!gravacaoTurma && gravacaoTurma.valor.sala === 'Salas 9 e 10 (Treinamentos)', JSON.stringify(gravacaoTurma));
+    await page.waitForSelector('#turma-card-tA .turma-admin-sala', { timeout: 10000 });
+    const salaAdmin = await page.$eval('#turma-card-tA .turma-admin-sala', (e) => e.textContent.trim());
+    anota('o card da turma no ADMIN mostra a sala', /Salas 9 e 10 \(Treinamentos\)/.test(salaAdmin), `card mostra "${salaAdmin}"`);
     anota('horário inválido do passo anterior NÃO foi gravado',
       !escritas.some((e) => e.path === 'turmas/tA' && e.valor.horarioInicio === '10:00'),
       'uma gravação com horarioInicio 10:00 apareceu em __ESCRITAS');
@@ -135,6 +146,8 @@ async function abrirEdicaoDaTurma(page) {
     anota('card público mostra o horário novo, não "9h – 13h"',
       /14h\s*[–-]\s*18h/.test(horarioCard),
       `card mostra "${horarioCard}"`);
+    const salaCard = await page.$eval('.tc-sala', (e) => e.textContent.trim()).catch(() => '');
+    anota('card público mostra a sala, logo abaixo do horário', /Salas 9 e 10 \(Treinamentos\)/.test(salaCard), `card mostra "${salaCard}"`);
 
     anota('nenhum erro de JavaScript não tratado', erros.length === 0, erros[0]);
   } catch (e) {

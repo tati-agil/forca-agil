@@ -487,7 +487,7 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, apostaHabilitada: !!t.apostaHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito, horarioInicio: t.horarioInicio || '09:00', horarioFim: t.horarioFim || '13:00' };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, apostaHabilitada: !!t.apostaHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito, horarioInicio: t.horarioInicio || '09:00', horarioFim: t.horarioFim || '13:00', sala: t.sala || '' };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -880,6 +880,7 @@
                 '<span class="turma-toggle-icon" style="color:var(--ink-2);font-size:.8rem;flex-shrink:0;margin-right:6px">▸</span>' +
                 '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
                 '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
+                (t.sala ? '<span class="turma-admin-dates turma-admin-sala">&#x1F4CD; ' + esc(t.sala) + '</span>' : '') +
                 '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
                   (finalizada ? 'INTERESSE ENCERRADO' : 'ABERTA') + '</span>' +
                 '<span class="admin-badge">' + countLabel + '</span>' +
@@ -3296,6 +3297,7 @@
         '<label class="auth-label">Início<input type="time" id="turmaFormHoraInicio" autocomplete="off" /></label>' +
         '<label class="auth-label">Término<input type="time" id="turmaFormHoraFim" autocomplete="off" /></label>' +
       '</div>' +
+      '<label class="auth-label">Sala <span style="opacity:.6;font-weight:400">(opcional)</span><input type="text" id="turmaFormSala" placeholder="Ex: Sala de Treinamento GETHO" maxlength="120" autocomplete="off" /></label>' +
       '<label class="auth-label">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
@@ -3323,6 +3325,7 @@
     var labelInput  = box.querySelector('#turmaFormLabel');
     var horaInicioInput = box.querySelector('#turmaFormHoraInicio');
     var horaFimInput    = box.querySelector('#turmaFormHoraFim');
+    var salaInput   = box.querySelector('#turmaFormSala');
     var cmflexInput = box.querySelector('#turmaFormCmflex');
     var resultadoInput = box.querySelector('#turmaFormResultadoEsperado');
     var restritoInput  = box.querySelector('#turmaFormPublicoRestrito');
@@ -3336,6 +3339,8 @@
        sempre esteve na tela, não um campo vazio. */
     horaInicioInput.value = isEdit ? (existing.horarioInicio || '09:00') : '09:00';
     horaFimInput.value    = isEdit ? (existing.horarioFim    || '13:00') : '13:00';
+    /* Ausente = sem sala informada: turma criada antes deste campo continua como estava */
+    salaInput.value   = isEdit ? (existing.sala || '') : '';
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
     resultadoInput.value = isEdit ? (existing.resultadoEsperado || '') : '';
     /* Ausente = turma aberta: turma criada antes deste controle continua
@@ -3384,7 +3389,7 @@
       if (horarioFim <= horarioInicio) { errEl.textContent = 'O término precisa ser depois do início.'; errEl.style.display = ''; return; }
 
       var resultadoEsperado = (resultadoInput.value || '').trim();
-      var data = { label: label, dias: dias, horarioInicio: horarioInicio, horarioFim: horarioFim, cmflexLink: cmflexLink, resultadoEsperado: resultadoEsperado, eventoKey: eventoSel.value || '', publicoRestrito: !!restritoInput.checked };
+      var data = { label: label, dias: dias, horarioInicio: horarioInicio, horarioFim: horarioFim, sala: (salaInput.value || '').trim(), cmflexLink: cmflexLink, resultadoEsperado: resultadoEsperado, eventoKey: eventoSel.value || '', publicoRestrito: !!restritoInput.checked };
       if (isEdit) {
         firebase.database().ref('turmas/' + existing.key).update(data, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }

@@ -328,7 +328,8 @@
                 /* Ausente = 09:00–13:00: era o horário fixo do card antes
                    deste campo existir, então turma antiga não muda sozinha. */
                 horarioInicio: val[key].horarioInicio || '09:00',
-                horarioFim: val[key].horarioFim || '13:00'
+                horarioFim: val[key].horarioFim || '13:00',
+                sala: val[key].sala || ''
               };
             }).sort(function (a, b) { return a.order - b.order; });
             Promise.all([
@@ -394,6 +395,8 @@
       var diasLabel = (diasOrdenados.length === 1 ? 'dia ' : 'dias ') + fmt.dates;
       var emDias = (diasOrdenados.length === 1 ? 'no dia ' : 'nos dias ') + fmt.dates;
       var horarioLabel = window.faTurmasUtil.formatHorario(t.horarioInicio, t.horarioFim);
+      /* sala da turma (opcional): turma sem sala não mostra nada a mais */
+      var salaHtml = t.sala ? '<div class="tc-horario tc-sala">&#x1F4CD; ' + esc(t.sala) + '</div>' : '';
 
       /* encerrada pelo admin OU já passou do último dia → Realizada */
       if (t.encerrada || (ultimoDia && hoje > ultimoDia)) {
@@ -402,7 +405,7 @@
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + diasLabel + '</div>' +
-            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' +
+            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' + salaHtml +
             '<div class="turma-status-msg turma-realizada-msg"><strong>Turma realizada</strong>Esta turma já foi concluída. Fique de olho nas próximas.</div>' +
           '</div>'
         );
@@ -415,7 +418,7 @@
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + diasLabel + '</div>' +
-            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' +
+            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' + salaHtml +
             '<div class="turma-status-msg turma-andamento-msg"><strong>Turma em andamento</strong>As aulas estão acontecendo. Acompanhe as próximas turmas.</div>' +
           '</div>'
         );
@@ -435,7 +438,7 @@
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + diasLabel + '</div>' +
-            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' +
+            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' + salaHtml +
             '<div class="turma-status-msg turma-lotada-msg"><strong>Inscrições encerradas</strong>' +
               'As vagas desta turma já foram preenchidas. Ela será realizada ' + emDias + '. ' +
               'Acompanhe as próximas turmas para participar.</div>' +
@@ -449,7 +452,7 @@
           '<span class="tc-label">' + t.label + '</span>' +
           '<div class="tc-month">' + fmt.mes + '</div>' +
           '<div class="tc-dates">' + diasLabel + '</div>' +
-          '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' +
+          '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' + salaHtml +
           '<button class="btn--interest" data-turma="' + t.key + '"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>' +
           '<div class="turma-intent-msg" id="intent-msg-' + t.key + '"></div>' +
         '</div>'
