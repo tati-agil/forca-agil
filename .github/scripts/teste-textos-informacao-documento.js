@@ -31,6 +31,7 @@
  *   novos; a Trilha antiga mantém, byte a byte, os textos da época.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { abrirRecolhidas } = require('./abrir-recolhidas');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
@@ -251,8 +252,9 @@ async function novaTrilha(page, nome) {
   await page.fill('#avpfNome', nome);
   await page.click('#avpIniciarBtn');
   await page.waitForTimeout(150);
-  for (const id of ORDEM) await page.locator('#avpQuestion-' + id + ' .avp-choice-btn--' + valorTrilha(id)).click();
-  await page.click('#avpConcluirBtn');
+  const valores = {}; ORDEM.forEach((id) => { valores[id] = valorTrilha(id); });
+  await RG.responderGuiada(page, RG.pDosIds(valores)); /* avaliação nova = avaliação guiada (v22) */
+  await RG.concluirGuiada(page);
   await page.waitForSelector('.avp-reasoning-list', { timeout: 8000 });
   await page.waitForTimeout(200);
 }

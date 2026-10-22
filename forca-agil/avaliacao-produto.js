@@ -1876,7 +1876,17 @@
   function pdfLinhaTabela(rotulo, valor) {
     return '<tr><th>' + esc(rotulo) + '</th><td>' + esc(valor || '—') + '</td></tr>';
   }
+  /* Avaliação guiada concluída com um critério sem SIM/NÃO (só P6/P7 podem ficar assim — dispensaveisGuiada): a
+     resposta foi "Não sei" e nunca virou SIM nem NÃO. Ficha, PDF e Excel dizem isso por extenso. */
+  var TEXTO_NAO_CONFIRMADO = 'Na avaliação guiada a resposta foi "Não sei": o critério não foi convertido em SIM nem em NÃO. É uma informação complementar, que a regra em vigor na conclusão não usa.';
+  function naoConfirmadoNaGuiada(def, it) {
+    return !!(it && it.guiada && it.status === 'concluido' && !((it.respostas || {})[def.id] && it.respostas[def.id].valor));
+  }
   function pdfPergunta(def, resposta, it) {
+    if ((!resposta || !resposta.valor) && naoConfirmadoNaGuiada(def, it)) {
+      return '<div class="pdf-pergunta pdf-pergunta-bloco"><p class="pdf-pergunta-texto">' + numeroGlobal(def) + '. ' + esc(rotuloCompacto(def, conteudoDe(def, it.questionnaireContentVersion))) +
+        ' — <strong>NÃO CONFIRMADO</strong></p><p class="pdf-pergunta-campo">' + esc(TEXTO_NAO_CONFIRMADO) + '</p></div>';
+    }
     if (!resposta || !resposta.valor) return '';
     var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
     var obs = (resposta.observacao || '').trim();
@@ -2344,6 +2354,11 @@
       if (it.status !== 'concluido' || !it.respostas) return;
       TODAS_PERGUNTAS.forEach(function (p, idx) {
         var r = it.respostas[p.id];
+        if ((!r || !r.valor) && naoConfirmadoNaGuiada(p, it)) {
+          linhas.push([it._key, it.nome || '', it.versao || 1, criterioPorId(p.id) ? 'Critério principal' : 'Teste de classificação', idx + 1,
+            rotuloCompacto(p, conteudoDe(p, it.questionnaireContentVersion)), 'NÃO CONFIRMADO', '', TEXTO_NAO_CONFIRMADO, '']);
+          return;
+        }
         if (!r || !r.valor) return;
         var conteudoHistorico = conteudoSnapshotOuAtual(p, r, it);
         linhas.push([
@@ -3093,7 +3108,8 @@
       if (!a) return '';
       var r = {};
       Object.keys(a.respostas || {}).forEach(function (k) { var x = a.respostas[k] || {}; r[k] = [x.valor || '', x.observacao || '']; });
-      return JSON.stringify([a.nome || '', a.descricao || '', a.publico || '', a.necessidade || '', a.observacoesGerais || '', r]);
+      return JSON.stringify([a.nome || '', a.descricao || '', a.publico || '', a.necessidade || '', a.observacoesGerais || '', r,
+        a.guiada ? [a.guiada.respostas || {}, a.guiada.observacoes || {}] : null]);
     }
     function marcarPontoDeEdicao() { state.snapshotEdicao = assinaturaEdicao(state.atual); navSeqDaEdicao = (estadoDaEntrada() || {}).seq || null; }
     function emEdicao() { return modo === 'operacional' && (state.tela === 'form-inicial' || state.tela === 'checklist'); }
@@ -3142,7 +3158,7 @@
       sincronizarComHash();
     }
     function novaAvaliacaoVazia() {
-      return { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {},
+      return { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {}, guiada: guiadaVazia(),
         questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO) };
     }
     function construirNova() {
@@ -4206,6 +4222,9 @@
          feito; a nova versão nunca o tem (as regras recusam). */
       CAMPOS_NATUREZA.forEach(function (c) { delete state.atual[c]; });
       if (!state.atual.respostas) state.atual.respostas = {};
+      /* Avaliação guiada: a reavaliação de um registro guiado começa com as respostas guiadas dele; a de um registro
+         anterior começa em branco — as respostas antigas não são convertidas (continuam na versão anterior). */
+      if (!it.guiada) { state.atual.guiada = guiadaVazia(); state.atual.respostas = {}; }
       state.atual.itemId = it.itemId || it._key;
       state.atual.versaoAnteriorKey = it._key;
       state.atual.versao = (it.versao || 1) + 1;
@@ -4240,7 +4259,7 @@
       state.atual = {
         nome: (it.nome || '') + ' (cópia)',
         descricao: it.descricao || '', publico: it.publico || '', necessidade: it.necessidade || '',
-        observacoesGerais: '', respostas: {},
+        observacoesGerais: '', respostas: {}, guiada: guiadaVazia(),
         questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO)
       };
       state.reavaliacaoBase = null;
@@ -7330,8 +7349,10 @@
       var h = '<ol class="avp-etapas" id="avpEtapas" aria-label="Etapas da avaliação do objeto"' + (fase === 'ficha' ? ' data-ficha="1" data-vigente="' + (extra.vigente ? '1' : '0') + '"' : '') + '>';
       if (fase === 'checklist') {
         var n = TODAS_PERGUNTAS.filter(function (p) { return respostaValida(p, a); }).length;
+        var G = a.guiada && window.faAvaliacaoGuiada, cam = G ? G.passos(a.guiada.respostas || {}) : null;
+        var detPerguntas = G ? cam.filter(function (k) { return G.respondida(a.guiada.respostas || {}, k); }).length + ' de ' + cam.length + ' respondidas' : n + ' de ' + TODAS_PERGUNTAS.length + ' respondidas';
         h += it((a.nome || '').trim() ? 'ok' : 'atual', 1, 'Objeto', (a.nome || '').trim() ? esc(a.nome) : 'nome e descrição') +
-          it((a.nome || '').trim() ? 'atual' : 'futuro', 2, 'Perguntas P1–P16', n + ' de ' + TODAS_PERGUNTAS.length + ' respondidas') +
+          it((a.nome || '').trim() ? 'atual' : 'futuro', 2, G ? 'Perguntas guiadas' : 'Perguntas P1–P16', detPerguntas) +
           it('futuro', 3, 'Classificação', 'ao concluir') + it('futuro', 4, 'Natureza', 'quando a classificação agrupa naturezas') + it('futuro', 5, 'Próximo passo', 'concluir por aqui ou continuar');
       } else {
         var en = etapaNaturezaDaFicha(a, extra.vigente);
@@ -7402,7 +7423,8 @@
     }
     /* o que o motor vai concluir com as respostas da tela (só quando todas são válidas) */
     function previaCaminhoHtml(a, c) {
-      var faltam = TODAS_PERGUNTAS.filter(function (p) { return !respostaValida(p, a); }).length;
+      var disp = a.guiada ? dispensaveisGuiada() : [];
+      var faltam = TODAS_PERGUNTAS.filter(function (p) { return !respostaValida(p, a) && !(disp.indexOf(p.codigoEstavel) !== -1 && !a.respostas[p.id]); }).length;
       if (faltam) return '<div class="avp-form-card avp-previa" id="avpPrevia" data-situacao="incompleta"><h4>Prévia do resultado</h4><p class="avp-natureza-ajuda">Responda as ' + faltam + ' pergunta' + (faltam === 1 ? '' : 's') + ' que falta' + (faltam === 1 ? '' : 'm') + ' para ver aqui o que o sistema vai concluir.</p></div>';
       if (!c) return '<div class="avp-form-card avp-previa" id="avpPrevia" data-situacao="calculando"><h4>Prévia do resultado</h4><p class="avp-natureza-ajuda" role="status">Calculando…</p></div>';
       var id = c && c.id, C = window.faClassificacoes, NA = window.faNaturezasArquiteturais;
@@ -7420,7 +7442,349 @@
       }
       return h + '<p class="avp-previa-nota">Prévia: nada foi gravado. O resultado vale quando você concluir.</p></div>';
     }
+    /* ===================== AVALIAÇÃO GUIADA (v22) =====================
+       A experiência de perguntas de toda avaliação nova, cópia e reavaliação: uma pergunta por vez, com as condicionais,
+       ajuda, revisão e explicação (window.faAvaliacaoGuiada, puro). A guiada só TRADUZ as respostas para P1–P16 em
+       a.respostas — o mesmo formato de sempre, então a classificação (motor oficial publicado), a gravação, a ficha, o
+       histórico, a exportação e as permissões continuam os desta tela. As respostas guiadas ficam em a.guiada, como
+       foram escolhidas. Um critério só entra em a.respostas com SIM ou NÃO comprovado pela tradução; "Não sei" e
+       confirmação pendente deixam o critério de fora (nunca NÃO), e sem os 16 a conclusão não acontece.
+       Registros sem a.guiada (anteriores à v22) não são convertidos: o rascunho antigo continua no questionário antigo. */
+    /* P6 (jornada) e P7 (medição) são complementares: com "Não sei" a avaliação guiada conclui mesmo assim, sem
+       converter a resposta — mas só enquanto a versão publicada das regras não os lê. Se uma versão futura passar a usá-los,
+       eles voltam a ser exigidos (o motor trataria a ausência como NÃO, e isso seria converter "Não sei"). */
+    function dispensaveisGuiada() {
+      var M = window.faMotorArquitetura, lidos = JSON.stringify(M.regrasDaVersao(M.versaoAtual()) || []);
+      return ['P6', 'P7'].filter(function (c) { return lidos.indexOf('"campo":"' + c + '"') === -1; });
+    }
+    function guiadaVazia() { return { versao: window.faAvaliacaoGuiada.VERSAO, respostas: {}, observacoes: {} }; }
+    function observacaoGuiada(g, cod) {
+      var G = window.faAvaliacaoGuiada, caminho = G.passos(g.respostas), obs = g.observacoes || {};
+      return (G.FONTES[cod] || []).filter(function (k) { return caminho.indexOf(k) !== -1 && String(obs[k] || '').trim(); })
+        .map(function (k) { return (G.FONTES[cod].length > 1 ? G.PERGUNTAS[k].q + ' — ' : '') + String(obs[k]).trim(); }).join('\n');
+    }
+    function sincronizarCriteriosGuiada(a) {
+      var g = a.guiada, m = window.faAvaliacaoGuiada.criterios(g.respostas), versao = a.questionnaireContentVersion;
+      if (!a.respostas) a.respostas = {};
+      TODAS_PERGUNTAS.forEach(function (def) {
+        var v = m[def.codigoEstavel], atual = a.respostas[def.id];
+        if (v !== 'S' && v !== 'N') { delete a.respostas[def.id]; return; }
+        var valor = v === 'S' ? 'sim' : 'nao', obs = observacaoGuiada(g, def.codigoEstavel);
+        if (atual && atual.valor === valor && atual.questionnaireContentVersion === versao) { atual.observacao = obs; return; }
+        /* o mesmo registro de sempre (texto oficial do critério na versão do questionário desta avaliação) */
+        var conteudo = conteudoDe(def, versao);
+        a.respostas[def.id] = { valor: valor, justificativaAuto: valor === 'sim' ? conteudo.justSim : conteudo.justNao, observacao: obs,
+          codigoPergunta: def.codigoEstavel, textoPerguntaNaEpoca: conteudo.texto, tituloNaEpoca: conteudo.titulo || null,
+          questionnaireContentVersion: versao, origem: 'guiada' };
+      });
+    }
+    /* Onde a pessoa está: a pergunta (pela chave, não pela posição — o caminho muda com as respostas) ou a revisão. Ao
+       abrir (nova, cópia, rascunho retomado), começa na primeira pergunta sem resposta; com tudo respondido, na revisão. */
+    function passoGuiada(a) {
+      var G = window.faAvaliacaoGuiada, caminho = G.passos(a.guiada.respostas);
+      var primeiraFaltando = function () { return caminho.filter(function (k) { return !G.respondida(a.guiada.respostas, k); })[0] || 'revisao'; };
+      if (!state.guia || state.guia.alvo !== a) state.guia = { alvo: a, passo: primeiraFaltando(), dadosAbertos: !(a.nome || '').trim() };
+      if (state.guia.passo !== 'revisao' && caminho.indexOf(state.guia.passo) === -1) state.guia.passo = primeiraFaltando();
+      return state.guia.passo;
+    }
+    function irParaPassoGuiada(passo) {
+      state.guia.passo = passo;
+      state.erroForm = null;
+      render();
+      var alvo = document.getElementById(passo === 'revisao' ? 'avpGuiadaRevisaoTitulo' : 'avpGuiadaPergunta');
+      if (alvo) {
+        if (alvo.getBoundingClientRect().top < 0 && alvo.scrollIntoView) alvo.scrollIntoView({ block: 'start' });
+        alvo.focus({ preventScroll: true });
+      }
+    }
+    function valorGuiadaHtml(v) {
+      var cls = v === 'S' ? 'sim' : v === 'N' ? 'nao' : 'indef';
+      return '<span class="avp-guiada-valor avp-guiada-valor--' + cls + '">' + (v === 'S' ? 'SIM' : v === 'N' ? 'NÃO' : v === '?' ? 'Não sei' : 'Sem resposta') + '</span>';
+    }
+    /* Da avaliação guiada aos critérios P1–P16: cada critério, o valor que entrou (ou não) e as perguntas que o
+       alimentaram com a resposta escolhida. É a revisão (com "Alterar") e a explicação na ficha (sem). */
+    function criteriosGuiadaHtml(g, comAlterar) {
+      var G = window.faAvaliacaoGuiada, caminho = G.passos(g.respostas), m = G.criterios(g.respostas);
+      /* cada critério é uma linha recolhível (no celular, os 16 abertos passavam de 6.000 px); na revisão, os que ainda
+         não têm SIM/NÃO começam abertos — a escolha de abrir/fechar é lembrada enquanto a pessoa está na tela */
+      var h = '<ol class="avp-guiada-criterios">', abertos = state.detAbertos || {};
+      G.CODIGOS.forEach(function (cod) {
+        var info = G.CRITERIOS[cod], perguntas = G.FONTES[cod].filter(function (k) { return caminho.indexOf(k) !== -1; });
+        var det = 'guiadaCrit-' + cod, aberto = abertos[det] !== undefined ? abertos[det] : (comAlterar && m[cod] !== 'S' && m[cod] !== 'N');
+        h += '<li class="avp-guiada-criterio" data-criterio="' + cod + '"><details data-det="' + det + '"' + (aberto ? ' open' : '') + '><summary class="avp-guiada-criterio-cab"><span class="avp-guiada-codigo">' + cod + '</span>' +
+          '<span class="avp-guiada-criterio-nome">' + esc(info[0]) + '</span>' + valorGuiadaHtml(m[cod]) + '</summary>';
+        h += '<ul class="avp-guiada-fontes">' + perguntas.map(function (k) {
+          var obs = String((g.observacoes || {})[k] || '').trim();
+          return '<li><span class="avp-guiada-fonte-q">' + esc(G.PERGUNTAS[k].q) + '</span> <strong class="avp-guiada-fonte-r">' + esc(G.rotuloResposta(k, g.respostas[k])) + '</strong>' +
+            (obs ? '<span class="avp-guiada-fonte-obs">Observação: ' + esc(obs) + '</span>' : '') +
+            (comAlterar ? ' <button type="button" class="btn btn--sm avp-guiada-alterar" data-passo="' + k + '" aria-label="Alterar a resposta: ' + esc(G.PERGUNTAS[k].q) + '">Alterar</button>' : '') + '</li>';
+        }).join('') + '</ul></details></li>';
+      });
+      return h + '</ol>';
+    }
+    function renderChecklistGuiado() {
+      var a = state.atual, G = window.faAvaliacaoGuiada, g = a.guiada, base = state.reavaliacaoBase, reavaliando = !!base;
+      if (!g.respostas) g.respostas = {};
+      if (!g.observacoes) g.observacoes = {};
+      sincronizarCriteriosGuiada(a);
+      var caminho = G.passos(g.respostas), passo = passoGuiada(a);
+      var respondidas = caminho.filter(function (k) { return G.respondida(g.respostas, k); }).length;
+      var html = '<div class="avp-checklist avp-guiada">';
+      html += '<button class="avp-voltar-link" id="avpVoltarLista">' + esc(rotuloVoltar()) + '</button>';
+      html += etapasHtml('checklist', a);
+
+      /* Dados do item: recolhidos depois de informado o nome, para a pergunta ficar perto do topo no celular */
+      var titulo = reavaliando ? 'Reavaliação — v' + a.versao : (a._key ? 'Continuando avaliação' : 'Nova avaliação');
+      var abertos = state.guia.dadosAbertos || temCampoInvalido('nome');
+      html += '<details class="avp-form-card avp-admin-secao avp-guiada-dados" id="avpGuiadaDados"' + (abertos ? ' open' : '') + '>' +
+        '<summary class="avp-admin-secao-cab"><span class="avp-admin-secao-titulo">' + esc(titulo) + '</span>' +
+        '<span class="avp-admin-secao-desc">' + ((a.nome || '').trim() ? 'Item: ' + esc(a.nome.trim()) + ' — toque para ver ou alterar os dados' : 'Informe o nome do item avaliado') + '</span></summary><div class="avp-admin-secao-corpo">';
+      if (reavaliando) {
+        html += '<p class="avp-reavaliacao-intro">' + (base.guiada
+          ? 'Esta reavaliação começa com as respostas guiadas da versão anterior. Nada foi apagado — mantenha ou altere o que quiser antes de concluir.'
+          : 'Esta reavaliação usa a avaliação guiada e começa com as perguntas em branco: as respostas da versão anterior foram dadas no questionário antigo, não são convertidas e continuam registradas na versão anterior.') + '</p>';
+      }
+      html += campoTexto('avpcNome', 'Nome do item', a.nome, true, false, temCampoInvalido('nome'));
+      html += campoTexto('avpcDescricao', 'Descrição do item', a.descricao, false, true);
+      html += campoTexto('avpcPublico', 'Público/cliente relacionado', a.publico, false, false);
+      html += campoTexto('avpcNecessidade', 'Necessidade que o item pretende atender', a.necessidade, false, true);
+      html += campoTexto('avpcObs', 'Observações (opcional)', a.observacoesGerais, false, true);
+      html += '</div></details>';
+
+      if (state.erroForm) html += '<p class="avp-error-msg" role="alert">' + esc(state.erroForm) + '</p>';
+
+      var s = null, prevC = null;
+      if (passo !== 'revisao') {
+        var k = passo, q = G.PERGUNTAS[k], i = caminho.indexOf(k), r = g.respostas[k];
+        var cod = G.criterioDe(k);
+        html += '<section class="avp-form-card avp-guiada-cartao" id="avpGuiadaCartao" data-passo="' + k + '" aria-labelledby="avpGuiadaPergunta">';
+        html += '<p class="avp-progresso-perguntas" id="avpGuiadaProgresso">Pergunta ' + (i + 1) + ' de ' + caminho.length + ' · ' + esc(q.stage) + '</p>';
+        html += '<div class="avp-guiada-barra" aria-hidden="true"><span style="width:' + Math.round(respondidas / caminho.length * 100) + '%"></span></div>';
+        html += '<div class="avp-question-head"><h3 class="avp-guiada-pergunta" id="avpGuiadaPergunta" tabindex="-1">' + esc(q.q) + '</h3>' +
+          '<button type="button" class="avp-help-btn" id="avpGuiadaPorQueBtn" aria-expanded="false" aria-controls="avpGuiadaPorQue" aria-label="Por que esta pergunta">?</button></div>';
+        html += '<p class="avp-natureza-ajuda avp-guiada-dica">' + esc(q.hint) + '</p>';
+        html += '<div class="avp-help-box" id="avpGuiadaPorQue" hidden><p><strong>Por que perguntamos:</strong> ' + esc(q.why) + '</p>' +
+          (cod ? '<p>Esta resposta ajuda a responder o critério <strong>' + cod + ' — ' + esc(G.CRITERIOS[cod][0]) + '</strong> (' + esc(G.CRITERIOS[cod][1].toLowerCase()) + '). Quem classifica é o motor oficial, depois de você concluir.</p>' : '') + '</div>';
+        if (q.kind === 'text') {
+          html += '<div class="avp-field"><label for="avpGuiadaTexto">' + esc(q.placeholder || 'Resposta') + '</label>' +
+            '<input type="text" id="avpGuiadaTexto" maxlength="180" autocomplete="off" value="' + esc(r || '') + '"></div>';
+        } else {
+          html += '<fieldset class="an-opcoes avp-guiada-opcoes"><legend class="sr-only">Escolha uma resposta</legend>';
+          G.opcoes(k).forEach(function (o, n) {
+            html += '<label class="an-opcao' + (o.descricao ? '' : ' an-opcao--linha') + '"><input type="radio" name="avpGuiadaResp" id="avpGuiada_' + n + '" value="' + esc(o.valor) + '"' + (r === o.valor ? ' checked' : '') + '>' +
+              '<span><strong>' + esc(o.rotulo) + '</strong>' + (o.descricao ? '<span class="an-exemplo">' + esc(o.descricao) + '</span>' : '') + '</span></label>';
+          });
+          html += '</fieldset>';
+        }
+        html += '<label class="sr-only" for="avpGuiadaObs">Observação sobre esta resposta (opcional)</label>' +
+          '<textarea class="avp-observacao" id="avpGuiadaObs" rows="2" placeholder="Observação sobre esta resposta (opcional)">' + esc(g.observacoes[k] || '') + '</textarea>';
+        html += '<div class="avp-actions-footer">';
+        html += '<button type="button" class="btn" id="avpGuiadaAnteriorBtn"' + (i === 0 ? ' disabled' : '') + '>Pergunta anterior</button>';
+        html += '<button type="button" class="btn btn--primary" id="avpGuiadaContinuarBtn">Continuar</button>';
+        html += '</div></section>';
+      } else {
+        calcularPreviaCaminho(a);
+        prevC = previaAtual(a);
+        s = G.situacao(g.respostas, { ignorarContradicoes: !!(prevC && prevC.id === 'a-validar'), dispensaveis: dispensaveisGuiada() });
+        html += '<section class="avp-form-card avp-guiada-revisao" id="avpGuiadaRevisao" aria-labelledby="avpGuiadaRevisaoTitulo">';
+        html += '<p class="avp-progresso-perguntas">' + respondidas + ' de ' + caminho.length + ' perguntas respondidas</p>';
+        html += '<h3 id="avpGuiadaRevisaoTitulo" tabindex="-1">Revise e conclua</h3>';
+        html += '<p class="avp-natureza-ajuda">Primeiro, o que o sistema oficial vai concluir com as suas respostas; abaixo, as respostas por critério P1–P16, que você pode abrir e alterar. "Não sei" fica registrado como dúvida — nunca é trocado por Não.</p>';
+        html += '</section>';
+        var avisos = s.pendencias, pontos = G.alertas(g.respostas);
+        if (avisos.length || s.indefinidos.length) {
+          html += '<div class="avp-form-card avp-aviso-testes avp-guiada-pendencias" id="avpGuiadaPendencias" role="status"><h4>Evidências ainda insuficientes</h4>';
+          if (s.indefinidos.length) html += '<p>Para concluir, estes critérios precisam de SIM ou NÃO comprovado pelas respostas: <strong>' + esc(s.indefinidos.join(', ')) + '</strong>' +
+            '. Nenhuma resposta é preenchida automaticamente: revise as perguntas indicadas ou salve o rascunho e volte quando tiver a informação.</p>';
+          if (avisos.length) html += '<ul class="avp-previa-motivos">' + avisos.map(function (p) {
+            var alvo = p.chaves.filter(function (c) { return caminho.indexOf(c) !== -1; })[0];
+            return '<li>' + esc(p.texto) + (alvo ? ' <button type="button" class="btn btn--sm avp-guiada-alterar" data-passo="' + alvo + '">Rever</button>' : '') + '</li>';
+          }).join('') + '</ul>';
+          html += '</div>';
+        }
+        if (pontos.length) html += '<div class="avp-form-card avp-guiada-pontos" id="avpGuiadaPontos"><h4>Pontos para conferir</h4><ul class="avp-previa-motivos">' +
+          pontos.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>';
+        if (s.naoConfirmados.length) html += '<p class="avp-natureza-ajuda" id="avpGuiadaNaoConfirmados">' + esc(s.naoConfirmados.join(' e ')) + ' (informação complementar) ficará registrado como <strong>não confirmado</strong>: a resposta "Não sei" não vira SIM nem NÃO e não impede a conclusão.</p>';
+        if (!s.indefinidos.length && !avisos.length) html += previaCaminhoHtml(a, prevC);
+        html += '<section class="avp-form-card avp-guiada-respostas" id="avpGuiadaRespostas" aria-labelledby="avpGuiadaRespostasTitulo"><h4 id="avpGuiadaRespostasTitulo">Suas respostas, por critério</h4>' +
+          criteriosGuiadaHtml(g, true) + '</section>';
+      }
+
+      html += '<div class="avp-actions-footer avp-guiada-acoes">';
+      html += '<button class="btn" id="avpSalvarRascunhoBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando === 'rascunho' ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
+      if (passo === 'revisao') {
+        html += '<button class="btn" id="avpGuiadaVoltarPerguntasBtn"' + (state.salvando ? ' disabled' : '') + '>Rever as perguntas</button>';
+        html += '<button class="btn btn--primary" id="avpConcluirBtn"' + (state.salvando || !s.podeConcluir || !prevC ? ' disabled' : '') + '>' +
+          (state.salvando === 'concluido' ? 'SALVANDO…' : (reavaliando ? 'CONCLUIR REAVALIAÇÃO' : 'CONCLUIR AVALIAÇÃO')) + '</button>';
+      } else if (!caminho.filter(function (x) { return !G.respondida(g.respostas, x); }).length) {
+        html += '<button class="btn" id="avpGuiadaIrRevisaoBtn"' + (state.salvando ? ' disabled' : '') + '>Ir para a revisão</button>';
+      }
+      html += '<button class="btn" id="avpCancelarChecklistBtn"' + (state.salvando ? ' disabled' : '') + '>CANCELAR</button>';
+      html += '</div>';
+      html += '<p class="avp-previa-nota">Salvar o rascunho interrompe a avaliação: ela fica na lista como rascunho e continua de onde parou.</p>';
+      html += '</div>';
+      wrap.innerHTML = html;
+
+      document.getElementById('avpVoltarLista').addEventListener('click', sairDaEdicao);
+      bindCampoTexto('avpcNome', 'nome');
+      bindCampoTexto('avpcDescricao', 'descricao');
+      bindCampoTexto('avpcPublico', 'publico');
+      bindCampoTexto('avpcNecessidade', 'necessidade');
+      bindCampoTexto('avpcObs', 'observacoesGerais');
+      document.getElementById('avpGuiadaDados').addEventListener('toggle', function (e) { state.guia.dadosAbertos = e.target.open; });
+
+      if (passo !== 'revisao') {
+        var kk = passo, qq = G.PERGUNTAS[kk];
+        var porQue = document.getElementById('avpGuiadaPorQueBtn');
+        porQue.addEventListener('click', function () {
+          var box = document.getElementById('avpGuiadaPorQue'); box.hidden = !box.hidden; porQue.setAttribute('aria-expanded', String(!box.hidden));
+        });
+        wrap.querySelectorAll('input[name="avpGuiadaResp"]').forEach(function (inp) {
+          inp.addEventListener('change', function () {
+            g.respostas = G.responder(g.respostas, kk, inp.value);
+            state.erroForm = null;
+            var foco = inp.id;
+            render();
+            var el = document.getElementById(foco); if (el) el.focus({ preventScroll: true });
+          });
+        });
+        var texto = document.getElementById('avpGuiadaTexto');
+        if (texto) texto.addEventListener('input', function () {
+          var v = texto.value;
+          if (v.trim()) g.respostas = G.responder(g.respostas, kk, v); else { g.respostas = G.responder(g.respostas, kk, ''); delete g.respostas[kk]; }
+        });
+        document.getElementById('avpGuiadaObs').addEventListener('input', function (e) {
+          if (e.target.value.trim()) g.observacoes[kk] = e.target.value; else delete g.observacoes[kk];
+          sincronizarCriteriosGuiada(a);
+        });
+        document.getElementById('avpGuiadaAnteriorBtn').addEventListener('click', function () {
+          var cam = G.passos(g.respostas), j = cam.indexOf(kk);
+          if (j > 0) irParaPassoGuiada(cam[j - 1]);
+        });
+        document.getElementById('avpGuiadaContinuarBtn').addEventListener('click', function () {
+          if (!G.respondida(g.respostas, kk)) {
+            state.erroForm = qq.kind === 'text' ? 'Informe o nome de uma oferta específica (pelo menos 3 letras) antes de continuar.' : 'Escolha uma resposta antes de continuar. Se não souber, escolha "Não sei".';
+            render();
+            var alvo = document.getElementById(qq.kind === 'text' ? 'avpGuiadaTexto' : 'avpGuiada_0'); if (alvo) alvo.focus();
+            return;
+          }
+          /* a próxima pergunta ainda sem resposta (depois desta; senão alguma anterior); com tudo respondido, a revisão */
+          var cam = G.passos(g.respostas), j = cam.indexOf(kk), falta = function (x) { return !G.respondida(g.respostas, x); };
+          irParaPassoGuiada(cam.slice(j + 1).filter(falta)[0] || cam.slice(0, j).filter(falta)[0] || 'revisao');
+        });
+        var irRev = document.getElementById('avpGuiadaIrRevisaoBtn');
+        if (irRev) irRev.addEventListener('click', function () { irParaPassoGuiada('revisao'); });
+      } else {
+        wrap.querySelectorAll('.avp-guiada-alterar').forEach(function (b) { b.addEventListener('click', function () { irParaPassoGuiada(b.dataset.passo); }); });
+        document.getElementById('avpGuiadaVoltarPerguntasBtn').addEventListener('click', function () {
+          var cam = G.passos(g.respostas); irParaPassoGuiada(cam[cam.length - 1]);
+        });
+        document.getElementById('avpConcluirBtn').addEventListener('click', function () {
+          concluirChecklist(null, function () {
+            /* com a compatibilidade pronta a prévia oficial é a que será gravada: confere de novo com ela */
+            calcularPreviaCaminho(a);
+            var disp = dispensaveisGuiada(), c = previaAtual(a), sit = G.situacao(g.respostas, { ignorarContradicoes: !!(c && c.id === 'a-validar'), dispensaveis: disp });
+            var completos = TODAS_PERGUNTAS.every(function (p) { return respostaValida(p, a) || (disp.indexOf(p.codigoEstavel) !== -1 && !a.respostas[p.id]); });
+            if (sit.podeConcluir && c && completos) return true;
+            state.erroForm = 'Ainda há evidências insuficientes ou confirmações pendentes: veja a revisão abaixo antes de concluir.';
+            return false;
+          });
+        });
+      }
+      document.getElementById('avpSalvarRascunhoBtn').addEventListener('click', function () {
+        if (!(a.nome || '').trim()) state.guia.dadosAbertos = true;
+        salvarRascunhoChecklist();
+      });
+      document.getElementById('avpCancelarChecklistBtn').addEventListener('click', sairDaEdicao);
+    }
+
+    /* SALVAR RASCUNHO e CONCLUIR do checklist — o mesmo caminho para as perguntas guiadas e para o questionário de
+       registros antigos. conferir(): a checagem própria de cada tela antes de gravar (true = pode concluir); a guiada
+       pede para conferir só depois da compatibilidade das regras pronta (posConferir), porque depende da prévia oficial. */
+    function salvarRascunhoChecklist() {
+      var a = state.atual;
+      if (state.salvando) return; /* clique repetido enquanto já está salvando: ignora */
+      if (!a.nome || !a.nome.trim()) {
+        state.erroForm = 'Informe o nome do item.';
+        state.camposInvalidos = ['nome'];
+        render();
+        focarCampo('avpcNome');
+        return;
+      }
+      state.erroForm = null;
+      state.camposInvalidos = [];
+      state.salvando = 'rascunho';
+      render();
+      salvarRegistro('rascunho', function (payload, key) {
+        state.salvando = null;
+        state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
+        state.atual = null;
+        state.reavaliacaoBase = null;
+        state.flashLista = '✓ Rascunho salvo com sucesso.';
+        state.tela = 'lista';
+        irParaListaDepoisDeSalvar();
+        render();
+      }, function (tipo) {
+        state.salvando = null;
+        if (tipo === 'timeout') {
+          state.erroForm = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "SALVAR RASCUNHO" de novo.';
+          render();
+        } else {
+          render();
+          avpAlert('Não foi possível salvar a avaliação. Tente novamente.');
+        }
+      });
+    }
+    function concluirChecklist(conferir, posConferir) {
+      var a = state.atual;
+      if (state.salvando) return; /* clique repetido enquanto já está salvando: ignora */
+      if (!a.nome || !a.nome.trim()) {
+        state.erroForm = 'Informe o nome do item.';
+        state.camposInvalidos = ['nome'];
+        render();
+        focarCampo('avpcNome');
+        return;
+      }
+      if (conferir && !conferir()) return;
+      state.erroForm = null;
+      state.camposInvalidos = [];
+      state.pendenteId = null;
+      state.salvando = 'concluido';
+      render();
+      /* Espera a checagem de compatibilidade das regras (em segundo plano,
+         normalmente já pronta) — o texto gravado não pode depender da pressa. */
+      quandoCompatibilidadePronta(function () {
+        if (posConferir && !posConferir()) { state.salvando = null; render(); return; }
+        salvarRegistro('concluido', function (payload, key) {
+          state.salvando = null;
+          state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
+          /* a ficha que abre agora é a do registro SALVO (concluído, com a chave): sem isso ela mostrava o formulário em
+             memória, sem o status — e a etapa da natureza e o próximo passo só apareciam ao reabrir a ficha */
+          var salvo = buscarItem(key); if (salvo) state.atual = clonarItem(salvo);
+          state.decisaoForm = decisaoFormInicial(payload);
+          state.especializacaoForm = especializacaoFormInicial(payload);
+          state.reavaliacaoBase = null;
+          state.flashResultado = '✓ Avaliação salva com sucesso.';
+          state.snapshotEdicao = null;
+          state.tela = 'resultado';
+          /* SUBSTITUI a entrada do checklist pela da avaliação criada: o Voltar do navegador nunca reabre um
+             checklist já encerrado. */
+          irPara(hashAvaliacao(key), { replace: true });
+          render();
+        }, function (tipo) {
+          state.salvando = null;
+          if (tipo === 'timeout') {
+            state.erroForm = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "CONCLUIR AVALIAÇÃO" de novo.';
+            render();
+          } else {
+            render();
+            avpAlert('Não foi possível salvar a avaliação. Tente novamente.');
+          }
+        });
+      });
+    }
     function renderChecklist() {
+      if (state.atual && state.atual.guiada) { renderChecklistGuiado(); return; }
       var a = state.atual;
       var base = state.reavaliacaoBase;
       var reavaliando = !!base;
@@ -7564,89 +7928,17 @@
         if (reavaliando) ta.addEventListener('blur', function () { render(); });
       });
 
-      document.getElementById('avpSalvarRascunhoBtn').addEventListener('click', function () {
-        if (state.salvando) return; /* clique repetido enquanto já está salvando: ignora */
-        if (!a.nome || !a.nome.trim()) {
-          state.erroForm = 'Informe o nome do item.';
-          state.camposInvalidos = ['nome'];
-          render();
-          focarCampo('avpcNome');
-          return;
-        }
-        state.erroForm = null;
-        state.camposInvalidos = [];
-        state.salvando = 'rascunho';
-        render();
-        salvarRegistro('rascunho', function (payload, key) {
-          state.salvando = null;
-          state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
-          state.atual = null;
-          state.reavaliacaoBase = null;
-          state.flashLista = '✓ Rascunho salvo com sucesso.';
-          state.tela = 'lista';
-          irParaListaDepoisDeSalvar();
-          render();
-        }, function (tipo) {
-          state.salvando = null;
-          if (tipo === 'timeout') {
-            state.erroForm = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "SALVAR RASCUNHO" de novo.';
-            render();
-          } else {
-            render();
-            avpAlert('Não foi possível salvar a avaliação. Tente novamente.');
-          }
-        });
-      });
+      document.getElementById('avpSalvarRascunhoBtn').addEventListener('click', salvarRascunhoChecklist);
       document.getElementById('avpConcluirBtn').addEventListener('click', function () {
-        if (state.salvando) return; /* clique repetido enquanto já está salvando: ignora */
-        if (!a.nome || !a.nome.trim()) {
-          state.erroForm = 'Informe o nome do item.';
-          state.camposInvalidos = ['nome'];
-          render();
-          focarCampo('avpcNome');
-          return;
-        }
-        var faltando = primeiraPerguntaFaltando(a);
-        if (faltando) {
+        concluirChecklist(function () {
+          var faltando = primeiraPerguntaFaltando(a);
+          if (!faltando) return true;
           state.erroForm = 'Responda SIM ou NÃO em todas as perguntas antes de concluir a avaliação.';
           state.pendenteId = faltando;
           render();
           focarCampo('avpQuestion-' + faltando);
-          return;
-        }
-        state.erroForm = null;
-        state.camposInvalidos = [];
-        state.pendenteId = null;
-        state.salvando = 'concluido';
-        render();
-        /* Espera a checagem de compatibilidade das regras (em segundo plano,
-           normalmente já pronta) — o texto gravado não pode depender da pressa. */
-        quandoCompatibilidadePronta(function () { salvarRegistro('concluido', function (payload, key) {
-          state.salvando = null;
-          state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
-          /* a ficha que abre agora é a do registro SALVO (concluído, com a chave): sem isso ela mostrava o formulário em
-             memória, sem o status — e a etapa da natureza e o próximo passo só apareciam ao reabrir a ficha */
-          var salvo = buscarItem(key); if (salvo) state.atual = clonarItem(salvo);
-          state.decisaoForm = decisaoFormInicial(payload);
-          state.especializacaoForm = especializacaoFormInicial(payload);
-          state.reavaliacaoBase = null;
-          state.flashResultado = '✓ Avaliação salva com sucesso.';
-          state.snapshotEdicao = null;
-          state.tela = 'resultado';
-          /* SUBSTITUI a entrada do checklist pela da avaliação criada: o Voltar do navegador nunca reabre um
-             checklist já encerrado. */
-          irPara(hashAvaliacao(key), { replace: true });
-          render();
-        }, function (tipo) {
-          state.salvando = null;
-          if (tipo === 'timeout') {
-            state.erroForm = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "CONCLUIR AVALIAÇÃO" de novo.';
-            render();
-          } else {
-            render();
-            avpAlert('Não foi possível salvar a avaliação. Tente novamente.');
-          }
-        }); });
+          return false;
+        });
       });
       document.getElementById('avpCancelarChecklistBtn').addEventListener('click', sairDaEdicao);
     }
@@ -7741,6 +8033,9 @@
         especializacaoCamadaConfirmada: a.especializacaoCamadaConfirmada || null,
         papelEstruturalCamadaConfirmada: a.papelEstruturalCamadaConfirmada || null,
         respostas: a.respostas || {},
+        /* Respostas da avaliação guiada, como foram escolhidas (a.respostas acima é a tradução para P1–P16);
+           ausente nos registros anteriores à avaliação guiada. */
+        guiada: a.guiada || null,
         /* Versão do CONTEÚDO do questionário (título/texto/ajuda/
            justificativas de P1-P16) vigente quando esta avaliação foi
            INICIADA — fixada uma única vez (ver novoBtn/abrirReavaliacao/
@@ -8160,6 +8455,13 @@
       html += renderHistoricosCuradoriaDecisao(a);
       if (pode()) html += renderHistoricoMotorCard(a);
 
+      /* avaliação guiada: as perguntas respondidas e como viraram P1–P16 (logo abaixo, os critérios como sempre) */
+      if (a.guiada && window.faAvaliacaoGuiada) {
+        html += '<details class="avp-form-card avp-admin-secao avp-guiada-ficha" id="avpGuiadaFicha" data-det="avpGuiadaFicha"' + (state.detAbertos && state.detAbertos.avpGuiadaFicha ? ' open' : '') + '>' +
+          '<summary class="avp-admin-secao-cab"><span class="avp-admin-secao-titulo">Respostas da avaliação guiada</span>' +
+          '<span class="avp-admin-secao-desc">As perguntas que a pessoa respondeu e como cada critério P1–P16 foi obtido (avaliação guiada, versão ' + esc(a.guiada.versao || '') + ')</span></summary>' +
+          '<div class="avp-admin-secao-corpo">' + criteriosGuiadaHtml(a.guiada, false) + '</div></details>';
+      }
       html += '<div class="avp-form-card" id="avpQuestionarioCard">';
       html += '<h4>Avaliação, pergunta por pergunta</h4>';
       html += '<p class="avp-natureza-ajuda"><strong>Sua justificativa</strong> é o que a pessoa que avaliou escreveu em cada resposta; ' +
@@ -8327,6 +8629,11 @@
        Vale igualmente para os 7 critérios e para os 7 testes de exclusão —
        renderRaciocinio é a mesma função para as duas seções. */
     function renderRaciocinio(def, resposta, item) {
+      if (!resposta && naoConfirmadoNaGuiada(def, item)) {
+        return '<div class="avp-reasoning-item avp-reasoning-item--nao-confirmado" data-criterio="' + def.codigoEstavel + '">' +
+          '<p class="avp-reasoning-q">' + numeroGlobal(def) + '. ' + esc(rotuloCompacto(def, conteudoDe(def, item.questionnaireContentVersion))) + ' — NÃO CONFIRMADO</p>' +
+          '<p class="avp-reasoning-auto">' + esc(TEXTO_NAO_CONFIRMADO) + '</p></div>';
+      }
       if (!resposta) return '';
       var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
       var justificativaUsuario = (resposta.observacao || '').trim();

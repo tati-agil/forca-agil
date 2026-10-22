@@ -12,6 +12,9 @@
  *   - o texto do Voltar diz o destino ("← Voltar para avaliações" / "← Voltar para a avaliação (vN)").
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
+/* avaliação guiada: os dados do item ficam numa seção recolhível depois de informado o nome — abre antes de digitar */
+const preencherNome = async (page, v) => { await page.evaluate(() => { const d = document.getElementById('avpGuiadaDados'); if (d) d.open = true; }); await page.fill('#avpcNome', v); };
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarCondicaoAte } = require('./esperas');
@@ -148,7 +151,7 @@ const tela = (page) => page.evaluate(() => {
   const q = (s) => !!document.querySelector(s);
   if (q('.avp-historico-box')) return 'modal-histórico';
   if (q('#avpCabecalhoFicha')) return q('#avpAvisoVersaoAnterior') ? 'avaliação-anterior' : 'avaliação';
-  if (q('#avpConcluirBtn')) return 'checklist';
+  if (q('#avpSalvarRascunhoBtn')) return 'checklist';
   if (q('#avpIniciarBtn')) return 'form-inicial';
   if (q('#avpNovoBtn')) return 'lista';
   if (q('#avpVoltarNaoEncontrada')) return 'não-encontrada';
@@ -172,7 +175,7 @@ const promessa = (h) => {
 function coerenteNaPagina() {
   const q = (s) => !!document.querySelector(s);
   const t = q('.avp-historico-box') ? 'modal-histórico' : q('#avpCabecalhoFicha') ? (q('#avpAvisoVersaoAnterior') ? 'avaliação-anterior' : 'avaliação') :
-    q('#avpConcluirBtn') ? 'checklist' : q('#avpIniciarBtn') ? 'form-inicial' : q('#avpNovoBtn') ? 'lista' : q('#avpVoltarNaoEncontrada') ? 'não-encontrada' : q('#avpRecarregarTravado') ? 'travado' : '?';
+    q('#avpSalvarRascunhoBtn') ? 'checklist' : q('#avpIniciarBtn') ? 'form-inicial' : q('#avpNovoBtn') ? 'lista' : q('#avpVoltarNaoEncontrada') ? 'não-encontrada' : q('#avpRecarregarTravado') ? 'travado' : '?';
   const m = /^#(?:arquitetura|avaliacoes)(?:\?(.*))?$/.exec(location.hash || '');
   if (!m) return true;
   const ps = new URLSearchParams(m[1] || '');
@@ -192,7 +195,7 @@ async function coerente(page, rotulo) {
 const comprimento = (page) => page.evaluate(() => history.length);
 function telaNaPagina(alvo) {
   const q = (s) => !!document.querySelector(s);
-  const atual = q('#avpCabecalhoFicha') ? (q('#avpAvisoVersaoAnterior') ? 'avaliação-anterior' : 'avaliação') : q('#avpConcluirBtn') ? 'checklist' : q('#avpIniciarBtn') ? 'form-inicial' : q('#avpNovoBtn') ? 'lista' : q('#avpVoltarNaoEncontrada') ? 'não-encontrada' : '?';
+  const atual = q('#avpCabecalhoFicha') ? (q('#avpAvisoVersaoAnterior') ? 'avaliação-anterior' : 'avaliação') : q('#avpSalvarRascunhoBtn') ? 'checklist' : q('#avpIniciarBtn') ? 'form-inicial' : q('#avpNovoBtn') ? 'lista' : q('#avpVoltarNaoEncontrada') ? 'não-encontrada' : '?';
   return alvo.split('|').indexOf(atual) !== -1;
 }
 /* Estrita: se a tela esperada não aparece, o passo FALHA dizendo qual era (antes devolvia false e quase
@@ -301,7 +304,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       const r = await novaPagina(browser, viewport); const page = r.page;
       await abrirDaLista(page, 'cadx');
       await page.click('#avpReavaliarBtn'); await esperaTela(page, 'checklist');
-      await page.fill('#avpcNome', 'Nome alterado');
+      await preencherNome(page, 'Nome alterado');
       await page.click('#avpVoltarLista'); await modalAbre(page);
       const modal = await page.locator(MODAL).first().innerText();
       afirma(/Descartar alterações/i.test(modal) && /Continuar editando/i.test(modal), 'a pergunta oferece "Descartar alterações" e "Continuar editando"');
@@ -320,7 +323,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       const r = await novaPagina(browser, viewport); const page = r.page;
       await abrirDaLista(page, 'cadx');
       await page.click('#avpReavaliarBtn'); await esperaTela(page, 'checklist');
-      await page.fill('#avpcNome', 'Outro nome');
+      await preencherNome(page, 'Outro nome');
       await page.goBack(); await modalAbre(page);
       afirma(await page.locator(MODAL).count() === 1 && /Descartar alterações/i.test(await page.locator(MODAL).first().innerText()), 'o Voltar do navegador abre a pergunta');
       let c = await coerente(page, 'enquanto a pergunta está aberta'); afirma(c.t === 'checklist' && c.h === '#arquitetura?reavaliar=cadx', 'a URL foi mantida na reavaliação (a saída foi interrompida)');
@@ -338,7 +341,8 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       await abrirDaLista(page, 'cadx');
       await page.click('#avpReavaliarBtn'); await esperaTela(page, 'checklist');
       const len = await comprimento(page);
-      await page.click('#avpConcluirBtn'); await esperaTela(page, 'avaliação');
+      await RG.responderGuiada(page, RG.pDosIds({ necessidade: 'sim', canal: 'sim' })); /* a reavaliação de uma avaliação antiga é guiada e começa em branco */
+      await RG.concluirGuiada(page); await esperaTela(page, 'avaliação');
       let c = await coerente(page, 'depois de concluir'); afirma(/^#(?:arquitetura|avaliacoes)\?avp=/.test(c.h) && c.h !== '#arquitetura?avp=cadx', 'a URL é a da nova versão');
       afirma(await comprimento(page) <= len, 'concluir não empilhou entrada (substituiu a do checklist)');
       const rotulo = (await textoDe(page, '#avpVoltarListaResultado')).trim();
@@ -422,7 +426,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       await page.click('#avpVoltarLista'); await esperaTela(page, 'lista');
       afirma(await page.locator(MODAL).count() === 0, 'sem alteração, sai direto');
       await page.click('.avp-act-editar[data-key="rasc"]'); await esperaTela(page, 'checklist');
-      await page.fill('#avpcNome', 'Rascunho renomeado');
+      await preencherNome(page, 'Rascunho renomeado');
       await page.click('#avpSalvarRascunhoBtn'); await esperaTela(page, 'lista');
       c = await coerente(page, 'depois de salvar o rascunho'); afirma(c.t === 'lista' && c.h === '#arquitetura?av=lista', 'salvar volta à lista');
       await page.goBack();
@@ -459,22 +463,22 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
 
       r = await novaPagina(browser, viewport, '#arquitetura?editar=rasc'); page = r.page;
       c = await coerente(page, 'abrir ?editar=rasc direto'); afirma(c.t === 'checklist' && await page.locator('#avpcNome').inputValue() === 'Item Rascunho', '?editar=<chave> restaura o rascunho salvo');
-      await page.fill('#avpcNome', 'mudou sem salvar');
+      await preencherNome(page, 'mudou sem salvar');
       page.on('dialog', (d) => d.accept().catch(() => {}));
       await page.reload(); await esperaTela(page, 'checklist', 8000);
       afirma(await page.locator('#avpcNome').inputValue() === 'Item Rascunho', 'o F5 recomeça do rascunho salvo (sem a edição não salva)');
       await r.ctx.close();
 
       r = await novaPagina(browser, viewport, '#arquitetura?reavaliar=cadx'); page = r.page;
-      c = await coerente(page, 'abrir ?reavaliar=cadx direto'); afirma(c.t === 'checklist' && /Reavaliação — v2/.test(await textoDe(page, '.avp-checklist h3')), '?reavaliar=<chave> reconstrói a reavaliação a partir da versão salva');
+      c = await coerente(page, 'abrir ?reavaliar=cadx direto'); afirma(c.t === 'checklist' && /Reavaliação — v2/.test(await textoDe(page, '#avpGuiadaDados .avp-admin-secao-titulo')), '?reavaliar=<chave> reconstrói a reavaliação a partir da versão salva');
       afirma(/^← Voltar para a avaliação \(v1\)$/i.test((await textoDe(page, '#avpVoltarLista')).trim()), 'o Voltar diz o destino seguro: "← Voltar para a avaliação (v1)"');
-      await page.fill('#avpcNome', 'alterado na reavaliação');
+      await preencherNome(page, 'alterado na reavaliação');
       const d3 = []; page.on('dialog', (d) => { d3.push(d.type()); d.dismiss().catch(() => {}); });
       const dialogo3 = page.waitForEvent('dialog', { timeout: 8000 });
       page.reload().catch(() => { /* navegação cancelada pelo próprio teste ao recusar o diálogo */ });
       await dialogo3;
       afirma(d3.indexOf('beforeunload') !== -1, 'reavaliação com alteração: o F5 avisa (beforeunload)');
-      await page.fill('#avpcNome', 'Item Cadastrado'); /* volta ao valor original: não há mais alteração */
+      await preencherNome(page, 'Item Cadastrado'); /* volta ao valor original: não há mais alteração */
       await page.click('#avpVoltarLista'); await esperaTela(page, 'avaliação'); c = await coerente(page, 'Voltar sem contexto'); afirma(c.h === '#arquitetura?avp=cadx', 'sem contexto, volta à avaliação de origem (destino determinístico)');
       afirma(await page.locator(MODAL).count() === 0, 'e desfazer a alteração à mão também conta como "sem alteração"');
       await r.ctx.close();
