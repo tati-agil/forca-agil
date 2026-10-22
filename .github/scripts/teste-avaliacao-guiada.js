@@ -15,6 +15,10 @@
  *    CONFIRMADO"; Voltar do navegador com resposta não salva pergunta antes; reavaliação de uma avaliação antiga com
  *    decisão manual: começa em branco, a anterior fica byte a byte igual e a decisão não é herdada; regra publicada
  *    que lê P6 → P6 "Não sei" volta a impedir; sem rolagem lateral, sem erro de página.
+ * C. Redação preservada: cada avaliação grava a cópia do que foi apresentado (pergunta, alternativas, resposta
+ *    escolhida); com a cópia trocada no banco (simulando uma redação futura diferente), ficha, PDF e Excel mostram a
+ *    cópia gravada — nunca o texto atual. Excel com a aba "Respostas guiadas" no fim (as abas de antes não mudam).
+ * D. ADMIN › Questionários: o cartão e o editor de P1–P16 dizem que a redação técnica não é a pergunta guiada.
  * Capturas opcionais: FA_PRINTS=<pasta>. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -117,6 +121,7 @@ function banco(o) {
   const db = SJ.semente();
   db['motor-arquitetura-config'] = clone(o.motor || CONFIG_MOTOR);
   /* a avaliação antiga (questionário antigo, sem guiada) com decisão manual registrada */
+  if (o.admin) db['fa-admins'] = Object.assign({}, db['fa-admins'] || {}, { [SJ.chave(SJ.ARQ)]: { email: SJ.ARQ, name: 'ADMIN' } });
   Object.assign(db['avaliacoes-produto'][ANTIGA], { decisaoManual: true, decisaoConfirmada: true, justificativaDecisao: 'Decisão antiga (teste)', motorVersionArquitetura: 7 });
   return db;
 }
@@ -145,10 +150,11 @@ const texto = (page, sel) => page.evaluate((s) => { const e = document.querySele
 const existe = (page, sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const passoAtual = (page) => page.evaluate(() => { const c = document.getElementById('avpGuiadaCartao'); return c ? c.getAttribute('data-passo') : (document.getElementById('avpGuiadaRevisao') ? 'revisao' : null); });
-const foto = async (page, nome) => { if (!process.env.FA_PRINTS) return; fs.mkdirSync(process.env.FA_PRINTS, { recursive: true });
+const foto = async (page, nome, sel) => { if (!process.env.FA_PRINTS) return; fs.mkdirSync(process.env.FA_PRINTS, { recursive: true });
   /* página inteira: o cabeçalho fixo se repetiria no meio da imagem — só na captura, ele fica no topo */
   const estilo = await page.addStyleTag({ content: '.nav { position: absolute !important; }' });
-  await page.screenshot({ path: path.join(process.env.FA_PRINTS, nome + '-' + page.viewportSize().width + '.png'), fullPage: true });
+  const arq = path.join(process.env.FA_PRINTS, nome + '-' + page.viewportSize().width + '.png');
+  if (sel) await page.locator(sel).first().screenshot({ path: arq }); else await page.screenshot({ path: arq, fullPage: true });
   await estilo.evaluate((e) => e.remove()); };
 async function escolher(page, valor) {
   const p = await passoAtual(page);
@@ -235,22 +241,39 @@ async function jornada(browser, vp, rotulo) {
   afirma(JSON.stringify(reg.guiada.respostas) === JSON.stringify(Object.assign({}, alvo)) || G.CODIGOS.every((c) => mapa[c] === P[c]), 'as respostas guiadas ficam gravadas como foram escolhidas');
   afirma(!reg.respostas.medicao && reg.guiada.respostas.P7 === '?' && Object.keys(reg.respostas).length === 15, 'P7 "Não sei": nenhum SIM/NÃO inventado em P7 (15 critérios gravados), a resposta "Não sei" preservada');
   afirma(reg.decisaoFinal === reg.resultadoAutomatico && reg.decisaoManual === false, 'a decisão final nasce da recomendação (contrato de sempre)');
+  const tx = (reg.guiada && reg.guiada.textos) || {};
+  afirma(tx.C2 && tx.C2.pergunta === G.PERGUNTAS.C2.q && tx.C2.resposta === 'Do próprio item que estamos avaliando' && tx.C2.criterio === 'P2' && tx.C2.alternativas.length === 3 &&
+    tx.C2.alternativas[1].rotulo === G.PERGUNTAS.C2.opts[1][1] && tx.C2.alternativas[1].descricao === G.PERGUNTAS.C2.opts[1][2],
+    'C. a redação apresentada fica gravada na avaliação: pergunta, alternativas (com a descrição) e resposta escolhida', tx.C2);
+  afirma(Object.keys(tx).length === G.passos(reg.guiada.respostas).length && Object.values(tx).every((x) => x.pergunta && x.resposta && x.ordem >= 1),
+    'C. uma cópia por pergunta respondida do caminho, na ordem', Object.keys(tx).length);
   afirma(/NÃO CONFIRMADO/.test(await texto(page, '[data-criterio="P7"].avp-reasoning-item--nao-confirmado')), 'ficha: P7 aparece como "NÃO CONFIRMADO", por extenso');
   await page.click('#avpGuiadaFicha summary');
   afirma(/Respostas da avaliação guiada/.test(await texto(page, '#avpGuiadaFicha')) && /Do próprio item que estamos avaliando/.test(await texto(page, '#avpGuiadaFicha')), 'ficha: as respostas guiadas e de onde veio cada critério');
   afirma(await larguraOk(page), 'ficha sem rolagem lateral');
   await foto(page, 'g5-ficha');
+  /* uma redação FUTURA diferente não altera a avaliação: troca a cópia gravada (simula o texto de outra época) e
+     confere que ficha, PDF e Excel mostram a cópia, não o texto atual do módulo */
+  const P1_DA_EPOCA = 'Redação da época, gravada nesta avaliação (teste)';
+  await page.evaluate((x) => new Promise((ok) => firebase.database().ref('avaliacoes-produto/' + x[0] + '/guiada/textos/P1/pergunta').set(x[1], () => ok())), [reg._key, P1_DA_EPOCA]);
   await page.click('#avpVoltarListaResultado');
   await page.waitForSelector('#avpNovoBtn');
   await page.evaluate((k) => { location.hash = '#arquitetura?avp=' + encodeURIComponent(k); }, reg._key);
   await page.waitForSelector('#avpCabecalhoFicha');
   afirma(/NÃO CONFIRMADO/.test(await texto(page, '#avpQuestionarioCard')) && await existe(page, '#avpGuiadaFicha'), 'consultar de novo (lista → endereço da ficha): as respostas guiadas e o P7 não confirmado continuam lá');
+  await page.click('#avpGuiadaFicha summary');
+  await page.click('.avp-guiada-criterio[data-criterio="P1"] summary');
+  const fichaGuiada = await texto(page, '#avpGuiadaFicha');
+  afirma(fichaGuiada.includes(P1_DA_EPOCA) && !fichaGuiada.includes(G.PERGUNTAS.P1.q) && /gravado nela/.test(fichaGuiada), 'C. ficha: mostra a redação gravada na avaliação, não o texto atual');
 
   if (vp.width > 600) {
     await page.evaluate(() => { window.__pdfs = []; });
     await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('#avpGerarPdfBtn')]);
     const pdf = (await page.evaluate(() => (window.__pdfs || []).join('\n'))).replace(/\s+/g, ' ');
     afirma(/7\. [^—]+— NÃO CONFIRMADO/.test(pdf), 'PDF: P7 "NÃO CONFIRMADO"');
+    afirma(/Avaliação guiada — perguntas e respostas apresentadas/.test(pdf) && pdf.includes(P1_DA_EPOCA) && !pdf.includes(G.PERGUNTAS.P1.q) &&
+      pdf.includes(G.PERGUNTAS.C2.q + ' — Do próprio item que estamos avaliando') && /Alternativas apresentadas: Do próprio item que estamos avaliando · De outra entrega/.test(pdf) &&
+      /Critérios técnicos P1–P16/.test(pdf), 'C. PDF: perguntas guiadas com o texto gravado, alternativas e resposta, e depois os critérios técnicos P1–P16');
     await page.click('#avpVoltarListaResultado');
     await page.waitForSelector('#avpExportarBtn');
     await page.click('#avpExportarBtn');
@@ -261,6 +284,12 @@ async function jornada(browser, vp, rotulo) {
     const linhas = XLSX.utils.sheet_to_json(wb.Sheets[aba], { defval: '' });
     const l7 = linhas.find((l) => l['ID da avaliação'] === reg._key && Number(l['Número da pergunta']) === 7);
     afirma(l7 && l7.Resposta === 'NÃO CONFIRMADO', 'Excel: P7 "NÃO CONFIRMADO" na aba de respostas', l7);
+    afirma(JSON.stringify(wb.SheetNames) === JSON.stringify(['Resumo', 'Respostas do questionário', 'Histórico', 'Trilha', 'Respostas guiadas']), 'C. Excel: aba "Respostas guiadas" no fim; as abas de antes não mudam de lugar', wb.SheetNames);
+    const gl = XLSX.utils.sheet_to_json(wb.Sheets['Respostas guiadas'], { defval: '' }).filter((l) => l['ID da avaliação'] === reg._key);
+    const g1 = gl.find((l) => Number(l.Ordem) === 1), gC2 = gl.find((l) => l['Pergunta (texto apresentado)'] === G.PERGUNTAS.C2.q);
+    afirma(gl.length === Object.keys(tx).length && g1 && g1['Pergunta (texto apresentado)'] === P1_DA_EPOCA && g1['Origem do texto'] === 'Registrado na avaliação' &&
+      gC2 && gC2['Resposta escolhida'] === 'Do próprio item que estamos avaliando' && gC2['Critério técnico'] === 'P2' && /De outra entrega/.test(gC2['Alternativas apresentadas']),
+      'C. Excel: uma linha por pergunta guiada, com o texto gravado, a resposta, as alternativas e o critério técnico', [gl.length, g1, gC2]);
   }
   afirma(!erros.length, 'sem erro de página', erros);
   await ctx.close();
@@ -300,6 +329,25 @@ async function jornada(browser, vp, rotulo) {
   await ctx.close();
 }
 
+async function avisoAdmin(browser, vp) {
+  console.log('\n######## D. ADMIN › Questionários (' + vp.width + ' px) ########');
+  const { ctx, page, erros } = await abrir(browser, vp, '#arquitetura?arq=questionarios&q=p1p16', { admin: true });
+  await page.waitForSelector('#avpCfgCard-CLASSIFICACAO_ARQUITETURAL');
+  const aviso = await texto(page, '#avpCfgAvisoGuiada');
+  afirma(/Avaliação guiada/.test(aviso) && /não deste cadastro/.test(aviso) && /não muda nenhuma pergunta guiada/.test(aviso), 'D. o cartão de P1–P16 diz que o texto que o avaliador lê vem da avaliação guiada, não deste cadastro');
+  if (process.env.FA_PRINTS) { /* recorte: do topo do cartão de P1–P16 até o fim do aviso (as correções abertas abaixo dele alongariam a imagem) */
+    await page.locator('#avpCfgAvisoGuiada').scrollIntoViewIfNeeded();
+    const c = await page.locator('#avpCfgCard-CLASSIFICACAO_ARQUITETURAL').boundingBox(), v = await page.locator('#avpCfgAvisoGuiada').boundingBox();
+    await page.screenshot({ path: path.join(process.env.FA_PRINTS, 'g6-admin-questionarios-' + vp.width + '.png'), clip: { x: 0, y: c.y - 8, width: vp.width, height: v.y + v.height - c.y + 24 } });
+  }
+  await page.click('.avp-config-editar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');
+  await page.waitForSelector('#avpCfgAvisoGuiadaEditar');
+  afirma(/texto TÉCNICO de P1–P16/.test(await texto(page, '#avpCfgAvisoGuiadaEditar')), 'D. o editor de P1–P16 repete o aviso antes das perguntas');
+  afirma(await larguraOk(page), 'D. sem rolagem lateral');
+  afirma(!erros.length, 'D. sem erro de página', erros);
+  await ctx.close();
+}
+
 async function regraLeP6(browser) {
   console.log('\n######## B. regra publicada que lê P6 ########');
   const v8 = clone(V7);
@@ -324,6 +372,8 @@ async function regraLeP6(browser) {
     await jornada(browser, { width: 1280, height: 900 }, 'computador');
     await jornada(browser, { width: 375, height: 800 }, 'celular 375px');
     await regraLeP6(browser);
+    await avisoAdmin(browser, { width: 1280, height: 900 });
+    await avisoAdmin(browser, { width: 375, height: 800 });
   } catch (e) { afirma(false, 'exceção: ' + String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')); }
   await browser.close();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

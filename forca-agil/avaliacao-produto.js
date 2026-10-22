@@ -1882,6 +1882,47 @@
   function naoConfirmadoNaGuiada(def, it) {
     return !!(it && it.guiada && it.status === 'concluido' && !((it.respostas || {})[def.id] && it.respostas[def.id].valor));
   }
+  /* AVALIAÇÃO GUIADA — a REDAÇÃO apresentada fica gravada na própria avaliação (guiada.textos), como a cópia da
+     pergunta em cada resposta do questionário (textoPerguntaNaEpoca): o texto exato da pergunta, a ajuda, as
+     alternativas apresentadas e a resposta escolhida, por pergunta do caminho. Feita a cada gravação (rascunho ou
+     conclusão) a partir do módulo da versão em uso; depois de concluída, nunca é reescrita — uma redação nova da guiada
+     não altera avaliações anteriores. Ficha, PDF e Excel leem DAQUI; sem a fotografia, o texto atual do módulo, dito. */
+  function fotografiaGuiada(g) {
+    var G = window.faAvaliacaoGuiada, resp = (g && g.respostas) || {}, out = {};
+    G.passos(resp).filter(function (k) { return G.respondida(resp, k); }).forEach(function (k, i) {
+      out[k] = { ordem: i + 1, criterio: G.criterioDe(k), etapa: G.PERGUNTAS[k].stage, pergunta: G.PERGUNTAS[k].q, ajuda: G.PERGUNTAS[k].hint,
+        alternativas: G.opcoes(k).map(function (o) { return { valor: o.valor, rotulo: o.rotulo, descricao: o.descricao || '' }; }),
+        resposta: G.rotuloResposta(k, resp[k]), valor: resp[k] };
+    });
+    return out;
+  }
+  function guiadaParaGravar(g) {
+    return { versao: g.versao, respostas: g.respostas || {}, observacoes: g.observacoes || {}, textos: fotografiaGuiada(g) };
+  }
+  function perguntasGuiadaDe(g) {
+    var G = window.faAvaliacaoGuiada;
+    if (!g) return [];
+    var obs = g.observacoes || {}, t = g.textos || null, lista;
+    var fonte = t || (G ? fotografiaGuiada(g) : {});
+    lista = Object.keys(fonte).map(function (k) { return Object.assign({ id: k }, fonte[k]); }).sort(function (a, b) { return a.ordem - b.ordem; });
+    return lista.map(function (x) { return Object.assign({}, x, { alternativas: x.alternativas || [], observacao: String(obs[x.id] || '').trim(), origem: t ? 'gravado' : 'atual' }); });
+  }
+  var NOTA_GUIADA_SEM_FOTO = 'Texto atual da avaliação guiada: esta avaliação foi gravada sem a cópia da redação.';
+  function pdfGuiadaHtml(it) {
+    var lista = perguntasGuiadaDe(it && it.guiada);
+    if (!lista.length) return '';
+    var G = window.faAvaliacaoGuiada;
+    var h = '<h3 class="pdf-subsecao">Avaliação guiada — perguntas e respostas apresentadas (versão ' + esc(it.guiada.versao || '') + ')</h3>';
+    if (lista[0].origem !== 'gravado') h += '<p class="pdf-meta-versoes">' + esc(NOTA_GUIADA_SEM_FOTO) + '</p>';
+    lista.forEach(function (x) {
+      var crit = x.criterio ? x.criterio + (G && G.CRITERIOS[x.criterio] ? ' — ' + G.CRITERIOS[x.criterio][0] : '') : '';
+      h += '<div class="pdf-pergunta pdf-pergunta-bloco"><p class="pdf-pergunta-texto">' + x.ordem + '. ' + esc(x.pergunta) + ' — <strong>' + esc(x.resposta) + '</strong></p>' +
+        (crit ? '<p class="pdf-pergunta-campo"><strong>Critério técnico:</strong> ' + esc(crit) + '</p>' : '') +
+        (x.alternativas.length ? '<p class="pdf-pergunta-campo"><strong>Alternativas apresentadas:</strong> ' + esc(x.alternativas.map(function (o) { return o.rotulo; }).join(' · ')) + '</p>' : '') +
+        (x.observacao ? '<p class="pdf-pergunta-campo"><strong>Observação:</strong> ' + esc(x.observacao) + '</p>' : '') + '</div>';
+    });
+    return h;
+  }
   function pdfPergunta(def, resposta, it) {
     if ((!resposta || !resposta.valor) && naoConfirmadoNaGuiada(def, it)) {
       return '<div class="pdf-pergunta pdf-pergunta-bloco"><p class="pdf-pergunta-texto">' + numeroGlobal(def) + '. ' + esc(rotuloCompacto(def, conteudoDe(def, it.questionnaireContentVersion))) +
@@ -2061,7 +2102,8 @@
     html += '<h2 class="pdf-secao-titulo">Respostas e evidências</h2>';
     var notaHistoricaPdf = notaTextoHistorico(it);
     if (notaHistoricaPdf) html += '<p class="pdf-meta-versoes pdf-nota-texto-historico">' + esc(notaHistoricaPdf) + '</p>';
-    html += '<h3 class="pdf-subsecao">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</h3>';
+    html += pdfGuiadaHtml(it);
+    html += '<h3 class="pdf-subsecao">' + (it.guiada ? 'Critérios técnicos P1–P16 — ' : '') + 'Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</h3>';
     CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id], it); });
     html += '<h3 class="pdf-subsecao">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</h3>';
     EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id], it); });
@@ -2371,6 +2413,21 @@
     });
     return linhas;
   }
+  var EXCEL_HEAD_GUIADA = ['ID da avaliação', 'Nome do item', 'Versão', 'Versão da avaliação guiada', 'Ordem', 'Critério técnico', 'Etapa',
+    'Pergunta (texto apresentado)', 'Resposta escolhida', 'Alternativas apresentadas', 'Observação', 'Origem do texto'];
+  var EXCEL_COLS_GUIADA = [{ largura: 26 }, { largura: 30 }, { largura: 8 }, { largura: 10 }, { largura: 8 }, { largura: 12 }, { largura: 16 },
+    { largura: 60 }, { largura: 40 }, { largura: 70 }, { largura: 40 }, { largura: 22 }];
+  function linhasGuiadaExcel(itens) {
+    var linhas = [];
+    itens.forEach(function (it) {
+      if (it.status !== 'concluido' || !it.guiada) return;
+      perguntasGuiadaDe(it.guiada).forEach(function (x) {
+        linhas.push([it._key, it.nome || '', it.versao || 1, it.guiada.versao || '', x.ordem, x.criterio || '', x.etapa || '', x.pergunta, x.resposta,
+          x.alternativas.map(function (o) { return o.rotulo; }).join(' | '), x.observacao, x.origem === 'gravado' ? 'Registrado na avaliação' : 'Texto atual (sem cópia)']);
+      });
+    });
+    return linhas;
+  }
   var EXCEL_COLS_HISTORICO = [
     { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 18 }, { largura: 24 },
     { largura: 30 }, { largura: 26 }, { largura: 16 }, { largura: 30 }, { largura: 30 },
@@ -2470,6 +2527,9 @@
         var wsTrilha = planilhaComColunas(XLSXLib, EXCEL_HEAD_TRILHA,
           linhasTrilhaExcel(itensExportados, todosOsItens, trilhas), EXCEL_COLS_TRILHA);
         XLSXLib.utils.book_append_sheet(wb, wsTrilha, 'Trilha');
+
+        var wsGuiada = planilhaComColunas(XLSXLib, EXCEL_HEAD_GUIADA, linhasGuiadaExcel(itensExportados), EXCEL_COLS_GUIADA);
+        XLSXLib.utils.book_append_sheet(wb, wsGuiada, 'Respostas guiadas');
 
         XLSXLib.writeFile(wb, nomeArquivo, { cellDates: true });
         cbFim(null);
@@ -4358,6 +4418,9 @@
         var q = QUESTIONARIO_ALIAS[codigo] || {};
         html += '<div class="avp-form-card avp-config-item-card" id="avpCfgCard-' + codigo + '" data-q="' + (q.alias || '') + '" tabindex="-1">';
         html += '<h4>' + esc(sit.nome) + (q.sigla ? ' <span class="avp-config-sigla">' + q.sigla + '</span>' : '') + '</h4>';
+        if (codigo === CODIGO_QUESTIONARIO) html += '<p class="avp-decisao-aviso" id="avpCfgAvisoGuiada">Avaliações novas usam a Avaliação guiada (versão 22): o texto das perguntas que o avaliador lê vem dela, não deste cadastro. ' +
+        'Aqui fica o texto TÉCNICO de P1–P16 — usado na ficha, no PDF, nas justificativas automáticas e no questionário dos rascunhos antigos. ' +
+        'Alterar este questionário não muda nenhuma pergunta guiada, e a redação guiada de cada avaliação fica gravada nela.</p>';
         html += '<p>' + qtdPerguntasRotulo(codigo, sit) + ' · Versão publicada: <strong>' + esc(sit.versaoPublicada) + '</strong> · Situação: ' + (sit.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'sem alterações pendentes') + '</p>';
         html += '<p>Última publicação: ' + (sit.ultimaAlteracaoEm ? esc(fmtData(sit.ultimaAlteracaoEm)) + (sit.ultimaAlteracaoPor ? ' · ' + esc(sit.ultimaAlteracaoPor) : '') : 'nunca alterado (conteúdo de fábrica)') + '</p>';
         html += '<div class="avp-actions-footer">';
@@ -4782,7 +4845,10 @@
       var sit = window.faQuestionarios.situacao(c.codigo);
       var html = '<div class="avp-form-card"><h3>Editar perguntas — ' + esc(sit.nome) + '</h3>';
       html += '<p class="avp-decisao-aviso">Atenção: altere a redação para melhorar clareza, sem modificar o significado do critério. ' +
-        'Mudanças conceituais podem exigir alteração da regra do motor.</p></div>';
+        'Mudanças conceituais podem exigir alteração da regra do motor.</p>' +
+        (c.codigo === CODIGO_QUESTIONARIO ? '<p class="avp-decisao-aviso" id="avpCfgAvisoGuiadaEditar">Avaliações novas usam a Avaliação guiada (versão 22): o texto das perguntas que o avaliador lê vem dela, não deste cadastro. ' +
+        'Aqui fica o texto TÉCNICO de P1–P16 — usado na ficha, no PDF, nas justificativas automáticas e no questionário dos rascunhos antigos. ' +
+        'Alterar este questionário não muda nenhuma pergunta guiada, e a redação guiada de cada avaliação fica gravada nela.</p>' : '') + '</div>';
       c.rascunho.perguntas.forEach(function (p, idx) {
         /* O TIPO (estrutural, vem do código — ver tipoPergunta) decide os
            campos do formulário; nunca é um campo dele. */
@@ -7503,19 +7569,24 @@
     }
     /* Da avaliação guiada aos critérios P1–P16: cada critério, o valor que entrou (ou não) e as perguntas que o
        alimentaram com a resposta escolhida. É a revisão (com "Alterar") e a explicação na ficha (sem). */
-    function criteriosGuiadaHtml(g, comAlterar) {
-      var G = window.faAvaliacaoGuiada, caminho = G.passos(g.respostas), m = G.criterios(g.respostas);
+    function criteriosGuiadaHtml(g, comAlterar, item) {
+      var G = window.faAvaliacaoGuiada, caminho = G.passos(g.respostas || {}), m = G.criterios(g.respostas || {});
+      /* ficha (item): a redação GRAVADA e o P1–P16 gravado na avaliação — nada recalculado com o código de hoje */
+      var gravadas = item ? perguntasGuiadaDe(g) : null;
+      if (item) TODAS_PERGUNTAS.forEach(function (def) { var r = (item.respostas || {})[def.id]; m[def.codigoEstavel] = r && r.valor ? (r.valor === 'sim' ? 'S' : 'N') : '?'; });
       /* cada critério é uma linha recolhível (no celular, os 16 abertos passavam de 6.000 px); na revisão, os que ainda
          não têm SIM/NÃO começam abertos — a escolha de abrir/fechar é lembrada enquanto a pessoa está na tela */
       var h = '<ol class="avp-guiada-criterios">', abertos = state.detAbertos || {};
       G.CODIGOS.forEach(function (cod) {
-        var info = G.CRITERIOS[cod], perguntas = G.FONTES[cod].filter(function (k) { return caminho.indexOf(k) !== -1; });
+        var info = G.CRITERIOS[cod], perguntas = gravadas ? gravadas.filter(function (x) { return x.criterio === cod; }).map(function (x) { return x.id; }) : G.FONTES[cod].filter(function (k) { return caminho.indexOf(k) !== -1; });
+        var gravadaDe = function (k) { return gravadas ? gravadas.filter(function (x) { return x.id === k; })[0] : null; };
         var det = 'guiadaCrit-' + cod, aberto = abertos[det] !== undefined ? abertos[det] : (comAlterar && m[cod] !== 'S' && m[cod] !== 'N');
         h += '<li class="avp-guiada-criterio" data-criterio="' + cod + '"><details data-det="' + det + '"' + (aberto ? ' open' : '') + '><summary class="avp-guiada-criterio-cab"><span class="avp-guiada-codigo">' + cod + '</span>' +
           '<span class="avp-guiada-criterio-nome">' + esc(info[0]) + '</span>' + valorGuiadaHtml(m[cod]) + '</summary>';
         h += '<ul class="avp-guiada-fontes">' + perguntas.map(function (k) {
           var obs = String((g.observacoes || {})[k] || '').trim();
-          return '<li><span class="avp-guiada-fonte-q">' + esc(G.PERGUNTAS[k].q) + '</span> <strong class="avp-guiada-fonte-r">' + esc(G.rotuloResposta(k, g.respostas[k])) + '</strong>' +
+          var gx = gravadaDe(k);
+          return '<li><span class="avp-guiada-fonte-q">' + esc(gx ? gx.pergunta : G.PERGUNTAS[k].q) + '</span> <strong class="avp-guiada-fonte-r">' + esc(gx ? gx.resposta : G.rotuloResposta(k, (g.respostas || {})[k])) + '</strong>' +
             (obs ? '<span class="avp-guiada-fonte-obs">Observação: ' + esc(obs) + '</span>' : '') +
             (comAlterar ? ' <button type="button" class="btn btn--sm avp-guiada-alterar" data-passo="' + k + '" aria-label="Alterar a resposta: ' + esc(G.PERGUNTAS[k].q) + '">Alterar</button>' : '') + '</li>';
         }).join('') + '</ul></details></li>';
@@ -8035,7 +8106,7 @@
         respostas: a.respostas || {},
         /* Respostas da avaliação guiada, como foram escolhidas (a.respostas acima é a tradução para P1–P16);
            ausente nos registros anteriores à avaliação guiada. */
-        guiada: a.guiada || null,
+        guiada: a.guiada ? guiadaParaGravar(a.guiada) : null,
         /* Versão do CONTEÚDO do questionário (título/texto/ajuda/
            justificativas de P1-P16) vigente quando esta avaliação foi
            INICIADA — fixada uma única vez (ver novoBtn/abrirReavaliacao/
@@ -8460,7 +8531,8 @@
         html += '<details class="avp-form-card avp-admin-secao avp-guiada-ficha" id="avpGuiadaFicha" data-det="avpGuiadaFicha"' + (state.detAbertos && state.detAbertos.avpGuiadaFicha ? ' open' : '') + '>' +
           '<summary class="avp-admin-secao-cab"><span class="avp-admin-secao-titulo">Respostas da avaliação guiada</span>' +
           '<span class="avp-admin-secao-desc">As perguntas que a pessoa respondeu e como cada critério P1–P16 foi obtido (avaliação guiada, versão ' + esc(a.guiada.versao || '') + ')</span></summary>' +
-          '<div class="avp-admin-secao-corpo">' + criteriosGuiadaHtml(a.guiada, false) + '</div></details>';
+          '<div class="avp-admin-secao-corpo"><p class="avp-natureza-ajuda" id="avpGuiadaFichaOrigem">' + (a.guiada.textos ? 'Texto das perguntas e das respostas exatamente como foi apresentado nesta avaliação (gravado nela).' : esc(NOTA_GUIADA_SEM_FOTO)) + '</p>' +
+          criteriosGuiadaHtml(a.guiada, false, a) + '</div></details>';
       }
       html += '<div class="avp-form-card" id="avpQuestionarioCard">';
       html += '<h4>Avaliação, pergunta por pergunta</h4>';

@@ -301,7 +301,7 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     await voltar(page);
     console.log('\n== Excel ==');
     const ex = await lerExcel(page);
-    afirma(JSON.stringify(ex.nomes) === JSON.stringify(['Resumo', 'Respostas do questionário', 'Histórico', 'Trilha']), 'Excel: abas = Resumo, Respostas do questionário, Histórico, Trilha (' + ex.nomes.join(' | ') + ')');
+    afirma(JSON.stringify(ex.nomes) === JSON.stringify(['Resumo', 'Respostas do questionário', 'Histórico', 'Trilha', 'Respostas guiadas']), 'Excel: abas = Resumo, Respostas do questionário, Histórico, Trilha, Respostas guiadas (' + ex.nomes.join(' | ') + ')');
     const cab = ex.resumo[0];
     afirma(cab.includes('Responsável pela avaliação') && cab.includes('Data da avaliação') && !cab.includes('Responsável') && !cab.includes('Data'), 'Excel Resumo: "Responsável"→"Responsável pela avaliação", "Data"→"Data da avaliação"');
     afirma(cab.includes('Situação da curadoria') && cab.includes('Versão do motor'), 'Excel Resumo: colunas "Situação da curadoria" e "Versão do motor"');
