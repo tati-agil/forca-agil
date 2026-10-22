@@ -156,7 +156,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 |---|---|---|---|
 | `eventos` | Evento: nome, carga horária, frequência mínima, conteúdo público, publicação e restrições. Turmas e treinamentos pertencem a um evento. | admin, aluno, app, avaliacao, dashboard, facilitador | Escrita de admin. |
 | `eventos-publico` | Público restrito de um evento fechado (quem pode vê-lo e participar). | admin, aluno, app | Só admin grava. |
-| `turmas` | Turma: nome, datas, evento a que pertence, link do CMFlex, restrição. | admin, aluno, aposta, app, auth, avaliacao, checkin, dashboard, facilitador, game, roteiro, turmas-util | Criada e editada no ADMIN. |
+| `turmas` | Turma: nome, datas, horário, sala (`sala`, texto opcional, mostrado no card público e no ADMIN), evento a que pertence, link do CMFlex, restrição. | admin, aluno, aposta, app, auth, avaliacao, checkin, dashboard, facilitador, game, roteiro, turmas-util | Criada e editada no ADMIN. |
 | `turmas-publico` | Público restrito de uma turma fechada. | admin, aluno, app | Só admin grava; é a barreira real da restrição. |
 | `turmas-interesse` | Ligação pessoa ↔ turma: interessada, inscrita (`confirmedByAdmin`), removida, com motivo e destino da saída. | admin, aluno, aposta, app, auth, avaliacao, checkin, dashboard, game, turmas-util | Base do nível `enrolled`. |
 | `turmas-interesse-log` | Histórico de interesse registrado/removido. | admin, app | |
