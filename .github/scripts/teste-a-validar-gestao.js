@@ -32,6 +32,7 @@
 const { chromium } = require('playwright');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
+const P8 = require('./explicacao-p8-da-epoca'); /* o P8 acrescentado à explicação (PR #420) */
 const path = require('path');
 const vm = require('vm');
 
@@ -150,7 +151,9 @@ function conferirV5(r) {
       return;
     }
     if ('impedidaPorGestao' in c) problemas.push(m + ': marca fora dos 8 casos (' + c.impedidaPorGestao + ')');
-    if (just.indexOf('gerido de ponta a ponta') !== -1 || (interp && interp.indexOf('impediu a classificação') !== -1)) problemas.push(m + ': explicação de gestão fora dos 8 casos');
+    /* a explicação de Produto/Serviço e de Unidade de valor cita P8 = SIM ("Pode ser gerido de ponta a ponta…: SIM", PR #420):
+       só essa frase autorizada, e só nessas duas camadas, sai antes de procurar a explicação de gestão */
+    if (P8.justificativaSemP8(just, c.id).indexOf('gerido de ponta a ponta') !== -1 || (interp && interp.indexOf('impediu a classificação') !== -1)) problemas.push(m + ': explicação de gestão fora dos 8 casos');
     if (c.id === 'a-validar' && !c.incoerencia && !c.conflitoNaturezas) {
       fallbackGenerico++;
       if (just !== JUSTIFICATIVA_GENERICA || c.motivos.length) problemas.push(m + ': fallback mudou (' + just.slice(0, 60) + ', motivos ' + JSON.stringify(c.motivos) + ')');
