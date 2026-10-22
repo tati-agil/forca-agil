@@ -38,6 +38,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const P8 = require('./explicacao-p8-da-epoca'); /* o P8 acrescentado à explicação (PR #420) sai antes da digital da época */
 /* Única diferença INTENCIONAL de texto desde a impressão digital (ajuste pós-publicação da P15):
    o motivo de Componente passou a ser "É principalmente um elemento estrutural que compõe outro
    Produto/Serviço". O rótulo antigo é recolocado antes de calcular — se o hash continua o de
@@ -134,7 +135,7 @@ function parteA() {
        antes, só os placeholders deixaram de existir. */
     if (semTexto.especializacao === null && ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao', 'produto-principal'].indexOf(semTexto.id) !== -1) semTexto.especializacao = 'não determinada pelo questionário';
     if (semTexto.papelEstrutural === null && semTexto.id === 'componente') semTexto.papelEstrutural = 'não determinado';
-    h.update(comMotivoDaEpoca(JSON.stringify([m, c.resultadoAutomatico, c.essenciaisFalhos, c.criteriosAtendidos, c.exclusoesConflitantes, semTexto])) + '\n');
+    h.update(comMotivoDaEpoca(JSON.stringify([m, c.resultadoAutomatico, c.essenciaisFalhos, c.criteriosAtendidos, c.exclusoesConflitantes, P8.estadoSemP8(semTexto)])) + '\n');
     contagemPorCamada[c.camadaSugerida.id] = (contagemPorCamada[c.camadaSugerida.id] || 0) + 1;
     const just = av.gerarJustificativaAutomatica(atual, c);
     const textos = (relacao || '') + ' || ' + just;

@@ -19,11 +19,17 @@
  *    escolhida); com a cópia trocada no banco (simulando uma redação futura diferente), ficha, PDF e Excel mostram a
  *    cópia gravada — nunca o texto atual. Excel com a aba "Respostas guiadas" no fim (as abas de antes não mudam).
  * D. ADMIN › Questionários: o cartão e o editor de P1–P16 dizem que a redação técnica não é a pergunta guiada.
+ * E. P8 na explicação: com a regra publicada (v7), Produto/Serviço principal e Unidade de valor associada — as duas
+ *    regras cuja condição exige P8 = SIM — citam P8 nos motivos e na justificativa; nenhuma outra classificação ganha
+ *    P8; a classificação das 65.536 combinações não muda; ficha e PDF mostram a mesma justificativa gravada.
+ * F. Resumo da ficha (Resultado / Classificação / Decisão final / Curadoria): nenhum rótulo invade o valor, em computador
+ *    e 375 px — e a regra antiga do celular (rótulo em 6,2em fixos) é reprovada pela mesma medição.
  * Capturas opcionais: FA_PRINTS=<pasta>. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const crypto = require('crypto');
 const SJ = require('./semente-jornada');
 const RG = require('./responder-guiada');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
@@ -31,6 +37,7 @@ const { arquivoTemporario } = require('./arquivo-temporario');
 const RAIZ = path.join(__dirname, '..', '..', 'forca-agil');
 const XLSX = require(path.join(RAIZ, 'xlsx.mini.min.js'));
 const G = require(path.join(RAIZ, 'avaliacao-guiada.js'));
+const P8E = require('./explicacao-p8-da-epoca');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -114,6 +121,63 @@ function parteA() {
   afirma(!/"campo":"P6"|"campo":"P7"/.test(JSON.stringify(V7)) && /"campo":"P8"/.test(JSON.stringify(V7)), 'a regra v7 não lê P6/P7 e lê P8');
 }
 
+function carregarAvaliacao(config) {
+  const SRC = fs.readFileSync(path.join(RAIZ, 'avaliacao-produto.js'), 'utf8');
+  const ctx = { console: { log() {}, warn() {}, error() {} }, JSON, Object, Array, String, Math, Number, Date, RegExp, Error, Promise, setTimeout, clearTimeout, setInterval, clearInterval, parseFloat, parseInt, isNaN };
+  ctx.window = ctx;
+  const el = () => ({ addEventListener() {}, querySelector() { return null; }, querySelectorAll() { return []; }, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } });
+  ctx.document = { getElementById: () => null, querySelector: () => null, querySelectorAll: () => [], createElement: el, addEventListener() {}, body: el(), documentElement: el() };
+  const ref = (p) => ({ on(ev, cb) { if (p === 'motor-arquitetura-config') cb({ val: () => clone(config) }); }, once() {}, off() {}, update() {}, child(c) { return ref(p + '/' + c); }, push() { return { key: 'k' }; } });
+  ctx.firebase = { database: () => ({ ref }) }; ctx.navigator = {}; ctx.location = { hash: '' }; ctx.localStorage = { getItem() { return null; }, setItem() {} };
+  vm.createContext(ctx);
+  for (const f of ['questionarios-config.js', 'motor-arquitetura.js']) vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f });
+  const fim = SRC.lastIndexOf('})();');
+  vm.runInContext(SRC.slice(0, fim) + '\nwindow.__t = { computeResultado: computeResultado, gerar: gerarJustificativaAutomatica };\n' + SRC.slice(fim), ctx, { filename: 'avaliacao-produto.js' });
+  ctx.window.faMotorArquitetura.onMudanca(function () {});
+  return ctx.__t;
+}
+/* Digital da regra PUBLICADA (v7) nas 65.536 combinações — [m, computeResultado, justificativa] — calculada com o
+   avaliacao-produto.js da main antes do P8 na explicação (idêntica à do commit 262c5c5 da PR #420). Com o P8 acrescentado
+   retirado (explicacao-p8-da-epoca.js, só em Produto/Serviço principal e Unidade de valor), o código atual tem de dar
+   EXATAMENTE esta digital: todas as demais classificações, motivos, relações e justificativas continuam iguais. */
+const DIGITAL_V7_ANTES_DO_P8 = '75a42dd90b61c802262d73bbc057d639888080ecf7ded13bb3ab870deb72a8e0';
+function parteE() {
+  console.log('\n== E. P8 na explicação (regra publicada v7) ==');
+  const av = carregarAvaliacao(CONFIG_MOTOR);
+  const IDS = ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia', 'jornada', 'medicao', 'gestao', 'canal', 'artefato', 'capacidade', 'processo', 'modalidade', 'regra', 'componente', 'funcionalidade'];
+  const comP8 = {}, semP8 = {}, outrasComP8 = [], camadaDifere = [];
+  const hEpoca = crypto.createHash('sha256'), hAtual = crypto.createHash('sha256');
+  let exProduto = '', exUva = '';
+  for (let m = 0; m < 65536; m++) {
+    const r = {}; IDS.forEach((id, i) => { r[id] = { valor: (m >> i) & 1 ? 'sim' : 'nao' }; });
+    const a = { respostas: r }, c = av.computeResultado(a), id = c.camadaSugerida.id, j = av.gerar(a, c);
+    hEpoca.update(JSON.stringify([m, P8E.estadoSemP8(c), P8E.justificativaSemP8(j, id)]) + '\n');
+    hAtual.update(JSON.stringify([m, c, j]) + '\n');
+    const temNos = c.camadaSugerida.motivos.indexOf(P8E.MOTIVO_P8) !== -1, temNa = j.indexOf(P8E.MOTIVO_P8) !== -1;
+    if (id === 'produto-principal' || id === 'unidade-valor-associada') { (temNos && temNa ? comP8 : semP8)[id] = ((temNos && temNa ? comP8 : semP8)[id] || 0) + 1; if (id === 'produto-principal') exProduto = j; else exUva = j; }
+    else if (temNos || temNa) outrasComP8.push(m);
+    const P = {}; IDS.forEach((x, i) => { P['P' + (i + 1)] = (m >> i) & 1 ? 'S' : 'N'; });
+    if (id !== camadaOficial(P)) camadaDifere.push(m);
+  }
+  afirma(comP8['produto-principal'] === 4 && comP8['unidade-valor-associada'] === 4 && !Object.keys(semP8).length,
+    'E. Produto/Serviço principal (4) e Unidade de valor associada (4): P8 nos motivos e na justificativa', [comP8, semP8]);
+  afirma(!outrasComP8.length, 'E. nenhuma outra classificação passa a citar P8 (só onde a condição da regra o exige)', outrasComP8.slice(0, 5));
+  afirma(!camadaDifere.length, 'E. a classificação das 65.536 combinações é a do motor oficial, sem mudança', camadaDifere.length);
+  afirma(/porque as respostas confirmam .*, Consegue existir e entregar resultado de forma independente de outro Produto\/Serviço: SIM e Pode ser gerido de ponta a ponta como solução própria: SIM, sem nenhum sinal/.test(exProduto),
+    'E. Produto/Serviço: a justificativa confirma P1 a P5 e P8', exProduto);
+  afirma(exUva.indexOf(P8E.FRASE_UVA) !== -1, 'E. Unidade de valor: a justificativa diz que P8 = SIM também é condição', exUva);
+  const dEpoca = hEpoca.digest('hex'), dAtual = hAtual.digest('hex');
+  afirma(dEpoca === DIGITAL_V7_ANTES_DO_P8, 'E. sem o P8 acrescentado, as 65.536 combinações da v7 (classificação, motivos, relação, justificativas de TODAS as camadas) são idênticas às da main', dEpoca);
+  afirma(dAtual !== DIGITAL_V7_ANTES_DO_P8, 'E. (e a diferença existe de fato: com o P8, a digital muda)');
+  /* prova inversa: a retirada da época é restrita — em outra camada, um P8 que aparecesse continuaria lá e derrubaria a digital */
+  const textoCanal = 'Justificativa de Canal, ' + P8E.MOTIVO_P8 + '.' + P8E.FRASE_UVA;
+  afirma(P8E.justificativaSemP8(textoCanal, 'canal') === textoCanal &&
+    JSON.stringify(P8E.estadoSemP8({ camadaSugerida: { id: 'capacidade-organizacional', motivos: ['X', P8E.MOTIVO_P8] } }).camadaSugerida.motivos) === JSON.stringify(['X', P8E.MOTIVO_P8]),
+    'E. prova inversa: fora de Produto/Serviço e Unidade de valor, nada é retirado (uma regressão em outra camada apareceria)');
+  afirma(JSON.stringify(V7) === JSON.stringify(MA.construirPropostaV7(MA.regrasVersao6Esperadas())) && !V7.find((r) => r.codigo === 'PRODUTO_SERVICO_PRINCIPAL').motivos.includes('P8'),
+    'E. a regra v7 (condições, precedência e motivos cadastrados) não foi alterada — o P8 vem da condição, lida na hora');
+}
+
 /* ---------- semente e página ---------- */
 const ANTIGA = 'pCapec';
 function banco(o) {
@@ -149,6 +213,12 @@ const dbReal = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; }, sel);
 const existe = (page, sel) => page.evaluate((s) => !!document.querySelector(s), sel);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+/* rótulos do resumo da ficha que não cabem na própria coluna ou encostam no valor da mesma linha */
+const rotulosInvadindo = (page) => page.evaluate(() => Array.from(document.querySelectorAll('#avpResumoFicha dt')).map((dt) => {
+  const dd = dt.nextElementSibling, a = dt.getBoundingClientRect(), b = dd.getBoundingClientRect();
+  const mesmaLinha = Math.abs(a.top - b.top) < Math.max(a.height, 1);
+  return { rotulo: dt.textContent, ok: dt.scrollWidth <= dt.clientWidth + 1 && (!mesmaLinha || a.right <= b.left + 0.5) };
+}).filter((x) => !x.ok).map((x) => x.rotulo));
 const passoAtual = (page) => page.evaluate(() => { const c = document.getElementById('avpGuiadaCartao'); return c ? c.getAttribute('data-passo') : (document.getElementById('avpGuiadaRevisao') ? 'revisao' : null); });
 const foto = async (page, nome, sel) => { if (!process.env.FA_PRINTS) return; fs.mkdirSync(process.env.FA_PRINTS, { recursive: true });
   /* página inteira: o cabeçalho fixo se repetiria no meio da imagem — só na captura, ele fica no topo */
@@ -241,6 +311,18 @@ async function jornada(browser, vp, rotulo) {
   afirma(JSON.stringify(reg.guiada.respostas) === JSON.stringify(Object.assign({}, alvo)) || G.CODIGOS.every((c) => mapa[c] === P[c]), 'as respostas guiadas ficam gravadas como foram escolhidas');
   afirma(!reg.respostas.medicao && reg.guiada.respostas.P7 === '?' && Object.keys(reg.respostas).length === 15, 'P7 "Não sei": nenhum SIM/NÃO inventado em P7 (15 critérios gravados), a resposta "Não sei" preservada');
   afirma(reg.decisaoFinal === reg.resultadoAutomatico && reg.decisaoManual === false, 'a decisão final nasce da recomendação (contrato de sempre)');
+  afirma(reg.camadaSugerida.motivos.indexOf(P8E.MOTIVO_P8) !== -1 && reg.justificativaAutomatica.indexOf(P8E.MOTIVO_P8) !== -1, 'E. gravado: motivos e justificativa de Produto/Serviço citam P8');
+  afirma((await page.locator('#avpSecaoSistema').textContent()).replace(/\s+/g, ' ').indexOf(reg.justificativaAutomatica) !== -1, 'E. ficha: a justificativa gravada (com P8) aparece igual');
+  const invadindo = await rotulosInvadindo(page);
+  afirma(!invadindo.length && await page.locator('#avpResumoFicha dt').count() === 4, 'F. resumo da ficha (' + vp.width + ' px): nenhum rótulo invade o valor (CLASSIFICAÇÃO inclusive)', invadindo);
+  if (process.env.FA_PRINTS) await page.locator('#avpResumoFicha').screenshot({ path: path.join(process.env.FA_PRINTS, 'g7-resumo-ficha-' + vp.width + '.png') });
+  if (vp.width <= 600) {
+    const antiga = await page.addStyleTag({ content: '.avp-resumo-ficha { grid-template-columns: 1fr !important; } .avp-resumo-ficha > div { display: grid !important; grid-template-columns: 6.2em 1fr !important; gap: 8px !important; }' });
+    const comAntiga = await rotulosInvadindo(page);
+    if (process.env.FA_PRINTS) await page.locator('#avpResumoFicha').screenshot({ path: path.join(process.env.FA_PRINTS, 'g7-resumo-ficha-antes-' + vp.width + '.png') });
+    afirma(comAntiga.indexOf('Classificação') !== -1, 'F. prova inversa: com a regra antiga do celular (6,2em fixos), a medição acusa "Classificação" invadindo o valor', comAntiga);
+    await antiga.evaluate((e) => e.remove());
+  }
   const tx = (reg.guiada && reg.guiada.textos) || {};
   afirma(tx.C2 && tx.C2.pergunta === G.PERGUNTAS.C2.q && tx.C2.resposta === 'Do próprio item que estamos avaliando' && tx.C2.criterio === 'P2' && tx.C2.alternativas.length === 3 &&
     tx.C2.alternativas[1].rotulo === G.PERGUNTAS.C2.opts[1][1] && tx.C2.alternativas[1].descricao === G.PERGUNTAS.C2.opts[1][2],
@@ -271,6 +353,7 @@ async function jornada(browser, vp, rotulo) {
     await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('#avpGerarPdfBtn')]);
     const pdf = (await page.evaluate(() => (window.__pdfs || []).join('\n'))).replace(/\s+/g, ' ');
     afirma(/7\. [^—]+— NÃO CONFIRMADO/.test(pdf), 'PDF: P7 "NÃO CONFIRMADO"');
+    afirma(pdf.indexOf(reg.justificativaAutomatica) !== -1, 'E. PDF: a mesma justificativa gravada, com P8, da ficha');
     afirma(/Avaliação guiada — perguntas e respostas apresentadas/.test(pdf) && pdf.includes(P1_DA_EPOCA) && !pdf.includes(G.PERGUNTAS.P1.q) &&
       pdf.includes(G.PERGUNTAS.C2.q + ' — Do próprio item que estamos avaliando') && /Alternativas apresentadas: Do próprio item que estamos avaliando · De outra entrega/.test(pdf) &&
       /Critérios técnicos P1–P16/.test(pdf), 'C. PDF: perguntas guiadas com o texto gravado, alternativas e resposta, e depois os critérios técnicos P1–P16');
@@ -367,6 +450,7 @@ async function regraLeP6(browser) {
 
 (async () => {
   parteA();
+  parteE();
   const browser = await chromium.launch();
   try {
     await jornada(browser, { width: 1280, height: 900 }, 'computador');

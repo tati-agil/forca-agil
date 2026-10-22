@@ -46,6 +46,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const P8 = require('./explicacao-p8-da-epoca'); /* o P8 acrescentado à explicação (PR #420) sai antes da digital da época */
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -202,7 +203,7 @@ function digitalDaEpoca(r) {
       if (b.tipo === 'autonomia') i[4] = semPrefixo(justSim[4]);
       if (b.tipo === 'natureza') { const k = Number(b.pergunta.slice(1)) - 1; i[k] = semPrefixo(justSim[k]); }
     }
-    h.update(comMotivoDaEpoca(JSON.stringify([m, xx, j, i])) + '\n');
+    h.update(comMotivoDaEpoca(JSON.stringify([m, P8.estadoSemP8(xx), P8.justificativaSemP8(j, x.camadaSugerida.id), i])) + '\n');
   });
   return h.digest('hex');
 }

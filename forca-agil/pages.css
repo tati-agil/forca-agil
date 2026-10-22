@@ -2509,8 +2509,10 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
   .avp-ficha-acoes { justify-content: stretch; max-width: none; }
   .avp-ficha-acoes .btn { flex: 1 1 0; min-width: 0; letter-spacing: .03em; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
   .avp-ficha-acoes .avp-reavaliar-texto { text-align: left; }
-  .avp-resumo-ficha { grid-template-columns: 1fr; gap: 3px; }
-  .avp-resumo-ficha > div { display: grid; grid-template-columns: 6.2em 1fr; gap: 8px; align-items: baseline; }
+  /* rótulo | valor numa grade só: a coluna do rótulo tem a largura do MAIOR rótulo ("CLASSIFICAÇÃO" não cabia nos 6,2em fixos
+     e encostava no valor), igual em todas as linhas */
+  .avp-resumo-ficha { grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; align-items: baseline; }
+  .avp-resumo-ficha > div { display: contents; }
   .avp-resumo-ficha dd { margin: 0; }
 }
 

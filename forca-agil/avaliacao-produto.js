@@ -809,6 +809,13 @@
      depender dele). especializacaoPara/papelEstruturalPara continuam
      EXATAMENTE como antes — metadado de CADASTRO, nunca inferido das
      respostas nem tocado por esta migração (proibido por especificação). */
+  /* true quando a regra aplicada exige P8 = SIM no próprio nível principal da condição ("all") */
+  function regraExigeP8(regrasConfig, codigoRegra) {
+    var regra = ((regrasConfig && regrasConfig.regras) || []).filter(function (r) { return r.codigo === codigoRegra; })[0];
+    var all = regra && regra.condicoes && regra.condicoes.all;
+    return !!(all && all.some(function (c) { return c && c.campo === 'P8' && c.valor === 'SIM'; }));
+  }
+  var MOTIVO_GESTAO_SIM = ROTULOS_SINAL.gestao + ': SIM';
   function identificarCamada(atual) {
     var r = atual.respostas || {};
     function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
@@ -841,7 +848,12 @@
     var regras = window.faMotorArquitetura.regrasDaVersao(window.faMotorArquitetura.versaoAtual());
     var decisao = window.faMotorArquitetura.identificarCamada(contexto, regras);
 
-    var motivos = decisao.motivosCodigos.map(function (codigo) { return motivo(ID_POR_CODIGO[codigo]); });
+    /* Os "motivos" cadastrados na regra não citam P8, mas desde a versão 5 a CONDIÇÃO de Produto/Serviço principal e de
+       Unidade de valor associada exige P8 = SIM. A explicação acrescenta o P8 quando a própria condição da regra aplicada
+       o exige (lido da regra publicada, nunca escrito à mão) — condição, precedência e resultado do motor não mudam. */
+    var motivosCodigos = decisao.motivosCodigos.slice();
+    if (motivosCodigos.indexOf('P8') === -1 && regraExigeP8(regras, decisao.regraAplicada)) motivosCodigos.push('P8');
+    var motivos = motivosCodigos.map(function (codigo) { return motivo(ID_POR_CODIGO[codigo]); });
     var conflito = decisao.conflito ? decisao.conflito.map(function (camId) { return nomeClassificacao(camId); }) : null;
     /* Conflito de naturezas predominantes (política geral P11–P15): o motor
        já devolve SÓ as naturezas marcadas SIM; o motivo é uma frase só,
@@ -1472,8 +1484,10 @@
       ? ' Sua função predominante é permitir que o cliente consulte, escolha, solicite, altere, execute ou administre um elemento pertencente à solução principal.'
       : '';
 
+    /* Unidade de valor associada: a regra também exige P8 = SIM — dito na justificativa, como nos motivos */
+    var gestaoFrase = (camada.motivos || []).indexOf(MOTIVO_GESTAO_SIM) !== -1 ? ' Também é condição desta classificação: ' + MOTIVO_GESTAO_SIM + '.' : '';
     return 'O item foi classificado como ' + nomeClassificacao(camada.id) + ', e não como ' + principal + ', porque ' +
-      motivoJustificativa(camada.id) + '.' + complemento + especializacaoFrase;
+      motivoJustificativa(camada.id) + '.' + gestaoFrase + complemento + especializacaoFrase;
   }
 
   function todasRespondidas(atual) {

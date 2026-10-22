@@ -33,6 +33,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const P8 = require('./explicacao-p8-da-epoca'); /* o P8 acrescentado à explicação (PR #420) sai antes da digital da época */
 /* Única diferença INTENCIONAL de texto desde a impressão digital (ajuste pós-publicação da P15):
    o motivo de Componente passou a ser "É principalmente um elemento estrutural que compõe outro
    Produto/Serviço". O rótulo antigo é recolocado antes de calcular — se o hash continua o de
@@ -215,7 +216,7 @@ function parteA() {
          (ver teste-texto-unidade-valor.js). O texto da época é recolocado
          antes do hash — se ele continua o de antes, nada mais mudou. */
       if (x.camadaSugerida.id === 'unidade-valor-associada' && x.camadaSugerida.relacao === RELACAO_UVA_ATUAL) x.camadaSugerida.relacao = RELACAO_UVA_DA_DIGITAL;
-      ha.update(comMotivoDaEpoca(JSON.stringify([x, justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x))])) + '\n');
+      ha.update(comMotivoDaEpoca(JSON.stringify([P8.estadoSemP8(x), P8.justificativaSemP8(justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x)), x.camadaSugerida.id)])) + '\n');
     }
     afirma(hm.digest('hex') === DIGITAL_V3_MOTOR, 'motor: retorno completo (camada, regra, motivos, conflito, incoerência) idêntico ao de antes nas 65.536');
     afirma(ha.digest('hex') === DIGITAL_V3_AVALIACAO, 'avaliação: classificação, rótulo, motivos, conflito, relação e justificativa idênticos aos de antes nas 65.536');
