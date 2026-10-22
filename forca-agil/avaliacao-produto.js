@@ -7656,6 +7656,9 @@
       return state.guia.passo;
     }
     function irParaPassoGuiada(passo) {
+      /* saiu da revisão para uma pergunta (Alterar, Rever, Rever as perguntas): o botão de volta diz "Voltar à revisão" */
+      if (passo === 'revisao') state.guia.daRevisao = false;
+      else if (state.guia.passo === 'revisao') state.guia.daRevisao = true;
       state.guia.passo = passo;
       state.erroForm = null;
       render();
@@ -7790,7 +7793,7 @@
         html += '<button class="btn btn--primary" id="avpConcluirBtn"' + (state.salvando || !s.podeConcluir || !prevC ? ' disabled' : '') + '>' +
           (state.salvando === 'concluido' ? 'SALVANDO…' : (reavaliando ? 'CONCLUIR REAVALIAÇÃO' : 'CONCLUIR AVALIAÇÃO')) + '</button>';
       } else if (!caminho.filter(function (x) { return !G.respondida(g.respostas, x); }).length) {
-        html += '<button class="btn" id="avpGuiadaIrRevisaoBtn"' + (state.salvando ? ' disabled' : '') + '>Ir para a revisão</button>';
+        html += '<button class="btn" id="avpGuiadaIrRevisaoBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.guia.daRevisao ? 'Voltar à revisão' : 'Ir para a revisão') + '</button>';
       }
       html += '<button class="btn" id="avpCancelarChecklistBtn"' + (state.salvando ? ' disabled' : '') + '>CANCELAR</button>';
       html += '</div>';

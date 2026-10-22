@@ -289,6 +289,21 @@ async function jornada(browser, vp, rotulo) {
   afirma(await page.locator('.avp-guiada .btn--primary').count() === 1, 'na revisão a única ação principal é Concluir');
   await foto(page, 'g3-revisao');
 
+  /* Alterar a partir da revisão: o botão de volta diz "Voltar à revisão" (homologação C48) e nada se perde */
+  const respostasAntes = (await texto(page, '#avpGuiadaRespostas')).replace(/Observação: [^.]*\.?/g, '');
+  await page.click('.avp-guiada-criterio[data-criterio="P3"] summary');
+  await page.click('.avp-guiada-alterar[data-passo="P3"]');
+  afirma(await passoAtual(page) === 'P3' && await page.locator('input[name="avpGuiadaResp"][value="S"]').isChecked(), 'Alterar na revisão abre a pergunta com a resposta dada');
+  afirma(await texto(page, '#avpGuiadaIrRevisaoBtn') === 'Voltar à revisão' && await page.locator('#avpGuiadaCartao .btn--primary').count() === 1,
+    'vindo da revisão, o botão de volta diz "Voltar à revisão" (e Continuar segue sendo a única ação principal)', await texto(page, '#avpGuiadaIrRevisaoBtn'));
+  await page.fill('#avpGuiadaObs', 'Observação de teste sobre P3 (alterada na revisão)');
+  await page.click('#avpGuiadaIrRevisaoBtn');
+  await page.waitForSelector('#avpGuiadaRevisao');
+  await page.waitForSelector('#avpPrevia[data-camada]');
+  afirma((await texto(page, '#avpGuiadaRespostas')).replace(/Observação: [^.]*\.?/g, '') === respostasAntes && /alterada na revisão/.test(await texto(page, '#avpGuiadaRespostas')) &&
+    await existe(page, '#avpPrevia[data-camada="produto-principal"]') && !(await page.locator('#avpConcluirBtn').isDisabled()),
+    'Voltar à revisão: as respostas ficam iguais, a alteração aparece e a prévia e o Concluir não mudam');
+
   /* "Não sei" num critério decisivo (P8) → evidências insuficientes */
   await page.click('.avp-guiada-criterio[data-criterio="P8"] summary');
   await page.click('.avp-guiada-alterar[data-passo="P8"]');
