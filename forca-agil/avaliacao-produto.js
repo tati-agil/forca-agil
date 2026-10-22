@@ -6283,7 +6283,9 @@
         situacao: '<p>Versão vigente: <strong>' + esc(sitArq.versaoPublicada) + '</strong> · Situação: ' + (sitArq.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'publicada') + ' · ' + esc(sitArq.qtdRegras) + ' regras</p>' +
           '<p class="avp-ficha-meta">Última publicação: ' + (sitArq.ultimaAlteracaoEm ? esc(fmtData(sitArq.ultimaAlteracaoEm)) + (sitArq.ultimaAlteracaoPor ? ' · ' + esc(sitArq.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica, migradas de identificarCamada)') + '</p>',
         comoDecide: itensComoDecideArq(), decideAberto: !!ab.avpMotorArquiteturalDecide,
-        acoes: '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpMotorArqEditarBtn">Editar regras</button></div>' +
+        acoes: '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpMotorArqEditarBtn">Editar regras</button>' +
+          '<button class="btn btn--sm" id="avpMotorArqPdfBtn"' + (c.exportandoRegras ? ' disabled' : '') + '>' + (c.exportandoRegras === 'p' ? 'Gerando PDF…' : '📄 Exportar regras (PDF)') + '</button></div>' +
+          statusExportacaoRegras(c, 'p') +
           /* O antigo "Editar textos" deste motor gravava um rótulo de classificação que nada exibia (cópia morta). O NOME e a
              DEFINIÇÃO das classificações vêm só da Taxonomia Arquitetural; o que já foi gravado continua guardado. */
           '<p class="avp-natureza-ajuda" id="avpMotorArqNomesTaxonomia">Os nomes e as definições das classificações vêm da Taxonomia Arquitetural (Gestão da Floresta › Taxonomia), pelo código de cada classificação — não são editados aqui.</p>',
@@ -6319,8 +6321,10 @@
       var SO_CONSULTA = governancaV2Visivel()
         ? '<p class="avp-ficha-meta" id="avpPosSoConsulta">A regra é fixa no sistema e esta tela não ativa versões: a entrada em vigor de uma versão nova é governada (aprovação dupla vinculada à versão e fronteira confiável).</p>'
         : '<p class="avp-ficha-meta" id="avpPosSoConsulta">A regra é fixa no sistema. A entrada em vigor de uma versão nova não está autorizada: esta tela não ativa versões.</p>';
+      var c0 = state.configMotores, pdfPos = '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpMotorPosPdfBtn"' + (c0.exportandoRegras || versaoEmVigorPainel() === null ? ' disabled' : '') + '>' +
+        (c0.exportandoRegras === 'o' ? 'Gerando PDF…' : '📄 Exportar regras (PDF)') + '</button></div>' + statusExportacaoRegras(c0, 'o');
       var bloco = function (situacao, acoes, versoes) {
-        return blocoMotorHtml({ m: 'o', id: 'avpMotorPosicionamento', flash: flash, situacao: situacao, comoDecide: itensComoDecidePosicionamento(), decideAberto: !!ab.avpMotorPosicionamentoDecide, acoes: SO_CONSULTA + (acoes || ''), versoes: versoes || '' });
+        return blocoMotorHtml({ m: 'o', id: 'avpMotorPosicionamento', flash: flash, situacao: situacao, comoDecide: itensComoDecidePosicionamento(), decideAberto: !!ab.avpMotorPosicionamentoDecide, acoes: SO_CONSULTA + pdfPos + (acoes || ''), versoes: versoes || '' });
       };
       if (!N || !G) return bloco('<p class="admin-empty">Módulo do motor de posicionamento não carregado.</p>');
       var cp = state.configMotores.posicionamento || (state.configMotores.posicionamento = {});
@@ -6739,8 +6743,92 @@
         if (state.configMotores && state.configMotores.posicionamento === cp) render();
       });
     }
+    /* EXPORTAR AS REGRAS EM PDF (só consulta): o documento é montado por exportacao-motores.js com os MESMOS dados da tela —
+       regras da versão em vigor, texto vigente das perguntas, nomes da Taxonomia e os itens de lógica de "Como este motor
+       decide". Nada é gravado. */
+    function statusExportacaoRegras(c, m) {
+      var f = c && c.flashRegras && c.flashRegras.m === m ? c.flashRegras : null;
+      return f ? '<p class="avp-export-status' + (f.erro ? ' avp-export-status--erro' : '') + '" id="avpMotorRegrasStatus" role="status">' + esc(f.texto) + '</p>' : '';
+    }
+    function quemGerou() { var s = sessaoAtual(); return s ? (s.name && s.name !== s.email ? s.name + ' (' + s.email + ')' : s.email) : '—'; }
+    var TIPO_A_VALIDAR_ARQ = { INCOERENCIA: 'incoerência', CONFLITO_NATUREZAS: 'conflito de naturezas', RECORTE_OBJETO: 'recorte do objeto', FALLBACK_A_VALIDAR: 'nenhuma regra anterior se aplicou' };
+    function cfgRegrasArquitetural(agora) {
+      var M = window.faMotorArquitetura, Q = window.faQuestionarios, sit = M.situacao(), v = M.versaoAtual();
+      var rr = M.regrasDaVersao(v), regras = ((rr && rr.regras) || rr || []).slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
+      var porCodigo = {}; TODAS_PERGUNTAS.forEach(function (d) { porCodigo[d.codigoEstavel] = perguntaDoMotor(d.codigoEstavel); });
+      var X = window.faExportacaoMotores, usados = [];
+      regras.forEach(function (r) { X.camposDe(r.condicoes, usados); });
+      var naoUsadas = TODAS_PERGUNTAS.map(function (d) { return d.codigoEstavel; }).filter(function (cod) { return usados.indexOf(cod) === -1; });
+      return {
+        titulo: 'Motor de Classificação Arquitetural (P1–P16)', subtitulo: 'Regras e lógica da versão em vigor', slug: 'Motor_Arquitetural_v' + v,
+        metadados: [['Versão das regras em vigor', 'v' + v], ['Última publicação', sit.ultimaAlteracaoEm ? fmtData(sit.ultimaAlteracaoEm) + (sit.ultimaAlteracaoPor ? ' · ' + sit.ultimaAlteracaoPor : '') : 'regras de fábrica'],
+          ['Questionário (texto das perguntas)', 'versão ' + (Q && Q.versaoAtual ? Q.versaoAtual('CLASSIFICACAO_ARQUITETURAL') : '—')], ['Quantidade de regras', String(regras.length)],
+          ['Gerado em', fmtData(agora)], ['Gerado por', quemGerou()]],
+        comoDecideHtml: window.faExportacaoMotores.itensDeLogica(itensComoDecideArq(), ['O que classifica', 'Precedência', 'Fallback', 'Tipos de']),
+        perguntas: TODAS_PERGUNTAS.map(function (d) { var p = porCodigo[d.codigoEstavel]; return { codigo: d.codigoEstavel, titulo: p.titulo, texto: p.texto }; }),
+        rotuloCampo: function (cod) { var p = porCodigo[cod]; return cod + (p && p.titulo ? ' — ' + p.titulo : ''); },
+        rotuloValor: function (cod, val) { return val === 'NAO' ? 'NÃO' : val; },
+        secoes: [{ titulo: 'Regras, na ordem de precedência', intro: 'A primeira regra cujas condições forem todas verdadeiras define a classificação; as seguintes não são lidas. Os nomes das classificações são os da Taxonomia Arquitetural.',
+          regras: regras.map(function (r) {
+            var fb = M.ehFallback(r);
+            return { ordem: r.ordem, codigo: r.codigo, resultado: nomeCamadaMotor(r.resultado), fallback: fb, condicao: fb ? null : r.condicoes,
+              detalhe: r.resultado === 'a-validar' && TIPO_A_VALIDAR_ARQ[r.codigo] ? TIPO_A_VALIDAR_ARQ[r.codigo] : '' }; /* tipo conhecido; senão, só o nome da classificação */
+          }) }],
+        notas: (naoUsadas.length ? ['Perguntas que não entram em nenhuma condição desta versão (registradas como evidência, sem efeito na classificação): ' + naoUsadas.join(', ') + '.'] : [])
+          .concat(['Mudar uma regra cria uma versão nova do motor (Editar regras → simular → publicar); avaliações já concluídas não são recalculadas sozinhas.'])
+      };
+    }
+    var TIPO_A_VALIDAR_POS = { INCOERENCIA: 'incoerência', CONFLITO: 'conflito', RECORTE: 'recorte', EVIDENCIA_INSUFICIENTE: 'evidência insuficiente' };
+    function cfgRegrasPosicionamento(agora) {
+      var N = window.faMotorPosicionamentoNucleo, Q = window.faQuestionarios, P = window.faPosicionamentos, v = versaoEmVigorPainel(), d = N.definicao(v);
+      var codQ = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, vq = Q.versaoAtual ? Q.versaoAtual(codQ) : null;
+      var perguntas = (Q.perguntasDaVersao ? Q.perguntasDaVersao(codQ, vq) : []).map(function (p) { return { codigo: p.codigoEstavel, titulo: p.titulo && p.titulo !== p.codigoEstavel ? p.titulo : '', texto: p.texto }; });
+      var porCodigo = {}; perguntas.forEach(function (p) { porCodigo[p.codigo] = p; });
+      var nome = function (cod) { return (P && P.nome ? P.nome(cod) : '') || cod; };
+      var secoes = (d.niveis || []).map(function (nv) {
+        return { titulo: 'Nível ' + nv.id.slice(1) + ' — ' + nv.perguntas.map(function (p) { return p.codigo; }).join(', '),
+          intro: nv.id === 'N1' ? 'Sempre respondido.' : nv.id === 'N2' ? 'Só no ramo Linha (O1 = SIM sozinho no nível 1).' : 'Só no ramo Plataforma (Linha sem papel no nível 2).',
+          regras: nv.perguntas.map(function (p, i) {
+            return { ordem: i + 1, codigo: p.regraUnico || (p.aoUnico && p.aoUnico.confirma) || p.codigo, resultado: p.aoUnico && p.aoUnico.desce ? 'confirma o ramo ' + nome(p.aoUnico.confirma) + ' e desce ao próximo nível' : nome(p.papel),
+              descricao: (d.regras && d.regras[p.regraUnico]) || ('Só ' + p.codigo + ' = SIM neste nível.'), detalhe: (porCodigo[p.codigo] && porCodigo[p.codigo].titulo) || '' };
+          }).concat(['respostaFaltando', 'tresOuMais'].filter(function (k) { return nv[k]; }).map(function (k, j) {
+            return { ordem: nv.perguntas.length + j + 1, codigo: nv[k].regra, resultado: 'A validar', detalhe: TIPO_A_VALIDAR_POS[nv[k].tipo] || nv[k].tipo, descricao: (d.regras && d.regras[nv[k].regra]) || nv[k].motivo };
+          })).concat(nv.diagnostico ? ['mesma', 'distintas', 'ausente'].map(function (k, j) {
+            var x = nv.diagnostico[k]; return { ordem: 'D' + (j + 1), codigo: x.regra, resultado: 'A validar', detalhe: TIPO_A_VALIDAR_POS[x.tipo] || x.tipo, descricao: (d.regras && d.regras[x.regra]) || x.motivo };
+          }) : []).concat(nv.semSim && nv.semSim.aValidar ? [{ ordem: '—', codigo: nv.semSim.aValidar.regra, resultado: 'A validar', detalhe: TIPO_A_VALIDAR_POS[nv.semSim.aValidar.tipo] || nv.semSim.aValidar.tipo, descricao: (d.regras && d.regras[nv.semSim.aValidar.regra]) || '' }] : [])
+        };
+      });
+      secoes.unshift({ titulo: 'Regra geral', regras: [{ ordem: 1, codigo: d.incoerencia && d.incoerencia.regra, resultado: 'A validar', detalhe: 'incoerência', descricao: (d.regras && d.regras[d.incoerencia && d.incoerencia.regra]) || 'SIM fora do caminho alcançado.' }] });
+      return {
+        titulo: 'Motor de Posicionamento Organizacional (O1–O9)', subtitulo: 'Regras e lógica da versão em vigor', slug: 'Motor_Posicionamento_v' + v,
+        metadados: [['Versão do motor em vigor', 'v' + v + (d.desde ? ' (desde ' + d.desde + ')' : '')], ['Questionário (texto das perguntas)', 'versão ' + (vq || '—')], ['Regra', 'fixa no sistema; uma versão nova só entra em vigor pela governança'],
+          ['Gerado em', fmtData(agora)], ['Gerado por', quemGerou()]],
+        comoDecideHtml: itensComoDecidePosicionamento(),
+        perguntas: perguntas,
+        rotuloCampo: function (cod) { return cod; }, rotuloValor: function (cod, val) { return val; },
+        secoes: secoes,
+        notas: ['Adequação à Squad (regra fixa, não varia por versão): ' + N.CODIGOS_FIRMES.map(function (cod) { return nome(cod) + ' — ' + (N.liberaSquadParaCodigoFirme(cod) ? 'libera' : 'não libera'); }).join('; ') + '.',
+          'O resultado é a recomendação do TIPO de estrutura; recomendar o tipo não cria nem escolhe uma estrutura concreta.']
+      };
+    }
+    function exportarRegras(m) {
+      var c = state.configMotores;
+      if (!c || c.exportandoRegras || !window.faExportacaoMotores) return;
+      var agora = new Date().toISOString(), cfg;
+      try { cfg = m === 'o' ? cfgRegrasPosicionamento(agora) : cfgRegrasArquitetural(agora); }
+      catch (e) { console.error('[avaliacao-produto] regras do motor:', e); c.flashRegras = { m: m, erro: true, texto: 'Não foi possível montar o documento agora. Tente de novo.' }; render(); return; }
+      c.exportandoRegras = m; c.flashRegras = null; render();
+      window.faExportacaoMotores.gerarPdf(cfg, agora, function (erro) {
+        c.exportandoRegras = null;
+        c.flashRegras = { m: m, erro: !!erro, texto: erro ? 'Não foi possível gerar o PDF. Tente de novo.' : 'PDF das regras gerado.' };
+        if (erro) console.error('[avaliacao-produto] PDF das regras:', erro);
+        if (state.configMotores === c) render();
+      });
+    }
     function bindMotoresPainel() {
       var c = state.configMotores;
+      var pdfArq = document.getElementById('avpMotorArqPdfBtn'); if (pdfArq) pdfArq.addEventListener('click', function () { exportarRegras('p'); });
+      var pdfPos = document.getElementById('avpMotorPosPdfBtn'); if (pdfPos) pdfPos.addEventListener('click', function () { exportarRegras('o'); });
       /* o que a pessoa abriu (Como decide, versões, histórico) continua aberto entre um redesenho e outro */
       c.abertos = c.abertos || {};
       Array.prototype.forEach.call(wrap.querySelectorAll('details[data-motor-det]'), function (d) {

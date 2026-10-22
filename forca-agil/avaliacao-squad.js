@@ -1599,7 +1599,9 @@
       var flash = c.flash ? '<p class="avp-flash-success">' + esc(c.flash) + '</p>' : '';
       var acoes =
         '<div class="avp-motor-grupo" id="sqMotorGrupoRegras"><h6 class="avp-motor-grupo-titulo">Regras</h6>' +
-          '<div class="avp-actions-footer"><button class="btn btn--sm" id="sqMotorEditarRegrasBtn">Editar regras (Eixo A / Eixo B / Combinação)</button></div></div>' +
+          '<div class="avp-actions-footer"><button class="btn btn--sm" id="sqMotorEditarRegrasBtn">Editar regras (Eixo A / Eixo B / Combinação)</button>' +
+          '<button class="btn btn--sm" id="sqMotorRegrasPdfBtn"' + (c.exportandoRegras ? ' disabled' : '') + '>' + (c.exportandoRegras ? 'Gerando PDF…' : '📄 Exportar regras (PDF)') + '</button></div>' +
+          (c.flashRegras ? '<p class="avp-export-status' + (c.flashRegras.erro ? ' avp-export-status--erro' : '') + '" id="sqMotorRegrasStatus" role="status">' + esc(c.flashRegras.texto) + '</p>' : '') + '</div>' +
         '<div class="avp-motor-grupo" id="sqMotorGrupoTextos"><h6 class="avp-motor-grupo-titulo">Textos dos vereditos</h6>' +
           '<p class="avp-ficha-meta">Rótulo e interpretação de cada resultado dos eixos e da combinação. Editar publica na hora, sem mudar a versão das regras; exportar é só leitura.</p>' +
           '<div class="avp-actions-footer"><button class="btn btn--sm" id="sqMotorEditarTextosBtn">Editar textos dos vereditos</button>' +
@@ -1628,8 +1630,49 @@
         if (state.motorConfig === c && c.sub === 'painel') render();
       });
     }
+    /* EXPORTAR AS REGRAS EM PDF (só consulta): exportacao-motores.js monta o documento com os MESMOS dados da tela — regras
+       da versão vigente (Eixo A, Eixo B, Combinação), texto vigente de S1–S8, rótulos dos vereditos e os itens de lógica de
+       "Como este motor decide". Nada é gravado. */
+    var ROTULO_SECAO_SQUAD = { eixoA: 'Eixo A — Necessidade de capacidade dedicada', eixoB: 'Eixo B — Condições para funcionar como squad', combinacao: 'Combinação dos dois eixos (o veredito)' };
+    function cfgRegrasSquad(agora) {
+      var M = window.faMotorSquad, sit = M.situacao(), v = M.versaoAtual(), regras = M.regrasDaVersao(v) || {}, textos = M.textosAtuais() || {}, Q = window.faQuestionarios;
+      var rot = function (cod) { return (textos[cod] && textos[cod].rotulo) || cod; };
+      var porCodigo = {}; ORDEM_CODIGOS.forEach(function (cod) { porCodigo[cod] = perguntaDoMotorSquad(cod); });
+      var s = sessaoAtual();
+      return {
+        titulo: 'Motor de Adequação à Squad (S1–S8)', subtitulo: 'Regras e lógica da versão em vigor', slug: 'Motor_Squad_v' + v,
+        metadados: [['Versão das regras em vigor', 'v' + v], ['Última publicação', sit.ultimaAlteracaoEm ? fmtData(sit.ultimaAlteracaoEm) + (sit.ultimaAlteracaoPor ? ' · ' + sit.ultimaAlteracaoPor : '') : 'regras de fábrica'],
+          ['Questionário (texto das perguntas)', 'versão ' + (Q && Q.versaoAtual ? Q.versaoAtual(CODIGO_QUESTIONARIO) : '—')], ['Gerado em', fmtData(agora)], ['Gerado por', s ? (s.name && s.name !== s.email ? s.name + ' (' + s.email + ')' : s.email) : '—']],
+        comoDecideHtml: window.faExportacaoMotores.itensDeLogica(itensComoDecideSquad(), ['O que avalia', 'Dois eixos', 'Precedência', 'Independente', 'Resultado', 'Diferente', 'Não cria']),
+        perguntas: ORDEM_CODIGOS.map(function (cod) { return { codigo: cod, titulo: porCodigo[cod].titulo, texto: porCodigo[cod].texto }; }),
+        rotuloCampo: function (campo) { return ROTULO_EIXO[campo] || (campo + (porCodigo[campo] && porCodigo[campo].titulo ? ' — ' + porCodigo[campo].titulo : '')); },
+        rotuloValor: function (campo, val) { return ROTULO_EIXO[campo] ? rot(val) : (val === 'NAO' ? 'NÃO' : val); },
+        secoes: ['eixoA', 'eixoB', 'combinacao'].map(function (k) {
+          return { titulo: ROTULO_SECAO_SQUAD[k], intro: k === 'combinacao' ? 'Lê só os resultados dos dois eixos (nunca S1–S8 diretamente). A primeira regra que se aplica define o veredito.' : 'A primeira regra cujas condições forem verdadeiras define o resultado do eixo.',
+            regras: (regras[k] || []).slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).map(function (r) {
+              return { ordem: r.ordem, codigo: r.codigo, resultado: rot(r.resultado), detalhe: textos[r.resultado] && textos[r.resultado].interpretacao ? textos[r.resultado].interpretacao : '', condicao: r.condicoes };
+            }) };
+        }),
+        notas: ['Mudar uma regra cria uma versão nova do motor (Editar regras → simular → publicar); avaliações já concluídas não são recalculadas sozinhas.',
+          'Avaliar a adequação não cria, não cadastra e não associa nenhuma Squad.']
+      };
+    }
+    function exportarRegrasSquad() {
+      var c = state.motorConfig;
+      if (!c || c.exportandoRegras || !window.faExportacaoMotores) return;
+      var agora = new Date().toISOString(), cfg;
+      try { cfg = cfgRegrasSquad(agora); } catch (e) { console.error('[avaliacao-squad] regras do motor:', e); c.flashRegras = { erro: true, texto: 'Não foi possível montar o documento agora. Tente de novo.' }; render(); return; }
+      c.exportandoRegras = true; c.flashRegras = null; render();
+      window.faExportacaoMotores.gerarPdf(cfg, agora, function (erro) {
+        c.exportandoRegras = false;
+        c.flashRegras = { erro: !!erro, texto: erro ? 'Não foi possível gerar o PDF. Tente de novo.' : 'PDF das regras gerado.' };
+        if (erro) console.error('[avaliacao-squad] PDF das regras:', erro);
+        if (state.motorConfig === c) render();
+      });
+    }
     function bindMotorPainel() {
       var c = state.motorConfig;
+      var pdfRegras = document.getElementById('sqMotorRegrasPdfBtn'); if (pdfRegras) pdfRegras.addEventListener('click', exportarRegrasSquad);
       c.abertos = c.abertos || {};
       Array.prototype.forEach.call(wrap.querySelectorAll('details[data-motor-det]'), function (d) {
         d.addEventListener('toggle', function () {
