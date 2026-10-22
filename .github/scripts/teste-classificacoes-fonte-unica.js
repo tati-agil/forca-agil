@@ -24,6 +24,7 @@
  *   FA_PROVA_INVERSA=ignora-definicao   o leitor não lê a definição vigente do conceito
  *   FA_PROVA_INVERSA=contingencia-muda  em contingência, o cálculo grava outra camada */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -218,8 +219,8 @@ async function concluirNova(page, nome) {
   await page.click('#avpNovoBtn');
   await page.fill('#avpfNome', nome);
   await page.click('#avpIniciarBtn');
-  for (let i = 0; i < ORDEM.length; i++) await page.locator('#avpQuestion-' + ORDEM[i] + ' .avp-choice-btn--' + ((MASCARA_PP >> i) & 1 ? 'sim' : 'nao')).click();
-  await page.click('#avpConcluirBtn');
+  await RG.responderGuiada(page, MASCARA_PP); /* avaliação nova = avaliação guiada (v22) */
+  await RG.concluirGuiada(page);
   await page.waitForSelector('#avpSecaoSistema', { timeout: 30000 });
   await esperarCondicao(page, (n) => Object.values((window.__CFG.__dbReal || {})['avaliacoes-produto'] || {}).some((x) => x.nome === n && x.status === 'concluido'), nome,
     { limite: 15000, descricao: 'a avaliação "' + nome + '" gravada como concluída' });

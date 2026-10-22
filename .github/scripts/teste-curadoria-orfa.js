@@ -17,6 +17,7 @@
  *   - Especialização derivada do questionário e Natureza não entram nesse fluxo.
  * Desktop e celular 375 px. Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -185,13 +186,8 @@ const TIT_SEM_EFEITO = 'Curadoria anterior sem efeito nesta classificação';
 const TIT_REVISAO = 'Curadoria anterior disponível para revisão';
 async function passo(nome, fn) { try { await fn(); } catch (e) { afirma(false, nome + ' — exceção: ' + String(e.message || e).split('\n')[0]); } }
 const esperaDb = (page, fn, arg) => page.waitForFunction(fn, arg, { timeout: 8000 }).catch(() => {});
-/* marca as 16 respostas conforme a máscara (clicando como a pessoa) */
-async function marcarRespostas(page, mascara) {
-  for (let i = 0; i < ORDEM.length; i++) {
-    const sim = (mascara >> i) & 1;
-    await page.locator('#avpQuestion-' + ORDEM[i] + ' .avp-choice-btn--' + (sim ? 'sim' : 'nao')).click();
-  }
-}
+/* responde a avaliação guiada (v22) que leva à máscara P1–P16 (clicando como a pessoa), até a revisão */
+async function marcarRespostas(page, mascara) { await RG.responderGuiada(page, mascara); }
 
 (async () => {
   const browser = await chromium.launch();
@@ -380,9 +376,9 @@ async function marcarRespostas(page, mascara) {
     const antes = await banco(page);
     await abrirResultado(page, 'cana');
     await page.click('#avpReavaliarBtn');
-    await page.waitForSelector('#avpConcluirBtn', { timeout: 5000 });
+    await page.waitForSelector('#avpGuiadaCartao', { timeout: 5000 });
     await marcarRespostas(page, acharCamada('componente').m);
-    await page.click('#avpConcluirBtn');
+    await RG.concluirGuiada(page);
     await page.waitForSelector('#avpCuradoriaCard', { timeout: 8000 });
     await page.waitForTimeout(400);
     const b = await banco(page);

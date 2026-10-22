@@ -31,12 +31,14 @@
  *   novos; a Trilha antiga mantém, byte a byte, os textos da época.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { abrirRecolhidas } = require('./abrir-recolhidas');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const P8 = require('./explicacao-p8-da-epoca'); /* o P8 acrescentado à explicação (PR #420) sai antes da digital da época */
 /* Única diferença INTENCIONAL de texto desde a impressão digital (ajuste pós-publicação da P15):
    o motivo de Componente passou a ser "É principalmente um elemento estrutural que compõe outro
    Produto/Serviço". O rótulo antigo é recolocado antes de calcular — se o hash continua o de
@@ -133,7 +135,7 @@ function parteA() {
        antes, só os placeholders deixaram de existir. */
     if (semTexto.especializacao === null && ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao', 'produto-principal'].indexOf(semTexto.id) !== -1) semTexto.especializacao = 'não determinada pelo questionário';
     if (semTexto.papelEstrutural === null && semTexto.id === 'componente') semTexto.papelEstrutural = 'não determinado';
-    h.update(comMotivoDaEpoca(JSON.stringify([m, c.resultadoAutomatico, c.essenciaisFalhos, c.criteriosAtendidos, c.exclusoesConflitantes, semTexto])) + '\n');
+    h.update(comMotivoDaEpoca(JSON.stringify([m, c.resultadoAutomatico, c.essenciaisFalhos, c.criteriosAtendidos, c.exclusoesConflitantes, P8.estadoSemP8(semTexto)])) + '\n');
     contagemPorCamada[c.camadaSugerida.id] = (contagemPorCamada[c.camadaSugerida.id] || 0) + 1;
     const just = av.gerarJustificativaAutomatica(atual, c);
     const textos = (relacao || '') + ' || ' + just;
@@ -251,8 +253,9 @@ async function novaTrilha(page, nome) {
   await page.fill('#avpfNome', nome);
   await page.click('#avpIniciarBtn');
   await page.waitForTimeout(150);
-  for (const id of ORDEM) await page.locator('#avpQuestion-' + id + ' .avp-choice-btn--' + valorTrilha(id)).click();
-  await page.click('#avpConcluirBtn');
+  const valores = {}; ORDEM.forEach((id) => { valores[id] = valorTrilha(id); });
+  await RG.responderGuiada(page, RG.pDosIds(valores)); /* avaliação nova = avaliação guiada (v22) */
+  await RG.concluirGuiada(page);
   await page.waitForSelector('.avp-reasoning-list', { timeout: 8000 });
   await page.waitForTimeout(200);
 }

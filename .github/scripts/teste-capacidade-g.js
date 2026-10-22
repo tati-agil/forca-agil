@@ -14,6 +14,7 @@
  *   nova com P1 e P11 = SIM é Capacidade, com os motivos, a relação e a justificativa novos, e a
  *   avaliação concluída antes fica byte a byte igual. Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
@@ -217,9 +218,9 @@ async function parteB(browser, R) {
       await page.click('#avpNovoBtn');
       await page.fill('#avpfNome', 'Gestão atuarial');
       await page.click('#avpIniciarBtn');
-      await page.waitForSelector('#avpQuestion-capacidade');
-      for (const id of ORDEM) await page.locator('#avpQuestion-' + id + ' .avp-choice-btn--' + (id === 'necessidade' || id === 'capacidade' ? 'sim' : 'nao')).click();
-      await page.click('#avpConcluirBtn');
+      /* avaliação nova = avaliação guiada (v22): P1 e P11 = SIM, o resto NÃO */
+      await RG.responderGuiada(page, RG.pDosIds({ necessidade: 'sim', capacidade: 'sim' }));
+      await RG.concluirGuiada(page);
       await page.waitForSelector('.avp-reasoning-list', { timeout: 10000 });
       const db = await banco(page);
       const nova = Object.values(db['avaliacoes-produto']).find((i) => i.nome === 'Gestão atuarial');

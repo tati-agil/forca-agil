@@ -771,6 +771,12 @@
       "sobre": "Módulo puro: condições aninhadas viram frases, campos usados, itens de lógica filtrados, texto escapado, nome de arquivo seguro. Na tela: os três botões geram PDFs conferidos contra os dados da própria página — todas as regras na ordem de precedência, texto vigente das perguntas, versão em vigor, perguntas fora de regra, frases da definição do Posicionamento e tabela Linha × Squad, Eixo A / Eixo B / Combinação com rótulos — e nada é gravado."
     },
     {
+      "arquivo": ".github/scripts/teste-avaliacao-guiada.js",
+      "nome": "Avaliação guiada (v22) de Produto/Serviço, desktop e 375 px",
+      "duracao": 90,
+      "sobre": "Módulo puro: 31 perguntas e condicionais da v22; \"Não sei\", mistura e confirmação ausente nunca viram NÃO; ida e volta nas 65.536 combinações de P1–P16 com a regra publicada (v7) e conclusão possível em todas; P6/P7 não confirmados só quando a regra não os lê; P8 decisivo. Na tela: iniciar, uma pergunta por vez, condicional, Anterior, salvar rascunho, retomar onde parou, revisão com prévia oficial, \"Evidências ainda insuficientes\", concluir, ficha/PDF/Excel com \"NÃO CONFIRMADO\", Voltar do navegador protegido, reavaliação de avaliação antiga em branco sem herdar decisão."
+    },
+    {
       "arquivo": ".github/scripts/teste-caminho1.js",
       "nome": "Caminho 1: objeto arquitetural de ponta a ponta (P1–P16 → natureza → próximo passo), desktop e 375 px",
       "duracao": 150,

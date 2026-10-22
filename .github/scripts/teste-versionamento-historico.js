@@ -16,7 +16,11 @@
  * O QUESTIONÁRIO DO TESTE é sintético (não são os 29 textos): v1 = texto de
  * fábrica; v2 = v1 com o TEXTO de P15 trocado e só a AJUDA de P8 trocada.
  * Hermético: banco falso em persistenciaReal, sem rede, sem segredo.
- * Desktop e celular (375 px). */
+ * Desktop e celular (375 px).
+ *
+ * AVALIAÇÃO GUIADA (v22): avaliação nova e reavaliação são guiadas e começam em branco — nada é herdado nem convertido.
+ * As garantias de 2/3 (pergunta mudou → resposta antiga só como referência, nova resposta obrigatória) continuam valendo
+ * para o questionário antigo, que é o de um RASCUNHO antigo de reavaliação retomado: é assim que elas são provadas aqui. */
 const { chromium } = require('playwright');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
@@ -254,6 +258,15 @@ async function lerExcelRespostas(page) {
     console.log('-- 6–11. reavaliação --');
     await abrirFicha(page, 'itemv1');
     await page.click('#avpReavaliarBtn');
+    await page.waitForSelector('#avpGuiadaCartao');
+    afirma(await page.locator('input[name="avpGuiadaResp"]:checked').count() === 0 && /começa com as perguntas em branco/.test(await page.locator('#avpGuiadaDados').textContent()),
+      '6. a reavaliação de uma avaliação antiga é guiada e começa em branco (nenhuma resposta herdada nem convertida)');
+    /* rascunho antigo de reavaliação (questionário antigo, versão 2, respostas da v1): retomado, segue no questionário antigo */
+    await page.click('#avpCancelarChecklistBtn');
+    await page.evaluate((r) => new Promise((ok) => firebase.database().ref('avaliacoes-produto/rascv2').set(r, () => ok())),
+      Object.assign(copia(ITEM_V1), { status: 'rascunho', versao: 2, versaoAnteriorKey: 'itemv1', itemId: ITEM_V1.itemId || 'itemv1', questionnaireContentVersion: 2,
+        resultadoAutomatico: null, decisaoFinal: null, camadaSugerida: null, justificativaAutomatica: null, criteriosAtendidos: null, motorVersion: null, motorVersionArquitetura: null }));
+    await page.evaluate(() => { location.hash = '#arquitetura?editar=rascv2'; });
     await page.waitForSelector('#avpQuestion-componente');
     const q = (id) => page.evaluate((id) => { const el = document.getElementById('avpQuestion-' + id);
       return { texto: el.querySelector('.avp-question-text').innerText, ativo: !!el.querySelector('.avp-choice-btn.active'),
@@ -273,7 +286,7 @@ async function lerExcelRespostas(page) {
     await page.click('#avpConcluirBtn');
     await esperarCondicao(page, () => !!document.querySelector('#avpQuestion-componente.avp-question--pendente'), null, { limite: 5000, descricao: 'P15 marcada como pendente' });
     let dep = await banco(page);
-    afirma(!Object.values(dep['avaliacoes-produto']).some((i) => i.versaoAnteriorKey === 'itemv1'), '9. não conclui sem responder de novo a P15', Object.keys(dep['avaliacoes-produto']).join(','));
+    afirma(!Object.values(dep['avaliacoes-produto']).some((i) => i.versaoAnteriorKey === 'itemv1' && i.status === 'concluido'), '9. não conclui sem responder de novo a P15', Object.keys(dep['avaliacoes-produto']).join(','));
     afirma(await page.locator('#avpQuestion-componente.avp-question--pendente').count() === 1, 'e aponta a P15 como pendente');
 
     await page.locator('#avpQuestion-componente .avp-choice-btn--sim').click();
@@ -283,7 +296,7 @@ async function lerExcelRespostas(page) {
     await page.waitForFunction(() => Object.values(window.__CFG.__dbReal['avaliacoes-produto']).some((i) => i.versaoAnteriorKey === 'itemv1' && i.status === 'concluido'), null, { timeout: 15000 });
     dep = await banco(page);
     const v2 = Object.values(dep['avaliacoes-produto']).find((i) => i.versaoAnteriorKey === 'itemv1');
-    afirma(v2 && v2.versao === 2 && v2.questionnaireContentVersion === 2, '6. a reavaliação cria uma avaliação nova, na versão 2 do questionário');
+    afirma(v2 && v2.versao === 2 && v2.questionnaireContentVersion === 2 && !v2.guiada, '6. o rascunho antigo de reavaliação conclui como avaliação nova, na versão 2 do questionário (sem virar guiada)');
     afirma(v2.respostas.componente.questionnaireContentVersion === 2 && v2.respostas.componente.textoPerguntaNaEpoca === P15_V2, '10. a P15 da v2 é resposta à pergunta nova (confirmada)');
     afirma(v2.respostas.gestao.questionnaireContentVersion === 1, 'a P8 herdada sem novo clique continua registrada como resposta da v1');
     afirma(JSON.stringify(dep['avaliacoes-produto'].itemv1) === JSON.stringify(inicio['avaliacoes-produto'].itemv1), '2/7. a avaliação anterior continua byte a byte igual ao que estava no banco',
@@ -308,6 +321,14 @@ async function lerExcelRespostas(page) {
     const { ctx, page, erros } = await abrir(browser, { width: 375, height: 800 });
     await abrirFicha(page, 'legado');
     await page.click('#avpReavaliarBtn');
+    await page.waitForSelector('#avpGuiadaCartao');
+    afirma(await page.locator('input[name="avpGuiadaResp"]:checked').count() === 0, 'reavaliar a legada: guiada e em branco (nada convertido)');
+    await page.click('#avpCancelarChecklistBtn');
+    /* o mesmo, num rascunho antigo de reavaliação da legada (respostas sem versão), retomado no questionário antigo */
+    await page.evaluate((r) => new Promise((ok) => firebase.database().ref('avaliacoes-produto/rasclegado').set(r, () => ok())),
+      Object.assign(copia(ITEM_LEGADO), { status: 'rascunho', versao: 2, versaoAnteriorKey: 'legado', itemId: ITEM_LEGADO.itemId || 'legado', questionnaireContentVersion: 2,
+        resultadoAutomatico: null, decisaoFinal: null, camadaSugerida: null, justificativaAutomatica: null, criteriosAtendidos: null, motorVersion: null, motorVersionArquitetura: null }));
+    await page.evaluate(() => { location.hash = '#arquitetura?editar=rasclegado'; });
     await page.waitForSelector('#avpQuestion-componente');
     const aviso = (id) => page.evaluate((id) => { const el = document.getElementById('avpQuestion-' + id);
       return el.querySelector('.avp-herdada--pergunta') ? 'pergunta' : el.querySelector('.avp-herdada--ajuda') ? 'ajuda' : (el.querySelector('.avp-choice-btn.active') ? 'marcada' : 'vazia'); }, id);

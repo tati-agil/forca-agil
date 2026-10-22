@@ -20,6 +20,7 @@
  * Banco falso em persistenciaReal (grava/lê como o Firebase de verdade). Hermético: sem rede,
  * sem segredo. Desktop e celular (375 px). */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { abrirRecolhidas } = require('./abrir-recolhidas');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
@@ -263,18 +264,20 @@ async function cenarioFabrica(browser, viewport, rotulo) {
   await page.click('#avpNovoBtn');
   await page.fill('#avpfNome', 'Motor de cálculo do benefício');
   await page.click('#avpIniciarBtn');
-  await page.waitForSelector('#avpQuestion-componente');
-  const texto15 = await page.locator('#avpQuestion-componente .avp-question-text').innerText();
-  afirma(texto15 === 'O item é principalmente um elemento estrutural que compõe outro Produto/Serviço?', 'a P15 nova aparece na avaliação', texto15);
-  await page.click('.avp-help-btn[data-id="componente"]');
-  const ajuda = await page.locator('#avpHelp-componente').innerText();
-  afirma(/O que significa:.*Componente é um elemento estrutural/s.test(ajuda) && /Quando marcar SIM:/.test(ajuda) && /Quando marcar NÃO:/.test(ajuda) && /Exemplo: É componente: o motor de cálculo/.test(ajuda),
-    'a ajuda da P15 mostra significado, SIM, NÃO e exemplo novos');
-  afirma(!/Pergunte: se o produto principal deixasse de existir/.test(ajuda), 'e não mostra mais a ajuda extra antiga');
-  afirma(await larguraOk(page), 'a ajuda cabe na tela (sem rolagem lateral)');
+  /* a avaliação nova é guiada (v22): a redação oficial de P1–P16 é a do cadastro do questionário (a mesma da ficha, do
+     PDF e dos rascunhos antigos) e fica registrada em cada resposta */
+  await page.waitForSelector('#avpGuiadaCartao');
+  const p15Nova = await page.evaluate(() => window.faQuestionarios.conteudoPergunta('CLASSIFICACAO_ARQUITETURAL', 'P15', window.faQuestionarios.versaoAtual('CLASSIFICACAO_ARQUITETURAL')));
+  const texto15 = p15Nova.texto;
+  afirma(texto15 === 'O item é principalmente um elemento estrutural que compõe outro Produto/Serviço?', 'a P15 nova é a versão em vigor', texto15);
+  const ajuda = [p15Nova.textoAjuda && p15Nova.textoAjuda.significado, p15Nova.textoAjuda && p15Nova.textoAjuda.quandoSim, p15Nova.textoAjuda && p15Nova.textoAjuda.quandoNao, p15Nova.exemplo].join(' | ');
+  afirma(/Componente é um elemento estrutural/.test(ajuda) && !!(p15Nova.textoAjuda && p15Nova.textoAjuda.quandoSim && p15Nova.textoAjuda.quandoNao) && /É componente: o motor de cálculo/.test(ajuda),
+    'a ajuda da P15 tem significado, SIM, NÃO e exemplo novos');
+  afirma(!/Pergunte: se o produto principal deixasse de existir/.test(ajuda + (p15Nova.ajudaExtra || '')), 'e não tem mais a ajuda extra antiga');
+  afirma(await larguraOk(page), 'a pergunta guiada cabe na tela (sem rolagem lateral)');
   const valores = { necessidade: 'nao', resultado: 'nao', solucao: 'nao', fronteira: 'sim', autonomia: 'nao', componente: 'sim' };
-  for (const id of ORDEM) await page.locator('#avpQuestion-' + id + ' .avp-choice-btn--' + (valores[id] || 'nao')).click();
-  await page.click('#avpConcluirBtn');
+  await RG.responderGuiada(page, RG.pDosIds(valores));
+  await RG.concluirGuiada(page);
   await page.waitForSelector('.avp-reasoning-list', { timeout: 8000 });
   const db = await banco(page);
   const item = Object.values(db['avaliacoes-produto'])[0];

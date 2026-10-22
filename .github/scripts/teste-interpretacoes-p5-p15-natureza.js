@@ -20,6 +20,7 @@
  * Banco falso em persistenciaReal (grava/lê como o Firebase de verdade).
  * Hermético: sem rede, sem segredo. Desktop e celular (375 px). */
 const { chromium } = require('playwright');
+const RG = require('./responder-guiada');
 const { abrirRecolhidas } = require('./abrir-recolhidas');
 const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
@@ -147,8 +148,9 @@ async function novaAvaliacao(page, nome, valorDe) {
   await page.fill('#avpfNome', nome);
   await page.click('#avpIniciarBtn');
   await page.waitForTimeout(150);
-  for (const id of ORDEM) await page.locator('#avpQuestion-' + id + ' .avp-choice-btn--' + valorDe(id)).click();
-  await page.click('#avpConcluirBtn');
+  const valores = {}; ORDEM.forEach((id) => { valores[id] = valorDe(id); });
+  await RG.responderGuiada(page, RG.pDosIds(valores)); /* avaliação nova = avaliação guiada (v22) */
+  await RG.concluirGuiada(page);
   await page.waitForSelector('.avp-reasoning-list', { timeout: 8000 });
   await page.waitForTimeout(200);
 }
