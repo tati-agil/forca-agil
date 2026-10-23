@@ -1073,7 +1073,7 @@
       /* evento sem CMFlex (eventos/<ev>/dispensaCmflex): a confirmação é só do admin — não há para onde mandar a pessoa */
       var ev = eventoDaTurma(turmaKey);
       if (ev && ev.dispensaCmflex) showMsg(turmaKey, 'Interesse registrado. A organização confirma sua vaga — acompanhe pela Minha Área.');
-      else showMsg(turmaKey, 'Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: ', 'RH - Uso Pessoal | PREVI', 'https://plataforma.intra.previ.com.br/RhUsoPessoal/InscricaoEventoTreinamento');
+      else showMsg(turmaKey, 'Interesse registrado — acompanhe pela Minha Área. Para confirmar sua vaga, realize a inscrição no CMFlex em: ', 'RH - Uso Pessoal | PREVI', 'https://plataforma.intra.previ.com.br/RhUsoPessoal/InscricaoEventoTreinamento');
     }
 
     function setInscrito(btn, turmaKey) {
