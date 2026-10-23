@@ -410,10 +410,41 @@
      admins (admin geral entra por ser admin). */
   function isAvaliacaoReady() { return _avaliacaoResolvida && _adminsResolvidos; }
 
+  /* ---- Login aceito, perfil que não chega ----
+     A senha é conferida pelo Firebase Auth; o perfil (fa-users) e as inscrições vêm do BANCO, outra conexão. Quando o
+     banco não responde (rede da sala/proxy cortando a conexão contínua, 4G ruim), o login "dá certo" e a página continua
+     em "Entrar", sem o ADMIN, sem dizer nada — aconteceu em 23/10/2026. Passado o prazo, aparece um aviso visível; ele
+     some sozinho quando o perfil chega. NÃO decide acesso nenhum ("ainda não sei" ≠ "não tem acesso", PR #111): só fala.
+     Na carga da página quem fala é o #bootStatus (o aviso fica escondido junto com o resto pela "aguardando-auth"). */
+  var PRAZO_PERFIL_MS = 12000, _avisoPerfilTimer = null;
+  function avisoPerfil(mostrar) {
+    var el = document.getElementById('avisoConexaoPerfil');
+    if (!mostrar) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement('div');
+    el.id = 'avisoConexaoPerfil';
+    el.setAttribute('role', 'alert');
+    el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom, 0px));z-index:10050;max-width:560px;margin:0 auto;' +
+      'padding:14px 16px;border-radius:10px;background:var(--panel-2,#111c33);border:1px solid var(--accent,#f5c518);color:var(--ink,#e8eefc);font-size:.9rem;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,.45)';
+    el.innerHTML = '<strong style="display:block;color:var(--accent,#f5c518);margin-bottom:4px">Login feito, mas seu perfil ainda não carregou</strong>' +
+      'A conexão com o banco de dados não está respondendo. Aguarde mais um pouco; se não mudar, recarregue a página — e, se continuar, tente outra rede (por exemplo, o 4G do celular).';
+    document.body.appendChild(el);
+  }
+  function esperarPerfil() { clearTimeout(_avisoPerfilTimer); _avisoPerfilTimer = setTimeout(function () { avisoPerfil(true); }, PRAZO_PERFIL_MS); }
+  /* geração do login: a resposta atrasada de um login ANTERIOR (sair e entrar de novo antes de ela chegar) não pode
+     apagar o aviso do login atual — só a resposta da geração corrente encerra a espera */
+  var _geracaoPerfil = 0;
+  function perfilResolvido(geracao) {
+    if (geracao !== undefined && geracao !== _geracaoPerfil) return;
+    clearTimeout(_avisoPerfilTimer); _avisoPerfilTimer = null; avisoPerfil(false);
+  }
+
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
   firebase.auth().onAuthStateChanged(function (user) {
     if (_criandoConta) return;
     if (user) {
+      var geracao = ++_geracaoPerfil;
+      esperarPerfil();
       /* Esta leitura não tinha tratamento de erro: se o banco não responde
          (rede bloqueando o domínio, proxy, 4G ruim), o callback nunca é
          chamado, fa-auth-ready nunca dispara e a pessoa fica presa numa
@@ -424,6 +455,7 @@
 
         /* Conta bloqueada pelo admin → desloga e avisa */
         if (profile.blocked) {
+          perfilResolvido(geracao);
           _session = null;
           _accessLevel = 'member';
           stopWatchingEnrolledStatus();
@@ -438,6 +470,7 @@
         /* Só exige verificação de e-mail em contas novas que têm a flag emailVerificationRequired
            (contas antigas não têm essa flag e entram normalmente; adminApproved também isenta) */
         if (!user.emailVerified && profile.emailVerificationRequired && !profile.adminApproved) {
+          perfilResolvido(geracao);
           _session = null;
           _accessLevel = 'member';
           stopWatchingEnrolledStatus();
@@ -452,6 +485,7 @@
         try { localStorage.setItem('fa-player', JSON.stringify({ name: _session.name, area: _session.area, turma: '' })); } catch (e) {}
         _accessLevel = 'member';
         checkEnrolledStatus(user.email, function (enrolled) {
+          perfilResolvido(geracao);
           if (enrolled) _accessLevel = 'enrolled';
           updateNavState();
           enforceCurrentRouteAccess();
@@ -478,12 +512,15 @@
         /* Falha ao ler o perfil: libera a espera avisando, em vez de
            deixar a tela preta para sempre. */
         console.error('[auth] falha ao ler perfil', err);
+        perfilResolvido(geracao);
         _session = null;
         _accessLevel = 'member';
         _authReady = true;
         window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
       });
     } else {
+      _geracaoPerfil++;
+      perfilResolvido();
       _session = null;
       _accessLevel = 'member';
       stopWatchingEnrolledStatus();
