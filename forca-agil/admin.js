@@ -942,7 +942,9 @@
                 '<span class="turma-toggle-icon" style="color:var(--ink-2);font-size:.8rem;flex-shrink:0;margin-right:6px">▸</span>' +
                 '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
                 '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
+                '<span class="turma-admin-dates turma-admin-horario">&#x23F0; ' + esc(window.faTurmasUtil.formatHorario(t.horarioInicio, t.horarioFim)) + '</span>' +
                 (t.sala ? '<span class="turma-admin-dates turma-admin-sala">&#x1F4CD; ' + esc(t.sala) + '</span>' : '') +
+                (publicoDoEvento(t.eventoKey) ? '<span class="turma-admin-dates turma-admin-publico">&#x1F465; ' + esc(publicoDoEvento(t.eventoKey)) + '</span>' : '') +
                 '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
                   (finalizada ? 'INTERESSE ENCERRADO' : 'ABERTA') + '</span>' +
                 '<span class="admin-badge">' + countLabel + '</span>' +
@@ -2594,11 +2596,11 @@
         (l.ganhadores.length ? l.ganhadores : [{ name: '', email: '' }]).forEach(function (g) {
           rows.push([
             l.quando ? new Date(l.quando).toLocaleString('pt-BR') : '',
-            l.eventoNome, l.turmaLabel, g.name || '', g.email || '', l.porNome || '',
-          ]);
+            l.eventoNome, l.turmaLabel].concat(colunasTurma(turmaPorKey(l.turmaKey)), [g.name || '', g.email || '', l.porNome || '',
+          ]));
         });
       });
-      toXls(['Quando', 'Evento', 'Turma', 'Nome sorteado', 'E-mail', 'Sorteado por'],
+      toXls(['Quando', 'Evento', 'Turma'].concat(COLUNAS_TURMA, ['Nome sorteado', 'E-mail', 'Sorteado por']),
         rows, 'sorteios-' + new Date().toISOString().slice(0, 10) + '.csv');
     });
 
@@ -4257,8 +4259,8 @@
       var eKey = emailKeyFromEmail(r.email);
       var st = getStatus(r);
       var addedBy = r.addedByAdmin === true ? (r.addedByAdminName || 'Admin') : '';
-      var row = [t.label, r.name||'', r.email||'', r.area||'', st,
-        r.date ? new Date(r.date).toLocaleString('pt-BR') : '', addedBy];
+      var row = [t.label].concat(colunasTurma(t), [r.name||'', r.email||'', r.area||'', st,
+        r.date ? new Date(r.date).toLocaleString('pt-BR') : '', addedBy]);
       if (finalizada) {
         var diasPresente = 0;
         t.dias.forEach(function (d) {
@@ -4266,12 +4268,12 @@
           row.push(ck ? (ck.source === 'admin' ? 'adm' : 'qr') : '');
           if (ck) diasPresente++;
         });
-        row.push(diasPresente + '/' + t.dias.length);
+        row.push(textoFrequencia(diasPresente, t.dias.length));
         row.push(diasPresente >= minDias ? 'Sim' : 'Não');
       }
       rows.push(row);
     });
-    var headers = ['Turma','Nome','E-mail','Área','Status','Data Registro','Adicionado por'];
+    var headers = ['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Status','Data Registro','Adicionado por']);
     if (finalizada) {
       t.dias.forEach(function (d) { headers.push(fmtDia(d)); });
       headers.push('Frequência', 'Atingiu critério (' + Math.round(CRITERIO_PRESENCA * 100) + '%)');
@@ -4353,12 +4355,12 @@
         var st = getStatus(r);
         var diasPresente = 0;
         t.dias.forEach(function (d) { if (checkinT[d] && checkinT[d][eKey]) diasPresente++; });
-        rows.push([t.label, r.name||'', r.email||'', r.area||'', st,
+        rows.push([t.label].concat(colunasTurma(t), [r.name||'', r.email||'', r.area||'', st,
           r.date ? new Date(r.date).toLocaleString('pt-BR') : '',
-          finalizada ? diasPresente + '/' + t.dias.length : '']);
+          finalizada ? textoFrequencia(diasPresente, t.dias.length) : '']));
       });
     });
-    toXls(['Turma','Nome','E-mail','Área','Status','Data Registro','Frequência'],
+    toXls(['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Status','Data Registro','Frequência']),
       rows, 'turmas-estado-' + new Date().toISOString().slice(0,10) + '.csv');
   }
 
@@ -4408,13 +4410,34 @@
           });
 
           entries.sort(function (a, b) { return (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0); });
-          entries.forEach(function (e) { rows.push(e.row); });
+          var colsT = colunasTurma(t);
+          entries.forEach(function (e) { rows.push([e.row[0]].concat(colsT, e.row.slice(1))); });
         });
 
-        toXls(['Turma','Nome','E-mail','Área','Data','Hora','Ação','Origem','Motivo','Destino'],
+        toXls(['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Data','Hora','Ação','Origem','Motivo','Destino']),
           rows, 'historico-' + new Date().toISOString().slice(0,10) + '.csv');
       });
     });
+  }
+
+  /* Colunas da TURMA que vão em toda exportação por turma (Estado atual, Exportar da turma, Histórico, Sorteios), logo
+     depois de "Turma": as datas, o horário, a sala e o "Quem participa" do evento (vazio no evento = Empregados, o mesmo
+     padrão do formulário). */
+  var COLUNAS_TURMA = ['Data da turma', 'Horário', 'Sala', 'Público'];
+  function turmaPorKey(k) { return TURMAS_LIST.filter(function (x) { return x.key === k; })[0] || null; }
+  function publicoDoEvento(eventoKey) {
+    var ev = EVENTOS_LIST.filter(function (e) { return e.key === eventoKey; })[0];
+    return ev ? (ev.publicoDesc || 'Empregados') : '';
+  }
+  function colunasTurma(t) {
+    if (!t) return ['', '', '', ''];
+    var datas = (t.dias || []).slice().sort().map(function (d) { var p = d.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }).join(', ');
+    var horario = t.horarioInicio && t.horarioFim ? t.horarioInicio + '–' + t.horarioFim : '';
+    return [datas, horario, t.sala || '', publicoDoEvento(t.eventoKey)];
+  }
+  /* "1 de 2 (50%)": como texto. "1/2" o Excel lia como DATA (1º de fevereiro) — era o "aparece data/hora" na frequência. */
+  function textoFrequencia(presentes, total) {
+    return total ? presentes + ' de ' + total + ' (' + Math.round(presentes / total * 100) + '%)' : '';
   }
 
   function toXls(headers, rows, filename) {
