@@ -291,8 +291,8 @@
     var lista = inscritos || {};
     return Object.keys(lista).filter(function (k) { var v = lista[k]; return v && !v.removed && v.status !== 'removido'; }).length >= vagas;
   }
-  function cargoBarra(turma, gerente) {
-    var cargo = window.faTurmasUtil.cargoDaTurma(turma);
+  function cargoBarra(turma, gerente, evento) {
+    var cargo = window.faTurmasUtil.cargoEfetivo(turma, evento);
     if (!cargo) return false;
     if (!gerente || !gerente.ok) return true;
     return (cargo === 'gerentes') !== gerente.gerente;
@@ -318,7 +318,7 @@
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
         publicoEvento: turma.eventoKey ? ((d.publicoEv || {})[turma.eventoKey] || {}) : {},
         lotada: turmaLotada(turma, d.interesse[tk]),
-        cargoBarra: cargoBarra(turma, d.gerente),
+        cargoBarra: cargoBarra(turma, d.gerente, turma.eventoKey ? d.eventos[turma.eventoKey] : null),
       };
     }).filter(function (t) {
       return !t.encerrada && !t.interesseEncerrado && !t.jaComecou && !t.lotada && !t.cargoBarra &&

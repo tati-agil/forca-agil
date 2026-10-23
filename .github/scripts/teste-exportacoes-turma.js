@@ -128,7 +128,7 @@ function lerCsv(texto) {
       anota('7. a linha da turma traz os parâmetros dela e do evento',
         x.Evento === 'EPISÓDIO X' && x['Data da turma'] === '03/11/2027, 05/11/2027' && x['Horário'] === '09:30–12:00' && x.Sala === 'Sala de Treinamento GETHO' &&
         x['Situação'] === 'Inscrições encerradas' && x.Vagas === 'Sem limite' && x['Ocupadas (interesse + inscrição)'] === 1 && x['Inscritas confirmadas'] === 1 &&
-        x['Quem participa'] === 'Gerentes' && x['Exige CMFlex'] === 'Sim' && x['Público da turma'] === 'Todos', JSON.stringify(x));
+        x['Quem participa'] === 'Gerentes' && x['Exige CMFlex'] === 'Sim' && x['Público da turma'] === 'Só gerentes' /* vem do "Quem participa" do evento */, JSON.stringify(x));
       const todasCelulas = JSON.stringify(tur) + JSON.stringify(evs);
       anota('7. sem pessoas: nenhum e-mail nem nome no arquivo', !/@/.test(todasCelulas) && !/PRESENTE UM/.test(todasCelulas));
     }

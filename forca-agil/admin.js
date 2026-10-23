@@ -913,7 +913,11 @@
               (aguardandoHdr ? ' · ' + aguardandoHdr + ' aguardando decisão' : '') +
               /* vagas: ocupadas = interesse + inscrição não removidos (o mesmo critério do card) */
               (t.vagas ? ' · ' + active.length + '/' + t.vagas + ' vagas' + (active.length >= t.vagas ? ' (lotada)' : '') : '') +
-              (t.publicoCargo ? ' · só ' + (t.publicoCargo === 'gerentes' ? 'gerentes' : 'técnicos') : '');
+              (function () {
+                var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0];
+                var c = window.faTurmasUtil.cargoEfetivo(t, ev);
+                return c ? ' · só ' + (c === 'gerentes' ? 'gerentes' : 'técnicos') : '';
+              })();
 
             var card = document.createElement('div');
             card.className = 'turma-admin-card';
@@ -3215,7 +3219,7 @@
         '<div id="eventoItinerarioList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
         '<button type="button" class="btn btn--sm" id="eventoAddDiaBtn" style="margin-top:8px">+ Adicionar dia</button>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:8px 0 0">Os dois últimos chips do bloco "Como funciona" (abaixo do itinerário, na página Turmas). Os quatro campos são listas fechadas, pra não ter "Híbrido"/"hibrido" escrito diferente em cada evento. Em "Quem participa" você escolhe só a categoria — o site completa sozinho com "aberta a todos os ___ da Previ" na frente e atrás.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:8px 0 0">Os dois últimos chips do bloco "Como funciona" (abaixo do itinerário, na página Turmas). Os quatro campos são listas fechadas, pra não ter "Híbrido"/"hibrido" escrito diferente em cada evento. Em "Quem participa" você escolhe só a categoria — o site completa sozinho com "aberta a todos os ___ da Previ" na frente e atrás. <b>Gerentes</b> e <b>Técnicos</b> também decidem quem entra, em todas as turmas do evento: Gerentes = só quem está na aba Gerentes; Técnicos = só quem não está. As outras categorias são só descrição.</p>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
         '<label class="auth-label" style="flex:1;min-width:140px">Modalidade (chip curto)<select id="eventoFormModalidadeLabel" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
           '<option value="">— usar padrão (Prática) —</option>' +
@@ -3431,10 +3435,10 @@
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
         '<label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = sem limite)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' +
         '<label class="auth-label">Público<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
-          '<option value="">Todos</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
+          '<option value="">Igual ao evento</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
         '</select></label>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Só gerentes" admite quem está na aba Gerentes; "Só técnicos", quem não está nela.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" segue o "Quem participa" do evento (Gerentes ou Técnicos restringem; as outras categorias não); "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem não está, valendo por cima do evento.</p>' +
       '<label class="auth-label" id="turmaFormCmflexBox">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
@@ -4435,7 +4439,7 @@
               'Vagas': vagas || 'Sem limite',
               'Ocupadas (interesse + inscrição)': regs.length,
               'Inscritas confirmadas': regs.filter(inscricaoValida).length,
-              'Público da turma': PUBLICO_TURMA[t.publicoCargo] || 'Todos',
+              'Público da turma': PUBLICO_TURMA[window.faTurmasUtil.cargoEfetivo(t, e)] || 'Todos',
               'Público restrito (lista da turma)': sim(!!t.publicoRestrito),
               'Avaliação liberada': sim(!!t.avaliacaoHabilitada),
               'Construção da Aposta': sim(!!t.apostaHabilitada),

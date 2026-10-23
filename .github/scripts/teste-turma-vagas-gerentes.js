@@ -22,7 +22,11 @@
  * CMFLEX (eventos/<ev>/dispensaCmflex — ausente = exige, como sempre foi):
  *  10. evento que não exige: depois do interesse o card diz que a organização confirma a vaga (sem CMFlex); o Confirmar
  *      do painel pergunta pela vaga, não pelo CMFlex; o formulário da turma esconde "Link do CMFlex";
- *  11. evento que exige: o card continua mandando para o CMFlex. */
+ *  11. evento que exige: o card continua mandando para o CMFlex.
+ *
+ * "QUEM PARTICIPA" DO EVENTO (eventos/<ev>/publicoDesc = "Gerentes" | "Técnicos") também é regra, para todas as turmas:
+ *  12. evento "Gerentes": quem não está na lista vê "só para gerentes"; evento "Técnicos": gerente vê "não é para
+ *      gerentes"; técnico entra no evento "Técnicos". */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -46,14 +50,18 @@ function banco() {
     'fa-gerentes': { [chave(GER)]: { email: GER, name: 'GERENTE UM', addedAt: '2026-10-22T10:00:00.000Z' }, [chave(SEMCAD)]: { email: SEMCAD, name: '', addedAt: '2026-10-22T10:00:00.000Z' } },
     'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
     eventos: { ev5: { nome: 'EPISÓDIO V', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false, dispensaCmflex: true },
-      ev6: { nome: 'EPISÓDIO VI', order: 2, publicado: true, cargaHoraria: '3', esperaAtiva: false } },
+      ev6: { nome: 'EPISÓDIO VI', order: 2, publicado: true, cargaHoraria: '3', esperaAtiva: false },
+      ev7: { nome: 'EPISÓDIO VII', order: 3, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Gerentes' },
+      ev8: { nome: 'EPISÓDIO VIII', order: 4, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Técnicos' } },
     turmas: {
       tL: { label: 'TURMA LOTADA', eventoKey: 'ev5', order: 1, dias: ['2027-11-03'], vagas: 2 },
       tG: { label: 'TURMA GERENTES', eventoKey: 'ev5', order: 2, dias: ['2027-11-05'], publicoCargo: 'gerentes' },
       tT: { label: 'TURMA TECNICOS', eventoKey: 'ev5', order: 3, dias: ['2027-11-06'], publicoCargo: 'tecnicos' },
       tR: { label: 'TURMA REALIZADA', eventoKey: 'ev5', order: 4, dias: ['2026-01-10'], vagas: 1 },
       tF: { label: 'TURMA ENCERRADA', eventoKey: 'ev5', order: 5, dias: ['2027-12-01'], vagas: 1 },
-      tC: { label: 'TURMA COM CMFLEX', eventoKey: 'ev6', order: 6, dias: ['2027-12-03'] }
+      tC: { label: 'TURMA COM CMFLEX', eventoKey: 'ev6', order: 6, dias: ['2027-12-03'] },
+      tEG: { label: 'EVENTO GER T1', eventoKey: 'ev7', order: 7, dias: ['2027-12-06'] },
+      tET: { label: 'EVENTO TEC T1', eventoKey: 'ev8', order: 8, dias: ['2027-12-07'] }
     },
     'turmas-interesse': {
       tL: { [chave(OCUP)]: reg(OCUP, 'OCUPA VAGA'), [chave(DENTRO)]: reg(DENTRO, 'JA ESTA DENTRO') },
@@ -131,6 +139,9 @@ async function participante(page, tk, busca) {
       const r = await cardDe(page, 'TURMA REALIZADA'), f = await cardDe(page, 'TURMA ENCERRADA');
       anota('1. turma realizada (mesmo lotada): "Turma realizada", sem botão e sem "Turma lotada"', !!r && !r.botao && /Turma realizada/.test(r.texto) && !/lotada/i.test(r.texto), r && r.texto);
       anota('1. interesse encerrado (mesmo lotada): "Inscrições encerradas", sem botão — distinta de "Turma lotada"', !!f && !f.botao && /Inscrições encerradas/.test(f.texto) && !/Turma lotada/.test(f.texto), f && f.texto);
+      await msgFinal(page, 'tEG', /gerentes/); await final(page, 'tET');
+      anota('12. evento com "Quem participa" = Gerentes: técnica vê "só para gerentes", sem botão', /só para gerentes/.test(await texto(page, '#intent-msg-tEG')));
+      anota('12. evento com "Quem participa" = Técnicos: técnica vê "Tenho interesse"', await visivel(page, '.btn--interest[data-turma="tET"]') && /Tenho interesse/.test(await texto(page, '.btn--interest[data-turma="tET"]')));
       anota('sem erro de JavaScript (técnica)', !erros.length, erros[0]);
       await ctx.close();
     }
@@ -159,6 +170,8 @@ async function participante(page, tk, busca) {
       await page.waitForFunction(() => /CMFlex/.test((document.getElementById('intent-msg-tC') || {}).textContent || ''), null, { timeout: 10000 });
       const comCm = await texto(page, '#intent-msg-tC');
       anota('11. evento que exige: o card continua mandando para o CMFlex e aponta a Minha Área', /realize a inscrição no CMFlex/.test(comCm) && /acompanhe pela Minha Área/.test(comCm), comCm);
+      await msgFinal(page, 'tET', /não é para gerentes/);
+      anota('12. evento com "Quem participa" = Técnicos: gerente vê "não é para gerentes", sem botão', !(await visivel(page, '.btn--interest[data-turma="tET"]')));
       anota('sem erro de JavaScript (gerente)', !erros.length, erros[0]);
       await ctx.close();
     }
