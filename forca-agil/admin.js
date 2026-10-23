@@ -3229,6 +3229,7 @@
           '<option value="Diretores">Diretores</option>' +
           '<option value="Executivos">Executivos</option>' +
           '<option value="Gerentes">Gerentes</option>' +
+          '<option value="Técnicos">Técnicos</option>' +
           '<option value="Cedidos">Cedidos</option>' +
           '<option value="Quadro próprio">Quadro próprio</option>' +
         '</select></label>' +

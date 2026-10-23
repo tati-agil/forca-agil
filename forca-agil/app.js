@@ -282,6 +282,7 @@
       'Diretores':      { aberta: 'aberta a todos os<br>Diretores da Previ',         restrita: 'restrita a uma lista de<br>Diretores da Previ' },
       'Executivos':     { aberta: 'aberta a todos os<br>Executivos da Previ',        restrita: 'restrita a uma lista de<br>Executivos da Previ' },
       'Gerentes':       { aberta: 'aberta a todos os<br>Gerentes da Previ',          restrita: 'restrita a uma lista de<br>Gerentes da Previ' },
+      'Técnicos':       { aberta: 'aberta a todos os<br>Técnicos da Previ',          restrita: 'restrita a uma lista de<br>Técnicos da Previ' },
       'Cedidos':        { aberta: 'aberta a todos os<br>Cedidos da Previ',           restrita: 'restrita a uma lista de<br>Cedidos da Previ' },
       'Quadro próprio': { aberta: 'aberta a todo o<br>Quadro próprio da Previ',      restrita: 'restrita a uma lista do<br>Quadro próprio da Previ' }
     };
