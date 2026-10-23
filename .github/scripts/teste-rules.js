@@ -840,6 +840,30 @@ async function main() {
       anota('BUGFIX — "atual" continua apontando para a execução original depois da falha', atualAindaA === EXEC_A, atualAindaA);
     }
 
+    /* ── Lista de Gerentes (fa-gerentes): público das turmas "Só gerentes" / "Só técnicos" ── */
+    {
+      console.log('\n== fa-gerentes ==');
+      await semearBase();
+      const SEM_CADASTRO = 'gerente.sem.cadastro@previ.com.br';
+      const reg = { email: SEM_CADASTRO, name: '', addedAt: '2026-10-23T10:00:00.000Z', addedBy: ADMIN_EMAIL };
+      await assertSucceeds(db(ADMIN_EMAIL).ref('fa-gerentes/' + emailKey(SEM_CADASTRO)).set(reg));
+      anota('admin inclui um e-mail na lista de Gerentes (mesmo de quem ainda não tem cadastro)', true);
+      await assertSucceeds(db(PART_A_EMAIL).ref('fa-gerentes/' + emailKey(SEM_CADASTRO)).once('value'));
+      await assertSucceeds(db(PART_A_EMAIL).ref('fa-gerentes/' + emailKey(PART_A_EMAIL)).once('value'));
+      anota('qualquer pessoa logada @previ lê a lista (o card confere o próprio e-mail)', true);
+      await assertFails(db(PART_A_EMAIL).ref('fa-gerentes/' + emailKey(PART_A_EMAIL)).set({ email: PART_A_EMAIL }));
+      await assertFails(db(FAC_A_EMAIL).ref('fa-gerentes/' + emailKey(FORA_EMAIL)).set({ email: FORA_EMAIL }));
+      await assertFails(db(PART_A_EMAIL).ref('fa-gerentes/' + emailKey(SEM_CADASTRO)).remove());
+      anota('quem não é admin não se inclui, não inclui outra pessoa e não remove ninguém', true);
+      await assertFails(db(ADMIN_EMAIL).ref('fa-gerentes/x_gmail_com').set({ email: 'x@gmail.com' }));
+      await assertFails(db(ADMIN_EMAIL).ref('fa-gerentes/sem_email').set({ name: 'SEM EMAIL' }));
+      anota('só e-mail @previ.com.br entra na lista', true);
+      await assertSucceeds(db(ADMIN_EMAIL).ref('fa-gerentes/' + emailKey(SEM_CADASTRO)).remove());
+      anota('admin remove da lista', true);
+      await assertFails(ctx(null).database().ref('fa-gerentes').once('value'));
+      anota('sem login não lê a lista', true);
+    }
+
     console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   } finally {
     await testEnv.cleanup();

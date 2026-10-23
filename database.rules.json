@@ -50,6 +50,14 @@
       }
     },
 
+    "fa-gerentes": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$userKey": {
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+        ".validate": "newData.child('email').isString() && newData.child('email').val().matches(/^[^@]+@previ\\.com\\.br$/)"
+      }
+    },
+
     "fa-facilitadores": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$userKey": {
