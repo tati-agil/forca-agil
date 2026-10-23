@@ -41,8 +41,8 @@ const ATIVA     = 'ativa@previ.com.br';      /* verificada, acesso liberado */
 const PENDENTE  = 'pendente@previ.com.br';   /* cadastro próprio, e-mail não verificado */
 const BLOQUEADA = 'bloqueada@previ.com.br';
 
-function banco() {
-  const users = {};
+function banco(extras) {
+  const users = Object.assign({}, extras || {});
   users[chave(ADM)]       = { name: 'ADMIN', email: ADM, area: 'INFOR' };
   users[chave(ATIVA)]     = { name: 'PESSOA ATIVA', email: ATIVA, area: 'GECAT',
                               createdAt: '2026-01-01T10:00:00.000Z' };
@@ -60,13 +60,13 @@ function banco() {
   };
 }
 
-async function abrirCadastrados(browser, formato) {
+async function abrirCadastrados(browser, formato, extras) {
   const ctx = await browser.newContext(formato.opts);
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
   await page.addInitScript('window.__CFG = ' + JSON.stringify({
-    db: banco(), user: { email: ADM, emailVerified: true, uid: 'u1' }, delayDefault: 20,
+    db: banco(extras), user: { email: ADM, emailVerified: true, uid: 'u1' }, delayDefault: 20,
   }) + ';');
   await page.route('**/firebasejs/**', (r) =>
     r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
@@ -172,6 +172,26 @@ const FORMATOS = [
       }
       if (erros.length) p.push('erro JS: ' + erros[0]);
       registrar('a linha cabe na tela, sem rolagem lateral', p);
+      await ctx.close();
+    }
+
+    /* 1b. Um e-mail comprido, sem onde quebrar, não empurra a coluna Ações para fora da caixa: no computador ele quebra
+       dentro da célula (antes a regra só existia no celular e o "⋯" ficava cortado atrás de uma rolagem lateral). */
+    if (formato.nome === 'desktop') {
+      const LONGO = 'maria.fernanda.albuquerque.cavalcanti.dos.santos.oliveira.teste@previ.com.br';
+      const extras = {}; extras[chave(LONGO)] = { name: 'MARIA FERNANDA DE ALBUQUERQUE CAVALCANTI DOS SANTOS', email: LONGO, area: 'GERAT', createdAt: '2026-04-01T10:00:00.000Z' };
+      const { ctx, page, erros } = await abrirCadastrados(browser, { nome: 'desktop', opts: { viewport: { width: 1024, height: 768 } } }, extras);
+      const m = await page.evaluate(() => {
+        const wrap = document.querySelector('#adminCadastrados .table-scroll-wrap'), r = wrap.getBoundingClientRect();
+        const cortados = Array.from(document.querySelectorAll('#adminCadastrados tbody tr button')).filter((b) => b.getBoundingClientRect().right > r.right + 0.5)
+          .map((b) => (b.textContent || '').trim() || b.getAttribute('aria-label'));
+        return { rolaLado: wrap.scrollWidth > wrap.clientWidth + 1, cortados };
+      });
+      const p = [];
+      if (m.rolaLado) p.push('com um e-mail comprido a tabela rola para o lado');
+      if (m.cortados.length) p.push('botão cortado: ' + m.cortados.join(', '));
+      if (erros.length) p.push('erro JS: ' + erros[0]);
+      registrar('e-mail comprido (1024 px): a tabela cabe e o "⋯" fica inteiro em todas as linhas', p);
       await ctx.close();
     }
 
