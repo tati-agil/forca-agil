@@ -845,6 +845,13 @@
           globalBtnWrap.appendChild(newEventoBtn);
           globalBtnWrap.appendChild(exportBtn);
           globalBtnWrap.appendChild(exportLogBtn);
+          var exportParamBtn = document.createElement('button');
+          exportParamBtn.className = 'btn btn--sm';
+          exportParamBtn.id = 'exportTurmasParametrosBtn';
+          exportParamBtn.title = 'Lista de turmas por evento com todos os parâmetros (sem pessoas)';
+          exportParamBtn.innerHTML = '&#x1F4CA; Turmas e parâmetros';
+          exportParamBtn.addEventListener('click', function () { exportTurmasParametros(exportParamBtn); });
+          globalBtnWrap.appendChild(exportParamBtn);
           globalBtnWrap.appendChild(qrAcessoBtn);
           c.appendChild(globalBtnWrap);
 
@@ -4363,6 +4370,109 @@
     });
     toXls(['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Status','Data Registro','Frequência']),
       rows, 'turmas-estado-' + new Date().toISOString().slice(0,10) + '.csv');
+  }
+
+  /* "📊 Turmas e parâmetros": Excel com a lista de turmas por evento e TODOS os parâmetros — sem pessoas (das inscrições
+     só entram contagens). Duas abas: "Turmas" (uma linha por turma, agrupada por evento e em ordem de data, com os
+     parâmetros do evento repetidos para dar para filtrar) e "Eventos" (uma linha por evento). Lido do banco na hora. */
+  function exportTurmasParametros(btn) {
+    if (btn.disabled) return;
+    btn.disabled = true; btn.textContent = 'Gerando…';
+    function fim(msg) { btn.disabled = false; btn.innerHTML = '&#x1F4CA; Turmas e parâmetros'; if (msg) adminAlert(msg); }
+    var db = firebase.database();
+    Promise.all(['eventos', 'turmas', 'turmas-config', 'turmas-interesse'].map(function (n) { return db.ref(n).once('value'); })).then(function (s) {
+      var eventos = s[0].val() || {}, turmas = s[1].val() || {}, config = s[2].val() || {}, interesse = s[3].val() || {};
+      carregarXlsxAdmin(function (erro) {
+        if (erro || !window.XLSX) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); return; }
+        var sim = function (v) { return v ? 'Sim' : 'Não'; };
+        var br = function (iso) { var p = String(iso).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; };
+        var nomesDe = function (o) { return Object.keys(o || {}).filter(function (k) { return o[k]; }).map(function (k) { return (eventos[k] || {}).nome || k; }).join('; '); };
+        var h = new Date(), hojeISO = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-' + String(h.getDate()).padStart(2, '0');
+        var PUBLICO_TURMA = { gerentes: 'Só gerentes', tecnicos: 'Só técnicos' };
+        function paramsEvento(e) {
+          return {
+            'Quem participa': e.publicoDesc || 'Empregados',
+            'Participação (chip)': e.publicoLabel || 'Opcional',
+            'Exige CMFlex': sim(!e.dispensaCmflex),
+            'Divulgado na página Turmas': sim(e.publicado !== false),
+            'Aceita lista de espera': sim(!!e.esperaAtiva),
+            'Só diretores e admins': sim(!!e.restritoADiretores),
+            'Público restrito (lista do evento)': sim(!!e.publicoRestrito),
+            'Não aceita quem participou de': nomesDe(e.bloqueiaParticipantesDe),
+            'Uma turma por pessoa': sim(!!e.umaTurmaPorPessoa),
+            'Contando também as turmas de': e.umaTurmaPorPessoa ? nomesDe(e.umaTurmaComEventos) : ''
+          };
+        }
+        var evOrdem = Object.keys(eventos).sort(function (a, b) { return (eventos[a].order || 0) - (eventos[b].order || 0); });
+        var porEvento = {};
+        Object.keys(turmas).forEach(function (k) { var ev = turmas[k].eventoKey || ''; (porEvento[ev] = porEvento[ev] || []).push(k); });
+        var linhasT = [];
+        evOrdem.concat(porEvento[''] ? [''] : []).forEach(function (evk) {
+          var e = eventos[evk] || { nome: '(sem evento)' };
+          (porEvento[evk] || []).sort(function (a, b) {
+            var da = (turmas[a].dias || []).slice().sort()[0] || '', dbb = (turmas[b].dias || []).slice().sort()[0] || '';
+            return da.localeCompare(dbb) || String(turmas[a].label || '').localeCompare(String(turmas[b].label || ''), 'pt', { numeric: true });
+          }).forEach(function (tk) {
+            var t = turmas[tk], cfg = config[tk] || {};
+            var dias = (t.dias || []).slice().sort();
+            var regs = Object.keys(interesse[tk] || {}).map(function (k) { return interesse[tk][k]; }).filter(function (r) { return r && !r.removed && r.status !== 'removido'; });
+            var vagas = window.faTurmasUtil.vagasDaTurma(t);
+            var ultimo = dias[dias.length - 1] || '', primeiro = dias[0] || '';
+            var situacao = cfg.encerrada || (ultimo && hojeISO > ultimo) ? 'Realizada'
+              : (primeiro && hojeISO >= primeiro) ? 'Em andamento'
+              : cfg.finalizada ? 'Inscrições encerradas'
+              : (vagas && regs.length >= vagas) ? 'Lotada' : 'Aberta';
+            linhasT.push(Object.assign({
+              'Evento': e.nome || evk,
+              'Turma': t.label || tk,
+              'Data da turma': dias.map(br).join(', '),
+              'Horário': (t.horarioInicio || '09:00') + '–' + (t.horarioFim || '13:00'),
+              'Sala': t.sala || '',
+              'Situação': situacao,
+              'Vagas': vagas || 'Sem limite',
+              'Ocupadas (interesse + inscrição)': regs.length,
+              'Inscritas confirmadas': regs.filter(inscricaoValida).length,
+              'Público da turma': PUBLICO_TURMA[t.publicoCargo] || 'Todos',
+              'Público restrito (lista da turma)': sim(!!t.publicoRestrito),
+              'Avaliação liberada': sim(!!t.avaliacaoHabilitada),
+              'Construção da Aposta': sim(!!t.apostaHabilitada),
+              'Link do CMFlex': t.cmflexLink || '',
+              'Resultado esperado': t.resultadoEsperado || ''
+            }, paramsEvento(e)));
+          });
+        });
+        var linhasE = evOrdem.map(function (evk) {
+          var e = eventos[evk];
+          return Object.assign({
+            'Evento': e.nome || evk,
+            'Nº de turmas': (porEvento[evk] || []).length,
+            'Carga horária (h)': e.cargaHoraria || '',
+            'Frequência mínima (%)': e.percentualMinimo || 75,
+            'Formato': e.formato || 'presencial',
+            'Modalidade (chip)': e.modalidadeLabel || '',
+            'Modalidade (descrição)': e.modalidadeDesc || ''
+          }, paramsEvento(e), {
+            'Missão (título)': e.missaoTitulo || '',
+            'Dias no Plano de Voo': (e.itinerario || []).length || ''
+          });
+        });
+        if (!linhasT.length && !linhasE.length) { fim('Não há eventos nem turmas cadastrados.'); return; }
+        function aba(linhas) {
+          var ws = window.XLSX.utils.json_to_sheet(linhas);
+          var cab = Object.keys(linhas[0] || {});
+          ws['!cols'] = cab.map(function (c) {
+            return { wch: Math.min(48, Math.max.apply(null, [c.length + 2].concat(linhas.map(function (l) { return String(l[c] == null ? '' : l[c]).length + 2; })))) };
+          });
+          if (cab.length) ws['!autofilter'] = { ref: window.XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: linhas.length, c: cab.length - 1 } }) };
+          return ws;
+        }
+        var wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, aba(linhasT.length ? linhasT : [{ 'Evento': '', 'Turma': '' }]), 'Turmas');
+        window.XLSX.utils.book_append_sheet(wb, aba(linhasE.length ? linhasE : [{ 'Evento': '' }]), 'Eventos');
+        window.XLSX.writeFile(wb, 'forca-agil-turmas-por-evento-' + hojeISO + '.xlsx');
+        fim();
+      });
+    }).catch(function () { fim('Não foi possível ler as turmas agora. Recarregue a página e tente de novo.'); });
   }
 
   function exportInterestLog() {
