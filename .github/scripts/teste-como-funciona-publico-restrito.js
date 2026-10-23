@@ -106,6 +106,11 @@ async function lerChipPublico(browser, publicoRestrito, categoria) {
     anota('categoria Gerentes: chip diz "aberta a todos os Gerentes da Previ"',
       /aberta a todos os\s*Gerentes da Previ/i.test(gerentes.texto), `veio "${gerentes.texto}"`);
     if (gerentes.erros.length) anota('sem erro de JS (Gerentes)', false, gerentes.erros[0]);
+    /* categoria Técnicos (opção do painel): mesma frase, no plural */
+    const tecnicos = await lerChipPublico(browser, false, 'Técnicos');
+    anota('categoria Técnicos: chip diz "aberta a todos os Técnicos da Previ"',
+      /aberta a todos os\s*Técnicos da Previ/i.test(tecnicos.texto), `veio "${tecnicos.texto}"`);
+    if (tecnicos.erros.length) anota('sem erro de JS (Técnicos)', false, tecnicos.erros[0]);
   } catch (e) {
     falhas++;
     console.error('  FALHA inesperada: ' + e.message);
