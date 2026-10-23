@@ -795,6 +795,10 @@
    rolagem a milhares de pixels de distância do dedo. Cada pessoa vira um
    cartão, com o rótulo de cada campo vindo do data-label da célula — nada
    fica escondido e nada rola para o lado. */
+/* No computador também: um e-mail sem onde quebrar (o mais comprido entre centenas de cadastros) alargava a coluna
+   E-mail até a tabela passar da caixa — e a coluna Ações (o "⋯") ficava cortada atrás de uma rolagem lateral. O e-mail
+   quebra dentro da própria célula só quando falta espaço. */
+#adminCadastrados .cad-col-email { overflow-wrap: anywhere; }
 @media (max-width: 640px) {
   #adminCadastrados .admin-table,
   #adminCadastrados .admin-table tbody,
