@@ -533,6 +533,7 @@
           publicado: e.publicado !== false,
           restritoADiretores: !!e.restritoADiretores,
           publicoRestrito: !!e.publicoRestrito,
+          bloqueiaParticipantesDe: e.bloqueiaParticipantesDe || null,
           modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
           publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || '',
           formato: e.formato || 'presencial'
@@ -3105,6 +3106,9 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento some da página Turmas para quem não está na aba Diretores nem é admin — mesmo efeito de "fora da página", mas só pra elas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicoRestrito" style="width:auto;margin:0" />Visível só para um público predefinido (lista de e-mails)</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só aparece — e só admite participantes — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
+      '<div><span class="auth-label" style="display:block;margin-bottom:6px">Não aceitar interesse de quem já participou de:</span>' +
+        '<div id="eventoFormBloqueioLista" style="display:flex;flex-direction:column;gap:6px"></div></div>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Quem tem interesse ou inscrição (não removida) em qualquer turma dos eventos marcados não consegue manifestar interesse nas turmas deste evento nem entrar na lista de espera dele — o card da turma explica por quê. Não remove ninguém que já está nas turmas deste evento, e aqui no painel você continua podendo adicionar pessoas manualmente. Nenhum marcado = sem essa restrição.</p>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
@@ -3164,6 +3168,7 @@
     var publicadoInput    = box.querySelector('#eventoFormPublicado');
     var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
     var publicoRestritoInput = box.querySelector('#eventoFormPublicoRestrito');
+    var bloqueioLista     = box.querySelector('#eventoFormBloqueioLista');
     var formatoInput      = box.querySelector('#eventoFormFormato');
     var modalidadeLabelInput = box.querySelector('#eventoFormModalidadeLabel');
     var modalidadeDescInput  = box.querySelector('#eventoFormModalidadeDesc');
@@ -3183,6 +3188,13 @@
     esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
     publicadoInput.checked  = isEdit ? existing.publicado !== false : true;
     restritoInput.checked   = isEdit ? !!existing.restritoADiretores : false;
+    /* os OUTROS eventos, para marcar de quais a participação impede este (ausente = sem restrição) */
+    var bloqueioAtual = (isEdit && existing.bloqueiaParticipantesDe) || {};
+    var outrosEventos = EVENTOS_LIST.filter(function (ev) { return !isEdit || ev.key !== existing.key; });
+    bloqueioLista.innerHTML = outrosEventos.length ? outrosEventos.map(function (ev) {
+      return '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" class="evento-bloqueio-cb" value="' + esc(ev.key) + '" style="width:auto;margin:0"' +
+        (bloqueioAtual[ev.key] ? ' checked' : '') + ' />' + esc(ev.nome) + '</label>';
+    }).join('') : '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>';
     /* Ausente = evento aberto: evento criado antes deste controle continua
        exatamente como sempre esteve, sem migração nenhuma. */
     publicoRestritoInput.checked = isEdit ? !!existing.publicoRestrito : false;
@@ -3246,6 +3258,11 @@
         publicado: !!publicadoInput.checked,
         restritoADiretores: !!restritoInput.checked,
         publicoRestrito: !!publicoRestritoInput.checked,
+        bloqueiaParticipantesDe: (function () {
+          var marcados = {};
+          bloqueioLista.querySelectorAll('.evento-bloqueio-cb:checked').forEach(function (cb) { marcados[cb.value] = true; });
+          return Object.keys(marcados).length ? marcados : null;
+        })(),
         formato: formatoInput.value || 'presencial',
         modalidadeLabel: (modalidadeLabelInput.value || '').trim(),
         modalidadeDesc: (modalidadeDescInput.value || '').trim(),

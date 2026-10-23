@@ -306,6 +306,8 @@
                 esperaAtiva: e.esperaAtiva !== false,
                 publicado: e.publicado !== false,
                 restritoADiretores: !!e.restritoADiretores,
+                /* { <outroEvento>: true }: quem já participou de algum deles não manifesta interesse neste */
+                bloqueiaParticipantesDe: e.bloqueiaParticipantesDe || null,
                 publicoRestrito: !!e.publicoRestrito,
                 /* Chips do bloco "Como funciona" — vazio usa o texto padrão
                    (ver renderMissaoEventos), então evento antigo sem esses
@@ -810,7 +812,19 @@
           '<div class="turma-intent-msg"></div>';
         grid.appendChild(card);
         var btn = card.querySelector('.btn--espera');
-        if (sess) checkEsperaState(btn, sess.email, ev.key);
+        if (sess && temBloqueioPorParticipacao(ev)) {
+          btn.disabled = true; btn.innerHTML = 'Verificando…';
+          verificarParticipacaoAnterior(ev.key, sess.email, function (r) {
+            if (r.estado === 'livre') { setEsperaInitial(btn); checkEsperaState(btn, sess.email, ev.key); return; }
+            /* quem já está na fila continua podendo sair dela */
+            firebase.database().ref('fa-espera/' + emailKey(sess.email)).once('value', function (snap) {
+              var naFila = window.faTurmasUtil.esperaAtivas(snap.val()).some(function (e) { return e.eventoKey === ev.key; });
+              if (naFila) { setEsperaInitial(btn); setEsperaDone(btn); return; }
+              btn.style.display = 'none';
+              showEsperaMsg(btn, esc(r.estado === 'bloqueado' ? mensagemParticipacao(r) : MSG_PARTICIPACAO_ERRO));
+            }, function () { btn.style.display = 'none'; showEsperaMsg(btn, esc(MSG_PARTICIPACAO_ERRO)); });
+          });
+        } else if (sess) checkEsperaState(btn, sess.email, ev.key);
         btn.addEventListener('click', function () {
           var s = window.faAuth && window.faAuth.getSession();
           if (!s) {
@@ -841,16 +855,24 @@
          antes de o evento virar restrito — revalidar no clique é o mesmo
          cuidado do "Tenho interesse". */
       firebase.database().ref('eventos/' + eventoKey + '/publicoRestrito').once('value', function (restSnap) {
-        if (!restSnap.val()) { gravarEspera(); return; }
+        if (!restSnap.val()) { conferirParticipacao(); return; }
         firebase.database().ref('eventos-publico/' + eventoKey + '/' + key).once('value', function (pubSnap) {
           if (!pubSnap.val()) {
             btn.disabled = false;
             showEsperaMsg(btn, 'Este evento &eacute; de p&uacute;blico restrito e voc&ecirc; n&atilde;o est&aacute; na lista dele.');
             return;
           }
-          gravarEspera();
+          conferirParticipacao();
         });
       });
+      /* participação nos eventos anteriores marcados neste evento — conferida no banco, agora */
+      function conferirParticipacao() {
+        verificarParticipacaoAnterior(eventoKey, sess.email, function (r) {
+          if (r.estado === 'livre') { gravarEspera(); return; }
+          btn.disabled = false;
+          showEsperaMsg(btn, esc(r.estado === 'bloqueado' ? mensagemParticipacao(r) : MSG_PARTICIPACAO_ERRO));
+        });
+      }
 
       function gravarEspera() {
         /* Uma origem por evento — "lista:<eventoKey>" — para dar pra esperar
@@ -920,7 +942,11 @@
         const turmaKey = btn.dataset.turma;
         if (!turmaKey) return;
 
-        if (sess) checkInterestState(btn, turmaKey, sess.email);
+        if (sess) {
+          var evDaTurma = eventoDaTurma(turmaKey);
+          if (evDaTurma && temBloqueioPorParticipacao(evDaTurma)) prepararBotaoComParticipacao(btn, turmaKey, evDaTurma, sess.email);
+          else checkInterestState(btn, turmaKey, sess.email);
+        }
 
         /* Evita empilhar listeners duplicados quando initTurmaInterest roda de novo
            (revisita à página Turmas ou login/logout) — o botão é o mesmo elemento DOM */
@@ -984,7 +1010,12 @@
               showMsg(turmaKey, 'Esta turma é de público restrito e você não está na lista dela.');
               return;
             }
-            gravarInteresse();
+            /* participação nos eventos anteriores marcados no evento desta turma — conferida no banco, agora */
+            verificarParticipacaoAnterior(evKey, sess.email, function (r) {
+              if (r.estado === 'livre') { gravarInteresse(); return; }
+              btn.disabled = false;
+              showMsg(turmaKey, r.estado === 'bloqueado' ? mensagemParticipacao(r) : MSG_PARTICIPACAO_ERRO);
+            });
           });
         });
 
@@ -1064,6 +1095,74 @@
         a.textContent = linkText;
         el.appendChild(a);
       }
+    }
+
+    /* PARTICIPAÇÃO EM EVENTOS ANTERIORES (eventos/<ev>/bloqueiaParticipantesDe = { <outroEvento>: true }): quem tem
+       interesse ou inscrição — registro não removido — em qualquer turma de um desses eventos não manifesta interesse nas
+       turmas deste evento nem entra na fila dele. Sempre lido do banco na hora (o evento, as turmas e o registro da
+       pessoa em cada turma), nunca do que a página carregou: o clique confere de novo. Enquanto não responde, o botão
+       diz "Verificando…" (nunca libera nem barra por engano); se a leitura falhar, não deixa registrar.
+       cb({ estado: 'livre' | 'bloqueado' | 'erro', evento: nome do evento em que a pessoa já está }). */
+    var MSG_PARTICIPACAO_ERRO = 'Não foi possível verificar sua participação nos eventos anteriores agora. Recarregue a página e tente de novo.';
+    function temBloqueioPorParticipacao(ev) {
+      return !!(ev && ev.bloqueiaParticipantesDe && Object.keys(ev.bloqueiaParticipantesDe).some(function (k) { return k !== ev.key && ev.bloqueiaParticipantesDe[k]; }));
+    }
+    function eventoDaTurma(turmaKey) {
+      var t = _turmasList.filter(function (x) { return x.key === turmaKey; })[0];
+      return t && t.eventoKey ? _eventosList.filter(function (e) { return e.key === t.eventoKey; })[0] || null : null;
+    }
+    function mensagemParticipacao(r) {
+      return 'Estas turmas são para quem ainda não participou de ' + (r.evento || 'um evento anterior') + '. Você já tem interesse ou inscrição registrada lá.';
+    }
+    function verificarParticipacaoAnterior(eventoKey, email, cb) {
+      if (!eventoKey) { cb({ estado: 'livre' }); return; } /* turma sem evento: nada a conferir */
+      var db = firebase.database(), key = emailKey(email), falha = function () { cb({ estado: 'erro' }); };
+      db.ref('eventos/' + eventoKey + '/bloqueiaParticipantesDe').once('value', function (bSnap) {
+        var marcados = bSnap.val() || {};
+        var bloq = Object.keys(marcados).filter(function (k) { return k !== eventoKey && marcados[k]; });
+        if (!bloq.length) { cb({ estado: 'livre' }); return; }
+        db.ref('turmas').once('value', function (tSnap) {
+          var turmas = tSnap.val() || {};
+          var alvo = Object.keys(turmas).filter(function (k) { return bloq.indexOf((turmas[k] || {}).eventoKey) !== -1; });
+          if (!alvo.length) { cb({ estado: 'livre' }); return; }
+          var pend = alvo.length, achou = null, falhou = false;
+          alvo.forEach(function (tk) {
+            db.ref('turmas-interesse/' + tk + '/' + key).once('value', function (s) {
+              var v = s.val();
+              if (!achou && v && !v.removed && v.status !== 'removido') achou = turmas[tk].eventoKey;
+              if (--pend === 0) fim();
+            }, function () { falhou = true; if (--pend === 0) fim(); });
+          });
+          function fim() {
+            if (achou) {
+              var ev = _eventosList.filter(function (e) { return e.key === achou; })[0];
+              cb({ estado: 'bloqueado', evento: ev ? ev.nome : '' });
+              return;
+            }
+            cb({ estado: falhou ? 'erro' : 'livre' });
+          }
+        }, falha);
+      }, falha);
+    }
+    /* o botão da turma enquanto confere: livre → o estado de sempre; já participou → a explicação no lugar do botão
+       (quem já tinha interesse nesta turma continua vendo o próprio registro e podendo removê-lo) */
+    function prepararBotaoComParticipacao(btn, turmaKey, ev, email) {
+      btn.disabled = true;
+      btn.innerHTML = 'Verificando…';
+      verificarParticipacaoAnterior(ev.key, email, function (r) {
+        function botaoNormal() {
+          btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse';
+          btn.disabled = false;
+          checkInterestState(btn, turmaKey, email);
+        }
+        if (r.estado === 'livre') { botaoNormal(); return; }
+        firebase.database().ref('turmas-interesse/' + turmaKey + '/' + emailKey(email)).once('value', function (snap) {
+          var v = snap.val();
+          if (v && !v.removed) { botaoNormal(); return; }
+          btn.style.display = 'none';
+          showMsg(turmaKey, r.estado === 'bloqueado' ? mensagemParticipacao(r) : MSG_PARTICIPACAO_ERRO);
+        }, function () { btn.style.display = 'none'; showMsg(turmaKey, MSG_PARTICIPACAO_ERRO); });
+      });
     }
 
     function emailKey(e) {

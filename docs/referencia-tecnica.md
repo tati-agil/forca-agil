@@ -154,7 +154,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
 | Nó | Finalidade | Módulos | Observação |
 |---|---|---|---|
-| `eventos` | Evento: nome, carga horária, frequência mínima, conteúdo público, publicação e restrições. Turmas e treinamentos pertencem a um evento. | admin, aluno, app, avaliacao, dashboard, facilitador | Escrita de admin. |
+| `eventos` | Evento: nome, carga horária, frequência mínima, conteúdo público, publicação e restrições — inclusive `bloqueiaParticipantesDe` (`{ <outroEvento>: true }`: quem tem interesse ou inscrição não removida numa turma desses eventos não manifesta interesse nas turmas deste nem entra na fila dele; conferido na tela, no banco, na hora do clique — `teste-interesse-participacao-anterior.js`). Turmas e treinamentos pertencem a um evento. | admin, aluno, app, avaliacao, dashboard, facilitador | Escrita de admin. |
 | `eventos-publico` | Público restrito de um evento fechado (quem pode vê-lo e participar). | admin, aluno, app | Só admin grava. |
 | `turmas` | Turma: nome, datas, horário, sala (`sala`, texto opcional, mostrado no card público e no ADMIN), evento a que pertence, link do CMFlex, restrição. | admin, aluno, aposta, app, auth, avaliacao, checkin, dashboard, facilitador, game, roteiro, turmas-util | Criada e editada no ADMIN. |
 | `turmas-publico` | Público restrito de uma turma fechada. | admin, aluno, app | Só admin grava; é a barreira real da restrição. |
