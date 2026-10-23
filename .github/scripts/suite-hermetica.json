@@ -424,10 +424,16 @@
       "sobre": "Hermético. \"Ver esta tela como\" (o preview de admin que já existia na Minha Área) chega na página Turmas: a vitrine decide o que aparece POR PESSOA (público restrito, restrito a diretores), regra já esquecida mais de uma vez por faltar como conferir na prática o que uma pessoa específica vê, sem ter a conta dela. Confere que trocar de pessoa no seletor muda o que a vitrine mostra e nunca mexe em interesse/lista de espera (isso continua na sessão real)."
     },
     {
+      "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",
+      "nome": "Turmas: vagas (lotada) e público Só gerentes / Só técnicos, desktop",
+      "duracao": 45,
+      "sobre": "Ordem do card: realizada e interesse encerrado vencem a lotação (\"Inscrições encerradas\" e \"Turma lotada\" distintas); lotada barra quem está fora e deixa quem está dentro remover; \"Só gerentes\"/\"Só técnicos\" pela lista fa-gerentes; o painel pede motivo para incluir acima das vagas (grava acimaDasVagas) e recusa quem não é gerente; a aba Gerentes aceita lista colada por e-mail (sem cadastro) e recusa e-mail fora de @previ.com.br; o formulário da turma grava vagas e publicoCargo; a Minha Área não convida para turma lotada nem para a de gerentes."
+    },
+    {
       "arquivo": ".github/scripts/teste-interesse-participacao-anterior.js",
       "nome": "Eventos: não aceitar interesse de quem já participou de eventos anteriores, desktop",
       "duracao": 40,
-      "sobre": "Quem tem interesse ou inscrição (não removida) numa turma de um evento marcado no evento novo vê a explicação no lugar de \"Tenho interesse\" e da fila de espera; quem não participou registra; registro removido não impede; o clique confere de novo no banco e não grava; o formulário do evento lista os outros eventos e grava bloqueiaParticipantesDe."
+      "sobre": "Quem tem interesse ou inscrição (não removida) numa turma de um evento marcado no evento novo vê a explicação no lugar de \"Tenho interesse\" e da fila de espera; quem não participou registra; registro removido não impede; o clique confere de novo no banco e não grava; o formulário do evento lista os outros eventos e grava bloqueiaParticipantesDe. Uma turma por pessoa (umaTurmaPorPessoa + umaTurmaComEventos): quem tem interesse numa turma do grupo vê nas outras em qual está e como trocar (inscrita: pedir ao admin), a fila também barra, e o \"＋ Participante\" do painel recusa sem gravar (o Sorteio tem regras próprias)."
     },
     {
       "arquivo": ".github/scripts/teste-turma-horario.js",

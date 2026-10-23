@@ -192,10 +192,123 @@
     });
   }
 
+  /* REGRAS DE ENTRADA NUMA TURMA — o critério ÚNICO, usado pela pessoa ("Tenho interesse", fila de espera, app.js; prévia
+     "Turmas abertas no momento", aluno.js) e pelas portas do painel que põem alguém numa turma (＋ Participante, Confirmar,
+     Mover da fila — admin.js; o Sorteio tem regras próprias). Quatro regras, conferidas NESTA ordem (a primeira que barra é
+     a que aparece — da mais definitiva para a mais passageira):
+       1. público da turma — turmas/<t>/publicoCargo = 'gerentes' | 'tecnicos': 'gerentes' só admite quem está em
+          fa-gerentes/<emailKey>; 'tecnicos' só quem NÃO está (técnico = quem não é gerente). Lista por e-mail: vale mesmo
+          para quem ainda não tem cadastro;
+       2. participação anterior — eventos/<ev>/bloqueiaParticipantesDe = { <outroEvento>: true }: quem tem interesse ou
+          inscrição numa turma de um desses eventos não entra;
+       3. uma turma por pessoa — eventos/<ev>/umaTurmaPorPessoa = true, com umaTurmaComEventos = { <outroEvento>: true }
+          (o grupo = este evento + os marcados): quem já tem interesse ou inscrição em OUTRA turma do grupo não entra;
+          para trocar, a pessoa remove o próprio interesse (ou o admin a retira) primeiro;
+       4. vagas — turmas/<t>/vagas = N (> 0; ausente = sem limite): interesse + inscrição não removidos da turma (sem contar
+          a própria pessoa) chegaram a N → lotada. É a única que o admin pode ultrapassar, com motivo (admin.js).
+     As regras 1 e 4 só valem com turmaKey (a fila de espera é do evento, não de uma turma). Quem JÁ está na turma não é
+     barrado por ela no card (app.js mostra o registro dela antes de perguntar aqui).
+     "Ter" = registro em turmas-interesse/<turma>/<emailKey> não removido. Tudo lido do banco NA HORA. Leitura que falha →
+     'erro' (quem chama não deixa gravar).
+     arg = { eventoKey, eKey, turmaKey (opcional: a turma pretendida, que não conta contra ela mesma) }.
+     cb({ estado: 'livre' | 'bloqueado' | 'erro', regra: 'cargo' | 'participacao' | 'umaTurma' | 'lotada', cargo, evento,
+     turma: { key, label, dias, evento, inscrita }, vagas, ocupadas }). */
+  function vagasDaTurma(t) { var n = Math.floor(Number(t && t.vagas)); return n > 0 ? n : 0; }
+  function cargoDaTurma(t) { var c = t && t.publicoCargo; return c === 'gerentes' || c === 'tecnicos' ? c : ''; }
+  function regraValida(v) { return !!(v && !v.removed && v.status !== 'removido'); }
+  function regrasDeEntrada(arg, cb) {
+    var eventoKey = (arg && arg.eventoKey) || '', eKey = arg && arg.eKey, turmaKey = (arg && arg.turmaKey) || '';
+    if (!eKey) { cb({ estado: 'livre' }); return; }
+    var db = firebase.database(), falha = function () { cb({ estado: 'erro' }); };
+    db.ref('eventos').once('value', function (eSnap) {
+      var eventos = eSnap.val() || {}, ev = eventoKey ? (eventos[eventoKey] || {}) : {};
+      var marcadas = function (o) { return Object.keys(o || {}).filter(function (k) { return k !== eventoKey && o[k]; }); };
+      var anteriores = marcadas(ev.bloqueiaParticipantesDe);
+      var grupo = ev.umaTurmaPorPessoa ? [eventoKey].concat(marcadas(ev.umaTurmaComEventos)) : [];
+      db.ref('turmas').once('value', function (tSnap) {
+        var turmas = tSnap.val() || {}, alvoT = turmaKey ? (turmas[turmaKey] || {}) : {};
+        var cargo = cargoDaTurma(alvoT), vagas = vagasDaTurma(alvoT);
+        conferirCargo(function () { conferirEventos(function () { conferirVagas(function () { cb({ estado: 'livre' }); }); }); });
+
+        function conferirCargo(seguir) {
+          if (!cargo) { seguir(); return; }
+          db.ref('fa-gerentes/' + eKey).once('value', function (s) {
+            var gerente = !!s.val();
+            if ((cargo === 'gerentes') !== gerente) { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
+            seguir();
+          }, falha);
+        }
+        function conferirEventos(seguir) {
+          var alvo = Object.keys(turmas).filter(function (k) {
+            var e = (turmas[k] || {}).eventoKey;
+            return anteriores.indexOf(e) !== -1 || (grupo.indexOf(e) !== -1 && k !== turmaKey);
+          });
+          if (!alvo.length) { seguir(); return; }
+          var pend = alvo.length, falhou = false, achados = {};
+          alvo.forEach(function (tk) {
+            db.ref('turmas-interesse/' + tk + '/' + eKey).once('value', function (s) {
+              if (regraValida(s.val())) achados[tk] = s.val();
+              if (--pend === 0) fim();
+            }, function () { falhou = true; if (--pend === 0) fim(); });
+          });
+          function fim() {
+            var tks = Object.keys(achados);
+            var anterior = tks.filter(function (tk) { return anteriores.indexOf(turmas[tk].eventoKey) !== -1; })[0];
+            if (anterior) { cb({ estado: 'bloqueado', regra: 'participacao', evento: (eventos[turmas[anterior].eventoKey] || {}).nome || '' }); return; }
+            var outra = tks.filter(function (tk) { return grupo.indexOf(turmas[tk].eventoKey) !== -1; })[0];
+            if (outra) {
+              var t = turmas[outra];
+              cb({ estado: 'bloqueado', regra: 'umaTurma', turma: { key: outra, label: t.label || outra, dias: (t.dias || []).slice().sort(),
+                evento: (eventos[t.eventoKey] || {}).nome || '', inscrita: achados[outra].status === 'inscrito' } });
+              return;
+            }
+            if (falhou) { cb({ estado: 'erro' }); return; }
+            seguir();
+          }
+        }
+        function conferirVagas(seguir) {
+          if (!vagas) { seguir(); return; }
+          db.ref('turmas-interesse/' + turmaKey).once('value', function (s) {
+            var lista = s.val() || {};
+            var ocupadas = Object.keys(lista).filter(function (k) { return k !== eKey && regraValida(lista[k]); }).length;
+            if (ocupadas >= vagas) { cb({ estado: 'bloqueado', regra: 'lotada', vagas: vagas, ocupadas: ocupadas }); return; }
+            seguir();
+          }, falha);
+        }
+      }, falha);
+    }, falha);
+  }
+  function descreverTurmaRegra(t) {
+    var dia = t.dias && t.dias[0] ? formatISOBr(t.dias[0]).slice(0, 5) : '';
+    return t.label + (t.evento ? ' — ' + t.evento : '') + (dia ? ' (dia ' + dia + ')' : '');
+  }
+  /* o que a PESSOA lê no card (sem HTML) */
+  function mensagemRegraPessoa(r) {
+    if (!r || r.estado === 'erro') return 'Não foi possível verificar suas outras turmas agora. Recarregue a página e tente de novo.';
+    if (r.regra === 'cargo') return r.cargo === 'gerentes' ? 'Esta turma é só para gerentes.' : 'Esta turma não é para gerentes — procure a turma de gerentes deste evento.';
+    if (r.regra === 'participacao') return 'Estas turmas são para quem ainda não participou de ' + (r.evento || 'um evento anterior') + '. Você já tem interesse ou inscrição registrada lá.';
+    if (r.regra === 'lotada') return 'Turma lotada — as ' + r.vagas + ' vagas já foram preenchidas. Se alguém sair, ela reabre.';
+    return 'Você já ' + (r.turma.inscrita ? 'está inscrita' : 'tem interesse') + ' na ' + descreverTurmaRegra(r.turma) + '. Só é possível participar de uma turma por vez. ' +
+      (r.turma.inscrita ? 'Para trocar, peça ao admin para retirá-la daquela turma.' : 'Para trocar, remova seu interesse naquela turma.');
+  }
+  /* o que o ADMIN lê no painel ao tentar incluir alguém (sem HTML). 'lotada' não é recusa: o painel pede o motivo. */
+  function mensagemRegraAdmin(r, nome) {
+    var quem = nome || 'Essa pessoa';
+    if (!r || r.estado === 'erro') return 'Não consegui verificar as regras da turma para ' + quem + ' agora. Recarregue a página e tente de novo. Nada foi gravado.';
+    if (r.regra === 'cargo') return r.cargo === 'gerentes'
+      ? quem + ' não está na lista de Gerentes, e esta turma é só para gerentes. Se for gerente, inclua o e-mail na aba Gerentes primeiro. Nada foi gravado.'
+      : quem + ' está na lista de Gerentes, e esta turma não é para gerentes. Nada foi gravado.';
+    if (r.regra === 'participacao') return quem + ' já tem interesse ou inscrição em ' + (r.evento || 'um evento anterior') + ', e este evento não aceita quem já participou dele. Nada foi gravado.';
+    if (r.regra === 'lotada') return 'A turma está lotada (' + r.ocupadas + ' de ' + r.vagas + ' vagas). Para incluir ' + quem + ' mesmo assim, escreva o motivo.';
+    return quem + ' já ' + (r.turma.inscrita ? 'está inscrita' : 'tem interesse') + ' na ' + descreverTurmaRegra(r.turma) + '. Este evento admite uma turma por pessoa: retire-a daquela turma primeiro. Nada foi gravado.';
+  }
+
   window.faTurmasUtil = {
     formatDias: formatDias, periodoCertificado: periodoCertificado, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
-    listarPessoasVerComo: listarPessoasVerComo
+    listarPessoasVerComo: listarPessoasVerComo,
+    vagasDaTurma: vagasDaTurma, cargoDaTurma: cargoDaTurma,
+    regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin
   };
 })();

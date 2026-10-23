@@ -133,7 +133,7 @@ Imagens e templates ficam em `forca-agil/assets/` e `forca-agil/cert-template-*.
 
 ## 3. Dicionário do banco
 
-Firebase Realtime Database, projeto `kyber-agil`. **100 nós** na raiz de `database.rules.json`.
+Firebase Realtime Database, projeto `kyber-agil`. **101 nós** na raiz de `database.rules.json`.
 "Módulos" lista os arquivos que leem ou gravam o nó (conferido por busca no código).
 Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
@@ -145,6 +145,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 | `fa-users-log` | Histórico das correções de cadastro feitas pelo ADMIN. | admin | Só admin grava. |
 | `fa-admins` | Quem é admin (além da lista fixa em `auth.js`). | admin, auth, pedidos | Cada pessoa lê só o próprio registro. |
 | `fa-diretores` | Quem vê eventos marcados "só para diretores e administradores". | admin, auth | Não dá acesso de admin. |
+| `fa-gerentes` | Lista de gerentes por e-mail (`{ email, name, addedAt, addedBy }`, chave = chave do e-mail — vale mesmo sem cadastro no site). Público das turmas `publicoCargo` "gerentes" (só quem está) e "tecnicos" (só quem não está). Aba ADMIN › Gerentes, aceita lista colada. | admin, aluno, turmas-util | Só admin grava; só e-mail @previ.com.br (`teste-rules.js`). Não dá acesso de admin. |
 | `fa-facilitadores` | Quem vê a página `#facilitador`. | admin, auth | Não põe a pessoa em nenhuma turma (isso é `turmas-equipe`). |
 | `fa-avaliacao-autorizados` | Quem acessa a Avaliação de Produto/Serviço: tipo `avaliacao` ou `avaliacao-arquitetura`. | auth, avaliacao-produto | Ouvido ao vivo; só admin geral grava. |
 | `fa-avaliacao-autorizados-auditoria` | Histórico de concessão, alteração e remoção desses acessos. | avaliacao-produto | Só acréscimo. |
@@ -154,9 +155,9 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
 | Nó | Finalidade | Módulos | Observação |
 |---|---|---|---|
-| `eventos` | Evento: nome, carga horária, frequência mínima, conteúdo público, publicação e restrições — inclusive `bloqueiaParticipantesDe` (`{ <outroEvento>: true }`: quem tem interesse ou inscrição não removida numa turma desses eventos não manifesta interesse nas turmas deste nem entra na fila dele; conferido na tela, no banco, na hora do clique — `teste-interesse-participacao-anterior.js`). Turmas e treinamentos pertencem a um evento. | admin, aluno, app, avaliacao, dashboard, facilitador | Escrita de admin. |
+| `eventos` | Evento: nome, carga horária, frequência mínima, conteúdo público, publicação e restrições — inclusive `bloqueiaParticipantesDe` (`{ <outroEvento>: true }`: quem tem interesse ou inscrição não removida numa turma desses eventos não manifesta interesse nas turmas deste nem entra na fila dele; conferido na tela, no banco, na hora do clique — `teste-interesse-participacao-anterior.js`) e `umaTurmaPorPessoa` (bool) + `umaTurmaComEventos` (`{ <outroEvento>: true }`): quem tem interesse ou inscrição não removida numa turma deste evento — ou dos eventos do grupo, que contam juntos (marque um no outro) — não entra em outra, nem na fila; o card diz em qual turma ela está e como trocar. As duas regras são um critério só, `faTurmasUtil.regrasDeEntrada` (`turmas-util.js`), usado pela pessoa (`app.js`, e a prévia da Minha Área em `aluno.js`) e pelas portas do painel que põem alguém numa turma (`admin.js` `barradoPelasRegrasDoEvento`: ＋ Participante, Confirmar, Mover da fila — o Sorteio tem regras próprias), lido do banco na hora; falha de leitura recusa. O mesmo critério cobre as regras da turma (`vagas`, `publicoCargo`). Turmas e treinamentos pertencem a um evento. | admin, aluno, app, avaliacao, dashboard, facilitador | Escrita de admin. |
 | `eventos-publico` | Público restrito de um evento fechado (quem pode vê-lo e participar). | admin, aluno, app | Só admin grava. |
-| `turmas` | Turma: nome, datas, horário, sala (`sala`, texto opcional, mostrado no card público e no ADMIN), evento a que pertence, link do CMFlex, restrição. | admin, aluno, aposta, app, auth, avaliacao, checkin, dashboard, facilitador, game, roteiro, turmas-util | Criada e editada no ADMIN. |
+| `turmas` | Turma: nome, datas, horário, sala (`sala`, texto opcional, mostrado no card público e no ADMIN), evento a que pertence, link do CMFlex, restrição, `vagas` (inteiro; ausente = sem limite; interesse + inscrição não removidos ocupam vaga — lotada, o card não aceita interesse novo e o painel pede motivo, gravado em `turmas-interesse/<t>/<pessoa>/acimaDasVagas`) e `publicoCargo` (`gerentes` / `tecnicos`; ausente = todos — lista `fa-gerentes`). Ordem do card: Realizada → Em andamento → Inscrições encerradas (sem botão) → registro da própria pessoa → regra que barra (público → participação anterior → uma turma por pessoa → lotada) → "Tenho interesse" (`teste-turma-vagas-gerentes.js`). | admin, aluno, aposta, app, auth, avaliacao, checkin, dashboard, facilitador, game, roteiro, turmas-util | Criada e editada no ADMIN. |
 | `turmas-publico` | Público restrito de uma turma fechada. | admin, aluno, app | Só admin grava; é a barreira real da restrição. |
 | `turmas-interesse` | Ligação pessoa ↔ turma: interessada, inscrita (`confirmedByAdmin`), removida, com motivo e destino da saída. | admin, aluno, aposta, app, auth, avaliacao, checkin, dashboard, game, turmas-util | Base do nível `enrolled`. |
 | `turmas-interesse-log` | Histórico de interesse registrado/removido. | admin, app | |

@@ -291,6 +291,7 @@
     loadAdmins();
     loadTiposAtividade();
     loadDiretores();
+    loadGerentes();
     loadFacilitadores();
     loadSorteios();
     if (window.faInitPedidos) window.faInitPedidos();
@@ -487,7 +488,8 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, apostaHabilitada: !!t.apostaHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito, horarioInicio: t.horarioInicio || '09:00', horarioFim: t.horarioFim || '13:00', sala: t.sala || '' };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, apostaHabilitada: !!t.apostaHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito, horarioInicio: t.horarioInicio || '09:00', horarioFim: t.horarioFim || '13:00', sala: t.sala || '',
+          vagas: window.faTurmasUtil.vagasDaTurma(t), publicoCargo: window.faTurmasUtil.cargoDaTurma(t) };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -534,6 +536,8 @@
           restritoADiretores: !!e.restritoADiretores,
           publicoRestrito: !!e.publicoRestrito,
           bloqueiaParticipantesDe: e.bloqueiaParticipantesDe || null,
+          umaTurmaPorPessoa: !!e.umaTurmaPorPessoa,
+          umaTurmaComEventos: e.umaTurmaComEventos || null,
           modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
           publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || '',
           formato: e.formato || 'presencial'
@@ -717,6 +721,53 @@
       '"\u{1F465} Público restrito", adicione a pessoa lá e volte aqui.\n\nNada foi gravado.';
   }
 
+  /* REGRAS DE ENTRADA da turma (público gerentes/técnicos, participação anterior, uma turma por pessoa, vagas) — o MESMO
+     critério da pessoa (faTurmasUtil.regrasDeEntrada, turmas-util.js), lido do banco na hora. Vale para as portas do
+     painel que põem alguém numa turma: ＋ Participante, Confirmar e Mover da fila (o Sorteio tem regras próprias).
+     cb(mensagem de recusa | null, lotacao | null): as três primeiras regras recusam; a turma LOTADA não recusa — devolve
+     a lotação, e a porta pede o motivo (pedirMotivoAcimaDasVagas) antes de gravar. */
+  function barradoPelasRegrasDoEvento(turmaKey, eKey, nome, cb) {
+    window.faTurmasUtil.regrasDeEntrada({ eventoKey: turmaEventoKey(turmaKey), eKey: eKey, turmaKey: turmaKey }, function (r) {
+      if (r.estado === 'livre') { cb(null, null); return; }
+      if (r.regra === 'lotada') { cb(null, { vagas: r.vagas, ocupadas: r.ocupadas, mensagem: window.faTurmasUtil.mensagemRegraAdmin(r, nome) }); return; }
+      cb(window.faTurmasUtil.mensagemRegraAdmin(r, nome), null);
+    });
+  }
+
+  /* Turma lotada: só o admin põe alguém a mais, e precisa dizer por quê. O motivo vai gravado no registro da pessoa
+     (acimaDasVagas = { motivo, vagas, ocupadas, por, porNome, em }) e aparece na linha dela no painel. Sem motivo, nada
+     é gravado. cb(acimaDasVagas) só quando confirmado. */
+  function pedirMotivoAcimaDasVagas(lotacao, sess, cb) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10000';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+    box.innerHTML =
+      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink);white-space:pre-line">' + esc(lotacao.mensagem) + '</p>' +
+      '<label class="admin-field-label">Motivo<textarea class="admin-vagas-motivo" rows="3" maxlength="500" placeholder="Por que incluir acima das vagas?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
+      '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-vagas-confirm-btn">Incluir mesmo assim</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var campo = box.querySelector('.admin-vagas-motivo'), erro = box.querySelector('.admin-motivo-erro');
+    function fechar() { document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    box.querySelector('.admin-vagas-confirm-btn').addEventListener('click', function () {
+      var motivo = (campo.value || '').trim();
+      if (!motivo) { erro.textContent = 'Escreva o motivo. Sem ele, nada é gravado.'; erro.hidden = false; campo.focus(); return; }
+      if (!sess) { erro.textContent = 'Sua sessão de admin não está ativa neste momento — recarregue a página. Nada foi gravado.'; erro.hidden = false; return; }
+      fechar();
+      cb({ motivo: motivo, vagas: lotacao.vagas, ocupadas: lotacao.ocupadas, por: sess.email, porNome: sess.name || sess.email, em: new Date().toISOString() });
+    });
+    campo.focus();
+  }
+
   /* ---- Turmas tab ---- */
   /* Estado da interface da aba Eventos, preservado entre recargas.
      loadInterests() reconstrói a aba inteira do zero — é chamada depois de
@@ -845,7 +896,10 @@
             var aguardandoHdr = interessados.length;
             var countLabel = all.length + ' interessado' + (all.length !== 1 ? 's' : '') +
               ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '') +
-              (aguardandoHdr ? ' · ' + aguardandoHdr + ' aguardando decisão' : '');
+              (aguardandoHdr ? ' · ' + aguardandoHdr + ' aguardando decisão' : '') +
+              /* vagas: ocupadas = interesse + inscrição não removidos (o mesmo critério do card) */
+              (t.vagas ? ' · ' + active.length + '/' + t.vagas + ' vagas' + (active.length >= t.vagas ? ' (lotada)' : '') : '') +
+              (t.publicoCargo ? ' · só ' + (t.publicoCargo === 'gerentes' ? 'gerentes' : 'técnicos') : '');
 
             var card = document.createElement('div');
             card.className = 'turma-admin-card';
@@ -1644,6 +1698,11 @@
       }
       if (confirmacaoIncompleta) {
         motivoBadge = '<span class="motivo-badge motivo-incompleta" title="Esta inscrição foi gravada sem registrar quem confirmou, então o sistema não a reconhece: a pessoa fica sem acesso a Conteúdos/Treinamento e vê a própria Minha Área como não confirmada. Clique em Confirmar para regravar corretamente.">Confirmação incompleta</span>' + motivoBadge;
+      }
+      /* incluída pelo admin com a turma lotada: o motivo fica à vista */
+      if (r.acimaDasVagas) {
+        var av = r.acimaDasVagas;
+        motivoBadge += '<span class="motivo-badge motivo-acima-vagas" title="' + esc('Incluída acima das vagas (' + (av.ocupadas || 0) + ' de ' + (av.vagas || 0) + ') por ' + (av.porNome || av.por || 'admin') + ': ' + (av.motivo || '')) + '">Acima das vagas</span>';
       }
       var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
 
@@ -3035,6 +3094,13 @@
          aberto. Mesmo critério das outras portas, uma função só. */
       var barrado = barradoPeloPublico(turmaKey, name, eKey);
       if (barrado) { errEl.textContent = barrado.split('\n')[0]; errEl.style.display = ''; return; }
+      /* regras de entrada do evento (participação anterior, uma turma por pessoa) — as mesmas da pessoa */
+      barradoPelasRegrasDoEvento(turmaKey, eKey, name, function (msgRegra, lotacao) {
+      if (msgRegra) { errEl.textContent = msgRegra; errEl.style.display = ''; return; }
+      /* turma lotada: só com motivo (o registro leva acimaDasVagas) */
+      if (lotacao) { pedirMotivoAcimaDasVagas(lotacao, sess, function (acima) { seguirAdicionando(acima); }); return; }
+      seguirAdicionando(null);
+      function seguirAdicionando(acimaDasVagas) {
       var ref  = firebase.database().ref('turmas-interesse/' + turmaKey + '/' + eKey);
       ref.once('value', function (snap) {
         if (snap.val() && !snap.val().removed) {
@@ -3049,6 +3115,7 @@
              pelo resto do sistema. */
           var registro = registroInscricaoAdmin(
             { name: name, email: email, area: area }, status, sess, now);
+          if (acimaDasVagas) registro.acimaDasVagas = acimaDasVagas;
           updates['turmas-interesse/' + turmaKey + '/' + eKey] = registro;
           overlaps.forEach(function (o) {
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
@@ -3080,6 +3147,8 @@
           save([]);
         }
       });
+      }
+      });
     });
   }
 
@@ -3108,6 +3177,10 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só aparece — e só admite participantes — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
       '<div><span class="auth-label" style="display:block;margin-bottom:6px">Não aceitar interesse de quem já participou de:</span>' +
         '<div id="eventoFormBloqueioLista" style="display:flex;flex-direction:column;gap:6px"></div></div>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormUmaTurma" style="width:auto;margin:0" />Só uma turma por pessoa (interesse ou inscrição)</label>' +
+      '<div id="eventoFormUmaTurmaGrupoBox"><span class="auth-label" style="display:block;margin-bottom:6px">Contando também as turmas de:</span>' +
+        '<div id="eventoFormUmaTurmaLista" style="display:flex;flex-direction:column;gap:6px"></div></div>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, quem já tem interesse ou inscrição (não removida) numa turma deste evento — ou dos eventos marcados logo acima, que contam juntos — não consegue entrar em outra; o card mostra em qual turma ela está e como trocar (remover o próprio interesse, ou pedir ao admin). Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila): retire a pessoa da outra turma primeiro. Para os eventos contarem juntos, marque um no outro.</p>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Quem tem interesse ou inscrição (não removida) em qualquer turma dos eventos marcados não consegue manifestar interesse nas turmas deste evento nem entrar na lista de espera dele — o card da turma explica por quê. Não remove ninguém que já está nas turmas deste evento, e aqui no painel você continua podendo adicionar pessoas manualmente. Nenhum marcado = sem essa restrição.</p>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
@@ -3169,6 +3242,8 @@
     var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
     var publicoRestritoInput = box.querySelector('#eventoFormPublicoRestrito');
     var bloqueioLista     = box.querySelector('#eventoFormBloqueioLista');
+    var umaTurmaInput     = box.querySelector('#eventoFormUmaTurma');
+    var umaTurmaLista     = box.querySelector('#eventoFormUmaTurmaLista');
     var formatoInput      = box.querySelector('#eventoFormFormato');
     var modalidadeLabelInput = box.querySelector('#eventoFormModalidadeLabel');
     var modalidadeDescInput  = box.querySelector('#eventoFormModalidadeDesc');
@@ -3194,6 +3269,13 @@
     bloqueioLista.innerHTML = outrosEventos.length ? outrosEventos.map(function (ev) {
       return '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" class="evento-bloqueio-cb" value="' + esc(ev.key) + '" style="width:auto;margin:0"' +
         (bloqueioAtual[ev.key] ? ' checked' : '') + ' />' + esc(ev.nome) + '</label>';
+    }).join('') : '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>';
+    /* uma turma por pessoa: a caixa e o grupo (os outros eventos que contam junto com este) */
+    umaTurmaInput.checked = isEdit ? !!existing.umaTurmaPorPessoa : false;
+    var grupoAtual = (isEdit && existing.umaTurmaComEventos) || {};
+    umaTurmaLista.innerHTML = outrosEventos.length ? outrosEventos.map(function (ev) {
+      return '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" class="evento-umaturma-cb" value="' + esc(ev.key) + '" style="width:auto;margin:0"' +
+        (grupoAtual[ev.key] ? ' checked' : '') + ' />' + esc(ev.nome) + '</label>';
     }).join('') : '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>';
     /* Ausente = evento aberto: evento criado antes deste controle continua
        exatamente como sempre esteve, sem migração nenhuma. */
@@ -3263,6 +3345,13 @@
           bloqueioLista.querySelectorAll('.evento-bloqueio-cb:checked').forEach(function (cb) { marcados[cb.value] = true; });
           return Object.keys(marcados).length ? marcados : null;
         })(),
+        umaTurmaPorPessoa: !!umaTurmaInput.checked,
+        umaTurmaComEventos: (function () {
+          if (!umaTurmaInput.checked) return null;
+          var marcados = {};
+          umaTurmaLista.querySelectorAll('.evento-umaturma-cb:checked').forEach(function (cb) { marcados[cb.value] = true; });
+          return Object.keys(marcados).length ? marcados : null;
+        })(),
         formato: formatoInput.value || 'presencial',
         modalidadeLabel: (modalidadeLabelInput.value || '').trim(),
         modalidadeDesc: (modalidadeDescInput.value || '').trim(),
@@ -3316,6 +3405,13 @@
         '<label class="auth-label">Término<input type="time" id="turmaFormHoraFim" autocomplete="off" /></label>' +
       '</div>' +
       '<label class="auth-label">Sala <span style="opacity:.6;font-weight:400">(opcional)</span><input type="text" id="turmaFormSala" placeholder="Ex: Sala de Treinamento GETHO" maxlength="120" autocomplete="off" /></label>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
+        '<label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = sem limite)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' +
+        '<label class="auth-label">Público<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
+          '<option value="">Todos</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
+        '</select></label>' +
+      '</div>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Só gerentes" admite quem está na aba Gerentes; "Só técnicos", quem não está nela.</p>' +
       '<label class="auth-label">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
@@ -3344,6 +3440,8 @@
     var horaInicioInput = box.querySelector('#turmaFormHoraInicio');
     var horaFimInput    = box.querySelector('#turmaFormHoraFim');
     var salaInput   = box.querySelector('#turmaFormSala');
+    var vagasInput  = box.querySelector('#turmaFormVagas');
+    var cargoInput  = box.querySelector('#turmaFormPublicoCargo');
     var cmflexInput = box.querySelector('#turmaFormCmflex');
     var resultadoInput = box.querySelector('#turmaFormResultadoEsperado');
     var restritoInput  = box.querySelector('#turmaFormPublicoRestrito');
@@ -3359,6 +3457,9 @@
     horaFimInput.value    = isEdit ? (existing.horarioFim    || '13:00') : '13:00';
     /* Ausente = sem sala informada: turma criada antes deste campo continua como estava */
     salaInput.value   = isEdit ? (existing.sala || '') : '';
+    /* Ausente = sem limite de vagas / público "Todos": turma antiga continua como estava */
+    vagasInput.value  = isEdit && existing.vagas ? String(existing.vagas) : '';
+    cargoInput.value  = isEdit ? (existing.publicoCargo || '') : '';
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
     resultadoInput.value = isEdit ? (existing.resultadoEsperado || '') : '';
     /* Ausente = turma aberta: turma criada antes deste controle continua
@@ -3405,9 +3506,12 @@
       if (!dias.length) { errEl.textContent = 'Adicione pelo menos uma data.'; errEl.style.display = ''; return; }
       if (!horarioInicio || !horarioFim) { errEl.textContent = 'Preencha o horário de início e término.'; errEl.style.display = ''; return; }
       if (horarioFim <= horarioInicio) { errEl.textContent = 'O término precisa ser depois do início.'; errEl.style.display = ''; return; }
+      var vagasTxt = (vagasInput.value || '').trim();
+      var vagas = vagasTxt ? Number(vagasTxt) : null;
+      if (vagasTxt && !(vagas >= 1 && vagas <= 999 && Math.floor(vagas) === vagas)) { errEl.textContent = 'Vagas: um número inteiro de 1 a 999, ou vazio para sem limite.'; errEl.style.display = ''; return; }
 
       var resultadoEsperado = (resultadoInput.value || '').trim();
-      var data = { label: label, dias: dias, horarioInicio: horarioInicio, horarioFim: horarioFim, sala: (salaInput.value || '').trim(), cmflexLink: cmflexLink, resultadoEsperado: resultadoEsperado, eventoKey: eventoSel.value || '', publicoRestrito: !!restritoInput.checked };
+      var data = { label: label, dias: dias, horarioInicio: horarioInicio, horarioFim: horarioFim, sala: (salaInput.value || '').trim(), cmflexLink: cmflexLink, resultadoEsperado: resultadoEsperado, eventoKey: eventoSel.value || '', publicoRestrito: !!restritoInput.checked, vagas: vagas, publicoCargo: cargoInput.value || null };
       if (isEdit) {
         firebase.database().ref('turmas/' + existing.key).update(data, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
@@ -4010,6 +4114,9 @@
        mostra essa divergência com os nomes, e o conserto é um clique. */
     var barrado = barradoPeloPublico(turmaKey, pessoa && pessoa.name, eKey);
     if (barrado) { adminAlert(barrado); return; }
+    /* regras de entrada do evento (participação anterior, uma turma por pessoa) — as mesmas da pessoa */
+    barradoPelasRegrasDoEvento(turmaKey, eKey, pessoa && pessoa.name, function (msgRegra) {
+    if (msgRegra) { adminAlert(msgRegra); return; }
     checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
       var msg = 'Confirmar que ' + pessoa.name + ' se inscreveu no CMFlex para "' + turmaLabel(turmaKey) + '"?\n\nEla passa a ter acesso a Conteúdos, Treinamento Jedi e pode registrar presença.';
       if (overlaps.length) {
@@ -4055,6 +4162,7 @@
           loadInterests();
         });
       });
+    });
     });
   }
 
@@ -5026,6 +5134,13 @@
     var eKey = emailKeyFromEmail(person.email);
     var barrado = barradoPeloPublico(turmaKey, person.name, eKey);
     if (barrado) { adminAlert(barrado); return; }
+    /* regras de entrada do evento (participação anterior, uma turma por pessoa) — as mesmas da pessoa */
+    barradoPelasRegrasDoEvento(turmaKey, eKey, person.name, function (msgRegra, lotacao) {
+    if (msgRegra) { adminAlert(msgRegra); return; }
+    /* turma lotada: só com motivo (o registro leva acimaDasVagas) */
+    if (lotacao) { pedirMotivoAcimaDasVagas(lotacao, sess, mover); return; }
+    mover(null);
+    function mover(acimaDasVagas) {
     var now  = new Date().toISOString();
     var destEventoKey = turmaEventoKey(turmaKey);
     var updates = {};
@@ -5037,6 +5152,7 @@
       confirmedDate: now,
       fromEspera: true
     };
+    if (acimaDasVagas) updates['turmas-interesse/' + turmaKey + '/' + eKey].acimaDasVagas = acimaDasVagas;
     /* Inscrita numa turma, ela não está mais esperando por ESTE evento —
        sai de todas as origens desse evento (e das órfãs, sem evento
        definido, já que arranjar vaga resolve a ambiguidade). Se ela também
@@ -5053,6 +5169,8 @@
         if (err) { adminAlert('Erro ao mover. Tente novamente.'); return; }
         loadInterests();
       });
+    });
+    }
     });
   }
 
@@ -5649,6 +5767,7 @@
     { no: 'turmas-checkin',   nivel: 3, campos: ['name', 'area'], oque: 'presença registrada' },
     { no: 'fa-admins',        nivel: 1, campos: ['name'],         oque: 'lista de administradores' },
     { no: 'fa-diretores',     nivel: 1, campos: ['name'],         oque: 'lista de diretores' },
+    { no: 'fa-gerentes',      nivel: 1, campos: ['name'],         oque: 'lista de gerentes' },
     { no: 'fa-facilitadores', nivel: 1, campos: ['name'],         oque: 'lista de facilitadores' },
   ];
 
@@ -5708,6 +5827,7 @@
     { no: 'fa-espera',            nivel: 1 },
     { no: 'fa-admins',            nivel: 1 },
     { no: 'fa-diretores',         nivel: 1 },
+    { no: 'fa-gerentes',          nivel: 1 },
     { no: 'fa-facilitadores',     nivel: 1 },
     { no: 'fa-reset-signal',      nivel: 1 },
     { no: 'turmas-interesse',     nivel: 2 },
@@ -6720,6 +6840,117 @@
       }, function (err) {
         console.error('[admin] erro ao carregar fa-diretores', err);
         c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar diretores. Recarregue a página ou verifique sua conexão.</p>';
+      });
+    }
+
+    render();
+  }
+
+  /* ---- Gerentes ----
+     Lista por E-MAIL de quem é gerente: fa-gerentes/<chave do e-mail> = { email, name, addedAt, addedBy }. É a fonte
+     do público das turmas "Só gerentes" (só quem está aqui) e "Só técnicos" (só quem NÃO está) — ver regrasDeEntrada em
+     turmas-util.js. Não precisa de cadastro no site: a chave é a do e-mail, e quando a pessoa se cadastrar com ele já é
+     reconhecida. Por isso aceita uma lista colada de uma vez. Só admin grava (database.rules.json). */
+  function loadGerentes() {
+    const c = document.getElementById('adminGerentes');
+    if (!c) return;
+
+    function render() {
+      Promise.all([firebase.database().ref('fa-gerentes').once('value'), firebase.database().ref('fa-users').once('value')]).then(function (snaps) {
+        const data = snaps[0].val() || {}, users = snaps[1].val() || {};
+        const lista = Object.keys(data).map(function (k) {
+          const u = users[k] || null;
+          return { key: k, email: (data[k] && data[k].email) || '', name: (u && u.name) || (data[k] && data[k].name) || '', cadastrada: !!u, addedAt: data[k] && data[k].addedAt };
+        }).sort(function (a, b) { return (a.name || a.email).localeCompare(b.name || b.email, 'pt'); });
+        c.innerHTML = '';
+
+        const info = document.createElement('p');
+        info.className = 'admin-empty';
+        info.style.marginBottom = '20px';
+        info.textContent = 'Quem está aqui é gerente para as turmas marcadas "Só gerentes" (só essas pessoas entram) e "Só técnicos" (essas pessoas não entram). A lista é por e-mail: vale mesmo para quem ainda não tem cadastro no site — quando se cadastrar com esse e-mail, já é reconhecida. Não dá acesso ao painel nem muda mais nada.';
+        c.appendChild(info);
+
+        const hdr = document.createElement('h4');
+        hdr.innerHTML = 'Gerentes <span class="admin-badge">' + lista.length + '</span>';
+        c.appendChild(hdr);
+
+        if (!lista.length) {
+          const empty = document.createElement('p');
+          empty.className = 'admin-empty';
+          empty.textContent = 'Nenhum gerente cadastrado.';
+          c.appendChild(empty);
+        } else {
+          const tbl = document.createElement('table');
+          tbl.className = 'admin-table';
+          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Cadastro no site</th><th>Desde</th><th></th></tr></thead>';
+          const tbody = document.createElement('tbody');
+          lista.forEach(function (p) {
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td>' + esc(p.name || '—') + '</td>' +
+              '<td>' + esc(p.email || '—') + '</td>' +
+              '<td>' + (p.cadastrada ? 'Sim' : '<span style="color:var(--ink-3)">Ainda sem cadastro</span>') + '</td>' +
+              '<td>' + fmtDate(p.addedAt) + '</td>' +
+              '<td><button class="admin-del-btn" data-key="' + esc(p.key) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+            tbody.appendChild(tr);
+          });
+          tbl.appendChild(tbody);
+          const wrap = document.createElement('div');
+          wrap.className = 'table-scroll-wrap';
+          wrap.appendChild(tbl);
+          c.appendChild(wrap);
+          tbody.addEventListener('click', function (e) {
+            const btn = e.target.closest('.admin-del-btn');
+            if (!btn) return;
+            adminConfirm('Remover ' + btn.dataset.name + ' da lista de Gerentes?\n\nNão tira a pessoa de nenhuma turma: só muda em quais turmas ela pode entrar daqui em diante.', function () {
+              firebase.database().ref('fa-gerentes/' + btn.dataset.key).remove(function (err) {
+                if (err) { adminAlert('Erro ao remover. Nada foi alterado — tente novamente.'); return; }
+                render();
+              });
+            });
+          });
+        }
+
+        const form = document.createElement('div');
+        form.className = 'admin-colab-form';
+        form.innerHTML =
+          '<h4 style="margin-top:32px">Adicionar gerentes</h4>' +
+          '<p style="font-size:.8rem;color:var(--ink-2);margin:0 0 8px">Cole um ou vários e-mails @previ.com.br — um por linha, ou separados por vírgula, ponto e vírgula ou espaço.</p>' +
+          '<textarea id="gerentesEmails" rows="5" placeholder="fulana@previ.com.br&#10;ciclano@previ.com.br" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea>' +
+          '<div style="margin-top:8px"><button class="btn btn--primary" id="gerentesAddBtn">Adicionar</button></div>' +
+          '<p id="gerentesMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan);white-space:pre-line"></p>';
+        c.appendChild(form);
+
+        document.getElementById('gerentesAddBtn').addEventListener('click', function () {
+          const msg = document.getElementById('gerentesMsg');
+          const sess = window.faAuth && window.faAuth.getSession();
+          const brutos = (document.getElementById('gerentesEmails').value || '').split(/[\s,;]+/).map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean);
+          if (!brutos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Cole pelo menos um e-mail.'; return; }
+          const invalidos = brutos.filter(function (e) { return !/^[^\s@]+@previ\.com\.br$/.test(e); });
+          if (invalidos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Só e-mails @previ.com.br. Corrija e tente de novo (nada foi gravado):\n' + invalidos.join('\n'); return; }
+          const updates = {}, novos = [], ja = [];
+          brutos.forEach(function (e) {
+            const k = emailKey(e);
+            if (data[k] || updates['fa-gerentes/' + k]) { if (ja.indexOf(e) === -1) ja.push(e); return; }
+            const u = users[k];
+            updates['fa-gerentes/' + k] = { email: e, name: (u && u.name) || '', addedAt: new Date().toISOString(), addedBy: (sess && sess.email) || '' };
+            novos.push(e);
+          });
+          if (!novos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Todos esses e-mails já estão na lista.'; return; }
+          firebase.database().ref().update(updates, function (err) {
+            if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar. Nada foi gravado — tente novamente.'; return; }
+            document.getElementById('gerentesEmails').value = '';
+            render();
+            /* render() reconstrói a aba; a mensagem vai depois, no elemento novo */
+            setTimeout(function () {
+              const m = document.getElementById('gerentesMsg');
+              if (m) { m.style.color = 'var(--cyan)'; m.textContent = novos.length + ' adicionado(s).' + (ja.length ? ' Já estavam na lista: ' + ja.length + '.' : ''); }
+            }, 400);
+          });
+        });
+      }).catch(function (err) {
+        console.error('[admin] erro ao carregar fa-gerentes', err);
+        c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar gerentes. Recarregue a página ou verifique sua conexão.</p>';
       });
     }
 

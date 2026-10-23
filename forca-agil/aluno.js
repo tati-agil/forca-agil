@@ -101,6 +101,9 @@
       db.ref('fa-espera').once('value'),
       db.ref('turmas-publico').once('value'),
       db.ref('eventos-publico').once('value'),
+      /* se a pessoa está na lista de Gerentes (turmas "só gerentes" / "só técnicos"); falha de leitura não derruba a
+         Minha Área — só esconde da prévia as turmas que dependem dessa resposta */
+      db.ref('fa-gerentes/' + uKey).once('value').then(function (s) { return { ok: true, gerente: !!s.val() }; }, function () { return { ok: false }; }),
     ]).then(function (r) {
       var d = {
         interesse: r[0].val() || {},
@@ -112,6 +115,7 @@
         espera:    r[6].val() || {},
         publico:   r[7].val() || {},
         publicoEv: r[8].val() || {},
+        gerente:   r[9],
         avaliacoes: {},
       };
       /* As avaliações são lidas UMA A UMA, só a da própria pessoa em cada
@@ -279,6 +283,21 @@
     return !!t.publico[emailKey(email)];
   }
 
+  /* Mesmas regras de turma de faTurmasUtil.regrasDeEntrada (vagas; público gerentes/técnicos): a prévia só convida para
+     onde o convite tem efeito. Quem chega aqui nunca interagiu com turma nenhuma, então nenhuma vaga é dela. */
+  function turmaLotada(turma, inscritos) {
+    var vagas = window.faTurmasUtil.vagasDaTurma(turma);
+    if (!vagas) return false;
+    var lista = inscritos || {};
+    return Object.keys(lista).filter(function (k) { var v = lista[k]; return v && !v.removed && v.status !== 'removido'; }).length >= vagas;
+  }
+  function cargoBarra(turma, gerente) {
+    var cargo = window.faTurmasUtil.cargoDaTurma(turma);
+    if (!cargo) return false;
+    if (!gerente || !gerente.ok) return true;
+    return (cargo === 'gerentes') !== gerente.gerente;
+  }
+
   function turmasAbertas(d, email) {
     var hoje = todayISO();
     return Object.keys(d.turmas).map(function (tk) {
@@ -298,9 +317,11 @@
         jaComecou: !!(dias[0] && dias[0] <= hoje),
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
         publicoEvento: turma.eventoKey ? ((d.publicoEv || {})[turma.eventoKey] || {}) : {},
+        lotada: turmaLotada(turma, d.interesse[tk]),
+        cargoBarra: cargoBarra(turma, d.gerente),
       };
     }).filter(function (t) {
-      return !t.encerrada && !t.interesseEncerrado && !t.jaComecou &&
+      return !t.encerrada && !t.interesseEncerrado && !t.jaComecou && !t.lotada && !t.cargoBarra &&
         eventoVisivelPara(t.evento, email, t.publicoEvento) && turmaVisivelPara(t, email);
     }).sort(function (a, b) { return (a.inicio || '').localeCompare(b.inicio || ''); });
   }
