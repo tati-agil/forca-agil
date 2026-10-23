@@ -30,6 +30,7 @@
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const XLSX = require(path.join(__dirname, '..', '..', 'forca-agil', 'xlsx.mini.min.js'));
 
 const BASE  = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -192,6 +193,35 @@ const FORMATOS = [
       if (m.cortados.length) p.push('botão cortado: ' + m.cortados.join(', '));
       if (erros.length) p.push('erro JS: ' + erros[0]);
       registrar('e-mail comprido (1024 px): a tabela cabe e o "⋯" fica inteiro em todas as linhas', p);
+      await ctx.close();
+    }
+
+    /* 1c. Exportar em Excel: baixa exatamente a lista na tela (status + busca), com as colunas da tabela. */
+    if (formato.nome === 'desktop') {
+      const { ctx, page, erros } = await abrirCadastrados(browser, { nome: 'desktop', opts: { viewport: { width: 1366, height: 768 }, acceptDownloads: true } });
+      const baixar = async () => {
+        const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('#cadastradosExportarBtn')]);
+        const arq = path.join(require('os').tmpdir(), 'cad-' + process.pid + '-' + Date.now() + '.xlsx');
+        await dl.saveAs(arq);
+        const wb = XLSX.read(fs.readFileSync(arq), { type: 'buffer' }); fs.unlinkSync(arq);
+        return { nome: dl.suggestedFilename(), linhas: XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }) };
+      };
+      await page.click('.admin-status-btn[data-status="todos"]');
+      const todos = await baixar();
+      const p = [];
+      const porEmail = (e) => todos.linhas.find((l) => l['E-mail'] === e) || {};
+      if (!/^forca-agil-cadastrados-\d{4}-\d{2}-\d{2}\.xlsx$/.test(todos.nome)) p.push('nome do arquivo: ' + todos.nome);
+      if (todos.linhas.length !== 4) p.push('"Todos" deveria exportar 4 pessoas, exportou ' + todos.linhas.length);
+      if (JSON.stringify(Object.keys(todos.linhas[0] || {})) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro', 'Situação', 'Verificação'])) p.push('colunas: ' + Object.keys(todos.linhas[0] || {}).join(', '));
+      if (porEmail(BLOQUEADA)['Situação'] !== 'Bloqueado' || porEmail(PENDENTE)['Verificação'] !== 'Pendente' || porEmail(ATIVA)['Verificação'] !== 'Verificado' || porEmail(ATIVA)['Área'] !== 'GECAT') p.push('valores: ' + JSON.stringify(todos.linhas));
+      if (!/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(porEmail(ATIVA).Cadastro || '')) p.push('data de cadastro: ' + porEmail(ATIVA).Cadastro);
+      if (!/dados pessoais/.test(await page.$eval('#cadastradosExportMsg', (e) => e.textContent))) p.push('sem o aviso de dados pessoais');
+      await page.fill('#cadastradosFiltro', 'ativa');
+      await page.waitForFunction(() => document.querySelectorAll('#adminCadastrados tbody tr').length === 1, null, { timeout: 5000 });
+      const filtrada = await baixar();
+      if (filtrada.linhas.length !== 1 || filtrada.linhas[0]['E-mail'] !== ATIVA) p.push('com a busca "ativa" deveria exportar só ' + ATIVA + ': ' + JSON.stringify(filtrada.linhas));
+      if (erros.length) p.push('erro JS: ' + erros[0]);
+      registrar('"Exportar Excel" baixa a lista que está na tela (status e busca), com as colunas da tabela', p);
       await ctx.close();
     }
 
