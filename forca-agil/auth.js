@@ -563,7 +563,7 @@
   function register(data, cb) {
     const email = (data.email || '').trim().toLowerCase();
     const pwd   = (data.password || '');
-    const name  = (data.name || '').trim().toUpperCase();
+    const name  = window.faTurmasUtil.nomePessoa(data.name);
     const area  = (data.area || '').trim();
 
     if (!isPrevi(email)) return cb({ error: 'Use seu e-mail @previ.com.br.' });
@@ -653,7 +653,7 @@
 
   function criarContaPorAdmin(data, adminPwd, cb) {
     const email     = (data.email || '').trim().toLowerCase();
-    const name      = (data.name  || '').trim().toUpperCase();
+    const name      = window.faTurmasUtil.nomePessoa(data.name);
     const area      = (data.area  || '').trim();
     const adminSess = _session;
 

@@ -14,6 +14,9 @@
  * conhece a senha. Este teste exige as duas metades da regra: que dê para
  * corrigir onde é permitido, e que NEM APAREÇA onde não é.
  *
+ * NOME DE PESSOA: grava sempre em maiúsculas e sem acentos (faTurmasUtil.nomePessoa) — "José da Conceição" chega como
+ * "JOSE DA CONCEICAO" no cadastro e em todas as cópias.
+ *
  * Roda com o Firebase falso, que registra cada escrita em window.__ESCRITAS —
  * é assim que se prova onde a edição chegou, em vez de só constatar que a tela
  * não deu erro.
@@ -172,6 +175,25 @@ const FORMATOS = [
       }
       if (erros.length) p.push('erro JS: ' + erros[0]);
       anota('corrigir o nome chega no cadastro e em todas as cópias', p);
+      await ctx.close();
+    }
+
+    /* 1b. Nome com acento e minúsculas: grava "JOSE DA CONCEICAO" no cadastro e nas cópias. */
+    {
+      const { ctx, page, erros } = await abrirPainel(browser, formato);
+      await abrirEdicao(page, PROPRIA);
+      await page.fill('#cadEditNome', '  José da   Conceição ');
+      await page.evaluate(() => { window.__ESCRITAS = []; });
+      await page.click('.modal-box .admin-modal-save-btn');
+      await page.waitForFunction((k) => (window.__ESCRITAS || []).some((e) => e.path === 'fa-users/' + k + '/name'), chave(PROPRIA), { timeout: 10000 });
+      const escritas = await page.evaluate(() => window.__ESCRITAS || []);
+      const kp = chave(PROPRIA), problemas = [];
+      ['fa-users/' + kp + '/name', 'turmas-interesse/t1/' + kp + '/name'].forEach((p) => {
+        const e = escritas.filter((x) => x.path === p).pop();
+        if (!e || e.valor !== 'JOSE DA CONCEICAO') problemas.push(p + ' = ' + JSON.stringify(e && e.valor));
+      });
+      if (erros.length) problemas.push('erro JS: ' + erros[0]);
+      anota('nome digitado com acento e minúsculas é gravado "JOSE DA CONCEICAO" (cadastro e cópias)', problemas);
       await ctx.close();
     }
 
