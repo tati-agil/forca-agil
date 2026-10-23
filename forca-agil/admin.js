@@ -4380,7 +4380,10 @@
     btn.disabled = true; btn.textContent = 'Gerando…';
     function fim(msg) { btn.disabled = false; btn.innerHTML = '&#x1F4CA; Turmas e parâmetros'; if (msg) adminAlert(msg); }
     var db = firebase.database();
-    Promise.all(['eventos', 'turmas', 'turmas-config', 'turmas-interesse'].map(function (n) { return db.ref(n).once('value'); })).then(function (s) {
+    /* Banco que não responde (rede cortando a conexão) deixava o botão em "Gerando…" para sempre (23/10/2026):
+       passado o prazo, desiste e diz o motivo. */
+    var prazo = new Promise(function (_, falhar) { setTimeout(function () { falhar(new Error('sem-resposta')); }, 20000); });
+    Promise.race([Promise.all(['eventos', 'turmas', 'turmas-config', 'turmas-interesse'].map(function (n) { return db.ref(n).once('value'); })), prazo]).then(function (s) {
       var eventos = s[0].val() || {}, turmas = s[1].val() || {}, config = s[2].val() || {}, interesse = s[3].val() || {};
       carregarXlsxAdmin(function (erro) {
         if (erro || !window.XLSX) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); return; }
@@ -4472,7 +4475,11 @@
         window.XLSX.writeFile(wb, 'forca-agil-turmas-por-evento-' + hojeISO + '.xlsx');
         fim();
       });
-    }).catch(function () { fim('Não foi possível ler as turmas agora. Recarregue a página e tente de novo.'); });
+    }).catch(function (e) {
+      fim(e && e.message === 'sem-resposta'
+        ? 'O banco de dados não respondeu em 20 segundos. Verifique a conexão (se continuar, tente outra rede), recarregue a página e tente de novo.'
+        : 'Não foi possível ler as turmas agora. Recarregue a página e tente de novo.');
+    });
   }
 
   function exportInterestLog() {
