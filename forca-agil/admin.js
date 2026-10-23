@@ -538,6 +538,7 @@
           bloqueiaParticipantesDe: e.bloqueiaParticipantesDe || null,
           umaTurmaPorPessoa: !!e.umaTurmaPorPessoa,
           dispensaCmflex: !!e.dispensaCmflex,
+          vagasPorTurma: e.vagasPorTurma || 0,
           umaTurmaComEventos: e.umaTurmaComEventos || null,
           modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
           publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || '',
@@ -912,7 +913,11 @@
               ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '') +
               (aguardandoHdr ? ' · ' + aguardandoHdr + ' aguardando decisão' : '') +
               /* vagas: ocupadas = interesse + inscrição não removidos (o mesmo critério do card) */
-              (t.vagas ? ' · ' + active.length + '/' + t.vagas + ' vagas' + (active.length >= t.vagas ? ' (lotada)' : '') : '') +
+              (function () {
+                var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0];
+                var v = window.faTurmasUtil.vagasEfetivas(t, ev);
+                return v ? ' · ' + active.length + '/' + v + ' vagas' + (active.length >= v ? ' (lotada)' : '') : '';
+              })() +
               (function () {
                 var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0];
                 var c = window.faTurmasUtil.cargoEfetivo(t, ev);
@@ -3195,6 +3200,8 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento some da página Turmas para quem não está na aba Diretores nem é admin — mesmo efeito de "fora da página", mas só pra elas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicoRestrito" style="width:auto;margin:0" />Visível só para um público predefinido (lista de e-mails)</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só aparece — e só admite participantes — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Vagas por turma<input type="number" id="eventoFormVagas" min="1" max="999" step="1" placeholder="sem limite" style="width:110px" /></label>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vale para todas as turmas deste evento (interesse + inscrição ocupam vaga). Lotada, o card não aceita interesse novo — quem já está continua podendo remover — e no painel incluir alguém a mais pede um motivo. Uma turma pode ter o próprio número em "Editar turma", que vale por cima deste. Vazio = sem limite.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormDispensaCmflex" style="width:auto;margin:0" />Não exige inscrição no CMFlex</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, o card não manda ninguém para o CMFlex: depois do interesse diz que a organização confirma a vaga, e o "Confirmar" aqui no painel confirma a vaga direto. O resto é igual — só a sua confirmação torna a pessoa inscrita. Desmarcado (padrão), como sempre foi: a inscrição oficial é no CMFlex.</p>' +
       '<div><span class="auth-label" style="display:block;margin-bottom:6px">Não aceitar interesse de quem já participou de:</span>' +
@@ -3264,6 +3271,7 @@
     var publicadoInput    = box.querySelector('#eventoFormPublicado');
     var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
     var dispensaCmflexInput = box.querySelector('#eventoFormDispensaCmflex');
+    var vagasEventoInput = box.querySelector('#eventoFormVagas');
     var publicoRestritoInput = box.querySelector('#eventoFormPublicoRestrito');
     var bloqueioLista     = box.querySelector('#eventoFormBloqueioLista');
     var umaTurmaInput     = box.querySelector('#eventoFormUmaTurma');
@@ -3298,6 +3306,7 @@
     umaTurmaInput.checked = isEdit ? !!existing.umaTurmaPorPessoa : false;
     /* ausente = exige o CMFlex: evento antigo continua como sempre foi */
     dispensaCmflexInput.checked = isEdit ? !!existing.dispensaCmflex : false;
+    vagasEventoInput.value = isEdit && existing.vagasPorTurma ? String(existing.vagasPorTurma) : '';
     var grupoAtual = (isEdit && existing.umaTurmaComEventos) || {};
     umaTurmaLista.innerHTML = outrosEventos.length ? outrosEventos.map(function (ev) {
       return '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" class="evento-umaturma-cb" value="' + esc(ev.key) + '" style="width:auto;margin:0"' +
@@ -3373,6 +3382,8 @@
         })(),
         umaTurmaPorPessoa: !!umaTurmaInput.checked,
         dispensaCmflex: !!dispensaCmflexInput.checked,
+        /* vazio = sem limite (null apaga o campo) */
+        vagasPorTurma: (function () { var n = Math.floor(Number(vagasEventoInput.value)); return n >= 1 && n <= 999 ? n : null; })(),
         umaTurmaComEventos: (function () {
           if (!umaTurmaInput.checked) return null;
           var marcados = {};
@@ -3433,12 +3444,12 @@
       '</div>' +
       '<label class="auth-label">Sala <span style="opacity:.6;font-weight:400">(opcional)</span><input type="text" id="turmaFormSala" placeholder="Ex: Sala de Treinamento GETHO" maxlength="120" autocomplete="off" /></label>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
-        '<label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = sem limite)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' +
+        '<label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = igual ao evento)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' +
         '<label class="auth-label">Público<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
           '<option value="">Igual ao evento</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
         '</select></label>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" segue o "Quem participa" do evento (Gerentes ou Técnicos restringem; as outras categorias não); "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem não está, valendo por cima do evento.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" segue o "Quem participa" do evento (Gerentes ou Técnicos restringem; as outras categorias não); "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem não está, valendo por cima do evento.</p>' +
       '<label class="auth-label" id="turmaFormCmflexBox">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
@@ -3517,7 +3528,8 @@
 
     box.querySelector('#turmaAddDateBtn').addEventListener('click', function () { addDateRow(''); });
 
-    function closeModal() { document.body.removeChild(overlay); }
+    /* fechar só se ainda está aberto: Esc/Cancelar durante o Salvar fechava duas vezes (removeChild de quem já saiu) */
+    function closeModal() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
@@ -4423,7 +4435,7 @@
             var t = turmas[tk], cfg = config[tk] || {};
             var dias = (t.dias || []).slice().sort();
             var regs = Object.keys(interesse[tk] || {}).map(function (k) { return interesse[tk][k]; }).filter(function (r) { return r && !r.removed && r.status !== 'removido'; });
-            var vagas = window.faTurmasUtil.vagasDaTurma(t);
+            var vagas = window.faTurmasUtil.vagasEfetivas(t, e);
             var ultimo = dias[dias.length - 1] || '', primeiro = dias[0] || '';
             var situacao = cfg.encerrada || (ultimo && hojeISO > ultimo) ? 'Realizada'
               : (primeiro && hojeISO >= primeiro) ? 'Em andamento'
@@ -4453,6 +4465,7 @@
           return Object.assign({
             'Evento': e.nome || evk,
             'Nº de turmas': (porEvento[evk] || []).length,
+            'Vagas por turma': window.faTurmasUtil.vagasDoEvento(e) || 'Sem limite',
             'Carga horária (h)': e.cargaHoraria || '',
             'Frequência mínima (%)': e.percentualMinimo || 75,
             'Formato': e.formato || 'presencial',

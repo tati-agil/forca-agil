@@ -313,6 +313,7 @@
                 umaTurmaPorPessoa: !!e.umaTurmaPorPessoa,
                 /* evento que não usa o CMFlex: a vaga é confirmada só pelo admin, e o card não manda ninguém para lá */
                 dispensaCmflex: !!e.dispensaCmflex,
+                vagasPorTurma: e.vagasPorTurma || 0,
                 publicoRestrito: !!e.publicoRestrito,
                 /* Chips do bloco "Como funciona" — vazio usa o texto padrão
                    (ver renderMissaoEventos), então evento antigo sem esses
@@ -1122,7 +1123,8 @@
       var t = _turmasList.filter(function (x) { return x.key === turmaKey; })[0];
       if (t && (t.vagas || t.publicoCargo)) return true;
       /* "Quem participa" do evento = Gerentes/Técnicos também é regra (cargoEfetivo, turmas-util.js) */
-      if (window.faTurmasUtil.cargoDoEvento(eventoDaTurma(turmaKey))) return true;
+      var evT = eventoDaTurma(turmaKey);
+      if (window.faTurmasUtil.cargoDoEvento(evT) || window.faTurmasUtil.vagasDoEvento(evT)) return true;
       return temBloqueioPorParticipacao(eventoDaTurma(turmaKey));
     }
     function eventoDaTurma(turmaKey) {

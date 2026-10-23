@@ -285,8 +285,8 @@
 
   /* Mesmas regras de turma de faTurmasUtil.regrasDeEntrada (vagas; público gerentes/técnicos): a prévia só convida para
      onde o convite tem efeito. Quem chega aqui nunca interagiu com turma nenhuma, então nenhuma vaga é dela. */
-  function turmaLotada(turma, inscritos) {
-    var vagas = window.faTurmasUtil.vagasDaTurma(turma);
+  function turmaLotada(turma, inscritos, evento) {
+    var vagas = window.faTurmasUtil.vagasEfetivas(turma, evento);
     if (!vagas) return false;
     var lista = inscritos || {};
     return Object.keys(lista).filter(function (k) { var v = lista[k]; return v && !v.removed && v.status !== 'removido'; }).length >= vagas;
@@ -317,7 +317,7 @@
         jaComecou: !!(dias[0] && dias[0] <= hoje),
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
         publicoEvento: turma.eventoKey ? ((d.publicoEv || {})[turma.eventoKey] || {}) : {},
-        lotada: turmaLotada(turma, d.interesse[tk]),
+        lotada: turmaLotada(turma, d.interesse[tk], turma.eventoKey ? d.eventos[turma.eventoKey] : null),
         cargoBarra: cargoBarra(turma, d.gerente, turma.eventoKey ? d.eventos[turma.eventoKey] : null),
       };
     }).filter(function (t) {

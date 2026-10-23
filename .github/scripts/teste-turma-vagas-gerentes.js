@@ -26,7 +26,11 @@
  *
  * "QUEM PARTICIPA" DO EVENTO (eventos/<ev>/publicoDesc = "Gerentes" | "Técnicos") também é regra, para todas as turmas:
  *  12. evento "Gerentes": quem não está na lista vê "só para gerentes"; evento "Técnicos": gerente vê "não é para
- *      gerentes"; técnico entra no evento "Técnicos". */
+ *      gerentes"; técnico entra no evento "Técnicos".
+ *
+ * VAGAS POR TURMA NO EVENTO (eventos/<ev>/vagasPorTurma; a turma pode ter o próprio número por cima):
+ *  13. turma sem número próprio num evento com "Vagas por turma" lota pelo número do evento; o formulário do evento grava
+ *      vagasPorTurma. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -52,7 +56,8 @@ function banco() {
     eventos: { ev5: { nome: 'EPISÓDIO V', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false, dispensaCmflex: true },
       ev6: { nome: 'EPISÓDIO VI', order: 2, publicado: true, cargaHoraria: '3', esperaAtiva: false },
       ev7: { nome: 'EPISÓDIO VII', order: 3, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Gerentes' },
-      ev8: { nome: 'EPISÓDIO VIII', order: 4, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Técnicos' } },
+      ev8: { nome: 'EPISÓDIO VIII', order: 4, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Técnicos' },
+      ev9: { nome: 'EPISÓDIO IX', order: 5, publicado: true, cargaHoraria: '3', esperaAtiva: false, vagasPorTurma: 1 } },
     turmas: {
       tL: { label: 'TURMA LOTADA', eventoKey: 'ev5', order: 1, dias: ['2027-11-03'], vagas: 2 },
       tG: { label: 'TURMA GERENTES', eventoKey: 'ev5', order: 2, dias: ['2027-11-05'], publicoCargo: 'gerentes' },
@@ -61,12 +66,14 @@ function banco() {
       tF: { label: 'TURMA ENCERRADA', eventoKey: 'ev5', order: 5, dias: ['2027-12-01'], vagas: 1 },
       tC: { label: 'TURMA COM CMFLEX', eventoKey: 'ev6', order: 6, dias: ['2027-12-03'] },
       tEG: { label: 'EVENTO GER T1', eventoKey: 'ev7', order: 7, dias: ['2027-12-06'] },
-      tET: { label: 'EVENTO TEC T1', eventoKey: 'ev8', order: 8, dias: ['2027-12-07'] }
+      tET: { label: 'EVENTO TEC T1', eventoKey: 'ev8', order: 8, dias: ['2027-12-07'] },
+      tEV: { label: 'EVENTO VAGAS T1', eventoKey: 'ev9', order: 9, dias: ['2027-12-08'] }
     },
     'turmas-interesse': {
       tL: { [chave(OCUP)]: reg(OCUP, 'OCUPA VAGA'), [chave(DENTRO)]: reg(DENTRO, 'JA ESTA DENTRO') },
       tR: { [chave(OCUP)]: reg(OCUP, 'OCUPA VAGA') },
-      tF: { [chave(OCUP)]: reg(OCUP, 'OCUPA VAGA') }
+      tF: { [chave(OCUP)]: reg(OCUP, 'OCUPA VAGA') },
+      tEV: { [chave(OCUP)]: reg(OCUP, 'OCUPA VAGA') }
     },
     'turmas-interesse-log': {}, 'turmas-config': { tF: { finalizada: true } }, 'turmas-checkin': {},
     'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {}, 'turmas-sorteio': {},
@@ -142,6 +149,8 @@ async function participante(page, tk, busca) {
       await msgFinal(page, 'tEG', /gerentes/); await final(page, 'tET');
       anota('12. evento com "Quem participa" = Gerentes: técnica vê "só para gerentes", sem botão', /só para gerentes/.test(await texto(page, '#intent-msg-tEG')));
       anota('12. evento com "Quem participa" = Técnicos: técnica vê "Tenho interesse"', await visivel(page, '.btn--interest[data-turma="tET"]') && /Tenho interesse/.test(await texto(page, '.btn--interest[data-turma="tET"]')));
+      await msgFinal(page, 'tEV', /Turma lotada/);
+      anota('13. turma sem número próprio num evento com "Vagas por turma" = 1: lotada pelo número do evento', /as 1 vagas já foram preenchidas/.test(await texto(page, '#intent-msg-tEV')), await texto(page, '#intent-msg-tEV'));
       anota('sem erro de JavaScript (técnica)', !erros.length, erros[0]);
       await ctx.close();
     }
@@ -224,6 +233,17 @@ async function participante(page, tk, busca) {
       await page.waitForFunction(() => (window.__ESCRITAS || []).some((e) => e.path === 'turmas/tT'), null, { timeout: 10000 });
       const t = (await escritasDe(page, 'turmas/tT')).pop();
       anota('7. salvar grava vagas = 20 e publicoCargo = "gerentes"', !!t && t.valor.vagas === 20 && t.valor.publicoCargo === 'gerentes', JSON.stringify(t && t.valor));
+      /* 13. formulário do evento: "Vagas por turma" */
+      await page.keyboard.press('Escape');
+      await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).find((x) => /Eventos/i.test(x.textContent)).click());
+      await page.waitForSelector('[data-ev-key="ev9"]', { timeout: 10000 });
+      await page.evaluate(() => Array.from(document.querySelectorAll('[data-ev-key="ev9"] button')).find((x) => /Editar evento/.test(x.textContent)).click());
+      await page.waitForSelector('#eventoFormVagas', { timeout: 10000 });
+      anota('13. o formulário do evento abre com as vagas gravadas', (await page.$eval('#eventoFormVagas', (i) => i.value)) === '1');
+      await page.fill('#eventoFormVagas', '20');
+      await page.click('.modal-box .admin-modal-save-btn');
+      await page.waitForFunction(() => (window.__ESCRITAS || []).some((e) => e.path === 'eventos/ev9' && e.valor && e.valor.vagasPorTurma === 20), null, { timeout: 10000 });
+      anota('13. salvar o evento grava vagasPorTurma = 20', true);
       /* 6. aba Gerentes */
       await page.evaluate(() => { Array.from(document.querySelectorAll('.admin-tab-btn')).find((x) => x.textContent.trim() === 'Gerentes').click(); });
       await page.waitForSelector('#gerentesEmails', { timeout: 10000 });

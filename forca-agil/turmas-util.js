@@ -206,7 +206,8 @@
        3. uma turma por pessoa — eventos/<ev>/umaTurmaPorPessoa = true, com umaTurmaComEventos = { <outroEvento>: true }
           (o grupo = este evento + os marcados): quem já tem interesse ou inscrição em OUTRA turma do grupo não entra;
           para trocar, a pessoa remove o próprio interesse (ou o admin a retira) primeiro;
-       4. vagas — turmas/<t>/vagas = N (> 0; ausente = sem limite): interesse + inscrição não removidos da turma (sem contar
+       4. vagas — eventos/<ev>/vagasPorTurma = N vale para todas as turmas do evento; turmas/<t>/vagas = N vale por cima
+          (vagasEfetivas; nenhum dos dois = sem limite): interesse + inscrição não removidos da turma (sem contar
           a própria pessoa) chegaram a N → lotada. É a única que o admin pode ultrapassar, com motivo (admin.js).
      As regras 1 e 4 só valem com turmaKey (a fila de espera é do evento, não de uma turma). Quem JÁ está na turma não é
      barrado por ela no card (app.js mostra o registro dela antes de perguntar aqui).
@@ -216,6 +217,9 @@
      cb({ estado: 'livre' | 'bloqueado' | 'erro', regra: 'cargo' | 'participacao' | 'umaTurma' | 'lotada', cargo, evento,
      turma: { key, label, dias, evento, inscrita }, vagas, ocupadas }). */
   function vagasDaTurma(t) { var n = Math.floor(Number(t && t.vagas)); return n > 0 ? n : 0; }
+  /* vagas por turma definidas no EVENTO (eventos/<ev>/vagasPorTurma); a turma pode ter o próprio número, que vale por cima */
+  function vagasDoEvento(e) { var n = Math.floor(Number(e && e.vagasPorTurma)); return n > 0 ? n : 0; }
+  function vagasEfetivas(t, e) { return vagasDaTurma(t) || vagasDoEvento(e); }
   function cargoDaTurma(t) { var c = t && t.publicoCargo; return c === 'gerentes' || c === 'tecnicos' ? c : ''; }
   function cargoDoEvento(e) { var d = e && e.publicoDesc; return d === 'Gerentes' ? 'gerentes' : d === 'Técnicos' ? 'tecnicos' : ''; }
   /* o público que vale para a turma: o dela, se tiver; senão o do evento */
@@ -232,7 +236,8 @@
       var grupo = ev.umaTurmaPorPessoa ? [eventoKey].concat(marcadas(ev.umaTurmaComEventos)) : [];
       db.ref('turmas').once('value', function (tSnap) {
         var turmas = tSnap.val() || {}, alvoT = turmaKey ? (turmas[turmaKey] || {}) : {};
-        var cargo = cargoEfetivo(alvoT, eventos[alvoT.eventoKey || eventoKey]), vagas = vagasDaTurma(alvoT);
+        var evDaTurma = eventos[alvoT.eventoKey || eventoKey];
+        var cargo = cargoEfetivo(alvoT, evDaTurma), vagas = vagasEfetivas(alvoT, evDaTurma);
         conferirCargo(function () { conferirEventos(function () { conferirVagas(function () { cb({ estado: 'livre' }); }); }); });
 
         function conferirCargo(seguir) {
@@ -313,7 +318,7 @@
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo,
-    vagasDaTurma: vagasDaTurma, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
+    vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
     regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin
   };
 })();
