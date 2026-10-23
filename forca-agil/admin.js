@@ -6245,8 +6245,14 @@
       '<button class="admin-status-btn" data-status="bloqueados">Bloqueados</button>' +
       '<button class="admin-status-btn" data-status="todos">Todos</button>' +
       '</div>' +
-      '<input id="cadastradosFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" style="flex:1;min-width:180px" />';
+      '<input id="cadastradosFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" style="flex:1;min-width:180px" />' +
+      '<button type="button" class="btn btn--sm" id="cadastradosExportarBtn" title="Baixa em Excel a lista que está na tela (com o filtro aplicado)">&#x1F4CA; Exportar Excel</button>';
     c.appendChild(controlsWrap);
+    const exportMsg = document.createElement('p');
+    exportMsg.className = 'admin-msg';
+    exportMsg.id = 'cadastradosExportMsg';
+    exportMsg.hidden = true;
+    c.appendChild(exportMsg);
 
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
@@ -6261,6 +6267,7 @@
     tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Situação</th><th>Ações</th></tr></thead>';
     const tbody = document.createElement('tbody');
 
+    var listaNaTela = []; /* o que a tabela está mostrando agora (status + busca) — é o que a exportação baixa */
     function applyFilters() {
       const q = (document.getElementById('cadastradosFiltro').value || '').trim().toLowerCase();
       var filtered = list.filter(function (p) {
@@ -6270,6 +6277,7 @@
         if (!q) return true;
         return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
       });
+      listaNaTela = filtered;
       tbody.innerHTML = '';
       var badgeEl = document.getElementById('cadastradosBadge');
       if (badgeEl) badgeEl.textContent = filtered.length;
@@ -6317,6 +6325,37 @@
 
     /* Busca por texto */
     document.getElementById('cadastradosFiltro').addEventListener('input', applyFilters);
+    /* EXPORTAR EM EXCEL — exatamente a lista na tela (status + busca), com as colunas da tabela. Usa a mesma biblioteca
+       das outras exportações (forca-agil/xlsx.mini.min.js), carregada só na hora. O arquivo tem dados pessoais: avisa. */
+    document.getElementById('cadastradosExportarBtn').addEventListener('click', function () {
+      var btn = this;
+      if (btn.disabled) return;
+      var pessoas = listaNaTela.slice();
+      function aviso(texto, erro) { exportMsg.textContent = texto; exportMsg.style.color = erro ? 'var(--danger, #f87171)' : 'var(--accent)'; exportMsg.hidden = false; }
+      if (!pessoas.length) { aviso('Nada a exportar: a lista na tela está vazia.', true); return; }
+      btn.disabled = true; btn.textContent = 'Gerando…';
+      carregarXlsxAdmin(function (erro) {
+        btn.disabled = false; btn.innerHTML = '&#x1F4CA; Exportar Excel';
+        if (erro || !window.XLSX) { aviso('Não foi possível gerar o arquivo agora. Tente de novo.', true); return; }
+        var dataHora = function (iso) {
+          if (!iso) return '';
+          var d = new Date(iso); if (isNaN(d)) return '';
+          var p2 = function (n) { return String(n).padStart(2, '0'); };
+          return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+        };
+        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro', 'Situação', 'Verificação']].concat(pessoas.map(function (p) {
+          return [p.name || '', p.email || '', p.area || '', dataHora(p.createdAt), p.blocked ? 'Bloqueado' : 'Ativo',
+            (p.emailVerificationRequired && !p.adminApproved) ? 'Pendente' : 'Verificado'];
+        }));
+        var ws = window.XLSX.utils.aoa_to_sheet(linhas);
+        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 11 }, { wch: 12 }];
+        var wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, ws, 'Cadastrados');
+        var hoje = new Date();
+        window.XLSX.writeFile(wb, 'forca-agil-cadastrados-' + hoje.getFullYear() + '-' + String(hoje.getMonth() + 1).padStart(2, '0') + '-' + String(hoje.getDate()).padStart(2, '0') + '.xlsx');
+        aviso('Arquivo gerado com ' + pessoas.length + ' pessoa' + (pessoas.length === 1 ? '' : 's') + '. Ele contém dados pessoais — uso interno.');
+      });
+    });
 
     /* Delegação de eventos. A linha tem duas portas: a edição, que é o do
        dia a dia, e o "⋯", que abre o resto num modal com o nome da pessoa
@@ -6898,6 +6937,17 @@
   }
 
   /* ---- Helpers ---- */
+  /* biblioteca do Excel (vendorizada), carregada só quando alguém exporta */
+  function carregarXlsxAdmin(cb) {
+    if (window.XLSX) { cb(); return; }
+    var src = 'forca-agil/xlsx.mini.min.js', existente = document.querySelector('script[data-avp-lib="' + src + '"]');
+    if (existente) { existente.addEventListener('load', function () { cb(); }); existente.addEventListener('error', function () { cb(new Error('falha')); }); return; }
+    var sc = document.createElement('script');
+    sc.src = src; sc.setAttribute('data-avp-lib', src);
+    sc.onload = function () { cb(); };
+    sc.onerror = function () { cb(new Error('falha')); };
+    document.head.appendChild(sc);
+  }
   function esc(s) {
     return String(s || '').replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
