@@ -157,7 +157,8 @@ async function participante(page, tk, busca) {
       await final(page, 'tC');
       await page.click('.btn--interest[data-turma="tC"]');
       await page.waitForFunction(() => /CMFlex/.test((document.getElementById('intent-msg-tC') || {}).textContent || ''), null, { timeout: 10000 });
-      anota('11. evento que exige: o card continua mandando para o CMFlex', /realize a inscrição no CMFlex/.test(await texto(page, '#intent-msg-tC')));
+      const comCm = await texto(page, '#intent-msg-tC');
+      anota('11. evento que exige: o card continua mandando para o CMFlex e aponta a Minha Área', /realize a inscrição no CMFlex/.test(comCm) && /acompanhe pela Minha Área/.test(comCm), comCm);
       anota('sem erro de JavaScript (gerente)', !erros.length, erros[0]);
       await ctx.close();
     }
