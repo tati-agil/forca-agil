@@ -13,12 +13,15 @@
  *   3. "Histórico": as colunas da turma em cada linha;
  *   4. "Sorteios": as colunas da turma sorteada;
  *   5. o cabeçalho da turma no painel mostra horário e público;
- *   6. nenhum erro de JavaScript não tratado. */
+ *   6. nenhum erro de JavaScript não tratado;
+ *   7. "📊 Turmas e parâmetros": Excel com as abas Turmas (uma linha por turma, com os parâmetros dela e do evento) e
+ *      Eventos (uma linha por evento) — sem pessoas: nenhum nome nem e-mail, só contagens. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { esperarSessaoAssentada } = require('./esperas');
+const XLSX = require(path.join(__dirname, '..', '..', 'forca-agil', 'xlsx.mini.min.js'));
 
 const BASE  = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -112,6 +115,23 @@ function lerCsv(texto) {
     anota('1. Estado atual: os valores da turma', valoresX(lx), JSON.stringify(lx));
     anota('1. Estado atual: frequência "1 de 2 (50%)", nunca "1/2"', lx['Frequência'] === '1 de 2 (50%)', lx['Frequência']);
     anota('1. Estado atual: evento sem "Quem participa" sai como "Empregados"; turma sem sala, sala vazia', ly['Público'] === 'Empregados' && ly['Sala'] === '' && ly['Horário'] === '09:00–13:00', JSON.stringify(ly));
+
+    /* 7. Turmas e parâmetros (Excel, sem pessoas) */
+    {
+      const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('#exportTurmasParametrosBtn')]);
+      const arq = path.join(os.tmpdir(), 'param-' + process.pid + '-' + Date.now() + '.xlsx');
+      await dl.saveAs(arq);
+      const wb = XLSX.read(fs.readFileSync(arq), { type: 'buffer' }); fs.unlinkSync(arq);
+      const tur = XLSX.utils.sheet_to_json(wb.Sheets.Turmas || {}, { defval: '' }), evs = XLSX.utils.sheet_to_json(wb.Sheets.Eventos || {}, { defval: '' });
+      const x = tur.find((l) => l.Turma === 'TURMA X') || {};
+      anota('7. "Turmas e parâmetros": abas Turmas e Eventos, uma linha por turma e por evento', JSON.stringify(wb.SheetNames) === JSON.stringify(['Turmas', 'Eventos']) && tur.length === 2 && evs.length === 2, wb.SheetNames.join(',') + ' ' + tur.length + '/' + evs.length);
+      anota('7. a linha da turma traz os parâmetros dela e do evento',
+        x.Evento === 'EPISÓDIO X' && x['Data da turma'] === '03/11/2027, 05/11/2027' && x['Horário'] === '09:30–12:00' && x.Sala === 'Sala de Treinamento GETHO' &&
+        x['Situação'] === 'Inscrições encerradas' && x.Vagas === 'Sem limite' && x['Ocupadas (interesse + inscrição)'] === 1 && x['Inscritas confirmadas'] === 1 &&
+        x['Quem participa'] === 'Gerentes' && x['Exige CMFlex'] === 'Sim' && x['Público da turma'] === 'Todos', JSON.stringify(x));
+      const todasCelulas = JSON.stringify(tur) + JSON.stringify(evs);
+      anota('7. sem pessoas: nenhum e-mail nem nome no arquivo', !/@/.test(todasCelulas) && !/PRESENTE UM/.test(todasCelulas));
+    }
 
     /* 2. ↓ CSV da turma */
     if (!(await page.isVisible('#turma-card-tX .taa-more-btn'))) await page.click('[data-ev-key="evX"] .ev-toggle-icon');
