@@ -196,9 +196,11 @@
      "Turmas abertas no momento", aluno.js) e pelas portas do painel que põem alguém numa turma (＋ Participante, Confirmar,
      Mover da fila — admin.js; o Sorteio tem regras próprias). Quatro regras, conferidas NESTA ordem (a primeira que barra é
      a que aparece — da mais definitiva para a mais passageira):
-       1. público da turma — turmas/<t>/publicoCargo = 'gerentes' | 'tecnicos': 'gerentes' só admite quem está em
-          fa-gerentes/<emailKey>; 'tecnicos' só quem NÃO está (técnico = quem não é gerente). Lista por e-mail: vale mesmo
-          para quem ainda não tem cadastro;
+       1. público — o "Quem participa" do EVENTO (eventos/<ev>/publicoDesc) "Gerentes" ou "Técnicos" vale para todas as
+          turmas dele; a turma pode ter o próprio (turmas/<t>/publicoCargo = 'gerentes' | 'tecnicos'), que vale por cima do
+          evento (cargoEfetivo). 'gerentes' só admite quem está em fa-gerentes/<emailKey>; 'tecnicos' só quem NÃO está
+          (técnico = quem não é gerente). Lista por e-mail: vale mesmo para quem ainda não tem cadastro. As outras categorias
+          do "Quem participa" (Empregados, Diretores…) são só descrição: não há lista que diga quem é quem;
        2. participação anterior — eventos/<ev>/bloqueiaParticipantesDe = { <outroEvento>: true }: quem tem interesse ou
           inscrição numa turma de um desses eventos não entra;
        3. uma turma por pessoa — eventos/<ev>/umaTurmaPorPessoa = true, com umaTurmaComEventos = { <outroEvento>: true }
@@ -215,6 +217,9 @@
      turma: { key, label, dias, evento, inscrita }, vagas, ocupadas }). */
   function vagasDaTurma(t) { var n = Math.floor(Number(t && t.vagas)); return n > 0 ? n : 0; }
   function cargoDaTurma(t) { var c = t && t.publicoCargo; return c === 'gerentes' || c === 'tecnicos' ? c : ''; }
+  function cargoDoEvento(e) { var d = e && e.publicoDesc; return d === 'Gerentes' ? 'gerentes' : d === 'Técnicos' ? 'tecnicos' : ''; }
+  /* o público que vale para a turma: o dela, se tiver; senão o do evento */
+  function cargoEfetivo(t, e) { return cargoDaTurma(t) || cargoDoEvento(e); }
   function regraValida(v) { return !!(v && !v.removed && v.status !== 'removido'); }
   function regrasDeEntrada(arg, cb) {
     var eventoKey = (arg && arg.eventoKey) || '', eKey = arg && arg.eKey, turmaKey = (arg && arg.turmaKey) || '';
@@ -227,7 +232,7 @@
       var grupo = ev.umaTurmaPorPessoa ? [eventoKey].concat(marcadas(ev.umaTurmaComEventos)) : [];
       db.ref('turmas').once('value', function (tSnap) {
         var turmas = tSnap.val() || {}, alvoT = turmaKey ? (turmas[turmaKey] || {}) : {};
-        var cargo = cargoDaTurma(alvoT), vagas = vagasDaTurma(alvoT);
+        var cargo = cargoEfetivo(alvoT, eventos[alvoT.eventoKey || eventoKey]), vagas = vagasDaTurma(alvoT);
         conferirCargo(function () { conferirEventos(function () { conferirVagas(function () { cb({ estado: 'livre' }); }); }); });
 
         function conferirCargo(seguir) {
@@ -308,7 +313,7 @@
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo,
-    vagasDaTurma: vagasDaTurma, cargoDaTurma: cargoDaTurma,
+    vagasDaTurma: vagasDaTurma, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
     regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin
   };
 })();

@@ -1121,6 +1121,8 @@
     function temRegrasDeEntrada(turmaKey) {
       var t = _turmasList.filter(function (x) { return x.key === turmaKey; })[0];
       if (t && (t.vagas || t.publicoCargo)) return true;
+      /* "Quem participa" do evento = Gerentes/Técnicos também é regra (cargoEfetivo, turmas-util.js) */
+      if (window.faTurmasUtil.cargoDoEvento(eventoDaTurma(turmaKey))) return true;
       return temBloqueioPorParticipacao(eventoDaTurma(turmaKey));
     }
     function eventoDaTurma(turmaKey) {

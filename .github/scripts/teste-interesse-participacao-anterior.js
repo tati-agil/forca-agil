@@ -130,7 +130,9 @@ const conferido = (page) => page.waitForFunction(() => {
       /* a participação aparece no banco SEM avisar a página (como se tivesse sido gravada noutro lugar e a página ainda não
          soubesse): só a conferência do clique pode descobri-la. Gravar pelo Firebase faria o site redesenhar e barrar antes. */
       await page.evaluate((k) => { window.__CFG.db['turmas-interesse'].t1[k] = { name: 'PESSOA NOVA', status: 'interessado', removed: false }; }, chave(NOVA));
-      await page.click('.btn--interest[data-turma="t3"]');
+      /* clique pelo próprio elemento: se a página se redesenhar nesse instante (e, conferindo de novo, já esconder o
+         botão — o que também é certo), o clique não fica esperando o botão aparecer; o que se prova é a conferência */
+      await page.evaluate(() => document.querySelector('.btn--interest[data-turma="t3"]').click());
       await page.waitForFunction(() => /quem ainda não participou/.test((document.getElementById('intent-msg-t3') || {}).textContent || ''), null, { timeout: 10000 });
       anota('participação registrada depois de a página abrir: o clique confere no banco, explica e NÃO grava',
         !(await escritasDe(page, 'turmas-interesse/t3/' + chave(NOVA))).length);
