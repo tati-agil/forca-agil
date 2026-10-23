@@ -424,6 +424,12 @@
       "sobre": "Hermético. \"Ver esta tela como\" (o preview de admin que já existia na Minha Área) chega na página Turmas: a vitrine decide o que aparece POR PESSOA (público restrito, restrito a diretores), regra já esquecida mais de uma vez por faltar como conferir na prática o que uma pessoa específica vê, sem ter a conta dela. Confere que trocar de pessoa no seletor muda o que a vitrine mostra e nunca mexe em interesse/lista de espera (isso continua na sessão real)."
     },
     {
+      "arquivo": ".github/scripts/teste-exportacoes-turma.js",
+      "nome": "Painel: exportações por turma (Estado atual, CSV da turma, Histórico, Sorteios) e cabeçalho da turma, desktop",
+      "duracao": 25,
+      "sobre": "Toda exportação por turma traz Data da turma, Horário, Sala e Público (Quem participa do evento; vazio = Empregados) logo depois de Turma; a frequência sai como 1 de 2 (50%), nunca 1/2 (que o Excel lia como data); o cabeçalho da turma no painel mostra horário e público."
+    },
+    {
       "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",
       "nome": "Turmas: vagas (lotada) e público Só gerentes / Só técnicos, desktop",
       "duracao": 45,
