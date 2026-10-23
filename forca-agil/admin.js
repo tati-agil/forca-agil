@@ -537,6 +537,7 @@
           publicoRestrito: !!e.publicoRestrito,
           bloqueiaParticipantesDe: e.bloqueiaParticipantesDe || null,
           umaTurmaPorPessoa: !!e.umaTurmaPorPessoa,
+          dispensaCmflex: !!e.dispensaCmflex,
           umaTurmaComEventos: e.umaTurmaComEventos || null,
           modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
           publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || '',
@@ -560,6 +561,12 @@
   function turmaEventoKey(key) {
     var t = TURMAS_LIST.filter(function (x) { return x.key === key; })[0];
     return (t && t.eventoKey) || '';
+  }
+  /* evento que não usa o CMFlex (eventos/<ev>/dispensaCmflex; ausente = usa, como sempre foi): muda só os textos —
+     o fluxo é o mesmo (interesse → o admin confirma → inscrita) */
+  function eventoDispensaCmflex(eventoKey) {
+    var ev = EVENTOS_LIST.filter(function (e) { return e.key === eventoKey; })[0];
+    return !!(ev && ev.dispensaCmflex);
   }
 
   function fmtDia(iso) {
@@ -3175,6 +3182,8 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento some da página Turmas para quem não está na aba Diretores nem é admin — mesmo efeito de "fora da página", mas só pra elas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicoRestrito" style="width:auto;margin:0" />Visível só para um público predefinido (lista de e-mails)</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só aparece — e só admite participantes — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormDispensaCmflex" style="width:auto;margin:0" />Não exige inscrição no CMFlex</label>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, o card não manda ninguém para o CMFlex: depois do interesse diz que a organização confirma a vaga, e o "Confirmar" aqui no painel confirma a vaga direto. O resto é igual — só a sua confirmação torna a pessoa inscrita. Desmarcado (padrão), como sempre foi: a inscrição oficial é no CMFlex.</p>' +
       '<div><span class="auth-label" style="display:block;margin-bottom:6px">Não aceitar interesse de quem já participou de:</span>' +
         '<div id="eventoFormBloqueioLista" style="display:flex;flex-direction:column;gap:6px"></div></div>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormUmaTurma" style="width:auto;margin:0" />Só uma turma por pessoa (interesse ou inscrição)</label>' +
@@ -3240,6 +3249,7 @@
     var esperaInput       = box.querySelector('#eventoFormEspera');
     var publicadoInput    = box.querySelector('#eventoFormPublicado');
     var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
+    var dispensaCmflexInput = box.querySelector('#eventoFormDispensaCmflex');
     var publicoRestritoInput = box.querySelector('#eventoFormPublicoRestrito');
     var bloqueioLista     = box.querySelector('#eventoFormBloqueioLista');
     var umaTurmaInput     = box.querySelector('#eventoFormUmaTurma');
@@ -3272,6 +3282,8 @@
     }).join('') : '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>';
     /* uma turma por pessoa: a caixa e o grupo (os outros eventos que contam junto com este) */
     umaTurmaInput.checked = isEdit ? !!existing.umaTurmaPorPessoa : false;
+    /* ausente = exige o CMFlex: evento antigo continua como sempre foi */
+    dispensaCmflexInput.checked = isEdit ? !!existing.dispensaCmflex : false;
     var grupoAtual = (isEdit && existing.umaTurmaComEventos) || {};
     umaTurmaLista.innerHTML = outrosEventos.length ? outrosEventos.map(function (ev) {
       return '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" class="evento-umaturma-cb" value="' + esc(ev.key) + '" style="width:auto;margin:0"' +
@@ -3346,6 +3358,7 @@
           return Object.keys(marcados).length ? marcados : null;
         })(),
         umaTurmaPorPessoa: !!umaTurmaInput.checked,
+        dispensaCmflex: !!dispensaCmflexInput.checked,
         umaTurmaComEventos: (function () {
           if (!umaTurmaInput.checked) return null;
           var marcados = {};
@@ -3412,7 +3425,7 @@
         '</select></label>' +
       '</div>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Só gerentes" admite quem está na aba Gerentes; "Só técnicos", quem não está nela.</p>' +
-      '<label class="auth-label">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
+      '<label class="auth-label" id="turmaFormCmflexBox">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
         '<input type="checkbox" id="turmaFormPublicoRestrito" style="margin-top:3px">' +
@@ -3461,6 +3474,10 @@
     vagasInput.value  = isEdit && existing.vagas ? String(existing.vagas) : '';
     cargoInput.value  = isEdit ? (existing.publicoCargo || '') : '';
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
+    /* evento que não exige o CMFlex: o campo some (o valor gravado, se houver, fica como está) */
+    function mostrarCampoCmflex() { box.querySelector('#turmaFormCmflexBox').style.display = eventoDispensaCmflex(eventoSel.value) ? 'none' : ''; }  /* .auth-label é display:flex: [hidden] não venceria */
+    eventoSel.addEventListener('change', mostrarCampoCmflex);
+    mostrarCampoCmflex();
     resultadoInput.value = isEdit ? (existing.resultadoEsperado || '') : '';
     /* Ausente = turma aberta: turma criada antes deste controle continua
        exatamente como sempre esteve, sem migração nenhuma. */
@@ -4084,8 +4101,10 @@
   function finalizeTurma(turmaKey) {
     adminConfirm(
       'Encerrar o interesse da turma "' + turmaLabel(turmaKey) + '"?\n\n' +
-      'O card público vai parar de aceitar novo interesse e passa a orientar as pessoas pra se inscreverem no CMFlex. ' +
-      'Ninguém vira inscrita automaticamente — você confirma cada pessoa manualmente depois, quando souber que ela se inscreveu de fato no CMFlex.',
+      (eventoDispensaCmflex(turmaEventoKey(turmaKey))
+        ? 'O card público vai parar de aceitar novo interesse. Ninguém vira inscrita automaticamente — você confirma a vaga de cada pessoa aqui no painel.'
+        : 'O card público vai parar de aceitar novo interesse e passa a orientar as pessoas pra se inscreverem no CMFlex. ' +
+          'Ninguém vira inscrita automaticamente — você confirma cada pessoa manualmente depois, quando souber que ela se inscreveu de fato no CMFlex.'),
       function () {
         firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').set(true, function (err) {
           if (err) { adminAlert('Erro ao encerrar. Tente novamente.'); return; }
@@ -4118,7 +4137,10 @@
     barradoPelasRegrasDoEvento(turmaKey, eKey, pessoa && pessoa.name, function (msgRegra) {
     if (msgRegra) { adminAlert(msgRegra); return; }
     checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
-      var msg = 'Confirmar que ' + pessoa.name + ' se inscreveu no CMFlex para "' + turmaLabel(turmaKey) + '"?\n\nEla passa a ter acesso a Conteúdos, Treinamento Jedi e pode registrar presença.';
+      var msg = (eventoDispensaCmflex(turmaEventoKey(turmaKey))
+          ? 'Confirmar a vaga de ' + pessoa.name + ' em "' + turmaLabel(turmaKey) + '"?'
+          : 'Confirmar que ' + pessoa.name + ' se inscreveu no CMFlex para "' + turmaLabel(turmaKey) + '"?') +
+        '\n\nEla passa a ter acesso a Conteúdos, Treinamento Jedi e pode registrar presença.';
       if (overlaps.length) {
         var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
         msg += '\n\nEla já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;

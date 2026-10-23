@@ -17,7 +17,12 @@
  *      sem cadastro), avisa os que já estavam e mostra "Ainda sem cadastro";
  *   7. formulário da turma grava vagas e publicoCargo;
  *   8. Minha Área ("Turmas abertas no momento"): não convida para turma lotada nem para "Só gerentes" de quem não é;
- *   9. nenhum erro de JavaScript não tratado. */
+ *   9. nenhum erro de JavaScript não tratado.
+ *
+ * CMFLEX (eventos/<ev>/dispensaCmflex — ausente = exige, como sempre foi):
+ *  10. evento que não exige: depois do interesse o card diz que a organização confirma a vaga (sem CMFlex); o Confirmar
+ *      do painel pergunta pela vaga, não pelo CMFlex; o formulário da turma esconde "Link do CMFlex";
+ *  11. evento que exige: o card continua mandando para o CMFlex. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -40,13 +45,15 @@ function banco() {
     'fa-users': users, 'fa-admins': admins, 'fa-diretores': {}, 'fa-facilitadores': {},
     'fa-gerentes': { [chave(GER)]: { email: GER, name: 'GERENTE UM', addedAt: '2026-10-22T10:00:00.000Z' }, [chave(SEMCAD)]: { email: SEMCAD, name: '', addedAt: '2026-10-22T10:00:00.000Z' } },
     'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
-    eventos: { ev5: { nome: 'EPISÓDIO V', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false } },
+    eventos: { ev5: { nome: 'EPISÓDIO V', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false, dispensaCmflex: true },
+      ev6: { nome: 'EPISÓDIO VI', order: 2, publicado: true, cargaHoraria: '3', esperaAtiva: false } },
     turmas: {
       tL: { label: 'TURMA LOTADA', eventoKey: 'ev5', order: 1, dias: ['2027-11-03'], vagas: 2 },
       tG: { label: 'TURMA GERENTES', eventoKey: 'ev5', order: 2, dias: ['2027-11-05'], publicoCargo: 'gerentes' },
       tT: { label: 'TURMA TECNICOS', eventoKey: 'ev5', order: 3, dias: ['2027-11-06'], publicoCargo: 'tecnicos' },
       tR: { label: 'TURMA REALIZADA', eventoKey: 'ev5', order: 4, dias: ['2026-01-10'], vagas: 1 },
-      tF: { label: 'TURMA ENCERRADA', eventoKey: 'ev5', order: 5, dias: ['2027-12-01'], vagas: 1 }
+      tF: { label: 'TURMA ENCERRADA', eventoKey: 'ev5', order: 5, dias: ['2027-12-01'], vagas: 1 },
+      tC: { label: 'TURMA COM CMFLEX', eventoKey: 'ev6', order: 6, dias: ['2027-12-03'] }
     },
     'turmas-interesse': {
       tL: { [chave(OCUP)]: reg(OCUP, 'OCUPA VAGA'), [chave(DENTRO)]: reg(DENTRO, 'JA ESTA DENTRO') },
@@ -144,6 +151,13 @@ async function participante(page, tk, busca) {
       await page.click('.btn--interest[data-turma="tG"]');
       await page.waitForFunction((c) => (window.__ESCRITAS || []).some((e) => e.path === c), 'turmas-interesse/tG/' + chave(GER), { timeout: 10000 });
       anota('3. "Só gerentes": gerente registra interesse (o clique confere a lista e grava)', (await escritasDe(page, 'turmas-interesse/tG/' + chave(GER))).some((e) => e.valor && e.valor.status === 'interessado'));
+      await page.waitForFunction(() => /Remover interesse/.test((document.querySelector('.btn--interest[data-turma="tG"]') || {}).textContent || ''), null, { timeout: 10000 });
+      const semCm = await texto(page, '#intent-msg-tG');
+      anota('10. evento que não exige o CMFlex: depois do interesse, "a organização confirma sua vaga", sem CMFlex', /A organização confirma sua vaga/.test(semCm) && !/CMFlex/.test(semCm), semCm);
+      await final(page, 'tC');
+      await page.click('.btn--interest[data-turma="tC"]');
+      await page.waitForFunction(() => /CMFlex/.test((document.getElementById('intent-msg-tC') || {}).textContent || ''), null, { timeout: 10000 });
+      anota('11. evento que exige: o card continua mandando para o CMFlex', /realize a inscrição no CMFlex/.test(await texto(page, '#intent-msg-tC')));
       anota('sem erro de JavaScript (gerente)', !erros.length, erros[0]);
       await ctx.close();
     }
@@ -173,11 +187,23 @@ async function participante(page, tk, busca) {
       anota('5. ＋ Participante de quem não é gerente numa turma "Só gerentes": recusa com o motivo e nada é gravado',
         /não está na lista de Gerentes/.test(err) && !(await escritasDe(page, 'turmas-interesse/tG/' + chave(DENTRO))).length, err);
       await page.click('.modal-box .admin-modal-cancel-btn');
+      /* 10. Confirmar numa turma de evento sem CMFlex */
+      await page.waitForSelector('#turma-card-tL .cf-confirm-btn[data-ekey="' + chave(OCUP) + '"]', { state: 'attached', timeout: 10000 });
+      await page.evaluate((k) => document.querySelector('#turma-card-tL .cf-confirm-btn[data-ekey="' + k + '"]').click(), chave(OCUP));
+      await page.waitForFunction(() => Array.from(document.querySelectorAll('.modal-box')).some((b) => /Confirmar a vaga de/.test(b.textContent)), null, { timeout: 10000 });
+      const conf = await page.evaluate(() => Array.from(document.querySelectorAll('.modal-box')).find((b) => /Confirmar a vaga de/.test(b.textContent)).textContent);
+      anota('10. Confirmar (evento sem CMFlex) pergunta pela vaga, sem falar em CMFlex', /Confirmar a vaga de OCUPA VAGA/.test(conf) && !/CMFlex/.test(conf), conf);
+      await page.evaluate(() => Array.from(document.querySelectorAll('.modal-box')).find((b) => /Confirmar a vaga de/.test(b.textContent)).querySelector('.admin-modal-cancel-btn').click());
       /* 7. formulário da turma */
       await abrirMenuTurma(page, 'tT');
       await page.evaluate(() => { Array.from(document.querySelectorAll('#turma-card-tT .taa-dropdown button')).find((b) => /Editar turma/.test(b.textContent)).click(); });
       await page.waitForSelector('#turmaFormVagas', { timeout: 10000 });
       anota('7. o formulário abre com o público gravado ("Só técnicos") e vagas vazias (sem limite)', (await page.$eval('#turmaFormPublicoCargo', (s) => s.value)) === 'tecnicos' && (await page.$eval('#turmaFormVagas', (i) => i.value)) === '');
+      anota('10. evento sem CMFlex: o formulário da turma não mostra "Link do CMFlex"', !(await visivel(page, '#turmaFormCmflex')));
+      await page.selectOption('#turmaFormEvento', 'ev6');
+      const comLink = await visivel(page, '#turmaFormCmflex');
+      await page.selectOption('#turmaFormEvento', 'ev5');
+      anota('11. trocando para um evento que exige, o campo volta', comLink);
       await page.fill('#turmaFormVagas', '20');
       await page.selectOption('#turmaFormPublicoCargo', 'gerentes');
       await page.click('.modal-box .admin-modal-save-btn');

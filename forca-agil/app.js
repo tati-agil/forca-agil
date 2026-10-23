@@ -310,6 +310,8 @@
                 bloqueiaParticipantesDe: e.bloqueiaParticipantesDe || null,
                 /* uma turma por pessoa no grupo (este evento + umaTurmaComEventos) */
                 umaTurmaPorPessoa: !!e.umaTurmaPorPessoa,
+                /* evento que não usa o CMFlex: a vaga é confirmada só pelo admin, e o card não manda ninguém para lá */
+                dispensaCmflex: !!e.dispensaCmflex,
                 publicoRestrito: !!e.publicoRestrito,
                 /* Chips do bloco "Como funciona" — vazio usa o texto padrão
                    (ver renderMissaoEventos), então evento antigo sem esses
@@ -1067,7 +1069,10 @@
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
-      showMsg(turmaKey, 'Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: ', 'RH - Uso Pessoal | PREVI', 'https://plataforma.intra.previ.com.br/RhUsoPessoal/InscricaoEventoTreinamento');
+      /* evento sem CMFlex (eventos/<ev>/dispensaCmflex): a confirmação é só do admin — não há para onde mandar a pessoa */
+      var ev = eventoDaTurma(turmaKey);
+      if (ev && ev.dispensaCmflex) showMsg(turmaKey, 'Interesse registrado. A organização confirma sua vaga — acompanhe pela Minha Área.');
+      else showMsg(turmaKey, 'Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: ', 'RH - Uso Pessoal | PREVI', 'https://plataforma.intra.previ.com.br/RhUsoPessoal/InscricaoEventoTreinamento');
     }
 
     function setInscrito(btn, turmaKey) {
