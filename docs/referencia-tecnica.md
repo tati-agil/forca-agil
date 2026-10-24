@@ -141,7 +141,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
 | Nó | Finalidade | Módulos | Observação |
 |---|---|---|---|
-| `fa-users` | Perfil de cada cadastro (nome, área, e-mail, situação). | admin, auth, avaliacao-produto, pedidos | Nome/área editáveis no ADMIN › Cadastrados. |
+| `fa-users` | Perfil de cada cadastro (nome, área, e-mail, situação). | admin, auth, avaliacao-produto, pedidos | Nome/área editáveis no ADMIN › Cadastrados. O nome de pessoa é sempre gravado em maiúsculas e sem acentos (`faTurmasUtil.nomePessoa`), em toda porta que grava nome: cadastro, criar conta, editar cadastro, listas do ADMIN e inclusão em turma (`teste-editar-cadastro.js`). |
 | `fa-users-log` | Histórico das correções de cadastro feitas pelo ADMIN. | admin | Só admin grava. |
 | `fa-admins` | Quem é admin (além da lista fixa em `auth.js`). | admin, auth, pedidos | Cada pessoa lê só o próprio registro. |
 | `fa-diretores` | Quem vê eventos marcados "só para diretores e administradores". | admin, auth | Não dá acesso de admin. |

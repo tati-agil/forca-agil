@@ -629,7 +629,7 @@
   function registroInscricaoAdmin(pessoa, status, sess, quando) {
     var adminName = sess ? (sess.name || sess.email) : 'Admin';
     var reg = {
-      name:  (pessoa.name || '').toUpperCase(),
+      name:  window.faTurmasUtil.nomePessoa(pessoa.name),
       email: (pessoa.email || '').toLowerCase(),
       area:  pessoa.area || '',
       date: quando,
@@ -1288,7 +1288,7 @@
                 var payload = {};
                 foraDaLista.forEach(function (reg) {
                   payload[emailKey(reg.email)] = {
-                    name: (reg.name || '').toUpperCase(), email: (reg.email || '').toLowerCase(), area: reg.area || '',
+                    name: window.faTurmasUtil.nomePessoa(reg.name), email: (reg.email || '').toLowerCase(), area: reg.area || '',
                     date: new Date().toISOString(),
                     addedBy: sess ? sess.email : null,
                     addedByName: sess ? (sess.name || sess.email) : null
@@ -3096,7 +3096,7 @@
         errEl.textContent = 'Busque e selecione uma pessoa da lista.';
         errEl.style.display = ''; return;
       }
-      name  = selected.name.toUpperCase();
+      name  = window.faTurmasUtil.nomePessoa(selected.name);
       email = selected.email.toLowerCase();
       area  = selected.area || '';
 
@@ -3845,7 +3845,7 @@
         var sess = window.faAuth && window.faAuth.getSession();
         var eKey = emailKey(u.email);
         var registro = {
-          name: (u.name || '').toUpperCase(), email: u.email.toLowerCase(), area: u.area || '',
+          name: window.faTurmasUtil.nomePessoa(u.name), email: u.email.toLowerCase(), area: u.area || '',
           date: new Date().toISOString(),
           addedBy: sess ? sess.email : null,
           addedByName: sess ? (sess.name || sess.email) : null
@@ -6344,7 +6344,7 @@
 
     salvarBtn.addEventListener('click', function () {
       errEl.style.display = 'none';
-      var nome  = (nomeInput.value || '').trim();
+      var nome  = window.faTurmasUtil.nomePessoa(nomeInput.value);
       var area  = areaInput.value || '';
       var email = (emailInput.value || '').trim().toLowerCase();
       var emailAntigo = (pessoa.email || '').trim().toLowerCase();
@@ -6760,7 +6760,7 @@
         }
 
         document.getElementById('adminAddBtn').addEventListener('click', function () {
-          const name  = (document.getElementById('adminName').value  || '').trim().toUpperCase();
+          const name  = window.faTurmasUtil.nomePessoa(document.getElementById('adminName').value);
           const email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
           const msg   = document.getElementById('adminMsg');
           if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
@@ -7001,7 +7001,7 @@
         }
 
         document.getElementById('diretorAddBtn').addEventListener('click', function () {
-          const name  = (document.getElementById('diretorName').value  || '').trim().toUpperCase();
+          const name  = window.faTurmasUtil.nomePessoa(document.getElementById('diretorName').value);
           const email = (document.getElementById('diretorEmail').value || '').trim().toLowerCase();
           const msg   = document.getElementById('diretorMsg');
           if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
@@ -7113,7 +7113,7 @@
             const k = emailKey(e);
             if (data[k] || updates['fa-gerentes/' + k]) { if (ja.indexOf(e) === -1) ja.push(e); return; }
             const u = users[k];
-            updates['fa-gerentes/' + k] = { email: e, name: (u && u.name) || '', addedAt: new Date().toISOString(), addedBy: (sess && sess.email) || '' };
+            updates['fa-gerentes/' + k] = { email: e, name: u ? window.faTurmasUtil.nomePessoa(u.name) : '', addedAt: new Date().toISOString(), addedBy: (sess && sess.email) || '' };
             novos.push(e);
           });
           if (!novos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Todos esses e-mails já estão na lista.'; return; }
@@ -7282,7 +7282,7 @@
         }
 
         document.getElementById('facilitadorAddBtn').addEventListener('click', function () {
-          const name  = (document.getElementById('facilitadorName').value  || '').trim().toUpperCase();
+          const name  = window.faTurmasUtil.nomePessoa(document.getElementById('facilitadorName').value);
           const email = (document.getElementById('facilitadorEmail').value || '').trim().toLowerCase();
           const msg   = document.getElementById('facilitadorMsg');
           if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }

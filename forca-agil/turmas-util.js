@@ -313,7 +313,15 @@
     return quem + ' já ' + (r.turma.inscrita ? 'está inscrita' : 'tem interesse') + ' na ' + descreverTurmaRegra(r.turma) + '. Este evento admite uma turma por pessoa: retire-a daquela turma primeiro. Nada foi gravado.';
   }
 
+  /* NOME DE PESSOA, como é gravado: maiúsculas, sem acentos (Ç → C), espaços simples. Uma regra só, usada por toda porta
+     que grava o nome de alguém (cadastro, criar conta, editar cadastro, listas do ADMIN, inclusão em turma). Só nomes de
+     PESSOAS — nomes de eventos e turmas ficam como o admin escreve. */
+  function nomePessoa(s) {
+    return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+  }
+
   window.faTurmasUtil = {
+    nomePessoa: nomePessoa,
     formatDias: formatDias, periodoCertificado: periodoCertificado, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
