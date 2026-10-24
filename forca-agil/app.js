@@ -1047,8 +1047,20 @@
               { name: sess.name, email: sess.email, area: sess.area || '', action: 'registrado', date: now }
             );
             setDone(btn, turmaKey);
+            reconferirOutrosCards(turmaKey, sess.email);
           });
         }
+      });
+    }
+
+    /* Registrar ou remover um interesse muda o que os OUTROS cards devem dizer ("uma turma por vez", "já participou",
+       vagas). Antes só o card clicado se atualizava: removendo a turma A, a turma B continuava dizendo "você já tem
+       interesse na A" até recarregar a página (visto em 23/10/2026). Os demais cards com regra conferem de novo no banco. */
+    function reconferirOutrosCards(turmaKey, email) {
+      document.querySelectorAll('.btn--interest').forEach(function (b) {
+        var tk = b.dataset.turma;
+        if (!tk || tk === turmaKey || !temRegrasDeEntrada(tk)) return;
+        prepararBotaoComParticipacao(b, tk, email);
       });
     }
 
@@ -1063,6 +1075,7 @@
           { name: sess.name, email: sess.email, area: sess.area || '', action: 'removido', date: now }
         );
         setInitial(btn, turmaKey);
+        reconferirOutrosCards(turmaKey, sess.email);
       });
     }
 
