@@ -18,7 +18,9 @@
  *      como trocar ("remova seu interesse"); na própria turma, o "Remover interesse" de sempre; a fila também barra;
  *   8. quem está INSCRITA numa turma do grupo é orientada a pedir ao admin;
  *   9. o painel aplica a mesma regra: "＋ Participante" numa turma do grupo recusa com o motivo e nada é gravado;
- *  10. o formulário grava umaTurmaPorPessoa e umaTurmaComEventos. */
+ *  10. o formulário grava umaTurmaPorPessoa e umaTurmaComEventos;
+ *  11. os OUTROS cards se reconferem na hora: removendo o interesse da turma A, a turma B volta a "Tenho interesse"; e,
+ *      registrando na B, a A passa a dizer "já tem interesse na B" — sem recarregar a página. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -176,6 +178,23 @@ const conferido = (page) => page.waitForFunction(() => {
       await page.waitForFunction(() => { const c = document.querySelector('.turma-card-espera'); return !!c && /uma turma por vez/.test((c.querySelector('.turma-intent-msg') || {}).textContent || ''); }, null, { timeout: 15000 });
       anota('7. e não entra na lista de espera do evento', !(await visivel(page, '.turma-card-espera .btn--espera')));
       anota('sem erro de JavaScript (uma turma)', !erros.length, erros[0]);
+      await ctx.close();
+    }
+    /* 11. trocar de turma sem recarregar: os outros cards acompanham */
+    {
+      const { ctx, page, erros } = await abrir(browser, UMA, '#turmas');
+      await page.waitForFunction(() => /Remover interesse/.test((document.querySelector('.btn--interest[data-turma="t3"]') || {}).textContent || '') &&
+        /uma turma por vez/.test((document.getElementById('intent-msg-t4') || {}).textContent || ''), null, { timeout: 15000 });
+      await page.click('.btn--interest[data-turma="t3"]');
+      await page.waitForFunction(() => { const b = document.querySelector('.btn--interest[data-turma="t4"]');
+        return !!b && b.style.display !== 'none' && /Tenho interesse/.test(b.textContent) && !b.disabled; }, null, { timeout: 15000 });
+      anota('11. removendo o interesse da turma A, a turma B volta a "Tenho interesse" na hora (sem a mensagem antiga)',
+        !/uma turma por vez/.test(await texto(page, '#intent-msg-t4')), await texto(page, '#intent-msg-t4'));
+      await page.click('.btn--interest[data-turma="t4"]');
+      await page.waitForFunction(() => /já tem interesse na TURMA EP4/.test((document.getElementById('intent-msg-t3') || {}).textContent || '') &&
+        /já tem interesse na TURMA EP4/.test((document.getElementById('intent-msg-t3b') || {}).textContent || ''), null, { timeout: 15000 });
+      anota('11. registrando na turma B, as outras passam a dizer "já tem interesse na TURMA EP4" na hora', !(await visivel(page, '.btn--interest[data-turma="t3b"]')));
+      anota('sem erro de JavaScript (trocar de turma)', !erros.length, erros[0]);
       await ctx.close();
     }
     /* 8. inscrita numa turma do grupo */
