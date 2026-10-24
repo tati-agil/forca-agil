@@ -433,7 +433,7 @@
       "arquivo": ".github/scripts/teste-exportacoes-turma.js",
       "nome": "Painel: exportações por turma (Estado atual, CSV da turma, Histórico, Sorteios) e cabeçalho da turma, desktop",
       "duracao": 25,
-      "sobre": "Toda exportação por turma traz Data da turma, Horário, Sala e Público (Quem participa do evento; vazio = Empregados) logo depois de Turma; a frequência sai como 1 de 2 (50%), nunca 1/2 (que o Excel lia como data); o cabeçalho da turma no painel mostra horário e público; o botão Turmas e parâmetros baixa um Excel com as abas Turmas e Eventos, sem nenhum nome ou e-mail."
+      "sobre": "Toda exportação por turma traz Data da turma, Horário, Sala e Público (Quem participa do evento; vazio = Empregados) logo depois de Turma; a frequência sai como 1 de 2 (50%), nunca 1/2 (que o Excel lia como data); o cabeçalho da turma no painel mostra horário e público; o botão Turmas e parâmetros baixa um Excel com as abas Turmas e Eventos, sem nenhum nome ou e-mail; o critério de frequência do CSV é o percentual mínimo do evento; evento sem o campo de lista de espera aparece como aceitando; Mover da fila tira a inscrição em outra turma, como o Confirmar."
     },
     {
       "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",

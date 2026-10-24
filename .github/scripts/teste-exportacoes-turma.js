@@ -14,6 +14,9 @@
  *   4. "Sorteios": as colunas da turma sorteada;
  *   5. o cabeçalho da turma no painel mostra horário e público;
  *   6. nenhum erro de JavaScript não tratado;
+ *   8. a frequência mínima é o parâmetro do EVENTO (aqui 50%): o CSV da turma diz "Atingiu critério (50%)" e "Sim" com 1 de 2;
+ *   9. Excel "Turmas e parâmetros": evento sem o campo de lista de espera aparece "Aceita lista de espera = Sim" (como no site);
+ *  10. "Mover para turma" da lista de espera tira a inscrição da pessoa em outra turma (com aviso), como o Confirmar;
  *   7. "📊 Turmas e parâmetros": Excel com as abas Turmas (uma linha por turma, com os parâmetros dela e do evento) e
  *      Eventos (uma linha por evento) — sem pessoas: nenhum nome nem e-mail, só contagens. */
 const { chromium } = require('playwright');
@@ -27,24 +30,26 @@ const BASE  = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 
-const ADM = 'adm@previ.com.br', P1 = 'presente@previ.com.br';
+const ADM = 'adm@previ.com.br', P1 = 'presente@previ.com.br', ESP = 'na.fila@previ.com.br';
 const COLS = ['Turma', 'Data da turma', 'Horário', 'Sala', 'Público'];
 
 function banco() {
-  const users = { [chave(ADM)]: { name: 'ADMIN', email: ADM, area: 'INFOR' }, [chave(P1)]: { name: 'PRESENTE UM', email: P1, area: 'GECAT' } };
+  const users = { [chave(ADM)]: { name: 'ADMIN', email: ADM, area: 'INFOR' }, [chave(P1)]: { name: 'PRESENTE UM', email: P1, area: 'GECAT' }, [chave(ESP)]: { name: 'NA FILA', email: ESP, area: 'GECAT' } };
   return {
     'fa-users': users, 'fa-admins': { [chave(ADM)]: { email: ADM, name: 'ADMIN' } }, 'fa-diretores': {}, 'fa-facilitadores': {}, 'fa-gerentes': {},
-    'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
+    'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {},
+    'fa-espera': { [chave(ESP)]: { 'lista:evY': { name: 'NA FILA', email: ESP, area: 'GECAT', date: '2026-10-21T10:00:00.000Z', eventoKey: 'evY', removed: false } } },
     eventos: {
-      evX: { nome: 'EPISÓDIO X', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Gerentes' },
-      evY: { nome: 'EPISÓDIO Y', order: 2, publicado: true, cargaHoraria: '3', esperaAtiva: false }
+      evX: { nome: 'EPISÓDIO X', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Gerentes', percentualMinimo: 50 },
+      evY: { nome: 'EPISÓDIO Y', order: 2, publicado: true, cargaHoraria: '3' }
     },
     turmas: {
       tX: { label: 'TURMA X', eventoKey: 'evX', order: 1, dias: ['2027-11-05', '2027-11-03'], horarioInicio: '09:30', horarioFim: '12:00', sala: 'Sala de Treinamento GETHO' },
       tY: { label: 'TURMA Y', eventoKey: 'evY', order: 2, dias: ['2027-12-01'] }
     },
     'turmas-interesse': {
-      tX: { [chave(P1)]: { name: 'PRESENTE UM', email: P1, area: 'GECAT', status: 'inscrito', confirmedByAdmin: ADM, removed: false, date: '2026-10-20T10:00:00.000Z' } },
+      tX: { [chave(P1)]: { name: 'PRESENTE UM', email: P1, area: 'GECAT', status: 'inscrito', confirmedByAdmin: ADM, removed: false, date: '2026-10-20T10:00:00.000Z' },
+        [chave(ESP)]: { name: 'NA FILA', email: ESP, area: 'GECAT', status: 'inscrito', confirmedByAdmin: ADM, removed: false, date: '2026-10-20T11:00:00.000Z' } },
       tY: { [chave(P1)]: { name: 'PRESENTE UM', email: P1, area: 'GECAT', status: 'interessado', removed: false, date: '2026-10-21T10:00:00.000Z' } }
     },
     'turmas-interesse-log': { tX: { [chave(P1)]: { l1: { name: 'PRESENTE UM', email: P1, area: 'GECAT', action: 'registrado', date: '2026-10-20T10:00:00.000Z' } } } },
@@ -110,7 +115,7 @@ function lerCsv(texto) {
 
     /* 1. Estado atual */
     const estado = await baixar(() => page.evaluate(() => Array.from(document.querySelectorAll('button')).find((b) => /Estado atual/.test(b.textContent)).click()));
-    const lx = estado.linhas.find((l) => l.Turma === 'TURMA X') || {}, ly = estado.linhas.find((l) => l.Turma === 'TURMA Y') || {};
+    const lx = estado.linhas.find((l) => l.Turma === 'TURMA X' && l.Nome === 'PRESENTE UM') || {}, ly = estado.linhas.find((l) => l.Turma === 'TURMA Y') || {};
     anota('1. Estado atual: Data da turma, Horário, Sala e Público logo depois de "Turma"', comecaComColunas(estado.cab) && estado.cab.includes('Frequência'), estado.cab.join(' | '));
     anota('1. Estado atual: os valores da turma', valoresX(lx), JSON.stringify(lx));
     anota('1. Estado atual: frequência "1 de 2 (50%)", nunca "1/2"', lx['Frequência'] === '1 de 2 (50%)', lx['Frequência']);
@@ -127,8 +132,11 @@ function lerCsv(texto) {
       anota('7. "Turmas e parâmetros": abas Turmas e Eventos, uma linha por turma e por evento', JSON.stringify(wb.SheetNames) === JSON.stringify(['Turmas', 'Eventos']) && tur.length === 2 && evs.length === 2, wb.SheetNames.join(',') + ' ' + tur.length + '/' + evs.length);
       anota('7. a linha da turma traz os parâmetros dela e do evento',
         x.Evento === 'EPISÓDIO X' && x['Data da turma'] === '03/11/2027, 05/11/2027' && x['Horário'] === '09:30–12:00' && x.Sala === 'Sala de Treinamento GETHO' &&
-        x['Situação'] === 'Inscrições encerradas' && x.Vagas === 'Sem limite' && x['Ocupadas (interesse + inscrição)'] === 1 && x['Inscritas confirmadas'] === 1 &&
+        x['Situação'] === 'Inscrições encerradas' && x.Vagas === 'Sem limite' && x['Ocupadas (interesse + inscrição)'] === 2 && x['Inscritas confirmadas'] === 2 &&
         x['Quem participa'] === 'Gerentes' && x['Exige CMFlex'] === 'Sim' && x['Público da turma'] === 'Só gerentes' /* vem do "Quem participa" do evento */, JSON.stringify(x));
+      const evYlinha = evs.find((l) => l.Evento === 'EPISÓDIO Y') || {}, evXlinha = evs.find((l) => l.Evento === 'EPISÓDIO X') || {};
+      anota('9. evento sem o campo de lista de espera: "Aceita lista de espera = Sim" (como no site); desligado: "Não"',
+        evYlinha['Aceita lista de espera'] === 'Sim' && evXlinha['Aceita lista de espera'] === 'Não', JSON.stringify([evYlinha['Aceita lista de espera'], evXlinha['Aceita lista de espera']]));
       const todasCelulas = JSON.stringify(tur) + JSON.stringify(evs);
       anota('7. sem pessoas: nenhum e-mail nem nome no arquivo', !/@/.test(todasCelulas) && !/PRESENTE UM/.test(todasCelulas));
     }
@@ -138,8 +146,10 @@ function lerCsv(texto) {
     await page.waitForSelector('#turma-card-tX .taa-more-btn', { timeout: 10000 });
     await page.click('#turma-card-tX .taa-more-btn');
     const turma = await baixar(() => page.evaluate(() => Array.from(document.querySelectorAll('#turma-card-tX .taa-dropdown button')).find((b) => /CSV/.test(b.textContent)).click()));
-    const tl = turma.linhas[0] || {};
+    const tl = turma.linhas.find((l) => l.Nome === 'PRESENTE UM') || {};
     anota('2. "↓ CSV" da turma: as colunas da turma e a frequência "1 de 2 (50%)"', comecaComColunas(turma.cab) && valoresX(tl) && tl['Frequência'] === '1 de 2 (50%)', turma.cab.join(' | ') + ' / ' + JSON.stringify(tl));
+    anota('8. o critério é a frequência mínima do evento (50%): "Atingiu critério (50%)" = Sim com 1 de 2',
+      turma.cab.includes('Atingiu critério (50%)') && tl['Atingiu critério (50%)'] === 'Sim', turma.cab.join(' | ') + ' / ' + JSON.stringify(tl));
 
     /* 3. Histórico */
     const hist = await baixar(() => page.evaluate(() => Array.from(document.querySelectorAll('button')).find((b) => /Histórico/.test(b.textContent)).click()));
@@ -154,6 +164,24 @@ function lerCsv(texto) {
     anota('4. Sorteios: as colunas da turma sorteada', JSON.stringify(sort.cab.slice(0, 7)) === JSON.stringify(['Quando', 'Evento', 'Turma', 'Data da turma', 'Horário', 'Sala', 'Público']) && valoresX(sl) && sl['Nome sorteado'] === 'PRESENTE UM',
       sort.cab.join(' | ') + ' / ' + JSON.stringify(sl));
 
+    /* 10. Mover da fila tira a outra inscrição (como o Confirmar) */
+    await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).find((x) => /Eventos/i.test(x.textContent)).click());
+    await page.waitForFunction((e) => Array.from(document.querySelectorAll('tr')).some((tr) => tr.textContent.indexOf(e) !== -1 && /Mover para turma/.test(tr.textContent)), ESP, { timeout: 15000 });
+    await page.evaluate((e) => {
+      const tr = Array.from(document.querySelectorAll('tr')).find((x) => x.textContent.indexOf(e) !== -1 && /Mover para turma/.test(x.textContent));
+      const sel = tr.querySelector('select'); sel.value = 'tY'; sel.dispatchEvent(new Event('change'));
+      Array.from(tr.querySelectorAll('button')).find((b) => /Mover para turma/.test(b.textContent)).click();
+    }, ESP);
+    const confirmar = async (re) => {
+      await page.waitForFunction((src) => Array.from(document.querySelectorAll('.modal-box')).some((b) => new RegExp(src).test(b.textContent) && b.querySelector('.admin-modal-confirm-btn')), re.source, { timeout: 10000 });
+      const t = await page.evaluate((src) => { const b = Array.from(document.querySelectorAll('.modal-box')).filter((x) => new RegExp(src).test(x.textContent) && x.querySelector('.admin-modal-confirm-btn')).pop(); const txt = b.textContent; b.querySelector('.admin-modal-confirm-btn').click(); return txt; }, re.source);
+      return t;
+    };
+    await confirmar(/como Inscrita\?/);
+    const aviso = await confirmar(/já é inscrita em outra turma/);
+    await page.waitForFunction((k) => (window.__ESCRITAS || []).some((e) => e.path === 'turmas-interesse/tY/' + k), chave(ESP), { timeout: 10000 });
+    const tirou = await page.evaluate((k) => (window.__ESCRITAS || []).some((e) => e.path === 'turmas-interesse/tX/' + k + '/removed' && e.valor === true), chave(ESP));
+    anota('10. "Mover para turma" avisa e tira a inscrição na outra turma (TURMA X), como o Confirmar', /TURMA X/.test(aviso) && tirou, aviso);
     anota('6. sem erro de JavaScript', !erros.length, erros[0]);
     await ctx.close();
   } catch (e) {
