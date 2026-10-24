@@ -473,8 +473,15 @@
     });
   }
 
-  /* Critério de presença mínima (0.75 = 75% dos dias) */
-  var CRITERIO_PRESENCA = 0.75;
+  /* Frequência mínima para o certificado: o parâmetro do EVENTO ("Frequência mínima p/ certificado (%)",
+     eventos/<ev>/percentualMinimo; ausente = 75), o mesmo que a Minha Área e os Certificados usam. Antes a tabela da
+     turma, o CSV e a lista de presença usavam 75% fixo. */
+  function percentualMinimoDaTurma(t) {
+    var ev = EVENTOS_LIST.filter(function (e) { return e.key === (t && t.eventoKey); })[0];
+    var p = Number(ev && ev.percentualMinimo);
+    return p > 0 ? p : 75;
+  }
+  function minimoDiasDaTurma(t) { return Math.ceil((t.dias || []).length * percentualMinimoDaTurma(t) / 100); }
 
   /* Turmas não são mais fixas — vêm de turmas/ no Firebase, editável pelo admin
      (criar, excluir, adicionar/remover datas). loadTurmasList() repopula isto
@@ -1665,7 +1672,7 @@
      porque o check-in em si (abrir dia, escanear QR) só existe aí, E alguém
      confirmada na lista, porque só ela pode ter presença. */
   function buildParticipantesTable(t, records, checkinT, finalizada) {
-    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var minDias = minimoDiasDaTurma(t);
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
 
@@ -2089,7 +2096,7 @@
   /* Tabela de removidos — só leitura, com o histórico de presença preservado
      (os registros em turmas-checkin não são apagados ao remover alguém da turma) */
   function buildRemovedPresencaTable(t, removed, checkinT) {
-    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var minDias = minimoDiasDaTurma(t);
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
 
@@ -4275,7 +4282,7 @@
 
   /* ---- CSV exports ---- */
   function exportTurmaCSV(t, all, finalizada, checkinT) {
-    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var minDias = minimoDiasDaTurma(t);
     var rows = [];
     /* MUDANÇA 1: exportar apenas não-removidos */
     var active = all.filter(function (r) { return r.removed !== true; });
@@ -4300,7 +4307,7 @@
     var headers = ['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Status','Data Registro','Adicionado por']);
     if (finalizada) {
       t.dias.forEach(function (d) { headers.push(fmtDia(d)); });
-      headers.push('Frequência', 'Atingiu critério (' + Math.round(CRITERIO_PRESENCA * 100) + '%)');
+      headers.push('Frequência', 'Atingiu critério (' + percentualMinimoDaTurma(t) + '%)');
     }
     toXls(headers, rows, 'turma-' + t.key + '-' + new Date().toISOString().slice(0,10) + '.csv');
   }
@@ -4311,7 +4318,7 @@
     var inscritos = all.filter(function (r) { return r.removed !== true && r.status === 'inscrito'; });
     if (!inscritos.length) { adminAlert('Não há inscritos confirmados nesta turma para gerar a lista de presença.'); return; }
 
-    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var minDias = minimoDiasDaTurma(t);
     var geradoEm = new Date().toLocaleString('pt-BR');
 
     var diaCols = t.dias.map(function (d) { return '<th>' + esc(fmtDia(d)) + '</th>'; }).join('');
@@ -4331,7 +4338,7 @@
     }).join('');
 
     var freqHead = finalizada
-      ? '<th>Frequência</th><th>Atingiu critério (' + Math.round(CRITERIO_PRESENCA * 100) + '%)</th>'
+      ? '<th>Frequência</th><th>Atingiu critério (' + percentualMinimoDaTurma(t) + '%)</th>'
       : '';
 
     var html = '<!doctype html><html><head><meta charset="utf-8"><title>Lista de presença — ' + esc(t.label) + '</title>' +
@@ -4414,7 +4421,7 @@
             'Participação (chip)': e.publicoLabel || 'Opcional',
             'Exige CMFlex': sim(!e.dispensaCmflex),
             'Divulgado na página Turmas': sim(e.publicado !== false),
-            'Aceita lista de espera': sim(!!e.esperaAtiva),
+            'Aceita lista de espera': sim(e.esperaAtiva !== false),  /* ausente = aceita, como no site (app.js) */
             'Só diretores e admins': sim(!!e.restritoADiretores),
             'Público restrito (lista do evento)': sim(!!e.publicoRestrito),
             'Não aceita quem participou de': nomesDe(e.bloqueiaParticipantesDe),
@@ -5318,9 +5325,20 @@
     barradoPelasRegrasDoEvento(turmaKey, eKey, person.name, function (msgRegra, lotacao) {
     if (msgRegra) { adminAlert(msgRegra); return; }
     /* turma lotada: só com motivo (o registro leva acimaDasVagas) */
-    if (lotacao) { pedirMotivoAcimaDasVagas(lotacao, sess, mover); return; }
-    mover(null);
-    function mover(acimaDasVagas) {
+    if (lotacao) { pedirMotivoAcimaDasVagas(lotacao, sess, conferirOutras); return; }
+    conferirOutras(null);
+    /* Mesma exclusividade do Confirmar: inscrita em outra turma, a outra inscrição sai (com aviso antes). Antes o Mover
+       não fazia isso e a pessoa podia ficar inscrita em duas turmas. */
+    function conferirOutras(acimaDasVagas) {
+      checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
+        if (!overlaps.length) { mover(acimaDasVagas, []); return; }
+        var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
+        adminConfirm('Mover ' + person.name + ' para "' + turmaLabel(turmaKey) + '"?\n\n' +
+          'Ela já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista,
+          function () { mover(acimaDasVagas, overlaps); });
+      });
+    }
+    function mover(acimaDasVagas, overlaps) {
     var now  = new Date().toISOString();
     var destEventoKey = turmaEventoKey(turmaKey);
     var updates = {};
@@ -5333,6 +5351,11 @@
       fromEspera: true
     };
     if (acimaDasVagas) updates['turmas-interesse/' + turmaKey + '/' + eKey].acimaDasVagas = acimaDasVagas;
+    (overlaps || []).forEach(function (o) {
+      updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
+      updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
+      updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(turmaKey) + '"';
+    });
     /* Inscrita numa turma, ela não está mais esperando por ESTE evento —
        sai de todas as origens desse evento (e das órfãs, sem evento
        definido, já que arranjar vaga resolve a ambiguidade). Se ela também
