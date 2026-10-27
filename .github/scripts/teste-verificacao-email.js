@@ -6,14 +6,15 @@
  *      explica o caminho: entrar de novo.
  *   2. Cadastro com envio que falha (rede, código desconhecido): o painel NUNCA diz "Enviamos"; diz que a conta foi
  *      criada, mostra a falha com o código e o caminho para reenviar.
- *   3. Firebase recusa o endereço de volta: reenvia sem ele, e o painel diz "Enviamos".
+ *   3. Firebase recusa o endereço de volta: um único pedido (nunca reenvia sem o retorno em silêncio); o painel não diz
+ *      "Enviamos" e explica a falha com o código e "avise a coordenação".
  *   4. Envio sem resposta: aviso de prazo, botão do cadastro liberado (nunca "Aguarde…" para sempre).
  *   5. Cadastro com falha → volta ao login → entra com a conta não confirmada: mensagem NEUTRA (nunca "foi enviado"),
  *      botão de reenviar, reenvio em pt-BR com sucesso e falha tratados, acesso ao site continua barrado.
  *   5b. Login com conta não confirmada (conectada): botão de reenviar à vista; reenvio em pt-BR com endereço de volta,
  *      mensagem com o remetente e a quarentena; falha com a causa; sessão desconectada → orientação, sem pedido.
- *   6. Endereço de volta só nos domínios de produção (autorizados por padrão): kyber-agil.web.app e
- *      kyber-agil.firebaseapp.com voltam para si mesmos; prévia ou outro endereço → site oficial.
+ *   6. Endereço de volta: sempre o institucional (https://forca-agil.previ.com.br/), na verificação e na redefinição,
+ *      de onde quer que o pedido parta — institucional, kyber-agil.web.app, kyber-agil.firebaseapp.com, prévia ou outro.
  *   7. O console nunca recebe o e-mail; nenhuma rolagem lateral; nenhum erro de página. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -23,7 +24,7 @@ const { esperarCondicao } = require('./esperas');
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const NOVA = 'nova.pessoa@previ.com.br', PEND = 'pendente.teste@previ.com.br';
-const OFICIAL = 'https://kyber-agil.web.app/';
+const OFICIAL = 'https://forca-agil.previ.com.br/'; /* endereço institucional, autorizado no Authentication */
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 let falhas = 0;
 function afirma(cond, msg, detalhe) { console.log((cond ? '  ok    ' : '  FALHA ') + msg + (!cond && detalhe ? ' → ' + detalhe : '')); if (!cond) falhas++; }
@@ -64,15 +65,19 @@ const painelVisivelTexto = (page) => page.evaluate(() => {
 });
 
 async function cadastrar(page) {
-  await page.waitForFunction(() => !!window.faOpenAuthModal, null, { timeout: 15000 });
+  /* como a pessoa: só depois de o site decidir o login (a tela de login forçada não atropela o cadastro já aberto) */
+  await page.waitForFunction(() => !!window.faOpenAuthModal && window.faAuth && window.faAuth.isAuthReady() && !document.getElementById('authModal').hidden, null, { timeout: 15000 });
   await page.evaluate(() => window.faOpenAuthModal('register'));
   await page.waitForSelector('#auth-register:not([hidden])');
-  await page.fill('#regName', 'Nova Pessoa');
-  await page.fill('#regPassword', '12345678');
-  await page.fill('#regPasswordConfirm', '12345678');
-  /* o e-mail por último e direto no valor: o campo completa "@previ.com.br" ao ganhar foco */
-  await page.evaluate((e) => { document.getElementById('regEmail').value = e; document.getElementById('regArea').value = 'GEPES'; const t = document.getElementById('regTerms'); if (t) t.checked = true; }, NOVA);
-  await page.evaluate(() => { document.getElementById('registerForm').requestSubmit(); });
+  /* valores direto nos campos e o envio na mesma volta: digitar campo a campo às vezes deixava a confirmação da senha
+     incompleta e o próprio site (corretamente) recusava com "As senhas não coincidem" — falso vermelho do teste.
+     O e-mail também vai direto: o campo completa "@previ.com.br" ao ganhar foco. */
+  await page.evaluate((e) => {
+    const v = (id, x) => { document.getElementById(id).value = x; };
+    v('regName', 'Nova Pessoa'); v('regPassword', '12345678'); v('regPasswordConfirm', '12345678'); v('regEmail', e); v('regArea', 'GEPES');
+    const t = document.getElementById('regTerms'); if (t) t.checked = true;
+    document.getElementById('registerForm').requestSubmit();
+  }, NOVA);
 }
 const esperarPainel = (page, limite) => esperarCondicao(page, () => { const v = document.getElementById('auth-verificacao'); return v && !v.hidden; }, undefined, { limite: limite || 8000 });
 
@@ -115,8 +120,10 @@ async function rodada(browser, viewport, rotulo) {
   await cadastrar(page);
   await esperarPainel(page);
   ped = await pedidos(page); painel = await painelVisivelTexto(page);
-  afirma(ped.length === 2 && ped[0].settings && !ped[1].settings && ped[1].languageCode === 'pt-BR', 'reenvia sem o endereço de volta, ainda em pt-BR', JSON.stringify(ped));
-  afirma(/Enviamos um link de confirmação/.test(painel) && !(await visivel(page, '#verificacaoErr')), 'painel: "Enviamos" (o e-mail saiu)', painel);
+  afirma(ped.length === 1 && ped[0].settings && ped[0].settings.url === OFICIAL, 'um único pedido, com o endereço institucional: nada sai sem o retorno em silêncio', JSON.stringify(ped));
+  afirma(!/Enviamos/.test(painel) && /Sua conta foi criada para:/.test(painel), 'painel: nunca "Enviamos"; a conta foi criada', painel);
+  afirma(/código: auth\/unauthorized-continue-uri\).*problema de configuração do site: avise a coordenação do Força Ágil\./.test(await texto(page, '#verificacaoErr')),
+    'falha explicada: código e "avise a coordenação" (não é algo que a pessoa resolva tentando de novo)', await texto(page, '#verificacaoErr'));
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
@@ -200,15 +207,17 @@ async function rodada(browser, viewport, rotulo) {
 
 async function enderecosDeVolta(browser) {
   console.log('\n=== Endereço de volta por domínio ===');
-  const casos = [['https://kyber-agil.web.app', 'https://kyber-agil.web.app/'], ['https://kyber-agil.firebaseapp.com', 'https://kyber-agil.firebaseapp.com/'],
-    ['https://kyber-agil--v2-preview-abc123.web.app', OFICIAL], ['https://outro-site.example.com', OFICIAL]];
-  for (const [origem, esperado] of casos) {
+  /* de qualquer endereço de onde o pedido parta, a volta é o institucional — na verificação e na redefinição */
+  const origens = ['https://forca-agil.previ.com.br', 'https://kyber-agil.web.app', 'https://kyber-agil.firebaseapp.com', 'https://kyber-agil--v2-preview-abc123.web.app', 'https://outro-site.example.com'];
+  for (const origem of origens) {
     const { ctx, page, erros } = await abrir(browser, { width: 1280, height: 900 }, { user: { email: PEND, emailVerified: false, uid: 'u-pend' } }, origem);
     await esperarPainel(page, 15000);
     await page.click('#reenviarVerificacao');
     await esperarCondicao(page, () => !document.getElementById('verificacaoOk').hidden || !document.getElementById('verificacaoErr').hidden, undefined, { limite: 8000 });
     const ped = await pedidos(page);
-    afirma(ped.length === 1 && ped[0].settings && ped[0].settings.url === esperado, origem + ' → ' + esperado, JSON.stringify(ped));
+    afirma(ped.length === 1 && ped[0].settings && ped[0].settings.url === OFICIAL, origem + ' → verificação volta para ' + OFICIAL, JSON.stringify(ped));
+    const reset = await page.evaluate((e) => new Promise((ok) => window.faAuth.sendPasswordReset(e, () => ok((window.__CFG.__resets || []).slice()))), PEND);
+    afirma(reset.length === 1 && reset[0].settings && reset[0].settings.url === OFICIAL && reset[0].languageCode === 'pt-BR', origem + ' → redefinição volta para ' + OFICIAL, JSON.stringify(reset));
     afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
     await ctx.close();
   }

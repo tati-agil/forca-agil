@@ -5,7 +5,8 @@
  *   2. Sucesso: mensagem neutra (igual para qualquer e-mail — a proteção contra enumeração não deixa saber se a conta
  *      existe), com o remetente e a orientação de olhar a quarentena.
  *   3. O pedido vai ao Firebase com o e-mail em minúsculas, idioma pt-BR (languageCode no momento do envio) e o
- *      endereço de volta ao site (actionCodeSettings.url).
+ *      endereço de volta institucional, https://forca-agil.previ.com.br/ (actionCodeSettings.url); retorno recusado pelo
+ *      Firebase → "avise a coordenação" com o código.
  *   4. Falhas com a causa: rede, excesso de tentativas, e-mail inválido; código desconhecido → genérica com o código;
  *      sem resposta → aviso de prazo (sem ficar "Aguarde…" para sempre). Botão travado durante o envio (sem duplo envio).
  *   5. E-mail fora de @previ.com.br: barrado na tela, sem pedido ao Firebase.
@@ -20,6 +21,7 @@ const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const ADM = 'adm@previ.com.br', PESSOA = 'Pessoa.Teste@previ.com.br';
+const INSTITUCIONAL = 'https://forca-agil.previ.com.br/'; /* volta depois de criar a senha (autorizado no Authentication) */
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 let falhas = 0;
 function afirma(cond, msg, detalhe) { console.log((cond ? '  ok    ' : '  FALHA ') + msg + (!cond && detalhe ? ' → ' + detalhe : '')); if (!cond) falhas++; }
@@ -78,13 +80,14 @@ async function rodada(browser, viewport, rotulo) {
   const ok = await texto(page, '#forgotOk'), ped = await pedidos(page);
   afirma(/Pedido enviado\. Se houver uma conta com este e-mail/.test(ok) && /noreply@kyber-agil\.firebaseapp\.com/.test(ok) && /quarentena/.test(ok) && !/cadastrad[oa] com sucesso|existe/i.test(ok),
     'sucesso: mensagem neutra, com o remetente e a orientação de olhar a quarentena', ok);
-  afirma(ped.length === 1 && ped[0].email === PESSOA.toLowerCase() && ped[0].languageCode === 'pt-BR' && ped[0].settings && /^https:\/\/kyber-agil\.web\.app\/$/.test(ped[0].settings.url),
-    'pedido ao Firebase: e-mail em minúsculas, idioma pt-BR e endereço de volta ao site', JSON.stringify(ped));
+  afirma(ped.length === 1 && ped[0].email === PESSOA.toLowerCase() && ped[0].languageCode === 'pt-BR' && ped[0].settings && ped[0].settings.url === INSTITUCIONAL,
+    'pedido ao Firebase: e-mail em minúsculas, idioma pt-BR e volta ao endereço institucional', JSON.stringify(ped));
   await pedir(page, 'nao.existe@previ.com.br');
   await esperarResposta(page);
   afirma((await texto(page, '#forgotOk')).replace(/\s+/g, ' ') === ok.replace(/\s+/g, ' '), 'e-mail sem conta: EXATAMENTE a mesma mensagem (nada revela se a conta existe)');
   const casos = [['auth/network-request-failed', /Sem conexão com o servidor/], ['auth/too-many-requests', /Muitas tentativas em pouco tempo/], ['auth/invalid-email', /^E-mail inválido\.$/],
-    ['auth/internal-error', /Não foi possível enviar agora\. Tente de novo\. \(código: auth\/internal-error\)/]];
+    ['auth/internal-error', /Não foi possível enviar agora\. Tente de novo\. \(código: auth\/internal-error\)/],
+    ['auth/unauthorized-continue-uri', /problema de configuração do site\. Avise a coordenação do Força Ágil\. \(código: auth\/unauthorized-continue-uri\)/]];
   for (const [codigo, re] of casos) {
     await page.evaluate((c) => { window.__CFG.resetFalha = c; }, codigo);
     await pedir(page, PESSOA);
@@ -128,7 +131,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(/Enviar o link de redefinição de senha/.test(r.conf) && /A própria pessoa cria a nova senha pelo link: você não vê nem escolhe a senha dela./.test(r.conf), 'ADMIN: confirmação diz que é um link e que a própria pessoa cria a senha', r.conf);
   afirma(/Pedido de redefinição enviado/.test(r.msg) && /Se houver conta com esse endereço/.test(r.msg) && /noreply@kyber-agil\.firebaseapp\.com/.test(r.msg) && /quarentena/.test(r.msg) && !/E-mail enviado para/.test(r.msg),
     'ADMIN: mensagem neutra (pedido, não entrega), com o remetente e a quarentena', r.msg);
-  afirma(pedAdm.length === 1 && pedAdm[0].email === PESSOA.toLowerCase() && pedAdm[0].languageCode === 'pt-BR' && pedAdm[0].settings && !!pedAdm[0].settings.url, 'ADMIN: o MESMO envio (idioma pt-BR e endereço de volta)', JSON.stringify(pedAdm));
+  afirma(pedAdm.length === 1 && pedAdm[0].email === PESSOA.toLowerCase() && pedAdm[0].languageCode === 'pt-BR' && pedAdm[0].settings && pedAdm[0].settings.url === INSTITUCIONAL, 'ADMIN: o MESMO envio (idioma pt-BR e volta ao endereço institucional)', JSON.stringify(pedAdm));
   for (const [codigo, re] of [['auth/network-request-failed', /Sem conexão com o servidor/], ['auth/too-many-requests', /Muitas tentativas em pouco tempo/], ['auth/user-not-found', /Não foi possível enviar agora.*auth\/user-not-found/]]) {
     await page.evaluate((c) => { window.__CFG.resetFalha = c; }, codigo);
     r = await redefinir();
