@@ -4756,7 +4756,7 @@
   /* O mesmo envio do "Esqueci minha senha" (faAuth.sendPasswordReset): link do Firebase em português, mensagens neutras
      (a proteção contra enumeração não deixa saber se a conta existe) e falhas com a causa. Nunca senha temporária. */
   function handlePwdReset(email, name) {
-    adminConfirm('Enviar o link de redefinição de senha para ' + name + ' (' + email + ')?', function () {
+    adminConfirm('Enviar o link de redefinição de senha para ' + name + ' (' + email + ')?\nA própria pessoa cria a nova senha pelo link: você não vê nem escolhe a senha dela.', function () {
       if (!window.faAuth || !window.faAuth.sendPasswordReset) { adminAlert('Não foi possível enviar agora. Recarregue a página e tente de novo.'); return; }
       window.faAuth.sendPasswordReset(email, function (r) {
         if (r && r.success) {
@@ -6225,7 +6225,7 @@
     var acoes = [
       { id: 'editar',   rotulo: '&#x270E; Editar cadastro',
         ajuda: 'Corrigir nome, área/gerência' + (podeCorrigirEmail(pessoa) ? ' e e-mail.' : '. O e-mail deste cadastro não pode ser alterado.') },
-      { id: 'senha',    rotulo: 'Redefinir senha',
+      { id: 'senha',    rotulo: 'Enviar link de nova senha',
         ajuda: 'Envia para ' + (email || 'a pessoa') + ' um link para ela mesma criar uma senha nova.' },
       { id: 'progresso', rotulo: 'Resetar progresso do jogo',
         ajuda: 'Apaga autodiagnóstico e patente. Não dá para desfazer.' },
