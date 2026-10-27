@@ -8,7 +8,9 @@
  *      criada, mostra a falha com o código e o caminho para reenviar.
  *   3. Firebase recusa o endereço de volta: reenvia sem ele, e o painel diz "Enviamos".
  *   4. Envio sem resposta: aviso de prazo, botão do cadastro liberado (nunca "Aguarde…" para sempre).
- *   5. Login com conta não confirmada (conectada): botão de reenviar à vista; reenvio em pt-BR com endereço de volta,
+ *   5. Cadastro com falha → volta ao login → entra com a conta não confirmada: mensagem NEUTRA (nunca "foi enviado"),
+ *      botão de reenviar, reenvio em pt-BR com sucesso e falha tratados, acesso ao site continua barrado.
+ *   5b. Login com conta não confirmada (conectada): botão de reenviar à vista; reenvio em pt-BR com endereço de volta,
  *      mensagem com o remetente e a quarentena; falha com a causa; sessão desconectada → orientação, sem pedido.
  *   6. Endereço de volta só nos domínios de produção (autorizados por padrão): kyber-agil.web.app e
  *      kyber-agil.firebaseapp.com voltam para si mesmos; prévia ou outro endereço → site oficial.
@@ -131,11 +133,44 @@ async function rodada(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
+  console.log('Cadastro com falha → volta ao login → entra com a conta não confirmada → reenvia');
+  ({ ctx, page, erros, consoleTxt } = await abrir(browser, viewport, { user: null, cadastroReal: true, senhas: {}, verificacaoFalha: 'auth/network-request-failed' }));
+  await cadastrar(page);
+  await esperarPainel(page);
+  afirma(/Sua conta foi criada para:/.test(await painelVisivelTexto(page)) && await page.evaluate(() => !window.__CFG.__logado), '1-2. conta criada, envio falhou, pessoa desconectada');
+  await page.evaluate(() => { window.__CFG.verificacaoFalha = null; });
+  await page.click('#verificacaoVoltar');
+  await page.waitForSelector('#auth-login:not([hidden])');
+  await page.fill('#loginPassword', '12345678');
+  await page.evaluate((e) => { document.getElementById('loginEmail').value = e; document.getElementById('loginForm').requestSubmit(); }, NOVA);
+  await esperarCondicao(page, () => !document.getElementById('auth-verificacao').hidden && !document.getElementById('authModal').hidden && /ainda não foi confirmado/.test(document.getElementById('verificacaoSituacao').textContent), undefined, { limite: 10000 });
+  painel = await painelVisivelTexto(page);
+  afirma(/Seu endereço de e-mail ainda não foi confirmado:/.test(painel) && /Para concluir o cadastro, utilize o link de verificação recebido por e-mail ou clique em “Reenviar e-mail”\./.test(painel),
+    '3-4. de volta pelo login: mensagem neutra', painel);
+  afirma(!/Enviamos|foi enviado|E-mail reenviado/.test(painel), '4. nunca afirma que o link foi enviado', painel);
+  afirma(await visivel(page, '#reenviarVerificacao') && !(await visivel(page, '#verificacaoComoReenviar')), '5. conectada: botão de reenviar à vista');
+  afirma(await page.evaluate(() => !window.faAuth.getSession() && document.getElementById('authModal').classList.contains('modal-overlay--forced')),
+    '9. sem sessão no site: o painel é obrigatório (acesso continua barrado até confirmar)');
+  await page.click('#reenviarVerificacao');
+  await esperarCondicao(page, () => !document.getElementById('verificacaoOk').hidden || !document.getElementById('verificacaoErr').hidden, undefined, { limite: 8000 });
+  ped = await pedidos(page);
+  afirma(ped.length === 2 && ped[1].email === NOVA && ped[1].languageCode === 'pt-BR' && ped[1].settings && ped[1].settings.url === OFICIAL, '6-7. reenvio pedido em pt-BR, com endereço de volta', JSON.stringify(ped));
+  afirma(/E-mail reenviado por noreply@kyber-agil\.firebaseapp\.com/.test(await texto(page, '#verificacaoOk')) && !(await visivel(page, '#verificacaoErr')), '8. sucesso do reenvio informado');
+  await page.evaluate(() => { window.__CFG.verificacaoFalha = 'auth/network-request-failed'; });
+  await page.click('#reenviarVerificacao');
+  await esperarCondicao(page, () => !document.getElementById('verificacaoErr').hidden, undefined, { limite: 8000 });
+  afirma(/Sem conexão com o servidor/.test(await texto(page, '#verificacaoErr')) && !(await visivel(page, '#verificacaoOk')), '8. falha do reenvio informada com a causa', await texto(page, '#verificacaoErr'));
+  afirma(await page.evaluate(() => !window.faAuth.getSession()), '9. depois do reenvio, continua sem sessão no site');
+  afirma(await larguraOk(page), 'sem rolagem lateral');
+  afirma(!consoleTxt.some((t) => /previ\.com\.br/i.test(t)), 'console sem e-mail');
+  afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
+  await ctx.close();
+
   console.log('Login com conta não confirmada — reenvio');
   ({ ctx, page, erros, consoleTxt } = await abrir(browser, viewport, { user: { email: PEND, emailVerified: false, uid: 'u-pend' } }));
   await esperarPainel(page, 15000);
   painel = await painelVisivelTexto(page);
-  afirma(/Falta confirmar o seu e-mail/.test(painel) && painel.indexOf(PEND) !== -1 && !/Enviamos/.test(painel), 'painel: "Falta confirmar" e o e-mail', painel);
+  afirma(/Seu endereço de e-mail ainda não foi confirmado:/.test(painel) && painel.indexOf(PEND) !== -1 && !/Enviamos|foi enviado/.test(painel), 'painel: mensagem neutra ("ainda não foi confirmado") e o e-mail, sem afirmar envio', painel);
   afirma(await visivel(page, '#reenviarVerificacao') && !(await visivel(page, '#verificacaoComoReenviar')), 'conectada: botão de reenviar à vista (sem a orientação de entrar de novo)');
   afirma(await larguraOk(page), 'painel sem rolagem lateral');
   await page.click('#reenviarVerificacao');

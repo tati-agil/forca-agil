@@ -739,6 +739,7 @@
                     então não há botão de reenviar: o caminho é entrar de novo;
        'falhou'   — conta criada, mas o envio falhou; mesma orientação, sem dizer "enviamos";
        'pendente' — entrou com conta ainda não confirmada; está conectada, então o botão de reenviar funciona.
+                    Texto neutro: não sabemos se o envio anterior deu certo (pode ter falhado no cadastro).
      O router chama este mesmo painel no login (mostrarVerificacaoEmail). */
   function prepararPainelVerificacao(email, situacao, code) {
     var vp = document.getElementById('auth-verificacao');
@@ -753,11 +754,16 @@
     }
     var dest = vp.querySelector('.verificacao-email-destino');
     if (dest) dest.textContent = email || '';
+    var pendente = situacao === 'pendente';
     txt('verificacaoSituacao', situacao === 'falhou' ? 'Sua conta foi criada para:'
-      : situacao === 'pendente' ? 'Falta confirmar o seu e-mail. O link de confirmação foi enviado para:'
+      : pendente ? 'Seu endereço de e-mail ainda não foi confirmado:'
       : 'Enviamos um link de confirmação para:');
-    mostra('verificacaoInstrucao', situacao !== 'falhou');
-    mostra('verificacaoQuarentena', situacao !== 'falhou');
+    txt('verificacaoPendente', 'Para concluir o cadastro, utilize o link de verificação recebido por e-mail' +
+      (conectado ? ' ou clique em “Reenviar e-mail”.' : '.') +
+      ' Os e-mails vêm de ' + REMETENTE_RESET + '; confira também a quarentena e o lixo eletrônico do Outlook.');
+    mostra('verificacaoPendente', pendente);
+    mostra('verificacaoInstrucao', situacao === 'enviado');
+    mostra('verificacaoQuarentena', situacao === 'enviado');
     mostra('verificacaoComoReenviar', !conectado);
     mostra('reenviarVerificacao', conectado);
     ['verificacaoErr', 'verificacaoOk'].forEach(function (id) { txt(id, ''); mostra(id, false); });

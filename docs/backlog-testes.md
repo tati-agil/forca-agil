@@ -299,3 +299,35 @@ publicação final do Mapa da Floresta**, no mesmo desenho do B2 (só criar, pon
 obrigatória), com teste de emulador e regressão dos fluxos de publicação, correção editorial e "voltar a uma versão
 anterior" (que já publica como versão nova).
 
+
+## Pendência registrada (PR #437): sair logo depois de entrar gera erro de JavaScript
+
+**Defeito preexistente no `main`** (reproduzido em `850b024`, antes da PR #437, e idêntico com ela; a PR não mexe
+nesse trecho). Fora do escopo da #437 por decisão da responsável.
+
+- **Reprodução:** entrar com uma conta e clicar em Sair antes de a leitura da inscrição (`turmas-interesse`)
+  responder — em rede lenta isso é uma janela de segundos. Com o Firebase falso: `delays: { 'turmas-interesse': 1500 }`,
+  login pela tela e `faAuth.logout()` assim que `faAuth.getSession()` existir. Desktop e 375 px.
+- **Erro:** `TypeError: Cannot read properties of null (reading 'email')` em `forca-agil/auth.js:497` — o retorno de
+  `checkEnrolledStatus` usa `_session.email` (em `faLoadProgress`) depois que o logout já zerou `_session`.
+- **Impacto medido:** a saída funciona (sem sessão, Firebase desconectado, tela de login à vista, menu sem perfil) e o
+  login seguinte entra normalmente, com o nível certo e sem erro novo. Resíduo: entre a saída e o próximo login,
+  `getAccessLevel()` fica `'enrolled'` sem sessão (o retorno atrasado gravou o nível da conta que já saiu); não vaza
+  nada porque sem sessão o site exige login e o próximo login recomeça em `'member'`. O erro aparece no console.
+- **Correção sugerida:** no retorno de `checkEnrolledStatus`, ignorar a resposta se a sessão já não é a mesma (mesmo
+  padrão da `geracao`/`perfilResolvido` já usada ali), e só então mexer em `_accessLevel`, `faLoadProgress` e
+  `watchEnrolledStatus`.
+- **Prova a criar:** teste hermético com o roteiro acima exigindo nenhum erro de página e `getAccessLevel() === 'member'`
+  depois de sair. (`teste-login-contas-existentes.js` espera o login assentar antes de sair, porque prova outra coisa —
+  o acesso das contas antigas —; ele não filtra erros de página.)
+- **Prioridade sugerida:** média-baixa — sem perda de acesso nem de dados, mas é erro visível no console e um nível de
+  acesso velho em memória; corrigir numa PR pequena própria.
+
+## Pendência registrada (PR #437): critério de senha diferente entre cadastro e redefinição
+
+Sem implementação por decisão da responsável. Hoje: o cadastro exige **8 ou mais números, só números**
+(`/^\d{8,}$/` em `auth.js`, rótulo "Senha (mínimo 8 números)"); a mensagem de `auth/weak-password` fala em "mínimo 6
+caracteres"; a página de redefinição do Firebase aceita qualquer senha com 6 ou mais caracteres; o login aceita qualquer
+senha válida no Firebase (contas antigas com outros formatos continuam entrando — `teste-login-contas-existentes.js`).
+**Decisão registrada: o mínimo é 8** (não 15). Uma futura harmonização precisa de escopo aprovado à parte e não pode
+invalidar senhas existentes nem barrar quem já entra.
