@@ -343,8 +343,9 @@
     var vp = document.getElementById('auth-verificacao');
     if (vp) {
       vp.hidden = false;
-      var dest = vp.querySelector('.verificacao-email-destino');
-      if (dest) dest.textContent = email || '';
+      /* conectada com conta ainda não confirmada: o painel oferece o reenvio (auth.js) */
+      if (window.faAuth && window.faAuth.prepararPainelVerificacao) window.faAuth.prepararPainelVerificacao(email || '', 'pendente');
+      else { var dest = vp.querySelector('.verificacao-email-destino'); if (dest) dest.textContent = email || ''; }
     }
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = 'none';

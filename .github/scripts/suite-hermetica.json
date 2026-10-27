@@ -963,6 +963,18 @@
       "sobre": "Nenhum e-mail enviado (o falso só registra o pedido). Textos sem senha temporária; sucesso neutro, igual para conta existente e inexistente (proteção contra enumeração), com o remetente e a quarentena; pedido com idioma pt-BR e endereço de volta; rede, excesso de tentativas, e-mail inválido, código desconhecido e sem resposta (prazo no relógio falso); e-mail de fora barrado sem pedido; console sem e-mail; ADMIN com o mesmo envio, sem a mensagem falsa de sem cadastro nem err.message cru; 375 px."
     },
     {
+      "arquivo": ".github/scripts/teste-verificacao-email.js",
+      "nome": "Verificação de e-mail: cadastro, painel Confirme seu e-mail e reenvio — pt-BR, endereço de volta autorizado, nunca \"enviamos\" sem ter enviado (desktop e celular)",
+      "duracao": 40,
+      "sobre": "Nenhum e-mail enviado (o falso só registra o pedido). Cadastro ok: painel com remetente e quarentena, pedido em pt-BR com volta ao site oficial, pessoa desconectada e sem botão de reenviar (que falharia) mas com o caminho para reenviar; falha de rede ou código desconhecido: nunca diz enviamos, mostra o código; endereço de volta recusado: reenvia sem ele; sem resposta (relógio falso): aviso e botão liberado; login com conta não confirmada: reenvio em pt-BR, falha com a causa, sessão desconectada sem pedido; volta só para kyber-agil.web.app e kyber-agil.firebaseapp.com (prévia e outros → site oficial); console sem e-mail; 375 px."
+    },
+    {
+      "arquivo": ".github/scripts/teste-login-contas-existentes.js",
+      "nome": "Contas existentes: login preservado para qualquer formato de senha aceito pelo Firebase, sem nova confirmação, sem desconexão e sem gravação (desktop e celular)",
+      "duracao": 60,
+      "sobre": "Requisito bloqueante da PR #437. Firebase falso conferindo a senha (controle: senha errada recusada). Senha numérica de 8, alfanumérica, com símbolos (formato da página de redefinição) e de 6 caracteres entram pela tela de login; conta verificada com e sem a marca emailVerificationRequired, liberada pela administração e antiga não verificada sem a marca entram sem pedir confirmação; conta nova não confirmada continua barrada; admin continua admin; sessão carregada continua conectada e inscrita; nenhum e-mail enviado; fa-users, fa-admins e turmas-interesse idênticos e nenhuma gravação nula; 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-abrir-aba.js",
       "nome": "Taxonomia abre por qualquer caminho: clique, atalho do Início, link do Manual e F5 — conteúdo carregado, sem leitura duplicada (desktop e celular)",
       "duracao": 60,

@@ -382,7 +382,9 @@
   function novoUsuario(email) {
     return {
       /* CFG.uidDoUsuario: usa o uid de CFG.user (governança B3 distingue pessoas pelo UID); sem a opção, 'u1' como sempre */
-      email: email, emailVerified: true, uid: (CFG.uidDoUsuario && CFG.user && CFG.user.email === email && CFG.user.uid) || 'u1',
+      /* emailVerified: false só quando CFG.user pede ou a conta está em CFG.naoVerificadas (conta ainda não confirmada,
+         inclusive a criada pelo cadastroReal); o resto, como sempre, verificado */
+      email: email, emailVerified: !((CFG.user && CFG.user.email === email && CFG.user.emailVerified === false) || (CFG.naoVerificadas || []).indexOf(email) !== -1), uid: (CFG.uidDoUsuario && CFG.user && CFG.user.email === email && CFG.user.uid) || 'u1',
       updateEmail: function (novo) {
         if ((CFG.falharUpdateEmail || []).indexOf(novo) !== -1) {
           var err = new Error('e-mail já em uso (falso)');
@@ -396,9 +398,21 @@
         }
         return Promise.resolve();
       },
-      sendEmailVerification: function () { return Promise.resolve(); }
+      /* CFG.verificacaoFalha = 'auth/<código>' (rejeita) | 'sem-resposta' (nunca responde) | { primeira: 'auth/<código>' }
+         (só o 1º pedido falha); CFG.__verificacoes = os pedidos feitos, com o idioma do auth no momento do envio */
+      sendEmailVerification: function (settings) {
+        CFG.__verificacoes = CFG.__verificacoes || [];
+        CFG.__verificacoes.push({ email: this.email, settings: settings || null, languageCode: idiomaAuth });
+        var f = CFG.verificacaoFalha;
+        if (f && typeof f === 'object') f = CFG.__verificacoes.length === 1 ? f.primeira : null;
+        if (f === 'sem-resposta') return new Promise(function () {});
+        if (f) { var e = new Error('falha simulada'); e.code = f; return Promise.reject(e); }
+        return Promise.resolve();
+      }
     };
   }
+  /* o languageCode é do auth inteiro (como no SDK: firebase.auth() é sempre a mesma instância) */
+  var idiomaAuth = null;
 
   var currentUser = CFG.user ? novoUsuario(CFG.user.email) : null;
 
@@ -406,7 +420,7 @@
     apps: [],
     initializeApp: function (c) { firebase.apps.push(c); return {}; },
     auth: function () {
-      return {
+      var a = {
         currentUser: currentUser,
         onAuthStateChanged: function (cb) {
           authCbs.push(cb);
@@ -435,7 +449,9 @@
           authCbs.forEach(function (cb) { cb(currentUser); });
           return Promise.resolve({ user: currentUser });
         },
+        /* CFG.__desconexoes: quantas vezes o site chamou signOut (prova de que ninguém é desconectado à toa) */
         signOut: function () {
+          CFG.__desconexoes = (CFG.__desconexoes || 0) + 1;
           currentUser = null;
           CFG.__logado = null;
           authCbs.forEach(function (cb) { cb(null); });
@@ -449,8 +465,19 @@
           if (CFG.resetFalha) { var e = new Error('falha simulada'); e.code = CFG.resetFalha; return Promise.reject(e); }
           return Promise.resolve();
         },
-        createUserWithEmailAndPassword: function () { return Promise.resolve({ user: currentUser }); }
+        /* CFG.cadastroReal: como o SDK, a conta nova nasce não verificada e fica conectada (o cadastro do site
+           depois desloga). Sem a opção, o comportamento de sempre, que os testes antigos usam. */
+        createUserWithEmailAndPassword: function (e, senha) {
+          if (!CFG.cadastroReal) return Promise.resolve({ user: currentUser });
+          (CFG.naoVerificadas = CFG.naoVerificadas || []).push(e);
+          if (CFG.senhas) CFG.senhas[e] = senha;
+          currentUser = novoUsuario(e);
+          CFG.__logado = e;
+          return Promise.resolve({ user: currentUser });
+        }
       };
+      Object.defineProperty(a, 'languageCode', { get: function () { return idiomaAuth; }, set: function (v) { idiomaAuth = v; }, enumerable: true });
+      return a;
     },
     database: function () { return { ref: function (p) { return new Ref(p || ''); }, goOnline: function () {}, goOffline: function () {} }; },
     /* B4 — Cloud Functions chamáveis falsas. CFG.funcoes = { nome: { resultado } | { erro: 'codigo' } | { semResposta: true },

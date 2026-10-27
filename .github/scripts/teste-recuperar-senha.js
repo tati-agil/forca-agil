@@ -1,4 +1,4 @@
-/* RECUPERAÇÃO DE SENHA — "Esqueci minha senha" (login) e "Redefinir senha" (ADMIN › Cadastrados). Desktop e 375 px.
+/* RECUPERAÇÃO DE SENHA — "Esqueci minha senha" (login) e "Enviar link de nova senha" (ADMIN › Cadastrados). Desktop e 375 px.
  * Hermético: Firebase falso, sem rede, sem segredo — NENHUM e-mail é enviado (o falso só registra o pedido).
  * O que se prova:
  *   1. Textos: nada de "senha temporária" nem de "o administrador enviará"; o painel diz que chega um LINK.
@@ -10,7 +10,7 @@
  *      sem resposta → aviso de prazo (sem ficar "Aguarde…" para sempre). Botão travado durante o envio (sem duplo envio).
  *   5. E-mail fora de @previ.com.br: barrado na tela, sem pedido ao Firebase.
  *   6. O console nunca recebe o e-mail.
- *   7. ADMIN: confirmação → o MESMO envio (mesmos parâmetros); mensagem neutra; falhas com a causa; nenhuma mensagem de
+ *   7. ADMIN: ação "Enviar link de nova senha"; confirmação diz que a própria pessoa cria a senha → o MESMO envio (mesmos parâmetros); mensagem neutra; falhas com a causa; nenhuma mensagem de
  *      "sem cadastro" (com a proteção ligada ela seria falsa) nem err.message cru. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -103,7 +103,7 @@ async function rodada(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
-  console.log('ADMIN › Cadastrados — "Redefinir senha"');
+  console.log('ADMIN › Cadastrados — "Enviar link de nova senha"');
   ({ ctx, page, erros, consoleTxt } = await abrir(browser, viewport, '#admin', { user: { email: ADM, emailVerified: true, uid: 'u1' } }));
   await esperarSessaoAssentada(page);
   await page.waitForSelector('.admin-tab-btn', { timeout: 15000 });
@@ -112,6 +112,7 @@ async function rodada(browser, viewport, rotulo) {
   async function redefinir() {
     await page.evaluate((mail) => { const tr = Array.from(document.querySelectorAll('#adminCadastrados tbody tr')).find((x) => x.textContent.toLowerCase().indexOf(mail) !== -1); tr.querySelector('.cad-mais-btn').click(); }, PESSOA.toLowerCase());
     await page.waitForSelector('.cad-acoes-modal');
+    const rotuloAcao = await page.evaluate(() => (document.querySelector('.cad-acao-btn[data-acao="senha"]') || {}).textContent || '');
     await page.click('.cad-acao-btn[data-acao="senha"]');
     await page.waitForSelector('.admin-modal-confirm-btn');
     const conf = await page.evaluate(() => (document.querySelector('.admin-modal-confirm-btn').closest('.modal-box') || document.body).textContent);
@@ -119,11 +120,12 @@ async function rodada(browser, viewport, rotulo) {
     await esperarCondicao(page, () => Array.from(document.querySelectorAll('.modal-box')).some((b) => /Pedido de redefinição|Sem conexão|Muitas tentativas|Não foi possível/.test(b.textContent)), undefined, { limite: 8000 });
     const msg = await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.modal-box')).filter((x) => /Pedido de redefinição|Sem conexão|Muitas tentativas|Não foi possível/.test(x.textContent)).pop(); return b ? b.textContent : ''; });
     await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.modal-box button')).pop(); if (b) b.click(); });
-    return { conf, msg };
+    return { conf, msg, rotuloAcao };
   }
   let r = await redefinir();
   const pedAdm = await pedidos(page);
-  afirma(/Enviar o link de redefinição de senha/.test(r.conf), 'ADMIN: confirmação diz que é um link', r.conf);
+  afirma(/Enviar link de nova senha/.test(r.rotuloAcao) && !/^s*Redefinir senha/.test(r.rotuloAcao), 'ADMIN: a ação se chama "Enviar link de nova senha"', r.rotuloAcao);
+  afirma(/Enviar o link de redefinição de senha/.test(r.conf) && /A própria pessoa cria a nova senha pelo link: você não vê nem escolhe a senha dela./.test(r.conf), 'ADMIN: confirmação diz que é um link e que a própria pessoa cria a senha', r.conf);
   afirma(/Pedido de redefinição enviado/.test(r.msg) && /Se houver conta com esse endereço/.test(r.msg) && /noreply@kyber-agil\.firebaseapp\.com/.test(r.msg) && /quarentena/.test(r.msg) && !/E-mail enviado para/.test(r.msg),
     'ADMIN: mensagem neutra (pedido, não entrega), com o remetente e a quarentena', r.msg);
   afirma(pedAdm.length === 1 && pedAdm[0].email === PESSOA.toLowerCase() && pedAdm[0].languageCode === 'pt-BR' && pedAdm[0].settings && !!pedAdm[0].settings.url, 'ADMIN: o MESMO envio (idioma pt-BR e endereço de volta)', JSON.stringify(pedAdm));

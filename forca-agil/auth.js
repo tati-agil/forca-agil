@@ -581,12 +581,15 @@
         });
       })
       .then(function () {
-        /* Envia e-mail de verificação e desloga — acesso só após confirmar */
+        /* Envia e-mail de verificação e desloga — acesso só após confirmar. A conta já existe mesmo se o envio
+           falhar: o resultado do envio vai para a tela (emailEnviado), que nunca diz "enviamos" sem ter enviado. */
         const u = firebase.auth().currentUser;
-        return (u ? u.sendEmailVerification() : Promise.resolve())
-          .catch(function () {})
+        let envio = { ok: false, code: 'sem-usuario' };
+        return (u ? enviarVerificacao(u) : Promise.reject({ code: 'sem-usuario' }))
+          .then(function () { envio = { ok: true, code: '' }; },
+                function (err) { envio = { ok: false, code: (err && err.code) || '' }; avisoEnvioVerificacao(envio.code); })
           .then(function () { return firebase.auth().signOut(); })
-          .then(function () { cb({ success: true, needsVerification: true }); });
+          .then(function () { cb({ success: true, needsVerification: true, emailEnviado: envio.ok, code: envio.code }); });
       })
       .catch(function (err) {
         let msg = 'Erro ao cadastrar. Tente novamente.';
@@ -688,17 +691,86 @@
       });
   }
 
+  /* ---- E-mail de verificação (cadastro e reenvio) ----
+     Mesmo idioma da redefinição (pt-BR). O link volta ao site depois da confirmação, mas só para os dois domínios
+     de produção — autorizados por padrão em todo projeto Firebase; em qualquer outro endereço (prévia, teste local)
+     volta para o site oficial. Se mesmo assim o Firebase recusar o endereço de volta, envia sem ele: confirmar o
+     e-mail importa mais que o botão de voltar. Sem resposta em PRAZO_RESET_MS → falha (a tela nunca fica em "Aguarde…"). */
+  var VOLTAS_VERIFICACAO = ['https://kyber-agil.web.app', 'https://kyber-agil.firebaseapp.com'];
+  var ERROS_ENDERECO_VOLTA = ['auth/unauthorized-continue-uri', 'auth/invalid-continue-uri', 'auth/missing-continue-uri'];
+  function voltaDaVerificacao() {
+    var o = (window.location && window.location.origin) || '';
+    return VOLTAS_VERIFICACAO.indexOf(o) !== -1 ? o + '/' : VOLTA_RESET;
+  }
+  function enviarVerificacao(u) {
+    try { firebase.auth().languageCode = IDIOMA_EMAIL_SENHA; } catch (e) { /* idioma é só preferência do e-mail */ }
+    function enviar(cfg) { try { return Promise.resolve(cfg ? u.sendEmailVerification(cfg) : u.sendEmailVerification()); } catch (e) { return Promise.reject(e); } }
+    var envio = enviar({ url: voltaDaVerificacao() }).catch(function (err) {
+      if (err && ERROS_ENDERECO_VOLTA.indexOf(err.code) !== -1) return enviar(null);
+      throw err;
+    });
+    return new Promise(function (ok, falha) {
+      var prazo = setTimeout(function () { falha({ code: 'sem-resposta' }); }, PRAZO_RESET_MS);
+      envio.then(function () { clearTimeout(prazo); ok(); }, function (err) { clearTimeout(prazo); falha(err); });
+    });
+  }
+  function avisoEnvioVerificacao(code) {
+    try { console.warn('[faAuth] e-mail de verificação não enviado:', code || 'sem código'); } catch (e) { /* sem console */ }
+  }
+  function mensagemErroVerificacao(code) {
+    if (code === 'sem-resposta') return 'O servidor não respondeu a tempo. Verifique a rede e tente de novo.';
+    return mensagemErroReset(code);
+  }
+
   /* ---- Reenviar e-mail de verificação ---- */
   function resendVerification(cb) {
     const u = firebase.auth().currentUser;
-    if (!u) return cb({ error: 'Faça login novamente para reenviar.' });
-    u.sendEmailVerification()
-      .then(function () { cb({ success: true }); })
-      .catch(function (err) {
-        let msg = 'Erro ao reenviar. Tente novamente.';
-        if (err.code === 'auth/too-many-requests') msg = 'Aguarde alguns minutos antes de reenviar.';
-        cb({ error: msg });
-      });
+    if (!u) return cb({ error: 'Para reenviar, volte para o login e entre com seu e-mail e senha.', code: 'sem-usuario' });
+    enviarVerificacao(u).then(function () { cb({ success: true }); }, function (err) {
+      const code = (err && err.code) || '';
+      avisoEnvioVerificacao(code);
+      cb({ error: mensagemErroVerificacao(code), code: code });
+    });
+  }
+
+  /* ---- Painel "Confirme seu e-mail" ----
+     Três situações, e o painel diz a verdade sobre cada uma (situacao):
+       'enviado'  — acabou de se cadastrar e o e-mail saiu; a pessoa NÃO está conectada (o cadastro desloga),
+                    então não há botão de reenviar: o caminho é entrar de novo;
+       'falhou'   — conta criada, mas o envio falhou; mesma orientação, sem dizer "enviamos";
+       'pendente' — entrou com conta ainda não confirmada; está conectada, então o botão de reenviar funciona.
+                    Texto neutro: não sabemos se o envio anterior deu certo (pode ter falhado no cadastro).
+     O router chama este mesmo painel no login (mostrarVerificacaoEmail). */
+  function prepararPainelVerificacao(email, situacao, code) {
+    var vp = document.getElementById('auth-verificacao');
+    if (!vp) return;
+    var conectado = situacao === 'pendente' && !!firebase.auth().currentUser;
+    function txt(id, t) { var el = document.getElementById(id); if (el) el.textContent = t; }
+    /* no botão, style.display também: o display do .btn venceria o atributo hidden e ele ficaria à vista */
+    function mostra(id, sim) {
+      var el = document.getElementById(id); if (!el) return;
+      el.hidden = !sim;
+      if (el.tagName === 'BUTTON') el.style.display = sim ? '' : 'none';
+    }
+    var dest = vp.querySelector('.verificacao-email-destino');
+    if (dest) dest.textContent = email || '';
+    var pendente = situacao === 'pendente';
+    txt('verificacaoSituacao', situacao === 'falhou' ? 'Sua conta foi criada para:'
+      : pendente ? 'Seu endereço de e-mail ainda não foi confirmado:'
+      : 'Enviamos um link de confirmação para:');
+    txt('verificacaoPendente', 'Para concluir o cadastro, utilize o link de verificação recebido por e-mail' +
+      (conectado ? ' ou clique em “Reenviar e-mail”.' : '.') +
+      ' Os e-mails vêm de ' + REMETENTE_RESET + '; confira também a quarentena e o lixo eletrônico do Outlook.');
+    mostra('verificacaoPendente', pendente);
+    mostra('verificacaoInstrucao', situacao === 'enviado');
+    mostra('verificacaoQuarentena', situacao === 'enviado');
+    mostra('verificacaoComoReenviar', !conectado);
+    mostra('reenviarVerificacao', conectado);
+    ['verificacaoErr', 'verificacaoOk'].forEach(function (id) { txt(id, ''); mostra(id, false); });
+    if (situacao === 'falhou') {
+      txt('verificacaoErr', 'Não conseguimos enviar o e-mail de confirmação agora' + (code ? ' (código: ' + code + ')' : '') + '.');
+      mostra('verificacaoErr', true);
+    }
   }
 
   /* ---- Login ---- */
@@ -730,7 +802,7 @@
      enumeração do projeto está ligada: a resposta é a mesma para conta existente e inexistente, e a tela também nunca
      distingue — "ok" quer dizer "pedido aceito", não "e-mail entregue". Falhas mostram a causa (rede, excesso de
      tentativas, e-mail inválido) e o código; no console vai só o código, nunca o e-mail. Usada pelo login
-     ("Esqueci minha senha") e pelo ADMIN ("Redefinir senha"). */
+     ("Esqueci minha senha") e pelo ADMIN ("Enviar link de nova senha"). */
   var IDIOMA_EMAIL_SENHA = 'pt-BR', PRAZO_RESET_MS = 20000, VOLTA_RESET = 'https://kyber-agil.web.app/';
   var REMETENTE_RESET = 'noreply@kyber-agil.firebaseapp.com';
   var MSG_ERRO_RESET = {
@@ -962,13 +1034,12 @@
         btn.disabled = false; btn.textContent = 'Ativar a Força →';
         if (r.error) { if (regErr) { regErr.textContent = r.error; regErr.hidden = false; } }
         else if (r.needsVerification) {
-          /* Exibe painel de verificação de e-mail */
+          /* Exibe painel de verificação de e-mail — "enviado" só quando o envio deu certo */
           document.querySelectorAll('.auth-panel').forEach(function (p) { p.hidden = true; });
           var vp = document.getElementById('auth-verificacao');
           if (vp) {
             vp.hidden = false;
-            var dest = vp.querySelector('.verificacao-email-destino');
-            if (dest) dest.textContent = emailVal;
+            prepararPainelVerificacao(emailVal, r.emailEnviado ? 'enviado' : 'falhou', r.code);
           }
         } else { closeModal(); }
       });
@@ -1035,7 +1106,7 @@
       resendVerification(function (r) {
         reenviarBtn.disabled = false; reenviarBtn.textContent = 'Reenviar e-mail →';
         if (r.error) { if (errEl) { errEl.textContent = r.error; errEl.hidden = false; } }
-        else { if (okEl) { okEl.textContent = 'E-mail reenviado! Verifique sua caixa de entrada.'; okEl.hidden = false; } }
+        else { if (okEl) { okEl.textContent = 'E-mail reenviado por ' + REMETENTE_RESET + '. Verifique a caixa de entrada e também a quarentena e o lixo eletrônico.'; okEl.hidden = false; } }
       });
     });
 
@@ -1115,6 +1186,7 @@
     getSession: getSession, isAdmin: isAdmin, isSuperAdmin: isSuperAdmin, isDiretor: isDiretor, isFacilitador: isFacilitador, isPrevi: isPrevi,
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset, REMETENTE_RESET: REMETENTE_RESET,
+    prepararPainelVerificacao: prepararPainelVerificacao,
     getAccessLevel: getAccessLevel,
     criarContaPorAdmin: criarContaPorAdmin,
     resendVerification: resendVerification,
