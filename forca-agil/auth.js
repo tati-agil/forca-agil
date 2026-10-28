@@ -692,23 +692,13 @@
   }
 
   /* ---- E-mail de verificação (cadastro e reenvio) ----
-     Mesmo idioma da redefinição (pt-BR). O link volta ao site depois da confirmação, mas só para os dois domínios
-     de produção — autorizados por padrão em todo projeto Firebase; em qualquer outro endereço (prévia, teste local)
-     volta para o site oficial. Se mesmo assim o Firebase recusar o endereço de volta, envia sem ele: confirmar o
-     e-mail importa mais que o botão de voltar. Sem resposta em PRAZO_RESET_MS → falha (a tela nunca fica em "Aguarde…"). */
-  var VOLTAS_VERIFICACAO = ['https://kyber-agil.web.app', 'https://kyber-agil.firebaseapp.com'];
-  var ERROS_ENDERECO_VOLTA = ['auth/unauthorized-continue-uri', 'auth/invalid-continue-uri', 'auth/missing-continue-uri'];
-  function voltaDaVerificacao() {
-    var o = (window.location && window.location.origin) || '';
-    return VOLTAS_VERIFICACAO.indexOf(o) !== -1 ? o + '/' : VOLTA_RESET;
-  }
+     Mesmo idioma e mesmo endereço de volta da redefinição (pt-BR, VOLTA_SITE — o institucional, de onde quer que o
+     pedido parta). Se o Firebase recusar o endereço de volta, o envio FALHA com o código (nunca sai sem ele em
+     silêncio). Sem resposta em PRAZO_RESET_MS → falha (a tela nunca fica em "Aguarde…"). */
   function enviarVerificacao(u) {
     try { firebase.auth().languageCode = IDIOMA_EMAIL_SENHA; } catch (e) { /* idioma é só preferência do e-mail */ }
-    function enviar(cfg) { try { return Promise.resolve(cfg ? u.sendEmailVerification(cfg) : u.sendEmailVerification()); } catch (e) { return Promise.reject(e); } }
-    var envio = enviar({ url: voltaDaVerificacao() }).catch(function (err) {
-      if (err && ERROS_ENDERECO_VOLTA.indexOf(err.code) !== -1) return enviar(null);
-      throw err;
-    });
+    var envio;
+    try { envio = Promise.resolve(u.sendEmailVerification({ url: VOLTA_SITE })); } catch (e) { envio = Promise.reject(e); }
     return new Promise(function (ok, falha) {
       var prazo = setTimeout(function () { falha({ code: 'sem-resposta' }); }, PRAZO_RESET_MS);
       envio.then(function () { clearTimeout(prazo); ok(); }, function (err) { clearTimeout(prazo); falha(err); });
@@ -768,7 +758,8 @@
     mostra('reenviarVerificacao', conectado);
     ['verificacaoErr', 'verificacaoOk'].forEach(function (id) { txt(id, ''); mostra(id, false); });
     if (situacao === 'falhou') {
-      txt('verificacaoErr', 'Não conseguimos enviar o e-mail de confirmação agora' + (code ? ' (código: ' + code + ')' : '') + '.');
+      txt('verificacaoErr', 'Não conseguimos enviar o e-mail de confirmação agora' + (code ? ' (código: ' + code + ')' : '') + '.' +
+        (MSG_ERRO_RESET[code] === MSG_RETORNO_RECUSADO ? ' É um problema de configuração do site: avise a coordenação do Força Ágil.' : ''));
       mostra('verificacaoErr', true);
     }
   }
@@ -803,21 +794,27 @@
      distingue — "ok" quer dizer "pedido aceito", não "e-mail entregue". Falhas mostram a causa (rede, excesso de
      tentativas, e-mail inválido) e o código; no console vai só o código, nunca o e-mail. Usada pelo login
      ("Esqueci minha senha") e pelo ADMIN ("Enviar link de nova senha"). */
-  var IDIOMA_EMAIL_SENHA = 'pt-BR', PRAZO_RESET_MS = 20000, VOLTA_RESET = 'https://kyber-agil.web.app/';
+  /* VOLTA_SITE: para onde o botão "Continuar" da página do Firebase leva depois de confirmar o e-mail ou criar a
+     senha — o endereço institucional, autorizado no Authentication (homologado em 27/10/2026), de onde quer que o
+     pedido parta (institucional, kyber-agil.web.app, prévia ou teste local). Só o retorno muda: o link do e-mail
+     continua sendo processado pelo Firebase (kyber-agil.firebaseapp.com), e os endereços técnicos seguem autorizados
+     — links já enviados com o retorno antigo continuam valendo. */
+  var IDIOMA_EMAIL_SENHA = 'pt-BR', PRAZO_RESET_MS = 20000, VOLTA_SITE = 'https://forca-agil.previ.com.br/';
   var REMETENTE_RESET = 'noreply@kyber-agil.firebaseapp.com';
+  /* endereço de volta recusado pelo Firebase = configuração, não algo que a pessoa resolva tentando de novo */
+  var MSG_RETORNO_RECUSADO = 'Não foi possível enviar o e-mail por um problema de configuração do site. Avise a coordenação do Força Ágil.';
   var MSG_ERRO_RESET = {
     'auth/network-request-failed': 'Sem conexão com o servidor. Verifique a rede e tente de novo.',
     'auth/too-many-requests': 'Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente de novo.',
     'auth/invalid-email': 'E-mail inválido.',
-    'auth/missing-email': 'E-mail inválido.'
+    'auth/missing-email': 'E-mail inválido.',
+    'auth/unauthorized-continue-uri': MSG_RETORNO_RECUSADO,
+    'auth/invalid-continue-uri': MSG_RETORNO_RECUSADO,
+    'auth/missing-continue-uri': MSG_RETORNO_RECUSADO
   };
   function mensagemErroReset(code) {
+    if (MSG_ERRO_RESET[code] === MSG_RETORNO_RECUSADO) return MSG_RETORNO_RECUSADO + ' (código: ' + code + ')';
     return MSG_ERRO_RESET[code] || ('Não foi possível enviar agora. Tente de novo.' + (code ? ' (código: ' + code + ')' : ''));
-  }
-  /* depois de criar a senha, o link volta ao site — ao mesmo endereço quando ele é um domínio autorizado do projeto */
-  function voltaDoReset() {
-    var o = (window.location && window.location.origin) || '';
-    return /^https:\/\/kyber-agil[a-z0-9-]*\.(web\.app|firebaseapp\.com)$/.test(o) ? o + '/' : VOLTA_RESET;
   }
   function sendPasswordReset(email, cb) {
     email = (email || '').trim().toLowerCase();
@@ -827,7 +824,7 @@
     function fim(r) { if (terminou) return; terminou = true; clearTimeout(prazo); cb(r); }
     var prazo = setTimeout(function () { fim({ error: 'O servidor não respondeu a tempo. Verifique a rede e tente de novo.', code: 'sem-resposta' }); }, PRAZO_RESET_MS);
     var p;
-    try { p = auth.sendPasswordResetEmail(email, { url: voltaDoReset() }); }
+    try { p = auth.sendPasswordResetEmail(email, { url: VOLTA_SITE }); }
     catch (e) { p = Promise.reject(e); }
     Promise.resolve(p).then(function () { fim({ success: true }); }, function (err) {
       var code = (err && err.code) || '';
