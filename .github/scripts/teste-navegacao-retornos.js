@@ -57,7 +57,10 @@ const hashAgora = (page) => page.evaluate(() => location.hash);
 /* textContent: o rótulo como escrito (o CSS de alguns botões o mostra em maiúsculas) */
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent.trim() : ''; }, sel);
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length);
+/* Fora a anotação da confirmação do e-mail que o login grava uma vez no próprio cadastro (auth.js anotarEmailConfirmado): só
+   ela, exatamente {emailConfirmado:true, emailConfirmadoEm}; qualquer outra escrita conta. */
+const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).filter((e) => !(/^fa-users\/[^/]+$/.test(e.path) &&
+  JSON.stringify(e.valor) === JSON.stringify({ emailConfirmado: true, emailConfirmadoEm: firebase.database.ServerValue.TIMESTAMP }))).length);
 async function ate(page, fn, arg, descricao, limite) { await esperarCondicao(page, fn, arg, { limite: limite || 12000, descricao }); }
 const fichaPo = (id) => (x) => location.hash.indexOf('#arquitetura?po=' + x) === 0 && !!document.getElementById('poVoltar') && !document.querySelector('#avaliacoesSquad:not([hidden])');
 async function fim(r, nome) {
