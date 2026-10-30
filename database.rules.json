@@ -7,7 +7,14 @@
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$userKey": {
         ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
-        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        ".validate": "(!data.child('emailConfirmado').exists() || newData.child('emailConfirmado').val() === data.child('emailConfirmado').val()) && (!data.child('emailConfirmadoEm').exists() || newData.child('emailConfirmadoEm').val() === data.child('emailConfirmadoEm').val())",
+        "emailConfirmado": {
+          ".validate": "newData.val() === true && (data.val() === true || (auth.token.email_verified === true && data.parent().child('email').isString() && data.parent().child('email').val().toLowerCase() === auth.token.email.toLowerCase() && newData.parent().child('email').val() === data.parent().child('email').val()))"
+        },
+        "emailConfirmadoEm": {
+          ".validate": "newData.isNumber() && (newData.val() === data.val() || (!data.exists() && newData.val() === now && !data.parent().child('emailConfirmado').exists() && newData.parent().child('emailConfirmado').val() === true))"
+        }
       }
     },
 

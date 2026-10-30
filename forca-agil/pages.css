@@ -799,6 +799,9 @@
    E-mail até a tabela passar da caixa — e a coluna Ações (o "⋯") ficava cortada atrás de uma rolagem lateral. O e-mail
    quebra dentro da própria célula só quando falta espaço. */
 #adminCadastrados .cad-col-email { overflow-wrap: anywhere; }
+/* "Confirmou o e-mail?" e "Liberado em": o valor e, embaixo, a data/quem em letra menor — quebra dentro da célula. */
+#adminCadastrados .cad-celula { display: inline-block; overflow-wrap: anywhere; }
+#adminCadastrados .cad-sub { display: block; font-size: var(--arq-fs-meta); color: var(--ink-3); line-height: 1.4; }
 @media (max-width: 640px) {
   #adminCadastrados .admin-table,
   #adminCadastrados .admin-table tbody,
@@ -924,7 +927,7 @@
 }
 .admin-colab-row input { flex: 1; min-width: 0; }
 
-.admin-status-btns { display: flex; gap: 4px; }
+.admin-status-btns { display: flex; flex-wrap: wrap; gap: 4px; } /* 4 filtros com contagem: no celular quebram linha em vez de sair da tela */
 .admin-status-btn {
   padding: 5px 14px; font-size: .78rem; background: transparent;
   border: 1px solid rgba(255,255,255,.15); color: var(--ink-3);
@@ -1868,6 +1871,11 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .adm-link-aba { background: none; border: 0; padding: 4px 2px; min-height: 32px; font: inherit; color: var(--cyan-soft, #7af0e8); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .adm-link-aba:hover { color: var(--ink); text-decoration-thickness: 2px; }
 .adm-link-aba:focus-visible { outline: 2px solid var(--cyan-soft, #7af0e8); outline-offset: 2px; border-radius: 2px; }
+/* Nota do cabeçalho do ADMIN ("A FLORESTA › Gestão da Floresta"): estava na cor do navegador (roxo, sublinhado). Decisão
+   da dona (30/10/2026): mesma fonte e tamanho do texto, cinza-claro, amarelo no hover, sem sublinhado fixo, foco visível. */
+#adminNotaFloresta a, #adminNotaFloresta a:visited { font: inherit; color: var(--ink); text-decoration: none; border-radius: 2px; }
+#adminNotaFloresta a:hover { color: var(--gold); }
+#adminNotaFloresta a:focus-visible { color: var(--gold); outline: 2px solid var(--gold); outline-offset: 2px; }
 
 .avp-intro {
   background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 10px;

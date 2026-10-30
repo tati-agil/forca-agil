@@ -385,6 +385,8 @@
       /* emailVerified: false só quando CFG.user pede ou a conta está em CFG.naoVerificadas (conta ainda não confirmada,
          inclusive a criada pelo cadastroReal); o resto, como sempre, verificado */
       email: email, emailVerified: !((CFG.user && CFG.user.email === email && CFG.user.emailVerified === false) || (CFG.naoVerificadas || []).indexOf(email) !== -1), uid: (CFG.uidDoUsuario && CFG.user && CFG.user.email === email && CFG.user.uid) || 'u1',
+      /* token novo (auth.js pede antes de anotar a confirmação do e-mail); CFG.__tokens conta os pedidos */
+      getIdToken: function () { CFG.__tokens = (CFG.__tokens || 0) + 1; return Promise.resolve('token-falso'); },
       updateEmail: function (novo) {
         if ((CFG.falharUpdateEmail || []).indexOf(novo) !== -1) {
           var err = new Error('e-mail já em uso (falso)');

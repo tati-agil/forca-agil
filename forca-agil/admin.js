@@ -6088,6 +6088,8 @@
       if (cadastro) {
         var novo = JSON.parse(JSON.stringify(cadastro));
         novo.name = nome; novo.area = area; novo.email = emailNovo;
+        /* A confirmação era do e-mail ANTIGO: não viaja para o novo (as regras do banco também recusariam). */
+        delete novo.emailConfirmado; delete novo.emailConfirmadoEm;
         novo.emailCorrigidoDe = emailAntigo;
         updates['fa-users/' + eKeyNovo] = novo;
       }
@@ -6213,7 +6215,8 @@
     var nome  = pessoa.name || pessoa.email || '—';
     var email = pessoa.email || '';
     var bloqueado = !!pessoa.blocked;
-    var precisaVerificacao = !!(pessoa.emailVerificationRequired && !pessoa.adminApproved);
+    /* Quem já confirmou o e-mail não precisa ser liberada — o botão some (situacaoCadastro). */
+    var precisaVerificacao = situacaoCadastro(pessoa).precisaLiberacao;
 
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -6481,6 +6484,38 @@
     }
   }
 
+  /* Situação do cadastro — UM critério para o selo, o filtro "Pendentes", as contagens dos botões, o menu "⋯" e o Excel
+     (skill criterio-de-estado). Confirmar o e-mail e ser liberada pelo admin são coisas DIFERENTES e aparecem separadas:
+     - confirmou o e-mail: emailConfirmado, que o próprio site anota no login quando o Firebase Auth diz que o e-mail está
+       confirmado (auth.js anotarEmailConfirmado). emailConfirmadoEm é quando o SITE registrou, não o clique no link; sem
+       data = confirmação anterior ao registro (anotação única feita a partir do Auth).
+     - liberada pelo admin: adminApproved (botão "Confirmar cadastro") ou conta criada pelo admin (createdByAdmin).
+     Pendente = cadastro próprio que exige confirmação, sem confirmação registrada, sem liberação e SEM bloqueio. */
+  function situacaoCadastro(p) {
+    var confirmou = p.emailConfirmado === true;
+    var liberado = !!(p.adminApproved || p.createdByAdmin);
+    var precisaLiberacao = !!p.emailVerificationRequired && !confirmou && !liberado;
+    return { bloqueado: !!p.blocked, confirmou: confirmou, liberado: liberado,
+             precisaLiberacao: precisaLiberacao, pendente: precisaLiberacao && !p.blocked };
+  }
+  function rotuloSituacaoCadastro(s) { return s.bloqueado ? 'Bloqueado' : s.pendente ? 'Pendente' : 'Ativo'; }
+  /* "Confirmou o e-mail?" — texto da tela e do Excel. "Não exigido": conta antiga ou criada pelo admin, que nunca
+     precisou confirmar (e o site não registrou confirmação). */
+  function textoConfirmouEmail(p) {
+    if (p.emailConfirmado === true) return 'Sim';
+    return p.emailVerificationRequired ? 'Não' : 'Não exigido';
+  }
+  function textoConfirmacaoEm(p) {
+    if (p.emailConfirmado !== true) return '';
+    return p.emailConfirmadoEm ? fmtDate(p.emailConfirmadoEm) : 'data não registrada';
+  }
+  /* "Liberado em" — quando e por quem o admin liberou; null se não foi liberada pelo admin. */
+  function liberacaoCadastro(p) {
+    if (p.createdByAdmin) return { quando: fmtDate(p.createdAt), por: p.createdByAdmin, criada: true };
+    if (p.adminApproved) return { quando: p.approvedAt ? fmtDate(p.approvedAt) : 'data não registrada', por: p.approvedByAdminName || p.approvedByAdmin || '' };
+    return null;
+  }
+
   function loadCadastrados() {
     const c = document.getElementById('adminCadastrados');
     if (!c) return;
@@ -6559,14 +6594,21 @@
 
     /* ---- Filtros de status + busca ---- */
     var statusFiltro = 'ativos';
+    list.forEach(function (p) { p._sit = situacaoCadastro(p); });
+    var contagem = {
+      ativos:     list.filter(function (p) { return !p._sit.bloqueado; }).length,
+      pendentes:  list.filter(function (p) { return p._sit.pendente; }).length,
+      bloqueados: list.filter(function (p) { return p._sit.bloqueado; }).length
+    };
     const controlsWrap = document.createElement('div');
     controlsWrap.className = 'admin-colab-row';
     controlsWrap.style.cssText = 'margin-bottom:12px;gap:8px;flex-wrap:wrap;align-items:center;';
     controlsWrap.innerHTML =
       '<div class="admin-status-btns">' +
-      '<button class="admin-status-btn active" data-status="ativos">Ativos</button>' +
-      '<button class="admin-status-btn" data-status="bloqueados">Bloqueados</button>' +
-      '<button class="admin-status-btn" data-status="todos">Todos</button>' +
+      '<button class="admin-status-btn active" data-status="ativos">Ativos (' + contagem.ativos + ')</button>' +
+      '<button class="admin-status-btn" data-status="pendentes" title="Cadastro próprio sem confirmação do e-mail registrada e sem liberação do admin (bloqueados não entram)">Pendentes (' + contagem.pendentes + ')</button>' +
+      '<button class="admin-status-btn" data-status="bloqueados">Bloqueados (' + contagem.bloqueados + ')</button>' +
+      '<button class="admin-status-btn" data-status="todos">Todos (' + list.length + ')</button>' +
       '</div>' +
       '<input id="cadastradosFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" style="flex:1;min-width:180px" />' +
       '<button type="button" class="btn btn--sm" id="cadastradosExportarBtn" title="Baixa em Excel a lista que está na tela (com o filtro aplicado)">&#x1F4CA; Exportar Excel</button>';
@@ -6587,15 +6629,18 @@
        mostra o que identifica a pessoa e a ação do dia a dia; o resto mora no
        menu "⋯", com o nome dela no topo — assim também não se erra de linha
        numa lista de centenas. */
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Situação</th><th>Ações</th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro em</th>' +
+      '<th title="Registrado pelo site quando a pessoa entra com o e-mail já confirmado no Firebase. A data é a do registro, não a do clique no link.">Confirmou o e-mail?</th>' +
+      '<th>Liberado em</th><th>Situação</th><th>Ações</th></tr></thead>';
     const tbody = document.createElement('tbody');
 
     var listaNaTela = []; /* o que a tabela está mostrando agora (status + busca) — é o que a exportação baixa */
     function applyFilters() {
       const q = (document.getElementById('cadastradosFiltro').value || '').trim().toLowerCase();
       var filtered = list.filter(function (p) {
-        var bloqueado = !!p.blocked;
+        var bloqueado = p._sit.bloqueado;
         if (statusFiltro === 'ativos'     && bloqueado)  return false;
+        if (statusFiltro === 'pendentes'  && !p._sit.pendente) return false;
         if (statusFiltro === 'bloqueados' && !bloqueado) return false;
         if (!q) return true;
         return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
@@ -6605,12 +6650,16 @@
       var badgeEl = document.getElementById('cadastradosBadge');
       if (badgeEl) badgeEl.textContent = filtered.length;
       filtered.forEach(function (p) {
-        var bloqueado = !!p.blocked;
-        var precisaVerificacao = !!(p.emailVerificationRequired && !p.adminApproved);
-        var emailBadge = precisaVerificacao
-          ? '<span class="admin-badge" style="background:rgba(245,197,66,.18);color:var(--accent)" title="Cadastro próprio — e-mail ainda não verificado">Pendente</span>'
-          : '<span class="admin-badge" style="background:rgba(26,178,174,.18);color:var(--cyan)">Verificado</span>';
+        var bloqueado = p._sit.bloqueado;
+        var emailBadge = p._sit.pendente
+          ? '<span class="admin-badge" style="background:rgba(245,197,66,.18);color:var(--accent)" title="Cadastro próprio — sem confirmação do e-mail registrada e sem liberação do admin">Pendente</span>'
+          : '';
         var statusBadge = '<span class="admin-badge" style="background:' + (bloqueado ? 'rgba(255,59,48,.18)' : 'rgba(26,178,174,.18)') + ';color:' + (bloqueado ? 'var(--red)' : 'var(--cyan)') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span>';
+        var confEm = textoConfirmacaoEm(p);
+        var lib = liberacaoCadastro(p);
+        var celConfirmou = esc(textoConfirmouEmail(p)) + (confEm ? '<span class="cad-sub">' + esc(confEm) + '</span>' : '');
+        var celLiberado = !lib ? '—' : (lib.criada ? 'Conta criada pelo admin<span class="cad-sub">' + esc(lib.quando) + '</span>'
+          : esc(lib.quando)) + (lib.por ? '<span class="cad-sub">por ' + esc(lib.por) + '</span>' : '');
         var nomeP = p.name || p.email || '—';
         var tr = document.createElement('tr');
         if (bloqueado) tr.classList.add('cad-linha-bloqueada');
@@ -6620,7 +6669,9 @@
           '<td data-label="Nome">' + esc(p.name || '—') + '</td>' +
           '<td data-label="E-mail" class="cad-col-email">' + esc(p.email || '—') + '</td>' +
           '<td data-label="Área">' + esc(p.area || '—') + '</td>' +
-          '<td data-label="Cadastro">' + fmtDate(p.createdAt) + '</td>' +
+          '<td data-label="Cadastro em">' + fmtDate(p.createdAt) + '</td>' +
+          '<td data-label="Confirmou o e-mail?" class="cad-col-conf"><span class="cad-celula">' + celConfirmou + '</span></td>' +
+          '<td data-label="Liberado em" class="cad-col-lib"><span class="cad-celula">' + celLiberado + '</span></td>' +
           '<td data-label="Situação"><span class="cad-situacao">' + statusBadge + emailBadge + '</span></td>' +
           '<td data-label="Ações"><span class="cad-acoes">' +
             '<button class="admin-row-btn admin-edit-cad-btn" data-key="' + esc(p._key) + '" title="Editar nome, área e e-mail">&#x270E; Editar</button>' +
@@ -6666,12 +6717,16 @@
           var p2 = function (n) { return String(n).padStart(2, '0'); };
           return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
         };
-        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro', 'Situação', 'Verificação']].concat(pessoas.map(function (p) {
-          return [p.name || '', p.email || '', p.area || '', dataHora(p.createdAt), p.blocked ? 'Bloqueado' : 'Ativo',
-            (p.emailVerificationRequired && !p.adminApproved) ? 'Pendente' : 'Verificado'];
+        /* Mesmos textos da tabela (situacaoCadastro e companhia): o Excel nunca classifica diferente da tela. */
+        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmou o e-mail?', 'Confirmação registrada em',
+          'Liberado em', 'Liberado por', 'Situação']].concat(pessoas.map(function (p) {
+          var lib = liberacaoCadastro(p);
+          return [p.name || '', p.email || '', p.area || '', dataHora(p.createdAt), textoConfirmouEmail(p), textoConfirmacaoEm(p),
+            lib ? (lib.criada ? 'Conta criada pelo admin em ' + lib.quando : lib.quando) : '', lib ? lib.por : '',
+            rotuloSituacaoCadastro(p._sit)];
         }));
         var ws = window.XLSX.utils.aoa_to_sheet(linhas);
-        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 11 }, { wch: 12 }];
+        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 12 }, { wch: 22 }, { wch: 36 }, { wch: 32 }, { wch: 11 }];
         var wb = window.XLSX.utils.book_new();
         window.XLSX.utils.book_append_sheet(wb, ws, 'Cadastrados');
         var hoje = new Date();

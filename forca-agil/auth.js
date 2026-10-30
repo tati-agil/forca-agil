@@ -439,6 +439,27 @@
     clearTimeout(_avisoPerfilTimer); _avisoPerfilTimer = null; avisoPerfil(false);
   }
 
+  /* ---- E-mail confirmado: anotação no cadastro ----
+     Quem confirma o e-mail é o Firebase Auth (user.emailVerified + o token); o painel do admin não lê o Auth de outras
+     pessoas no plano gratuito, então o site ANOTA no próprio cadastro, uma vez: emailConfirmado + emailConfirmadoEm
+     (horário do servidor = quando o SITE registrou, não o clique no link). As regras do banco só aceitam a anotação com o
+     token dizendo email_verified, no cadastro do próprio e-mail, e não deixam apagar nem mudar depois. É só informação:
+     não muda acesso nenhum (o login continua decidindo pelo Auth e por adminApproved). Não bloqueia a entrada; se falhar,
+     tenta de novo no próximo acesso. Sem cadastro no banco, não cria um. Bloqueada: não anota. */
+  function anotarEmailConfirmado(user, profile, existe) {
+    if (!existe || !user.emailVerified || profile.emailConfirmado === true || profile.blocked) return;
+    if (String(profile.email || '').toLowerCase() !== String(user.email || '').toLowerCase()) return;
+    /* Token novo: quem acabou de clicar no link pode ter um token antigo ainda sem email_verified. */
+    Promise.resolve(typeof user.getIdToken === 'function' ? user.getIdToken(true) : null)
+      .then(function () {
+        return firebase.database().ref('fa-users/' + emailKey(user.email)).update({
+          emailConfirmado: true,
+          emailConfirmadoEm: firebase.database.ServerValue.TIMESTAMP
+        });
+      })
+      .catch(function (err) { console.warn('[auth] confirmação do e-mail não anotada:', (err && (err.code || err.message)) || err); });
+  }
+
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
   firebase.auth().onAuthStateChanged(function (user) {
     if (_criandoConta) return;
@@ -466,6 +487,8 @@
           window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
           return;
         }
+
+        anotarEmailConfirmado(user, profile, snap.exists());
 
         /* Só exige verificação de e-mail em contas novas que têm a flag emailVerificationRequired
            (contas antigas não têm essa flag e entram normalmente; adminApproved também isenta) */

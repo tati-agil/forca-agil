@@ -212,9 +212,10 @@ const FORMATOS = [
       const porEmail = (e) => todos.linhas.find((l) => l['E-mail'] === e) || {};
       if (!/^forca-agil-cadastrados-\d{4}-\d{2}-\d{2}\.xlsx$/.test(todos.nome)) p.push('nome do arquivo: ' + todos.nome);
       if (todos.linhas.length !== 4) p.push('"Todos" deveria exportar 4 pessoas, exportou ' + todos.linhas.length);
-      if (JSON.stringify(Object.keys(todos.linhas[0] || {})) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro', 'Situação', 'Verificação'])) p.push('colunas: ' + Object.keys(todos.linhas[0] || {}).join(', '));
-      if (porEmail(BLOQUEADA)['Situação'] !== 'Bloqueado' || porEmail(PENDENTE)['Verificação'] !== 'Pendente' || porEmail(ATIVA)['Verificação'] !== 'Verificado' || porEmail(ATIVA)['Área'] !== 'GECAT') p.push('valores: ' + JSON.stringify(todos.linhas));
-      if (!/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(porEmail(ATIVA).Cadastro || '')) p.push('data de cadastro: ' + porEmail(ATIVA).Cadastro);
+      /* colunas e situação únicas (situacaoCadastro); o detalhe de cada caso está em teste-cadastrados-pendentes.js */
+      if (JSON.stringify(Object.keys(todos.linhas[0] || {})) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmou o e-mail?', 'Confirmação registrada em', 'Liberado em', 'Liberado por', 'Situação'])) p.push('colunas: ' + Object.keys(todos.linhas[0] || {}).join(', '));
+      if (porEmail(BLOQUEADA)['Situação'] !== 'Bloqueado' || porEmail(PENDENTE)['Situação'] !== 'Pendente' || porEmail(ATIVA)['Situação'] !== 'Ativo' || porEmail(ATIVA)['Área'] !== 'GECAT') p.push('valores: ' + JSON.stringify(todos.linhas));
+      if (!/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(porEmail(ATIVA)['Cadastro em'] || '')) p.push('data de cadastro: ' + porEmail(ATIVA)['Cadastro em']);
       if (!/dados pessoais/.test(await page.$eval('#cadastradosExportMsg', (e) => e.textContent))) p.push('sem o aviso de dados pessoais');
       await page.fill('#cadastradosFiltro', 'ativa');
       await page.waitForFunction(() => document.querySelectorAll('#adminCadastrados tbody tr').length === 1, null, { timeout: 5000 });

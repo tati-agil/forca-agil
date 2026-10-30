@@ -72,6 +72,8 @@ Cada ação tem a aparência da sua **importância no contexto**, não a de como
 | Navegação e retorno | `.avp-voltar-link` | contorno e texto ciano (`--cyan`) | **todo** "← Voltar…" e "Ver todos…" de navegação; nunca `.btn` |
 | Acesso complementar | link textual (`a`), ou `.avp-mapa-link` | texto ciano claro (`--cyan-soft`), sublinhado no hover | nunca a cor padrão do navegador |
 
+Exceção aprovada pela dona (30/10/2026): o link da nota do cabeçalho do ADMIN (`#adminNotaFloresta`, "A FLORESTA › Gestão da Floresta") usa a mesma fonte e o mesmo tamanho do texto, cinza-claro (`--ink`), amarelo (`--gold`) no hover e no foco por teclado (contorno amarelo), sem sublinhado fixo. Verificado por `teste-padrao-visual-floresta.js` (escopo `#adminNotaFloresta`).
+
 Estados:
 
 | Estado | Links | Botões (`.btn`, `.btn--primary`, `.avp-voltar-link`) |

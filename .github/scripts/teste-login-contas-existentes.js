@@ -70,8 +70,13 @@ const estado = (page, conta) => page.evaluate((k) => {
     sessao: !!(window.faAuth && window.faAuth.getSession && window.faAuth.getSession()),
     painel: !document.getElementById('auth-verificacao').hidden && !document.getElementById('authModal').hidden,
     verificacoes: (C.__verificacoes || []).length, resets: (C.__resets || []).length, desconexoes: C.__desconexoes || 0,
-    perfil: JSON.stringify((C.db['fa-users'] || {})[k] || null),
-    escritas: (window.__ESCRITAS || []).map((e) => (typeof e === 'string' ? e : JSON.stringify(e)))
+    /* A ÚNICA gravação aceita no login é a anotação da confirmação do e-mail (auth.js anotarEmailConfirmado), exatamente
+       {emailConfirmado:true, emailConfirmadoEm} no próprio cadastro: ela é tirada da comparação; qualquer outra mudança no
+       cadastro ou qualquer outra escrita continua reprovando. anotou diz se ela aconteceu. */
+    anotou: (window.__ESCRITAS || []).some((e) => e.path === 'fa-users/' + k && JSON.stringify(e.valor) === JSON.stringify({ emailConfirmado: true, emailConfirmadoEm: firebase.database.ServerValue.TIMESTAMP })),
+    perfil: JSON.stringify((function (p) { if (!p) return null; p = Object.assign({}, p); delete p.emailConfirmado; delete p.emailConfirmadoEm; return p; })((C.db['fa-users'] || {})[k])),
+    escritas: (window.__ESCRITAS || []).filter((e) => !(e.path === 'fa-users/' + k && JSON.stringify(e.valor) === JSON.stringify({ emailConfirmado: true, emailConfirmadoEm: firebase.database.ServerValue.TIMESTAMP })))
+      .map((e) => (typeof e === 'string' ? e : JSON.stringify(e)))
   };
 }, chave(conta.email));
 
@@ -105,7 +110,8 @@ async function rodada(browser, viewport, rotulo) {
     const st = await estado(page, conta);
     afirma(st.sessao && !st.painel, 'entra, sem pedir confirmação de e-mail');
     afirma(st.verificacoes === 0 && st.resets === 0, 'nenhum e-mail enviado ao entrar', JSON.stringify(st));
-    afirma(st.perfil === JSON.stringify(perfisAntes[chave(conta.email)]), 'cadastro (fa-users) idêntico', st.perfil);
+    afirma(st.perfil === JSON.stringify(perfisAntes[chave(conta.email)]), 'cadastro (fa-users) idêntico (fora a anotação da confirmação do e-mail)', st.perfil);
+    afirma(st.anotou, 'e-mail confirmado no Auth: o login anota a confirmação no cadastro (só informação, não muda acesso)');
     afirma(!st.escritas.some((e) => /fa-users|fa-admins|turmas-interesse|null/.test(e)), 'nada apagado nem gravado em cadastro, acesso ou inscrições', st.escritas.join(' ; '));
     if (nome === 'numerica') {
       await page.evaluate(() => window.faAuth.logout());
