@@ -31,7 +31,8 @@
     ".github/scripts/teste-rules-versao-vigente.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-reconciliar-versao-vigente.js": "reconciliação do índice: aplicação no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-squad-exclusao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-email-confirmado.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-email-confirmado.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-fa-users-compat.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -980,6 +981,12 @@
       "nome": "Verificação de e-mail: cadastro, painel Confirme seu e-mail e reenvio — pt-BR, endereço de volta autorizado, nunca \"enviamos\" sem ter enviado (desktop e celular)",
       "duracao": 40,
       "sobre": "Nenhum e-mail enviado (o falso só registra o pedido). Cadastro ok: painel com remetente e quarentena, pedido em pt-BR com volta ao site oficial, pessoa desconectada e sem botão de reenviar (que falharia) mas com o caminho para reenviar; falha de rede ou código desconhecido: nunca diz enviamos, mostra o código; endereço de volta recusado: reenvia sem ele; sem resposta (relógio falso): aviso e botão liberado; login com conta não confirmada: reenvio em pt-BR, falha com a causa, sessão desconectada sem pedido; volta só para kyber-agil.web.app e kyber-agil.firebaseapp.com (prévia e outros → site oficial); console sem e-mail; 375 px."
+    },
+    {
+      "arquivo": ".github/scripts/teste-seguranca-fa-users-1a.js",
+      "nome": "Segurança de fa-users (PR 1-A): conta criada pelo admin grava o cadastro com a sessão do admin; login sem cadastro só verifica ou completa o cadastro (desktop e celular)",
+      "duracao": 90,
+      "sobre": "Criar conta: reautentica antes, cria, volta ao admin e só então grava (com a sessão do admin, uma gravação, os campos de sempre); senha errada não cria nada; login existente com e sem cadastro; volta ao admin que falha (nada gravado, nada conectado, aviso de criação incompleta no login); gravação que falha (sem nova tentativa). Porta de entrada: sem cadastro e sem confirmação → verificação, nenhum módulo nem pelo endereço; sem cadastro e confirmado → só Completar cadastro (validações, só os campos públicos, como a própria pessoa, depois as verificações normais e a navegação); leitura lenta e com erro nunca viram sem cadastro; e-mail de fora sai; cadastro que aparece no meio não é sobrescrito; 375 px sem rolagem lateral e no padrão escuro."
     },
     {
       "arquivo": ".github/scripts/teste-login-contas-existentes.js",

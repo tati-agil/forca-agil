@@ -460,9 +460,11 @@
       .catch(function (err) { console.warn('[auth] confirmação do e-mail não anotada:', (err && (err.code || err.message)) || err); });
   }
 
-  /* ---- Firebase Auth — fonte de verdade de sessão ---- */
-  firebase.auth().onAuthStateChanged(function (user) {
-    if (_criandoConta) return;
+  /* ---- Firebase Auth — fonte de verdade de sessão ----
+     aplicarAcesso decide o que a pessoa conectada vê. Roda a cada troca de usuário do Auth e de novo quando o estado
+     muda sem troca de usuário: depois de "Completar cadastro" (a pessoa passa pelas MESMAS verificações de sempre) e
+     depois de uma criação de conta pelo admin que perdeu a sessão no meio. */
+  function aplicarAcesso(user) {
     if (user) {
       var geracao = ++_geracaoPerfil;
       esperarPerfil();
@@ -483,6 +485,27 @@
           updateNavState();
           firebase.auth().signOut().catch(function () {});
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: { blocked: true } }));
+          _authReady = true;
+          window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
+          return;
+        }
+
+        /* Login sem cadastro — só quando a leitura RESPONDEU que o cadastro não existe (demora e erro de leitura
+           seguem pelos caminhos de sempre: "ainda não sei" nunca vira "não tem cadastro"). Antes, sem cadastro não
+           havia bloqueio nem exigência de confirmação, e a pessoa entrava no site sem aparecer no painel. Agora:
+           - e-mail fora da Previ: sai;
+           - e-mail não confirmado no Auth: painel de verificação (reenviar o link), fora dos módulos;
+           - e-mail @previ.com.br confirmado: só "Completar cadastro" (completarCadastro), que grava os campos do
+             cadastro público e passa de novo por aqui, pelas verificações normais. */
+        if (!snap.exists()) {
+          perfilResolvido(geracao);
+          _session = null;
+          _accessLevel = 'member';
+          stopWatchingEnrolledStatus();
+          updateNavState();
+          if (!isPrevi(user.email)) { firebase.auth().signOut().catch(function () {}); return; }
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: user.emailVerified
+            ? { semCadastro: true, email: user.email } : { unverified: true, email: user.email } }));
           _authReady = true;
           window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
           return;
@@ -556,6 +579,10 @@
       _authReady = true;
       window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
     }
+  }
+  firebase.auth().onAuthStateChanged(function (user) {
+    if (_criandoConta) return;
+    aplicarAcesso(user);
   });
 
   /* ---- Store com escopo por usuário ---- */
@@ -677,6 +704,33 @@
       });
   }
 
+  /* Grava um cadastro NOVO em fa-users — nunca sobrescreve: se a chave já existe, nada muda e a promessa recusa com
+     'fa/cadastro-ja-existe'. Transação para valer também quando duas gravações correm ao mesmo tempo. */
+  function gravarCadastroNovo(email, cadastro) {
+    return new Promise(function (ok, falha) {
+      firebase.database().ref('fa-users/' + emailKey(email)).transaction(function (atual) {
+        return atual === null ? cadastro : undefined;
+      }, function (err, gravou) {
+        if (err) falha(err);
+        else if (!gravou) falha({ code: 'fa/cadastro-ja-existe' });
+        else ok();
+      });
+    });
+  }
+
+  /* ---- Conta criada pelo admin ----
+     Ordem (segurança de fa-users): os campos administrativos (adminApproved, createdByAdmin) só são gravados com a
+     sessão do ADMIN. Antes, o cadastro era gravado logo depois de criar o login, ainda conectado como a conta nova —
+     ou seja, a própria conta nova se dava adminApproved, exatamente a gravação que as regras endurecidas recusam.
+       1. reautentica o admin ANTES de criar qualquer coisa (senha errada → nada é criado);
+       2. cria o login da conta nova (o Auth passa a ela);
+       3. sai e volta para o admin, e confere que a sessão restaurada é mesmo a dele;
+       4. grava o cadastro como admin, só se ainda não existir.
+     Nenhuma etapa é repetida sozinha. Se o login foi criado e o cadastro não (criação parcial), a mensagem diz isso; a
+     conta incompleta não é liberada por aqui (o login pode não ter sido feito pelo painel): a pessoa entra, confirma o
+     e-mail e completa o cadastro. */
+  var MSG_CRIACAO_INCOMPLETA = ' A conta ficou INCOMPLETA: existe o login, mas não o cadastro. Não tente criá-la de ' +
+    'novo: a pessoa entra com o e-mail e a senha padrão (12345678), confirma o e-mail pelo link e completa o cadastro.';
   function criarContaPorAdmin(data, adminPwd, cb) {
     const email     = (data.email || '').trim().toLowerCase();
     const name      = window.faTurmasUtil.nomePessoa(data.name);
@@ -688,30 +742,141 @@
     if (!area)           return cb({ error: 'Área/Setor obrigatório.' });
     if (!adminPwd)       return cb({ error: 'Confirme sua senha de admin.' });
     if (!adminSess)      return cb({ error: 'Sessão admin não encontrada.' });
+    const adminEmail = String(adminSess.email || '').toLowerCase();
+    const adminUser  = firebase.auth().currentUser;
+    if (!adminUser || String(adminUser.email || '').toLowerCase() !== adminEmail) {
+      return cb({ error: 'Sua sessão de admin não está ativa. Recarregue a página e entre de novo. Nada foi criado.' });
+    }
+    if (!firebase.auth.EmailAuthProvider || typeof adminUser.reauthenticateWithCredential !== 'function') {
+      return cb({ error: 'Não foi possível confirmar sua senha agora. Nada foi criado.' });
+    }
 
-    _criandoConta = true;
-    firebase.auth().createUserWithEmailAndPassword(email, '12345678')
+    var etapa = 'reautenticar';
+    adminUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(adminEmail, adminPwd))
       .then(function () {
-        return firebase.database().ref('fa-users/' + emailKey(email)).set({
+        etapa = 'criar';
+        _criandoConta = true;
+        return firebase.auth().createUserWithEmailAndPassword(email, '12345678');
+      })
+      .then(function () {
+        etapa = 'voltar';
+        return firebase.auth().signOut();
+      })
+      .then(function () { return firebase.auth().signInWithEmailAndPassword(adminEmail, adminPwd); })
+      .then(function () {
+        const atual = firebase.auth().currentUser;
+        if (!atual || String(atual.email || '').toLowerCase() !== adminEmail) throw { code: 'fa/sessao-nao-restaurada' };
+        etapa = 'gravar';
+        return gravarCadastroNovo(email, {
           email: email, name: name, area: area,
           adminApproved: true,
           createdByAdmin: adminSess.email,
           createdAt: new Date().toISOString()
         });
       })
-      .then(function () { return firebase.auth().signOut(); })
-      .then(function () {
-        return firebase.auth().signInWithEmailAndPassword(adminSess.email, adminPwd);
-      })
       .then(function () { _criandoConta = false; cb({ success: true }); })
       .catch(function (err) {
+        const code = (err && err.code) || '';
+        if (etapa === 'reautenticar') {
+          cb({ error: (code === 'auth/too-many-requests' ? 'Muitas tentativas. Aguarde e tente de novo.'
+            : /wrong-password|invalid-credential|invalid-login-credentials|user-mismatch/.test(code) ? 'Senha de admin incorreta.'
+            : 'Não foi possível confirmar sua senha agora.') + ' Nada foi criado.' });
+          return;
+        }
+        if (etapa === 'criar') {
+          _criandoConta = false;
+          if (code !== 'auth/email-already-in-use') { cb({ error: 'Erro ao criar a conta. Nada foi criado.' }); return; }
+          /* O login já existe. Com cadastro, é o caso de sempre; sem cadastro, é uma criação incompleta (ou um login
+             feito fora do site) — não se libera por aqui. */
+          firebase.database().ref('fa-users/' + emailKey(email)).once('value', function (snap) {
+            cb({ error: snap.exists() ? 'E-mail já cadastrado.'
+              : 'Já existe um login com este e-mail, mas sem cadastro no site. Por segurança, ele não é liberado por ' +
+                'aqui: a pessoa entra com o e-mail e a senha dela, confirma o e-mail pelo link e completa o cadastro.' });
+          }, function () { cb({ error: 'E-mail já tem login. Não consegui conferir o cadastro agora. Nada foi criado.' }); });
+          return;
+        }
+        if (etapa === 'gravar') {
+          _criandoConta = false;
+          cb({ error: (code === 'fa/cadastro-ja-existe'
+            ? 'O login foi criado, mas já existia um cadastro com este e-mail: nada foi sobrescrito.'
+            : 'O login foi criado, mas o cadastro NÃO foi gravado (' + (code || 'falha na gravação') + ').') +
+            (code === 'fa/cadastro-ja-existe' ? '' : MSG_CRIACAO_INCOMPLETA) });
+          return;
+        }
+        /* etapa 'voltar': o login novo existe, o cadastro não, e a sessão do admin não voltou. Encerra o que estiver
+           conectado (pode ser a conta nova) e devolve o site ao estado real — tela de login —, com o aviso nela. */
         _criandoConta = false;
-        let msg = 'Erro ao criar conta. Tente novamente.';
-        if (err.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado.';
-        if (err.code === 'auth/wrong-password')       msg = 'Senha de admin incorreta.';
-        if (err.code === 'auth/invalid-credential')   msg = 'Senha de admin incorreta.';
-        cb({ error: msg });
+        const texto = 'O login de ' + email + ' foi criado, mas não consegui voltar à sua sessão de admin e o cadastro ' +
+          'NÃO foi gravado.' + MSG_CRIACAO_INCOMPLETA + ' Entre de novo no site.';
+        firebase.auth().signOut().catch(function () {}).then(function () {
+          avisoNoLogin('authCriacaoIncompleta', 'Criação de conta incompleta', texto);
+          aplicarAcesso(firebase.auth().currentUser);
+          cb({ error: texto, sessaoEncerrada: true });
+        });
       });
+  }
+
+  /* Aviso no topo do modal de login (mesmo estilo do "Entre novamente" do router) — para o que precisa ser lido
+     depois que a sessão terminou. */
+  function avisoNoLogin(id, titulo, texto) {
+    const modal = document.getElementById('authModal');
+    if (!modal || document.getElementById(id)) return;
+    const nota = document.createElement('div');
+    nota.id = id;
+    nota.className = 'auth-sem-conexao';
+    nota.setAttribute('role', 'alert');
+    const forte = document.createElement('strong');
+    forte.textContent = titulo;
+    nota.appendChild(forte);
+    nota.appendChild(document.createTextNode(texto));
+    const caixa = modal.querySelector('.modal-box') || modal;
+    caixa.insertBefore(nota, caixa.firstChild);
+  }
+
+  /* ---- Completar cadastro ----
+     Para quem tem login (@previ.com.br, e-mail CONFIRMADO no Auth) e não tem cadastro: grava só os campos do cadastro
+     público — os mesmos de register(), com emailVerificationRequired — na chave do próprio e-mail, sem sobrescrever
+     nada. Depois passa por aplicarAcesso, as verificações normais. */
+  function completarCadastro(data, cb) {
+    const user = firebase.auth().currentUser;
+    if (!user) return cb({ error: 'Sua sessão terminou. Entre de novo.' });
+    const email = String(user.email || '').toLowerCase();
+    const name  = window.faTurmasUtil.nomePessoa(data.name);
+    const area  = (data.area || '').trim();
+    if (!isPrevi(email)) return cb({ error: 'Use seu e-mail corporativo @previ.com.br.' });
+    if (!name)           return cb({ error: 'Nome completo obrigatório.' });
+    if (!area)           return cb({ error: 'Área/Setor obrigatório.' });
+
+    /* emailVerified atualizado (quem acabou de clicar no link pode estar com o estado antigo) */
+    Promise.resolve(typeof user.reload === 'function' ? user.reload() : null)
+      .then(function () {
+        const u = firebase.auth().currentUser;
+        if (!u || String(u.email || '').toLowerCase() !== email) throw { code: 'fa/sessao-trocou' };
+        if (!u.emailVerified) throw { code: 'fa/nao-verificado' };
+        return gravarCadastroNovo(email, {
+          email: email, name: name, area: area,
+          optinTurmas: !!data.optinTurmas,
+          emailVerificationRequired: true,
+          createdAt: new Date().toISOString()
+        });
+      })
+      .then(function () { cb({ success: true }); aplicarAcesso(firebase.auth().currentUser); })
+      .catch(function (err) {
+        const code = (err && err.code) || '';
+        /* o cadastro apareceu nesse meio-tempo: valem as verificações normais, sem gravar nada */
+        if (code === 'fa/cadastro-ja-existe' || code === 'fa/nao-verificado' || code === 'fa/sessao-trocou') {
+          cb(code === 'fa/nao-verificado' ? { error: 'Seu e-mail ainda não está confirmado.' } : { success: true });
+          aplicarAcesso(firebase.auth().currentUser);
+          return;
+        }
+        cb({ error: 'Não foi possível salvar agora. Verifique a conexão e tente de novo.' });
+      });
+  }
+  function prepararPainelCompletar(email) {
+    const dest = document.getElementById('completarEmail');
+    if (dest) dest.textContent = email || '';
+    const err = document.getElementById('completarErr');
+    if (err) { err.textContent = ''; err.hidden = true; }
   }
 
   /* ---- E-mail de verificação (cadastro e reenvio) ----
@@ -1140,6 +1305,42 @@
       if (loginTab) { document.querySelectorAll('.auth-tab').forEach(function (t) { t.classList.remove('active'); }); loginTab.classList.add('active'); }
     });
 
+    /* Completar cadastro — mesma lista de áreas do cadastro público (uma fonte só: #regAreaSelect) */
+    const cf = document.getElementById('completarForm');
+    const cArea = document.getElementById('completarArea');
+    if (cArea) {
+      document.querySelectorAll('#regAreaSelect li[data-val]').forEach(function (li) {
+        const o = document.createElement('option'); o.value = li.dataset.val; o.textContent = li.dataset.val; cArea.appendChild(o);
+      });
+    }
+    if (cf) cf.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const err = document.getElementById('completarErr');
+      const erro = function (t) { if (err) { err.textContent = t; err.hidden = !t; } };
+      erro('');
+      const terms = document.getElementById('completarTerms');
+      if (terms && !terms.checked) { erro('Aceite os termos para continuar.'); return; }
+      const btn = cf.querySelector('[type=submit]');
+      btn.disabled = true; btn.textContent = 'Aguarde…';
+      completarCadastro({
+        name: document.getElementById('completarNome').value,
+        area: cArea ? cArea.value : '',
+        optinTurmas: !!(document.getElementById('completarOptin') && document.getElementById('completarOptin').checked)
+      }, function (r) {
+        btn.disabled = false; btn.textContent = 'Concluir cadastro →';
+        if (r.error) erro(r.error);
+      });
+    });
+    const completarSair = document.getElementById('completarSair');
+    if (completarSair) completarSair.addEventListener('click', function (e) {
+      e.preventDefault();
+      firebase.auth().signOut().catch(function () {});
+      document.querySelectorAll('.auth-panel').forEach(function (p) { p.hidden = true; });
+      document.getElementById('auth-login').hidden = false;
+      var loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+      if (loginTab) { document.querySelectorAll('.auth-tab').forEach(function (t) { t.classList.remove('active'); }); loginTab.classList.add('active'); }
+    });
+
     /* Olhinho — mostrar/ocultar senha */
     document.addEventListener('click', function (e) {
       const btn = e.target.closest('.pwd-eye');
@@ -1207,6 +1408,7 @@
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset, REMETENTE_RESET: REMETENTE_RESET,
     prepararPainelVerificacao: prepararPainelVerificacao,
+    completarCadastro: completarCadastro, prepararPainelCompletar: prepararPainelCompletar,
     getAccessLevel: getAccessLevel,
     criarContaPorAdmin: criarContaPorAdmin,
     resendVerification: resendVerification,

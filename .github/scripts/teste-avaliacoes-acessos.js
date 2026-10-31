@@ -321,7 +321,10 @@ async function abrirMais(page, key) {
     await page.waitForFunction((k) => !window.__CFG.__dbReal['fa-avaliacao-autorizados'][k], chave('bruno@previ.com.br'), { timeout: 5000 }).catch(() => {});
     b = await banco(page);
     afirma(!b['fa-avaliacao-autorizados'][chave('bruno@previ.com.br')], 'remover apagou só a autorização de Bruno');
-    afirma(!!b['fa-users'][chave('bruno@previ.com.br')] && Object.keys(b['fa-users']).length === 3, 'a pessoa continua cadastrada (fa-users intacto)');
+    /* os três cadastros do teste continuam; além deles, só o cadastro mínimo da própria sessão de admin, que o banco falso
+       dá a quem entra sem cadastro definido (firebase-falso.js garantirCadastro) */
+    afirma(['ana', 'bruno', 'carla'].every((n) => !!b['fa-users'][chave(n + '@previ.com.br')]) &&
+      Object.keys(b['fa-users']).filter((k) => k !== chave(SUPER)).length === 3, 'a pessoa continua cadastrada (fa-users intacto)');
     hist = Object.keys(b['fa-avaliacao-autorizados-auditoria']).map((k) => b['fa-avaliacao-autorizados-auditoria'][k]);
     afirma(hist.some((h) => h.acao === 'removido' && h.email === 'bruno@previ.com.br' && h.tipoAnterior === 'avaliacao-arquitetura'), 'histórico "removido"');
     afirma(hist.length === 3, 'três linhas de histórico (concedido, alterado, removido)');
