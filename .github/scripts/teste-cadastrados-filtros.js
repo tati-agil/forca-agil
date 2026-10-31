@@ -105,7 +105,8 @@ const ord = (a) => JSON.stringify(a.slice().sort());
   /* 1. Cabeçalho fixo e foco, no computador */
   for (const w of [1366, 1024]) {
     console.log('\n===== CABEÇALHO FIXO — ' + w + ' px =====');
-    const { ctx, page, erros } = await abrir(browser, { viewport: { width: w, height: 800 } }, muitos());
+    /* movimento reduzido: o próprio CSS do site troca a rolagem suave pela instantânea — a medida não depende da velocidade da máquina */
+    const { ctx, page, erros } = await abrir(browser, { viewport: { width: w, height: 800 }, reducedMotion: 'reduce' }, muitos());
     await status(page, 'todos');
     const p = [];
     /* a página rola com scroll-behavior: smooth — aqui a rolagem é instantânea, e só depois se mede */
@@ -299,6 +300,45 @@ const ord = (a) => JSON.stringify(a.slice().sort());
     registrar('Padrão Visual Oficial na área de Cadastrados (computador)', pv.map((x) => x.regra + ': ' + x.detalhe));
     const esc = await page.evaluate(() => (window.__ESCRITAS || []).filter((x) => /^fa-users/.test(x.path)).length);
     registrar('nada gravado no cadastro; nenhum erro de JavaScript', (esc ? ['gravou ' + esc] : []).concat(erros.length ? ['erro JS: ' + erros[0]] : []));
+    await ctx.close();
+  }
+
+  /* 4b. Quem liberou: uma pessoa = um e-mail gravado, com o nome ATUAL — nunca junta por semelhança de nome */
+  console.log('\n===== LIBERADO POR: IDENTIDADE PELO E-MAIL =====');
+  {
+    const u = {};
+    const pessoa = (email, nome, extra) => { u[chave(email)] = Object.assign({ email, name: nome, area: 'GECAT', createdAt: meioDia(30), emailVerificationRequired: true }, extra); };
+    pessoa(ADM, 'ADMIN EXEMPLO COMPLETO', { adminApproved: true, emailConfirmado: true, emailConfirmadoEm: Date.now() - DIA }); /* já anotada: o login não grava nada */
+    pessoa(e('b1'), 'PESSOA B1', { adminApproved: true, approvedAt: meioDia(20), approvedByAdmin: ADM, approvedByAdminName: 'APELIDO' });
+    pessoa(e('b2'), 'PESSOA B2', { adminApproved: true, approvedAt: meioDia(10), approvedByAdmin: ADM.toUpperCase(), approvedByAdminName: 'ADMIN EXEMPLO' });
+    pessoa(e('b3'), 'PESSOA B3', { adminApproved: true, createdByAdmin: ADM });
+    pessoa(e('b4'), 'PESSOA B4', { adminApproved: true, approvedAt: meioDia(15), approvedByAdmin: OUTRA, approvedByAdminName: 'OUTRA ANTIGA' });
+    pessoa(e('b5'), 'PESSOA B5', { adminApproved: true, approvedAt: meioDia(5), approvedByAdmin: OUTRA, approvedByAdminName: 'OUTRA ADMIN NOVA' });
+    pessoa(e('b6'), 'PESSOA B6', { adminApproved: true, approvedAt: meioDia(4), approvedByAdminName: 'APELIDO' });
+    const antes = JSON.stringify(u);
+    const { ctx, page, erros } = await abrir(browser, { viewport: { width: 1366, height: 900 } }, u);
+    await status(page, 'todos'); await abrirMais(page);
+    const p = [];
+    const opc = await page.$$eval('#cadFiltroPor option', (os) => os.filter((o) => o.value).map((o) => o.value + '=' + o.textContent));
+    /* ADM (3, com APELIDO e o e-mail em maiúsculas) = uma opção com o nome atual; OUTRA sem cadastro = o nome mais recente
+       gravado; b6 só tem o nome gravado "APELIDO", sem e-mail: fica separado, mesmo com o mesmo nome do b1 */
+    const esperado = [ADM + '=ADMIN EXEMPLO COMPLETO (3)', 'nome:APELIDO=APELIDO (1)', OUTRA + '=OUTRA ADMIN NOVA (2)'];
+    if (JSON.stringify(opc) !== JSON.stringify(esperado)) p.push('opções: ' + JSON.stringify(opc));
+    await page.selectOption('#cadFiltroPor', ADM);
+    const tela = await emailsNaTela(page);
+    if (ord(tela) !== ord([e('b1'), e('b2'), e('b3')])) p.push('filtro do ADM: ' + JSON.stringify(tela));
+    const por = await page.$$eval('#adminCadastrados tbody td[data-label="Liberado em"] .cad-por', (s) => s.map((x) => x.textContent.trim()));
+    if (por.length !== 3 || por.some((x) => x !== 'por ADMIN EXEMPLO COMPLETO')) p.push('tabela: ' + JSON.stringify(por));
+    const xs = await baixar(page);
+    if (xs.length !== 3 || xs.some((x) => x['Liberado por'] !== 'ADMIN EXEMPLO COMPLETO')) p.push('Excel: ' + JSON.stringify(xs.map((x) => x['Liberado por'])));
+    await page.selectOption('#cadFiltroPor', 'nome:APELIDO');
+    if (ord(await emailsNaTela(page)) !== ord([e('b6')])) p.push('liberação sem e-mail não ficou separada');
+    const depois = await page.evaluate(() => JSON.stringify(window.__CFG.db['fa-users']));
+    const gravou = await page.evaluate(() => (window.__ESCRITAS || []).filter((x) => /^fa-users/.test(x.path)).length);
+    if (gravou || JSON.parse(depois)[chave(e('b1'))].approvedByAdminName !== 'APELIDO' || JSON.parse(depois)[chave(e('b2'))].approvedByAdmin !== ADM.toUpperCase()) p.push('o nome/e-mail gravado mudou');
+    if (JSON.stringify(JSON.parse(antes)) !== depois) p.push('o banco mudou');
+    if (erros.length) p.push('erro JS: ' + erros[0]);
+    registrar('"Liberado por": uma opção por e-mail com o nome atual; tabela e Excel iguais; sem e-mail fica separado; banco intacto', p);
     await ctx.close();
   }
 

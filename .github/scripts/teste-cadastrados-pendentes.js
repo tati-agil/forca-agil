@@ -34,9 +34,10 @@ const CASOS = {
   'pendente@previ.com.br':   { c: { emailVerificationRequired: true }, sit: 'Pendente', conf: 'Não registrada', confEm: '', lib: 'nenhuma' },
   'link@previ.com.br':       { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: 'nenhuma' },
   'antiga@previ.com.br':     { c: { emailVerificationRequired: true, emailConfirmado: true }, sit: 'Ativo', conf: 'Sim', confEm: 'data não registrada', lib: 'nenhuma' },
-  'liberada@previ.com.br':   { c: { emailVerificationRequired: true, adminApproved: true, approvedAt: '2026-10-30T18:31:00.000Z', approvedByAdmin: ADM, approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'data', libPor: 'TATI ADMIN' },
+  'liberada@previ.com.br':   { c: { emailVerificationRequired: true, adminApproved: true, approvedAt: '2026-10-30T18:31:00.000Z', approvedByAdmin: ADM, approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'data', libPor: 'ADMIN' },
   'semdata@previ.com.br':    { c: { emailVerificationRequired: true, adminApproved: true }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'antiga' },
-  'criada@previ.com.br':     { c: { adminApproved: true, createdByAdmin: ADM }, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'criada', libPor: 'TATI ADMIN' },
+  /* quem liberou: com e-mail gravado, o nome ATUAL do cadastro desse e-mail (ADM = "ADMIN"), não o nome da época */
+  'criada@previ.com.br':     { c: { adminApproved: true, createdByAdmin: ADM }, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'criada', libPor: 'ADMIN' },
   'ambas@previ.com.br':      { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO, adminApproved: true, approvedAt: '2026-10-30T19:00:00.000Z', approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: 'data', libPor: 'TATI ADMIN' },
   'bloqueada@previ.com.br':  { c: { emailVerificationRequired: true, blocked: true }, sit: 'Bloqueado', conf: 'Não registrada', confEm: '', lib: 'nenhuma' },
   'velha@previ.com.br':      { c: {}, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'nenhuma' },

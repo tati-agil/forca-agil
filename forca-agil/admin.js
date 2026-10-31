@@ -6664,15 +6664,21 @@
     }
     var areas = contaPor(function (p) { return String(p.area || '').trim(); });
     var porQuem = contaPor(chavePor);
-    /* Quem liberou: o nome GRAVADO na liberação (approvedByAdminName) vale mais que o nome atual do cadastro; sem nome
-       gravado (conta criada pelo admin só guarda o e-mail), o nome do cadastro daquele e-mail; sem cadastro, o e-mail. */
-    var nomeGravadoPor = {};
+    /* Quem liberou: a IDENTIDADE é o e-mail gravado (approvedByAdmin no botão, createdByAdmin na conta criada — o banco
+       não guarda UID). O nome gravado na hora (approvedByAdminName) muda com o tempo ("CADU" e o nome completo são o
+       mesmo e-mail): com o e-mail, mostra-se o nome ATUAL do cadastro dessa pessoa; sem cadastro, o último nome gravado
+       e, sem nenhum, o e-mail. Liberação sem e-mail gravado fica separada pelo nome gravado ("nome:…") — nunca se junta
+       por semelhança de nome. Nada disso altera o que está gravado no banco. */
+    var nomeGravadoPor = {}, quandoGravadoPor = {};
     list.forEach(function (p) {
-      var k = chavePor(p), n = p._lib.porNome;
-      if (k && n && n.indexOf('@') < 0 && !nomeGravadoPor[k]) nomeGravadoPor[k] = n;
+      var k = chavePor(p), n = p._lib.porNome, t = Date.parse(p._lib.quandoIso) || 0;
+      if (k && n && n.indexOf('@') < 0 && !(quandoGravadoPor[k] > t)) { nomeGravadoPor[k] = n; quandoGravadoPor[k] = t; }
     });
-    function rotuloPor(k) { return nomeGravadoPor[k] || (k.indexOf('nome:') === 0 ? k.slice(5) : (nomePorEmail[k] || k)); }
-    function quemLiberou(p) { var n = p._lib.porNome; return n && n.indexOf('@') < 0 ? n : rotuloPor(chavePor(p)); }
+    function rotuloPor(k) {
+      if (k.indexOf('nome:') === 0) return k.slice(5);
+      return nomePorEmail[k] || nomeGravadoPor[k] || k;
+    }
+    function quemLiberou(p) { var k = chavePor(p); return k ? rotuloPor(k) : ''; }
     function opcoes(obj, rotulo) {
       return Object.keys(obj).sort(function (a, b) { return rotulo(a).localeCompare(rotulo(b), 'pt'); })
         .map(function (k) { return '<option value="' + esc(k) + '">' + esc(rotulo(k)) + ' (' + obj[k] + ')</option>'; }).join('');

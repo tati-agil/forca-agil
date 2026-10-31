@@ -804,6 +804,8 @@
 #adminCadastrados .cad-sub { display: block; font-size: var(--arq-fs-meta); color: var(--ink-3); line-height: 1.4; }
 #adminCadastrados .cad-data { white-space: nowrap; font-variant-numeric: tabular-nums; }
 #adminCadastrados .cad-acoes { flex-wrap: nowrap; }
+/* 1024–1099 px: os dois botões podem ficar um embaixo do outro — com fontes mais largas (Linux) a tabela não cabe com eles lado a lado */
+@media (min-width: 1024px) and (max-width: 1099px) { #adminCadastrados .cad-acoes { flex-wrap: wrap; } }
 #adminCadastrados .cad-vazio { padding: 18px 14px; color: var(--ink-3); text-align: center; border: 1px dashed var(--line-strong); border-radius: 10px; }
 
 /* Filtros: situação e busca sempre à vista; o resto em "Mais filtros" (recolhível); depois, resultado, ordem, limpar e
