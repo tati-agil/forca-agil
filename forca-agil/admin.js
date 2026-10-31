@@ -928,6 +928,7 @@
               (function () {
                 var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0];
                 var c = window.faTurmasUtil.cargoEfetivo(t, ev);
+                if (c === 'conflito') return ' · ⚠ público da turma contradiz o do evento: ninguém entra';
                 return c ? ' · só ' + (c === 'gerentes' ? 'gerentes' : 'técnicos') : '';
               })();
 
@@ -3456,16 +3457,28 @@
           '<option value="">Igual ao evento</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
         '</select></label>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" segue o "Quem participa" do evento (Gerentes ou Técnicos restringem; as outras categorias não); "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem não está, valendo por cima do evento.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" segue o "Quem participa" do evento (Gerentes ou Técnicos restringem; as outras categorias não); "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem não está, somando-se ao do evento — a turma pode restringir mais, nunca ampliar.</p>' +
+      '<p id="turmaFormCargoAviso" role="alert" hidden style="font-size:.82rem;color:#ffb347;margin:-4px 0 0"></p>' +
       '<label class="auth-label" id="turmaFormCmflexBox">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
-      '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
-        '<input type="checkbox" id="turmaFormPublicoRestrito" style="margin-top:3px">' +
-        '<span>Público restrito — só quem está na lista desta turma pode participar' +
-        '<span style="display:block;opacity:.65;font-size:.78rem;margin-top:2px">' +
-        'O card não aparece para quem está fora da lista, e o painel recusa adicionar quem não está nela. ' +
-        'A lista se monta no menu ⋯ da turma, depois de salvar.</span></span>' +
-      '</label>' +
+      /* Duas opções explícitas em vez de uma caixa solta — o MESMO campo publicoRestrito e a MESMA lista
+         (turmas-publico), sem dado novo nem migração: "Seguir as regras do evento" = desmarcado. */
+      '<fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px">' +
+        '<legend class="auth-label" style="padding:0;margin-bottom:6px">Público desta turma</legend>' +
+        '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
+          '<input type="radio" name="turmaFormPublicoModo" id="turmaFormPublicoEvento" style="margin-top:3px">' +
+          '<span>Seguir as regras do evento <span style="opacity:.65">(padrão)</span></span>' +
+        '</label>' +
+        '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
+          '<input type="radio" name="turmaFormPublicoModo" id="turmaFormPublicoRestrito" style="margin-top:3px">' +
+          '<span>Restringir a uma lista específica de e-mails' +
+          '<span style="display:block;opacity:.65;font-size:.78rem;margin-top:2px">' +
+          'Soma-se às regras do evento, nunca as substitui: quem o evento não admite continua de fora, mesmo na lista. ' +
+          'O card não aparece para quem está fora da lista, e o painel recusa adicionar quem não está nela. ' +
+          'Lista vazia = ninguém além do admin vê a turma. A lista se monta no menu ⋯ da turma, depois de salvar; ' +
+          'mudar esta opção não remove ninguém da turma.</span></span>' +
+        '</label>' +
+      '</fieldset>' +
       '<div>' +
         '<span class="auth-label" style="display:block;margin-bottom:8px">Datas dos encontros</span>' +
         '<div id="turmaDatesList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
@@ -3514,6 +3527,25 @@
     /* Ausente = turma aberta: turma criada antes deste controle continua
        exatamente como sempre esteve, sem migração nenhuma. */
     restritoInput.checked = isEdit ? !!existing.publicoRestrito : false;
+    box.querySelector('#turmaFormPublicoEvento').checked = !restritoInput.checked;
+
+    /* Aviso ao vivo: o "Público" da turma contradiz o "Quem participa" do evento escolhido (cargoEfetivo = 'conflito',
+       turmas-util.js) → ninguém consegue entrar. Não impede salvar (a admin pode estar a meio de ajustar o evento);
+       o card da turma no painel repete o aviso enquanto a contradição existir. */
+    var cargoAviso = box.querySelector('#turmaFormCargoAviso');
+    function avisarCargoContraditorio() {
+      var ev = EVENTOS_LIST.filter(function (e) { return e.key === eventoSel.value; })[0];
+      var conflito = window.faTurmasUtil.cargoEfetivo({ publicoCargo: cargoInput.value }, ev) === 'conflito';
+      cargoAviso.hidden = !conflito;
+      cargoAviso.textContent = conflito
+        ? '⚠ Contraditório: o evento é só para ' + (window.faTurmasUtil.cargoDoEvento(ev) === 'gerentes' ? 'gerentes' : 'técnicos') +
+          ' e esta turma só para ' + (cargoInput.value === 'gerentes' ? 'gerentes' : 'técnicos') +
+          '. As regras se somam, então ninguém conseguiria entrar nesta turma. Escolha "Igual ao evento" ou ajuste o evento.'
+        : '';
+    }
+    cargoInput.addEventListener('change', avisarCargoContraditorio);
+    eventoSel.addEventListener('change', avisarCargoContraditorio);
+    avisarCargoContraditorio();
 
     function addDateRow(value) {
       var row = document.createElement('div');
@@ -3901,12 +3933,37 @@
         return;
       }
 
+      /* Estar na lista da turma não vence o público (gerentes/técnicos) do evento nem o da turma: as regras se somam.
+         Só a regra de cargo de regrasDeEntrada barra aqui — as outras (vagas, uma turma, participação) continuam como
+         sempre foram nesta porta. Leitura que falha barra a pessoa (falhar recusando é o lado seguro). */
+      var pendentes = podem.length, foraDoCargo = [], cargoOk = [];
+      podem.forEach(function (k) {
+        window.faTurmasUtil.regrasDeEntrada({ eventoKey: turmaEventoKey(alvo.key), eKey: k, turmaKey: alvo.key }, function (r) {
+          var p = lista[k] || {};
+          if (r.estado === 'erro' || (r.estado === 'bloqueado' && r.regra === 'cargo')) {
+            foraDoCargo.push((p.name || p.email || k) + (r.estado === 'erro' ? ' (não consegui verificar)' : ''));
+          } else cargoOk.push(k);
+          if (--pendentes === 0) seguirComCargo();
+        });
+      });
+      function seguirComCargo() {
+      podem = podem.filter(function (k) { return cargoOk.indexOf(k) !== -1; });
+      if (!podem.length) {
+        adminAlert('Ninguém desta lista pode entrar na turma agora.\n\n' +
+          (barradas.length ? 'Fora do público restrito do evento:\n' + barradas.join('\n') + '\n\n' : '') +
+          'Fora do público (gerentes/técnicos) do evento ou da turma:\n' + foraDoCargo.join('\n') + '\n\nNada foi gravado.');
+        return;
+      }
+
       checkOutrasTurmas(alvo.key, podem, function (overlaps) {
         var msg = 'Adicionar ' + podem.length + (podem.length > 1 ? ' pessoas' : ' pessoa') +
           ' à turma "' + alvo.label + '" como INSCRITAS?\n\n' +
           'Elas passam a ter acesso a Conteúdos e Treinamento, como se você tivesse confirmado uma por uma.';
         if (barradas.length) {
           msg += '\n\nFicam de fora, por não estarem no público restrito do evento:\n' + barradas.join('\n');
+        }
+        if (foraDoCargo.length) {
+          msg += '\n\nFicam de fora, por não estarem no público (gerentes/técnicos) do evento ou da turma:\n' + foraDoCargo.join('\n');
         }
         if (overlaps.length) {
           msg += '\n\nJá inscritas em outra turma — essa inscrição anterior será removida, porque ninguém fica em duas:\n' +
@@ -3930,6 +3987,7 @@
           });
         });
       });
+      }
     }
 
     reload();
@@ -4414,7 +4472,7 @@
         var br = function (iso) { var p = String(iso).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; };
         var nomesDe = function (o) { return Object.keys(o || {}).filter(function (k) { return o[k]; }).map(function (k) { return (eventos[k] || {}).nome || k; }).join('; '); };
         var h = new Date(), hojeISO = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-' + String(h.getDate()).padStart(2, '0');
-        var PUBLICO_TURMA = { gerentes: 'Só gerentes', tecnicos: 'Só técnicos' };
+        var PUBLICO_TURMA = { gerentes: 'Só gerentes', tecnicos: 'Só técnicos', conflito: 'Contraditório (turma × evento): ninguém entra' };
         function paramsEvento(e) {
           return {
             'Quem participa': e.publicoDesc || 'Empregados',

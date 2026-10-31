@@ -294,6 +294,7 @@
   function cargoBarra(turma, gerente, evento) {
     var cargo = window.faTurmasUtil.cargoEfetivo(turma, evento);
     if (!cargo) return false;
+    if (cargo === 'conflito') return true;  /* turma × evento contraditórios: ninguém entra */
     if (!gerente || !gerente.ok) return true;
     return (cargo === 'gerentes') !== gerente.gerente;
   }

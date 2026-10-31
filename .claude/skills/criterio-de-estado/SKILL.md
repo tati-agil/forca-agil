@@ -129,6 +129,10 @@ e `turmaVisivelPara()` em `app.js` / `aluno.js`.
 | ＋ Participante | `admin.js` `addParticipante` (a busca já sai filtrada, e revalida ao gravar) |
 | Mover para turma | `admin.js` `moverParaTurma` |
 | "Tenho interesse" (a pessoa) | `app.js` `registerInterest` — revalida no clique |
+| "Adicionar à turma" em massa (modal da lista) | `admin.js` `matricularNaTurma` — lista do evento E público gerentes/técnicos (`regrasDeEntrada`, só a regra de cargo) |
+
+O público gerentes/técnicos da turma **se soma** ao do evento (`cargoEfetivo`, `turmas-util.js`): a turma restringe
+mais, nunca amplia; contraditórios = `'conflito'`, ninguém entra.
 
 **Leitores** (decidem o que aparece):
 

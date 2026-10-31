@@ -197,8 +197,9 @@
      Mover da fila — admin.js; o Sorteio tem regras próprias). Quatro regras, conferidas NESTA ordem (a primeira que barra é
      a que aparece — da mais definitiva para a mais passageira):
        1. público — o "Quem participa" do EVENTO (eventos/<ev>/publicoDesc) "Gerentes" ou "Técnicos" vale para todas as
-          turmas dele; a turma pode ter o próprio (turmas/<t>/publicoCargo = 'gerentes' | 'tecnicos'), que vale por cima do
-          evento (cargoEfetivo). 'gerentes' só admite quem está em fa-gerentes/<emailKey>; 'tecnicos' só quem NÃO está
+          turmas dele; a turma pode ter o próprio (turmas/<t>/publicoCargo = 'gerentes' | 'tecnicos'), que se SOMA ao do evento
+          (cargoEfetivo): a turma restringe mais, nunca amplia. Turma e evento contraditórios ('gerentes' × 'tecnicos') =
+          'conflito': ninguém entra, e o painel avisa. 'gerentes' só admite quem está em fa-gerentes/<emailKey>; 'tecnicos' só quem NÃO está
           (técnico = quem não é gerente). Lista por e-mail: vale mesmo para quem ainda não tem cadastro. As outras categorias
           do "Quem participa" (Empregados, Diretores…) são só descrição: não há lista que diga quem é quem;
        2. participação anterior — eventos/<ev>/bloqueiaParticipantesDe = { <outroEvento>: true }: quem tem interesse ou
@@ -222,8 +223,12 @@
   function vagasEfetivas(t, e) { return vagasDaTurma(t) || vagasDoEvento(e); }
   function cargoDaTurma(t) { var c = t && t.publicoCargo; return c === 'gerentes' || c === 'tecnicos' ? c : ''; }
   function cargoDoEvento(e) { var d = e && e.publicoDesc; return d === 'Gerentes' ? 'gerentes' : d === 'Técnicos' ? 'tecnicos' : ''; }
-  /* o público que vale para a turma: o dela, se tiver; senão o do evento */
-  function cargoEfetivo(t, e) { return cargoDaTurma(t) || cargoDoEvento(e); }
+  /* o público que vale para a turma: as duas restrições somadas. Iguais ou só uma → ela; contraditórias → 'conflito'
+     (ninguém entra). Antes o da turma valia POR CIMA do evento e podia ampliar o público dele. */
+  function cargoEfetivo(t, e) {
+    var ct = cargoDaTurma(t), ce = cargoDoEvento(e);
+    return ct && ce && ct !== ce ? 'conflito' : (ct || ce);
+  }
   function regraValida(v) { return !!(v && !v.removed && v.status !== 'removido'); }
   function regrasDeEntrada(arg, cb) {
     var eventoKey = (arg && arg.eventoKey) || '', eKey = arg && arg.eKey, turmaKey = (arg && arg.turmaKey) || '';
@@ -242,6 +247,7 @@
 
         function conferirCargo(seguir) {
           if (!cargo) { seguir(); return; }
+          if (cargo === 'conflito') { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
           db.ref('fa-gerentes/' + eKey).once('value', function (s) {
             var gerente = !!s.val();
             if ((cargo === 'gerentes') !== gerente) { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
@@ -295,6 +301,7 @@
   /* o que a PESSOA lê no card (sem HTML) */
   function mensagemRegraPessoa(r) {
     if (!r || r.estado === 'erro') return 'Não foi possível verificar suas outras turmas agora. Recarregue a página e tente de novo.';
+    if (r.regra === 'cargo' && r.cargo === 'conflito') return 'Esta turma não está recebendo inscrições no momento. Procure a organização do evento.';
     if (r.regra === 'cargo') return r.cargo === 'gerentes' ? 'Esta turma é só para gerentes.' : 'Esta turma não é para gerentes — procure a turma de gerentes deste evento.';
     if (r.regra === 'participacao') return 'Estas turmas são para quem ainda não participou de ' + (r.evento || 'um evento anterior') + '. Você já tem interesse ou inscrição registrada lá.';
     if (r.regra === 'lotada') return 'Turma lotada — as ' + r.vagas + ' vagas já foram preenchidas. Se alguém sair, ela reabre.';
@@ -305,6 +312,7 @@
   function mensagemRegraAdmin(r, nome) {
     var quem = nome || 'Essa pessoa';
     if (!r || r.estado === 'erro') return 'Não consegui verificar as regras da turma para ' + quem + ' agora. Recarregue a página e tente de novo. Nada foi gravado.';
+    if (r.regra === 'cargo' && r.cargo === 'conflito') return 'O público desta turma contradiz o "Quem participa" do evento (um é só gerentes, o outro só técnicos), então ninguém pode entrar. Ajuste o "Público" da turma ou o do evento. Nada foi gravado.';
     if (r.regra === 'cargo') return r.cargo === 'gerentes'
       ? quem + ' não está na lista de Gerentes, e esta turma é só para gerentes. Se for gerente, inclua o e-mail na aba Gerentes primeiro. Nada foi gravado.'
       : quem + ' está na lista de Gerentes, e esta turma não é para gerentes. Nada foi gravado.';

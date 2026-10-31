@@ -458,6 +458,12 @@
       "sobre": "Ordem do card: realizada e interesse encerrado vencem a lotação (\"Inscrições encerradas\" e \"Turma lotada\" distintas); lotada barra quem está fora e deixa quem está dentro remover; \"Só gerentes\"/\"Só técnicos\" pela lista fa-gerentes; o painel pede motivo para incluir acima das vagas (grava acimaDasVagas) e recusa quem não é gerente; a aba Gerentes aceita lista colada por e-mail (sem cadastro) e recusa e-mail fora de @previ.com.br; o formulário da turma grava vagas e publicoCargo; a Minha Área não convida para turma lotada nem para a de gerentes."
     },
     {
+      "arquivo": ".github/scripts/teste-publico-turma-cumulativo.js",
+      "nome": "Turmas: público da turma somado ao do evento (lista e gerentes/técnicos), 1280 e 375 px",
+      "duracao": 60,
+      "sobre": "Gerente na lista de uma turma de evento de Técnicos não tem botão nem é gravado (nem forçando o clique, nem em Adicionar à turma em massa); técnica na lista inscreve só o próprio registro; fora da lista não vê a turma; turma sem restrição segue igual; turma Só gerentes em evento de Técnicos = ninguém entra, com aviso no formulário e no card; Editar turma com Seguir as regras do evento × Restringir a uma lista; salvar sem mudar só grava a turma; inscrição anterior intacta."
+    },
+    {
       "arquivo": ".github/scripts/teste-interesse-participacao-anterior.js",
       "nome": "Eventos: não aceitar interesse de quem já participou de eventos anteriores, desktop",
       "duracao": 40,
