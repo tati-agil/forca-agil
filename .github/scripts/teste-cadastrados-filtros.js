@@ -138,7 +138,7 @@ const ord = (a) => JSON.stringify(a.slice().sort());
     if (m.internaV) p.push('a tabela criou rolagem vertical interna');
     if (m.lado) p.push('rolagem lateral');
     if (m.cortados) p.push(m.cortados + ' botão(ões) cortado(s)');
-    if (JSON.stringify(m.titulos) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Liberação administrativa', 'Situação', 'Ações'])) p.push('títulos: ' + m.titulos.join(' | '));
+    if (JSON.stringify(m.titulos) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro e origem', 'Confirmação do e-mail', 'Liberação administrativa', 'Situação', 'Ações'])) p.push('títulos: ' + m.titulos.join(' | '));
     registrar(w + ' px: no meio da lista, os títulos das 8 colunas ficam visíveis logo abaixo do menu, fundo opaco, sem rolagem interna nem lateral', p);
 
     /* foco: um botão de linha que ficou para trás (acima) recebe o foco — tem que aparecer abaixo do cabeçalho */
@@ -476,7 +476,7 @@ const ord = (a) => JSON.stringify(a.slice().sort());
         lado: document.documentElement.scrollWidth > innerWidth + 1, foraTela };
     });
     if (!m.cabecalhoOculto) p.push('no celular a tabela não virou cartão');
-    const faltam = ['E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Liberação administrativa', 'Situação', 'Ações'].filter((r) => m.rotulos.indexOf(r) === -1);
+    const faltam = ['E-mail', 'Área', 'Cadastro e origem', 'Confirmação do e-mail', 'Liberação administrativa', 'Situação', 'Ações'].filter((r) => m.rotulos.indexOf(r) === -1);
     if (faltam.length) p.push('cartão sem rótulo: ' + faltam.join(', ') + ' (tem: ' + m.rotulos.join(' | ') + ')');
     if (m.lado) p.push('a página rola para o lado');
     if (m.foraTela) p.push(m.foraTela + ' controle(s) saindo da tela');

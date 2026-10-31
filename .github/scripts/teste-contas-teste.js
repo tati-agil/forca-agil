@@ -176,6 +176,11 @@ const FORMATOS = [
       await status(page, 'bloqueados');
       vis = await emails(page);
       if (ord(vis) !== ord([T2])) p.push('Testes + Bloqueados: ' + vis.join(', '));
+      /* combinável com a Origem do cadastro: entre as marcadas, só a criada pelo admin */
+      await status(page, 'todos'); await page.selectOption('#cadFiltroOrigem', 'admin');
+      vis = await emails(page);
+      if (ord(vis) !== ord([ERRADO])) p.push('Testes + Origem "Criada pelo administrador": ' + vis.join(', '));
+      await page.selectOption('#cadFiltroOrigem', ''); await status(page, 'bloqueados');
       const selo375 = await page.evaluate(() => { const b = document.querySelector('#adminCadastrados tbody .cad-teste-badge'); if (!b) return null; const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.right <= innerWidth + 1; });
       if (!selo375) p.push('selo não visível na linha/cartão');
       await page.click('#cadLimparFiltros');
@@ -194,7 +199,7 @@ const FORMATOS = [
       p = [];
       await page.click('#cadLimparFiltros'); await status(page, 'todos');
       let linhas = await baixar(page);
-      if (JSON.stringify(Object.keys(linhas[0] || {})) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Confirmação registrada em', 'Liberação administrativa', 'Liberado por', 'Situação', 'Conta de teste'])) p.push('colunas: ' + Object.keys(linhas[0] || {}).join(', '));
+      if (JSON.stringify(Object.keys(linhas[0] || {})) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Origem do cadastro', 'Confirmação do e-mail', 'Confirmação registrada em', 'Liberação administrativa', 'Liberado por', 'Situação', 'Conta de teste'])) p.push('colunas: ' + Object.keys(linhas[0] || {}).join(', '));
       if (ord(linhas.map((l) => l['E-mail'])) !== ord(TODOS.filter((x) => !MARCADOS.includes(x))) || linhas.some((l) => l['Conta de teste'] !== 'Não')) p.push('Excel padrão: ' + JSON.stringify(linhas.map((l) => [l['E-mail'], l['Conta de teste']])));
       await tipo(page, 'todas');
       linhas = await baixar(page);

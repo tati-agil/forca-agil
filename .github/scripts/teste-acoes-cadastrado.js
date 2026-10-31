@@ -213,7 +213,7 @@ const FORMATOS = [
       if (!/^forca-agil-cadastrados-\d{4}-\d{2}-\d{2}\.xlsx$/.test(todos.nome)) p.push('nome do arquivo: ' + todos.nome);
       if (todos.linhas.length !== 4) p.push('"Todos" deveria exportar 4 pessoas, exportou ' + todos.linhas.length);
       /* colunas e situação únicas (situacaoCadastro); o detalhe de cada caso está em teste-cadastrados-pendentes.js */
-      if (JSON.stringify(Object.keys(todos.linhas[0] || {})) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Confirmação registrada em', 'Liberação administrativa', 'Liberado por', 'Situação', 'Conta de teste'])) p.push('colunas: ' + Object.keys(todos.linhas[0] || {}).join(', '));
+      if (JSON.stringify(Object.keys(todos.linhas[0] || {})) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Origem do cadastro', 'Confirmação do e-mail', 'Confirmação registrada em', 'Liberação administrativa', 'Liberado por', 'Situação', 'Conta de teste'])) p.push('colunas: ' + Object.keys(todos.linhas[0] || {}).join(', '));
       if (porEmail(BLOQUEADA)['Situação'] !== 'Bloqueado' || porEmail(PENDENTE)['Situação'] !== 'Pendente' || porEmail(ATIVA)['Situação'] !== 'Ativo' || porEmail(ATIVA)['Área'] !== 'GECAT') p.push('valores: ' + JSON.stringify(todos.linhas));
       if (!/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(porEmail(ATIVA)['Cadastro em'] || '')) p.push('data de cadastro: ' + porEmail(ATIVA)['Cadastro em']);
       if (!/dados pessoais/.test(await page.$eval('#cadastradosExportMsg', (e) => e.textContent))) p.push('sem o aviso de dados pessoais');
