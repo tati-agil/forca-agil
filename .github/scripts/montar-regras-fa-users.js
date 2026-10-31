@@ -116,4 +116,4 @@ if (require.main === module) {
   fs.writeFileSync(ARQUIVO, s);
   console.log('gravado: ' + s.length + ' bytes');
 }
-module.exports = { BLOCOS, REMOVIDOS, DERIVADA, PROPRIA_CHAVE };
+module.exports = { BLOCOS, REMOVIDOS, DERIVADA, PROPRIA_CHAVE, ADM };

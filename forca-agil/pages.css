@@ -846,6 +846,17 @@
 #adminCadastrados .cad-filtro select:focus-visible,
 #adminCadastrados .cad-filtro input[type="date"]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; border-color: var(--cyan); }
 #adminCadastrados .cad-resultado { margin: 0; flex: 1 1 auto; color: var(--ink-2); font-size: .86rem; }
+/* Conta de teste (só identificação): selo neutro e discreto ao lado do nome; o aviso diz o que o recorte esconde, com o
+   caminho curto para a lista completa (link complementar, padrão visual §3-A) */
+#adminCadastrados .cad-teste-badge { margin-left: 6px; vertical-align: middle; white-space: nowrap; }
+#adminCadastrados .cad-aviso-teste {
+  margin: 0; flex-basis: 100%; order: 4; display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px;
+  color: var(--ink-2); font-size: var(--arq-fs-meta);
+}
+#adminCadastrados .cad-aviso-teste .avp-mapa-link { font-size: var(--arq-fs-meta); }
+/* display: flex/inline-flex acima anularia o atributo hidden do aviso e do link */
+#adminCadastrados .cad-aviso-teste[hidden], #adminCadastrados .cad-aviso-teste [hidden] { display: none; }
+#adminCadastrados .cad-aviso-teste .avp-mapa-link:focus-visible { outline: 2px solid var(--cyan-soft, #7af0e8); outline-offset: 2px; }
 /* "Como ler esta lista": acesso complementar (padrão visual §3-A: ciano claro, sublinhado no hover, nunca a cor do
    navegador). Fechada, fica ao lado do contador; aberta, ocupa a linha inteira logo abaixo. */
 #adminCadastrados .cad-ajuda > summary {

@@ -6051,8 +6051,10 @@
     var leituras = CADASTRO_NOS_POR_CHAVE.map(function (n) {
       return firebase.database().ref(n.no).once('value');
     });
+    var nNos = CADASTRO_NOS_POR_CHAVE.length;
     leituras.push(firebase.database().ref('pedidos').once('value'));
     leituras.push(firebase.database().ref('holocron').once('value'));
+    leituras.push(firebase.database().ref('fa-contas-teste/' + eKeyAntigo).once('value'));
 
     Promise.all(leituras).then(function (snaps) {
       var updates = {};
@@ -6098,14 +6100,14 @@
          Minha Área acha os pedidos por emailEnviou e o Repositório decide
          quem pode editar por authorEmail. Sem atualizar os dois, a pessoa
          perde os próprios pedidos e o controle do próprio conteúdo. */
-      var pedidos = snaps[snaps.length - 2].val() || {};
+      var pedidos = snaps[nNos].val() || {};
       Object.keys(pedidos).forEach(function (k) {
         if (((pedidos[k] || {}).emailEnviou || '').toLowerCase() !== emailAntigo) return;
         updates['pedidos/' + k + '/emailEnviou'] = emailNovo;
         updates['pedidos/' + k + '/nomeEnviou']  = nome;
         movidos++;
       });
-      var holocron = snaps[snaps.length - 1].val() || {};
+      var holocron = snaps[nNos + 1].val() || {};
       Object.keys(holocron).forEach(function (k) {
         if (((holocron[k] || {}).authorEmail || '').toLowerCase() !== emailAntigo) return;
         updates['holocron/' + k + '/authorEmail'] = emailNovo;
@@ -6120,6 +6122,18 @@
         quando: new Date().toISOString(),
         registrosMovidos: movidos
       };
+
+      /* Conta de teste: a identificação acompanha a pessoa (chave nova marcada; a antiga fica desmarcada, apontando
+         para a nova — nada se apaga), com o evento "mover" na auditoria, nesta mesma gravação. */
+      var marca = snaps[nNos + 2].val();
+      if (marca && marca.marcada === true) {
+        var usuario = firebase.auth().currentUser, por = usuario && usuario.email, TS = firebase.database.ServerValue.TIMESTAMP;
+        var idMover = firebase.database().ref('fa-contas-teste-auditoria').push().key;
+        updates['fa-contas-teste/' + eKeyNovo] = { marcada: true, email: emailNovo, por: por, em: TS, auditoria: idMover };
+        updates['fa-contas-teste/' + eKeyAntigo] = { marcada: false, email: emailAntigo, por: por, em: TS, auditoria: idMover, movidoPara: eKeyNovo };
+        updates['fa-contas-teste-auditoria/' + idMover] = { acao: 'mover', chave: eKeyNovo, chaveAnterior: eKeyAntigo,
+          email: emailNovo, emailAnterior: emailAntigo, por: por, em: TS };
+      }
 
       firebase.database().ref().update(updates, function (err) {
         if (err) {
@@ -6205,6 +6219,30 @@
     );
   }
 
+  /* Conta de teste: SÓ identificação administrativa em ADMIN › Cadastrados. Grava em fa-contas-teste (estado) e
+     fa-contas-teste-auditoria (evento novo) numa gravação só — as regras recusam uma sem a outra. Não toca fa-users,
+     login, senha, acesso, permissões, situação, inscrições nem históricos: nenhum outro código lê essa marca. */
+  function acaoContaTeste(pessoa, marcar) {
+    var nome = pessoa.name || pessoa.email || '—';
+    var msg = (marcar ? 'Marcar ' + nome + ' como conta de teste?' : 'Desmarcar ' + nome + ' como conta de teste?') +
+      '\n\nÉ só uma identificação nesta lista (filtro "Contas de teste" e o selo "Teste"). Não muda login, senha, acesso, ' +
+      'permissões, situação, inscrições nem históricos. Fica registrado quem fez e quando.';
+    adminConfirm(msg, function () {
+      var usuario = firebase.auth().currentUser;
+      var por = usuario && usuario.email;
+      if (!por) { adminAlert('Sua sessão não está ativa. Entre de novo e tente outra vez.'); return; }
+      var TS = firebase.database.ServerValue.TIMESTAMP;
+      var id = firebase.database().ref('fa-contas-teste-auditoria').push().key;
+      var updates = {};
+      updates['fa-contas-teste/' + pessoa._key] = { marcada: !!marcar, email: pessoa.email, por: por, em: TS, auditoria: id };
+      updates['fa-contas-teste-auditoria/' + id] = { acao: marcar ? 'marcar' : 'desmarcar', chave: pessoa._key, email: pessoa.email, por: por, em: TS };
+      firebase.database().ref().update(updates, function (err) {
+        if (err) { adminAlert('Não foi possível ' + (marcar ? 'marcar' : 'desmarcar') + ' agora. Nada foi alterado. Tente novamente.'); return; }
+        loadCadastrados();
+      });
+    });
+  }
+
   /* O menu "⋯" da linha. É um modal, não um balãozinho: a tabela vive dentro
      de um container que corta o que passa da borda, e no celular um menu
      flutuante minúsculo perto do rodapé é uma armadilha de dedo. O modal
@@ -6240,6 +6278,11 @@
     acoes.push({ id: 'bloqueio', perigo: !bloqueado,
       rotulo: bloqueado ? 'Desbloquear acesso' : 'Bloquear acesso',
       ajuda: bloqueado ? 'Ela volta a conseguir entrar no portal.' : 'Ela deixa de conseguir entrar no portal. Nada é apagado.' });
+    /* só com a marcação lida (sem ela não dá para saber o estado atual) */
+    if (pessoa._marcasOk) {
+      acoes.push({ id: 'teste', rotulo: pessoa._teste ? 'Desmarcar conta de teste' : 'Marcar como conta de teste',
+        ajuda: 'Só identificação nesta lista. Não muda login, senha, acesso nem permissões.' });
+    }
 
     box.innerHTML =
       '<div>' +
@@ -6283,6 +6326,7 @@
         if (acao === 'progresso') { acaoResetarProgresso(eKey, email, nome); return; }
         if (acao === 'confirmar') { acaoConfirmarCadastro(eKey, nome); return; }
         if (acao === 'bloqueio')  { acaoBloquear(eKey, nome, !bloqueado); return; }
+        if (acao === 'teste')     { acaoContaTeste(pessoa, !pessoa._teste); return; }
       });
     });
   }
@@ -6570,12 +6614,22 @@
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando…</p>';
 
-    firebase.database().ref('fa-users').once('value').then(function (snap) {
-      renderCadastrados(c, snap.val() || {});
+    /* Conta de teste: só identificação administrativa (fa-contas-teste, lido só aqui). Se a leitura falhar, a lista
+       aparece INTEIRA, com aviso — falhar escondendo alguém seria pior do que não separar os testes. */
+    var marcas = firebase.database().ref('fa-contas-teste').once('value')
+      .then(function (s) { return s.val() || {}; }, function () { return null; });
+    Promise.all([firebase.database().ref('fa-users').once('value'), marcas]).then(function (r) {
+      renderCadastrados(c, r[0].val() || {}, r[1]);
     });
   }
 
-  function renderCadastrados(c, data) {
+  /* Marca de conta de teste válida: marcada e com o e-mail do próprio cadastro (a regra do banco exige o mesmo). */
+  function eContaDeTeste(p, marcas) {
+    var m = marcas && marcas[p._key];
+    return !!(m && m.marcada === true && String(m.email || '').toLowerCase() === String(p.email || '').toLowerCase());
+  }
+
+  function renderCadastrados(c, data, marcas) {
     const list = Object.entries(data)
       .map(function (entry) { return Object.assign({ _key: entry[0] }, entry[1]); })
       .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
@@ -6646,14 +6700,23 @@
        uma segunda lógica de situação. As opções de Área e de "Liberado por" saem só do que está gravado. A lista na tela
        (filtros + busca + ordem) é exatamente o que o Excel baixa. Os filtros ficam no fluxo da página — só o cabeçalho
        da tabela fica fixo na rolagem. */
-    list.forEach(function (p) { p._sit = situacaoCadastro(p); p._conf = confirmacaoCadastro(p); p._lib = liberacaoCadastro(p); });
-    var contagem = {
-      ativos:     list.filter(function (p) { return !p._sit.bloqueado; }).length,
-      pendentes:  list.filter(function (p) { return p._sit.pendente; }).length,
-      bloqueados: list.filter(function (p) { return p._sit.bloqueado; }).length
-    };
-    var PADRAO = { status: 'ativos', q: '', area: '', conf: '', lib: '', data: '', de: '', ate: '', por: '', ordem: 'nome' };
+    var marcasOk = marcas !== null && marcas !== undefined;
+    list.forEach(function (p) {
+      p._sit = situacaoCadastro(p); p._conf = confirmacaoCadastro(p); p._lib = liberacaoCadastro(p);
+      p._teste = eContaDeTeste(p, marcas); p._marcasOk = marcasOk;
+    });
+    var nTestes = list.filter(function (p) { return p._teste; }).length;
+    /* Conta de teste é um recorte combinável com os outros: o padrão esconde as marcadas (com aviso e "Mostrar todas") */
+    function noTipo(p) { return filtros.teste === 'todas' || (filtros.teste === 'testes' ? p._teste : !p._teste); }
+    function contagemDoTipo() {
+      var base = list.filter(noTipo);
+      return { ativos: base.filter(function (p) { return !p._sit.bloqueado; }).length,
+               pendentes: base.filter(function (p) { return p._sit.pendente; }).length,
+               bloqueados: base.filter(function (p) { return p._sit.bloqueado; }).length, todos: base.length };
+    }
+    var PADRAO = { status: 'ativos', q: '', area: '', conf: '', lib: '', data: '', de: '', ate: '', por: '', ordem: 'nome', teste: 'nao-teste' };
     var filtros = Object.assign({}, PADRAO);
+    var contagem = contagemDoTipo();
 
     var nomePorEmail = {};
     list.forEach(function (p) { if (p.email && p.name) nomePorEmail[String(p.email).toLowerCase()] = p.name; });
@@ -6709,6 +6772,9 @@
           '<label class="cad-filtro">Confirmação do e-mail<select id="cadFiltroConf"><option value="">Todas</option>' + opcoesFixas(ROTULO_CONFIRMACAO, contConf) + '</select></label>' +
           '<label class="cad-filtro">Liberação administrativa<select id="cadFiltroLib"><option value="">Todas</option>' + opcoesFixas(ROTULO_LIBERACAO, contLib) + '</select></label>' +
           '<label class="cad-filtro">Liberado por<select id="cadFiltroPor"><option value="">Qualquer pessoa</option>' + opcoes(porQuem, rotuloPor) + '</select></label>' +
+          '<label class="cad-filtro">Contas de teste<select id="cadFiltroTeste">' +
+            '<option value="nao-teste">Não marcadas como teste (' + (list.length - nTestes) + ')</option>' +
+            '<option value="testes">Testes (' + nTestes + ')</option><option value="todas">Todas (' + list.length + ')</option></select></label>' +
           '<label class="cad-filtro">Data do cadastro<select id="cadFiltroData"><option value="">Qualquer data</option>' +
             '<option value="hoje">Hoje</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option>' +
             '<option value="intervalo">Intervalo…</option></select></label>' +
@@ -6718,6 +6784,8 @@
       '</details>' +
       '<div class="cad-filtros-linha cad-resultado-linha">' +
         '<p class="cad-resultado" id="cadastradosResultado" aria-live="polite"></p>' +
+        '<p class="cad-aviso-teste" id="cadAvisoTeste" hidden><span id="cadAvisoTesteTexto"></span> ' +
+          '<button type="button" class="avp-mapa-link" id="cadMostrarTodas">Mostrar todas</button></p>' +
         /* Uma explicação só, para a lista inteira — nenhuma linha repete isto. Confirmação do e-mail e liberação
            administrativa são registros independentes (auth.js: entra quem tem o e-mail confirmado no Firebase Auth OU
            adminApproved; bloqueio barra sempre), e a tela não pode sugerir qual deles deu o acesso. */
@@ -6791,13 +6859,16 @@
       });
     }
     function filtrosAtivos() {
-      return ['area', 'conf', 'lib', 'por', 'data'].filter(function (k) { return filtros[k]; }).length;
+      return ['area', 'conf', 'lib', 'por', 'data'].filter(function (k) { return filtros[k]; }).length + (filtros.teste !== PADRAO.teste ? 1 : 0);
     }
+    var ROTULO_STATUS = { ativos: 'Ativos', pendentes: 'Pendentes', bloqueados: 'Bloqueados', todos: 'Todos' };
 
     var listaNaTela = []; /* o que a tabela está mostrando agora (filtros + busca + ordem) — é o que a exportação baixa */
     function applyFilters() {
       const q = filtros.q.trim().toLowerCase();
-      var filtered = ordenar(list.filter(function (p) {
+      /* o mesmo filtro, com e sem o recorte de teste: a diferença é o que o aviso conta */
+      function passa(p, comTipo) {
+        if (comTipo && !noTipo(p)) return false;
         var bloqueado = p._sit.bloqueado;
         if (filtros.status === 'ativos'     && bloqueado)  return false;
         if (filtros.status === 'pendentes'  && !p._sit.pendente) return false;
@@ -6809,14 +6880,30 @@
         if (!noPeriodo(p)) return false;
         if (!q) return true;
         return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
-      }));
+      }
+      var filtered = ordenar(list.filter(function (p) { return passa(p, true); }));
       listaNaTela = filtered;
       tbody.innerHTML = '';
       var badgeEl = document.getElementById('cadastradosBadge');
       if (badgeEl) badgeEl.textContent = filtered.length;
       var n = filtered.length, extras = filtrosAtivos();
+      var cont = contagemDoTipo();
+      controlsWrap.querySelectorAll('.admin-status-btn').forEach(function (b) { b.textContent = ROTULO_STATUS[b.dataset.status] + ' (' + cont[b.dataset.status] + ')'; });
       document.getElementById('cadastradosResultado').textContent =
-        n + (n === 1 ? ' cadastro encontrado' : ' cadastros encontrados') + ' de ' + list.length;
+        n + (n === 1 ? ' cadastro encontrado' : ' cadastros encontrados') + ' de ' + cont.todos;
+      /* Aviso: o que o recorte de teste está escondendo (inclusive resultados da busca); nunca esconde em silêncio */
+      var aviso = '';
+      if (!marcasOk) aviso = 'Não foi possível carregar a marcação de contas de teste: a lista mostra todos os cadastros, sem separar os de teste.';
+      else if (filtros.teste === 'nao-teste' && nTestes) {
+        var escondidos = list.filter(function (p) { return p._teste && passa(p, false); }).length;
+        aviso = q || extras
+          ? (escondidos ? escondidos + (escondidos === 1 ? ' conta marcada como teste também atende' : ' contas marcadas como teste também atendem') + ' a esta busca e não aparece' + (escondidos === 1 ? '' : 'm') + '.' : '')
+          : nTestes + (nTestes === 1 ? ' conta marcada como teste não aparece' : ' contas marcadas como teste não aparecem') + ' nesta lista.';
+      } else if (filtros.teste === 'testes') aviso = 'Mostrando só as contas marcadas como teste.';
+      var avisoEl = document.getElementById('cadAvisoTeste');
+      document.getElementById('cadAvisoTesteTexto').textContent = aviso;
+      avisoEl.hidden = !aviso;
+      document.getElementById('cadMostrarTodas').hidden = !marcasOk || filtros.teste === 'todas';
       document.getElementById('cadFiltrosAtivos').textContent = extras ? '(' + extras + ' ativo' + (extras === 1 ? '' : 's') + ')' : '';
       var mudou = Object.keys(PADRAO).some(function (k) { return filtros[k] !== PADRAO[k]; });
       document.getElementById('cadLimparFiltros').hidden = !mudou;
@@ -6854,7 +6941,8 @@
         /* data-label é o que vira o rótulo de cada campo quando a tabela
            deixa de ser tabela e vira cartão, no celular (ver pages.css). */
         tr.innerHTML =
-          '<td data-label="Nome" class="cad-col-nome">' + esc(p.name || '—') + '</td>' +
+          '<td data-label="Nome" class="cad-col-nome">' + esc(p.name || '—') +
+            (p._teste ? ' <span class="admin-badge cad-teste-badge" title="Marcada como conta de teste pelo administrador geral (só identificação: não muda acesso)">Teste</span>' : '') + '</td>' +
           '<td data-label="E-mail" class="cad-col-email"><span class="cad-celula">' + emailCadHtml(p.email) + '</span></td>' +
           '<td data-label="Área">' + esc(p.area || '—') + '</td>' +
           '<td data-label="Cadastro em"><span class="cad-celula">' + dataHoraCadHtml(p.createdAt) + '</span></td>' +
@@ -6891,7 +6979,7 @@
 
     /* Busca, filtros adicionais e ordem */
     var CAMPOS = { cadastradosFiltro: 'q', cadFiltroArea: 'area', cadFiltroConf: 'conf', cadFiltroLib: 'lib', cadFiltroPor: 'por',
-                   cadFiltroData: 'data', cadFiltroDe: 'de', cadFiltroAte: 'ate', cadOrdem: 'ordem' };
+                   cadFiltroTeste: 'teste', cadFiltroData: 'data', cadFiltroDe: 'de', cadFiltroAte: 'ate', cadOrdem: 'ordem' };
     function mostrarIntervalo() {
       var intervalo = filtros.data === 'intervalo';
       document.getElementById('cadFiltroDeRotulo').hidden = !intervalo;
@@ -6911,6 +6999,12 @@
       mostrarIntervalo(); marcarStatus(); applyFilters();
       document.getElementById('cadastradosFiltro').focus();
     });
+    /* "Mostrar todas": o caminho curto para a lista completa (o mesmo que escolher "Todas" em Contas de teste) */
+    document.getElementById('cadMostrarTodas').addEventListener('click', function () {
+      filtros.teste = 'todas';
+      document.getElementById('cadFiltroTeste').value = 'todas';
+      applyFilters();
+    });
     /* EXPORTAR EM EXCEL — exatamente a lista na tela (filtros + busca, na ordem escolhida), com as colunas da tabela.
        Usa a mesma biblioteca das outras exportações (forca-agil/xlsx.mini.min.js), carregada só na hora. O arquivo tem
        dados pessoais: avisa. */
@@ -6926,15 +7020,15 @@
         if (erro || !window.XLSX) { aviso('Não foi possível gerar o arquivo agora. Tente de novo.', true); return; }
         /* Mesmas categorias e textos da tabela: o Excel nunca classifica diferente da tela. */
         var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Confirmação registrada em',
-          'Liberação administrativa', 'Liberado por', 'Situação']].concat(pessoas.map(function (p) {
+          'Liberação administrativa', 'Liberado por', 'Situação', 'Conta de teste']].concat(pessoas.map(function (p) {
           var lib = p._lib;
           var libEm = lib.tipo === 'liberado' ? dataHoraCad(lib.quandoIso)
             : lib.tipo === 'criado' ? 'Conta criada pelo admin em ' + dataHoraCad(lib.quandoIso) : ROTULO_LIBERACAO[lib.tipo];
           return [p.name || '', p.email || '', p.area || '', dataHoraCad(p.createdAt), textoConfirmouEmail(p), textoConfirmacaoEm(p),
-            libEm, lib.porNome ? quemLiberou(p) : '', rotuloSituacaoCadastro(p._sit)];
+            libEm, lib.porNome ? quemLiberou(p) : '', rotuloSituacaoCadastro(p._sit), p._teste ? 'Sim' : 'Não'];
         }));
         var ws = window.XLSX.utils.aoa_to_sheet(linhas);
-        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 14 }, { wch: 22 }, { wch: 36 }, { wch: 32 }, { wch: 11 }];
+        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 14 }, { wch: 22 }, { wch: 36 }, { wch: 32 }, { wch: 11 }, { wch: 14 }];
         var wb = window.XLSX.utils.book_new();
         window.XLSX.utils.book_append_sheet(wb, ws, 'Cadastrados');
         var hoje = new Date();
