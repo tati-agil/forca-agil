@@ -1,4 +1,4 @@
-/* ADMIN › Cadastrados: filtro "Pendentes", "Confirmou o e-mail?", "Liberado em" — e a anotação da confirmação no login.
+/* ADMIN › Cadastrados: filtro "Pendentes", "Confirmação do e-mail", "Liberação administrativa" — e a anotação da confirmação no login.
  *
  * POR QUE ESTE TESTE EXISTE
  * O selo "Pendente" olhava só emailVerificationRequired && !adminApproved: quem confirmou pelo link do e-mail continuava
@@ -10,7 +10,7 @@
  * Firebase falso (window.__ESCRITAS guarda cada escrita), desktop e celular (375 px). Exige:
  *   1. "Pendentes" lista só quem se cadastrou, não tem confirmação registrada, não foi liberada nem criada pelo admin e
  *      não está bloqueada; as contagens dos botões batem com as linhas de cada filtro e com o Excel;
- *   2. "Confirmou o e-mail?" e "Liberado em" mostram, para cada caso, o texto certo (sem data inventada);
+ *   2. "Confirmação do e-mail" e "Liberação administrativa" mostram, para cada caso, o texto certo (sem data inventada);
  *   3. o Excel de cada filtro traz as mesmas pessoas e os mesmos textos da tela;
  *   4. "Confirmar cadastro" só aparece para quem precisa (não para quem confirmou o e-mail);
  *   5. a tabela não rola para o lado (1366 e 1024 px) e, no celular, cada pessoa vira cartão sem rolagem lateral;
@@ -33,7 +33,7 @@ const QUANDO = Date.UTC(2026, 9, 30, 17, 2); /* emailConfirmadoEm gravado pelo s
 const CASOS = {
   'pendente@previ.com.br':   { c: { emailVerificationRequired: true }, sit: 'Pendente', conf: 'Não registrada', confEm: '', lib: 'nenhuma' },
   'link@previ.com.br':       { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: 'nenhuma' },
-  'antiga@previ.com.br':     { c: { emailVerificationRequired: true, emailConfirmado: true }, sit: 'Ativo', conf: 'Sim', confEm: 'data não registrada', lib: 'nenhuma' },
+  'antiga@previ.com.br':     { c: { emailVerificationRequired: true, emailConfirmado: true }, sit: 'Ativo', conf: 'Sim', confEm: 'data exata não registrada', lib: 'nenhuma' },
   'liberada@previ.com.br':   { c: { emailVerificationRequired: true, adminApproved: true, approvedAt: '2026-10-30T18:31:00.000Z', approvedByAdmin: ADM, approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'data', libPor: 'ADMIN' },
   'semdata@previ.com.br':    { c: { emailVerificationRequired: true, adminApproved: true }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'antiga' },
   /* quem liberou: com e-mail gravado, o nome ATUAL do cadastro desse e-mail (ADM = "ADMIN"), não o nome da época */
@@ -87,7 +87,7 @@ async function filtrar(page, status) {
 function linhasDaTela(page) {
   return page.evaluate(() => Array.from(document.querySelectorAll('#adminCadastrados tbody tr')).map((tr) => {
     const cel = (l) => { const td = tr.querySelector('td[data-label="' + l + '"]'); return td ? td.innerText.replace(/\s+/g, ' ').trim() : null; };
-    return { email: cel('E-mail'), conf: cel('Confirmou o e-mail?'), lib: cel('Liberado em'), sit: cel('Situação') };
+    return { email: cel('E-mail'), conf: cel('Confirmação do e-mail'), lib: cel('Liberação administrativa'), sit: cel('Situação') };
   }));
 }
 function contagens(page) {
@@ -113,22 +113,22 @@ const FORMATOS = [
     const k = CASOS[e];
     if (!l) { p.push(origem + ': ' + e + ' ausente'); return; }
     if (origem === 'tela') {
-      if (!l.conf.startsWith(k.conf)) p.push(e + ' "Confirmou o e-mail?" = ' + l.conf);
+      if (!l.conf.startsWith(k.conf)) p.push(e + ' "Confirmação do e-mail" = ' + l.conf);
       if (k.confEm === 'data' && !dataRe.test(l.conf)) p.push(e + ' sem a data registrada: ' + l.conf);
       if (k.confEm && k.confEm !== 'data' && l.conf.indexOf(k.confEm) === -1) p.push(e + ' deveria dizer "' + k.confEm + '": ' + l.conf);
       if (!k.confEm && /\d/.test(l.conf)) p.push(e + ' mostra data de confirmação que não existe: ' + l.conf);
-      if (k.lib === 'nenhuma' && l.lib !== 'Sem liberação do admin') p.push(e + ' "Liberado em" deveria ser "Sem liberação do admin": ' + l.lib);
-      if (k.lib === 'data' && !dataRe.test(l.lib)) p.push(e + ' "Liberado em" sem data: ' + l.lib);
-      if (k.lib === 'criada' && !/Conta criada pelo admin/.test(l.lib)) p.push(e + ' "Liberado em": ' + l.lib);
-      if (k.lib === 'antiga' && !/^Liberação antiga/.test(l.lib)) p.push(e + ' "Liberado em" (antiga): ' + l.lib);
+      if (k.lib === 'nenhuma' && l.lib !== 'Nenhuma') p.push(e + ' "Liberação administrativa" deveria ser "Nenhuma": ' + l.lib);
+      if (k.lib === 'data' && !dataRe.test(l.lib)) p.push(e + ' "Liberação administrativa" sem data: ' + l.lib);
+      if (k.lib === 'criada' && !/Conta criada pelo admin/.test(l.lib)) p.push(e + ' "Liberação administrativa": ' + l.lib);
+      if (k.lib === 'antiga' && !/^Liberação antiga/.test(l.lib)) p.push(e + ' "Liberação administrativa" (antiga): ' + l.lib);
       if (k.libPor && l.lib.indexOf(k.libPor) === -1) p.push(e + ' sem quem liberou: ' + l.lib);
       if (l.sit.indexOf(k.sit === 'Bloqueado' ? 'Bloqueado' : 'Ativo') === -1 || (k.sit === 'Pendente') !== /Pendente/.test(l.sit)) p.push(e + ' situação: ' + l.sit);
     } else {
-      if (l['Confirmou o e-mail?'] !== k.conf) p.push('Excel ' + e + ' "Confirmou o e-mail?" = ' + l['Confirmou o e-mail?']);
+      if (l['Confirmação do e-mail'] !== k.conf) p.push('Excel ' + e + ' "Confirmação do e-mail" = ' + l['Confirmação do e-mail']);
       const ce = l['Confirmação registrada em'];
       if (k.confEm === 'data' ? !dataRe.test(ce) : ce !== k.confEm) p.push('Excel ' + e + ' "Confirmação registrada em" = ' + ce);
-      const le = l['Liberado em'];
-      if (k.lib === 'nenhuma' ? le !== 'Sem liberação do admin' : k.lib === 'antiga' ? le !== 'Liberação antiga, sem data nem autor' : k.lib === 'criada' ? !/^Conta criada pelo admin em /.test(le) : k.lib === 'data' ? !dataRe.test(le) : le !== k.lib) p.push('Excel ' + e + ' "Liberado em" = ' + le);
+      const le = l['Liberação administrativa'];
+      if (k.lib === 'nenhuma' ? le !== 'Nenhuma' : k.lib === 'antiga' ? le !== 'Liberação antiga, sem data nem autor' : k.lib === 'criada' ? !/^Conta criada pelo admin em /.test(le) : k.lib === 'data' ? !dataRe.test(le) : le !== k.lib) p.push('Excel ' + e + ' "Liberação administrativa" = ' + le);
       if ((k.libPor || '') !== l['Liberado por']) p.push('Excel ' + e + ' "Liberado por" = ' + l['Liberado por']);
       if (l['Situação'] !== k.sit) p.push('Excel ' + e + ' Situação = ' + l['Situação']);
     }

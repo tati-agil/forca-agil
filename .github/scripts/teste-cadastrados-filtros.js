@@ -138,7 +138,7 @@ const ord = (a) => JSON.stringify(a.slice().sort());
     if (m.internaV) p.push('a tabela criou rolagem vertical interna');
     if (m.lado) p.push('rolagem lateral');
     if (m.cortados) p.push(m.cortados + ' botão(ões) cortado(s)');
-    if (JSON.stringify(m.titulos) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmou o e-mail?', 'Liberado em', 'Situação', 'Ações'])) p.push('títulos: ' + m.titulos.join(' | '));
+    if (JSON.stringify(m.titulos) !== JSON.stringify(['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Liberação administrativa', 'Situação', 'Ações'])) p.push('títulos: ' + m.titulos.join(' | '));
     registrar(w + ' px: no meio da lista, os títulos das 8 colunas ficam visíveis logo abaixo do menu, fundo opaco, sem rolagem interna nem lateral', p);
 
     /* foco: um botão de linha que ficou para trás (acima) recebe o foco — tem que aparecer abaixo do cabeçalho */
@@ -313,11 +313,11 @@ const ord = (a) => JSON.stringify(a.slice().sort());
       await limpar(page); await status(page, 'todos');
       const cel = await page.evaluate(() => { const o = {}; document.querySelectorAll('#adminCadastrados tbody tr').forEach((tr) => {
         const t = (l) => tr.querySelector('td[data-label="' + l + '"]').innerText.replace(/\s+/g, ' ').trim();
-        o[t('E-mail')] = { conf: t('Confirmou o e-mail?'), lib: t('Liberado em') }; }); return o; });
+        o[t('E-mail')] = { conf: t('Confirmação do e-mail'), lib: t('Liberação administrativa') }; }); return o; });
       const exp = {
-        [e('a1')]: [/^Não registrada$/, /^Sem liberação do admin$/],
-        [e('a2')]: [/^Sim registrada em \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/, /^Sem liberação do admin$/],
-        [e('a3')]: [/^Sim data não registrada$/, /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} por ADMIN EXEMPLO$/],
+        [e('a1')]: [/^Não registrada$/, /^Nenhuma$/],
+        [e('a2')]: [/^Sim registrada em \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/, /^Nenhuma$/],
+        [e('a3')]: [/^Sim data exata não registrada$/, /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} por ADMIN EXEMPLO$/],
         [e('a4')]: [/^Não exigida conta criada pelo admin$/, /^Conta criada pelo admin \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} por ADMIN EXEMPLO$/],
         [e('a5')]: [/^Não exigida cadastro anterior à exigência$/, /^Liberação antiga sem data nem autor registrados$/],
         [e('a7')]: [/^Não registrada$/, /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} por OUTRA ADMIN$/],
@@ -362,7 +362,7 @@ const ord = (a) => JSON.stringify(a.slice().sort());
     await page.selectOption('#cadFiltroPor', ADM);
     const tela = await emailsNaTela(page);
     if (ord(tela) !== ord([e('b1'), e('b2'), e('b3')])) p.push('filtro do ADM: ' + JSON.stringify(tela));
-    const por = await page.$$eval('#adminCadastrados tbody td[data-label="Liberado em"] .cad-por', (s) => s.map((x) => x.textContent.trim()));
+    const por = await page.$$eval('#adminCadastrados tbody td[data-label="Liberação administrativa"] .cad-por', (s) => s.map((x) => x.textContent.trim()));
     if (por.length !== 3 || por.some((x) => x !== 'por ADMIN EXEMPLO COMPLETO')) p.push('tabela: ' + JSON.stringify(por));
     const xs = await baixar(page);
     if (xs.length !== 3 || xs.some((x) => x['Liberado por'] !== 'ADMIN EXEMPLO COMPLETO')) p.push('Excel: ' + JSON.stringify(xs.map((x) => x['Liberado por'])));
@@ -431,6 +431,36 @@ const ord = (a) => JSON.stringify(a.slice().sort());
     await ctx.close();
   }
 
+  /* 4d. "Como ler esta lista": uma explicação só, ao lado do contador; abre pelo teclado; diz que confirmação do e-mail e
+     liberação administrativa são independentes, que podem coexistir e que a ordem nem sempre é conhecida */
+  console.log('\n===== AJUDA "COMO LER ESTA LISTA" =====');
+  for (const w of [1366, 375]) {
+    const opts = w === 375 ? Object.assign({}, devices['iPhone 13'], { viewport: { width: 375, height: 812 } }) : { viewport: { width: 1366, height: 900 } };
+    const { ctx, page, erros } = await abrir(browser, opts, muitos());
+    const p = [];
+    const fechada = await page.evaluate(() => { const d = document.getElementById('cadAjuda'), s = d.querySelector('summary').getBoundingClientRect(), c = document.getElementById('cadastradosResultado').getBoundingClientRect();
+      return { existe: !!d, aberta: d.open, texto: d.querySelector('summary').textContent.trim(), aoLado: Math.abs((s.top + s.bottom) / 2 - (c.top + c.bottom) / 2) < 14, logoAbaixo: s.top >= c.bottom - 1 && s.top - c.bottom < 16 && Math.abs(s.left - c.left) < 2, cor: getComputedStyle(d.querySelector('summary')).color }; });
+    if (!fechada.existe || fechada.aberta || fechada.texto !== 'Como ler esta lista') p.push('ajuda: ' + JSON.stringify(fechada));
+    /* no celular, contador e link não cabem numa linha: o link vem logo abaixo do contador */
+    if (!(fechada.aoLado || (w === 375 && fechada.logoAbaixo))) p.push('"Como ler esta lista" não está junto do contador');
+    if (['rgb(0, 0, 238)', 'rgb(85, 26, 139)'].indexOf(fechada.cor) !== -1) p.push('ajuda na cor do navegador: ' + fechada.cor);
+    await page.focus('#cadAjuda > summary'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+    const aberta = await page.evaluate(() => { const d = document.getElementById('cadAjuda'), t = d.querySelector('.cad-ajuda-texto');
+      const fora = Array.from(t.querySelectorAll('li')).filter((li) => li.getBoundingClientRect().right > innerWidth + 0.5).length;
+      return { aberta: d.open, itens: t.querySelectorAll('li').length, texto: t.textContent.replace(/\s+/g, ' '), fora, lado: document.documentElement.scrollWidth > innerWidth + 1,
+        vezes: (document.getElementById('adminCadastrados').textContent.match(/mecanismos independentes/g) || []).length }; });
+    if (!aberta.aberta) p.push('Enter não abriu a ajuda');
+    ['mecanismos independentes', 'Um não apaga nem substitui o outro', 'não precisam confirmar', 'Conta bloqueada não acessa', 'pode ainda constar como "Não registrada"', 'não é possível saber qual dos dois mecanismos permitiu o acesso primeiro']
+      .forEach((frase) => { if (aberta.texto.indexOf(frase) === -1) p.push('falta: "' + frase + '"'); });
+    if (aberta.vezes !== 1) p.push('explicação repetida ' + aberta.vezes + ' vezes (deve ser uma só)');
+    if (aberta.fora || aberta.lado) p.push('ajuda aberta sai da tela');
+    const pv = await verificarTela(page, { escopo: '#adminCadastrados .cad-resultado-linha', largura: w, focos: 0 });
+    pv.forEach((x) => p.push('padrão visual — ' + x.regra + ': ' + x.detalhe));
+    if (erros.length) p.push('erro JS: ' + erros[0]);
+    registrar(w + ' px: "Como ler esta lista" junto do contador, abre pelo teclado, explica uma vez só', p);
+    await ctx.close();
+  }
+
   /* 5. Celular */
   console.log('\n===== CELULAR (375 px) =====');
   {
@@ -446,7 +476,7 @@ const ord = (a) => JSON.stringify(a.slice().sort());
         lado: document.documentElement.scrollWidth > innerWidth + 1, foraTela };
     });
     if (!m.cabecalhoOculto) p.push('no celular a tabela não virou cartão');
-    const faltam = ['E-mail', 'Área', 'Cadastro em', 'Confirmou o e-mail?', 'Liberado em', 'Situação', 'Ações'].filter((r) => m.rotulos.indexOf(r) === -1);
+    const faltam = ['E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Liberação administrativa', 'Situação', 'Ações'].filter((r) => m.rotulos.indexOf(r) === -1);
     if (faltam.length) p.push('cartão sem rótulo: ' + faltam.join(', ') + ' (tem: ' + m.rotulos.join(' | ') + ')');
     if (m.lado) p.push('a página rola para o lado');
     if (m.foraTela) p.push(m.foraTela + ' controle(s) saindo da tela');
