@@ -165,9 +165,11 @@ async function rodada(browser, viewport, rotulo) {
   await page.click('#mfIrMapa');
   await page.waitForSelector('.mfm-subtitulo');
   afirma(/estruturas cadastradas/.test(await texto(page, '.mfm-subtitulo')), '"Ver Mapa completo" (na lista): estruturas cadastradas');
-  await page.click('.mfm-fonte[data-fonte="demo"]');
+  /* D2: sem seletor de demonstração na interface oficial; a demonstração só pelo endereço (&fonte=demo) */
+  afirma(await page.locator('.mfm-fonte, [data-fonte="demo"]').count() === 0, 'o Mapa oficial não oferece o seletor "Demonstração (fictícia)"');
+  await page.evaluate(() => { location.hash = '#arquitetura?mf=mapa&fonte=demo'; });
   await esperarCondicao(page, () => /demonstração/.test((document.querySelector('.mfm-subtitulo') || {}).textContent || ''), undefined, { limite: 5000 });
-  afirma(/fonte=demo/.test(await hash(page)), 'a demonstração é escolha explícita (e fica no endereço)');
+  afirma(/fonte=demo/.test(await hash(page)), 'a demonstração só pelo endereço (&fonte=demo)');
 
   console.log('Cadastrar estrutura com o tipo já escolhido');
   await page.evaluate(() => { location.hash = '#arquitetura?arq=estruturas&nova=PLATAFORMA_CANAIS&objeto=pPlat'; });

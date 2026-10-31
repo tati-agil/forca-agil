@@ -3458,6 +3458,35 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .mf-vinculo-estrutura { font-weight: 600; margin-right: 4px; overflow-wrap: anywhere; }
 .mf-vinculo-aviso, .mfm-objeto-aviso { display: block; font-size: var(--arq-fs-aux); margin-top: 4px; }
 .mfm-objeto .mfm-abrir-po { display: inline-block; margin-top: 6px; }
+/* Conclusão do Mapa (31/10/2026), na "folha" clara do Mapa (exceção aprovada do Padrão Visual): cobertura discreta, resumo de
+   vínculos nas caixas, fatos de cada registro no detalhe e as recomendações/decisões sem estrutura compatível (nunca vínculo) */
+.mfm-cobertura { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin: -6px 0 16px; padding: 0 2px; color: var(--mfm-suave); font-size: var(--arq-fs-meta); }
+.mfm-cobertura strong { color: var(--mfm-texto); font-weight: 700; }
+.mfm-cob-item { display: inline-flex; align-items: center; gap: 6px; }
+.mfm-ponto { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: #8a96ad; }
+.mfm-ponto--ok { background: #12866f; }
+.mfm-ponto--recomendacao { background: transparent; border: 2px solid #b26a00; }
+.mfm-ponto--decisao { background: #1f3b73; }
+.mfm-caixa { flex-wrap: wrap; }
+.mfm-bloco--negocios .mfm-caixa, .mfm-bloco--coe .mfm-caixa { flex-wrap: nowrap; } /* caixas em coluna: o resumo vem abaixo do nome */
+.mfm-caixa-resumo { flex-basis: 100%; max-width: 100%; display: block; order: 3; overflow-wrap: anywhere; font-size: var(--arq-fs-aux); font-weight: 400; color: var(--mfm-suave); line-height: 1.35; }
+.mfm-caixa-ok { display: inline-flex; align-items: center; gap: 5px; color: #0e6b58; }
+.mfm-caixa-rev { color: #8a4b00; }
+.mfm-objeto-fatos { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 10px; margin: 4px 0 0; font-size: var(--arq-fs-meta); }
+.mfm-objeto-fatos dt { color: var(--mfm-suave); }
+.mfm-objeto-fatos dd { margin: 0; color: var(--mfm-texto); min-width: 0; overflow-wrap: anywhere; }
+.mfm-objeto-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.mfm-objeto .mfm-objeto-acoes .mfm-abrir-po { margin-top: 0; }
+.mfm-sem-estrutura { margin-top: 18px; padding: 14px 16px; border: 1px dashed #d9b46a; border-radius: 14px; background: #fffaf0; }
+.mfm-sem-estrutura-titulo { margin: 0 0 4px; font-family: var(--mfm-fonte); font-size: 1.02rem; font-weight: 700; color: #6b4e00; }
+.mfm-sem-estrutura-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mfm-sem-estrutura-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 14px; padding: 8px 0; border-top: 1px solid #f0dfb8; }
+.mfm-sem-estrutura-item:first-child { border-top: 0; }
+.mfm-sem-estrutura-texto { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
+.mfm-sem-estrutura-nome { font-weight: 700; color: var(--mfm-texto); overflow-wrap: anywhere; }
+/* a natureza vem do componente da E4 (tema escuro): na folha clara do Mapa, as cores dela seguem a folha */
+.mfm-detalhe .mfm-objeto-fatos [data-ro-etapa], .mfm-detalhe .mfm-objeto-fatos [data-ro-etapa] * { color: var(--mfm-texto); }
+.mfm-detalhe .mfm-objeto-fatos .ro-etapa[data-situacao="pendente"], .mfm-detalhe .mfm-objeto-fatos .ro-etapa[data-situacao="a-confirmar"], .mfm-detalhe .mfm-objeto-fatos .ro-etapa[data-situacao="a-validar"], .mfm-detalhe .mfm-objeto-fatos .ro-etapa[data-situacao="a-identificar"] { color: #8a4b00; }
 /* M6/M7: relações na ficha da estrutura (painel claro) e Squads no detalhe da Linha do Mapa */
 .est-relacoes-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .est-relacao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px; border: 1px solid var(--est-linha); border-radius: 10px; color: var(--est-forte); overflow-wrap: anywhere; }

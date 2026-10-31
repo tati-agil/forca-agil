@@ -715,6 +715,12 @@
       "sobre": "Com os arquivos reais: categorias derivadas do motor; sem as quatro leituras não há catálogo (15 combinações); precedência decisão final > recomendação firme > A VALIDAR em 81 combinações; situações sem Posicionamento (sem base por motivo, sem Posicionamento, verificando); um objeto por item, sem Lixeira, alerta de base anterior; o módulo não grava e não chama o núcleo de Estruturas com coleções vazias; ordem de carga no index.html."
     },
     {
+      "arquivo": ".github/scripts/teste-mapa-floresta-conclusao.js",
+      "nome": "Mapa da Floresta — conclusão: cobertura, vínculos confirmados, recomendações sem estrutura, detalhe e ida e volta (1366, 1280 e 375 px)",
+      "duracao": 40,
+      "sobre": "Semente da Jornada Guiada: cobertura pela régua da jornada (4/1/1/1/1/2 de 10, igual aos Registros completos), soma dos vínculos confirmados nas caixas, definição oficial e fatos de cada registro (recomendação × decisão confirmada), recomendação sem estrutura nunca como vínculo, sem seletor de demonstração, Abrir registro/Posicionamento/ficha voltando ao Mapa, Itens avaliados (P1–P16), nada gravado."
+    },
+    {
       "arquivo": ".github/scripts/teste-mapa-floresta-visual.js",
       "nome": "Mapa da Floresta — versão visual demonstrativa, desenho aprovado (desktop e 375 px)",
       "duracao": 7,

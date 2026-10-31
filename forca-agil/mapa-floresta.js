@@ -5,13 +5,10 @@
    gravado — as três categorias organizacionais (Linha com as suas especializações, Área Especializada, CoE) e o
    catálogo dos objetos avaliados com a PENDÊNCIA de cada um. Não é o Mapa visual.
 
-   O que NÃO faz (decisão da responsável, 2026-10-11):
+   O que NÃO faz:
      - não grava nada (nenhuma escrita no banco, nenhuma regra nova);
-     - não mostra estruturas concretas nem associações objeto × estrutura responsável: ainda não há fonte
-       operacional delas no site. Isso é INFORMAÇÃO INDISPONÍVEL, nunca "nenhuma estrutura" nem "sem responsável" —
-       por isso o núcleo de Estruturas é usado só no que não depende delas (posicionamentoEfetivo), e nunca recebe
-       coleções vazias para concluir que um objeto não tem responsável;
-     - não cria motor M1–M5, perguntas de Presença no Mapa nem estrutura a partir de resultado automático.
+     - não cria motor M1–M5, perguntas de Presença no Mapa nem estrutura a partir de resultado automático;
+     - não trata leitura que ainda não chegou como "nenhuma estrutura" ou "sem responsável" (mostra Carregando…).
 
    Fontes (todas já existentes, só lidas — nenhuma regra repetida aqui):
      faBaseProdutoServico.baseDoItem  qual Avaliação de Produto/Serviço vale para o item (a ponta da cadeia)
@@ -25,12 +22,14 @@
 
    Endereço: #arquitetura?tr=1 (F5, link direto, Voltar/Avançar).
 
-   MAPA VISUAL — versão DEMONSTRATIVA (#arquitetura?mf=mapa, detalhe em &e=<id>), no desenho aprovado: blocos de cima
-   para baixo (Estratégia de Clientes, Canais, Negócios com subagrupadores, Plataformas Habilitadoras, Áreas
-   Especializadas por último) e a coluna de CoEs à direita; cada caixa pequena é uma estrutura concreta clicável; o
-   detalhe mostra a estrutura e os produtos/serviços sob a responsabilidade dela (nunca como caixas do Mapa). Os dados vêm de mapa-floresta-demo.js —
-   exemplos FICTÍCIOS em memória, com faixa de aviso fixa — lidos pelas consultas puras do núcleo de Estruturas
-   (estruturasDoTipo, objetosDaEstrutura); nada é gravado nem lido do banco além dos nomes oficiais da Taxonomia.
+   MAPA VISUAL (#arquitetura?mf=mapa, detalhe em &e=<id>), no desenho aprovado: blocos de cima para baixo (Estratégia de
+   Clientes, Canais, Negócios com subagrupadores, Plataformas Habilitadoras, Áreas Especializadas por último) e a coluna
+   de CoEs à direita; cada caixa é uma ESTRUTURA CADASTRADA ativa (estruturas-concretas), com o resumo dos vínculos
+   confirmados; o detalhe mostra a definição oficial, Squads e relações da estrutura e as responsabilidades assumidas
+   (vínculos de estruturas-vinculos, com origem, classificação P1–P16, natureza e posicionamento — nunca caixas do Mapa).
+   No topo, a cobertura da jornada (mesma régua de jornada()); abaixo do quadro, as recomendações/decisões sem estrutura
+   compatível (nunca apresentadas como vínculo). A demonstração com exemplos FICTÍCIOS (mapa-floresta-demo.js) só aparece
+   pelo endereço &fonte=demo ou quando o cadastro de estruturas não está habilitado — sem seletor na interface (D2).
    ============================================================ */
 (function () {
   'use strict';
@@ -625,7 +624,7 @@
       h += '<div class="mf-contador-linha"><span class="avp-total" id="mfContador" aria-live="polite">' + (recortado ? vis.length + ' de ' + itens.length : itens.length) + ' registro' + (itens.length === 1 ? '' : 's') + '</span>' +
         (recortado ? ' <button type="button" class="btn btn--sm" id="mfLimparFiltros">Limpar filtros</button>' : '') + '</div>';
       if (!vis.length) return h + '<p class="admin-empty" id="mfNenhumFiltro">Nenhum registro com esses filtros.</p></section>';
-      var grupos = [['Produtos/Serviços', vis.filter(function (x) { return x.origem !== ORIGEM_PORTA2; })], ['Responsabilidades organizacionais', vis.filter(function (x) { return x.origem === ORIGEM_PORTA2; })]];
+      var grupos = [['Itens avaliados (P1–P16)', vis.filter(function (x) { return x.origem !== ORIGEM_PORTA2; })], ['Responsabilidades organizacionais', vis.filter(function (x) { return x.origem === ORIGEM_PORTA2; })]];
       h += '<ul class="mf-itens mf-lista-simples" id="mfItens">' + grupos.filter(function (g) { return g[1].length; }).map(function (g) {
         return '<li class="mf-grupo-tipo" role="presentation"><h5 class="mf-subtitulo">' + g[0] + ' <span class="mf-contagem">(' + g[1].length + ')</span></h5></li>' + g[1].map(renderLinha).join('');
       }).join('') + '</ul>';
@@ -946,8 +945,8 @@
     function Est() { return window.faEstruturasNucleo; }
     function Mot() { return window.faMotorPosicionamentoNucleo; }
     function demo() { return window.faMapaFlorestaDemo && window.faMapaFlorestaDemo.cenario(cenarioDemo); }
-    /* os dados do desenho atual: a demonstração OU as estruturas cadastradas (sem subagrupadores nem associações de
-       produtos ainda — Linhas de Negócios ficam em "Sem subagrupador"; nada é inventado) */
+    /* os dados do desenho atual: a demonstração OU as estruturas cadastradas, com os subagrupadores e associações
+       cadastrados (Linha de Negócios sem associação fica em "Sem subagrupador"; nada é inventado) */
     function dados() {
       if (fonte !== 'cadastro') return demo();
       if (cadastro.estruturas === undefined || cadastro.subagrupadores === undefined || cadastro.associacoes === undefined || cadastro.erro) return null;
@@ -1010,7 +1009,7 @@
       return '<ul class="mfm-caixas" data-quantidade="' + ests.length + '">' + ests.map(function (e) {
         var ativo = e.id === selecionada;
         return '<li><button type="button" class="mfm-caixa' + (ativo ? ' mfm-caixa--ativa' : '') + '" data-estrutura="' + esc(e.id) + '" id="mfmNo-' + esc(e.id) + '" aria-pressed="' + ativo + '">' +
-          icone('estrutura', 'mfm-caixa-ic') + '<span class="mfm-caixa-nome">' + esc(e.nome).replace(/ — /g, '\u00a0— ') + '</span></button></li>'; /* o travessão não começa linha */
+          icone('estrutura', 'mfm-caixa-ic') + '<span class="mfm-caixa-nome">' + esc(e.nome).replace(/ — /g, '\u00a0— ') + '</span>' + resumoCaixaHtml(e.id) + '</button></li>'; /* o travessão não começa linha */
       }).join('') + '</ul>';
     }
     function subHtml(attrs, ic, tituloHtml, ests, n, vazio) {
@@ -1040,7 +1039,7 @@
       return h + '</div></section>';
     }
     /* Squads: a POSSIBILIDADE vem da regra fixa Linha × Squad do motor (Áreas Especializadas e CoEs não formam
-       Squads); a EXISTÊNCIA de Squads vinculados é outra informação, que ainda não existe — nunca inventada */
+       Squads); a EXISTÊNCIA de Squads vinculados vem das relações "compõe" cadastradas (squadsDaLinhaHtml) — nunca inventada */
     function squadsHtml(tipo, exemplo, estruturaId) {
       if (Mot().CODIGOS_FIRMES.indexOf(tipo) === -1) return ''; /* a regra fixa do motor só vale para códigos firmes */
       if (Mot().liberaSquadParaCodigoFirme(tipo) !== true) return '<dt>Organização por Squads</dt><dd class="mfm-squads" data-forma-squads="nao">Não se aplica: Áreas Especializadas e Centros de Excelência não formam Squads.</dd>';
@@ -1107,10 +1106,11 @@
         '<ul class="mfm-objetos" id="mfmObjetos">' + objs.map(function (o) {
         var x = porItem[o.objetoId] || null, s = situacaoVinculo(o.objetoId, x), v = cadastro.vinculos[o.vinculoId];
         return '<li class="mfm-objeto" data-objeto="' + esc(o.objetoId) + '" data-papel="' + esc(o.papel) + '"><a class="mfm-objeto-nome" href="#arquitetura?tr=1&item=' + encodeURIComponent(o.objetoId) + '">' + esc(x ? x.nome : o.objetoId) + '</a>' +
-          '<span class="mfm-objeto-papel">' + window.faEstruturasAdmin.papelVinculoHtml(o, v, s) + '</span>' +
+          '<span class="mfm-objeto-papel">' + window.faEstruturasAdmin.papelVinculoHtml(o, v, s) + '</span>' + fatosObjetoHtml(x) +
           (x && x.baseRevisao ? '<span class="mfm-objeto-desc mfm-objeto-aviso">Aviso: a base do Posicionamento precisa de revisão.' + esc(TEXTO_AVISO_VINCULO) + '</span>' : '') +
           '<span class="ro-resumo-host" data-ro-resumo="' + esc(o.objetoId) + '"></span>' +
-          '<a class="mfm-acao mfm-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x && x.posicionamento && x.posicionamento.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></li>';
+          '<span class="mfm-objeto-acoes"><a class="mfm-acao mfm-abrir-registro" href="#arquitetura?tr=1&item=' + encodeURIComponent(o.objetoId) + '">Abrir registro</a>' +
+          '<a class="mfm-acao mfm-abrir-po" href="#arquitetura?po=' + encodeURIComponent((x && x.posicionamento && x.posicionamento.avaliacaoId) || v.base.avaliacaoId) + '">Abrir Posicionamento</a></span></li>';
       }).join('') + '</ul>';
     }
     function detalheCadastroHtml(e, b) {
@@ -1134,8 +1134,95 @@
         (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? '<a class="mfm-acao mfm-abrir-cadastro" id="mfmAbrirCadastro" href="#arquitetura?arq=estruturas&e=' + encodeURIComponent(e.id) + '">' + (gravacaoAtiva() ? 'Abrir a ficha no cadastro (editar ou encerrar)' : 'Abrir a ficha no cadastro') + '</a>' : '');
       return h + '</aside>';
     }
+    /* ---- Conclusão do Mapa (31/10/2026): o que já chegou ao Mapa e o que ainda não, com a MESMA régua da jornada
+       (jornada().completa = Posicionamento efetivo + vínculo válido ou divergência deliberada). Só leitura; enquanto alguma
+       leitura não chegou, null — nunca um número parcial. Recomendação sem decisão final NUNCA é apresentada como vínculo. */
+    var resumoAtual = null;
+    function catalogoAtual() {
+      return modulosProntos() && state.produtos !== undefined && state.registros !== undefined && state.vigentes !== undefined && state.decisoes !== undefined && state.objetos !== undefined
+        ? C.montarCatalogo({ produtos: state.produtos, registros: state.registros, vigentes: state.vigentes, decisoes: state.decisoes, objetos: state.objetos }, deps()) : { pronto: false };
+    }
+    function resumoMapa() {
+      if (fonte !== 'cadastro' || state.erro || !vinculosProntos()) return null;
+      var cat = catalogoAtual(); if (!cat.pronto) return null;
+      jornadasDe(cat.itens);
+      var r = { total: cat.itens.length, noMapa: 0, semEstrutura: [], semVinculo: 0, aValidar: 0, encerradas: 0, semPosicionamento: 0, porItem: {} }, carregando = false;
+      cat.itens.forEach(function (x) {
+        r.porItem[x.itemId] = x;
+        var j = jornadas[x.itemId] || {}, cad = cadDoItem(x);
+        if (j.carregando) carregando = true;
+        if (j.completa) r.noMapa++;
+        else if (j.encerrada) r.encerradas++;
+        else if (x.efetivo && cad.tipos && !cad.tipos[x.efetivo.codigo]) r.semEstrutura.push(x); /* tipo efetivo sem estrutura ativa */
+        else if (x.efetivo) r.semVinculo++;
+        else if (x.situacao === 'a-validar') r.aValidar++;
+        else r.semPosicionamento++; /* inclui os itens avaliados em que o Posicionamento é opcional: não é pendência */
+      });
+      return carregando ? null : r;
+    }
+    function coberturaHtml(r) {
+      if (!r) return '<p class="mfm-cobertura" id="mfmCobertura" role="status">Carregando a situação dos registros…</p>';
+      var rec = r.semEstrutura.filter(function (x) { return x.efetivo.origem !== 'decisao'; }).length, dec = r.semEstrutura.length - rec;
+      var parte = function (n, cls, txt, extra) { return '<span class="mfm-cob-item" data-cobertura="' + cls + '"><span class="mfm-ponto mfm-ponto--' + cls + '" aria-hidden="true"></span><strong>' + n + '</strong> ' + txt + (extra || '') + '</span>'; };
+      return '<p class="mfm-cobertura" id="mfmCobertura">' + parte(r.noMapa, 'ok', 'no Mapa') +
+        (rec ? parte(rec, 'recomendacao', rec === 1 ? 'recomendação sem estrutura compatível' : 'recomendações sem estrutura compatível') : '') +
+        (dec ? parte(dec, 'decisao', dec === 1 ? 'decisão confirmada sem estrutura compatível' : 'decisões confirmadas sem estrutura compatível') : '') +
+        (r.semVinculo ? parte(r.semVinculo, 'neutro', 'com estrutura do tipo, ainda sem vínculo') : '') +
+        (r.aValidar ? parte(r.aValidar, 'neutro', 'A validar, sem decisão final') : '') +
+        (r.encerradas ? parte(r.encerradas, 'neutro', r.encerradas === 1 ? 'encerrada' : 'encerradas') : '') +
+        parte(r.semPosicionamento, 'neutro', 'sem posicionamento registrado', ' <span class="mfm-nota">(opcional para itens avaliados)</span>') +
+        '<span class="mfm-cob-item" data-cobertura="total">de <strong>' + r.total + '</strong> registros</span></p>';
+    }
+    /* recomendação × decisão: o texto diz sempre qual das duas existe; recomendação sem decisão final nunca é vínculo */
+    function posicionamentoTextoHtml(x) {
+      var p = x.posicionamento; if (!p) return 'sem posicionamento registrado';
+      var auto = p.codigoAutomatico, dec = p.codigoDecisao;
+      if (dec) return (auto && auto !== dec ? (auto === 'A_VALIDAR' ? 'A validar' : 'recomendação: ' + spanNome(auto)) + ' → ' : '') + 'decisão confirmada: ' + spanNome(dec);
+      if (x.efetivo) return 'recomendação: ' + spanNome(x.efetivo.codigo) + ' · sem decisão final';
+      return 'A validar · sem decisão final';
+    }
+    function semEstruturaHtml(r) {
+      if (!r || !r.semEstrutura.length) return '';
+      var grupo = function (lista, titulo, id, ajuda) {
+        if (!lista.length) return '';
+        return '<section class="mfm-sem-estrutura" id="' + id + '" aria-labelledby="' + id + 'Titulo"><h3 class="mfm-sem-estrutura-titulo" id="' + id + 'Titulo">' + titulo + '</h3>' +
+          '<p class="mfm-ajuda">' + ajuda + '</p><ul class="mfm-sem-estrutura-lista">' + lista.map(function (x) {
+            return '<li class="mfm-sem-estrutura-item" data-objeto="' + esc(x.itemId) + '"><span class="mfm-sem-estrutura-texto"><span class="mfm-sem-estrutura-nome">' + esc(x.nome) + '</span>' +
+              '<span class="mfm-objeto-desc">' + (x.origem === ORIGEM_PORTA2 ? 'Responsabilidade organizacional' : 'Item avaliado (P1–P16)') + ' · ' + posicionamentoTextoHtml(x) + ' · não é vínculo</span></span>' +
+              '<a class="mfm-acao mfm-abrir-registro" href="#arquitetura?tr=1&item=' + encodeURIComponent(x.itemId) + '">Abrir registro</a></li>';
+          }).join('') + '</ul></section>';
+      };
+      return grupo(r.semEstrutura.filter(function (x) { return x.efetivo.origem !== 'decisao'; }), 'Recomendações sem estrutura compatível', 'mfmSemEstrutura',
+          'Nenhuma estrutura ativa do tipo recomendado está cadastrada. A recomendação ainda não tem decisão final e não é vínculo.') +
+        grupo(r.semEstrutura.filter(function (x) { return x.efetivo.origem === 'decisao'; }), 'Decisões confirmadas sem estrutura compatível', 'mfmSemEstruturaDecisao',
+          'A decisão final está registrada, mas nenhuma estrutura ativa do tipo está cadastrada; sem ela, não há vínculo.');
+    }
+    /* no detalhe da estrutura: o que cada registro vinculado é (origem, classificação P1–P16, natureza) e de onde vem o tipo */
+    function fatosObjetoHtml(x) {
+      if (!x) return '';
+      var porta2 = x.origem === ORIGEM_PORTA2, d = !porta2 && x.resultadoBase ? x.resultadoBase.decisao : null;
+      return '<dl class="mfm-objeto-fatos"><dt>Origem</dt><dd>' + (porta2 ? 'Responsabilidade organizacional' : 'Item avaliado (P1–P16)') + '</dd>' +
+        (d ? '<dt>Classificação</dt><dd>' + esc(ROTULO_RESULTADO_P1[d] || d) + '</dd>' : '') +
+        (!porta2 && x.situacao !== 'sem-base' ? '<dt>Natureza</dt><dd data-ro-etapa="' + esc(x.itemId) + '"></dd>' : '') +
+        '<dt>Posicionamento</dt><dd>' + posicionamentoTextoHtml(x) + '</dd></dl>';
+    }
+    /* na caixa da estrutura: quantos vínculos estão confirmados (e quantos pedem revisão), pela situação do núcleo */
+    function resumoCaixaHtml(id) {
+      if (fonte !== 'cadastro' || !resumoAtual || !vinculosProntos()) return '';
+      var objs = Est().objetosDaEstrutura({ estruturas: cadastro.estruturas, vinculos: cadastro.vinculos }, id), ok = 0, rev = 0, out = 0;
+      objs.forEach(function (o) {
+        var s = situacaoVinculo(o.objetoId, resumoAtual.porItem[o.objetoId] || null);
+        if (s && (s.situacao === 'valido' || s.situacao === 'divergencia-deliberada')) ok++; else if (s && s.situacao === 'precisa-revisao') rev++; else out++;
+      });
+      var partes = [];
+      if (ok) partes.push('<span class="mfm-caixa-ok"><span class="mfm-ponto mfm-ponto--ok" aria-hidden="true"></span>' + ok + (ok === 1 ? ' vínculo confirmado' : ' vínculos confirmados') + '</span>');
+      if (rev) partes.push('<span class="mfm-caixa-rev">' + rev + ' precisa' + (rev === 1 ? '' : 'm') + ' de revisão</span>');
+      if (out) partes.push('<span>' + out + ' não conferido' + (out === 1 ? '' : 's') + '</span>');
+      return '<span class="mfm-caixa-resumo" data-vinculos-confirmados="' + ok + '">' + (partes.length ? partes.join(' · ') : 'Nenhum vínculo') + '</span>';
+    }
     function renderMapaTela() {
       if (fonte === 'cadastro' && podeLer()) { ligarCadastro(); ligar(); } /* M4: os itens (nomes e Posicionamento) dos vínculos */
+      resumoAtual = fonte === 'cadastro' ? resumoMapa() : null;
       var D = dados(), pendente = habilitacaoPendente(); /* marcador ainda chegando: a estrutura pedida no endereço espera */
       if (!pendente && selecionada && D && !D.estado.estruturas[selecionada]) selecionada = null; /* encerrada ou inexistente: volta ao Mapa */
       if (!pendente && selecionada && D && D.estado.estruturas[selecionada].situacao !== 'ativa') selecionada = null;
@@ -1148,10 +1235,8 @@
         (voltaItem ? '<a class="mfm-acao" id="mfmVoltarJornada" href="#arquitetura?tr=1&item=' + encodeURIComponent(voltaItem) + '">← Voltar ao registro</a>' : '') +
         (pronto ? '<button type="button" class="mfm-acao" id="mfmIrCatalogo">Ver os Trabalhos</button>' : '') +
         (podeManterEstruturas() ? '<a class="mfm-acao" id="mfmDefinicao" href="#arquitetura?arq=inicio">Definição do Mapa</a>' : '') + '</div></div>';
-      if (cadastroDisponivel() && autorizacaoResolvida() && podeLer()) h += '<div class="mfm-cenarios mfm-fontes" role="group" aria-label="Dados do Mapa"><span class="mfm-cenarios-rotulo">Dados:</span>' +
-        [['cadastro', 'Estruturas cadastradas'], ['demo', 'Demonstração (fictícia)']].map(function (o) {
-          return '<button type="button" class="mfm-cenario mfm-fonte' + (fonte === o[0] ? ' mfm-cenario--ativo' : '') + '" data-fonte="' + o[0] + '" aria-pressed="' + (fonte === o[0]) + '">' + o[1] + '</button>';
-        }).join('') + '</div>';
+      /* D2 (31/10/2026): a interface oficial não oferece mais a "Demonstração (fictícia)"; ela continua existindo pelo
+         endereço (&fonte=demo, usado pelos testes) e quando o cadastro de estruturas não está habilitado */
       if (pronto && fonte === 'demo') h += '<div class="mfm-cenarios" role="group" aria-label="Configuração de demonstração"><span class="mfm-cenarios-rotulo">Configuração de demonstração:</span>' +
         [['habitual', 'Habitual'], ['populoso', 'Populosa (teste de layout)']].map(function (o) {
           return '<button type="button" class="mfm-cenario' + (cenarioDemo === o[0] ? ' mfm-cenario--ativo' : '') + '" data-cenario="' + o[0] + '" aria-pressed="' + (cenarioDemo === o[0]) + '">' + o[1] + '</button>';
@@ -1160,7 +1245,8 @@
       else if (fonte === 'cadastro') h += '<div class="mfm-faixa mfm-faixa--cadastro" id="mfmFaixa" role="note">' + (emTestes() ? '<strong>Ambiente de testes.</strong> Estruturas cadastradas no Firebase Emulator — não são dados do banco oficial.' + (gravacaoAtiva() ? '' : ' Gravação suspensa: só consulta.')
           : '<strong>Estruturas organizacionais cadastradas.</strong>' + (gravacaoAtiva() ? '' : ' Gravação suspensa: só consulta.')) +
         (pronto ? ' <span class="mfm-legenda">Cada caixa é uma estrutura cadastrada: clique para ver os detalhes.</span>' : '') +
-        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? ' <a class="mfm-link-cadastro" id="mfmIrCadastro" href="#arquitetura?arq=estruturas">' + (gravacaoAtiva() ? 'Cadastrar ou editar estruturas' : 'Abrir o cadastro (só consulta)') + '</a>' : '') + '</div>';
+        (podeManterEstruturas() && window.faEstruturasAdmin && window.faEstruturasAdmin.disponivel() ? ' <a class="mfm-link-cadastro" id="mfmIrCadastro" href="#arquitetura?arq=estruturas">' + (gravacaoAtiva() ? 'Cadastrar ou editar estruturas' : 'Abrir o cadastro (só consulta)') + '</a>' : '') + '</div>' +
+        (pronto ? coberturaHtml(resumoAtual) : '');
       else h += '<div class="mfm-faixa" id="mfmFaixa" role="note"><strong>Demonstração.</strong> ' + esc(demo() ? demo().AVISO : '') +
         (pronto ? ' <span class="mfm-legenda">Cada caixa é uma estrutura concreta de exemplo: clique para ver os detalhes.</span>' : '') + '</div>';
       if (!autorizacaoResolvida()) h += '<p class="mfm-msg" role="status">Carregando…</p>';
@@ -1173,7 +1259,8 @@
         var linhas = BLOCOS.filter(function (b) { return b.natureza === 'Linha'; });
         h += '<div class="mfm-quadro" id="mfmMapa" role="region" aria-label="Mapa da Floresta">' +
           '<div class="mfm-principal">' + linhas.map(blocoHtml).join('') + '</div>' +
-          blocoHtml(BLOCOS.filter(function (b) { return b.id === 'coe'; })[0]) + blocoHtml(BLOCOS.filter(function (b) { return b.id === 'ae'; })[0]) + '</div>';
+          blocoHtml(BLOCOS.filter(function (b) { return b.id === 'coe'; })[0]) + blocoHtml(BLOCOS.filter(function (b) { return b.id === 'ae'; })[0]) + '</div>' +
+          (fonte === 'cadastro' ? semEstruturaHtml(resumoAtual) : '');
       }
       h += '</div>';
       if (pronto && selecionada) h += detalheHtml(selecionada);
