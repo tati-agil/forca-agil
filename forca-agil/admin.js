@@ -6568,14 +6568,17 @@
   }
   var ROTULO_CONFIRMACAO = { confirmado: 'Sim', 'sem-registro': 'Não registrada', 'nao-exigida': 'Não exigida' };
 
-  /* Origem do cadastro — QUEM CRIOU a conta. Não é a liberação administrativa (quem autorizou o acesso). Um critério
-     só para a célula, o filtro "Origem do cadastro" e o Excel; calculado na hora, nada é gravado:
-     - createdByAdmin              → criada pelo administrador ("Criar conta para colaboradora", desde 14/08/2026);
-     - emailVerificationRequired   → autocadastro (só o cadastro feito pela própria pessoa grava essa marca);
-     - nenhuma das duas, criado antes de 14/08/2026 21:41 (commit 277db9b, quando as duas marcas nasceram) → autocadastro
-       pelo FLUXO da época: o único caminho que criava login e cadastro era o formulário (auth.js register) — não há
-       marca individual, e a tela diz isso;
-     - qualquer outro caso         → não comprovada (nunca se presume autocadastro). */
+  /* Canal de criação — POR ONDE a conta foi criada. Não é a liberação administrativa (quem autorizou o acesso) e não
+     comprova QUEM preencheu: o formulário grava já conectado como a conta nova e não registra quem digitou (um admin
+     pode ter preenchido por outra pessoa). Um critério só para a célula, o filtro "Canal de criação" e o Excel;
+     calculado na hora, nada é gravado:
+     - createdByAdmin              → painel do administrador ("Criar conta para colaboradora", desde 14/08/2026; o
+                                     e-mail do admin que criou fica gravado);
+     - emailVerificationRequired   → formulário de cadastro (só o formulário grava essa marca);
+     - nenhuma das duas, criado antes de 14/08/2026 21:41 (commit 277db9b, quando as duas marcas nasceram) → formulário
+       pelo FLUXO da época: o único caminho que criava login e cadastro (auth.js register) — não há marca individual, e
+       a tela diz isso;
+     - qualquer outro caso         → não comprovado (nunca se presume o formulário). */
   var ORIGEM_MARCAS_DESDE = Date.parse('2026-08-14T21:41:44-03:00');
   function origemCadastro(p) {
     if (p.createdByAdmin) return { tipo: 'admin', historica: false };
@@ -6584,7 +6587,7 @@
     if (!isNaN(t) && t < ORIGEM_MARCAS_DESDE) return { tipo: 'auto', historica: true };
     return { tipo: 'nao-comprovada', historica: false };
   }
-  var ROTULO_ORIGEM = { admin: 'Criada pelo administrador', auto: 'Autocadastro', 'nao-comprovada': 'Não comprovada' };
+  var ROTULO_ORIGEM = { admin: 'Painel do administrador', auto: 'Formulário de cadastro', 'nao-comprovada': 'Não comprovado' };
   function textoOrigem(o) { return ROTULO_ORIGEM[o.tipo] + (o.historica ? ' (fluxo anterior a 14/08/2026)' : ''); }
   function textoConfirmouEmail(p) { return ROTULO_CONFIRMACAO[confirmacaoCadastro(p)]; }
   /* Data da confirmação para o Excel: a do registro pelo site; "data exata não registrada" na anotação única (a
@@ -6801,7 +6804,7 @@
           '<label class="cad-filtro">Área<select id="cadFiltroArea"><option value="">Todas</option>' + opcoes(areas, function (k) { return k; }) + '</select></label>' +
           '<label class="cad-filtro">Confirmação do e-mail<select id="cadFiltroConf"><option value="">Todas</option>' + opcoesFixas(ROTULO_CONFIRMACAO, contConf) + '</select></label>' +
           '<label class="cad-filtro">Liberação administrativa<select id="cadFiltroLib"><option value="">Todas</option>' + opcoesFixas(ROTULO_LIBERACAO, contLib) + '</select></label>' +
-          '<label class="cad-filtro">Origem do cadastro<select id="cadFiltroOrigem"><option value="">Todas</option>' + opcoesFixas(ROTULO_ORIGEM, contOrig) + '</select></label>' +
+          '<label class="cad-filtro">Canal de criação<select id="cadFiltroOrigem"><option value="">Todas</option>' + opcoesFixas(ROTULO_ORIGEM, contOrig) + '</select></label>' +
           '<label class="cad-filtro">Liberado por<select id="cadFiltroPor"><option value="">Qualquer pessoa</option>' + opcoes(porQuem, rotuloPor) + '</select></label>' +
           '<label class="cad-filtro">Contas de teste<select id="cadFiltroTeste">' +
             '<option value="nao-teste">Não marcadas como teste (' + (list.length - nTestes) + ')</option>' +
@@ -6824,8 +6827,9 @@
           '<ul class="cad-ajuda-texto">' +
             '<li><strong>Confirmação do e-mail</strong> (feita pela própria pessoa, pelo link) e <strong>liberação administrativa</strong> (botão "Confirmar cadastro") são mecanismos independentes: basta um deles para a pessoa ter acesso.</li>' +
             '<li>A mesma pessoa pode ter os dois registrados. Um não apaga nem substitui o outro.</li>' +
-            '<li><strong>Origem do cadastro</strong> é quem <em>criou</em> a conta: o administrador ("Criar conta") ou a própria pessoa (autocadastro). <strong>Liberação administrativa</strong> é quem <em>autorizou o acesso</em> — uma pessoa que se cadastrou sozinha pode ter sido liberada depois pelo administrador.</li>' +
-            '<li>Cadastros anteriores a 14/08/2026 não têm marca individual de origem: aparecem como autocadastro porque, até essa data, o formulário de cadastro era o único jeito de criar uma conta ("fluxo anterior a 14/08/2026").</li>' +
+            '<li><strong>Canal de criação</strong> é <em>por onde</em> a conta foi criada: o painel do administrador ("Criar conta") ou o formulário de cadastro. <strong>Liberação administrativa</strong> é quem <em>autorizou o acesso</em> — uma conta criada pelo formulário pode ter sido liberada depois pelo administrador.</li>' +
+            '<li>O canal não comprova quem preencheu o formulário: ele não registra quem digitou (um administrador pode ter cadastrado outra pessoa por ele). Pelo painel, fica registrado o administrador que criou.</li>' +
+            '<li>Cadastros anteriores a 14/08/2026 não têm marca individual de canal: aparecem como formulário de cadastro porque, até essa data, o formulário era o único jeito de criar uma conta ("fluxo anterior a 14/08/2026").</li>' +
             '<li>Contas criadas pelo administrador e cadastros anteriores a 14/08/2026 não precisam confirmar o e-mail ("Não exigida").</li>' +
             '<li>Conta bloqueada não acessa, mesmo com confirmação ou liberação.</li>' +
             '<li>A confirmação aparece aqui quando o site a registra, no acesso seguinte da pessoa: uma confirmação já feita no e-mail pode ainda constar como "Não registrada".</li>' +
@@ -6857,7 +6861,7 @@
        menu "⋯", com o nome dela no topo — assim também não se erra de linha
        numa lista de centenas. */
     tbl.innerHTML = '<thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Área</th>' +
-      '<th scope="col" title="Data do cadastro e quem criou a conta: o administrador ou a própria pessoa (autocadastro). Não é a liberação do acesso.">Cadastro e origem</th>' +
+      '<th scope="col" title="Data do cadastro e por onde a conta foi criada: painel do administrador ou formulário de cadastro. Não diz quem preencheu o formulário nem quem liberou o acesso.">Cadastro e canal</th>' +
       '<th scope="col" title="Registrada pelo site quando a pessoa entra com o e-mail já confirmado no Firebase. A data é a do registro, não a do clique no link.">Confirmação do <span class="cad-data">e-mail</span></th>' +
       '<th scope="col" title="Ação do administrador (botão Confirmar cadastro ou conta criada no painel). Independente da confirmação do e-mail.">Liberação administrativa</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>';
     const tbody = document.createElement('tbody');
@@ -6980,7 +6984,7 @@
             (p._teste ? ' <span class="admin-badge cad-teste-badge" title="Marcada como conta de teste pelo administrador geral (só identificação: não muda acesso)">Teste</span>' : '') + '</td>' +
           '<td data-label="E-mail" class="cad-col-email"><span class="cad-celula">' + emailCadHtml(p.email) + '</span></td>' +
           '<td data-label="Área">' + esc(p.area || '—') + '</td>' +
-          '<td data-label="Cadastro e origem"><span class="cad-celula"><span class="cad-valor">' + dataHoraCadHtml(p.createdAt) + '</span>' +
+          '<td data-label="Cadastro e canal"><span class="cad-celula"><span class="cad-valor">' + dataHoraCadHtml(p.createdAt) + '</span>' +
             '<span class="cad-sub cad-origem"' + (p._orig.historica ? ' title="Sem marca individual: até 14/08/2026, o formulário de cadastro era o único jeito de criar uma conta."' : '') + '>' +
             esc(textoOrigem(p._orig)) + '</span></span></td>' +
           '<td data-label="Confirmação do e-mail" class="cad-col-conf"' + (titConf ? ' title="' + esc(titConf) + '"' : '') + '><span class="cad-celula">' + celConfirmou + '</span></td>' +
@@ -7056,7 +7060,7 @@
         btn.disabled = false; btn.innerHTML = '&#x1F4CA; Exportar Excel';
         if (erro || !window.XLSX) { aviso('Não foi possível gerar o arquivo agora. Tente de novo.', true); return; }
         /* Mesmas categorias e textos da tabela: o Excel nunca classifica diferente da tela. */
-        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Origem do cadastro', 'Confirmação do e-mail', 'Confirmação registrada em',
+        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Canal de criação', 'Confirmação do e-mail', 'Confirmação registrada em',
           'Liberação administrativa', 'Liberado por', 'Situação', 'Conta de teste']].concat(pessoas.map(function (p) {
           var lib = p._lib;
           var libEm = lib.tipo === 'liberado' ? dataHoraCad(lib.quandoIso)
