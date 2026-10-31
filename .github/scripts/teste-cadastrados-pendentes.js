@@ -31,15 +31,15 @@ const QUANDO = Date.UTC(2026, 9, 30, 17, 2); /* emailConfirmadoEm gravado pelo s
 
 /* Cada caso: o cadastro e o que a tela tem de mostrar. */
 const CASOS = {
-  'pendente@previ.com.br':   { c: { emailVerificationRequired: true }, sit: 'Pendente', conf: 'Não', confEm: '', lib: '' },
-  'link@previ.com.br':       { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: '' },
-  'antiga@previ.com.br':     { c: { emailVerificationRequired: true, emailConfirmado: true }, sit: 'Ativo', conf: 'Sim', confEm: 'data não registrada', lib: '' },
-  'liberada@previ.com.br':   { c: { emailVerificationRequired: true, adminApproved: true, approvedAt: '2026-10-30T18:31:00.000Z', approvedByAdmin: ADM, approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Não', confEm: '', lib: 'data', libPor: 'TATI ADMIN' },
-  'semdata@previ.com.br':    { c: { emailVerificationRequired: true, adminApproved: true }, sit: 'Ativo', conf: 'Não', confEm: '', lib: 'data não registrada' },
-  'criada@previ.com.br':     { c: { adminApproved: true, createdByAdmin: ADM }, sit: 'Ativo', conf: 'Não exigido', confEm: '', lib: 'criada', libPor: ADM },
+  'pendente@previ.com.br':   { c: { emailVerificationRequired: true }, sit: 'Pendente', conf: 'Não registrada', confEm: '', lib: 'nenhuma' },
+  'link@previ.com.br':       { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: 'nenhuma' },
+  'antiga@previ.com.br':     { c: { emailVerificationRequired: true, emailConfirmado: true }, sit: 'Ativo', conf: 'Sim', confEm: 'data não registrada', lib: 'nenhuma' },
+  'liberada@previ.com.br':   { c: { emailVerificationRequired: true, adminApproved: true, approvedAt: '2026-10-30T18:31:00.000Z', approvedByAdmin: ADM, approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'data', libPor: 'TATI ADMIN' },
+  'semdata@previ.com.br':    { c: { emailVerificationRequired: true, adminApproved: true }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'antiga' },
+  'criada@previ.com.br':     { c: { adminApproved: true, createdByAdmin: ADM }, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'criada', libPor: 'TATI ADMIN' },
   'ambas@previ.com.br':      { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO, adminApproved: true, approvedAt: '2026-10-30T19:00:00.000Z', approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: 'data', libPor: 'TATI ADMIN' },
-  'bloqueada@previ.com.br':  { c: { emailVerificationRequired: true, blocked: true }, sit: 'Bloqueado', conf: 'Não', confEm: '', lib: '' },
-  'velha@previ.com.br':      { c: {}, sit: 'Ativo', conf: 'Não exigido', confEm: '', lib: '' },
+  'bloqueada@previ.com.br':  { c: { emailVerificationRequired: true, blocked: true }, sit: 'Bloqueado', conf: 'Não registrada', confEm: '', lib: 'nenhuma' },
+  'velha@previ.com.br':      { c: {}, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'nenhuma' },
 };
 const PENDENTES = ['pendente@previ.com.br'];
 
@@ -116,10 +116,10 @@ const FORMATOS = [
       if (k.confEm === 'data' && !dataRe.test(l.conf)) p.push(e + ' sem a data registrada: ' + l.conf);
       if (k.confEm && k.confEm !== 'data' && l.conf.indexOf(k.confEm) === -1) p.push(e + ' deveria dizer "' + k.confEm + '": ' + l.conf);
       if (!k.confEm && /\d/.test(l.conf)) p.push(e + ' mostra data de confirmação que não existe: ' + l.conf);
-      if (!k.lib && l.lib !== '—') p.push(e + ' "Liberado em" deveria ser —: ' + l.lib);
+      if (k.lib === 'nenhuma' && l.lib !== 'Sem liberação do admin') p.push(e + ' "Liberado em" deveria ser "Sem liberação do admin": ' + l.lib);
       if (k.lib === 'data' && !dataRe.test(l.lib)) p.push(e + ' "Liberado em" sem data: ' + l.lib);
       if (k.lib === 'criada' && !/Conta criada pelo admin/.test(l.lib)) p.push(e + ' "Liberado em": ' + l.lib);
-      if (k.lib === 'data não registrada' && l.lib.indexOf('data não registrada') === -1) p.push(e + ' "Liberado em": ' + l.lib);
+      if (k.lib === 'antiga' && !/^Liberação antiga/.test(l.lib)) p.push(e + ' "Liberado em" (antiga): ' + l.lib);
       if (k.libPor && l.lib.indexOf(k.libPor) === -1) p.push(e + ' sem quem liberou: ' + l.lib);
       if (l.sit.indexOf(k.sit === 'Bloqueado' ? 'Bloqueado' : 'Ativo') === -1 || (k.sit === 'Pendente') !== /Pendente/.test(l.sit)) p.push(e + ' situação: ' + l.sit);
     } else {
@@ -127,7 +127,7 @@ const FORMATOS = [
       const ce = l['Confirmação registrada em'];
       if (k.confEm === 'data' ? !dataRe.test(ce) : ce !== k.confEm) p.push('Excel ' + e + ' "Confirmação registrada em" = ' + ce);
       const le = l['Liberado em'];
-      if (!k.lib ? le !== '' : k.lib === 'criada' ? !/^Conta criada pelo admin em /.test(le) : k.lib === 'data' ? !dataRe.test(le) : le !== k.lib) p.push('Excel ' + e + ' "Liberado em" = ' + le);
+      if (k.lib === 'nenhuma' ? le !== 'Sem liberação do admin' : k.lib === 'antiga' ? le !== 'Liberação antiga, sem data nem autor' : k.lib === 'criada' ? !/^Conta criada pelo admin em /.test(le) : k.lib === 'data' ? !dataRe.test(le) : le !== k.lib) p.push('Excel ' + e + ' "Liberado em" = ' + le);
       if ((k.libPor || '') !== l['Liberado por']) p.push('Excel ' + e + ' "Liberado por" = ' + l['Liberado por']);
       if (l['Situação'] !== k.sit) p.push('Excel ' + e + ' Situação = ' + l['Situação']);
     }
