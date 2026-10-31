@@ -867,6 +867,10 @@
   #adminCadastrados .admin-table thead th:last-child  { border-top-right-radius: 10px; }
   #adminCadastrados .admin-table th, #adminCadastrados .admin-table td { vertical-align: middle; padding-left: 10px; padding-right: 10px; }
   #adminCadastrados .admin-table tbody :is(button, a, [tabindex]) { scroll-margin-top: calc(var(--nav-h, 73px) + 64px); }
+  /* scroll-margin sozinho não basta: navegadores mais antigos não rolam até um botão que ainda está dentro da janela,
+     mesmo coberto pelo cabeçalho. scroll-padding-top diz à página que a área útil começa abaixo do menu (73 px) e do
+     cabeçalho da tabela (até 64 px, em duas linhas) — só com o ADMIN aberto na aba Cadastrados. */
+  html:has(#page-admin:not([hidden]) #adminPanelCadastrados.active .admin-table) { scroll-padding-top: calc(var(--nav-h, 73px) + 64px); }
 }
 
 /* Celular e tela estreita: a tabela deixa de ser tabela. Esconder colunas (como era antes) escondia informação; rolar

@@ -151,21 +151,48 @@ const ord = (a) => JSON.stringify(a.slice().sort());
       return { focado: document.activeElement === acima };
     });
     /* o foco rola a página com scroll-behavior: smooth — mede depois que a rolagem termina */
-    const posicao = async () => { await page.waitForTimeout(800); return page.evaluate(() => { const a = document.activeElement, th = document.querySelector('#adminCadastrados thead th');
-      return { emLinha: !!(a && a.closest('#adminCadastrados tbody')), botaoTop: a.getBoundingClientRect().top, thBottom: th.getBoundingClientRect().bottom }; }); };
+    const posicao = async () => { await page.waitForTimeout(800); return page.evaluate(() => { const a = document.activeElement, th = document.querySelector('#adminCadastrados thead th'), r = a.getBoundingClientRect();
+      return { emLinha: !!(a && a.closest('#adminCadastrados tbody')), botaoTop: r.top, botaoBottom: r.bottom, thBottom: th.getBoundingClientRect().bottom }; }); };
+    /* "inteiramente visível": abaixo do cabeçalho fixo e acima da borda de baixo da janela */
+    const w_altura = 800; /* altura da janela deste contexto */
+    const inteiro = (t) => t.botaoTop >= t.thBottom - 1 && t.botaoBottom <= w_altura + 1;
     if (f.semAlvo) q.push('não havia linha acima para testar o foco');
     else {
       const r = await posicao();
-      if (!f.focado || r.botaoTop < r.thBottom - 1) q.push('o botão focado ficou atrás do cabeçalho (botão em ' + r.botaoTop + ', cabeçalho termina em ' + r.thBottom + ')');
-      /* subindo pela lista com Shift+Tab: cada botão focado aparece abaixo do cabeçalho */
-      for (let i = 0; i < 4; i++) {
-        await page.keyboard.press('Shift+Tab');
-        const t = await posicao();
-        if (t.emLinha && t.botaoTop < t.thBottom - 1) { q.push('Shift+Tab levou o foco para trás do cabeçalho (' + t.botaoTop + ' < ' + t.thBottom + ')'); break; }
+      if (!f.focado || !inteiro(r)) q.push('o botão focado não ficou inteiro à vista (botão ' + r.botaoTop + '–' + r.botaoBottom + ', cabeçalho termina em ' + r.thBottom + ')');
+      /* subindo pela lista com Shift+Tab e descendo com Tab: cada botão focado aparece inteiro, abaixo do cabeçalho */
+      for (const [tecla, n] of [['Shift+Tab', 6], ['Tab', 10]]) {
+        for (let i = 0; i < n; i++) {
+          await page.keyboard.press(tecla);
+          const t = await posicao();
+          if (t.emLinha && !inteiro(t)) { q.push(tecla + ' deixou o foco fora da vista (' + Math.round(t.botaoTop) + '–' + Math.round(t.botaoBottom) + ', cabeçalho até ' + Math.round(t.thBottom) + ')'); break; }
+        }
       }
     }
     if (erros.length) q.push('erro JS: ' + erros[0]);
     registrar(w + ' px: foco do teclado nunca fica atrás do cabeçalho fixo', q);
+    await ctx.close();
+  }
+
+  /* 1b. A área útil da rolagem (scroll-padding-top) só muda com o ADMIN aberto em Cadastrados, a partir de 1180 px */
+  console.log('\n===== ESCOPO DO scroll-padding-top =====');
+  {
+    const p = [];
+    const { ctx, page, erros } = await abrir(browser, { viewport: { width: 1366, height: 800 } }, base());
+    const sp = () => page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingTop);
+    const aba = (re) => page.evaluate((s) => { const b = Array.from(document.querySelectorAll('.admin-tab-btn')).find((x) => new RegExp(s, 'i').test(x.textContent)); if (b) b.click(); }, re);
+    if (!/^1\d\dpx$/.test(await sp())) p.push('Cadastrados (1366 px): ' + await sp());
+    await aba('Eventos'); await page.waitForTimeout(300);
+    if (await sp() !== 'auto') p.push('outra aba do ADMIN: ' + await sp());
+    await aba('Cadastrados'); await page.waitForTimeout(300);
+    await page.setViewportSize({ width: 1179, height: 800 }); await page.waitForTimeout(200);
+    const cartoes = await page.evaluate(() => getComputedStyle(document.querySelector('#adminCadastrados thead')).display === 'none');
+    if (await sp() !== 'auto' || !cartoes) p.push('1179 px (cartões): ' + await sp() + (cartoes ? '' : ', sem cartões'));
+    await page.setViewportSize({ width: 1366, height: 800 });
+    await page.evaluate(() => { location.hash = '#turmas'; }); await page.waitForTimeout(1200);
+    if (await sp() !== 'auto') p.push('outra rota (#turmas): ' + await sp());
+    if (erros.length) p.push('erro JS: ' + erros[0]);
+    registrar('scroll-padding-top só em ADMIN › Cadastrados (≥ 1180 px); outras abas, outras rotas e cartões intactos', p);
     await ctx.close();
   }
 
