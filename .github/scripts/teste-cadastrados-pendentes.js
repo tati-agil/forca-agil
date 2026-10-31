@@ -31,7 +31,7 @@ const QUANDO = Date.UTC(2026, 9, 30, 17, 2); /* emailConfirmadoEm gravado pelo s
 
 /* Cada caso: o cadastro e o que a tela tem de mostrar. */
 const CASOS = {
-  'pendente@previ.com.br':   { c: { emailVerificationRequired: true }, sit: 'Pendente', conf: 'Não registrada', confEm: '', lib: 'nenhuma' },
+  'pendente@previ.com.br':   { c: { emailVerificationRequired: true }, sit: 'Pendente', conf: 'Não registrada', confEm: '', lib: 'nenhuma', orig: 'Autocadastro' },
   'link@previ.com.br':       { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: 'nenhuma' },
   'antiga@previ.com.br':     { c: { emailVerificationRequired: true, emailConfirmado: true }, sit: 'Ativo', conf: 'Sim', confEm: 'data exata não registrada', lib: 'nenhuma' },
   'liberada@previ.com.br':   { c: { emailVerificationRequired: true, adminApproved: true, approvedAt: '2026-10-30T18:31:00.000Z', approvedByAdmin: ADM, approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Não registrada', confEm: '', lib: 'data', libPor: 'ADMIN' },
@@ -40,7 +40,9 @@ const CASOS = {
   'criada@previ.com.br':     { c: { adminApproved: true, createdByAdmin: ADM }, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'criada', libPor: 'ADMIN' },
   'ambas@previ.com.br':      { c: { emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: QUANDO, adminApproved: true, approvedAt: '2026-10-30T19:00:00.000Z', approvedByAdminName: 'TATI ADMIN' }, sit: 'Ativo', conf: 'Sim', confEm: 'data', lib: 'data', libPor: 'TATI ADMIN' },
   'bloqueada@previ.com.br':  { c: { emailVerificationRequired: true, blocked: true }, sit: 'Bloqueado', conf: 'Não registrada', confEm: '', lib: 'nenhuma' },
-  'velha@previ.com.br':      { c: {}, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'nenhuma' },
+  'velha@previ.com.br':      { c: {}, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'nenhuma', orig: 'Não comprovada' },
+  /* origem pelo fluxo da época: sem marca e criado antes de 14/08/2026 (o único caminho era o autocadastro) */
+  'historica@previ.com.br': { c: { createdAt: '2026-07-01T12:00:00.000Z', adminApproved: true }, sit: 'Ativo', conf: 'Não exigida', confEm: '', lib: 'antiga', orig: 'Autocadastro (fluxo anterior a 14/08/2026)' },
 };
 const PENDENTES = ['pendente@previ.com.br'];
 
@@ -87,7 +89,8 @@ async function filtrar(page, status) {
 function linhasDaTela(page) {
   return page.evaluate(() => Array.from(document.querySelectorAll('#adminCadastrados tbody tr')).map((tr) => {
     const cel = (l) => { const td = tr.querySelector('td[data-label="' + l + '"]'); return td ? td.innerText.replace(/\s+/g, ' ').trim() : null; };
-    return { email: cel('E-mail'), conf: cel('Confirmação do e-mail'), lib: cel('Liberação administrativa'), sit: cel('Situação') };
+    const origem = tr.querySelector('td[data-label="Cadastro e origem"] .cad-origem');
+    return { email: cel('E-mail'), conf: cel('Confirmação do e-mail'), lib: cel('Liberação administrativa'), sit: cel('Situação'), orig: origem ? origem.textContent.trim() : null };
   }));
 }
 function contagens(page) {
@@ -109,9 +112,13 @@ const FORMATOS = [
     else console.log('  ok    ' + nome);
   }
   const dataRe = /\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/;
+  /* origem do cadastro: explícita no caso, ou a marca que ele tem (criada pelo admin / autocadastro) */
+  const origemEsperada = (k) => k.orig || (k.c.createdByAdmin ? 'Criada pelo administrador' : 'Autocadastro');
   function confere(p, e, l, origem) {
     const k = CASOS[e];
     if (!l) { p.push(origem + ': ' + e + ' ausente'); return; }
+    const o = origem === 'tela' ? l.orig : l['Origem do cadastro'];
+    if (o !== origemEsperada(k)) p.push(origem + ' ' + e + ' origem = "' + o + '" (esperado "' + origemEsperada(k) + '")');
     if (origem === 'tela') {
       if (!l.conf.startsWith(k.conf)) p.push(e + ' "Confirmação do e-mail" = ' + l.conf);
       if (k.confEm === 'data' && !dataRe.test(l.conf)) p.push(e + ' sem a data registrada: ' + l.conf);
@@ -176,6 +183,36 @@ const FORMATOS = [
       if (lado.pagina) p.push('a página rola para o lado');
       if (erros.length) p.push('erro JS: ' + erros[0]);
       registrar('Pendentes, colunas, contagens' + (formato.nome === 'desktop' ? ' e Excel' : '') + ' coerentes; sem rolagem lateral', p);
+
+      /* Origem do cadastro: o filtro (em Mais filtros) combina com a situação e devolve exatamente quem a célula diz */
+      const r = [];
+      const porOrigem = { admin: 'Criada pelo administrador', auto: 'Autocadastro', 'nao-comprovada': 'Não comprovada' };
+      const opcoes = await page.$$eval('#cadFiltroOrigem option', (os) => os.map((o) => o.value + '=' + o.textContent));
+      const todosCasos = Object.keys(CASOS);
+      const contaOrig = (tipo) => todosCasos.filter((e) => origemEsperada(CASOS[e]).indexOf(porOrigem[tipo]) === 0).length;
+      /* o ADMIN do banco não tem marca e foi criado sem data → "Não comprovada" */
+      const esperadoOpcoes = ['=Todas', 'admin=Criada pelo administrador (' + contaOrig('admin') + ')', 'auto=Autocadastro (' + contaOrig('auto') + ')', 'nao-comprovada=Não comprovada (' + (contaOrig('nao-comprovada') + 1) + ')'];
+      if (JSON.stringify(opcoes) !== JSON.stringify(esperadoOpcoes)) r.push('opções: ' + opcoes.join(' | '));
+      if (!(await page.$eval('#cadMaisFiltros', (d) => d.open))) await page.click('#cadMaisFiltros > summary');
+      for (const tipo of ['admin', 'auto', 'nao-comprovada']) {
+        await page.selectOption('#cadFiltroOrigem', tipo);
+        for (const st of ['todos', 'ativos', 'bloqueados']) {
+          await filtrar(page, st);
+          const ls = await linhasDaTela(page);
+          const ruins = ls.filter((l) => l.orig.indexOf(porOrigem[tipo]) !== 0);
+          const esperados = todosCasos.filter((e) => origemEsperada(CASOS[e]).indexOf(porOrigem[tipo]) === 0 && (st === 'todos' || (st === 'bloqueados') === (CASOS[e].sit === 'Bloqueado'))).length
+            + (tipo === 'nao-comprovada' && st !== 'bloqueados' ? 1 : 0);
+          if (ruins.length || ls.length !== esperados) r.push(tipo + '/' + st + ': ' + ls.length + ' linha(s), esperado ' + esperados + (ruins.length ? ', com origem diferente: ' + ruins.map((l) => l.email).join(', ') : ''));
+        }
+      }
+      const ativosFiltro = await page.$eval('#cadFiltrosAtivos', (s) => s.textContent);
+      if (!/1 ativo/.test(ativosFiltro)) r.push('"Mais filtros" não conta a origem como filtro ativo: ' + ativosFiltro);
+      await page.click('#cadLimparFiltros');
+      if ((await page.$eval('#cadFiltroOrigem', (s) => s.value)) !== '') r.push('"Limpar filtros" não limpou a origem');
+      const ajuda = await page.$eval('#cadAjuda', (d) => d.textContent);
+      if (!/Origem do cadastro.*criou.*Liberação administrativa.*autorizou o acesso/s.test(ajuda) || !/14\/08\/2026/.test(ajuda)) r.push('"Como ler esta lista" sem a diferença entre origem e liberação');
+      if (erros.length) r.push('erro JS: ' + erros[0]);
+      registrar('Origem do cadastro: opções com contagem, filtro combinado com a situação, "Limpar filtros" e a ajuda', r);
 
       /* 4. "Confirmar cadastro" só para quem precisa */
       const q = [];

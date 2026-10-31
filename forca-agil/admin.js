@@ -6567,6 +6567,25 @@
     return p.emailVerificationRequired ? 'sem-registro' : 'nao-exigida';
   }
   var ROTULO_CONFIRMACAO = { confirmado: 'Sim', 'sem-registro': 'Não registrada', 'nao-exigida': 'Não exigida' };
+
+  /* Origem do cadastro — QUEM CRIOU a conta. Não é a liberação administrativa (quem autorizou o acesso). Um critério
+     só para a célula, o filtro "Origem do cadastro" e o Excel; calculado na hora, nada é gravado:
+     - createdByAdmin              → criada pelo administrador ("Criar conta para colaboradora", desde 14/08/2026);
+     - emailVerificationRequired   → autocadastro (só o cadastro feito pela própria pessoa grava essa marca);
+     - nenhuma das duas, criado antes de 14/08/2026 21:41 (commit 277db9b, quando as duas marcas nasceram) → autocadastro
+       pelo FLUXO da época: o único caminho que criava login e cadastro era o formulário (auth.js register) — não há
+       marca individual, e a tela diz isso;
+     - qualquer outro caso         → não comprovada (nunca se presume autocadastro). */
+  var ORIGEM_MARCAS_DESDE = Date.parse('2026-08-14T21:41:44-03:00');
+  function origemCadastro(p) {
+    if (p.createdByAdmin) return { tipo: 'admin', historica: false };
+    if (p.emailVerificationRequired) return { tipo: 'auto', historica: false };
+    var t = Date.parse(p.createdAt);
+    if (!isNaN(t) && t < ORIGEM_MARCAS_DESDE) return { tipo: 'auto', historica: true };
+    return { tipo: 'nao-comprovada', historica: false };
+  }
+  var ROTULO_ORIGEM = { admin: 'Criada pelo administrador', auto: 'Autocadastro', 'nao-comprovada': 'Não comprovada' };
+  function textoOrigem(o) { return ROTULO_ORIGEM[o.tipo] + (o.historica ? ' (fluxo anterior a 14/08/2026)' : ''); }
   function textoConfirmouEmail(p) { return ROTULO_CONFIRMACAO[confirmacaoCadastro(p)]; }
   /* Data da confirmação para o Excel: a do registro pelo site; "data exata não registrada" na anotação única (a
      confirmação existe, a data do clique não — nunca se põe uma data no lugar). */
@@ -6712,7 +6731,7 @@
        da tabela fica fixo na rolagem. */
     var marcasOk = marcas !== null && marcas !== undefined;
     list.forEach(function (p) {
-      p._sit = situacaoCadastro(p); p._conf = confirmacaoCadastro(p); p._lib = liberacaoCadastro(p);
+      p._sit = situacaoCadastro(p); p._conf = confirmacaoCadastro(p); p._lib = liberacaoCadastro(p); p._orig = origemCadastro(p);
       p._teste = eContaDeTeste(p, marcas); p._marcasOk = marcasOk;
     });
     var nTestes = list.filter(function (p) { return p._teste; }).length;
@@ -6724,7 +6743,7 @@
                pendentes: base.filter(function (p) { return p._sit.pendente; }).length,
                bloqueados: base.filter(function (p) { return p._sit.bloqueado; }).length, todos: base.length };
     }
-    var PADRAO = { status: 'ativos', q: '', area: '', conf: '', lib: '', data: '', de: '', ate: '', por: '', ordem: 'nome', teste: 'nao-teste' };
+    var PADRAO = { status: 'ativos', q: '', area: '', conf: '', lib: '', origem: '', data: '', de: '', ate: '', por: '', ordem: 'nome', teste: 'nao-teste' };
     var filtros = Object.assign({}, PADRAO);
     var contagem = contagemDoTipo();
 
@@ -6758,6 +6777,7 @@
         .map(function (k) { return '<option value="' + esc(k) + '">' + esc(rotulo(k)) + ' (' + obj[k] + ')</option>'; }).join('');
     }
     var contConf = contaPor(function (p) { return p._conf; }), contLib = contaPor(function (p) { return p._lib.tipo; });
+    var contOrig = contaPor(function (p) { return p._orig.tipo; });
     function opcoesFixas(rotulos, cont) {
       return Object.keys(rotulos).filter(function (k) { return cont[k]; })
         .map(function (k) { return '<option value="' + k + '">' + esc(rotulos[k]) + ' (' + cont[k] + ')</option>'; }).join('');
@@ -6781,6 +6801,7 @@
           '<label class="cad-filtro">Área<select id="cadFiltroArea"><option value="">Todas</option>' + opcoes(areas, function (k) { return k; }) + '</select></label>' +
           '<label class="cad-filtro">Confirmação do e-mail<select id="cadFiltroConf"><option value="">Todas</option>' + opcoesFixas(ROTULO_CONFIRMACAO, contConf) + '</select></label>' +
           '<label class="cad-filtro">Liberação administrativa<select id="cadFiltroLib"><option value="">Todas</option>' + opcoesFixas(ROTULO_LIBERACAO, contLib) + '</select></label>' +
+          '<label class="cad-filtro">Origem do cadastro<select id="cadFiltroOrigem"><option value="">Todas</option>' + opcoesFixas(ROTULO_ORIGEM, contOrig) + '</select></label>' +
           '<label class="cad-filtro">Liberado por<select id="cadFiltroPor"><option value="">Qualquer pessoa</option>' + opcoes(porQuem, rotuloPor) + '</select></label>' +
           '<label class="cad-filtro">Contas de teste<select id="cadFiltroTeste">' +
             '<option value="nao-teste">Não marcadas como teste (' + (list.length - nTestes) + ')</option>' +
@@ -6803,6 +6824,8 @@
           '<ul class="cad-ajuda-texto">' +
             '<li><strong>Confirmação do e-mail</strong> (feita pela própria pessoa, pelo link) e <strong>liberação administrativa</strong> (botão "Confirmar cadastro") são mecanismos independentes: basta um deles para a pessoa ter acesso.</li>' +
             '<li>A mesma pessoa pode ter os dois registrados. Um não apaga nem substitui o outro.</li>' +
+            '<li><strong>Origem do cadastro</strong> é quem <em>criou</em> a conta: o administrador ("Criar conta") ou a própria pessoa (autocadastro). <strong>Liberação administrativa</strong> é quem <em>autorizou o acesso</em> — uma pessoa que se cadastrou sozinha pode ter sido liberada depois pelo administrador.</li>' +
+            '<li>Cadastros anteriores a 14/08/2026 não têm marca individual de origem: aparecem como autocadastro porque, até essa data, o formulário de cadastro era o único jeito de criar uma conta ("fluxo anterior a 14/08/2026").</li>' +
             '<li>Contas criadas pelo administrador e cadastros anteriores a 14/08/2026 não precisam confirmar o e-mail ("Não exigida").</li>' +
             '<li>Conta bloqueada não acessa, mesmo com confirmação ou liberação.</li>' +
             '<li>A confirmação aparece aqui quando o site a registra, no acesso seguinte da pessoa: uma confirmação já feita no e-mail pode ainda constar como "Não registrada".</li>' +
@@ -6833,7 +6856,8 @@
        mostra o que identifica a pessoa e a ação do dia a dia; o resto mora no
        menu "⋯", com o nome dela no topo — assim também não se erra de linha
        numa lista de centenas. */
-    tbl.innerHTML = '<thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Área</th><th scope="col">Cadastro em</th>' +
+    tbl.innerHTML = '<thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Área</th>' +
+      '<th scope="col" title="Data do cadastro e quem criou a conta: o administrador ou a própria pessoa (autocadastro). Não é a liberação do acesso.">Cadastro e origem</th>' +
       '<th scope="col" title="Registrada pelo site quando a pessoa entra com o e-mail já confirmado no Firebase. A data é a do registro, não a do clique no link.">Confirmação do <span class="cad-data">e-mail</span></th>' +
       '<th scope="col" title="Ação do administrador (botão Confirmar cadastro ou conta criada no painel). Independente da confirmação do e-mail.">Liberação administrativa</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>';
     const tbody = document.createElement('tbody');
@@ -6869,7 +6893,7 @@
       });
     }
     function filtrosAtivos() {
-      return ['area', 'conf', 'lib', 'por', 'data'].filter(function (k) { return filtros[k]; }).length + (filtros.teste !== PADRAO.teste ? 1 : 0);
+      return ['area', 'conf', 'lib', 'origem', 'por', 'data'].filter(function (k) { return filtros[k]; }).length + (filtros.teste !== PADRAO.teste ? 1 : 0);
     }
     var ROTULO_STATUS = { ativos: 'Ativos', pendentes: 'Pendentes', bloqueados: 'Bloqueados', todos: 'Todos' };
 
@@ -6886,6 +6910,7 @@
         if (filtros.area && String(p.area || '').trim() !== filtros.area) return false;
         if (filtros.conf && p._conf !== filtros.conf) return false;
         if (filtros.lib && p._lib.tipo !== filtros.lib) return false;
+        if (filtros.origem && p._orig.tipo !== filtros.origem) return false;
         if (filtros.por && chavePor(p) !== filtros.por) return false;
         if (!noPeriodo(p)) return false;
         if (!q) return true;
@@ -6955,7 +6980,9 @@
             (p._teste ? ' <span class="admin-badge cad-teste-badge" title="Marcada como conta de teste pelo administrador geral (só identificação: não muda acesso)">Teste</span>' : '') + '</td>' +
           '<td data-label="E-mail" class="cad-col-email"><span class="cad-celula">' + emailCadHtml(p.email) + '</span></td>' +
           '<td data-label="Área">' + esc(p.area || '—') + '</td>' +
-          '<td data-label="Cadastro em"><span class="cad-celula">' + dataHoraCadHtml(p.createdAt) + '</span></td>' +
+          '<td data-label="Cadastro e origem"><span class="cad-celula"><span class="cad-valor">' + dataHoraCadHtml(p.createdAt) + '</span>' +
+            '<span class="cad-sub cad-origem"' + (p._orig.historica ? ' title="Sem marca individual: até 14/08/2026, o formulário de cadastro era o único jeito de criar uma conta."' : '') + '>' +
+            esc(textoOrigem(p._orig)) + '</span></span></td>' +
           '<td data-label="Confirmação do e-mail" class="cad-col-conf"' + (titConf ? ' title="' + esc(titConf) + '"' : '') + '><span class="cad-celula">' + celConfirmou + '</span></td>' +
           '<td data-label="Liberação administrativa" class="cad-col-lib"><span class="cad-celula">' + celLiberado + '</span></td>' +
           '<td data-label="Situação"><span class="cad-situacao">' + statusBadge + emailBadge + '</span></td>' +
@@ -6989,7 +7016,7 @@
 
     /* Busca, filtros adicionais e ordem */
     var CAMPOS = { cadastradosFiltro: 'q', cadFiltroArea: 'area', cadFiltroConf: 'conf', cadFiltroLib: 'lib', cadFiltroPor: 'por',
-                   cadFiltroTeste: 'teste', cadFiltroData: 'data', cadFiltroDe: 'de', cadFiltroAte: 'ate', cadOrdem: 'ordem' };
+                   cadFiltroTeste: 'teste', cadFiltroOrigem: 'origem', cadFiltroData: 'data', cadFiltroDe: 'de', cadFiltroAte: 'ate', cadOrdem: 'ordem' };
     function mostrarIntervalo() {
       var intervalo = filtros.data === 'intervalo';
       document.getElementById('cadFiltroDeRotulo').hidden = !intervalo;
@@ -7029,16 +7056,16 @@
         btn.disabled = false; btn.innerHTML = '&#x1F4CA; Exportar Excel';
         if (erro || !window.XLSX) { aviso('Não foi possível gerar o arquivo agora. Tente de novo.', true); return; }
         /* Mesmas categorias e textos da tabela: o Excel nunca classifica diferente da tela. */
-        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Confirmação registrada em',
+        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Origem do cadastro', 'Confirmação do e-mail', 'Confirmação registrada em',
           'Liberação administrativa', 'Liberado por', 'Situação', 'Conta de teste']].concat(pessoas.map(function (p) {
           var lib = p._lib;
           var libEm = lib.tipo === 'liberado' ? dataHoraCad(lib.quandoIso)
             : lib.tipo === 'criado' ? 'Conta criada pelo admin em ' + dataHoraCad(lib.quandoIso) : ROTULO_LIBERACAO[lib.tipo];
-          return [p.name || '', p.email || '', p.area || '', dataHoraCad(p.createdAt), textoConfirmouEmail(p), textoConfirmacaoEm(p),
+          return [p.name || '', p.email || '', p.area || '', dataHoraCad(p.createdAt), textoOrigem(p._orig), textoConfirmouEmail(p), textoConfirmacaoEm(p),
             libEm, lib.porNome ? quemLiberou(p) : '', rotuloSituacaoCadastro(p._sit), p._teste ? 'Sim' : 'Não'];
         }));
         var ws = window.XLSX.utils.aoa_to_sheet(linhas);
-        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 14 }, { wch: 22 }, { wch: 36 }, { wch: 32 }, { wch: 11 }, { wch: 14 }];
+        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 40 }, { wch: 14 }, { wch: 22 }, { wch: 36 }, { wch: 32 }, { wch: 11 }, { wch: 14 }];
         var wb = window.XLSX.utils.book_new();
         window.XLSX.utils.book_append_sheet(wb, ws, 'Cadastrados');
         var hoje = new Date();
