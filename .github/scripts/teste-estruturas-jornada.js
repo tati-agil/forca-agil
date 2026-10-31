@@ -401,12 +401,14 @@ process.on('uncaughtException', (e) => { console.error('ERRO', e && e.stack || e
     console.log('\n8. Demonstração separada');
     await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa');
-    await p.click('.mfm-fonte[data-fonte="demo"]');
+    /* D2: a interface oficial não oferece a demonstração; ela continua pelo endereço (&fonte=demo) */
+    afirma(await p.locator('.mfm-fonte, [data-fonte="demo"]').count() === 0, 'a interface oficial não oferece o seletor "Demonstração (fictícia)"');
+    await ir(p, '#arquitetura?mf=mapa&fonte=demo');
     await p.waitForSelector('#mfmMapa');
     const demoTxt = await texto(p, '#mfmMapa');
     afirma(/Demonstração/.test(await texto(p, '#mfmFaixa')) && !/CoE de Dados|Plataforma de Nuvem|Linha de Investimentos/.test(demoTxt), 'a demonstração não mostra nenhuma estrutura cadastrada');
     afirma(/fonte=demo/.test(await p.evaluate(() => location.hash)), 'a demonstração tem endereço próprio (&fonte=demo)');
-    await p.click('.mfm-fonte[data-fonte="cadastro"]');
+    await ir(p, '#arquitetura?mf=mapa');
     await p.waitForSelector('#mfmMapa .mfm-caixa');
     const cadTxt = await texto(p, '#mfmMapa');
     afirma(/CoE de Dados/.test(cadTxt) && await p.locator('#mfmMapa .mfm-caixa').count() === 3, 'de volta às cadastradas: só elas, nenhum exemplo fictício');

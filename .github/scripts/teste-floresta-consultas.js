@@ -83,7 +83,7 @@ async function gerarPdf(page, sel) {
         return { grupos: ls.filter((l) => l.classList.contains('mf-grupo-tipo')).map((g) => g.textContent.replace(/\s+/g, ' ').trim()),
           ordemTipos: ls.map((l) => l.classList.contains('mf-grupo-tipo') ? 'G' : (/Responsabilidade/.test(l.textContent) ? 'R' : 'P')).join('') };
       });
-      afirma(grupos.length === 2 && /^Produtos\/Serviços/.test(grupos[0]) && /^Responsabilidades organizacionais/.test(grupos[1]) && /^GP+GR+$/.test(ordemTipos), 'registros separados por tipo: Produtos/Serviços e Responsabilidades organizacionais', { grupos, ordemTipos });
+      afirma(grupos.length === 2 && /^Itens avaliados \(P1–P16\)/.test(grupos[0]) && /^Responsabilidades organizacionais/.test(grupos[1]) && /^GP+GR+$/.test(ordemTipos), 'registros separados por tipo: Itens avaliados (P1–P16) e Responsabilidades organizacionais', { grupos, ordemTipos });
       afirma(await semRolagemLateral(page), 'Trabalhos sem rolagem lateral');
 
       console.log('\n== 3. P1–P16: Capec → ficha → PDF → Voltar ==');
