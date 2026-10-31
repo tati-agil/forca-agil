@@ -6054,7 +6054,10 @@
     var nNos = CADASTRO_NOS_POR_CHAVE.length;
     leituras.push(firebase.database().ref('pedidos').once('value'));
     leituras.push(firebase.database().ref('holocron').once('value'));
-    leituras.push(firebase.database().ref('fa-contas-teste/' + eKeyAntigo).once('value'));
+    /* Conta de teste: a leitura NUNCA derruba a correção (o login já foi trocado quando isto roda) — falhou, segue sem
+       a marca e avisa. */
+    leituras.push(firebase.database().ref('fa-contas-teste/' + eKeyAntigo).once('value')
+      .then(function (s) { return { ok: true, val: s.val() }; }, function () { return { ok: false, val: null }; }));
 
     Promise.all(leituras).then(function (snaps) {
       var updates = {};
@@ -6123,18 +6126,6 @@
         registrosMovidos: movidos
       };
 
-      /* Conta de teste: a identificação acompanha a pessoa (chave nova marcada; a antiga fica desmarcada, apontando
-         para a nova — nada se apaga), com o evento "mover" na auditoria, nesta mesma gravação. */
-      var marca = snaps[nNos + 2].val();
-      if (marca && marca.marcada === true) {
-        var usuario = firebase.auth().currentUser, por = usuario && usuario.email, TS = firebase.database.ServerValue.TIMESTAMP;
-        var idMover = firebase.database().ref('fa-contas-teste-auditoria').push().key;
-        updates['fa-contas-teste/' + eKeyNovo] = { marcada: true, email: emailNovo, por: por, em: TS, auditoria: idMover };
-        updates['fa-contas-teste/' + eKeyAntigo] = { marcada: false, email: emailAntigo, por: por, em: TS, auditoria: idMover, movidoPara: eKeyNovo };
-        updates['fa-contas-teste-auditoria/' + idMover] = { acao: 'mover', chave: eKeyNovo, chaveAnterior: eKeyAntigo,
-          email: emailNovo, emailAnterior: emailAntigo, por: por, em: TS };
-      }
-
       firebase.database().ref().update(updates, function (err) {
         if (err) {
           cbErro('O login já foi trocado para ' + emailNovo + ', mas os dados NÃO foram movidos.\n\n' +
@@ -6142,8 +6133,27 @@
             'Abra este cadastro de novo e salve outra vez para completar a mudança.');
           return;
         }
-        cbOk(movidos);
+        transferirMarcaDeTeste(snaps[nNos + 2], function (aviso) { cbOk(movidos, aviso); });
       });
+
+      /* Conta de teste: SÓ DEPOIS de os dados estarem na chave nova, numa gravação própria — a marca é identificação
+         visual e nunca pode impedir a mudança dos dados. Chave nova marcada; a antiga desmarcada apontando para a nova
+         (nada se apaga); evento "mover" na auditoria. Falhou: os dados já foram, e a admin é avisada para marcar de novo. */
+      function transferirMarcaDeTeste(lida, cb) {
+        if (!lida.ok) { cb('Não foi possível ler a marcação de conta de teste deste cadastro. Se ele era uma conta de teste, marque de novo pelo menu ⋯.'); return; }
+        var marca = lida.val;
+        if (!marca || marca.marcada !== true) { cb(''); return; }
+        var usuario = firebase.auth().currentUser, por = usuario && usuario.email, TS = firebase.database.ServerValue.TIMESTAMP;
+        var idMover = firebase.database().ref('fa-contas-teste-auditoria').push().key;
+        var m = {};
+        m['fa-contas-teste/' + eKeyNovo] = { marcada: true, email: emailNovo, por: por, em: TS, auditoria: idMover };
+        m['fa-contas-teste/' + eKeyAntigo] = { marcada: false, email: emailAntigo, por: por, em: TS, auditoria: idMover, movidoPara: eKeyNovo };
+        m['fa-contas-teste-auditoria/' + idMover] = { acao: 'mover', chave: eKeyNovo, chaveAnterior: eKeyAntigo,
+          email: emailNovo, emailAnterior: emailAntigo, por: por, em: TS };
+        firebase.database().ref().update(m, function (errMarca) {
+          cb(errMarca ? 'A marcação de conta de teste não foi transferida para o e-mail novo (os dados da pessoa foram movidos normalmente). Marque de novo pelo menu ⋯.' : '');
+        });
+      }
     }).catch(function () {
       cbErro('O login já foi trocado para ' + emailNovo + ', mas não consegui ler os dados para movê-los.\n\n' +
         'Abra este cadastro de novo e salve outra vez para completar a mudança.');
@@ -6516,11 +6526,11 @@
              a pessoa entra e não encontra a própria turma. */
           moverDadosDePessoa(eKey, emailKey(emailNovo), nome, area, emailAntigo, emailNovo,
             falhou,
-            function (movidos) {
+            function (movidos, avisoMarca) {
               closeModal();
               adminAlert('E-mail corrigido para ' + emailNovo + '.\n\n' +
                 movidos + (movidos === 1 ? ' registro foi movido' : ' registros foram movidos') +
-                ' para a chave nova. A senha continua a padrão 12345678.');
+                ' para a chave nova. A senha continua a padrão 12345678.' + (avisoMarca ? '\n\n' + avisoMarca : ''));
               loadCadastrados();
             });
         }

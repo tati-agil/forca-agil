@@ -169,7 +169,7 @@
       importante: [
         'Ações que mudam a situação de alguém pedem confirmação e ficam registradas (quem fez e quando).',
         'Check-in é aberto pelo admin para um dia; a presença registrada alimenta a frequência e o certificado.',
-        'Conta de teste (Cadastrados, menu ⋯, só administração geral): é só uma identificação na lista — selo "Teste", filtro "Contas de teste" e coluna no Excel. A lista começa sem as contas marcadas e avisa quantas não aparecem, com "Mostrar todas". Marcar ou desmarcar não muda login, senha, acesso, permissões, situação, inscrições nem históricos, e fica registrado quem fez e quando. Na correção de e-mail, a marca vai junto.',
+        'Conta de teste (Cadastrados, menu ⋯, só administração geral): é só uma identificação na lista — selo "Teste", filtro "Contas de teste" e coluna no Excel. A lista começa sem as contas marcadas e avisa quantas não aparecem, com "Mostrar todas". Marcar ou desmarcar não muda login, senha, acesso, permissões, situação, inscrições nem históricos, e fica registrado quem fez e quando. Na correção de e-mail, a marca vai junto depois de os dados mudarem; se não der, o painel avisa para marcar de novo — a marca nunca impede a correção.',
         'Se a tela deixa editar, ela também salva: uma gravação recusada aparece como erro, nunca em silêncio.',
         'O que só uma pessoa consegue conferir depois de publicar está no checklist pós-deploy do repositório (docs/checklist-pos-deploy.md).',
       ],

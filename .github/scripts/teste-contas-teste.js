@@ -14,8 +14,11 @@
  *   4. marcar e desmarcar pelo menu ⋯: UMA gravação com exatamente dois caminhos (a marca e o evento de auditoria), com
  *      autoria e horário do servidor — nada em fa-users nem em qualquer outro nó;
  *   5. sem conseguir ler a marcação: a lista inteira aparece, com aviso, e o menu não oferece marcar;
- *   6. correção de e-mail: a marca acompanha a pessoa na mesma gravação (chave nova marcada, antiga desmarcada com
- *      movidoPara, evento "mover");
+ *   6. correção de e-mail (a marca NUNCA impede a mudança dos dados — o login já foi trocado quando eles mudam de
+ *      chave): sem marca, nada de marcação é gravado; com marca, os dados mudam e DEPOIS a marca (nova marcada, antiga
+ *      desmarcada com movidoPara, evento "mover"); leitura ou gravação da marca recusada: os dados mudam mesmo assim e
+ *      a admin é avisada; em todos, a admin termina ela mesma, a senha da conta não muda e nada é gravado em outra
+ *      pessoa nem em nó de permissão;
  *   7. nenhum código fora do ADMIN lê fa-contas-teste; padrão visual; sem rolagem lateral; nenhum erro de JavaScript.
  */
 const { chromium, devices } = require('playwright');
@@ -32,6 +35,14 @@ const ADM = 'adm.exemplo@previ.com.br', SENHA_ADM = 'senhaDaAdmin';
 const e = (n) => n + '.exemplo@previ.com.br';
 const T1 = e('teste.um'), T2 = e('teste.dois'), R1 = e('real.um'), R2 = e('real.dois'), DESM = e('desmarcada'), DIVERGE = e('diverge');
 const ERRADO = 'testetypo.exemplo@previ.com.br', CERTO = 'testecerto.exemplo@previ.com.br';
+const SEMMARCA = 'semmarca.exemplo@previ.com.br', CERTO2 = 'semmarca.certo.exemplo@previ.com.br';
+/* para os cenários de correção: mais uma conta criada pelo painel, sem marca */
+function bancoCorrecao() {
+  const b = banco();
+  b['fa-users'][chave(SEMMARCA)] = { email: SEMMARCA, name: 'PESSOA SEM MARCA', area: 'GECAT', createdAt: '2026-09-01T12:00:00.000Z', adminApproved: true, createdByAdmin: ADM };
+  return b;
+}
+function senhasCorrecao() { const s = {}; s[ADM] = SENHA_ADM; s[ERRADO] = '12345678'; s[SEMMARCA] = '12345678'; return s; }
 
 function banco() {
   const u = {}, m = {};
@@ -243,31 +254,68 @@ const FORMATOS = [
       await ctx.close();
     }
 
-    /* 6. correção de e-mail: a marca acompanha a pessoa */
-    {
-      const p = [];
-      const { ctx, page, erros } = await abrir(browser, f.opts);
+    /* 6. correção de e-mail × marca de teste: a marca nunca impede a mudança dos dados (o login já foi trocado quando
+       os dados mudam de chave) — sem marca, com marca, leitura da marca recusada e gravação da marca recusada */
+    async function corrigir(cfgExtra, de, para) {
+      const { ctx, page, erros } = await abrir(browser, f.opts, Object.assign({ db: bancoCorrecao(), senhas: senhasCorrecao() }, cfgExtra));
       await page.click('#cadMostrarTodas');
-      await page.evaluate((mail) => { const tr = Array.from(document.querySelectorAll('#adminCadastrados tbody tr')).find((x) => x.textContent.indexOf(mail) !== -1); tr.querySelector('.admin-edit-cad-btn').click(); }, ERRADO);
+      await page.evaluate((mail) => { const tr = Array.from(document.querySelectorAll('#adminCadastrados tbody tr')).find((x) => x.querySelector('td[data-label="E-mail"]').textContent.trim() === mail); tr.querySelector('.admin-edit-cad-btn').click(); }, de);
       await page.waitForSelector('#cadEditNome', { timeout: 10000 });
       await page.waitForFunction(() => { const b = document.querySelector('.modal-box .admin-modal-save-btn'); return b && !b.disabled; }, null, { timeout: 10000 });
-      await page.fill('#cadEditEmail', CERTO);
+      await page.fill('#cadEditEmail', para);
       await page.fill('#cadEditAdminPwd', SENHA_ADM);
       await page.evaluate(() => { window.__ESCRITAS = []; document.querySelector('.modal-box .admin-modal-save-btn').click(); });
       await page.waitForSelector('.admin-modal-confirm-btn', { timeout: 10000 });
       await page.click('.admin-modal-confirm-btn');
       await page.waitForFunction(() => Array.from(document.querySelectorAll('.modal-box')).some((b) => /E-mail corrigido para/.test(b.textContent)) || ((document.querySelector('#cadEditErr') || {}).textContent || '').trim(), null, { timeout: 20000 });
-      const esc = await page.evaluate(() => (window.__ESCRITAS || []).map((x) => ({ path: x.path, valor: x.valor })));
-      const kA = chave(ERRADO), kN = chave(CERTO);
-      const nova = esc.find((x) => x.path === 'fa-contas-teste/' + kN), antiga = esc.find((x) => x.path === 'fa-contas-teste/' + kA);
-      const ev = esc.find((x) => /^fa-contas-teste-auditoria\//.test(x.path));
-      if (!nova || nova.valor.marcada !== true || nova.valor.email !== CERTO) p.push('chave nova: ' + JSON.stringify(nova && nova.valor));
-      if (!antiga || antiga.valor.marcada !== false || antiga.valor.movidoPara !== kN) p.push('chave antiga: ' + JSON.stringify(antiga && antiga.valor));
-      if (!ev || ev.valor.acao !== 'mover' || ev.valor.chave !== kN || ev.valor.chaveAnterior !== kA || nova.valor.auditoria !== ev.path.split('/')[1] || antiga.valor.auditoria !== ev.path.split('/')[1]) p.push('evento: ' + JSON.stringify(ev && ev.valor));
-      if (!esc.some((x) => x.path === 'fa-users/' + kN) || !esc.some((x) => x.path === 'fa-users/' + kA && x.valor === null)) p.push('a correção em si não aconteceu na mesma gravação');
-      if (erros.length) p.push('erro JS: ' + erros[0]);
-      registrar(f.nome + ': correção de e-mail leva a marca junto (nova marcada, antiga desmarcada com movidoPara, evento "mover"), na mesma gravação', p);
+      await page.waitForTimeout(300);
+      const r = await page.evaluate(() => ({
+        esc: (window.__ESCRITAS || []).map((x) => ({ path: x.path, valor: x.valor })),
+        alerta: (Array.from(document.querySelectorAll('.modal-box')).find((b) => /E-mail corrigido para/.test(b.textContent)) || {}).textContent || '',
+        erro: ((document.querySelector('#cadEditErr') || {}).textContent || '').trim(),
+        logada: (firebase.auth().currentUser || {}).email || null,
+        senhas: window.__CFG.senhas }));
       await ctx.close();
+      /* 5. preservação: dados movidos; admin continua ela mesma; a senha da conta corrigida é a mesma (só o login mudou
+         de e-mail) e a da admin intacta; nenhuma gravação na chave de outra pessoa nem em nó de permissão */
+      const kA = chave(de), kN = chave(para), outros = TODOS.concat([SEMMARCA]).filter((x) => x !== de).map(chave);
+      const p = [];
+      if (r.erro) p.push('erro: ' + r.erro.split('\n')[0]);
+      if (!r.esc.some((x) => x.path === 'fa-users/' + kN && x.valor && x.valor.email === para) || !r.esc.some((x) => x.path === 'fa-users/' + kA && x.valor === null)) p.push('os dados não mudaram de chave');
+      if (r.logada !== ADM) p.push('terminou logada como ' + r.logada);
+      if (r.senhas[para] !== '12345678' || r.senhas[de] !== undefined || r.senhas[ADM] !== SENHA_ADM) p.push('senhas: ' + JSON.stringify(r.senhas));
+      const indevidas = r.esc.filter((x) => outros.some((k) => x.path.split('/').includes(k)) || /^fa-(admins|diretores|gerentes|facilitadores|avaliacao-autorizados)\//.test(x.path));
+      if (indevidas.length) p.push('gravou fora da pessoa: ' + indevidas.map((x) => x.path).join(', '));
+      return Object.assign(r, { kA, kN, p });
+    }
+    {
+      const r = await corrigir({}, SEMMARCA, CERTO2);
+      if (r.esc.some((x) => /^fa-contas-teste/.test(x.path))) r.p.push('gravou marcação numa conta sem marca: ' + r.esc.filter((x) => /^fa-contas-teste/.test(x.path)).map((x) => x.path).join(', '));
+      if (/marcação/.test(r.alerta)) r.p.push('aviso de marcação sem motivo: ' + r.alerta);
+      registrar(f.nome + ': correção de conta SEM marca — dados movidos, nenhuma gravação de marcação, login/senha/permissões preservados', r.p);
+    }
+    {
+      const r = await corrigir({}, ERRADO, CERTO);
+      const nova = r.esc.find((x) => x.path === 'fa-contas-teste/' + r.kN), antiga = r.esc.find((x) => x.path === 'fa-contas-teste/' + r.kA);
+      const ev = r.esc.find((x) => /^fa-contas-teste-auditoria\//.test(x.path));
+      if (!nova || nova.valor.marcada !== true || nova.valor.email !== CERTO) r.p.push('chave nova: ' + JSON.stringify(nova && nova.valor));
+      if (!antiga || antiga.valor.marcada !== false || antiga.valor.movidoPara !== r.kN) r.p.push('chave antiga: ' + JSON.stringify(antiga && antiga.valor));
+      if (!ev || ev.valor.acao !== 'mover' || ev.valor.chave !== r.kN || ev.valor.chaveAnterior !== r.kA || nova.valor.auditoria !== ev.path.split('/')[1] || antiga.valor.auditoria !== ev.path.split('/')[1]) r.p.push('evento: ' + JSON.stringify(ev && ev.valor));
+      const iDados = r.esc.findIndex((x) => x.path === 'fa-users/' + r.kN), iMarca = r.esc.findIndex((x) => /^fa-contas-teste/.test(x.path));
+      if (!(iDados >= 0 && iMarca > iDados)) r.p.push('a marca não foi gravada DEPOIS dos dados');
+      if (/marcação/.test(r.alerta)) r.p.push('aviso indevido: ' + r.alerta);
+      registrar(f.nome + ': correção de conta MARCADA — dados movidos e, depois, a marca (nova marcada, antiga desmarcada com movidoPara, evento "mover")', r.p);
+    }
+    {
+      const r = await corrigir({ fail: ['fa-contas-teste/' + chave(ERRADO)] }, ERRADO, CERTO);
+      if (r.esc.some((x) => /^fa-contas-teste/.test(x.path))) r.p.push('gravou marcação sem tê-la lido');
+      if (!/Não foi possível ler a marcação de conta de teste/.test(r.alerta)) r.p.push('sem aviso à admin: ' + (r.alerta || '(nenhum alerta)'));
+      registrar(f.nome + ': leitura da marca RECUSADA na correção — os dados mudam mesmo assim, e a admin é avisada para marcar de novo', r.p);
+    }
+    {
+      const r = await corrigir({ fail: ['fa-contas-teste-auditoria'] }, ERRADO, CERTO);
+      if (!/não foi transferida para o e-mail novo/.test(r.alerta)) r.p.push('sem aviso à admin: ' + (r.alerta || '(nenhum alerta)'));
+      registrar(f.nome + ': gravação da marca RECUSADA depois do login já trocado — os dados mudam mesmo assim, e a admin é avisada', r.p);
     }
   }
 

@@ -80,12 +80,15 @@ async function main() {
   await pode('P5 marca de novo', grava(ADMIN, gravacao(ADMIN, TESTE, true, 'marcar')));
   anota('I1 nada mudou em fa-users', JSON.stringify(await ler('fa-users')) === usuariosAntes);
   {
-    const id = 'ev' + (++seq), kN = emailKey(NOVO), cad = cadastro(NOVO), u = {};
-    u['fa-users/' + kT] = null; u['fa-users/' + kN] = Object.assign(cad, { emailCorrigidoDe: TESTE });
+    /* como admin.js faz: primeiro os dados mudam de chave (gravação da correção, sem a marca); DEPOIS, numa gravação
+       própria, a marca — que nunca pode impedir a mudança dos dados */
+    const id = 'ev' + (++seq), kN = emailKey(NOVO), cad = cadastro(NOVO), dados = {}, u = {};
+    dados['fa-users/' + kT] = null; dados['fa-users/' + kN] = Object.assign(cad, { emailCorrigidoDe: TESTE });
+    await pode('P6a correção de e-mail: os dados mudam de chave sem tocar na marcação', db(ADMIN, true).ref().update(dados));
     u['fa-contas-teste/' + kN] = { marcada: true, email: NOVO, por: ADMIN, em: TS, auditoria: id };
     u['fa-contas-teste/' + kT] = { marcada: false, email: TESTE, por: ADMIN, em: TS, auditoria: id, movidoPara: kN };
     u['fa-contas-teste-auditoria/' + id] = { acao: 'mover', chave: kN, chaveAnterior: kT, email: NOVO, emailAnterior: TESTE, por: ADMIN, em: TS };
-    await pode('P6 correção de e-mail: a marca muda de chave junto com o cadastro (evento "mover")', db(ADMIN, true).ref().update(u));
+    await pode('P6 depois, a marca muda de chave numa gravação própria (evento "mover")', db(ADMIN, true).ref().update(u));
     const n = await ler('fa-contas-teste/' + kN), a = await ler('fa-contas-teste/' + kT);
     anota('P7 nova marcada; antiga desmarcada apontando para a nova', n && n.marcada === true && a && a.marcada === false && a.movidoPara === kN, JSON.stringify({ n, a }));
   }
