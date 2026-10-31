@@ -20,7 +20,7 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.j
 let falhas = 0;
 function afirma(c, msg, det) { console.log((c ? '  ok    ' : '  FALHA ') + msg + (!c && det !== undefined ? ' → ' + (typeof det === 'string' ? det : JSON.stringify(det)) : '')); if (!c) falhas++; }
 
-/* [endereço, seletor que mostra a tela pronta] */
+/* [endereço, seletor que mostra a tela pronta, escopo verificado (padrão: #page-avaliacoes)] */
 const TELAS = [
   ['#arquitetura', '#avpInicioCartaoSquad'],
   ['#arquitetura?tr=1', '#mfItens'],
@@ -37,7 +37,9 @@ const TELAS = [
   ['#arquitetura?mf=mapa', '.mfm-painel'],
   /* avaliação guiada (v22): uma pergunta e a revisão (rascunhos semeados abaixo) */
   ['#arquitetura?editar=gRasc', '#avpGuiadaCartao'],
-  ['#arquitetura?editar=gRev', '#avpGuiadaRevisao']
+  ['#arquitetura?editar=gRev', '#avpGuiadaRevisao'],
+  /* cabeçalho do ADMIN: a nota com o link "A FLORESTA › Gestão da Floresta" (link textual fora da cor do navegador) */
+  ['#admin', '#adminNotaFloresta a', '#adminNotaFloresta']
 ];
 
 async function abrir(browser, vp, hash) {
@@ -106,11 +108,11 @@ const pronta = (page, sel) => esperarCondicao(page, (s) => { const e = document.
 
     for (const [nome, vp] of [['desktop', { width: 1280, height: 900 }], ['375 px', { width: 375, height: 812 }]]) {
       console.log('\n== 2. Telas de A FLORESTA — ' + nome + ' ==');
-      for (const [hash, sel] of TELAS) {
+      for (const [hash, sel, escopo] of TELAS) {
         const { ctx, page, erros } = await abrir(browser, vp, hash);
         await pronta(page, sel);
         await page.waitForTimeout(400);
-        const ps = await verificarTela(page, { largura: vp.width });
+        const ps = await verificarTela(page, escopo ? { largura: vp.width, escopo: escopo } : { largura: vp.width });
         afirma(ps.length === 0 && erros.length === 0, hash + ': conforme o Padrão Visual', ps.concat(erros.map((e) => ({ regra: 'erro-js', detalhe: e }))));
         await ctx.close();
       }

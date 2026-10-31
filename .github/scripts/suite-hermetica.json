@@ -30,7 +30,8 @@
     ".github/scripts/teste-rules-relacoes-objetos.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-versao-vigente.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-reconciliar-versao-vigente.js": "reconciliação do índice: aplicação no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-squad-exclusao.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-squad-exclusao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-email-confirmado.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -350,6 +351,12 @@
       "nome": "Editar cadastro chega em todo lugar (desktop e iPhone)",
       "duracao": 9,
       "sobre": "Hermético. Prova que corrigir um cadastro chega em TODAS as cópias do nome/área (inscrição, presença, fila, listas, equipe) — e não só em fa-users, que é a versão da feature que passaria despercebida."
+    },
+    {
+      "arquivo": ".github/scripts/teste-cadastrados-pendentes.js",
+      "nome": "Cadastrados: Pendentes, confirmação do e-mail e liberação (desktop e 375 px)",
+      "duracao": 60,
+      "sobre": "Hermético. O selo Pendente ignorava quem confirmou pelo link do e-mail (a confirmação só existia no Firebase Auth). Prova o critério único da tela, das contagens, do menu ⋯ e do Excel, e a anotação da confirmação no login: uma vez, só com o e-mail confirmado, nunca para bloqueada ou sem cadastro."
     },
     {
       "arquivo": ".github/scripts/teste-acoes-cadastrado.js",
