@@ -111,8 +111,10 @@ async function main() {
   await pode('P11 apagar um cadastro (admin)', db(ADMIN, true).ref(u(e('e-mail corrigido'))).remove());
   await pode('P12 admin edita o próprio cadastro', db(ADMIN, true).ref(u(ADMIN) + '/name').set('ADMIN RENOMEADO'));
   const ESPECIAIS = { 'hífen': 'maria-silva@previ.com.br', '+': 'ana+turma@previ.com.br', 'apóstrofo': "joao.d'avila@previ.com.br",
-    'aspas': 'a"b@previ.com.br', 'barra invertida': 'a\\b@previ.com.br', '# e $': 'a#b$c@previ.com.br', 'colchetes e /': 'a[b]/c@previ.com.br',
+    'aspas': 'aspas"x@previ.com.br', 'barra invertida': 'barra\\y@previ.com.br', '# e $': 'cerq#d$z@previ.com.br', 'colchetes e /': 'colch[e]/w@previ.com.br',
     '64 caracteres': 'c'.repeat(51) + '@previ.com.br', 'mais de 64': 'd'.repeat(70) + '@previ.com.br' };
+  /* chaves distintas entre si: dois e-mails com a mesma chave são uma COLISÃO, e a regra recusa a segunda (N13) */
+  anota('P13 os e-mails especiais têm chaves distintas', new Set(Object.values(ESPECIAIS).map(emailKey)).size === Object.keys(ESPECIAIS).length);
   for (const n of Object.keys(ESPECIAIS)) {
     const em = ESPECIAIS[n];
     await pode('P13 e-mail com ' + n + ': cria o próprio na chave da emailKey (' + emailKey(em).length + ')', db(em, false).ref(u(em)).set(publico(em)));
