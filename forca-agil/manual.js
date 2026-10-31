@@ -52,11 +52,12 @@
         'Cadastro só com e-mail @previ.com.br. Quem se cadastra recebe um e-mail de verificação e só entra depois de confirmar; conta criada pelo admin já entra liberada.',
         'Criar conta para colaboradora (Cadastrados) pede a sua senha de admin antes de começar: com a senha errada, nada é criado. O cadastro só é gravado depois que o site volta para a sua sessão. Se algo falhar no meio, a mensagem diz que a conta ficou incompleta (existe o login, não o cadastro): não crie de novo — a pessoa entra com a senha padrão, confirma o e-mail e completa o cadastro.',
         'Quem tem login mas não tem cadastro no site não entra nos módulos: com o e-mail ainda não confirmado, vê o pedido de confirmação; com o e-mail confirmado, vê só "Complete seu cadastro" (nome e área) e depois passa pelas verificações de sempre.',
+        'Cadastros (fa-users) são protegidos pelo banco: só a administração geral muda ou apaga um cadastro (bloquear, liberar, editar, corrigir e-mail). Cada pessoa só cria o próprio cadastro e não consegue se liberar, se desbloquear nem apagar o próprio registro. E-mail com acento é cadastrado pela administração (Criar conta).',
         '"Ainda não sei" não é "não tem acesso": enquanto a inscrição, a lista de admins ou o acesso à Avaliação ainda estão chegando (rede lenta da sala), o site espera em vez de expulsar a pessoa.',
         'O site nunca fica com a tela preta: enquanto espera mostra "Carregando…", e se a sessão travar recarrega uma vez e pede para entrar de novo.',
       ],
       fonte: ['auth.js e router.js (quem acessa cada página)', 'database.rules.json (quem lê e grava cada dado)'],
-      prova: ['teste-tela-preta.js', 'teste-rolagem-decisao-tardia.js', 'teste-checagens-interface.js', 'teste-seguranca-fa-users-1a.js'] },
+      prova: ['teste-tela-preta.js', 'teste-rolagem-decisao-tardia.js', 'teste-checagens-interface.js', 'teste-seguranca-fa-users-1a.js', 'teste-rules-fa-users.js'] },
 
     { id: 'turmas', titulo: 'Turmas, interesse e lista de espera',
       oque: 'A vitrine de eventos e turmas, o interesse da pessoa, a lista de espera e a inscrição confirmada.',
