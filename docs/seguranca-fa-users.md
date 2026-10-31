@@ -32,19 +32,38 @@ Antes disso, o código precisa parar de fazer a única gravação legítima que 
   - `teste-seguranca-fa-users-1a.js` (suíte hermética, desktop e 375 px);
   - `teste-rules-fa-users-compat.js` (emulador, com as regras do repositório).
 
+A 1-A foi publicada em 31/10/2026 (merge `04cbd2d`).
+
 ## PR 1-B — só regras (depois da 1-A publicada)
 
-- `database.rules.json` e `database.rules.min.json`, só em `fa-users/$userKey`:
-  - `.write`: admin geral, **ou** a própria chave com `newData.exists()`. A exclusão fica barrada aqui, porque o `.validate` não roda quando o nó é apagado.
-  - `.validate`, para quem não é admin:
-    - **criação:** só os campos públicos, com `emailVerificationRequired === true` e `email` igual ao do login;
-    - **alteração:** os demais campos ficam com o valor anterior;
-    - **campo desconhecido:** só admin.
-- Herança: a raiz e `fa-users` não concedem gravação, então a única permissão é a de `$userKey`.
-- **Testes no emulador:**
-  - positivos e negativos de cada fluxo, inclusive cadastro alheio, exclusão, campos administrativos e criação na chave de outra pessoa;
-  - `teste-rules-fa-users-compat.js` rodando sem mudança contra as regras novas;
-  - `teste-rules-email-confirmado.js` atualizado para a nova ordem de criação.
+Só o nó `fa-users` muda, e só a **gravação**: as regras de leitura, a autenticação, as senhas e os dados ficam como
+estão. O nó é gerado por `.github/scripts/montar-regras-fa-users.js` (não editar à mão).
+
+- `fa-users/$userKey/.write`: a própria chave com `newData.exists()`, **ou** o admin geral. A exclusão fica barrada
+  aqui, porque o `.validate` não roda quando o nó é apagado.
+- `.validate`, para quem não é admin:
+  - **criação:** chave vazia, só os campos públicos, `emailVerificationRequired === true` e `email` igual ao do login;
+  - **alteração:** o cadastro precisa ser da pessoa (`email` gravado = o do login) e nenhum campo conhecido muda —
+    públicos e administrativos (`blocked`, `adminApproved`, `approvedAt`, `approvedByAdmin`, `approvedByAdminName`,
+    `createdByAdmin`, `cadastroCompletadoEm`, `cadastroCompletadoPorAdmin`, `emailCorrigidoDe`), inclusive apagar.
+    Sobra só a anotação `emailConfirmado`/`emailConfirmadoEm`, com a regra própria, mantida sem mudança;
+  - **campo desconhecido** (`$outro`): só o admin acrescenta ou muda.
+- **A chave da própria pessoa** reproduz a `emailKey()` do site: minúsculas; `@` e `.` viram `_`; os 30 caracteres
+  imprimíveis ASCII restantes que não são `[a-z0-9_]` são removidos um a um; o corte em 64 é conferido com `beginsWith`.
+  As regras não têm "remover qualquer caractere" nem corte de texto, então a equivalência é **exata para todo e-mail de
+  caracteres imprimíveis ASCII**. E-mail com acento ou de outro alfabeto: a própria pessoa não grava e o admin cadastra
+  (decisão da dona, 31/10/2026). Em 31/10/2026: 0 cadastros e 0 logins precisam de tratamento especial, 0 colisões.
+- **Colisão** (e-mails diferentes, mesma chave, ex. `a-b@` e `ab@`): a chave sozinha nunca dá posse — criar exige a
+  chave vazia e alterar exige o e-mail gravado igual ao do login.
+- Os outros usos da chave nas regras (derivação simplificada: troca `@` e `.` por `_`, sem remover outros caracteres)
+  ficam como estão; fora desta PR.
+- **Testes:**
+  - `teste-rules-fa-users.js` (emulador): regressão por tipo de conta (admins, avaliação, arquitetura, diretor,
+    gerente, facilitadora, conta antiga, confirmada, liberada, criada pelo admin, bloqueada); os fluxos legítimos; as
+    gravações indevidas (terceiros, autoliberação, desbloqueio, exclusão, campos administrativos, campo privilegiado na
+    criação, chave alheia, colisão, acento), por campo, por update, por multipath da raiz e regravando o cadastro;
+  - `teste-rules-fa-users-compat.js` e `teste-rules-email-confirmado.js`, sem mudança, contra as regras novas;
+  - `teste-regras-fa-users-chave.js` (hermético): a chave das regras = `emailKey()` em mais de 30 mil e-mails.
 
 ## Ordem obrigatória de implantação
 
