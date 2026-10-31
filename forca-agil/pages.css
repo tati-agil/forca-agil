@@ -835,6 +835,23 @@
 #adminCadastrados .cad-filtro select:focus-visible,
 #adminCadastrados .cad-filtro input[type="date"]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; border-color: var(--cyan); }
 #adminCadastrados .cad-resultado { margin: 0; flex: 1 1 auto; color: var(--ink-2); font-size: .86rem; }
+/* "Como ler esta lista": acesso complementar (padrão visual §3-A: ciano claro, sublinhado no hover, nunca a cor do
+   navegador). Fechada, fica ao lado do contador; aberta, ocupa a linha inteira logo abaixo. */
+#adminCadastrados .cad-ajuda > summary {
+  cursor: pointer; color: var(--cyan-soft, #7af0e8); font-size: .86rem; list-style: none;
+  text-underline-offset: 2px; border-radius: 2px;
+}
+#adminCadastrados .cad-ajuda > summary::-webkit-details-marker { display: none; }
+#adminCadastrados .cad-ajuda > summary::before { content: "ⓘ "; }
+#adminCadastrados .cad-ajuda > summary:hover { text-decoration: underline; }
+#adminCadastrados .cad-ajuda > summary:focus-visible { outline: 2px solid var(--cyan-soft, #7af0e8); outline-offset: 2px; }
+#adminCadastrados .cad-ajuda[open] { flex-basis: 100%; order: 5; }
+#adminCadastrados .cad-ajuda-texto {
+  margin: 8px 0 0; padding: 12px 14px 12px 30px; display: grid; gap: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--ink-2); font-size: var(--arq-fs-texto); line-height: 1.5;
+}
+#adminCadastrados .cad-ajuda-texto strong { color: var(--ink); font-weight: 600; }
 #adminCadastrados .cad-ordem { flex-direction: row; align-items: center; gap: 8px; }
 #adminCadastrados .cad-ordem select { width: auto; }
 

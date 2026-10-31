@@ -6514,10 +6514,11 @@
   }
   var ROTULO_CONFIRMACAO = { confirmado: 'Sim', 'sem-registro': 'Não registrada', 'nao-exigida': 'Não exigida' };
   function textoConfirmouEmail(p) { return ROTULO_CONFIRMACAO[confirmacaoCadastro(p)]; }
-  /* Data da confirmação para o Excel: a do registro pelo site; "data não registrada" na anotação única. */
+  /* Data da confirmação para o Excel: a do registro pelo site; "data exata não registrada" na anotação única (a
+     confirmação existe, a data do clique não — nunca se põe uma data no lugar). */
   function textoConfirmacaoEm(p) {
     if (confirmacaoCadastro(p) !== 'confirmado') return '';
-    return p.emailConfirmadoEm ? dataHoraCad(p.emailConfirmadoEm) : 'data não registrada';
+    return p.emailConfirmadoEm ? dataHoraCad(p.emailConfirmadoEm) : 'data exata não registrada';
   }
 
   /* Liberação administrativa — quatro categorias que os campos distinguem com segurança (célula, filtro e Excel):
@@ -6532,7 +6533,7 @@
     return 'nenhuma';
   }
   var ROTULO_LIBERACAO = { liberado: 'Liberado pelo admin', criado: 'Conta criada pelo admin',
-    antiga: 'Liberação antiga, sem data nem autor', nenhuma: 'Sem liberação do admin' };
+    antiga: 'Liberação antiga, sem data nem autor', nenhuma: 'Nenhuma' };
   function liberacaoCadastro(p) {
     var t = liberacaoTipo(p);
     return {
@@ -6717,6 +6718,19 @@
       '</details>' +
       '<div class="cad-filtros-linha cad-resultado-linha">' +
         '<p class="cad-resultado" id="cadastradosResultado" aria-live="polite"></p>' +
+        /* Uma explicação só, para a lista inteira — nenhuma linha repete isto. Confirmação do e-mail e liberação
+           administrativa são registros independentes (auth.js: entra quem tem o e-mail confirmado no Firebase Auth OU
+           adminApproved; bloqueio barra sempre), e a tela não pode sugerir qual deles deu o acesso. */
+        '<details class="cad-ajuda" id="cadAjuda"><summary>Como ler esta lista</summary>' +
+          '<ul class="cad-ajuda-texto">' +
+            '<li><strong>Confirmação do e-mail</strong> (feita pela própria pessoa, pelo link) e <strong>liberação administrativa</strong> (botão "Confirmar cadastro") são mecanismos independentes: basta um deles para a pessoa ter acesso.</li>' +
+            '<li>A mesma pessoa pode ter os dois registrados. Um não apaga nem substitui o outro.</li>' +
+            '<li>Contas criadas pelo administrador e cadastros anteriores a 14/08/2026 não precisam confirmar o e-mail ("Não exigida").</li>' +
+            '<li>Conta bloqueada não acessa, mesmo com confirmação ou liberação.</li>' +
+            '<li>A confirmação aparece aqui quando o site a registra, no acesso seguinte da pessoa: uma confirmação já feita no e-mail pode ainda constar como "Não registrada".</li>' +
+            '<li>Sem datas suficientes, não é possível saber qual dos dois mecanismos permitiu o acesso primeiro.</li>' +
+          '</ul>' +
+        '</details>' +
         '<label class="cad-filtro cad-ordem">Ordenar por<select id="cadOrdem">' +
           '<option value="nome">Nome (A–Z)</option><option value="cadastro-recente">Cadastro mais recente</option>' +
           '<option value="cadastro-antigo">Cadastro mais antigo</option><option value="liberacao-recente">Liberação mais recente</option>' +
@@ -6742,8 +6756,8 @@
        menu "⋯", com o nome dela no topo — assim também não se erra de linha
        numa lista de centenas. */
     tbl.innerHTML = '<thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Área</th><th scope="col">Cadastro em</th>' +
-      '<th scope="col" title="Registrada pelo site quando a pessoa entra com o e-mail já confirmado no Firebase. A data é a do registro, não a do clique no link.">Confirmou o <span class="cad-data">e-mail?</span></th>' +
-      '<th scope="col">Liberado em</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>';
+      '<th scope="col" title="Registrada pelo site quando a pessoa entra com o e-mail já confirmado no Firebase. A data é a do registro, não a do clique no link.">Confirmação do <span class="cad-data">e-mail</span></th>' +
+      '<th scope="col" title="Ação do administrador (botão Confirmar cadastro ou conta criada no painel). Independente da confirmação do e-mail.">Liberação administrativa</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>';
     const tbody = document.createElement('tbody');
     const vazio = document.createElement('p');
     vazio.className = 'cad-vazio'; vazio.id = 'cadastradosVazio'; vazio.hidden = true;
@@ -6813,22 +6827,23 @@
           ? '<span class="admin-badge" style="background:rgba(245,197,66,.18);color:var(--accent)" title="Cadastro próprio — sem confirmação do e-mail registrada e sem liberação do admin">Pendente</span>'
           : '';
         var statusBadge = '<span class="admin-badge" style="background:' + (bloqueado ? 'rgba(255,59,48,.18)' : 'rgba(26,178,174,.18)') + ';color:' + (bloqueado ? 'var(--red)' : 'var(--cyan)') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span>';
-        /* "Confirmou o e-mail?": a categoria e, embaixo, o que o banco comprova sobre ela */
+        /* "Confirmação do e-mail": a categoria e, embaixo, o que o banco comprova sobre ela */
         var celConfirmou = '<span class="cad-valor">' + esc(ROTULO_CONFIRMACAO[p._conf]) + '</span>';
         if (p._conf === 'confirmado') {
-          celConfirmou += '<span class="cad-sub">' + (p.emailConfirmadoEm ? 'registrada em ' + dataHoraCadHtml(p.emailConfirmadoEm) : 'data não registrada') + '</span>';
+          celConfirmou += '<span class="cad-sub">' + (p.emailConfirmadoEm ? 'registrada em ' + dataHoraCadHtml(p.emailConfirmadoEm) : 'data exata não registrada') + '</span>';
         } else if (p._conf === 'nao-exigida') {
           celConfirmou += '<span class="cad-sub">' + (p.createdByAdmin ? 'conta criada pelo admin' : 'cadastro anterior à exigência') + '</span>';
         }
         var titConf = p._conf === 'sem-registro'
           ? 'O cadastro não tem a confirmação registrada: a pessoa ainda não confirmou, ou confirmou e ainda não entrou no site depois disso.'
           : p._conf === 'confirmado' && !p.emailConfirmadoEm ? 'Confirmação anterior ao registro automático (anotação única feita a partir do Firebase Auth); a data do clique não existe.' : '';
-        /* "Liberado em": data (ou a categoria, quando não há data) e quem */
+        /* "Liberação administrativa": data (ou a categoria, quando não há data) e quem — registra a AÇÃO do admin, não a
+           causa do acesso (a pessoa pode ter confirmado o e-mail também) */
         var lib = p._lib, celLiberado;
         if (lib.tipo === 'liberado')     celLiberado = '<span class="cad-valor">' + dataHoraCadHtml(lib.quandoIso) + '</span>';
         else if (lib.tipo === 'criado')  celLiberado = '<span class="cad-valor">Conta criada pelo admin</span><span class="cad-sub">' + dataHoraCadHtml(lib.quandoIso) + '</span>';
         else if (lib.tipo === 'antiga')  celLiberado = '<span class="cad-valor">Liberação antiga</span><span class="cad-sub">sem data nem autor registrados</span>';
-        else                             celLiberado = '<span class="cad-valor cad-nada">Sem liberação do admin</span>';
+        else                             celLiberado = '<span class="cad-valor cad-nada">Nenhuma</span>';
         if (lib.porNome) {
           var quem = quemLiberou(p);
           celLiberado += '<span class="cad-sub cad-por">por ' + (quem.indexOf('@') > 0 ? emailCadHtml(quem) : esc(quem)) + '</span>';
@@ -6843,8 +6858,8 @@
           '<td data-label="E-mail" class="cad-col-email"><span class="cad-celula">' + emailCadHtml(p.email) + '</span></td>' +
           '<td data-label="Área">' + esc(p.area || '—') + '</td>' +
           '<td data-label="Cadastro em"><span class="cad-celula">' + dataHoraCadHtml(p.createdAt) + '</span></td>' +
-          '<td data-label="Confirmou o e-mail?" class="cad-col-conf"' + (titConf ? ' title="' + esc(titConf) + '"' : '') + '><span class="cad-celula">' + celConfirmou + '</span></td>' +
-          '<td data-label="Liberado em" class="cad-col-lib"><span class="cad-celula">' + celLiberado + '</span></td>' +
+          '<td data-label="Confirmação do e-mail" class="cad-col-conf"' + (titConf ? ' title="' + esc(titConf) + '"' : '') + '><span class="cad-celula">' + celConfirmou + '</span></td>' +
+          '<td data-label="Liberação administrativa" class="cad-col-lib"><span class="cad-celula">' + celLiberado + '</span></td>' +
           '<td data-label="Situação"><span class="cad-situacao">' + statusBadge + emailBadge + '</span></td>' +
           '<td data-label="Ações"><span class="cad-acoes">' +
             '<button class="admin-row-btn admin-edit-cad-btn" data-key="' + esc(p._key) + '" title="Editar nome, área e e-mail">&#x270E; Editar</button>' +
@@ -6910,8 +6925,8 @@
         btn.disabled = false; btn.innerHTML = '&#x1F4CA; Exportar Excel';
         if (erro || !window.XLSX) { aviso('Não foi possível gerar o arquivo agora. Tente de novo.', true); return; }
         /* Mesmas categorias e textos da tabela: o Excel nunca classifica diferente da tela. */
-        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmou o e-mail?', 'Confirmação registrada em',
-          'Liberado em', 'Liberado por', 'Situação']].concat(pessoas.map(function (p) {
+        var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmação do e-mail', 'Confirmação registrada em',
+          'Liberação administrativa', 'Liberado por', 'Situação']].concat(pessoas.map(function (p) {
           var lib = p._lib;
           var libEm = lib.tipo === 'liberado' ? dataHoraCad(lib.quandoIso)
             : lib.tipo === 'criado' ? 'Conta criada pelo admin em ' + dataHoraCad(lib.quandoIso) : ROTULO_LIBERACAO[lib.tipo];
