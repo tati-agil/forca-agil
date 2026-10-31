@@ -56,8 +56,16 @@ function muitos() {
     const em = 'zz.lista.exemplo.' + i + '@previ.com.br';
     u[chave(em)] = { email: em, name: 'ZZ LISTA EXEMPLO ' + String(i).padStart(2, '0'), area: 'GECAT', createdAt: meioDia(40), emailVerificationRequired: true, emailConfirmado: true, emailConfirmadoEm: Date.now() - DIA };
   }
+  /* casos extremos (como existem nos dados reais): nome de 42+ letras sem espaço, e-mails de 55+ caracteres — com e sem
+     pontos no nome do e-mail —, e quem liberou com e-mail comprido sem cadastro */
+  LONGOS.forEach((l, i) => { u[chave(l.email)] = Object.assign({ email: l.email, name: l.name, area: 'GECAT', createdAt: meioDia(40), emailVerificationRequired: true }, l.extra); });
   return u;
 }
+const LONGOS = [
+  { name: 'MMPESSOAEXEMPLOCOMNOMEMUITOLONGOSEMNENHUMESPACO', email: 'pessoa.exemplo.com.nome.de.email.muito.comprido.mesmo@previ.com.br', extra: { emailConfirmado: true, emailConfirmadoEm: Date.now() - DIA } },
+  { name: 'MM PESSOA EXEMPLO DE ALBUQUERQUE CAVALCANTI DOS SANTOS OLIVEIRA', email: 'pessoaexemplosempontosnonomedoemailmuitocompridomesmo@previ.com.br', extra: { adminApproved: true, approvedAt: meioDia(3), approvedByAdmin: 'administradora.exemplo.com.email.muito.comprido@previ.com.br', approvedByAdminName: 'ADMINISTRADORA EXEMPLO COM NOME MUITO COMPRIDO' } },
+  { name: 'MMOUTRAPESSOAEXEMPLOSEMESPACOSNONOMEDOCADASTRO', email: 'outra.pessoa.exemplo.com.um.endereco.de.email.bem.longo.x@previ.com.br', extra: { adminApproved: true, createdByAdmin: 'administradora.exemplo.com.email.muito.comprido@previ.com.br' } },
+];
 function banco(users) {
   const admins = {}; admins[chave(ADM)] = { email: ADM, name: 'ADMIN EXEMPLO' };
   return { 'fa-users': users, 'fa-admins': admins, 'fa-diretores': {}, 'fa-facilitadores': {}, 'fa-users-log': {}, 'fa-progress': {},
@@ -103,7 +111,7 @@ const ord = (a) => JSON.stringify(a.slice().sort());
   }
 
   /* 1. Cabeçalho fixo e foco, no computador */
-  for (const w of [1366, 1024]) {
+  for (const w of [1920, 1366, 1280, 1180]) {
     console.log('\n===== CABEÇALHO FIXO — ' + w + ' px =====');
     /* movimento reduzido: o próprio CSS do site troca a rolagem suave pela instantânea — a medida não depende da velocidade da máquina */
     const { ctx, page, erros } = await abrir(browser, { viewport: { width: w, height: 800 }, reducedMotion: 'reduce' }, muitos());
@@ -342,6 +350,60 @@ const ord = (a) => JSON.stringify(a.slice().sort());
     await ctx.close();
   }
 
+  /* 4c. Larguras pedidas, com nomes e e-mails extremos: tabela (≥ 1180) ou cartões (≤ 1179); nenhuma das 8 informações
+     cortada, escondida ou truncada; botões inteiros, sem sobreposição; sem rolagem lateral nem vertical interna */
+  console.log('\n===== LARGURAS (375 a 1920 px, nomes e e-mails longos) =====');
+  for (const w of [375, 1024, 1179, 1180, 1280, 1366, 1920]) {
+    const opts = w === 375 ? Object.assign({}, devices['iPhone 13'], { viewport: { width: 375, height: 812 } }) : { viewport: { width: w, height: 900 } };
+    const { ctx, page, erros } = await abrir(browser, opts, muitos());
+    await status(page, 'todos');
+    await page.waitForTimeout(200);
+    const m = await page.evaluate((longos) => {
+      const wrap = document.querySelector('#adminCadastrados .table-scroll-wrap'), wr = wrap.getBoundingClientRect();
+      const cartoes = getComputedStyle(document.querySelector('#adminCadastrados thead')).display === 'none';
+      const prob = [];
+      const linhas = Array.from(document.querySelectorAll('#adminCadastrados tbody tr'));
+      linhas.forEach((tr) => {
+        const email = tr.querySelector('td[data-label="E-mail"]').textContent.trim();
+        const tds = Array.from(tr.children);
+        if (tds.length !== 8) prob.push(email + ': ' + tds.length + ' células');
+        tds.forEach((td) => {
+          const r = td.getBoundingClientRect(), cs = getComputedStyle(td);
+          if (!r.width || !r.height || cs.visibility === 'hidden') prob.push(email + ': ' + td.dataset.label + ' invisível');
+          if (r.left < wr.left - 0.5 || r.right > wr.right + 0.5 || r.right > innerWidth + 0.5) prob.push(email + ': ' + td.dataset.label + ' sai da caixa');
+          if (td.scrollWidth > td.clientWidth + 1) prob.push(email + ': ' + td.dataset.label + ' transborda (' + td.scrollWidth + ' > ' + td.clientWidth + ')');
+          td.querySelectorAll('*').forEach((x) => { const c = getComputedStyle(x); if (c.textOverflow === 'ellipsis' && c.overflow !== 'visible') prob.push(email + ': reticências em ' + td.dataset.label); });
+          if (cartoes && td.dataset.label !== 'Nome' && getComputedStyle(td, '::before').content.replace(/"/g, '') !== td.dataset.label) prob.push(email + ': cartão sem o rótulo ' + td.dataset.label);
+        });
+        const bs = Array.from(tr.querySelectorAll('.cad-acoes button'));
+        const acoes = tr.querySelector('td[data-label="Ações"]').getBoundingClientRect();
+        bs.forEach((b) => { const r = b.getBoundingClientRect();
+          if (r.left < acoes.left - 0.5 || r.right > acoes.right + 0.5 || r.right > innerWidth + 0.5) prob.push(email + ': botão "' + b.textContent.trim() + '" cortado');
+          if (r.height < (cartoes ? 40 : 24)) prob.push(email + ': botão baixo demais (' + Math.round(r.height) + 'px)'); });
+        if (bs.length === 2) { const a = bs[0].getBoundingClientRect(), c = bs[1].getBoundingClientRect();
+          if (!(a.right <= c.left || c.right <= a.left || a.bottom <= c.top || c.bottom <= a.top)) prob.push(email + ': botões sobrepostos'); }
+      });
+      /* o texto completo está lá (nada truncado): nome e e-mail dos casos extremos aparecem por inteiro */
+      longos.forEach((l) => {
+        const tr = linhas.find((x) => x.querySelector('td[data-label="E-mail"]').textContent.trim() === l.email);
+        if (!tr) prob.push('caso longo ausente: ' + l.email.slice(0, 20));
+        else if (tr.querySelector('td[data-label="Nome"]').textContent.trim() !== l.name) prob.push('nome longo incompleto');
+      });
+      return { cartoes, prob: prob.slice(0, 6), nProb: prob.length,
+        ladoPagina: document.documentElement.scrollWidth > innerWidth + 1, ladoCaixa: wrap.scrollWidth > wrap.clientWidth + 1,
+        internaV: getComputedStyle(wrap).overflowY !== 'visible' && wrap.scrollHeight > wrap.clientHeight + 1,
+        larguraTabela: Math.round(wrap.querySelector('table').getBoundingClientRect().width), larguraCaixa: Math.round(wr.width) };
+    }, LONGOS.map((l) => ({ email: l.email, name: l.name })));
+    const p = [];
+    if (m.cartoes !== (w < 1180)) p.push(w < 1180 ? 'deveria estar em cartões' : 'deveria estar em tabela');
+    if (m.ladoPagina || m.ladoCaixa) p.push('rolagem lateral (tabela ' + m.larguraTabela + ' px, caixa ' + m.larguraCaixa + ' px)');
+    if (m.internaV) p.push('rolagem vertical interna');
+    if (m.nProb) p.push(m.nProb + ' problema(s): ' + m.prob.join(' | '));
+    if (erros.length) p.push('erro JS: ' + erros[0]);
+    registrar(w + ' px (' + (m.cartoes ? 'cartões' : 'tabela') + '): as 8 informações e as ações inteiras, sem corte, sobreposição nem rolagem lateral', p);
+    await ctx.close();
+  }
+
   /* 5. Celular */
   console.log('\n===== CELULAR (375 px) =====');
   {
@@ -363,7 +425,7 @@ const ord = (a) => JSON.stringify(a.slice().sort());
     if (m.foraTela) p.push(m.foraTela + ' controle(s) saindo da tela');
     await escolher(page, 'cadFiltroLib', 'liberado');
     const tela = await emailsNaTela(page);
-    if (ord(tela) !== ord([e('a3'), e('a7')])) p.push('filtro no celular: ' + JSON.stringify(tela));
+    if (ord(tela) !== ord([e('a3'), e('a7'), LONGOS[1].email])) p.push('filtro no celular: ' + JSON.stringify(tela));
     const m2 = await page.evaluate(() => ({ lado: document.documentElement.scrollWidth > innerWidth + 1,
       fora: Array.from(document.querySelectorAll('#cadMaisFiltros select, #cadMaisFiltros input')).filter((x) => x.offsetParent && x.getBoundingClientRect().right > innerWidth + 0.5).length }));
     if (m2.lado || m2.fora) p.push('com "Mais filtros" aberto, algo sai da tela');
