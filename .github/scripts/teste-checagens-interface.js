@@ -812,19 +812,19 @@ const CHECAGENS = [
           input.dispatchEvent(new Event('input'));
           return todasContemTermo && reduziu;
         } },
-  { id: "adm-cadastrados-colunas", grupo: "Admin", label: "Cadastrados: colunas Nome/E-mail/Área/Cadastro/Situação/Ações, sem coluna solta de botão",
+  { id: "adm-cadastrados-colunas", grupo: "Admin", label: "Cadastrados: colunas Nome/E-mail/Área/Cadastro em/Confirmou o e-mail?/Liberado em/Situação/Ações, sem coluna solta de botão",
     run: function () {
           var c = document.getElementById('adminCadastrados');
           if (!c) return false;
           var ths = Array.from(c.querySelectorAll('thead th')).map(function(th) { return th.textContent.trim(); });
           var temXP = ths.some(function(t) { return t === 'XP'; });
-          var temEssenciais = ['Nome','E-mail','Área','Cadastro','Situação','Ações'].every(function(col) { return ths.indexOf(col) !== -1; });
+          var temEssenciais = ['Nome','E-mail','Área','Cadastro em','Confirmou o e-mail?','Liberado em','Situação','Ações'].every(function(col) { return ths.indexOf(col) !== -1; });
           /* Cada ação numa coluna própria era o que estourava a largura da
              tabela e empurrava os botões para trás de uma rolagem lateral.
              Cabeçalho vazio é o rastro desse formato: a coluna existia só
              para segurar um botão. */
           var colunaDeBotao = ths.some(function(t) { return t === ''; });
-          return temEssenciais && !temXP && !colunaDeBotao && ths.length === 6;
+          return temEssenciais && !temXP && !colunaDeBotao && ths.length === 8;
         } },
   { id: "adm-table-scroll-wrap", grupo: "Admin", label: "Tabelas admin envolvidas em .table-scroll-wrap (scroll horizontal automático)",
     run: function () {
