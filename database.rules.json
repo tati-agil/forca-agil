@@ -4356,6 +4356,65 @@
         ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && newData.exists()",
         ".validate": "$itemId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.isString() && newData.parent().parent().child('avaliacoes-produto/' + newData.val()).exists() && (newData.parent().parent().child('avaliacoes-produto/' + newData.val()).child('itemId').val() === $itemId || (!newData.parent().parent().child('avaliacoes-produto/' + newData.val()).child('itemId').exists() && newData.val() === $itemId)) && (!data.exists() || newData.val() === data.val() || newData.parent().parent().child('avaliacoes-produto/' + newData.val()).child('versaoAnteriorKey').val() === data.val())"
       }
+    },
+    "fa-contas-teste": {
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      "$chave": {
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && newData.exists() && $chave.matches(/^[a-z0-9_]{1,64}$/)",
+        ".validate": "newData.hasChildren(['marcada', 'email', 'por', 'em', 'auditoria']) && (newData.child('marcada').val() === false || newData.parent().parent().child('fa-users').child($chave).child('email').val() === newData.child('email').val()) && !root.child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).exists() && newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).exists() && ((newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('acao').val() === 'marcar' && newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('chave').val() === $chave && newData.child('marcada').val() === true && !(data.child('marcada').val() === true)) || (newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('acao').val() === 'desmarcar' && newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('chave').val() === $chave && newData.child('marcada').val() === false && data.child('marcada').val() === true) || (newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('acao').val() === 'mover' && newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('chave').val() === $chave && newData.child('marcada').val() === true && !(data.child('marcada').val() === true)) || (newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('acao').val() === 'mover' && newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('chaveAnterior').val() === $chave && newData.child('marcada').val() === false && data.child('marcada').val() === true && newData.child('movidoPara').val() === newData.parent().parent().child('fa-contas-teste-auditoria').child(newData.child('auditoria').val()).child('chave').val()))",
+        "marcada": {
+          ".validate": "newData.isBoolean()"
+        },
+        "email": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 200"
+        },
+        "por": {
+          ".validate": "newData.val() === auth.token.email"
+        },
+        "em": {
+          ".validate": "newData.val() === now"
+        },
+        "auditoria": {
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,40}$/)"
+        },
+        "movidoPara": {
+          ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,64}$/)"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+    "fa-contas-teste-auditoria": {
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      "$id": {
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['acao', 'chave', 'email', 'por', 'em']) && newData.parent().parent().child('fa-contas-teste').child(newData.child('chave').val()).child('auditoria').val() === $id && (newData.child('acao').val() !== 'mover' || (newData.hasChild('chaveAnterior') && newData.parent().parent().child('fa-contas-teste').child(newData.child('chaveAnterior').val()).child('auditoria').val() === $id))",
+        "acao": {
+          ".validate": "newData.val() === 'marcar' || newData.val() === 'desmarcar' || newData.val() === 'mover'"
+        },
+        "chave": {
+          ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,64}$/)"
+        },
+        "chaveAnterior": {
+          ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{1,64}$/) && newData.parent().child('acao').val() === 'mover'"
+        },
+        "email": {
+          ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 200"
+        },
+        "emailAnterior": {
+          ".validate": "newData.isString() && newData.val().length <= 200 && newData.parent().child('acao').val() === 'mover'"
+        },
+        "por": {
+          ".validate": "newData.val() === auth.token.email"
+        },
+        "em": {
+          ".validate": "newData.val() === now"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
     }
   }
 }

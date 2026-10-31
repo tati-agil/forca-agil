@@ -33,7 +33,8 @@
     ".github/scripts/teste-rules-squad-exclusao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-email-confirmado.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-fa-users-compat.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-fa-users.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-fa-users.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-contas-teste.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -1054,6 +1055,12 @@
       "nome": "Infraestrutura: diagnóstico de Cloud Functions é só leitura e não expõe credencial (sem rede)",
       "duracao": 1,
       "sobre": "B0 do H2-b: workflow só manual, credencial só pela ação oficial de autenticação (nunca num run:), gcloud pela ação oficial, permissões mínimas; script só com as 4 leituras e nenhum verbo que altere nada; execução simulada com gcloud/npx falsos: e-mail da conta e conta de faturamento mascarados, falta de permissão = \"NÃO FOI POSSÍVEL VERIFICAR\", Blaze/Spark e APIs lidos corretamente."
+    },
+    {
+      "arquivo": ".github/scripts/teste-contas-teste.js",
+      "nome": "ADMIN › Cadastrados: conta de teste — identificação, filtro, aviso, Excel, auditoria e correção de e-mail (desktop e 375 px)",
+      "duracao": 60,
+      "sobre": "Marca só administrativa (fa-contas-teste, lida só por admin.js): o padrão esconde as marcadas com aviso e Mostrar todas; filtro combinável; selo Teste; busca avisa o que o recorte esconde; Excel com a coluna Conta de teste; marcar/desmarcar = uma gravação com a marca e o evento de auditoria, nada em fa-users; leitura recusada mostra todos com aviso; a correção de e-mail leva a marca junto."
     },
     {
       "arquivo": ".github/scripts/teste-regras-fa-users-chave.js",
