@@ -56,6 +56,19 @@ decisão própria: nada de cadastrar relações, ligar herança ou mudar regras 
 - **A apresentar depois:** alternativas (relações específicas na Taxonomia × herança na tela e nas regras) e
   consequências para o modelo, o Firebase e a paridade com o PostgreSQL.
 
+## Indicador "P1–P16 concluídas" × versão vigente (27 × 25) — decisão pendente
+
+*Registrado em 2026-10-31 (D1 da conclusão do Mapa; nada alterado).* A regra documentada em `avaliacao-produto.js`
+`baseDoItem` é: vale a PONTA da cadeia de reavaliações; com a ponta na Lixeira, a versão anterior continua superada e o
+item só aparece pela Lixeira. A jornada até o Mapa e a lista "Ver avaliações" seguem a regra (25 itens). O indicador
+"P1–P16 concluídas" (`resumoProdutos`) descarta as versões excluídas e conta a maior versão restante — por isso conta
+também 2 itens cuja reavaliação (v2) está na Lixeira e a v1 concluída ("teste" e "Trilha de Educação Previdenciária"):
+27. Excluir só marca o registro; restaurar desfaz.
+
+**Correção mínima recomendada (aguarda aprovação):** o indicador passar a usar `baseDoItem` (a mesma regra da jornada e
+da lista), sem mudar a Lixeira, as avaliações ou as versões. Alternativa a decidir: se a regra for "excluir a
+reavaliação devolve o item à versão anterior", a mudança seria na regra (jornada, lista e indicador), não só no indicador.
+
 ## Acompanhamento (não é entrega; observar e agir se repetir)
 
 ### Smoke contra o Firebase real: login recusado de forma intermitente
