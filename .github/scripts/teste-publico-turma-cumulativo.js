@@ -40,6 +40,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { esperarCondicaoAte } = require('./esperas');
 
 const BASE  = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -155,7 +156,7 @@ async function vitrinePronta(page) {
         anota('1. e tem o botão "Tenho interesse" na Turma 2', !!(c2 && c2.botao), JSON.stringify(c2));
         await page.evaluate(() => { window.__ESCRITAS = []; });
         await page.click('.btn--interest[data-turma="t2"]');
-        await page.waitForFunction(() => (window.__ESCRITAS || []).some((e) => /turmas-interesse\/t2\//.test(e.path)), null, { timeout: 10000 }).catch(() => {});
+        await esperarCondicaoAte(page, () => (window.__ESCRITAS || []).some((e) => /turmas-interesse\/t2\//.test(e.path)), null, { limite: 10000 });
         const es = (await escritas(page)).filter((e) => /^turmas-interesse\//.test(e.path));
         anota('1. o interesse grava só o registro dela na Turma 2', es.length >= 1 && es.every((e) => e.path.indexOf('turmas-interesse/t2/' + chave(TEC)) === 0), JSON.stringify(es.map((e) => e.path)));
         const c4 = cards.find((c) => c.label === 'TURMA 4 CONTRADITORIA');
@@ -195,7 +196,7 @@ async function vitrinePronta(page) {
         anota('3. fora da lista: não vê a Turma 2, vê as turmas 1 e 3', labels.indexOf('TURMA 2 LISTA') === -1 && labels.indexOf('TURMA 1 ABERTA') !== -1 && labels.indexOf('TURMA 3 ABERTA') !== -1, JSON.stringify(labels));
         await page.evaluate(() => { window.__ESCRITAS = []; });
         await page.click('.btn--interest[data-turma="tL"]');
-        await page.waitForFunction(() => (window.__ESCRITAS || []).some((e) => /turmas-interesse\/tL\//.test(e.path)), null, { timeout: 10000 }).catch(() => {});
+        await esperarCondicaoAte(page, () => (window.__ESCRITAS || []).some((e) => /turmas-interesse\/tL\//.test(e.path)), null, { limite: 10000 });
         const es = (await escritas(page)).filter((e) => /^turmas-interesse\//.test(e.path));
         anota('3. turma sem restrição continua aceitando interesse como sempre', es.length >= 1 && es.every((e) => e.path.indexOf('turmas-interesse/tL/' + chave(FORA)) === 0), JSON.stringify(es.map((e) => e.path)));
         anota('sem erro de JS (fora da lista)', !erros.length, erros[0]);
@@ -265,7 +266,7 @@ async function vitrinePronta(page) {
         anota('6. Turma 1 abre com "Seguir as regras do evento" marcado (padrão)', f.evento && !f.lista, JSON.stringify(f));
         await page.evaluate(() => { window.__ESCRITAS = []; });
         await page.evaluate(() => { const b = window.__boxVis(); Array.from(b.querySelectorAll('button')).find((x) => /^Salvar/i.test((x.textContent || '').trim())).click(); });
-        await page.waitForFunction(() => (window.__ESCRITAS || []).length > 0, null, { timeout: 10000 }).catch(() => {});
+        await esperarCondicaoAte(page, () => (window.__ESCRITAS || []).length > 0, null, { limite: 10000 });
         await page.waitForTimeout(400);
         esSalvar = await escritas(page);
         const tocouTurma1 = esSalvar.filter((e) => /^turmas\/t1/.test(e.path));
@@ -289,7 +290,7 @@ async function vitrinePronta(page) {
         const txt = await page.evaluate(() => (window.__boxVis().textContent || '').replace(/\s+/g, ' '));
         anota('8. a confirmação inscreve 1 pessoa e diz que o gerente fica de fora pelo público', /Adicionar 1 pessoa/.test(txt) && /GERENTE NA LISTA/.test(txt) && /gerentes\/técnicos/.test(txt), txt.slice(0, 300));
         await page.evaluate(() => window.__boxVis().querySelector('.admin-modal-confirm-btn').click());
-        await page.waitForFunction(() => (window.__ESCRITAS || []).some((e) => /turmas-interesse\/t2\//.test(e.path)), null, { timeout: 10000 }).catch(() => {});
+        await esperarCondicaoAte(page, () => (window.__ESCRITAS || []).some((e) => /turmas-interesse\/t2\//.test(e.path)), null, { limite: 10000 });
         await page.waitForTimeout(300);
         const esBulk = (await escritas(page)).filter((e) => /^turmas-interesse\//.test(e.path));
         anota('8. gravou só a técnica, inscrita com o critério completo',
