@@ -1644,6 +1644,35 @@ body.aguardando-auth>#bootStatus{z-index:900}
       <p class="auth-switch" style="margin-top:16px;"><a href="#" id="verificacaoVoltar">← Voltar para o login</a></p>
     </div>
 
+    <!-- COMPLETAR CADASTRO (login com e-mail confirmado, sem cadastro no site) -->
+    <div class="auth-panel" id="auth-completar" hidden>
+      <h3>Complete seu cadastro</h3>
+      <p class="auth-sub">Seu e-mail está confirmado, mas ainda não encontramos seu cadastro no Força Ágil:</p>
+      <p class="verificacao-email-destino" id="completarEmail" style="font-weight:700;color:var(--accent);word-break:break-all;margin:0 0 4px;"></p>
+      <p class="auth-sub">Informe seu nome e sua área para entrar.</p>
+      <form id="completarForm" novalidate>
+        <label class="auth-label">
+          Nome completo
+          <input type="text" id="completarNome" placeholder="Seu nome completo" autocomplete="name" />
+        </label>
+        <label class="auth-label">
+          Área / Setor
+          <select id="completarArea"><option value="">Selecione sua área…</option></select>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="completarTerms" />
+          <span>Concordo que meu nome apareça nos recursos que eu adicionar ao repositório, visível para participantes da Previ.</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="completarOptin" />
+          <span>Quero receber novidades sobre turmas e conteúdos da Força Ágil.</span>
+        </label>
+        <p class="auth-err" id="completarErr" hidden></p>
+        <button type="submit" class="btn btn--primary w-full">Concluir cadastro →</button>
+      </form>
+      <p class="auth-switch" style="margin-top:16px;"><a href="#" id="completarSair" class="avp-voltar-link">← Sair e voltar para o login</a></p>
+    </div>
+
   </div>
 </div>
 

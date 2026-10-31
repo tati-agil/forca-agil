@@ -108,6 +108,17 @@
 }
 .auth-label input:focus,
 .auth-label textarea:focus { outline: none; border-color: var(--accent); }
+/* "Completar cadastro": a área é um select nativo com o mesmo visual dos campos do login (os outros selects dentro de
+   .auth-label, no ADMIN, têm estilo próprio inline e não passam por aqui) */
+#completarArea {
+  background: var(--space-1); border: 1px solid var(--line-strong);
+  color: var(--ink); padding: 10px 14px; border-radius: 6px;
+  font-size: .92rem; font-family: var(--font-body); margin-top: 2px; width: 100%;
+}
+#completarArea:focus { outline: none; border-color: var(--accent); }
+/* foco do teclado sempre visível no painel (padrão visual §3-A) */
+#auth-completar input:focus-visible, #auth-completar select:focus-visible, #auth-completar a:focus-visible,
+#auth-completar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .auth-label textarea::placeholder { color: var(--ink-3); }
 
 .pwd-wrap { position: relative; margin-top: 2px; }

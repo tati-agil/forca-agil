@@ -12,6 +12,19 @@
     new MutationObserver(abrirSecoes).observe(document, { childList: true, subtree: true });
   }
   var DB  = CFG.db || {};
+  /* Na produção, todo login @previ.com.br tem cadastro em fa-users (sem cadastro, auth.js manda para a verificação ou
+     para "Completar cadastro"). Quem entra no falso — o usuário de __CFG.user e quem entra depois pelo login — ganha o
+     cadastro mínimo quando a chave dele não existe, já com a confirmação anotada (para não gerar gravação que o teste não
+     pediu). Cadastro definido pelo teste nunca é tocado. Para o caso sem cadastro: __CFG.semCadastro. */
+  function garantirCadastro(email) {
+    if (!email || CFG.semCadastro || !/@previ\.com\.br$/i.test(email)) return;
+    var k = String(email).toLowerCase().replace(/[@.]/g, '_');
+    var raiz = REAL_ALVO();
+    if (!raiz['fa-users'] || typeof raiz['fa-users'] !== 'object') raiz['fa-users'] = {};
+    if (!raiz['fa-users'][k]) raiz['fa-users'][k] = { email: email, emailConfirmado: true };
+  }
+  function REAL_ALVO() { return (CFG.persistenciaReal && CFG.__dbReal) || DB; }
+  if (CFG.user && CFG.user.email) garantirCadastro(CFG.user.email);
   /* Modo opcional (__CFG.persistenciaReal = true): grava e lê como o
      Firebase DE VERDADE — some com null, objeto vazio e lista vazia, e
      devolve listas no formato do RTDB (ver persistencia-firebase-real.js,
@@ -166,6 +179,9 @@
     }
     return null;
   }
+  /* logado: quem estava conectado no Auth no momento da gravação (prova de QUEM gravou — o cadastro criado pelo admin
+     sai com a sessão do admin, não com a da conta nova). Não enumerável: JSON.stringify das escritas não muda. */
+  function comAutor(e) { Object.defineProperty(e, 'logado', { value: CFG.__logado, enumerable: false }); return e; }
   function anotar(path, valor) {
     if (REAL) {
       var onde = acharUndefined(valor, '');
@@ -177,11 +193,11 @@
       var chaves = Object.keys(valor);
       var pareceMultiPath = path === '' && chaves.some(function (k) { return k.indexOf('/') !== -1; });
       if (pareceMultiPath) {
-        chaves.forEach(function (k) { window.__ESCRITAS.push({ path: k, valor: valor[k] }); });
+        chaves.forEach(function (k) { window.__ESCRITAS.push(comAutor({ path: k, valor: valor[k] })); });
         return;
       }
     }
-    window.__ESCRITAS.push({ path: path, valor: valor });
+    window.__ESCRITAS.push(comAutor({ path: path, valor: valor }));
   }
 
   /* A escrita agora MUDA o banco falso e avisa quem está ouvindo.
@@ -387,6 +403,17 @@
       email: email, emailVerified: !((CFG.user && CFG.user.email === email && CFG.user.emailVerified === false) || (CFG.naoVerificadas || []).indexOf(email) !== -1), uid: (CFG.uidDoUsuario && CFG.user && CFG.user.email === email && CFG.user.uid) || 'u1',
       /* token novo (auth.js pede antes de anotar a confirmação do e-mail); CFG.__tokens conta os pedidos */
       getIdToken: function () { CFG.__tokens = (CFG.__tokens || 0) + 1; return Promise.resolve('token-falso'); },
+      /* reload(): o SDK atualiza emailVerified; aqui o estado já é o de CFG. reauthenticateWithCredential: confere a senha
+         em CFG.senhas (sem o mapa, aceita) e CFG.falharReautenticacao = 'auth/<código>' força a recusa; CFG.__eventosAuth
+         guarda a ordem das operações de conta (reautenticar, criar, sair, entrar). */
+      reload: function () { return Promise.resolve(); },
+      reauthenticateWithCredential: function (cred) {
+        (CFG.__eventosAuth = CFG.__eventosAuth || []).push('reautenticar:' + email);
+        var codigo = CFG.falharReautenticacao || (cred && cred.email !== email ? 'auth/user-mismatch' : '') ||
+          (CFG.senhas && CFG.senhas[email] !== undefined && CFG.senhas[email] !== (cred && cred.senha) ? 'auth/wrong-password' : '');
+        if (codigo) { var e = new Error('reautenticação recusada (falso)'); e.code = codigo; return Promise.reject(e); }
+        return Promise.resolve({ user: this });
+      },
       updateEmail: function (novo) {
         if ((CFG.falharUpdateEmail || []).indexOf(novo) !== -1) {
           var err = new Error('e-mail já em uso (falso)');
@@ -435,6 +462,9 @@
            painel entrando na conta de outra pessoa para corrigir o e-mail, e
            a recusa quando a pessoa já trocou a senha padrão. */
         signInWithEmailAndPassword: function (e, senha) {
+          (CFG.__eventosAuth = CFG.__eventosAuth || []).push('entrar:' + e);
+          /* CFG.falharLogin = [e-mails]: o login desses e-mails falha por rede (ex.: a volta do admin depois de criar conta) */
+          if ((CFG.falharLogin || []).indexOf(e) !== -1) { var errRede = new Error('rede (falso)'); errRede.code = 'auth/network-request-failed'; return Promise.reject(errRede); }
           var mapa = CFG.senhas;
           if (mapa && mapa[e] !== undefined && mapa[e] !== senha) {
             var err = new Error('senha incorreta (falso)');
@@ -446,6 +476,7 @@
             err2.code = 'auth/user-not-found';
             return Promise.reject(err2);
           }
+          garantirCadastro(e);
           currentUser = novoUsuario(e);
           CFG.__logado = e;
           authCbs.forEach(function (cb) { cb(currentUser); });
@@ -453,6 +484,7 @@
         },
         /* CFG.__desconexoes: quantas vezes o site chamou signOut (prova de que ninguém é desconectado à toa) */
         signOut: function () {
+          (CFG.__eventosAuth = CFG.__eventosAuth || []).push('sair');
           CFG.__desconexoes = (CFG.__desconexoes || 0) + 1;
           currentUser = null;
           CFG.__logado = null;
@@ -471,6 +503,11 @@
            depois desloga). Sem a opção, o comportamento de sempre, que os testes antigos usam. */
         createUserWithEmailAndPassword: function (e, senha) {
           if (!CFG.cadastroReal) return Promise.resolve({ user: currentUser });
+          (CFG.__eventosAuth = CFG.__eventosAuth || []).push('criar:' + e);
+          /* login que já existe (CFG.senhas ou CFG.loginsExistentes): recusa como o SDK, sem trocar de usuário */
+          if ((CFG.senhas && CFG.senhas[e] !== undefined) || (CFG.loginsExistentes || []).indexOf(e) !== -1) {
+            var errUso = new Error('e-mail em uso (falso)'); errUso.code = 'auth/email-already-in-use'; return Promise.reject(errUso);
+          }
           (CFG.naoVerificadas = CFG.naoVerificadas || []).push(e);
           if (CFG.senhas) CFG.senhas[e] = senha;
           currentUser = novoUsuario(e);
@@ -505,5 +542,7 @@
     } };
   }
   firebase.database.ServerValue = { TIMESTAMP: 1 };
+  /* firebase.auth.EmailAuthProvider.credential (reautenticação do admin antes de criar conta) */
+  firebase.auth.EmailAuthProvider = { credential: function (email, senha) { return { email: email, senha: senha }; } };
   window.firebase = firebase;
 })();

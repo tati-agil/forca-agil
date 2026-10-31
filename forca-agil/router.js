@@ -351,6 +351,23 @@
     if (closeBtn) closeBtn.style.display = 'none';
   }
 
+  /* Login com e-mail confirmado e sem cadastro no site: só o "Completar cadastro" (auth.js completarCadastro), com o
+     modal travado como o da verificação — nenhum módulo por baixo. */
+  function mostrarCompletarCadastro(email) {
+    var modal = document.getElementById('authModal');
+    if (!modal) return;
+    modal.hidden = false;
+    modal.classList.add('modal-overlay--forced');
+    document.body.style.overflow = 'hidden';
+    document.querySelectorAll('.auth-panel').forEach(function (p) { p.hidden = true; });
+    document.querySelectorAll('.auth-tab').forEach(function (t) { t.classList.remove('active'); });
+    var cp = document.getElementById('auth-completar');
+    if (cp) cp.hidden = false;
+    if (window.faAuth && window.faAuth.prepararPainelCompletar) window.faAuth.prepararPainelCompletar(email || '');
+    var closeBtn = document.getElementById('authClose');
+    if (closeBtn) closeBtn.style.display = 'none';
+  }
+
   /* Carga inicial: auth terminou de verificar sessão */
   var _authResolveu = false;
   window.addEventListener('fa-auth-ready', function (e) {
@@ -358,6 +375,7 @@
     if (_timerSocorro) { clearTimeout(_timerSocorro); _timerSocorro = null; }
     if (!e.detail) { forcarLogin(); return; }
     if (e.detail.unverified) { mostrarVerificacaoEmail(e.detail.email); return; }
+    if (e.detail.semCadastro) { mostrarCompletarCadastro(e.detail.email); return; }
     revelarSite();
   });
 
@@ -685,6 +703,7 @@
     if (!e.detail) { forcarLogin(); return; }
     if (e.detail.blocked)    { mostrarMsgBloqueio(); return; }
     if (e.detail.unverified) { mostrarVerificacaoEmail(e.detail.email); return; }
+    if (e.detail.semCadastro) { mostrarCompletarCadastro(e.detail.email); return; }
     revelarSite();
   });
 
