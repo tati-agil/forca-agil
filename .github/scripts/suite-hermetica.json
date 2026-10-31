@@ -353,6 +353,12 @@
       "sobre": "Hermético. Prova que corrigir um cadastro chega em TODAS as cópias do nome/área (inscrição, presença, fila, listas, equipe) — e não só em fa-users, que é a versão da feature que passaria despercebida."
     },
     {
+      "arquivo": ".github/scripts/teste-cadastrados-filtros.js",
+      "nome": "Cadastrados: cabeçalho fixo, filtros combináveis, ordenação e Excel (desktop e 375 px)",
+      "duracao": 70,
+      "sobre": "Hermético, dados fictícios. Com uma lista longa rolada até o meio, os títulos das 8 colunas ficam logo abaixo do menu e o foco do teclado nunca para atrás deles; cada filtro (situação, área, confirmação, liberação, liberado por, data, busca), sozinho ou combinado, devolve o conjunto certo, inclusive vazio; o Excel baixa o conjunto da tela, na ordem da tela."
+    },
+    {
       "arquivo": ".github/scripts/teste-cadastrados-pendentes.js",
       "nome": "Cadastrados: Pendentes, confirmação do e-mail e liberação (desktop e 375 px)",
       "duracao": 60,

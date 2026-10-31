@@ -795,14 +795,89 @@
    rolagem a milhares de pixels de distância do dedo. Cada pessoa vira um
    cartão, com o rótulo de cada campo vindo do data-label da célula — nada
    fica escondido e nada rola para o lado. */
-/* No computador também: um e-mail sem onde quebrar (o mais comprido entre centenas de cadastros) alargava a coluna
-   E-mail até a tabela passar da caixa — e a coluna Ações (o "⋯") ficava cortada atrás de uma rolagem lateral. O e-mail
-   quebra dentro da própria célula só quando falta espaço. */
-#adminCadastrados .cad-col-email { overflow-wrap: anywhere; }
-/* "Confirmou o e-mail?" e "Liberado em": o valor e, embaixo, a data/quem em letra menor — quebra dentro da célula. */
-#adminCadastrados .cad-celula { display: inline-block; overflow-wrap: anywhere; }
+/* Leitura das células: o e-mail quebra nos limites naturais (<wbr> antes do "@" e depois dos pontos, montado em
+   admin.js emailCadHtml) e só corta no meio de um pedaço que sozinho não caiba; data e hora nunca se partem por dentro;
+   o valor de cada célula em cima e, embaixo, o detalhe (data, quem) em letra menor. */
+#adminCadastrados .cad-celula { display: inline-block; max-width: 100%; overflow-wrap: break-word; }
+#adminCadastrados .cad-valor { display: block; }
+#adminCadastrados .cad-nada { color: var(--ink-3); }
 #adminCadastrados .cad-sub { display: block; font-size: var(--arq-fs-meta); color: var(--ink-3); line-height: 1.4; }
-@media (max-width: 640px) {
+#adminCadastrados .cad-data { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Os dois botões lado a lado; um embaixo do outro só se a coluna não os comportar (fonte mais larga) — nunca cortados. */
+#adminCadastrados .cad-acoes { flex-wrap: wrap; }
+#adminCadastrados .cad-vazio { padding: 18px 14px; color: var(--ink-3); text-align: center; border: 1px dashed var(--line-strong); border-radius: 10px; }
+
+/* Filtros: situação e busca sempre à vista; o resto em "Mais filtros" (recolhível); depois, resultado, ordem, limpar e
+   Excel. Ficam no fluxo da página — só o cabeçalho da tabela fica fixo, para não ocupar a tela. */
+#adminCadastrados .cad-filtros { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+#adminCadastrados .cad-filtros-linha { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+#adminCadastrados .cad-filtros-linha #cadastradosFiltro { flex: 1 1 220px; width: auto; }
+#adminCadastrados .cad-mais-filtros > summary {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink-2);
+  font-family: var(--font-mono); font-size: var(--arq-fs-meta); letter-spacing: .04em; text-transform: uppercase;
+}
+#adminCadastrados .cad-mais-filtros > summary:hover { border-color: var(--cyan); color: var(--cyan); }
+#adminCadastrados .cad-mais-filtros > summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+#adminCadastrados .cad-filtros-ativos { color: var(--gold); text-transform: none; letter-spacing: 0; }
+#adminCadastrados .cad-filtros-grade {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 14px; margin-top: 10px;
+  padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+}
+#adminCadastrados .cad-filtro { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: var(--arq-fs-meta); color: var(--ink-3); }
+#adminCadastrados .cad-filtro[hidden] { display: none; } /* "De/Até" só com "Intervalo…" (o display acima venceria o hidden) */
+#adminCadastrados .cad-filtro select,
+#adminCadastrados .cad-filtro input[type="date"] {
+  width: 100%; min-width: 0; min-height: 38px; padding: 7px 10px; box-sizing: border-box;
+  background: var(--space-1); border: 1px solid var(--line-strong); border-radius: 8px;
+  color: var(--ink); font-family: var(--font-body); font-size: .86rem; color-scheme: dark;
+}
+#adminCadastrados .cad-filtro select:focus-visible,
+#adminCadastrados .cad-filtro input[type="date"]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; border-color: var(--cyan); }
+#adminCadastrados .cad-resultado { margin: 0; flex: 1 1 auto; color: var(--ink-2); font-size: .86rem; }
+#adminCadastrados .cad-ordem { flex-direction: row; align-items: center; gap: 8px; }
+#adminCadastrados .cad-ordem select { width: auto; }
+
+/* Computador: cabeçalho fixo na rolagem. Quem rola é a página (o html); o cabeçalho cola logo abaixo do menu fixo
+   (.nav, 73 px; --nav-h quando definido). Para o sticky funcionar, nenhum ancestral da tabela pode ter overflow
+   próprio — por isso, só aqui, a caixa e a tabela deixam de cortar o que passa. Para isso ser seguro, a tabela NUNCA
+   pode ficar mais larga que a caixa: larguras por coluna (table-layout: fixed), e não pelo conteúdo — um nome de 42
+   letras sem espaço ou um e-mail de 55 caracteres alargavam a tabela inteira e cortavam a coluna Ações. As colunas de
+   conteúdo curto têm largura fixa (cabem a data e hora, o selo, os dois botões); Nome e E-mail dividem o resto. O texto
+   quebra nos espaços, antes do "@" e nos pontos; só um pedaço que sozinho não caiba é partido no meio
+   (overflow-wrap) — nada é truncado nem escondido. Fundo opaco, abaixo do menu. Os controles da linha ganham
+   scroll-margin, para o foco do teclado nunca parar atrás do cabeçalho. A partir de 1180 px a caixa já tem a largura
+   máxima (1100 px): abaixo disso, cartões. */
+@media (min-width: 1180px) {
+  #adminCadastrados .table-scroll-wrap,
+  #adminCadastrados .admin-table { overflow: visible; }
+  #adminCadastrados .admin-table { table-layout: fixed; width: 100%; }
+  #adminCadastrados .admin-table th:nth-child(3) { width: 64px; }   /* Área */
+  #adminCadastrados .admin-table th:nth-child(4) { width: 132px; }  /* Cadastro em */
+  #adminCadastrados .admin-table th:nth-child(5) { width: 140px; }  /* Confirmou o e-mail? */
+  #adminCadastrados .admin-table th:nth-child(6) { width: 160px; }  /* Liberado em */
+  #adminCadastrados .admin-table th:nth-child(7) { width: 100px; }  /* Situação */
+  #adminCadastrados .admin-table th:nth-child(8) { width: 150px; }  /* Ações */
+  #adminCadastrados .admin-table td { overflow-wrap: break-word; }
+  #adminCadastrados .admin-table thead th {
+    position: sticky; top: var(--nav-h, 73px); z-index: 2;
+    background: var(--panel-2); box-shadow: 0 1px 0 var(--line-strong);
+  }
+  #adminCadastrados .admin-table thead th:first-child { border-top-left-radius: 10px; }
+  #adminCadastrados .admin-table thead th:last-child  { border-top-right-radius: 10px; }
+  #adminCadastrados .admin-table th, #adminCadastrados .admin-table td { vertical-align: middle; padding-left: 10px; padding-right: 10px; }
+  #adminCadastrados .admin-table tbody :is(button, a, [tabindex]) { scroll-margin-top: calc(var(--nav-h, 73px) + 64px); }
+  /* scroll-margin sozinho não basta: navegadores mais antigos não rolam até um botão que ainda está dentro da janela,
+     mesmo coberto pelo cabeçalho. scroll-padding-top diz à página que a área útil começa abaixo do menu (73 px) e do
+     cabeçalho da tabela (até 64 px, em duas linhas) — só com o ADMIN aberto na aba Cadastrados. */
+  html:has(#page-admin:not([hidden]) #adminPanelCadastrados.active .admin-table) { scroll-padding-top: calc(var(--nav-h, 73px) + 64px); }
+}
+
+/* Celular e tela estreita: a tabela deixa de ser tabela. Esconder colunas (como era antes) escondia informação; rolar
+   de lado uma tabela de 40 linhas põe a barra de rolagem a milhares de pixels de distância do dedo. Cada pessoa vira
+   um cartão, com o rótulo de cada campo vindo do data-label da célula — nada fica escondido e nada rola para o lado.
+   Até 1179 px: abaixo da largura máxima da caixa, as oito colunas ficariam estreitas demais para ler. */
+@media (max-width: 1179px) {
   #adminCadastrados .admin-table,
   #adminCadastrados .admin-table tbody,
   #adminCadastrados .admin-table tr,
@@ -822,13 +897,14 @@
     font-family: var(--font-mono); font-size: .66rem; letter-spacing: .04em;
     text-transform: uppercase; color: var(--ink-3);
   }
+  #adminCadastrados .admin-table td > .cad-celula { min-width: 0; }
+  #adminCadastrados .admin-table td { overflow-wrap: break-word; min-width: 0; }
   /* O nome é o título do cartão, não mais um campo entre outros. */
   #adminCadastrados .admin-table td[data-label="Nome"] {
     display: block; text-align: left; color: var(--ink);
     font-size: .95rem; padding-bottom: 8px;
   }
   #adminCadastrados .admin-table td[data-label="Nome"]::before { content: none; }
-  #adminCadastrados .cad-col-email { word-break: break-all; }
   #adminCadastrados .admin-table td[data-label="Ações"] { padding-top: 8px; }
   #adminCadastrados .cad-acoes { flex-wrap: wrap; justify-content: flex-end; }
   /* Alvo de dedo: no computador 27px de altura é uma linha densa de tabela;
@@ -836,6 +912,8 @@
      eles crescem. */
   #adminCadastrados .admin-row-btn { min-height: 40px; padding: 8px 14px; font-size: .82rem; }
   #adminCadastrados .cad-mais-btn  { min-width: 48px; }
+  #adminCadastrados .cad-ordem { flex: 1 1 100%; }
+  #adminCadastrados .cad-ordem select { flex: 1; min-width: 0; }
 }
 .table-scroll-wrap::-webkit-scrollbar { height: 4px; }
 .table-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
@@ -3049,7 +3127,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
    estruturas. A coluna de CoEs acompanha a altura das Linhas (corpo claro, só o cabeçalho dourado) e cresce se houver
    muitos CoEs. As Áreas Especializadas ocupam a faixa inferior de largura total. */
 .mfm-quadro { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "principal" "coe" "ae"; }
-@media (min-width: 901px) {
+@media (min-width: 1024px) {
   .mfm-quadro { gap: 18px; grid-template-columns: minmax(0, 1fr) clamp(190px, 15%, 280px); grid-template-areas: "principal coe" "ae ae"; }
 }
 .mfm-principal { grid-area: principal; display: flex; flex-direction: column; gap: 18px; min-width: 0; }

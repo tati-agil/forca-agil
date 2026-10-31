@@ -6499,21 +6499,69 @@
              precisaLiberacao: precisaLiberacao, pendente: precisaLiberacao && !p.blocked };
   }
   function rotuloSituacaoCadastro(s) { return s.bloqueado ? 'Bloqueado' : s.pendente ? 'Pendente' : 'Ativo'; }
-  /* "Confirmou o e-mail?" — texto da tela e do Excel. "Não exigido": conta antiga ou criada pelo admin, que nunca
-     precisou confirmar (e o site não registrou confirmação). */
-  function textoConfirmouEmail(p) {
-    if (p.emailConfirmado === true) return 'Sim';
-    return p.emailVerificationRequired ? 'Não' : 'Não exigido';
+
+  /* Confirmação do e-mail — só o que o CADASTRO comprova (o painel não lê o Firebase Auth). Categoria única para a
+     célula, o filtro "Confirmação do e-mail" e o Excel:
+     - 'confirmado'   emailConfirmado === true: anotada no login (com a data do registro) ou na anotação única de
+                      30/10/2026 a partir do Auth (sem data — a data do clique não existe em lugar nenhum);
+     - 'sem-registro' exige confirmação e não há a marca. O banco NÃO distingue "não confirmou" de "confirmou e ainda
+                      não voltou ao site", por isso o texto diz "não registrada", nunca "não confirmou";
+     - 'nao-exigida'  sem emailVerificationRequired: conta criada pelo admin, ou cadastro anterior à exigência de
+                      confirmação (o cadastro grava a exigência desde 14/08/2026). */
+  function confirmacaoCadastro(p) {
+    if (p.emailConfirmado === true) return 'confirmado';
+    return p.emailVerificationRequired ? 'sem-registro' : 'nao-exigida';
   }
+  var ROTULO_CONFIRMACAO = { confirmado: 'Sim', 'sem-registro': 'Não registrada', 'nao-exigida': 'Não exigida' };
+  function textoConfirmouEmail(p) { return ROTULO_CONFIRMACAO[confirmacaoCadastro(p)]; }
+  /* Data da confirmação para o Excel: a do registro pelo site; "data não registrada" na anotação única. */
   function textoConfirmacaoEm(p) {
-    if (p.emailConfirmado !== true) return '';
-    return p.emailConfirmadoEm ? fmtDate(p.emailConfirmadoEm) : 'data não registrada';
+    if (confirmacaoCadastro(p) !== 'confirmado') return '';
+    return p.emailConfirmadoEm ? dataHoraCad(p.emailConfirmadoEm) : 'data não registrada';
   }
-  /* "Liberado em" — quando e por quem o admin liberou; null se não foi liberada pelo admin. */
+
+  /* Liberação administrativa — quatro categorias que os campos distinguem com segurança (célula, filtro e Excel):
+     - 'liberado' botão "Confirmar cadastro": adminApproved + approvedAt + quem (gravados juntos desde 15/08/2026);
+     - 'criado'   conta criada pelo admin (createdByAdmin; a data é a da criação);
+     - 'antiga'   adminApproved sem approvedAt e sem createdByAdmin: marcação anterior ao botão, SEM data nem autor —
+                  no banco, todas são cadastros anteriores à exigência de confirmação; quem e quando marcou não existe;
+     - 'nenhuma'  sem adminApproved e sem createdByAdmin. */
+  function liberacaoTipo(p) {
+    if (p.createdByAdmin) return 'criado';
+    if (p.adminApproved) return p.approvedAt ? 'liberado' : 'antiga';
+    return 'nenhuma';
+  }
+  var ROTULO_LIBERACAO = { liberado: 'Liberado pelo admin', criado: 'Conta criada pelo admin',
+    antiga: 'Liberação antiga, sem data nem autor', nenhuma: 'Sem liberação do admin' };
   function liberacaoCadastro(p) {
-    if (p.createdByAdmin) return { quando: fmtDate(p.createdAt), por: p.createdByAdmin, criada: true };
-    if (p.adminApproved) return { quando: p.approvedAt ? fmtDate(p.approvedAt) : 'data não registrada', por: p.approvedByAdminName || p.approvedByAdmin || '' };
-    return null;
+    var t = liberacaoTipo(p);
+    return {
+      tipo: t,
+      quandoIso: t === 'criado' ? p.createdAt : t === 'liberado' ? p.approvedAt : null,
+      porEmail: String((t === 'criado' ? p.createdByAdmin : t === 'liberado' ? p.approvedByAdmin : '') || '').toLowerCase(),
+      porNome: t === 'liberado' ? (p.approvedByAdminName || p.approvedByAdmin || '') : t === 'criado' ? p.createdByAdmin : ''
+    };
+  }
+
+  /* Data e hora no mesmo formato em toda a tela e no Excel (dd/mm/aaaa hh:mm, fuso do navegador). Na tela, data e hora
+     ficam sempre juntas, numa linha só. */
+  function dataHoraCad(v) {
+    if (!v) return '';
+    var d = new Date(v); if (isNaN(d)) return '';
+    var p2 = function (n) { return String(n).padStart(2, '0'); };
+    return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  }
+  function dataHoraCadHtml(v) {
+    var t = dataHoraCad(v); if (!t) return '—';
+    var x = t.split(' ');
+    return '<span class="cad-data">' + x[0] + ' ' + x[1] + '</span>';
+  }
+  /* E-mail que quebra em limites naturais: antes do "@" e depois dos pontos do nome (nunca no meio de uma palavra,
+     a menos que um pedaço sozinho não caiba). */
+  function emailCadHtml(e) {
+    if (!e) return '—';
+    var i = e.indexOf('@'); if (i < 0) return esc(e);
+    return esc(e.slice(0, i)).replace(/\./g, '.<wbr>') + '<wbr>' + esc(e.slice(i));
   }
 
   function loadCadastrados() {
@@ -6592,26 +6640,90 @@
       );
     });
 
-    /* ---- Filtros de status + busca ---- */
-    var statusFiltro = 'ativos';
-    list.forEach(function (p) { p._sit = situacaoCadastro(p); });
+    /* ---- Filtros (combináveis) + busca + ordenação ----
+       Tudo deriva dos MESMOS critérios da linha (situacaoCadastro, confirmacaoCadastro, liberacaoCadastro): não existe
+       uma segunda lógica de situação. As opções de Área e de "Liberado por" saem só do que está gravado. A lista na tela
+       (filtros + busca + ordem) é exatamente o que o Excel baixa. Os filtros ficam no fluxo da página — só o cabeçalho
+       da tabela fica fixo na rolagem. */
+    list.forEach(function (p) { p._sit = situacaoCadastro(p); p._conf = confirmacaoCadastro(p); p._lib = liberacaoCadastro(p); });
     var contagem = {
       ativos:     list.filter(function (p) { return !p._sit.bloqueado; }).length,
       pendentes:  list.filter(function (p) { return p._sit.pendente; }).length,
       bloqueados: list.filter(function (p) { return p._sit.bloqueado; }).length
     };
+    var PADRAO = { status: 'ativos', q: '', area: '', conf: '', lib: '', data: '', de: '', ate: '', por: '', ordem: 'nome' };
+    var filtros = Object.assign({}, PADRAO);
+
+    var nomePorEmail = {};
+    list.forEach(function (p) { if (p.email && p.name) nomePorEmail[String(p.email).toLowerCase()] = p.name; });
+    function chavePor(p) { return p._lib.porEmail || (p._lib.porNome ? 'nome:' + p._lib.porNome : ''); }
+    function contaPor(fn) {
+      var o = {};
+      list.forEach(function (p) { var k = fn(p); if (k) o[k] = (o[k] || 0) + 1; });
+      return o;
+    }
+    var areas = contaPor(function (p) { return String(p.area || '').trim(); });
+    var porQuem = contaPor(chavePor);
+    /* Quem liberou: a IDENTIDADE é o e-mail gravado (approvedByAdmin no botão, createdByAdmin na conta criada — o banco
+       não guarda UID). O nome gravado na hora (approvedByAdminName) muda com o tempo ("CADU" e o nome completo são o
+       mesmo e-mail): com o e-mail, mostra-se o nome ATUAL do cadastro dessa pessoa; sem cadastro, o último nome gravado
+       e, sem nenhum, o e-mail. Liberação sem e-mail gravado fica separada pelo nome gravado ("nome:…") — nunca se junta
+       por semelhança de nome. Nada disso altera o que está gravado no banco. */
+    var nomeGravadoPor = {}, quandoGravadoPor = {};
+    list.forEach(function (p) {
+      var k = chavePor(p), n = p._lib.porNome, t = Date.parse(p._lib.quandoIso) || 0;
+      if (k && n && n.indexOf('@') < 0 && !(quandoGravadoPor[k] > t)) { nomeGravadoPor[k] = n; quandoGravadoPor[k] = t; }
+    });
+    function rotuloPor(k) {
+      if (k.indexOf('nome:') === 0) return k.slice(5);
+      return nomePorEmail[k] || nomeGravadoPor[k] || k;
+    }
+    function quemLiberou(p) { var k = chavePor(p); return k ? rotuloPor(k) : ''; }
+    function opcoes(obj, rotulo) {
+      return Object.keys(obj).sort(function (a, b) { return rotulo(a).localeCompare(rotulo(b), 'pt'); })
+        .map(function (k) { return '<option value="' + esc(k) + '">' + esc(rotulo(k)) + ' (' + obj[k] + ')</option>'; }).join('');
+    }
+    var contConf = contaPor(function (p) { return p._conf; }), contLib = contaPor(function (p) { return p._lib.tipo; });
+    function opcoesFixas(rotulos, cont) {
+      return Object.keys(rotulos).filter(function (k) { return cont[k]; })
+        .map(function (k) { return '<option value="' + k + '">' + esc(rotulos[k]) + ' (' + cont[k] + ')</option>'; }).join('');
+    }
+
     const controlsWrap = document.createElement('div');
-    controlsWrap.className = 'admin-colab-row';
-    controlsWrap.style.cssText = 'margin-bottom:12px;gap:8px;flex-wrap:wrap;align-items:center;';
+    controlsWrap.className = 'cad-filtros';
     controlsWrap.innerHTML =
-      '<div class="admin-status-btns">' +
-      '<button class="admin-status-btn active" data-status="ativos">Ativos (' + contagem.ativos + ')</button>' +
-      '<button class="admin-status-btn" data-status="pendentes" title="Cadastro próprio sem confirmação do e-mail registrada e sem liberação do admin (bloqueados não entram)">Pendentes (' + contagem.pendentes + ')</button>' +
-      '<button class="admin-status-btn" data-status="bloqueados">Bloqueados (' + contagem.bloqueados + ')</button>' +
-      '<button class="admin-status-btn" data-status="todos">Todos (' + list.length + ')</button>' +
+      '<div class="cad-filtros-linha">' +
+        '<div class="admin-status-btns" role="group" aria-label="Situação">' +
+        '<button type="button" class="admin-status-btn active" data-status="ativos">Ativos (' + contagem.ativos + ')</button>' +
+        '<button type="button" class="admin-status-btn" data-status="pendentes" title="Cadastro próprio sem confirmação do e-mail registrada e sem liberação do admin (bloqueados não entram)">Pendentes (' + contagem.pendentes + ')</button>' +
+        '<button type="button" class="admin-status-btn" data-status="bloqueados">Bloqueados (' + contagem.bloqueados + ')</button>' +
+        '<button type="button" class="admin-status-btn" data-status="todos">Todos (' + list.length + ')</button>' +
+        '</div>' +
+        '<input id="cadastradosFiltro" type="search" placeholder="Filtrar por nome ou e-mail…" aria-label="Filtrar por nome ou e-mail" />' +
       '</div>' +
-      '<input id="cadastradosFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" style="flex:1;min-width:180px" />' +
-      '<button type="button" class="btn btn--sm" id="cadastradosExportarBtn" title="Baixa em Excel a lista que está na tela (com o filtro aplicado)">&#x1F4CA; Exportar Excel</button>';
+      '<details class="admin-details cad-mais-filtros" id="cadMaisFiltros">' +
+        '<summary>Mais filtros <span class="cad-filtros-ativos" id="cadFiltrosAtivos"></span></summary>' +
+        '<div class="cad-filtros-grade">' +
+          '<label class="cad-filtro">Área<select id="cadFiltroArea"><option value="">Todas</option>' + opcoes(areas, function (k) { return k; }) + '</select></label>' +
+          '<label class="cad-filtro">Confirmação do e-mail<select id="cadFiltroConf"><option value="">Todas</option>' + opcoesFixas(ROTULO_CONFIRMACAO, contConf) + '</select></label>' +
+          '<label class="cad-filtro">Liberação administrativa<select id="cadFiltroLib"><option value="">Todas</option>' + opcoesFixas(ROTULO_LIBERACAO, contLib) + '</select></label>' +
+          '<label class="cad-filtro">Liberado por<select id="cadFiltroPor"><option value="">Qualquer pessoa</option>' + opcoes(porQuem, rotuloPor) + '</select></label>' +
+          '<label class="cad-filtro">Data do cadastro<select id="cadFiltroData"><option value="">Qualquer data</option>' +
+            '<option value="hoje">Hoje</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option>' +
+            '<option value="intervalo">Intervalo…</option></select></label>' +
+          '<label class="cad-filtro" id="cadFiltroDeRotulo" hidden>De<input type="date" id="cadFiltroDe" /></label>' +
+          '<label class="cad-filtro" id="cadFiltroAteRotulo" hidden>Até<input type="date" id="cadFiltroAte" /></label>' +
+        '</div>' +
+      '</details>' +
+      '<div class="cad-filtros-linha cad-resultado-linha">' +
+        '<p class="cad-resultado" id="cadastradosResultado" aria-live="polite"></p>' +
+        '<label class="cad-filtro cad-ordem">Ordenar por<select id="cadOrdem">' +
+          '<option value="nome">Nome (A–Z)</option><option value="cadastro-recente">Cadastro mais recente</option>' +
+          '<option value="cadastro-antigo">Cadastro mais antigo</option><option value="liberacao-recente">Liberação mais recente</option>' +
+          '<option value="liberacao-antiga">Liberação mais antiga</option></select></label>' +
+        '<button type="button" class="btn btn--sm" id="cadLimparFiltros" hidden>Limpar filtros</button>' +
+        '<button type="button" class="btn btn--sm" id="cadastradosExportarBtn" title="Baixa em Excel a lista que está na tela (com os filtros aplicados)">&#x1F4CA; Exportar Excel</button>' +
+      '</div>';
     c.appendChild(controlsWrap);
     const exportMsg = document.createElement('p');
     exportMsg.className = 'admin-msg';
@@ -6629,48 +6741,109 @@
        mostra o que identifica a pessoa e a ação do dia a dia; o resto mora no
        menu "⋯", com o nome dela no topo — assim também não se erra de linha
        numa lista de centenas. */
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro em</th>' +
-      '<th title="Registrado pelo site quando a pessoa entra com o e-mail já confirmado no Firebase. A data é a do registro, não a do clique no link.">Confirmou o e-mail?</th>' +
-      '<th>Liberado em</th><th>Situação</th><th>Ações</th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th scope="col">Nome</th><th scope="col">E-mail</th><th scope="col">Área</th><th scope="col">Cadastro em</th>' +
+      '<th scope="col" title="Registrada pelo site quando a pessoa entra com o e-mail já confirmado no Firebase. A data é a do registro, não a do clique no link.">Confirmou o <span class="cad-data">e-mail?</span></th>' +
+      '<th scope="col">Liberado em</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead>';
     const tbody = document.createElement('tbody');
+    const vazio = document.createElement('p');
+    vazio.className = 'cad-vazio'; vazio.id = 'cadastradosVazio'; vazio.hidden = true;
+    vazio.textContent = 'Nenhum cadastro com esses filtros.';
 
-    var listaNaTela = []; /* o que a tabela está mostrando agora (status + busca) — é o que a exportação baixa */
+    /* Data do cadastro: dias do calendário no fuso do navegador ("hoje" começa à meia-noite local). */
+    function noPeriodo(p) {
+      if (!filtros.data) return true;
+      var d = p.createdAt ? new Date(p.createdAt) : null;
+      if (!d || isNaN(d)) return false;
+      var agora = new Date(), inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+      var diasAtras = function (n) { return new Date(inicioHoje.getFullYear(), inicioHoje.getMonth(), inicioHoje.getDate() - n); };
+      if (filtros.data === 'hoje') return d >= inicioHoje;
+      if (filtros.data === '7')    return d >= diasAtras(6);
+      if (filtros.data === '30')   return d >= diasAtras(29);
+      var de = filtros.de ? new Date(filtros.de + 'T00:00:00') : null, ate = filtros.ate ? new Date(filtros.ate + 'T23:59:59.999') : null;
+      return (!de || d >= de) && (!ate || d <= ate);
+    }
+    function porNome(a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); }
+    function ordenar(arr) {
+      if (filtros.ordem === 'nome') return arr.sort(porNome);
+      var deLiberacao = filtros.ordem.indexOf('liberacao') === 0, recente = /recente$/.test(filtros.ordem);
+      var t = function (p) { var v = Date.parse(deLiberacao ? p._lib.quandoIso : p.createdAt); return isNaN(v) ? null : v; };
+      /* sem data (liberação antiga, sem liberação) vai sempre para o fim, por nome */
+      return arr.sort(function (a, b) {
+        var x = t(a), y = t(b);
+        if (x === y) return porNome(a, b);
+        if (x === null) return 1;
+        if (y === null) return -1;
+        return recente ? y - x : x - y;
+      });
+    }
+    function filtrosAtivos() {
+      return ['area', 'conf', 'lib', 'por', 'data'].filter(function (k) { return filtros[k]; }).length;
+    }
+
+    var listaNaTela = []; /* o que a tabela está mostrando agora (filtros + busca + ordem) — é o que a exportação baixa */
     function applyFilters() {
-      const q = (document.getElementById('cadastradosFiltro').value || '').trim().toLowerCase();
-      var filtered = list.filter(function (p) {
+      const q = filtros.q.trim().toLowerCase();
+      var filtered = ordenar(list.filter(function (p) {
         var bloqueado = p._sit.bloqueado;
-        if (statusFiltro === 'ativos'     && bloqueado)  return false;
-        if (statusFiltro === 'pendentes'  && !p._sit.pendente) return false;
-        if (statusFiltro === 'bloqueados' && !bloqueado) return false;
+        if (filtros.status === 'ativos'     && bloqueado)  return false;
+        if (filtros.status === 'pendentes'  && !p._sit.pendente) return false;
+        if (filtros.status === 'bloqueados' && !bloqueado) return false;
+        if (filtros.area && String(p.area || '').trim() !== filtros.area) return false;
+        if (filtros.conf && p._conf !== filtros.conf) return false;
+        if (filtros.lib && p._lib.tipo !== filtros.lib) return false;
+        if (filtros.por && chavePor(p) !== filtros.por) return false;
+        if (!noPeriodo(p)) return false;
         if (!q) return true;
         return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
-      });
+      }));
       listaNaTela = filtered;
       tbody.innerHTML = '';
       var badgeEl = document.getElementById('cadastradosBadge');
       if (badgeEl) badgeEl.textContent = filtered.length;
+      var n = filtered.length, extras = filtrosAtivos();
+      document.getElementById('cadastradosResultado').textContent =
+        n + (n === 1 ? ' cadastro encontrado' : ' cadastros encontrados') + ' de ' + list.length;
+      document.getElementById('cadFiltrosAtivos').textContent = extras ? '(' + extras + ' ativo' + (extras === 1 ? '' : 's') + ')' : '';
+      var mudou = Object.keys(PADRAO).some(function (k) { return filtros[k] !== PADRAO[k]; });
+      document.getElementById('cadLimparFiltros').hidden = !mudou;
+      vazio.hidden = n > 0;
       filtered.forEach(function (p) {
         var bloqueado = p._sit.bloqueado;
         var emailBadge = p._sit.pendente
           ? '<span class="admin-badge" style="background:rgba(245,197,66,.18);color:var(--accent)" title="Cadastro próprio — sem confirmação do e-mail registrada e sem liberação do admin">Pendente</span>'
           : '';
         var statusBadge = '<span class="admin-badge" style="background:' + (bloqueado ? 'rgba(255,59,48,.18)' : 'rgba(26,178,174,.18)') + ';color:' + (bloqueado ? 'var(--red)' : 'var(--cyan)') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span>';
-        var confEm = textoConfirmacaoEm(p);
-        var lib = liberacaoCadastro(p);
-        var celConfirmou = esc(textoConfirmouEmail(p)) + (confEm ? '<span class="cad-sub">' + esc(confEm) + '</span>' : '');
-        var celLiberado = !lib ? '—' : (lib.criada ? 'Conta criada pelo admin<span class="cad-sub">' + esc(lib.quando) + '</span>'
-          : esc(lib.quando)) + (lib.por ? '<span class="cad-sub">por ' + esc(lib.por) + '</span>' : '');
+        /* "Confirmou o e-mail?": a categoria e, embaixo, o que o banco comprova sobre ela */
+        var celConfirmou = '<span class="cad-valor">' + esc(ROTULO_CONFIRMACAO[p._conf]) + '</span>';
+        if (p._conf === 'confirmado') {
+          celConfirmou += '<span class="cad-sub">' + (p.emailConfirmadoEm ? 'registrada em ' + dataHoraCadHtml(p.emailConfirmadoEm) : 'data não registrada') + '</span>';
+        } else if (p._conf === 'nao-exigida') {
+          celConfirmou += '<span class="cad-sub">' + (p.createdByAdmin ? 'conta criada pelo admin' : 'cadastro anterior à exigência') + '</span>';
+        }
+        var titConf = p._conf === 'sem-registro'
+          ? 'O cadastro não tem a confirmação registrada: a pessoa ainda não confirmou, ou confirmou e ainda não entrou no site depois disso.'
+          : p._conf === 'confirmado' && !p.emailConfirmadoEm ? 'Confirmação anterior ao registro automático (anotação única feita a partir do Firebase Auth); a data do clique não existe.' : '';
+        /* "Liberado em": data (ou a categoria, quando não há data) e quem */
+        var lib = p._lib, celLiberado;
+        if (lib.tipo === 'liberado')     celLiberado = '<span class="cad-valor">' + dataHoraCadHtml(lib.quandoIso) + '</span>';
+        else if (lib.tipo === 'criado')  celLiberado = '<span class="cad-valor">Conta criada pelo admin</span><span class="cad-sub">' + dataHoraCadHtml(lib.quandoIso) + '</span>';
+        else if (lib.tipo === 'antiga')  celLiberado = '<span class="cad-valor">Liberação antiga</span><span class="cad-sub">sem data nem autor registrados</span>';
+        else                             celLiberado = '<span class="cad-valor cad-nada">Sem liberação do admin</span>';
+        if (lib.porNome) {
+          var quem = quemLiberou(p);
+          celLiberado += '<span class="cad-sub cad-por">por ' + (quem.indexOf('@') > 0 ? emailCadHtml(quem) : esc(quem)) + '</span>';
+        }
         var nomeP = p.name || p.email || '—';
         var tr = document.createElement('tr');
         if (bloqueado) tr.classList.add('cad-linha-bloqueada');
         /* data-label é o que vira o rótulo de cada campo quando a tabela
            deixa de ser tabela e vira cartão, no celular (ver pages.css). */
         tr.innerHTML =
-          '<td data-label="Nome">' + esc(p.name || '—') + '</td>' +
-          '<td data-label="E-mail" class="cad-col-email">' + esc(p.email || '—') + '</td>' +
+          '<td data-label="Nome" class="cad-col-nome">' + esc(p.name || '—') + '</td>' +
+          '<td data-label="E-mail" class="cad-col-email"><span class="cad-celula">' + emailCadHtml(p.email) + '</span></td>' +
           '<td data-label="Área">' + esc(p.area || '—') + '</td>' +
-          '<td data-label="Cadastro em">' + fmtDate(p.createdAt) + '</td>' +
-          '<td data-label="Confirmou o e-mail?" class="cad-col-conf"><span class="cad-celula">' + celConfirmou + '</span></td>' +
+          '<td data-label="Cadastro em"><span class="cad-celula">' + dataHoraCadHtml(p.createdAt) + '</span></td>' +
+          '<td data-label="Confirmou o e-mail?" class="cad-col-conf"' + (titConf ? ' title="' + esc(titConf) + '"' : '') + '><span class="cad-celula">' + celConfirmou + '</span></td>' +
           '<td data-label="Liberado em" class="cad-col-lib"><span class="cad-celula">' + celLiberado + '</span></td>' +
           '<td data-label="Situação"><span class="cad-situacao">' + statusBadge + emailBadge + '</span></td>' +
           '<td data-label="Ações"><span class="cad-acoes">' +
@@ -6680,27 +6853,52 @@
         tbody.appendChild(tr);
       });
     }
-    applyFilters();
     tbl.appendChild(tbody);
     var tblWrap = document.createElement('div');
     tblWrap.className = 'table-scroll-wrap';
     tblWrap.appendChild(tbl);
     c.appendChild(tblWrap);
+    c.appendChild(vazio);
+    applyFilters();
 
-    /* Filtro por status */
+    /* Filtro por situação */
+    function marcarStatus() {
+      controlsWrap.querySelectorAll('.admin-status-btn').forEach(function (b) {
+        var ativo = b.dataset.status === filtros.status;
+        b.classList.toggle('active', ativo);
+        b.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+      });
+    }
+    marcarStatus();
     controlsWrap.querySelectorAll('.admin-status-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        controlsWrap.querySelectorAll('.admin-status-btn').forEach(function (b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        statusFiltro = btn.dataset.status;
+      btn.addEventListener('click', function () { filtros.status = btn.dataset.status; marcarStatus(); applyFilters(); });
+    });
+
+    /* Busca, filtros adicionais e ordem */
+    var CAMPOS = { cadastradosFiltro: 'q', cadFiltroArea: 'area', cadFiltroConf: 'conf', cadFiltroLib: 'lib', cadFiltroPor: 'por',
+                   cadFiltroData: 'data', cadFiltroDe: 'de', cadFiltroAte: 'ate', cadOrdem: 'ordem' };
+    function mostrarIntervalo() {
+      var intervalo = filtros.data === 'intervalo';
+      document.getElementById('cadFiltroDeRotulo').hidden = !intervalo;
+      document.getElementById('cadFiltroAteRotulo').hidden = !intervalo;
+    }
+    Object.keys(CAMPOS).forEach(function (id) {
+      var el = document.getElementById(id);
+      el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () {
+        filtros[CAMPOS[id]] = el.value || '';
+        if (id === 'cadFiltroData') mostrarIntervalo();
         applyFilters();
       });
     });
-
-    /* Busca por texto */
-    document.getElementById('cadastradosFiltro').addEventListener('input', applyFilters);
-    /* EXPORTAR EM EXCEL — exatamente a lista na tela (status + busca), com as colunas da tabela. Usa a mesma biblioteca
-       das outras exportações (forca-agil/xlsx.mini.min.js), carregada só na hora. O arquivo tem dados pessoais: avisa. */
+    document.getElementById('cadLimparFiltros').addEventListener('click', function () {
+      filtros = Object.assign({}, PADRAO);
+      Object.keys(CAMPOS).forEach(function (id) { document.getElementById(id).value = filtros[CAMPOS[id]]; });
+      mostrarIntervalo(); marcarStatus(); applyFilters();
+      document.getElementById('cadastradosFiltro').focus();
+    });
+    /* EXPORTAR EM EXCEL — exatamente a lista na tela (filtros + busca, na ordem escolhida), com as colunas da tabela.
+       Usa a mesma biblioteca das outras exportações (forca-agil/xlsx.mini.min.js), carregada só na hora. O arquivo tem
+       dados pessoais: avisa. */
     document.getElementById('cadastradosExportarBtn').addEventListener('click', function () {
       var btn = this;
       if (btn.disabled) return;
@@ -6711,22 +6909,17 @@
       carregarXlsxAdmin(function (erro) {
         btn.disabled = false; btn.innerHTML = '&#x1F4CA; Exportar Excel';
         if (erro || !window.XLSX) { aviso('Não foi possível gerar o arquivo agora. Tente de novo.', true); return; }
-        var dataHora = function (iso) {
-          if (!iso) return '';
-          var d = new Date(iso); if (isNaN(d)) return '';
-          var p2 = function (n) { return String(n).padStart(2, '0'); };
-          return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
-        };
-        /* Mesmos textos da tabela (situacaoCadastro e companhia): o Excel nunca classifica diferente da tela. */
+        /* Mesmas categorias e textos da tabela: o Excel nunca classifica diferente da tela. */
         var linhas = [['Nome', 'E-mail', 'Área', 'Cadastro em', 'Confirmou o e-mail?', 'Confirmação registrada em',
           'Liberado em', 'Liberado por', 'Situação']].concat(pessoas.map(function (p) {
-          var lib = liberacaoCadastro(p);
-          return [p.name || '', p.email || '', p.area || '', dataHora(p.createdAt), textoConfirmouEmail(p), textoConfirmacaoEm(p),
-            lib ? (lib.criada ? 'Conta criada pelo admin em ' + lib.quando : lib.quando) : '', lib ? lib.por : '',
-            rotuloSituacaoCadastro(p._sit)];
+          var lib = p._lib;
+          var libEm = lib.tipo === 'liberado' ? dataHoraCad(lib.quandoIso)
+            : lib.tipo === 'criado' ? 'Conta criada pelo admin em ' + dataHoraCad(lib.quandoIso) : ROTULO_LIBERACAO[lib.tipo];
+          return [p.name || '', p.email || '', p.area || '', dataHoraCad(p.createdAt), textoConfirmouEmail(p), textoConfirmacaoEm(p),
+            libEm, lib.porNome ? quemLiberou(p) : '', rotuloSituacaoCadastro(p._sit)];
         }));
         var ws = window.XLSX.utils.aoa_to_sheet(linhas);
-        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 12 }, { wch: 22 }, { wch: 36 }, { wch: 32 }, { wch: 11 }];
+        ws['!cols'] = [{ wch: 40 }, { wch: 36 }, { wch: 10 }, { wch: 17 }, { wch: 14 }, { wch: 22 }, { wch: 36 }, { wch: 32 }, { wch: 11 }];
         var wb = window.XLSX.utils.book_new();
         window.XLSX.utils.book_append_sheet(wb, ws, 'Cadastrados');
         var hoje = new Date();
