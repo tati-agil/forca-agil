@@ -424,15 +424,21 @@
     },
     {
       "arquivo": ".github/scripts/teste-turmas-ordem-exibicao.js",
-      "nome": "Turmas — eventos já realizados por último, sem sumir nenhuma turma (1440, 1280 e 375 px)",
+      "nome": "Turmas — eventos em três partes (abertos, inscrições encerradas, realizados), sem sumir nenhuma turma (1440, 1280 e 375 px)",
       "duracao": 12,
-      "sobre": "Hermético. Reorganização SÓ DE EXIBIÇÃO: eventos com todas as turmas visíveis realizadas (critério do card \"Turma realizada\") descem para depois de \"Eventos já realizados\", na ordem manual; inscrição encerrada com data futura, evento misto, só fila ou com fila ligada continuam entre os atuais. Exige todas as turmas do banco na tela uma vez só, no seu evento e na ordem manual; informações abertas com \"Ocultar informações\" e Enter recolhendo/reabrindo só aquele evento; sem rolagem horizontal, sem escrita, sem erro de JS."
+      "sobre": "Hermético. Reorganização SÓ DE EXIBIÇÃO: eventos com todas as turmas visíveis realizadas (critério do card \"Turma realizada\") descem para depois de \"Eventos já realizados\"; os sem turma aberta a interesse mas com turma por vir (inscrição encerrada com data futura) ficam no meio, sob \"Próximas turmas — inscrições encerradas\"; evento misto com turma aberta, só fila, ou fila ligada com turma por vir continuam em cima; todas realizadas descem mesmo com a fila ligada. Cada parte na ordem manual. Exige todas as turmas do banco na tela uma vez só, no seu evento e na ordem manual; informações abertas com \"Ocultar informações\" e Enter recolhendo/reabrindo só aquele evento; sem rolagem horizontal, sem escrita, sem erro de JS."
     },
     {
       "arquivo": ".github/scripts/teste-visibilidade-evento.js",
       "nome": "Turmas — visibilidade do evento separada da elegibilidade (\"Mostrar para todos\"), 1440/1280/375 px e ADMIN",
-      "duracao": 40,
+      "duracao": 70,
       "sobre": "Hermético. Visibilidade NUNCA concede participação: no padrão (e sem o campo), evento e turma de Gerentes/Técnicos/diretores/lista somem de quem está fora; com \"Mostrar para todos\" o evento aparece com o público permitido no título e o motivo no lugar dos botões de interesse e da lista de espera; turma de lista própria nunca aparece para quem está fora; registro ativo mantém a turma visível; admin vê tudo e \"Ver como\" mostra o que a pessoa vê; a separação de eventos já realizados continua. ADMIN: o formulário abre e grava o campo certo. Sem escrita na vitrine, sem erro de JS. A recusa no banco está em teste-rules-inscricoes.js (bloco V)."
+    },
+    {
+      "arquivo": ".github/scripts/teste-turmas-tres-grupos.js",
+      "nome": "Turmas — três partes (inscrições abertas, próximas com inscrições encerradas, realizados) iguais para quem vê, 1280/375 px",
+      "duracao": 40,
+      "sobre": "Hermético, dados sintéticos. A parte do evento vem das turmas e das datas (critérios do card), nunca de a pessoa poder participar: quatro pessoas (sem vínculo, inscrita e interessada numa turma de inscrições encerradas, impedida por participação anterior) veem a mesma sequência; fila ligada sobe só evento com turma por vir; lotada continua aberta, sem anunciar vaga; cada parte na ordem manual e com o seu título; a inscrita vê a inscrição confirmada e a interessada o interesse registrado no card encerrado; fora do público some, \"Mostrar para todos\" fica entre os abertos com o aviso; mudando datas e encerramentos os eventos trocam de parte; todas as turmas uma vez só; nenhuma escrita, nenhum erro de JS, sem rolagem horizontal."
     },
     {
       "arquivo": ".github/scripts/teste-turmas-restricoes-participacao.js",

@@ -80,6 +80,36 @@ dupla continua no site.
 lenta nem tratar "ainda não sei" como "não tem acesso". Sem mudança de regra nem de dados; PR própria, quando a área for
 mexida.
 
+## Turmas — lista de espera ligada por padrão, mesmo em evento já realizado
+
+*Registrada em 2026-11-01, na PR #457 (eventos em três partes). Achado preexistente; as regras da fila não mudaram.*
+
+**Situação:** a fila de espera vale como ligada quando o evento não tem o campo (`esperaAtiva !== false` em `app.js` e
+`admin.js`), e o formulário de evento novo já vem com a caixa marcada. Ou seja: "fila ligada" não indica uma decisão do
+admin. Duas consequências:
+- evento com todas as turmas realizadas continua mostrando o card "Lista de espera" com o botão de entrar, agora sob
+  "Eventos já realizados" — a pessoa entra numa fila de um evento que talvez não tenha turma nova (antes da #457, o
+  evento nem descia para os realizados por causa disso);
+- pela regra aprovada na #457, evento com turma por vir e todas as inscrições encerradas sobe para a parte de
+  inscrições abertas sempre que a fila estiver ligada — por padrão, quase sempre. A parte "Próximas turmas — inscrições
+  encerradas" só recebe os eventos em que o admin desligou a fila.
+
+**Não verificado:** quantos eventos reais estão em cada caso (a contagem só de leitura não foi feita).
+
+**A decidir:** se a fila deve deixar de ser ligada por padrão (exige tratar os eventos que não têm o campo), se o card da
+fila deve sumir ou mudar em evento sem turma por vir, ou se fica como está. Não mexer na fila sem aprovação própria.
+
+## Turmas — "Remover interesse" em turma com inscrições encerradas
+
+*Registrada em 2026-11-01, na PR #457. Possível evolução, sem implementação.*
+
+**Situação:** o card de turma com inscrições encerradas não tem botão; desde a #457 ele mostra o vínculo de quem já tem
+registro ("Sua inscrição nesta turma está confirmada." ou "Seu interesse nesta turma continua registrado."). Quem tem só
+interesse não consegue removê-lo por esse card — o "Remover interesse" existe só enquanto a turma está aberta.
+
+**A avaliar:** oferecer "Remover interesse" (só para interesse, nunca para inscrição confirmada, que segue com o admin)
+no card encerrado, e o efeito disso na lista do ADMIN e nas regras de uma turma por pessoa.
+
 ## Pendência arquitetural — composição Squad × Linha (decisão de governança)
 
 *Registrada em 2026-10-13 (consulta só de leitura ao banco oficial, autorizada pela responsável). Não resolver sem

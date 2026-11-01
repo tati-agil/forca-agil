@@ -256,7 +256,7 @@
     /* O que a vitrine precisa saber de quem está vendo (_sess) para a visibilidade (faTurmasUtil.vitrineMostra*):
        se é gerente (null = ainda não sei → o cargo não esconde) e em quais turmas tem registro ATIVO (essas sempre
        aparecem). Lido por carregarVisao a cada pessoa — a real ou a do "Ver como". */
-    var _visao = { email: '', gerente: null, registros: {} };
+    var _visao = { email: '', gerente: null, registros: {}, vinculos: {} };
 
     /* Formato dos encontros do evento (eventos/<evento>/formato) — usado no
        chip "dia(s) de encontro(s)" do bloco "Como funciona". "hibrido" é os
@@ -402,7 +402,7 @@
        redesenha na hora, sem esperar as leituras dos registros. */
     function carregarVisao(desenhar) {
       var email = _sess && _sess.email;
-      var v = { email: email || '', gerente: null, gerenteFalhou: false, registros: {} };
+      var v = { email: email || '', gerente: null, gerenteFalhou: false, registros: {}, vinculos: {} };
       _visao = v;
       if (!email) { desenhar(); return; }
       var db = firebase.database(), k = emailKey(email), pend = 1 + _turmasList.length, desenhou = false;
@@ -427,6 +427,9 @@
       _turmasList.forEach(function (t) {
         db.ref('turmas-interesse/' + t.key + '/' + k).once('value', function (s) {
           var r = s.val(), realizada = turmaRealizada(t, hoje);
+          /* turma por vir: o tipo do vínculo (inscrição confirmada, como em regrasDeEntrada, ou interesse) — o card de
+             inscrições encerradas o mostra */
+          if (!realizada && U.registroAtivo(r)) v.vinculos[t.key] = r.status === 'inscrito' && r.confirmedByAdmin ? 'inscrita' : 'interesse';
           if (U.vinculoNaTurma(r, realizada, false)) { v.registros[t.key] = true; um(); return; }
           if (!realizada || (r && !U.registroAtivo(r)) || !(t.dias || []).length) { um(); return; }
           Promise.all(t.dias.map(function (d) {
@@ -447,6 +450,13 @@
       var dias = (t.dias || []).slice().sort();
       var ultimoDia = dias[dias.length - 1] || '';
       return !!(t.encerrada || (ultimoDia && hoje > ultimoDia));
+    }
+    /* Critério único de "turma aberta a novas manifestações de interesse": é a turma cujo card mostra "Tenho
+       interesse" (turmaCardHtml) — não realizada, ainda não começou e sem inscrições encerradas (finalizada). Geral:
+       não olha quem vê; lotação e restrições de público/participação são da pessoa e ficam no botão. */
+    function turmaAbertaAInteresse(t, hoje) {
+      var primeiroDia = (t.dias || []).slice().sort()[0] || '';
+      return !turmaRealizada(t, hoje) && !(primeiroDia && hoje >= primeiroDia) && !t.finalizada;
     }
 
     function turmaCardHtml(t, hoje) {
@@ -499,6 +509,11 @@
          inscrições terminaram e a turma vai acontecer nas datas
          indicadas. Quem quiser participar olha as próximas. */
       if (t.finalizada) {
+        /* quem já tem registro ativo nesta turma vê o próprio vínculo — o encerramento vale para interesse NOVO */
+        var vinculo = _visao.email === (_sess && _sess.email) ? _visao.vinculos[t.key] : '';
+        var vinculoHtml = vinculo
+          ? '<div class="turma-intent-msg" data-vinculo="' + vinculo + '">' + (vinculo === 'inscrita'
+            ? '&#x2713; Sua inscrição nesta turma está confirmada.' : 'Seu interesse nesta turma continua registrado.') + '</div>' : '';
         return (
           '<div data-turma-key="' + t.key + '" class="turma-card-new reveal in turma-card-lotada">' +
             '<span class="tc-label">' + t.label + '</span>' +
@@ -508,7 +523,7 @@
             /* sem afirmar a causa: o admin pode encerrar o interesse por outros motivos além das vagas */
             '<div class="turma-status-msg turma-lotada-msg"><strong>Inscrições encerradas</strong>' +
               'As manifestações de interesse para esta turma foram encerradas.' +
-              (diasOrdenados.length ? ' Ela será realizada ' + emDias + '.' : '') + '</div>' +
+              (diasOrdenados.length ? ' Ela será realizada ' + emDias + '.' : '') + '</div>' + vinculoHtml +
           '</div>'
         );
       }
@@ -612,23 +627,30 @@
         porEvento[ek].sort(function (a, b) { return prioridadeTurma(a) - prioridadeTurma(b); });
       });
 
-      /* Eventos já realizados descem para o fim, depois de um título próprio —
-         SÓ EXIBIÇÃO: nada some, nada é gravado, a ordem manual do painel
-         (e a prioridade acima) continua valendo dentro de cada parte. Um
-         evento é "realizado" quando tem turma visível e TODAS estão
-         realizadas (turmaRealizada, o critério do card). Por isso não descem:
-         evento com uma turma realizada e outra por vir; turma com inscrições
-         encerradas mas ainda por acontecer; evento só com fila, ou com a fila
-         ligada (é uma ação aberta); turma sem dias. */
-      var atuais = [], realizados = [];
+      /* Três partes, cada uma depois de um título próprio — SÓ EXIBIÇÃO: nada
+         some, nada é gravado, a ordem manual do painel (e a prioridade acima)
+         continua valendo dentro de cada parte.
+           1. inscrições abertas: alguma turma aberta a interesse novo
+              (turmaAbertaAInteresse), mesmo com outras já realizadas ou
+              encerradas; ou a fila de espera ligada com turma ainda por vir ou
+              em andamento (também é interesse novo). Lotada continua aberta: a
+              falta de vaga é dita no card, não encerra o interesse;
+           2. próximas turmas, inscrições encerradas: nenhuma aberta, sem fila,
+              mas alguma ainda por acontecer ou em andamento — encerrar o
+              interesse NÃO é realizar o evento;
+           3. realizados: todas as turmas realizadas (turmaRealizada, o critério
+              do card), mesmo com a fila ligada.
+         Critério geral, das turmas e das datas: não depende de quem vê poder
+         participar. Evento sem turma (só fila) fica na parte 1. */
+      var atuais = [], encerrados = [], realizados = [];
       _eventosList.forEach(function (ev) {
         if (!eventoNaVitrine(ev, porEvento)) return;
         var turmasEv = porEvento[ev.key] || [];
         /* sem turma visível em "Mostrar para todos": o período vem das turmas do evento (só a posição; nada delas aparece) */
         if (!turmasEv.length && semTurmaVisivelEmTodos(ev, porEvento)) turmasEv = _turmasList.filter(function (t) { return t.eventoKey === ev.key; });
-        var realizado = turmasEv.length > 0 && !ev.esperaAtiva &&
-          turmasEv.every(function (t) { return turmaRealizada(t, hoje); });
-        (realizado ? realizados : atuais).push(ev);
+        if (!turmasEv.length || turmasEv.some(function (t) { return turmaAbertaAInteresse(t, hoje); })) atuais.push(ev);
+        else if (turmasEv.every(function (t) { return turmaRealizada(t, hoje); })) realizados.push(ev);
+        else (ev.esperaAtiva ? atuais : encerrados).push(ev);
       });
 
       var html = '';
@@ -671,6 +693,10 @@
           '</div>';
       }
       atuais.forEach(function (ev) { grupoHtml(ev, 'atual'); });
+      if (encerrados.length) {
+        html += '<h2 class="turmas-periodo-divisor">Próximas turmas — inscrições encerradas</h2>';
+        encerrados.forEach(function (ev) { grupoHtml(ev, 'encerrado'); });
+      }
       if (realizados.length) {
         html += '<h2 class="turmas-periodo-divisor">Eventos já realizados</h2>';
         realizados.forEach(function (ev) { grupoHtml(ev, 'realizado'); });

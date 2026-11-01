@@ -39,7 +39,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const { esperarCondicao } = require('./esperas');
+const { esperarCondicao, esperarCondicaoAte } = require('./esperas');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
@@ -147,6 +147,15 @@ async function abrir(browser, email, viewport, mobile, rede) {
   const erros = [];
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
   await page.addInitScript('window.__CFG = ' + JSON.stringify(Object.assign({ db: banco(), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, delayDefault: 20 }, rede || {})) + ';');
+  /* conta os redesenhos da grade: a página pinta uma vez ANTES de o login assentar (sem sessão, sem conferência nenhuma,
+     botões ativos) e de novo depois — ler a primeira pintura dava falha intermitente */
+  await page.addInitScript(() => {
+    window.__redesenhos = 0;
+    document.addEventListener('DOMContentLoaded', () => {
+      const h = document.querySelector('.turmas-eventos');
+      if (h) new MutationObserver(() => { window.__redesenhos++; }).observe(h, { childList: true });
+    });
+  });
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
@@ -157,6 +166,13 @@ async function abrir(browser, email, viewport, mobile, rede) {
 
 /* grade desenhada e nenhum botão (interesse ou fila) ainda em "Verificando…" */
 async function assentar(page) {
+  /* a sessão aberta e a grade parada (nenhum redesenho novo em 1,5 s): só então a pintura é a da pessoa logada */
+  await esperarCondicao(page, () => !!(window.faAuth && window.faAuth.getSession()) && !!document.querySelector('.turmas-eventos .turma-card-new'),
+    null, { limite: 15000, descricao: 'sessão aberta e grade desenhada' });
+  for (let i = 0; i < 10; i++) {
+    const n = await page.evaluate(() => window.__redesenhos);
+    if (!(await esperarCondicaoAte(page, (m) => window.__redesenhos > m, n, { limite: 1500 }))) break;
+  }
   await esperarCondicao(page, () => {
     if (!document.querySelector('.turmas-eventos .turma-card-new')) return false;
     const vis = (b) => b.offsetParent !== null;
