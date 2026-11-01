@@ -122,7 +122,7 @@
     "turmas-equipe": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
-        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
       }
     },
 
@@ -165,7 +165,7 @@
     "turmas": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
-        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
       }
     },
 
@@ -186,9 +186,33 @@
     "turmas-interesse": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
-        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
         "$userKey": {
-          ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+          ".write": "(auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || auth != null && (auth.token.email.toLowerCase().matches(/^[ -~]+@previ\\.com\\.br$/) && $userKey.length <= 64 && auth.token.email.toLowerCase().replace('@', '_').replace('.', '_').replace(' ', '').replace('!', '').replace('\"', '').replace('#', '').replace('$', '').replace('%', '').replace('&', '').replace('\\'', '').replace('(', '').replace(')', '').replace('*', '').replace('+', '').replace(',', '').replace('-', '').replace('/', '').replace(':', '').replace(';', '').replace('<', '').replace('=', '').replace('>', '').replace('?', '').replace('[', '').replace('\\\\', '').replace(']', '').replace('^', '').replace('`', '').replace('{', '').replace('|', '').replace('}', '').replace('~', '').beginsWith($userKey) && ($userKey.length === 64 || $userKey === auth.token.email.toLowerCase().replace('@', '_').replace('.', '_').replace(' ', '').replace('!', '').replace('\"', '').replace('#', '').replace('$', '').replace('%', '').replace('&', '').replace('\\'', '').replace('(', '').replace(')', '').replace('*', '').replace('+', '').replace(',', '').replace('-', '').replace('/', '').replace(':', '').replace(';', '').replace('<', '').replace('=', '').replace('>', '').replace('?', '').replace('[', '').replace('\\\\', '').replace(']', '').replace('^', '').replace('`', '').replace('{', '').replace('|', '').replace('}', '').replace('~', ''))) && newData.exists() && (newData.child('status').val() === 'interessado' && newData.child('removed').val() === false && newData.child('email').isString() && newData.child('email').val().toLowerCase() === auth.token.email.toLowerCase() && (!data.exists() || data.child('removed').val() === true || data.child('status').val() !== 'inscrito') && !newData.child('confirmedByAdmin').exists() && !newData.child('confirmedByAdminName').exists() && !newData.child('confirmedDate').exists() && !newData.child('addedBy').exists() && !newData.child('addedByName').exists() && !newData.child('addedByAdmin').exists() && !newData.child('addedByAdminName').exists() && !newData.child('acimaDasVagas').exists() && !newData.child('fromEspera').exists() && !newData.child('removedByAdmin').exists() && !newData.child('removedByAdminName').exists() && !newData.child('removedByName').exists() && !newData.child('removedReason').exists() && !newData.child('removedMotivo').exists() && !newData.child('removedParaTurma').exists() && !newData.child('removedParaTurmaLabel').exists() && !newData.child('movedToEspera').exists() && !newData.child('movedToTurma').exists() && !newData.child('substituida').exists() && !newData.child('substituidaPor').exists() && !newData.child('substituidaPorNome').exists() && !newData.child('substituidaEm').exists() && !newData.child('substituidaPorAdmin').exists() && !newData.child('motivoNaoConfirmado').exists() && !newData.child('motivoRegistradoEm').exists() && !newData.child('motivoRegistradoPor').exists() && !newData.child('motivoCompletadoEm').exists() && !newData.child('motivoCompletadoPor').exists() && !newData.child('motivoEntrada').exists() && !newData.child('motivoEntradaDetalhe').exists() && !newData.child('motivoSaida').exists() && !newData.child('motivoSaidaDetalhe').exists() && !newData.child('jaParticipouTurma').exists() && !newData.child('jaParticipouTurmaLabel').exists() && root.child('turmas').child($turmaKey).exists() && (root.child('turmas').child($turmaKey).child('publicoRestrito').val() !== true || root.child('turmas-publico').child($turmaKey).child($userKey).exists()) && (root.child('turmas').child($turmaKey).child('publicoCargo').val() !== 'tecnicos' || !root.child('fa-gerentes').child($userKey).exists()) && (root.child('turmas').child($turmaKey).child('publicoCargo').val() !== 'gerentes' || root.child('fa-gerentes').child($userKey).exists()) && root.child('turmas-config').child($turmaKey).child('finalizada').val() !== true && root.child('turmas-config').child($turmaKey).child('encerrada').val() !== true && (!(root.child('turmas').child($turmaKey).child('eventoKey').isString() && root.child('turmas').child($turmaKey).child('eventoKey').val() !== '') || ((root.child('eventos').child(root.child('turmas').child($turmaKey).child('eventoKey').val()).child('publicoRestrito').val() !== true || root.child('eventos-publico').child(root.child('turmas').child($turmaKey).child('eventoKey').val()).child($userKey).exists()) && (root.child('eventos').child(root.child('turmas').child($turmaKey).child('eventoKey').val()).child('restritoADiretores').val() !== true || root.child('fa-diretores').child($userKey).exists()) && (root.child('eventos').child(root.child('turmas').child($turmaKey).child('eventoKey').val()).child('publicoDesc').val() !== 'Técnicos' || !root.child('fa-gerentes').child($userKey).exists()) && (root.child('eventos').child(root.child('turmas').child($turmaKey).child('eventoKey').val()).child('publicoDesc').val() !== 'Gerentes' || root.child('fa-gerentes').child($userKey).exists()))) || data.exists() && newData.child('removed').val() === true && newData.child('status').val() === 'removido' && newData.child('confirmedByAdmin').val() === data.child('confirmedByAdmin').val() && newData.child('confirmedByAdminName').val() === data.child('confirmedByAdminName').val() && newData.child('confirmedDate').val() === data.child('confirmedDate').val() && newData.child('addedBy').val() === data.child('addedBy').val() && newData.child('addedByName').val() === data.child('addedByName').val() && newData.child('addedByAdmin').val() === data.child('addedByAdmin').val() && newData.child('addedByAdminName').val() === data.child('addedByAdminName').val() && newData.child('acimaDasVagas').val() === data.child('acimaDasVagas').val() && newData.child('fromEspera').val() === data.child('fromEspera').val() && newData.child('removedByAdmin').val() === data.child('removedByAdmin').val() && newData.child('removedByAdminName').val() === data.child('removedByAdminName').val() && newData.child('removedByName').val() === data.child('removedByName').val() && newData.child('removedReason').val() === data.child('removedReason').val() && newData.child('removedMotivo').val() === data.child('removedMotivo').val() && newData.child('removedParaTurma').val() === data.child('removedParaTurma').val() && newData.child('removedParaTurmaLabel').val() === data.child('removedParaTurmaLabel').val() && newData.child('movedToEspera').val() === data.child('movedToEspera').val() && newData.child('movedToTurma').val() === data.child('movedToTurma').val() && newData.child('substituida').val() === data.child('substituida').val() && newData.child('substituidaPor').val() === data.child('substituidaPor').val() && newData.child('substituidaPorNome').val() === data.child('substituidaPorNome').val() && newData.child('substituidaEm').val() === data.child('substituidaEm').val() && newData.child('substituidaPorAdmin').val() === data.child('substituidaPorAdmin').val() && newData.child('motivoNaoConfirmado').val() === data.child('motivoNaoConfirmado').val() && newData.child('motivoRegistradoEm').val() === data.child('motivoRegistradoEm').val() && newData.child('motivoRegistradoPor').val() === data.child('motivoRegistradoPor').val() && newData.child('motivoCompletadoEm').val() === data.child('motivoCompletadoEm').val() && newData.child('motivoCompletadoPor').val() === data.child('motivoCompletadoPor').val() && newData.child('motivoEntrada').val() === data.child('motivoEntrada').val() && newData.child('motivoEntradaDetalhe').val() === data.child('motivoEntradaDetalhe').val() && newData.child('motivoSaida').val() === data.child('motivoSaida').val() && newData.child('motivoSaidaDetalhe').val() === data.child('motivoSaidaDetalhe').val() && newData.child('jaParticipouTurma').val() === data.child('jaParticipouTurma').val() && newData.child('jaParticipouTurmaLabel').val() === data.child('jaParticipouTurmaLabel').val()))",
+          "name": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+          },
+          "email": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+          },
+          "area": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+          },
+          "date": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 40)"
+          },
+          "removedDate": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 40)"
+          },
+          "removed": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isBoolean())"
+          },
+          "status": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.val() === 'interessado' || newData.val() === 'removido')"
+          },
+          "$outro": {
+            ".validate": "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
+          }
         }
       }
     },
@@ -203,9 +227,30 @@
     "turmas-interesse-log": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
-        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
         "$userKey": {
-          ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+          ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$item": {
+            ".write": "(auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || auth != null && (auth.token.email.toLowerCase().matches(/^[ -~]+@previ\\.com\\.br$/) && $userKey.length <= 64 && auth.token.email.toLowerCase().replace('@', '_').replace('.', '_').replace(' ', '').replace('!', '').replace('\"', '').replace('#', '').replace('$', '').replace('%', '').replace('&', '').replace('\\'', '').replace('(', '').replace(')', '').replace('*', '').replace('+', '').replace(',', '').replace('-', '').replace('/', '').replace(':', '').replace(';', '').replace('<', '').replace('=', '').replace('>', '').replace('?', '').replace('[', '').replace('\\\\', '').replace(']', '').replace('^', '').replace('`', '').replace('{', '').replace('|', '').replace('}', '').replace('~', '').beginsWith($userKey) && ($userKey.length === 64 || $userKey === auth.token.email.toLowerCase().replace('@', '_').replace('.', '_').replace(' ', '').replace('!', '').replace('\"', '').replace('#', '').replace('$', '').replace('%', '').replace('&', '').replace('\\'', '').replace('(', '').replace(')', '').replace('*', '').replace('+', '').replace(',', '').replace('-', '').replace('/', '').replace(':', '').replace(';', '').replace('<', '').replace('=', '').replace('>', '').replace('?', '').replace('[', '').replace('\\\\', '').replace(']', '').replace('^', '').replace('`', '').replace('{', '').replace('|', '').replace('}', '').replace('~', ''))) && !data.exists() && newData.exists() && newData.hasChildren(['action', 'email', 'date']) && (newData.child('action').val() === 'registrado' || newData.child('action').val() === 'removido') && newData.child('email').isString() && newData.child('email').val().toLowerCase() === auth.token.email.toLowerCase())",
+            "name": {
+              ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+            },
+            "email": {
+              ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+            },
+            "area": {
+              ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+            },
+            "action": {
+              ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString())"
+            },
+            "date": {
+              ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 40)"
+            },
+            "$outro": {
+              ".validate": "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
+            }
+          }
         }
       }
     },
@@ -223,7 +268,7 @@
     "turmas-config": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
-        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
       }
     },
 
