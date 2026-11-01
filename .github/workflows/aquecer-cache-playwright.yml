@@ -36,7 +36,8 @@ on:
 jobs:
   aquecer:
     name: Aquecer cache do Chromium
-    runs-on: ubuntu-latest
+    # 24.04 fixo: o ubuntu-latest passou para 26.04 (nov/2026), onde o Playwright não instala o Chromium.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
