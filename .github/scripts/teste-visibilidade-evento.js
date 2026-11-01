@@ -32,7 +32,9 @@
  *      revelar a turma;
  *  11. participação anterior mantém a turma à vista: turma realizada com inscrição confirmada de quem deixou de ser
  *      gerente ou saiu da lista, ou só com a presença no check-in; interesse nunca confirmado numa turma realizada e
- *      inscrição cancelada (mesmo com presença) não contam.
+ *      inscrição cancelada (mesmo com presença) não contam;
+ *  12. evento NÃO publicado continua fora da vitrine (de todos, inclusive de quem tem inscrição e do admin — regra
+ *      anterior a esta PR), e o histórico da pessoa na Minha Área continua mostrando a turma dele.
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -84,6 +86,7 @@ function banco() {
       evPassadoGer: ev('GERENTES JA REALIZADO', 9, { publicoDesc: 'Gerentes' }),
       evSoListaTodos: ev('TODOS SO TURMAS DE LISTA', 10, { visibilidade: 'todos' }),
       evPassadoLista: ev('LISTA JA REALIZADO', 11),
+      evNaoPublicado: ev('NAO PUBLICADO', 12, { publicado: false }),
     },
     turmas: {
       tGeral1: tu('GERAL T1', 'evGeral', 1),
@@ -96,6 +99,7 @@ function banco() {
       tPassadoGer1: { label: 'PASSADO GER T1', eventoKey: 'evPassadoGer', order: 1, dias: [dia(-30)] },
       tSoLista1: tu('TURMA SECRETA DE LISTA', 'evSoListaTodos', 1, { publicoRestrito: true }),
       tPassadoLista1: { label: 'PASSADO LISTA T1', eventoKey: 'evPassadoLista', order: 1, dias: [dia(-40)], publicoRestrito: true },
+      tNaoPublicado1: { label: 'TURMA DE EVENTO DESPUBLICADO', eventoKey: 'evNaoPublicado', order: 1, dias: [dia(-50)] },
     },
     'turmas-interesse': {
       tGeral1: { [chave(TEC)]: ativo(TEC, 'TECNICA') },
@@ -106,6 +110,7 @@ function banco() {
         [chave(CANCELADA)]: inscrita(CANCELADA, 'CANCELADA', { removed: true, removedDate: '2026-09-02T10:00:00.000Z' }),
       },
       tPassadoLista1: { [chave(EXLISTA)]: inscrita(EXLISTA, 'EXLISTA') },
+      tNaoPublicado1: { [chave(EXGER)]: inscrita(EXGER, 'EXGERENTE') },
     },
     'turmas-interesse-log': {}, 'turmas-config': {}, 'turmas-checkin': { tPassadoGer1: { [dia(-30)]: { [chave(PRESENTE)]: presenca, [chave(CANCELADA)]: presenca } } }, 'turmas-sorteio': {}, 'turmas-equipe': {},
     'turmas-publico': { tGeralLista: lista, tListaTodosRestrita: lista, tSoLista1: lista, tPassadoLista1: lista },
@@ -114,7 +119,7 @@ function banco() {
   };
 }
 
-const TODAS = Object.keys(banco().turmas).sort();
+const TODAS = Object.keys(banco().turmas).filter((k) => banco().eventos[banco().turmas[k].eventoKey].publicado !== false).sort();
 const ESPERADO = {
   [GER]: ['tGeral1', 'tGeralGer', 'tGer1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1', 'tPassadoGer1'],
   [TEC]: ['tGeral1', 'tTec1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1'],
@@ -272,7 +277,7 @@ const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   /* quem participou continua vendo a turma, mesmo realizada e fora do público de hoje; interesse nunca confirmado e
      inscrição cancelada não comprovam participação. Só exibição: nada é gravado. */
   const PASSADO = {
-    [EXGER]: { ve: ['tPassadoGer1'], nao: ['tPassadoLista1', 'tGer1'], ev: 'evPassadoGer', o: 'ex-gerente (inscrição confirmada, hoje técnica)' },
+    [EXGER]: { ve: ['tPassadoGer1'], nao: ['tPassadoLista1', 'tGer1', 'tNaoPublicado1'], ev: 'evPassadoGer', o: 'ex-gerente (inscrição confirmada, hoje técnica)' },
     [EXLISTA]: { ve: ['tPassadoLista1'], nao: ['tPassadoGer1', 'tGeralLista'], ev: 'evPassadoLista', o: 'quem saiu da lista (inscrição confirmada)' },
     [PRESENTE]: { ve: ['tPassadoGer1'], nao: ['tPassadoLista1', 'tGer1'], ev: 'evPassadoGer', o: 'presença no check-in, sem registro' },
     [INTERESSE]: { ve: [], nao: ['tPassadoGer1'], o: 'interesse nunca confirmado em turma realizada' },
@@ -286,7 +291,16 @@ const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       anota(q + ': ' + (c.ve.length ? 'continua vendo a turma que fez' : 'NÃO vê a turma realizada'), c.ve.every((t) => e.turmas.includes(t)) && !c.nao.some((t) => e.turmas.includes(t)), JSON.stringify(e.turmas));
       if (c.ev) anota(q + ': o evento fica em "Eventos já realizados" (PR #451), sem aviso de público', e.divisor && e.periodos[c.ev] === 'realizado' && !e.avisos[c.ev], JSON.stringify({ p: e.periodos, a: e.avisos }));
       else anota(q + ': o evento de Gerentes já realizado não aparece', !e.eventos.includes('evPassadoGer'), JSON.stringify(e.eventos));
-      anota(q + ': nenhuma gravação, sem erro de JS, sem rolagem lateral', !e.escritas.length && !erros.length && !e.larguraExcede, JSON.stringify({ escritas: e.escritas, erros }));
+      if (email === EXGER) {
+        anota(q + ': evento NÃO publicado continua fora da vitrine, mesmo com inscrição dela lá (regra existente)', !e.eventos.includes('evNaoPublicado') && !/DESPUBLICADO/.test(e.textoPagina), JSON.stringify(e.eventos));
+        /* ...e o histórico dela na Minha Área continua: as duas turmas que ela fez, inclusive a do evento despublicado */
+        await page.evaluate(() => { location.hash = '#minha-area'; });
+        await esperarCondicao(page, () => { const p = document.getElementById('page-minha-area'); return !!p && !p.hidden && /PASSADO GER T1/.test(p.textContent); }, null, { limite: 15000, descricao: 'a Minha Área com o histórico' });
+        const area = await page.evaluate(() => document.getElementById('page-minha-area').textContent);
+        anota(q + ': Minha Área mostra o histórico — a turma realizada de Gerentes e a do evento despublicado', /PASSADO GER T1/.test(area) && /TURMA DE EVENTO DESPUBLICADO/.test(area));
+      }
+      const fim = await estado(page);
+      anota(q + ': nenhuma gravação, sem erro de JS, sem rolagem lateral', !fim.escritas.length && !erros.length && !e.larguraExcede, JSON.stringify({ escritas: fim.escritas, erros }));
       await ctx.close();
     }
   }
