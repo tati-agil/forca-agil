@@ -40,6 +40,32 @@ ainda não confirmados.
 **Próximo passo:** depois da Porta 2 homologada, apresentar uma proposta visual enxuta e os critérios de aceite para
 aprovação, antes de qualquer implementação.
 
+## Turmas — inconsistências de público na lista de espera
+
+*Registrada em 2026-11-01 (decisão 3 do planejamento de inconsistências de público). Fora da primeira entrega do selo
+"Fora do público atual" do ADMIN.*
+
+**Situação:** quem está na lista de espera de um evento pode deixar de atender ao público dele depois de entrar na fila
+(o cargo mudou, o público do evento mudou, saiu da lista do evento). Hoje nada sinaliza isso no ADMIN › Lista de espera.
+
+**A avaliar:** se a fila deve ganhar a mesma sinalização (só informativa, calculada da configuração vigente, sem
+remover ninguém nem gravar marcação), e com quais motivos — a fila é do evento, então os critérios de turma não se
+aplicam.
+
+**Restrições:** não mexer na fila, nos botões, na elegibilidade, nos dados nem nas gravações dela sem aprovação própria.
+
+## Turmas — confirmação do ADMIN não confere "só diretores"
+
+*Registrada em 2026-11-01 (decisão 4). Tratar em PR própria; não corrigir junto de outras entregas.*
+
+**Divergência:** a marcação "só diretores" do evento (`restritoADiretores`) é conferida na vitrine e nas regras do banco
+para a própria pessoa, mas as portas do ADMIN (Confirmar, ＋ Participante, Mover da fila) não a conferem — as listas e o
+cargo, sim (`barradoPeloPublico` e `regrasDeEntrada`). Um admin consegue confirmar quem não é diretor num evento só de
+diretores. Hoje nenhum evento real usa essa marcação (o público de diretores é feito por lista).
+
+**A decidir:** alinhar as portas do ADMIN às outras restrições de público (e como isso convive com a confirmação
+excepcional de interesse preexistente, se aprovada).
+
 ## Pendência arquitetural — composição Squad × Linha (decisão de governança)
 
 *Registrada em 2026-10-13 (consulta só de leitura ao banco oficial, autorizada pela responsável). Não resolver sem
