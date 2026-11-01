@@ -1087,6 +1087,12 @@
       "sobre": "B0 do H2-b: a compacta tem a mesma estrutura, a mesma ordem de chaves e as mesmas expressões do database.rules.json; a conferência recusa diferença de valor, chave ou ordem; o deploy continua com o fonte legível."
     },
     {
+      "arquivo": ".github/scripts/teste-regras-inscricoes-montadas.js",
+      "nome": "Segurança das inscrições: os nós de turmas são os montados e nada acima deles libera gravação (sem navegador)",
+      "duracao": 1,
+      "sobre": "Etapa B: turmas, turmas-config, turmas-equipe, turmas-interesse e turmas-interesse-log iguais aos de montar-regras-inscricoes.js; raiz e nós sem .write aberto; a turma inteira só o admin grava; a chave da pessoa é a PROPRIA_CHAVE de fa-users; o histórico só recebe acréscimo. A autorização real é provada no emulador (teste-rules-inscricoes.js)."
+    },
+    {
       "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
       "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
       "duracao": 24,

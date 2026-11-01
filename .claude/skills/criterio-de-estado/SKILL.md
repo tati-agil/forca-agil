@@ -155,11 +155,15 @@ mais, nunca amplia; contraditórios = `'conflito'`, ninguém entra.
   erro). Falhar escondendo é o lado seguro — o contrário vazaria turma fechada.
 - **Admin vê tudo**, como no evento `restritoADiretores`.
 
-**Limite conhecido:** `turmas-interesse` aceita escrita de qualquer pessoa
-logada `@previ.com.br` nas regras do banco, então a recusa vive na interface.
-`turmas-publico` é o único nó de turma cuja escrita é só de admin — é ali que
-a restrição tem dente. Endurecer `turmas-interesse` é outra mudança, que
-afeta todos os fluxos de inscrição.
+**No banco (Etapa B, `montar-regras-inscricoes.js`):** a pessoa só grava na
+própria chave de `turmas-interesse`, e só registrar interesse (cabendo em
+TODAS as restrições do evento e da turma) ou remover o próprio registro;
+`turmas`, `turmas-config` e `turmas-equipe` são só do admin. Vagas, "uma
+turma por pessoa" e "já participou" continuam só na interface (dependem de
+contar registros). Uma porta NOVA que grave em `turmas-interesse` como
+pessoa (não admin) precisa caber nessas regras — prove no emulador
+(`teste-rules-inscricoes.js`); um campo administrativo novo entra na lista
+`ADMINISTRATIVOS` do gerador.
 
 ## Outros critérios de estado deste projeto
 
