@@ -270,7 +270,18 @@
           function fim() {
             var tks = Object.keys(achados);
             var anterior = tks.filter(function (tk) { return anteriores.indexOf(turmas[tk].eventoKey) !== -1; })[0];
-            if (anterior) { cb({ estado: 'bloqueado', regra: 'participacao', evento: (eventos[turmas[anterior].eventoKey] || {}).nome || '' }); return; }
+            if (anterior) {
+              /* todos os eventos bloqueadores com registro da pessoa (s\u00f3 para EXPLICAR; a decis\u00e3o \u00e9 a mesma de sempre) */
+              var porEv = {}, lista = [];
+              tks.forEach(function (tk) {
+                var ek = turmas[tk].eventoKey; if (anteriores.indexOf(ek) === -1) return;
+                if (!porEv[ek]) { porEv[ek] = { key: ek, nome: (eventos[ek] || {}).nome || '', inscrita: false }; lista.push(porEv[ek]); }
+                var v = achados[tk]; if (v.status === 'inscrito' && v.confirmedByAdmin) porEv[ek].inscrita = true;
+              });
+              lista.sort(function (a, b) { return ((eventos[a.key] || {}).order || 0) - ((eventos[b.key] || {}).order || 0); });
+              cb({ estado: 'bloqueado', regra: 'participacao', evento: (eventos[turmas[anterior].eventoKey] || {}).nome || '', eventos: lista, incompleto: falhou });
+              return;
+            }
             var outra = tks.filter(function (tk) { return grupo.indexOf(turmas[tk].eventoKey) !== -1; })[0];
             if (outra) {
               var t = turmas[outra];
@@ -308,7 +319,30 @@
     return 'Você já ' + (r.turma.inscrita ? 'está inscrita' : 'tem interesse') + ' na ' + descreverTurmaRegra(r.turma) + '. Só é possível participar de uma turma por vez. ' +
       (r.turma.inscrita ? 'Para trocar, peça ao admin para retirá-la daquela turma.' : 'Para trocar, remova seu interesse naquela turma.');
   }
-  /* o que o ADMIN lê no painel ao tentar incluir alguém (sem HTML). 'lotada' não é recusa: o painel pede o motivo. */
+  /* o que a PESSOA l\u00ea no CARD da turma (sem HTML) \u2014 s\u00f3 reda\u00e7\u00e3o; a decis\u00e3o vem pronta de regrasDeEntrada.
+     Participa\u00e7\u00e3o anterior: TODOS os eventos bloqueadores em que ela tem registro, cada um com "inscri\u00e7\u00e3o confirmada" ou
+     "interesse registrado"; rotulo(evento) devolve o nome que ELA pode ver, ou '' \u2014 a\u00ed o evento vira "outro evento
+     anterior", sem nome. Com leitura incompleta, a lista n\u00e3o \u00e9 dada como completa. Falha: nunca uma conclus\u00e3o. */
+  function juntarNomes(l) { return l.length < 2 ? (l[0] || '') : l.slice(0, -1).join(', ') + ' e ' + l[l.length - 1]; }
+  function mensagemRestricaoTurma(r, rotulo) {
+    if (!r || r.estado === 'erro') return 'N\u00e3o foi poss\u00edvel verificar agora se voc\u00ea pode manifestar interesse nesta turma. Recarregue a p\u00e1gina e tente de novo.';
+    if (r.regra !== 'participacao' || !r.eventos || !r.eventos.length) return mensagemRegraPessoa(r);
+    var nomeados = [], ocultos = [];
+    r.eventos.forEach(function (e) { var n = rotulo ? rotulo(e) : ''; if (n) nomeados.push({ nome: n, inscrita: e.inscrita }); else ocultos.push(e); });
+    var outros = ocultos.length === 1 ? 'outro evento anterior' : ocultos.length + ' outros eventos anteriores';
+    var de = nomeados.map(function (x) { return x.nome; }); if (ocultos.length) de.push(outros);
+    var tipo = function (insc) { return insc ? 'inscri\u00e7\u00e3o confirmada' : 'interesse registrado'; };
+    var tem;
+    if (r.eventos.length === 1) tem = 'Voc\u00ea j\u00e1 tem ' + tipo(r.eventos[0].inscrita) + (nomeados.length ? ' l\u00e1.' : ' nele.');
+    else {
+      var itens = nomeados.map(function (x) { return tipo(x.inscrita) + ' em ' + x.nome; });
+      if (ocultos.length) itens.push('registro em ' + outros);
+      tem = 'Voc\u00ea j\u00e1 tem ' + juntarNomes(itens) + '.';
+    }
+    return 'Estas turmas s\u00e3o para quem ainda n\u00e3o participou de ' + juntarNomes(de) + '. ' + tem +
+      (r.incompleto ? ' N\u00e3o foi poss\u00edvel conferir todos os seus registros agora.' : '');
+  }
+  /* o que o ADMIN l\u00ea no painel ao tentar incluir algu\u00e9m (sem HTML). 'lotada' n\u00e3o \u00e9 recusa: o painel pede o motivo. */
   function mensagemRegraAdmin(r, nome) {
     var quem = nome || 'Essa pessoa';
     if (!r || r.estado === 'erro') return 'Não consegui verificar as regras da turma para ' + quem + ' agora. Recarregue a página e tente de novo. Nada foi gravado.';
@@ -444,7 +478,7 @@
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo,
     vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
-    regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin,
+    regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRestricaoTurma: mensagemRestricaoTurma, mensagemRegraAdmin: mensagemRegraAdmin,
     visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
     vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,
     cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo, registroAtivo: registroAtivo, vinculoNaTurma: vinculoNaTurma,

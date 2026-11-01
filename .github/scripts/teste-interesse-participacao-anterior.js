@@ -78,6 +78,12 @@ async function abrir(browser, email, hash) {
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
 }
+/* a explicação da turma: no card ou, quando a mesma explicação vale para várias turmas do evento, no aviso do evento (o
+   card só remete a ele — teste-turmas-restricoes-participacao.js) */
+const EXPLICACAO = "(k) => { const m = ((document.getElementById('intent-msg-' + k) || {}).textContent || '').trim(); if (!/veja o aviso do evento/.test(m)) return m;" +
+  " const c = document.querySelector('.turma-card-new[data-turma-key=\"' + k + '\"]'); const a = c && c.closest('.turmas-evento-grupo').querySelector('[data-restricao-evento]'); return a ? a.textContent.trim() : m; }";
+const explicacao = (page, tk) => page.evaluate('(' + EXPLICACAO + ')(' + JSON.stringify(tk) + ')');
+const esperarExplicacao = (page, tk, re) => page.waitForFunction('new RegExp(' + JSON.stringify(re.source) + ').test((' + EXPLICACAO + ')(' + JSON.stringify(tk) + '))', null, { timeout: 15000 });
 const texto = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent.trim() : ''; }, sel);
 const visivel = (page, sel) => page.evaluate((s) => { const e = document.querySelector(s); return !!(e && e.offsetParent !== null && getComputedStyle(e).display !== 'none'); }, sel);
 const escritasDe = (page, caminho) => page.evaluate((c) => (window.__ESCRITAS || []).filter((e) => e.path === c), caminho);
@@ -96,9 +102,9 @@ const conferido = (page) => page.waitForFunction(() => {
     {
       const { ctx, page, erros } = await abrir(browser, JA, '#turmas');
       /* a página redesenha os cards quando o login assenta: espera o estado final (explicação, botão escondido) */
-      await page.waitForFunction(() => { const b = document.querySelector('.btn--interest[data-turma="t3"]'), m = document.getElementById('intent-msg-t3');
-        return !!b && b.style.display === 'none' && /quem ainda não participou/.test((m && m.textContent) || ''); }, null, { timeout: 15000 });
-      const msg = await texto(page, '#intent-msg-t3');
+      await esperarExplicacao(page, 't3', /quem ainda não participou/);
+      await page.waitForFunction(() => { const b = document.querySelector('.btn--interest[data-turma="t3"]'); return !!b && b.style.display === 'none'; }, null, { timeout: 15000 });
+      const msg = await explicacao(page, 't3');
       anota('quem já participou do Episódio I vê a explicação, sem o botão "Tenho interesse"',
         !(await visivel(page, '.btn--interest[data-turma="t3"]')) && /quem ainda não participou de EPISÓDIO I/.test(msg), 'mensagem: ' + msg);
       await page.waitForFunction(() => { const c = document.querySelector('.turma-card-espera'); return !!c && /EPISÓDIO I/.test((c.querySelector('.turma-intent-msg') || {}).textContent || ''); }, null, { timeout: 15000 });
@@ -191,8 +197,8 @@ const conferido = (page) => page.waitForFunction(() => {
       anota('11. removendo o interesse da turma A, a turma B volta a "Tenho interesse" na hora (sem a mensagem antiga)',
         !/uma turma por vez/.test(await texto(page, '#intent-msg-t4')), await texto(page, '#intent-msg-t4'));
       await page.click('.btn--interest[data-turma="t4"]');
-      await page.waitForFunction(() => /já tem interesse na TURMA EP4/.test((document.getElementById('intent-msg-t3') || {}).textContent || '') &&
-        /já tem interesse na TURMA EP4/.test((document.getElementById('intent-msg-t3b') || {}).textContent || ''), null, { timeout: 15000 });
+      await esperarExplicacao(page, 't3', /já tem interesse na TURMA EP4/);
+      await esperarExplicacao(page, 't3b', /já tem interesse na TURMA EP4/);
       anota('11. registrando na turma B, as outras passam a dizer "já tem interesse na TURMA EP4" na hora', !(await visivel(page, '.btn--interest[data-turma="t3b"]')));
       anota('sem erro de JavaScript (trocar de turma)', !erros.length, erros[0]);
       await ctx.close();
@@ -200,8 +206,8 @@ const conferido = (page) => page.waitForFunction(() => {
     /* 8. inscrita numa turma do grupo */
     {
       const { ctx, page, erros } = await abrir(browser, INSCR, '#turmas');
-      await page.waitForFunction(() => /uma turma por vez/.test((document.getElementById('intent-msg-t3') || {}).textContent || ''), null, { timeout: 15000 });
-      const m = await texto(page, '#intent-msg-t3');
+      await esperarExplicacao(page, 't3', /uma turma por vez/);
+      const m = await explicacao(page, 't3');
       anota('8. inscrita na turma do Episódio IV: no Episódio III, orientada a pedir ao admin', /está inscrita na TURMA EP4 — EPISÓDIO IV/.test(m) && /peça ao admin/.test(m), m);
       anota('sem erro de JavaScript (inscrita)', !erros.length, erros[0]);
       await ctx.close();

@@ -505,9 +505,10 @@
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + diasLabel + '</div>' +
             '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' + salaHtml +
+            /* sem afirmar a causa: o admin pode encerrar o interesse por outros motivos além das vagas */
             '<div class="turma-status-msg turma-lotada-msg"><strong>Inscrições encerradas</strong>' +
-              'As vagas desta turma já foram preenchidas. Ela será realizada ' + emDias + '. ' +
-              'Acompanhe as próximas turmas para participar.</div>' +
+              'As manifestações de interesse para esta turma foram encerradas.' +
+              (diasOrdenados.length ? ' Ela será realizada ' + emDias + '.' : '') + '</div>' +
           '</div>'
         );
       }
@@ -1280,22 +1281,82 @@
       btn.disabled = true;
       btn.style.display = '';
       btn.innerHTML = 'Verificando…';
+      btn.dataset.verificando = '1';
       showMsg(turmaKey, '');  /* reconferindo (o card foi redesenhado): a mensagem de antes não vale até a resposta nova */
+      marcarRestricao(turmaKey, null);
       var ev = eventoDaTurma(turmaKey);
       verificarParticipacaoAnterior(ev ? ev.key : '', email, function (r) {
+        function pronto() { delete btn.dataset.verificando; consolidarAvisoDoEvento(turmaKey); }
         function botaoNormal() {
           btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse';
           btn.disabled = false;
           checkInterestState(btn, turmaKey, email);
+          pronto();
         }
         if (r.estado === 'livre') { botaoNormal(); return; }
         firebase.database().ref('turmas-interesse/' + turmaKey + '/' + emailKey(email)).once('value', function (snap) {
           var v = snap.val();
           if (v && !v.removed) { botaoNormal(); return; }
           btn.style.display = 'none';
-          showMsg(turmaKey, mensagemParticipacao(r));
-        }, function () { btn.style.display = 'none'; showMsg(turmaKey, mensagemParticipacao({ estado: 'erro' })); });
+          var msg = mensagemDoCard(r, email);
+          showMsg(turmaKey, msg);
+          marcarRestricao(turmaKey, r, msg);
+          pronto();
+        }, function () { btn.style.display = 'none'; showMsg(turmaKey, mensagemDoCard({ estado: 'erro' }, email)); pronto(); });
       }, turmaKey);
+    }
+
+    /* MENSAGEM DO CARD (só redação; a decisão vem pronta de regrasDeEntrada). Participação anterior cita TODOS os
+       eventos bloqueadores em que a pessoa tem registro — pelo nome só os que ela PODE ver na vitrine (publicados, no
+       público dela ou com vínculo dela, faTurmasUtil.vitrineMostraEvento); os outros viram "outro evento anterior". */
+    function mensagemDoCard(r, email) {
+      var sess = { email: email };
+      return window.faTurmasUtil.mensagemRestricaoTurma(r, function (e) {
+        var ev = eventoPorKey(e.key);
+        if (!ev || !ev.publicado) return '';
+        var temVinculo = _visao.email === email && _turmasList.some(function (t) { return t.eventoKey === e.key && _visao.registros[t.key]; });
+        return window.faTurmasUtil.vitrineMostraEvento(ev, pessoaDaVitrine(sess, ev.key, ''), temVinculo) ? (ev.nome || e.nome || '') : '';
+      });
+    }
+
+    /* UMA EXPLICAÇÃO POR EVENTO. Restrições que valem para o evento (participação anterior, uma turma por pessoa) dão a
+       mesma mensagem em cada card. Quando DUAS ou mais turmas do evento terminam com a MESMA mensagem dessas, ela vai uma
+       vez para o cabeçalho do evento (o aviso de público da #452) e os cards dizem só que estão indisponíveis. Só depois
+       que TODAS as conferências do evento responderam (nada "Verificando…"): aviso nunca adianta o que não foi
+       conferido. Mensagens de uma turma só (lotada, falha, o próprio vínculo) ficam no card. Só exibição. */
+    var REGRAS_DO_EVENTO = { participacao: true, umaTurma: true };
+    function marcarRestricao(turmaKey, r, msg) {
+      var card = document.querySelector('.turma-card-new[data-turma-key="' + turmaKey + '"]');
+      if (!card) return;
+      if (r && r.estado === 'bloqueado' && REGRAS_DO_EVENTO[r.regra]) { card.dataset.restricaoMsg = msg; card.dataset.restricaoRegra = r.regra; }
+      else { delete card.dataset.restricaoMsg; delete card.dataset.restricaoRegra; }
+    }
+    function consolidarAvisoDoEvento(turmaKey) {
+      var card = document.querySelector('.turma-card-new[data-turma-key="' + turmaKey + '"]');
+      var grupo = card && card.closest('.turmas-evento-grupo');
+      if (!grupo || !grupo.getAttribute('data-evento-key')) return;
+      if (grupo.querySelector('.btn--interest[data-verificando]')) return;
+      Array.prototype.forEach.call(grupo.querySelectorAll('[data-restricao-evento]'), function (p) { p.parentNode.removeChild(p); });
+      var porMsg = {}, ordem = [];
+      Array.prototype.forEach.call(grupo.querySelectorAll('.turma-card-new[data-restricao-msg]'), function (c) {
+        var m = c.dataset.restricaoMsg;
+        if (!porMsg[m]) { porMsg[m] = []; ordem.push(m); }
+        porMsg[m].push(c);
+      });
+      var cab = grupo.querySelector('.turmas-evento-cab');
+      ordem.forEach(function (m) {
+        var cards = porMsg[m];
+        if (cards.length < 2 || !cab) {
+          cards.forEach(function (c) { var el = c.querySelector('.turma-intent-msg'); if (el) el.textContent = m; });
+          return;
+        }
+        var p = document.createElement('p');
+        p.className = 'turmas-evento-publico';
+        p.setAttribute('data-restricao-evento', cards[0].dataset.restricaoRegra);
+        p.textContent = m;
+        cab.appendChild(p);
+        cards.forEach(function (c) { var el = c.querySelector('.turma-intent-msg'); if (el) el.textContent = 'Indisponível para você — veja o aviso do evento, acima.'; });
+      });
     }
 
     /* Fora do público do evento por lista de e-mails ou "só diretores" — só alcançável com "Mostrar para todos" (no
