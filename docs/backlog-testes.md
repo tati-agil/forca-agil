@@ -323,6 +323,19 @@ nesse trecho). Fora do escopo da #437 por decisão da responsável.
 - **Prioridade sugerida:** média-baixa — sem perda de acesso nem de dados, mas é erro visível no console e um nível de
   acesso velho em memória; corrigir numa PR pequena própria.
 
+## Pendência registrada (homologação C68, PR #455): teste que não roda contra o site publicado
+
+`teste-interesse-participacao-anterior.js` passa no CI e localmente (servidor em `127.0.0.1:8811`), mas falha quando
+apontado para o site publicado (`FA_BASE_URL=https://kyber-agil.web.app`): algumas esperas (`esperarExplicacao`)
+passam a condição ao `waitForFunction` como **texto**, e a política de segurança (CSP) do site publicado proíbe avaliar
+texto como código (`unsafe-eval`). É limitação do teste, não do site; os outros testes de Turmas usados na C68
+(`teste-turmas-restricoes-participacao.js`, `teste-visibilidade-evento.js`, `teste-turmas-ordem-exibicao.js`,
+`teste-admin-fora-do-publico.js`) rodaram contra o código publicado sem esse problema.
+
+- **Correção sugerida:** passar a condição como função com argumentos (como as demais esperas do arquivo), sem montar
+  código por texto.
+- **Prioridade sugerida:** baixa — não afeta o CI nem o site; só impede usar este teste na homologação pós-deploy.
+
 ## Pendência registrada (PR #437): critério de senha diferente entre cadastro e redefinição
 
 Sem implementação por decisão da responsável. Hoje: o cadastro exige **8 ou mais números, só números**

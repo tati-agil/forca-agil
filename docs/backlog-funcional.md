@@ -66,6 +66,20 @@ diretores. Hoje nenhum evento real usa essa marcação (o público de diretores 
 **A decidir:** alinhar as portas do ADMIN às outras restrições de público (e como isso convive com a confirmação
 excepcional de interesse preexistente, se aprovada).
 
+## Turmas — pintura dupla da página depois do login (melhoria técnica, prioridade baixa)
+
+*Registrada em 2026-11-01, na homologação C68 (PR #455). Defeito preexistente, não introduzido pela #455.*
+
+**Situação:** logo depois do login, a página Turmas é desenhada duas vezes em poucos milissegundos, porque
+`initTurmaInterest` (`app.js`) é disparada por mais de um aviso de prontidão (`fa-auth-change`, `fa-diretor-ready`,
+`fa-admin-ready`). Para a pessoa o efeito é mínimo (um bloco recolhido nesse instante volta a abrir); nos testes, é a
+causa de intermitência — `teste-turmas-ordem-exibicao.js` passou a esperar a página assentar (PR #455), mas a pintura
+dupla continua no site.
+
+**A avaliar:** juntar os disparos numa só pintura depois que a sessão assenta, sem atrasar a primeira exibição em rede
+lenta nem tratar "ainda não sei" como "não tem acesso". Sem mudança de regra nem de dados; PR própria, quando a área for
+mexida.
+
 ## Pendência arquitetural — composição Squad × Linha (decisão de governança)
 
 *Registrada em 2026-10-13 (consulta só de leitura ao banco oficial, autorizada pela responsável). Não resolver sem
