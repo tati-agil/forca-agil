@@ -37,7 +37,7 @@
  */
 
 const { chromium } = require('playwright');
-const { esperarCondicao } = require('./esperas');
+const { esperarCondicao, esperarCondicaoAte } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -143,6 +143,15 @@ async function abrir(browser, viewport, mobile) {
   await page.addInitScript('window.__CFG = ' + JSON.stringify({
     db: banco(), user: { email: ALUNA, emailVerified: true, uid: 'u1' }, delayDefault: 20,
   }) + ';');
+  /* conta os redesenhos da grade: com o login assentando, mais de um evento de perfil pinta a página de novo (duas vezes
+     em poucos ms) — o teclado só pode ser provado depois que ela parou, senão um redesenho reabre o que o Enter fechou */
+  await page.addInitScript(() => {
+    window.__redesenhos = 0;
+    document.addEventListener('DOMContentLoaded', () => {
+      const h = document.querySelector('.turmas-eventos');
+      if (h) new MutationObserver(() => { window.__redesenhos++; }).observe(h, { childList: true });
+    });
+  });
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
@@ -150,6 +159,11 @@ async function abrir(browser, viewport, mobile) {
   /* a grade e os blocos de informação dos 9 eventos desenhados */
   await esperarCondicao(page, () => document.querySelectorAll('.turmas-evento-grupo .turmas-missao').length === 9 &&
     !!document.querySelector('.turma-card-espera'), null, { limite: 15000, descricao: 'grade de turmas com as informações dos 9 eventos' });
+  /* a grade parou de ser redesenhada: nenhum redesenho novo em 1,5 s */
+  for (let i = 0; i < 10; i++) {
+    const n = await page.evaluate(() => window.__redesenhos);
+    if (!(await esperarCondicaoAte(page, (m) => window.__redesenhos > m, n, { limite: 1500 }))) break;
+  }
   return { ctx, page, erros };
 }
 

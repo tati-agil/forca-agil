@@ -435,6 +435,12 @@
       "sobre": "Hermético. Visibilidade NUNCA concede participação: no padrão (e sem o campo), evento e turma de Gerentes/Técnicos/diretores/lista somem de quem está fora; com \"Mostrar para todos\" o evento aparece com o público permitido no título e o motivo no lugar dos botões de interesse e da lista de espera; turma de lista própria nunca aparece para quem está fora; registro ativo mantém a turma visível; admin vê tudo e \"Ver como\" mostra o que a pessoa vê; a separação de eventos já realizados continua. ADMIN: o formulário abre e grava o campo certo. Sem escrita na vitrine, sem erro de JS. A recusa no banco está em teste-rules-inscricoes.js (bloco V)."
     },
     {
+      "arquivo": ".github/scripts/teste-turmas-restricoes-participacao.js",
+      "nome": "Turmas — restrições de participação explicadas (uma vez por evento), 1280/375 px",
+      "duracao": 45,
+      "sobre": "Hermético, dados sintéticos. Restrição de participação nunca esconde: participação anterior (todos os bloqueadores com registro da pessoa, inscrição confirmada × interesse registrado, sem o nome de evento que ela não pode ver) e uma turma por pessoa aparecem UMA vez no cabeçalho do evento e os cards remetem a ela; lotada e o próprio vínculo ficam no card; inscrições encerradas sem afirmar que as vagas acabaram; leitura lenta sem aviso adiantado; falha com o botão bloqueado e a mensagem nova; \"Mostrar para todos\" e a visibilidade da #452 intactos; nenhuma gravação."
+    },
+    {
       "arquivo": ".github/scripts/teste-admin-fora-do-publico.js",
       "nome": "ADMIN › Eventos — selo \"Fora do público atual\" (só sinaliza), 1280/375 px",
       "duracao": 30,
