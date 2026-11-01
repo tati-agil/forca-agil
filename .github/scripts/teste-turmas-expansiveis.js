@@ -22,9 +22,10 @@
  *   1. Turmas, evento único: o bloco "Sobre o evento" nasce aberto —
  *      comportamento de sempre pro caso mais comum, nada muda pra quem só
  *      vê um evento;
- *   2. Turmas, dois eventos: os dois blocos nascem FECHADOS (o resumo
- *      recolhido já marca a virada de evento) e um clique no de um evento
- *      abre só aquele, sem fechar nem abrir o outro;
+ *   2. Turmas, dois eventos: os dois blocos nascem ABERTOS (decisão da dona,
+ *      01/11/2026 — a pessoa lê o que é o evento antes das turmas; a virada
+ *      de evento fica no cabeçalho do grupo) e um clique no de um evento
+ *      recolhe só aquele, sem fechar nem abrir o outro;
  *   3. Minha Área, duas turmas: a primeira nasce aberta (a mais relevante,
  *      sempre a do topo), a segunda nasce fechada, e um clique no
  *      cabeçalho da segunda abre só ela, sem fechar a primeira;
@@ -152,24 +153,24 @@ async function abrirPagina(browser, formato, db, hash, seletorPronto) {
         console.log('  ok    turmas (1 evento): bloco "Sobre o evento" nasce aberto');
       }
 
-      // 2. Turmas, dois eventos: os dois nascem fechados; clicar no 2º abre só ele.
+      // 2. Turmas, dois eventos: os dois nascem abertos; clicar no 2º recolhe só ele.
       {
         const { ctx, erros, page } = await abrirPagina(
           browser, formato, bancoTurmasDoisEventos(), 'turmas', '.turmas-evento-titulo');
         const antes = await page.locator('.turmas-missao').evaluateAll((els) => els.map((e) => e.hasAttribute('open')));
-        if (JSON.stringify(antes) !== JSON.stringify([false, false])) {
+        if (JSON.stringify(antes) !== JSON.stringify([true, true])) {
           await ctx.close();
-          throw new Error(`[turmas, 2 eventos] esperava os dois fechados, veio ${JSON.stringify(antes)}`);
+          throw new Error(`[turmas, 2 eventos] esperava os dois abertos, veio ${JSON.stringify(antes)}`);
         }
         await page.locator('.turmas-missao').nth(1).locator('.turmas-missao-summary').click();
         await page.waitForTimeout(300);
         const depois = await page.locator('.turmas-missao').evaluateAll((els) => els.map((e) => e.hasAttribute('open')));
         await ctx.close();
         if (erros.length) throw new Error('[turmas, 2 eventos] erro de JS não tratado: ' + erros[0]);
-        if (JSON.stringify(depois) !== JSON.stringify([false, true])) {
-          throw new Error(`[turmas, 2 eventos] esperava só o 2º aberto após o clique, veio ${JSON.stringify(depois)}`);
+        if (JSON.stringify(depois) !== JSON.stringify([true, false])) {
+          throw new Error(`[turmas, 2 eventos] esperava só o 2º recolhido após o clique, veio ${JSON.stringify(depois)}`);
         }
-        console.log('  ok    turmas (2 eventos): os dois nascem fechados; clicar no 2º abre só ele');
+        console.log('  ok    turmas (2 eventos): os dois nascem abertos; clicar no 2º recolhe só ele');
       }
 
       // 3. Minha Área, duas turmas: a 1ª nasce aberta, a 2ª fechada; clicar na 2ª abre só ela.

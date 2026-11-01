@@ -394,11 +394,20 @@
       return !!(lista && lista[emailKey(email)]);
     }
 
+    /* Critério único de "turma realizada": encerrada pelo admin OU já passou
+       do último dia. É o card "Turma realizada" E a separação dos eventos já
+       realizados na grade — os dois perguntam a mesma coisa. "Inscrições
+       encerradas" (finalizada) NÃO entra: a turma ainda vai acontecer. */
+    function turmaRealizada(t, hoje) {
+      var dias = (t.dias || []).slice().sort();
+      var ultimoDia = dias[dias.length - 1] || '';
+      return !!(t.encerrada || (ultimoDia && hoje > ultimoDia));
+    }
+
     function turmaCardHtml(t, hoje) {
       var fmt = window.faTurmasUtil.formatDias(t.dias);
       var diasOrdenados = t.dias.slice().sort();
       var primeiroDia = diasOrdenados[0] || '';
-      var ultimoDia   = diasOrdenados[diasOrdenados.length - 1] || '';
       /* "16" sozinho embaixo do mês não lê como dia nenhum — falta uma
          palavra que ancore o número; com 2+ dias a vírgula/"e" já dá essa
          pista ("11, 12 e 18"), mas com um só ("16") ele fica solto, parece
@@ -411,9 +420,9 @@
       var salaHtml = t.sala ? '<div class="tc-horario tc-sala">&#x1F4CD; ' + esc(t.sala) + '</div>' : '';
 
       /* encerrada pelo admin OU já passou do último dia → Realizada */
-      if (t.encerrada || (ultimoDia && hoje > ultimoDia)) {
+      if (turmaRealizada(t, hoje)) {
         return (
-          '<div class="turma-card-new reveal in turma-card-realizada">' +
+          '<div data-turma-key="' + t.key + '" class="turma-card-new reveal in turma-card-realizada">' +
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + diasLabel + '</div>' +
@@ -426,7 +435,7 @@
       /* a partir do primeiro dia e antes do fim → Em andamento */
       if (primeiroDia && hoje >= primeiroDia) {
         return (
-          '<div class="turma-card-new reveal in turma-card-andamento">' +
+          '<div data-turma-key="' + t.key + '" class="turma-card-new reveal in turma-card-andamento">' +
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + diasLabel + '</div>' +
@@ -446,7 +455,7 @@
          indicadas. Quem quiser participar olha as próximas. */
       if (t.finalizada) {
         return (
-          '<div class="turma-card-new reveal in turma-card-lotada">' +
+          '<div data-turma-key="' + t.key + '" class="turma-card-new reveal in turma-card-lotada">' +
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + diasLabel + '</div>' +
@@ -460,7 +469,7 @@
 
       /* interesse aberto → botão Tenho interesse */
       return (
-        '<div class="turma-card-new reveal in">' +
+        '<div data-turma-key="' + t.key + '" class="turma-card-new reveal in">' +
           '<span class="tc-label">' + t.label + '</span>' +
           '<div class="tc-month">' + fmt.mes + '</div>' +
           '<div class="tc-dates">' + diasLabel + '</div>' +
@@ -552,12 +561,28 @@
         porEvento[ek].sort(function (a, b) { return prioridadeTurma(a) - prioridadeTurma(b); });
       });
 
-      var html = '';
+      /* Eventos já realizados descem para o fim, depois de um título próprio —
+         SÓ EXIBIÇÃO: nada some, nada é gravado, a ordem manual do painel
+         (e a prioridade acima) continua valendo dentro de cada parte. Um
+         evento é "realizado" quando tem turma visível e TODAS estão
+         realizadas (turmaRealizada, o critério do card). Por isso não descem:
+         evento com uma turma realizada e outra por vir; turma com inscrições
+         encerradas mas ainda por acontecer; evento só com fila, ou com a fila
+         ligada (é uma ação aberta); turma sem dias. */
+      var atuais = [], realizados = [];
       _eventosList.forEach(function (ev) {
         if (!eventoNaVitrine(ev, porEvento)) return;
         var turmasEv = porEvento[ev.key] || [];
+        var realizado = turmasEv.length > 0 && !ev.esperaAtiva &&
+          turmasEv.every(function (t) { return turmaRealizada(t, hoje); });
+        (realizado ? realizados : atuais).push(ev);
+      });
+
+      var html = '';
+      function grupoHtml(ev, periodo) {
+        var turmasEv = porEvento[ev.key] || [];
         html +=
-          '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '">' +
+          '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '" data-evento-periodo="' + periodo + '">' +
             /* h2 do evento: ele é o container de tudo que vem abaixo. A Missão
                dele desce para h3 e as subseções dela para h4, mantendo o
                aninhamento — h1 da página > h2 do evento > h3 da missão > h4.
@@ -577,7 +602,12 @@
             '<div class="turmas-evento-missao"></div>' +
             '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
-      });
+      }
+      atuais.forEach(function (ev) { grupoHtml(ev, 'atual'); });
+      if (realizados.length) {
+        html += '<h2 class="turmas-periodo-divisor">Eventos já realizados</h2>';
+        realizados.forEach(function (ev) { grupoHtml(ev, 'realizado'); });
+      }
       if (semEvento.length) {
         html +=
           '<div class="turmas-evento-grupo" data-evento-key="">' +
@@ -612,17 +642,11 @@
         if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
       });
 
-      /* Com um evento só, o bloco abre sozinho — comportamento de sempre.
-         Com dois ou mais, cada um nasce fechado: o resumo ("Sobre X") já é
-         o divisor entre um evento e outro, sem precisar rolar por um bloco
-         inteiro (Missão + Como funciona + Plano de voo) pra saber que já
-         acabou o de cima e começou o de baixo. */
-      var comConteudo = _eventosList.filter(function (ev) {
-        if (!eventoNaVitrine(ev, porEvento)) return false;
-        return !!(ev.missaoTexto || ev.topicos || (ev.itinerario || []).length);
-      });
-      var abreSozinho = comConteudo.length === 1;
-
+      /* Todo bloco nasce ABERTO (pedido da dona, 01/11/2026): a pessoa lê o
+         que é o evento antes das turmas. Antes, com dois ou mais eventos, eles
+         nasciam fechados. A virada de um evento para outro continua marcada
+         pelo cabeçalho do grupo, e o controle à direita diz em palavras o que
+         o clique faz ("Ocultar informações" / "Ver informações do evento"). */
       _eventosList.forEach(function (ev) {
         var host = document.querySelector('.turmas-evento-grupo[data-evento-key="' + ev.key + '"] .turmas-evento-missao');
         if (!host) return;
@@ -637,10 +661,11 @@
           horasPorDia = (Number.isInteger(h) ? h : h.toFixed(1)) + 'h';
         }
 
-        html += '<details class="turmas-missao"' + (abreSozinho ? ' open' : '') + '>';
+        html += '<details class="turmas-missao" open>';
         html += '<summary class="turmas-missao-summary">' +
           '<svg class="turmas-missao-summary-icone" width="14" height="14"><use href="#i-mark"/></svg>' +
           '<span class="turmas-missao-summary-texto">Sobre ' + ev.nome + '</span>' +
+          '<span class="turmas-missao-acao">Ocultar informações</span>' +
           '<svg class="turmas-missao-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
           '</summary>';
         html += '<section class="section">';
@@ -705,6 +730,10 @@
         html += '</section>';
         html += '</details>';
         host.innerHTML = html;
+        var det = host.querySelector('.turmas-missao');
+        det.addEventListener('toggle', function () {
+          det.querySelector('.turmas-missao-acao').textContent = det.open ? 'Ocultar informações' : 'Ver informações do evento';
+        });
       });
     }
 

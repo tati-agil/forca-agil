@@ -17,6 +17,8 @@
  *   - evento com uma turma realizada e outra futura NÃO é antigo;
  *   - evento sem data identificável (sem turma, só fila; ou turma sem dias)
  *     fica entre os atuais, na ordem manual;
+ *   - evento com todas as turmas realizadas mas com a fila de espera ligada
+ *     fica entre os atuais: a fila é uma ação aberta para a pessoa;
  *   - turma sem evento continua no grupo sem título, no fim (como sempre).
  *
  * O QUE ELE EXIGE, em 1440, 1280 e 375 px:
@@ -35,6 +37,7 @@
  */
 
 const { chromium } = require('playwright');
+const { esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -70,6 +73,7 @@ function banco() {
       evEncerrado: Object.assign({ nome: 'ENCERRADO PELO ADMIN', order: 6, publicado: true, esperaAtiva: false }, missao('EN')),
       evPassadoB: Object.assign({ nome: 'PASSADO B', order: 0, publicado: true, esperaAtiva: false }, missao('PB')),
       evFuturo:   Object.assign({ nome: 'FUTURO', order: 7, publicado: true, esperaAtiva: false }, missao('FU')),
+      evPassadoFila: Object.assign({ nome: 'PASSADO COM FILA', order: 8, publicado: true, esperaAtiva: true }, missao('PF')),
     },
     turmas: {
       tPA1: { label: 'PA TURMA 1', eventoKey: 'evPassadoA', order: 1, dias: [dia(-40), dia(-39)] },
@@ -83,6 +87,7 @@ function banco() {
       tPB1: { label: 'PB TURMA 1', eventoKey: 'evPassadoB', order: 1, dias: [dia(-60)] },
       tFU1: { label: 'FU TURMA 1', eventoKey: 'evFuturo', order: 1, dias: [dia(30)] },
       tFU2: { label: 'FU TURMA 2', eventoKey: 'evFuturo', order: 2, dias: [dia(31)] },
+      tPF1: { label: 'PF TURMA 1', eventoKey: 'evPassadoFila', order: 1, dias: [dia(-10)] },
       tSolta: { label: 'TURMA SEM EVENTO', order: 1, dias: [dia(15)] },
     },
     'turmas-interesse': {}, 'turmas-interesse-log': {},
@@ -92,13 +97,13 @@ function banco() {
   };
 }
 
-const ATUAIS = ['evMisto', 'evLotado', 'evFila', 'evSemDias', 'evFuturo'];
+const ATUAIS = ['evMisto', 'evLotado', 'evFila', 'evSemDias', 'evFuturo', 'evPassadoFila'];
 const REALIZADOS = ['evPassadoB', 'evPassadoA', 'evEncerrado'];
 const ORDEM_GRUPOS = ATUAIS.concat(['|divisor|'], REALIZADOS, ['']);
 const TURMAS_DO_EVENTO = {
   evPassadoA: ['PA TURMA 1', 'PA TURMA 2'], evMisto: ['MI TURMA 1', 'MI TURMA 2', 'MI TURMA 3'],
   evLotado: ['LO TURMA 1'], evFila: [], evSemDias: ['SD TURMA 1'], evEncerrado: ['EN TURMA 1'],
-  evPassadoB: ['PB TURMA 1'], evFuturo: ['FU TURMA 1', 'FU TURMA 2'], '': ['TURMA SEM EVENTO'],
+  evPassadoB: ['PB TURMA 1'], evFuturo: ['FU TURMA 1', 'FU TURMA 2'], evPassadoFila: ['PF TURMA 1'], '': ['TURMA SEM EVENTO'],
 };
 
 /* O que está na tela: grupos na ordem, turmas de cada grupo na ordem, e o
@@ -142,8 +147,9 @@ async function abrir(browser, viewport, mobile) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#turmas', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('.turmas-evento-titulo', { timeout: 15000 });
-  await page.waitForTimeout(900);
+  /* a grade e os blocos de informação dos 9 eventos desenhados */
+  await esperarCondicao(page, () => document.querySelectorAll('.turmas-evento-grupo .turmas-missao').length === 9 &&
+    !!document.querySelector('.turma-card-espera'), null, { limite: 15000, descricao: 'grade de turmas com as informações dos 9 eventos' });
   return { ctx, page, erros };
 }
 
@@ -195,10 +201,10 @@ function igual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
       if (!fila || !fila.espera) falha(f.nome, 'evento só com fila perdeu o card de espera');
 
       // 3. informações abertas + controle acessível pelo teclado
-      const comInfo = e1.grupos.filter((g) => g.infoAberta !== null);
+      const comInfo = e1.grupos.filter((g) => typeof g.infoAberta === 'boolean');
       const fechadas = comInfo.filter((g) => !g.infoAberta || g.controle !== 'Ocultar informações');
-      if (comInfo.length !== 8 || fechadas.length) falha(f.nome, 'informações não nasceram abertas com "Ocultar informações": ' + JSON.stringify(comInfo.map((g) => [g.key, g.infoAberta, g.controle])));
-      else console.log('  ok    as 8 informações de evento nascem abertas, controle "Ocultar informações"');
+      if (comInfo.length !== 9 || fechadas.length) falha(f.nome, 'informações não nasceram abertas com "Ocultar informações": ' + JSON.stringify(comInfo.map((g) => [g.key, g.infoAberta, g.controle])));
+      else console.log('  ok    as 9 informações de evento nascem abertas, controle "Ocultar informações"');
       const semTexto = comInfo.filter((g) => g.textoInfo.indexOf('Texto do evento ') < 0 || g.textoInfo.indexOf('Tópicos ') < 0);
       if (semTexto.length) falha(f.nome, 'conteúdo do evento faltando em ' + semTexto.map((g) => g.key).join(', '));
 
@@ -206,14 +212,13 @@ function igual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
       await sum.focus();
       const focado = await page.evaluate(() => document.activeElement && document.activeElement.classList.contains('turmas-missao-summary'));
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(200);
+      await esperarCondicao(page, () => { const d = document.querySelector('.turmas-evento-grupo[data-evento-key="evFuturo"] .turmas-missao'); return !d.hasAttribute('open') && d.querySelector('.turmas-missao-acao').textContent !== 'Ocultar informações'; }, null, { descricao: 'Enter recolher o evento e trocar o controle' });
       const fechou = await page.evaluate(() => {
         const d = document.querySelector('.turmas-evento-grupo[data-evento-key="evFuturo"] .turmas-missao');
         return { aberto: d.hasAttribute('open'), controle: d.querySelector('.turmas-missao-acao').textContent, outros: Array.from(document.querySelectorAll('.turmas-missao')).filter((x) => x !== d && !x.hasAttribute('open')).length };
       });
-      if (CAPTURA === '' && f.nome === '1280') await page.locator('.turmas-evento-grupo[data-evento-key="evFuturo"]').screenshot({ path: path.join(__dirname, '..', '..', 'screenshots', 'turmas-ordem-exibicao', 'depois-1280-evento-recolhido.png') }).catch(() => {});
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(200);
+      await esperarCondicao(page, () => { const d = document.querySelector('.turmas-evento-grupo[data-evento-key="evFuturo"] .turmas-missao'); return d.hasAttribute('open') && d.querySelector('.turmas-missao-acao').textContent !== 'Ver informações do evento'; }, null, { descricao: 'Enter reabrir o evento e trocar o controle' });
       const reabriu = await page.evaluate(() => {
         const d = document.querySelector('.turmas-evento-grupo[data-evento-key="evFuturo"] .turmas-missao');
         return { aberto: d.hasAttribute('open'), controle: d.querySelector('.turmas-missao-acao').textContent };
