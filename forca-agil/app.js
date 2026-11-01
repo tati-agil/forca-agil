@@ -418,11 +418,23 @@
       }
       db.ref('fa-gerentes/' + k).once('value', function (s) { v.gerente = !!s.val(); um(true); },
         function () { v.gerenteFalhou = true; um(true); });
+      /* vínculo por turma (faTurmasUtil.vinculoNaTurma): na turma por vir, o registro ativo; na realizada, a
+         participação comprovada — inscrição não removida ou presença no check-in. A presença só é lida (dia a dia,
+         só a própria) quando o registro sozinho não decide. */
+      var agora = new Date();
+      var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+      var U = window.faTurmasUtil;
       _turmasList.forEach(function (t) {
         db.ref('turmas-interesse/' + t.key + '/' + k).once('value', function (s) {
-          var r = s.val();
-          if (r && !r.removed && r.status !== 'removido') v.registros[t.key] = true;
-          um();
+          var r = s.val(), realizada = turmaRealizada(t, hoje);
+          if (U.vinculoNaTurma(r, realizada, false)) { v.registros[t.key] = true; um(); return; }
+          if (!realizada || (r && !U.registroAtivo(r)) || !(t.dias || []).length) { um(); return; }
+          Promise.all(t.dias.map(function (d) {
+            return db.ref('turmas-checkin/' + t.key + '/' + d + '/' + k).once('value').then(function (c) { return !!c.val(); }, function () { return false; });
+          })).then(function (p) {
+            if (U.vinculoNaTurma(r, true, p.indexOf(true) !== -1)) v.registros[t.key] = true;
+            um();
+          });
         }, function () { um(); });
       });
     }

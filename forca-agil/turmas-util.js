@@ -356,6 +356,19 @@
     if (cargoDaTurma(t) && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
     return '';
   }
+  /* V\u00cdNCULO que mant\u00e9m a turma \u00e0 vista de quem est\u00e1 fora do p\u00fablico (temRegistro) \u2014 s\u00f3 com os registros que j\u00e1 existem:
+     turma por vir: registro ativo em turmas-interesse (interesse ou inscri\u00e7\u00e3o n\u00e3o removidos);
+     turma realizada: participa\u00e7\u00e3o comprovada \u2014 inscri\u00e7\u00e3o n\u00e3o removida (status 'inscrito', confirmada ou de antes do
+       #113) OU presen\u00e7a no check-in (turmas-checkin/<turma>/<dia>/<pessoa>). Interesse que ficou sem confirma\u00e7\u00e3o numa
+       turma que j\u00e1 aconteceu n\u00e3o comprova participa\u00e7\u00e3o; registro removido (interesse retirado, inscri\u00e7\u00e3o cancelada,
+       "n\u00e3o confirmada") nunca conta, nem com presen\u00e7a.
+     S\u00f3 decide o que a vitrine mostra: n\u00e3o muda elegibilidade, hist\u00f3rico nem certificado. */
+  function registroAtivo(r) { return !!(r && !r.removed && r.status !== 'removido'); }
+  function vinculoNaTurma(r, realizada, estevePresente) {
+    if (!realizada) return registroAtivo(r);
+    if (r && !registroAtivo(r)) return false;
+    return !!((r && r.status === 'inscrito') || estevePresente);
+  }
   function cargoPendente(t, e, p) {
     return !p.admin && typeof p.gerente !== 'boolean' && !!(cargoDoEvento(e) || cargoDaTurma(t));
   }
@@ -395,6 +408,6 @@
     regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin,
     visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
     vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,
-    cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo
+    cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo, registroAtivo: registroAtivo, vinculoNaTurma: vinculoNaTurma
   };
 })();

@@ -29,7 +29,10 @@
  *      a página dizendo que verifica (ou que falhou) — nunca aparece como se a pessoa fosse elegível —, e tudo se acerta
  *      quando o cargo chega;
  *  10. "Mostrar para todos" com todas as turmas de lista própria: o evento aparece (título, informações, aviso) sem
- *      revelar a turma.
+ *      revelar a turma;
+ *  11. participação anterior mantém a turma à vista: turma realizada com inscrição confirmada de quem deixou de ser
+ *      gerente ou saiu da lista, ou só com a presença no check-in; interesse nunca confirmado numa turma realizada e
+ *      inscrição cancelada (mesmo com presença) não contam.
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -42,6 +45,12 @@ const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g
 
 const GER = 'gerente.vis@previ.com.br', TEC = 'tecnica.vis@previ.com.br', DIR = 'diretor.vis@previ.com.br';
 const LISTADA = 'listada.vis@previ.com.br', VINCULO = 'vinculo.vis@previ.com.br', ADM = 'admin.vis@previ.com.br';
+/* participações anteriores (todas técnicas hoje, fora de qualquer lista): */
+const EXGER = 'exgerente.vis@previ.com.br';      /* fez a turma de Gerentes (inscrição confirmada) e deixou de ser gerente */
+const EXLISTA = 'exlista.vis@previ.com.br';      /* fez a turma de lista (inscrição confirmada) e saiu da lista */
+const PRESENTE = 'presente.vis@previ.com.br';    /* só a presença no check-in da turma de Gerentes, sem registro */
+const INTERESSE = 'interesse.vis@previ.com.br';  /* interesse que nunca foi confirmado numa turma que já aconteceu */
+const CANCELADA = 'cancelada.vis@previ.com.br';  /* inscrição removida (cancelada), mesmo com presença registrada */
 
 function dia(o) { const d = new Date(); d.setDate(d.getDate() + o); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 const info = (n) => ({ missaoTitulo: 'Missão ' + n, missaoTexto: 'Texto do evento ' + n + '.', topicos: 'Tópicos ' + n + '.', itinerario: ['Dia 1'] });
@@ -51,12 +60,14 @@ const pessoa = (e, n) => ({ email: e, name: n });
 
 function banco() {
   const users = {};
-  [[GER, 'GERENTE'], [TEC, 'TECNICA'], [DIR, 'DIRETOR'], [LISTADA, 'LISTADA'], [VINCULO, 'VINCULO'], [ADM, 'ADMIN']]
+  [[GER, 'GERENTE'], [TEC, 'TECNICA'], [DIR, 'DIRETOR'], [LISTADA, 'LISTADA'], [VINCULO, 'VINCULO'], [ADM, 'ADMIN'], [EXGER, 'EXGERENTE'], [EXLISTA, 'EXLISTA'], [PRESENTE, 'PRESENTE'], [INTERESSE, 'INTERESSE'], [CANCELADA, 'CANCELADA']]
     .forEach(([e, n]) => { users[chave(e)] = { name: n, email: e, area: 'TI', emailConfirmado: true }; });
   /* emailConfirmado: como quem já entrou uma vez — senão o LOGIN (auth.js, fora desta mudança) anota a confirmação na
      primeira entrada, e a prova de que a VITRINE não grava nada ficaria misturada com ele */
   const lista = { [chave(LISTADA)]: pessoa(LISTADA, 'LISTADA') };
   const ativo = (e, n) => ({ name: n, email: e, area: 'TI', status: 'interessado', removed: false, date: '2026-10-01T10:00:00.000Z' });
+  const inscrita = (e, n, extra) => Object.assign({ name: n, email: e, area: 'TI', status: 'inscrito', confirmedByAdmin: ADM, removed: false, date: '2026-09-01T10:00:00.000Z' }, extra || {});
+  const presenca = { em: '2026-09-01T10:00:00.000Z' };
   return {
     'fa-users': users, 'fa-admins': { [chave(ADM)]: pessoa(ADM, 'ADMIN') }, 'fa-diretores': { [chave(DIR)]: pessoa(DIR, 'DIRETOR') },
     'fa-gerentes': { [chave(GER)]: pessoa(GER, 'GERENTE') }, 'fa-facilitadores': {},
@@ -72,6 +83,7 @@ function banco() {
       evListaTodos: ev('LISTA VISIVEL A TODOS', 8, { publicoRestrito: true, visibilidade: 'todos' }),
       evPassadoGer: ev('GERENTES JA REALIZADO', 9, { publicoDesc: 'Gerentes' }),
       evSoListaTodos: ev('TODOS SO TURMAS DE LISTA', 10, { visibilidade: 'todos' }),
+      evPassadoLista: ev('LISTA JA REALIZADO', 11),
     },
     turmas: {
       tGeral1: tu('GERAL T1', 'evGeral', 1),
@@ -83,13 +95,20 @@ function banco() {
       tListaTodosRestrita: tu('LISTA TODOS TURMA RESTRITA', 'evListaTodos', 2, { publicoRestrito: true }),
       tPassadoGer1: { label: 'PASSADO GER T1', eventoKey: 'evPassadoGer', order: 1, dias: [dia(-30)] },
       tSoLista1: tu('TURMA SECRETA DE LISTA', 'evSoListaTodos', 1, { publicoRestrito: true }),
+      tPassadoLista1: { label: 'PASSADO LISTA T1', eventoKey: 'evPassadoLista', order: 1, dias: [dia(-40)], publicoRestrito: true },
     },
     'turmas-interesse': {
       tGeral1: { [chave(TEC)]: ativo(TEC, 'TECNICA') },
       tGer1: { [chave(VINCULO)]: ativo(VINCULO, 'VINCULO') },
+      tPassadoGer1: {
+        [chave(EXGER)]: inscrita(EXGER, 'EXGERENTE'),
+        [chave(INTERESSE)]: ativo(INTERESSE, 'INTERESSE'),
+        [chave(CANCELADA)]: inscrita(CANCELADA, 'CANCELADA', { removed: true, removedDate: '2026-09-02T10:00:00.000Z' }),
+      },
+      tPassadoLista1: { [chave(EXLISTA)]: inscrita(EXLISTA, 'EXLISTA') },
     },
-    'turmas-interesse-log': {}, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-sorteio': {}, 'turmas-equipe': {},
-    'turmas-publico': { tGeralLista: lista, tListaTodosRestrita: lista, tSoLista1: lista },
+    'turmas-interesse-log': {}, 'turmas-config': {}, 'turmas-checkin': { tPassadoGer1: { [dia(-30)]: { [chave(PRESENTE)]: presenca, [chave(CANCELADA)]: presenca } } }, 'turmas-sorteio': {}, 'turmas-equipe': {},
+    'turmas-publico': { tGeralLista: lista, tListaTodosRestrita: lista, tSoLista1: lista, tPassadoLista1: lista },
     'eventos-publico': { evLista: lista, evListaTodos: lista },
     avaliacoes: {}, pedidos: {}, holocron: {},
   };
@@ -100,7 +119,7 @@ const ESPERADO = {
   [GER]: ['tGeral1', 'tGeralGer', 'tGer1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1', 'tPassadoGer1'],
   [TEC]: ['tGeral1', 'tTec1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1'],
   [DIR]: ['tGeral1', 'tTec1', 'tDir1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1'],
-  [LISTADA]: ['tGeral1', 'tGeralLista', 'tTec1', 'tLista1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1', 'tListaTodosRestrita', 'tSoLista1'],
+  [LISTADA]: ['tGeral1', 'tGeralLista', 'tTec1', 'tLista1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1', 'tListaTodosRestrita', 'tSoLista1', 'tPassadoLista1'],
   [VINCULO]: ['tGeral1', 'tTec1', 'tGer1', 'tGerTodos1', 'tDirTodos1', 'tListaTodos1'],
   [ADM]: TODAS,
 };
@@ -247,6 +266,29 @@ const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     anota('Ver como "eu mesma": admin volta a ver todas as turmas', igual(e2.turmas.slice().sort(), TODAS), JSON.stringify(e2.turmas));
     anota('Ver como: sem escrita, sem erro de JS', !e2.escritas.length && !erros.length, JSON.stringify({ escritas: e2.escritas, erros }));
     await ctx.close();
+  }
+
+  console.log('\n== participações anteriores: turma realizada, mudou de cargo, saiu da lista ==');
+  /* quem participou continua vendo a turma, mesmo realizada e fora do público de hoje; interesse nunca confirmado e
+     inscrição cancelada não comprovam participação. Só exibição: nada é gravado. */
+  const PASSADO = {
+    [EXGER]: { ve: ['tPassadoGer1'], nao: ['tPassadoLista1', 'tGer1'], ev: 'evPassadoGer', o: 'ex-gerente (inscrição confirmada, hoje técnica)' },
+    [EXLISTA]: { ve: ['tPassadoLista1'], nao: ['tPassadoGer1', 'tGeralLista'], ev: 'evPassadoLista', o: 'quem saiu da lista (inscrição confirmada)' },
+    [PRESENTE]: { ve: ['tPassadoGer1'], nao: ['tPassadoLista1', 'tGer1'], ev: 'evPassadoGer', o: 'presença no check-in, sem registro' },
+    [INTERESSE]: { ve: [], nao: ['tPassadoGer1'], o: 'interesse nunca confirmado em turma realizada' },
+    [CANCELADA]: { ve: [], nao: ['tPassadoGer1'], o: 'inscrição cancelada (mesmo com presença)' },
+  };
+  for (const [email, c] of Object.entries(PASSADO)) {
+    for (const [nome, vp, mob] of (email === EXGER ? [['1280', { width: 1280, height: 900 }, false], ['375', { width: 375, height: 812 }, true]] : [['1280', { width: 1280, height: 900 }, false]])) {
+      const { ctx, page, erros } = await abrir(browser, email, vp, mob);
+      const e = await estado(page);
+      const q = c.o + ' @' + nome;
+      anota(q + ': ' + (c.ve.length ? 'continua vendo a turma que fez' : 'NÃO vê a turma realizada'), c.ve.every((t) => e.turmas.includes(t)) && !c.nao.some((t) => e.turmas.includes(t)), JSON.stringify(e.turmas));
+      if (c.ev) anota(q + ': o evento fica em "Eventos já realizados" (PR #451), sem aviso de público', e.divisor && e.periodos[c.ev] === 'realizado' && !e.avisos[c.ev], JSON.stringify({ p: e.periodos, a: e.avisos }));
+      else anota(q + ': o evento de Gerentes já realizado não aparece', !e.eventos.includes('evPassadoGer'), JSON.stringify(e.eventos));
+      anota(q + ': nenhuma gravação, sem erro de JS, sem rolagem lateral', !e.escritas.length && !erros.length && !e.larguraExcede, JSON.stringify({ escritas: e.escritas, erros }));
+      await ctx.close();
+    }
   }
 
   console.log('\n== cargo ainda não sabido: rede lenta (chega depois) e leitura que falha ==');
