@@ -253,6 +253,10 @@
        escolha do admin a cada uma dessas rodadas derrubaria o preview
        sem ele mexer em nada. */
     var _verComoPessoa = null;
+    /* O que a vitrine precisa saber de quem está vendo (_sess) para a visibilidade (faTurmasUtil.vitrineMostra*):
+       se é gerente (null = ainda não sei → o cargo não esconde) e em quais turmas tem registro ATIVO (essas sempre
+       aparecem). Lido por carregarVisao a cada pessoa — a real ou a do "Ver como". */
+    var _visao = { email: '', gerente: null, registros: {} };
 
     /* Formato dos encontros do evento (eventos/<evento>/formato) — usado no
        chip "dia(s) de encontro(s)" do bloco "Como funciona". "hibrido" é os
@@ -315,6 +319,8 @@
                 dispensaCmflex: !!e.dispensaCmflex,
                 vagasPorTurma: e.vagasPorTurma || 0,
                 publicoRestrito: !!e.publicoRestrito,
+                /* quem VÊ o evento na vitrine (ausente = 'elegivel'): ver faTurmasUtil.visibilidadeDoEvento */
+                visibilidade: window.faTurmasUtil.visibilidadeDoEvento(e),
                 /* Chips do bloco "Como funciona" — vazio usa o texto padrão
                    (ver renderMissaoEventos), então evento antigo sem esses
                    campos continua mostrando exatamente o que sempre mostrou. */
@@ -365,33 +371,72 @@
       });
     }
 
-    /* Evento de público predefinido (eventos/<evento>/publicoRestrito): só
-       existe, no site, para quem está na lista de e-mails dele — e para admin,
-       que vê tudo, como no evento restrito a diretores e na turma restrita.
-       É a restrição mais ampla: some o título, as turmas, o card de espera e
-       a Missão, porque oferecer o que a pessoa não pode fazer é pior do que
-       não oferecer. Vale por PESSOA, não é o mesmo que despublicar. */
-    function eventoVisivelPara(ev) {
-      if (!ev.publicoRestrito) return true;
-      var email = _sess && _sess.email;
-      if (!email) return false;
-      if (window.faAuth && window.faAuth.isAdmin(email)) return true;
-      var lista = _publicoPorEvento[ev.key];
-      return !!(lista && lista[emailKey(email)]);
+    /* Quem vê o quê: a regra é uma só, em faTurmasUtil.vitrineMostraEvento/vitrineMostraTurma (turmas-util.js), e
+       vale por PESSOA (não é o mesmo que despublicar). No padrão ('elegivel'), evento e turma só aparecem para quem
+       atende às restrições deles — só diretores, lista de e-mails, cargo —, porque oferecer o que a pessoa não pode
+       fazer é pior do que não oferecer; com "Mostrar para todos" ('todos') o evento aparece e o card diz o motivo.
+       Admin vê tudo; quem tem registro ativo numa turma sempre a vê. Visibilidade NUNCA concede participação: o
+       clique confere de novo (registerInterest) e o banco recusa quem está fora. */
+    function eventoPorKey(k) { return k ? _eventosList.filter(function (e) { return e.key === k; })[0] || null : null; }
+    function pessoaDaVitrine(sessao, eventoKey, turmaKey) {
+      var email = sessao && sessao.email, k = email ? emailKey(email) : '';
+      var mesma = !!email && _visao.email === email;
+      return {
+        admin: !!(email && window.faAuth && window.faAuth.isAdmin(email)),
+        diretor: !!(email && window.faAuth && window.faAuth.isDiretor(email)),
+        gerente: mesma ? _visao.gerente : null,
+        naListaEvento: !!(k && eventoKey && (_publicoPorEvento[eventoKey] || {})[k]),
+        naListaTurma: !!(k && turmaKey && (_publicoPorTurma[turmaKey] || {})[k]),
+        temRegistro: !!(mesma && turmaKey && _visao.registros[turmaKey])
+      };
+    }
+    function turmaVisivelPara(t) {
+      return window.faTurmasUtil.vitrineMostraTurma(t, eventoPorKey(t.eventoKey), pessoaDaVitrine(_sess, t.eventoKey, t.key));
     }
 
-    /* Quem pode ver esta turma. Turma aberta: todo mundo, como sempre.
-       Turma de público restrito: só quem está na lista dela — e admin, que vê
-       tudo (mesma regra do evento restrito a diretores). Não é só sobre o
-       botão: a turma inteira desaparece do site de quem está fora, porque
-       oferecer o que a pessoa não pode fazer é pior do que não oferecer. */
-    function turmaVisivelPara(t) {
-      if (!t.publicoRestrito) return true;
+    /* Lê, para quem está vendo (_sess), o que a visibilidade precisa: gerente ou não e os registros ativos nas
+       turmas. Desenha quando chega — e, se a rede demorar, desenha antes com "ainda não sei" e redesenha quando
+       chegar: esperar calado é a tela vazia no 4G da sala. "Ainda não sei" o cargo NÃO é "elegível": no padrão, o
+       evento/turma de um cargo espera escondido (faTurmasUtil.cargoPendente) e a página avisa que está verificando;
+       se a leitura falhar, continua escondido e o aviso diz para recarregar (gerenteFalhou). A resposta do cargo
+       redesenha na hora, sem esperar as leituras dos registros. */
+    function carregarVisao(desenhar) {
       var email = _sess && _sess.email;
-      if (!email) return false;
-      if (window.faAuth && window.faAuth.isAdmin(email)) return true;
-      var lista = _publicoPorTurma[t.key];
-      return !!(lista && lista[emailKey(email)]);
+      var v = { email: email || '', gerente: null, gerenteFalhou: false, registros: {} };
+      _visao = v;
+      if (!email) { desenhar(); return; }
+      var db = firebase.database(), k = emailKey(email), pend = 1 + _turmasList.length, desenhou = false;
+      var limite = setTimeout(function () { if (_visao === v && !desenhou) { desenhou = true; desenhar(); } }, 4000);
+      function um(redesenharJa) {
+        if (--pend > 0 || _visao !== v) {
+          if (redesenharJa && desenhou && _visao === v) desenhar();
+          return;
+        }
+        clearTimeout(limite);
+        desenhou = true;
+        desenhar();
+      }
+      db.ref('fa-gerentes/' + k).once('value', function (s) { v.gerente = !!s.val(); um(true); },
+        function () { v.gerenteFalhou = true; um(true); });
+      /* vínculo por turma (faTurmasUtil.vinculoNaTurma): na turma por vir, o registro ativo; na realizada, a
+         participação comprovada — inscrição não removida ou presença no check-in. A presença só é lida (dia a dia,
+         só a própria) quando o registro sozinho não decide. */
+      var agora = new Date();
+      var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+      var U = window.faTurmasUtil;
+      _turmasList.forEach(function (t) {
+        db.ref('turmas-interesse/' + t.key + '/' + k).once('value', function (s) {
+          var r = s.val(), realizada = turmaRealizada(t, hoje);
+          if (U.vinculoNaTurma(r, realizada, false)) { v.registros[t.key] = true; um(); return; }
+          if (!realizada || (r && !U.registroAtivo(r)) || !(t.dias || []).length) { um(); return; }
+          Promise.all(t.dias.map(function (d) {
+            return db.ref('turmas-checkin/' + t.key + '/' + d + '/' + k).once('value').then(function (c) { return !!c.val(); }, function () { return false; });
+          })).then(function (p) {
+            if (U.vinculoNaTurma(r, true, p.indexOf(true) !== -1)) v.registros[t.key] = true;
+            um();
+          });
+        }, function () { um(); });
+      });
     }
 
     /* Critério único de "turma realizada": encerrada pelo admin OU já passou
@@ -501,18 +546,19 @@
        título e o card de espera — o card em si é anexado por renderEsperaCard. */
     function eventoNaVitrine(ev, porEvento) {
       if (!ev.publicado) return false;
-      /* Evento marcado "restritoADiretores" (aba Diretores no painel): some
-         da vitrine de quem não é diretor nem admin — mesmo efeito de
-         "fora da página", mas condicionado à pessoa, não a todo mundo.
-         Aqui SIM há bypass para admin (ao contrário de !ev.publicado acima),
-         porque o objetivo é "só quem deveria ver vê", e admin sempre deveria. */
-      if (ev.restritoADiretores) {
-        var email = _sess && _sess.email;
-        var podeVer = !!(email && window.faAuth && (window.faAuth.isAdmin(email) || window.faAuth.isDiretor(email)));
-        if (!podeVer) return false;
-      }
-      if (!eventoVisivelPara(ev)) return false;
-      return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva;
+      /* Quem pode ver: faTurmasUtil.vitrineMostraEvento (só diretores, lista, cargo; "Mostrar para todos"). Aqui SIM
+         há bypass para admin (ao contrário de !ev.publicado acima), porque o objetivo é "só quem deveria ver vê", e
+         admin sempre deveria. Registro ativo numa turma do evento também mostra o evento (o vínculo nunca some). */
+      var temRegistroNoEvento = (porEvento[ev.key] || []).some(function (t) { return _visao.email === (_sess && _sess.email) && _visao.registros[t.key]; });
+      if (!window.faTurmasUtil.vitrineMostraEvento(ev, pessoaDaVitrine(_sess, ev.key, ''), temRegistroNoEvento)) return false;
+      return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva || semTurmaVisivelEmTodos(ev, porEvento);
+    }
+    /* "Mostrar para todos" e nenhuma turma visível para a pessoa (ex.: todas com lista própria): a apresentação do
+       evento aparece assim mesmo — título, aviso e A Missão —, com um aviso no lugar da grade; as turmas continuam
+       escondidas. Evento sem turma nenhuma (e sem fila) segue fora da vitrine, como sempre. */
+    function semTurmaVisivelEmTodos(ev, porEvento) {
+      return ev.visibilidade === 'todos' && !(porEvento[ev.key] || []).length &&
+        _turmasList.some(function (t) { return t.eventoKey === ev.key; });
     }
 
     /* Ordem de exibição por quão exclusivo cada evento/turma é PARA QUEM
@@ -525,8 +571,10 @@
        ELA vem primeiro.
 
        Só entram aqui evento/turma já visíveis (eventoNaVitrine/turmaVisivelPara
-       já filtraram antes) — então "publicoRestrito" aqui já significa "e a
-       pessoa está na lista", nunca precisa reconferir a lista de novo.
+       já filtraram antes). Com "Mostrar para todos" o evento de lista aparece
+       também para quem está fora dela — por isso o nível 1 confere se a pessoa
+       não está fora (foraDoPublicoDoEvento); a turma de lista só aparece para
+       quem está nela (ou tem registro), então não precisa.
        "order" continua valendo como critério de desempate DENTRO do mesmo
        nível de exclusividade (Array.prototype.sort é estável), preservando
        a curadoria manual do admin onde não há motivo pra mudar.
@@ -535,7 +583,7 @@
        isso a turma usa só dois níveis; o evento usa três. */
     function prioridadeEvento(ev, souDiretor) {
       if (ev.restritoADiretores && souDiretor) return 0;
-      if (ev.publicoRestrito) return 1;
+      if (ev.publicoRestrito && window.faTurmasUtil.foraDoPublicoDoEvento(ev, pessoaDaVitrine(_sess, ev.key, '')) !== 'lista') return 1;
       return 2;
     }
     function prioridadeTurma(t) {
@@ -549,7 +597,9 @@
       var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
       var email = _sess && _sess.email;
       var souDiretor = !!(email && window.faAuth && window.faAuth.isDiretor(email));
-      _eventosList.sort(function (a, b) { return prioridadeEvento(a, souDiretor) - prioridadeEvento(b, souDiretor); });
+      /* desempate SEMPRE pela ordem manual: a prioridade depende de quem vê ("Ver como" troca a pessoa), e ordenar a
+         lista já reordenada por outra pessoa deixaria a ordem depender da visão anterior */
+      _eventosList.sort(function (a, b) { return (prioridadeEvento(a, souDiretor) - prioridadeEvento(b, souDiretor)) || (a.order - b.order); });
       var porEvento = {};
       var semEvento = [];
       _turmasList.forEach(function (t) {
@@ -573,6 +623,8 @@
       _eventosList.forEach(function (ev) {
         if (!eventoNaVitrine(ev, porEvento)) return;
         var turmasEv = porEvento[ev.key] || [];
+        /* sem turma visível em "Mostrar para todos": o período vem das turmas do evento (só a posição; nada delas aparece) */
+        if (!turmasEv.length && semTurmaVisivelEmTodos(ev, porEvento)) turmasEv = _turmasList.filter(function (t) { return t.eventoKey === ev.key; });
         var realizado = turmasEv.length > 0 && !ev.esperaAtiva &&
           turmasEv.every(function (t) { return turmaRealizada(t, hoje); });
         (realizado ? realizados : atuais).push(ev);
@@ -581,6 +633,20 @@
       var html = '';
       function grupoHtml(ev, periodo) {
         var turmasEv = porEvento[ev.key] || [];
+        /* "Mostrar para todos" e a pessoa fora do público: o público permitido dito logo no título, antes das turmas
+           (sem lista, sem nomes — só a categoria). Quem tem registro no evento não recebe o aviso: já participa. */
+        var motivo = ev.visibilidade === 'todos' ? window.faTurmasUtil.foraDoPublicoDoEvento(ev, pessoaDaVitrine(_sess, ev.key, '')) : '';
+        var comRegistro = turmasEv.some(function (t) { return _visao.email === (_sess && _sess.email) && _visao.registros[t.key]; });
+        var avisoPublico = motivo && !comRegistro
+          ? '<p class="turmas-evento-publico" data-fora-do-publico="' + motivo + '">' + esc(window.faTurmasUtil.mensagemForaDoPublico(ev, motivo)) + '</p>' : '';
+        /* cargo ainda não sabido (ou leitura falhou) em "Mostrar para todos": só o público do evento, sem dizer que a
+           pessoa está dentro — os botões das turmas conferem o cargo antes de agir ("Verificando…") */
+        if (!avisoPublico && !comRegistro && ev.visibilidade === 'todos' && window.faTurmasUtil.cargoDoEvento(ev) &&
+            window.faTurmasUtil.cargoPendente(null, ev, pessoaDaVitrine(_sess, ev.key, ''))) {
+          avisoPublico = '<p class="turmas-evento-publico" data-fora-do-publico="verificando">' + esc(window.faTurmasUtil.mensagemPublicoDoCargo(ev)) + '</p>';
+        }
+        var semTurma = !turmasEv.length && !ev.esperaAtiva
+          ? '<p class="turmas-evento-publico" data-sem-turma-visivel="1">Não há turma deste evento disponível para você.</p>' : '';
         html +=
           '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '" data-evento-periodo="' + periodo + '">' +
             /* h2 do evento: ele é o container de tudo que vem abaixo. A Missão
@@ -590,7 +656,7 @@
                margem, então nada se mexe na tela. */
             '<div class="turmas-evento-cab">' +
               '<span class="turmas-evento-eyebrow">Evento</span>' +
-              '<h2 class="turmas-evento-titulo">' + ev.nome + '</h2>' +
+              '<h2 class="turmas-evento-titulo">' + ev.nome + '</h2>' + avisoPublico +
             '</div>' +
             /* A Missão (preenchida por renderMissaoEventos logo depois) vem
                ANTES da grade de turmas, não depois. Com vários cards de
@@ -599,7 +665,7 @@
                tira solta, sem relação com nada; como resumo do evento, o
                lugar dele é junto do título, e a grade de turmas (o que tem
                ação) fica sendo o fim da seção, não o meio. */
-            '<div class="turmas-evento-missao"></div>' +
+            '<div class="turmas-evento-missao"></div>' + semTurma +
             '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
       }
@@ -614,8 +680,22 @@
             '<div class="turmas-grid">' + semEvento.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
       }
+      /* Cargo ainda não sabido: eventos/turmas de um cargo esperam escondidos — a página diz que está verificando (ou
+         que a leitura falhou), em vez de parecer que não há nada para a pessoa. Some quando o cargo chega. */
+      var notaCargo = '';
+      var esperaCargo = !!email && _visao.email === email && _turmasList.concat([null]).some(function (t) {
+        return _eventosList.some(function (ev) {
+          if (!ev.publicado || ev.visibilidade === 'todos' || (t && t.eventoKey !== ev.key)) return false;
+          return window.faTurmasUtil.cargoPendente(t, ev, pessoaDaVitrine(_sess, ev.key, t ? t.key : ''));
+        });
+      });
+      if (esperaCargo) {
+        notaCargo = _visao.gerenteFalhou
+          ? '<p class="turmas-evento-publico" role="status" data-cargo-pendente="falhou">Não foi possível confirmar o seu cargo agora. Eventos destinados a um cargo específico aparecem quando ele for confirmado — recarregue a página para tentar de novo.</p>'
+          : '<p class="turmas-evento-publico" role="status" data-cargo-pendente="carregando">Verificando o seu cargo para mostrar os eventos destinados a ele…</p>';
+      }
       /* Vazio de verdade: nem turma, nem evento aceitando fila. */
-      host.innerHTML = html || '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
+      host.innerHTML = html ? notaCargo + html : (notaCargo || '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>');
     }
 
     /* "A Missão" / "Como funciona" / "Plano de Voo" — um bloco por evento que
@@ -746,8 +826,8 @@
     /* ══════════════════════════════════════════════════════════════════
        VER COMO — só admin. Mesmo recurso da Minha Área (aluno.js), agora
        também na vitrine: quem decide o que aparece aqui é a PESSOA
-       (público restrito, evento restrito a diretores — eventoVisivelPara/
-       turmaVisivelPara/eventoNaVitrine, todas por _sess.email), e essa
+       (público restrito, só diretores, cargo, "Mostrar para todos" —
+       eventoNaVitrine/turmaVisivelPara, todas por _sess.email), e essa
        regra já foi esquecida mais de uma vez por só existir no código, sem
        um jeito de o admin conferir na prática o que uma pessoa específica
        vê. Troca só _sess (o que decide visibilidade e ordem); os botões de
@@ -800,10 +880,12 @@
           aviso.style.display = '';
         }
         _sess = _verComoPessoa || sessReal;
-        renderTurmasGrid();
-        renderEsperaCard(sessReal);
-        renderMissaoEventos();
-        initInterestButtons(sessReal);
+        carregarVisao(function () {
+          renderTurmasGrid();
+          renderEsperaCard(sessReal);
+          renderMissaoEventos();
+          initInterestButtons(sessReal);
+        });
       });
     }
 
@@ -811,11 +893,13 @@
       var sess = window.faAuth && window.faAuth.getSession();
       _sess = _verComoPessoa || sess;
       loadTurmas(function () {
-        renderTurmasGrid();
-        renderEsperaCard(sess);
-        renderMissaoEventos();
-        initInterestButtons(sess);
-        if (sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) montarBarraVerComoTurmas(sess);
+        carregarVisao(function () {
+          renderTurmasGrid();
+          renderEsperaCard(sess);
+          renderMissaoEventos();
+          initInterestButtons(sess);
+          if (sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) montarBarraVerComoTurmas(sess);
+        });
       });
     }
 
@@ -850,7 +934,18 @@
           '<div class="turma-intent-msg"></div>';
         grid.appendChild(card);
         var btn = card.querySelector('.btn--espera');
-        if (sess && temBloqueioPorParticipacao(ev)) {
+        var foraEspera = foraDoPublicoParaAgir(sess, ev);
+        if (sess && foraEspera) {
+          /* fora do público (lista/diretores, só com "Mostrar para todos"): o motivo no lugar do botão; quem já está na fila pode sair */
+          btn.disabled = true; btn.innerHTML = 'Verificando…';
+          firebase.database().ref('fa-espera/' + emailKey(sess.email)).once('value', function (snap) {
+            var naFila = window.faTurmasUtil.esperaAtivas(snap.val()).some(function (e) { return e.eventoKey === ev.key; });
+            if (naFila) { setEsperaInitial(btn); setEsperaDone(btn); return; }
+            btn.style.display = 'none';
+            showEsperaMsg(btn, esc(window.faTurmasUtil.mensagemForaDoPublico(ev, foraEspera)));
+          }, function () { btn.style.display = 'none'; showEsperaMsg(btn, esc(window.faTurmasUtil.mensagemForaDoPublico(ev, foraEspera))); });
+        } else if (sess && (temBloqueioPorParticipacao(ev) || window.faTurmasUtil.cargoDoEvento(ev))) {
+          /* o cargo do evento (Gerentes/Técnicos) também vale para a fila: regrasDeEntrada confere, como no card da turma */
           btn.disabled = true; btn.innerHTML = 'Verificando…';
           verificarParticipacaoAnterior(ev.key, sess.email, function (r) {
             if (r.estado === 'livre') { setEsperaInitial(btn); checkEsperaState(btn, sess.email, ev.key); return; }
@@ -981,7 +1076,9 @@
         if (!turmaKey) return;
 
         if (sess) {
-          if (temRegrasDeEntrada(turmaKey)) prepararBotaoComParticipacao(btn, turmaKey, sess.email);
+          var evB = eventoDaTurma(turmaKey), fora = foraDoPublicoParaAgir(sess, evB);
+          if (fora) bloquearForaDoPublico(btn, turmaKey, sess.email, evB, fora);
+          else if (temRegrasDeEntrada(turmaKey)) prepararBotaoComParticipacao(btn, turmaKey, sess.email);
           else checkInterestState(btn, turmaKey, sess.email);
         }
 
@@ -1199,6 +1296,31 @@
           showMsg(turmaKey, mensagemParticipacao(r));
         }, function () { btn.style.display = 'none'; showMsg(turmaKey, mensagemParticipacao({ estado: 'erro' })); });
       }, turmaKey);
+    }
+
+    /* Fora do público do evento por lista de e-mails ou "só diretores" — só alcançável com "Mostrar para todos" (no
+       padrão o evento nem aparece). regrasDeEntrada não confere esses dois, então o card diz o motivo no lugar do
+       botão: nunca um botão que parece disponível e só falha depois do clique (o banco recusaria). O cargo fica com
+       regrasDeEntrada, como sempre. Quem já tem o próprio registro na turma continua com o botão (pode remover). */
+    function foraDoPublicoParaAgir(sess, ev) {
+      if (!ev || !sess) return '';
+      var m = window.faTurmasUtil.foraDoPublicoDoEvento(ev, pessoaDaVitrine(sess, ev.key, ''));
+      return m === 'diretores' || m === 'lista' ? m : '';
+    }
+    function bloquearForaDoPublico(btn, turmaKey, email, ev, motivo) {
+      btn.disabled = true;
+      btn.innerHTML = 'Verificando…';
+      firebase.database().ref('turmas-interesse/' + turmaKey + '/' + emailKey(email)).once('value', function (snap) {
+        var v = snap.val();
+        if (v && !v.removed && v.status !== 'removido') {
+          btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse';
+          btn.disabled = false;
+          checkInterestState(btn, turmaKey, email);
+          return;
+        }
+        btn.style.display = 'none';
+        showMsg(turmaKey, window.faTurmasUtil.mensagemForaDoPublico(ev, motivo));
+      }, function () { btn.style.display = 'none'; showMsg(turmaKey, window.faTurmasUtil.mensagemForaDoPublico(ev, motivo)); });
     }
 
     function emailKey(e) {

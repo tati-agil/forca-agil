@@ -429,6 +429,12 @@
       "sobre": "Hermético. Reorganização SÓ DE EXIBIÇÃO: eventos com todas as turmas visíveis realizadas (critério do card \"Turma realizada\") descem para depois de \"Eventos já realizados\", na ordem manual; inscrição encerrada com data futura, evento misto, só fila ou com fila ligada continuam entre os atuais. Exige todas as turmas do banco na tela uma vez só, no seu evento e na ordem manual; informações abertas com \"Ocultar informações\" e Enter recolhendo/reabrindo só aquele evento; sem rolagem horizontal, sem escrita, sem erro de JS."
     },
     {
+      "arquivo": ".github/scripts/teste-visibilidade-evento.js",
+      "nome": "Turmas — visibilidade do evento separada da elegibilidade (\"Mostrar para todos\"), 1440/1280/375 px e ADMIN",
+      "duracao": 40,
+      "sobre": "Hermético. Visibilidade NUNCA concede participação: no padrão (e sem o campo), evento e turma de Gerentes/Técnicos/diretores/lista somem de quem está fora; com \"Mostrar para todos\" o evento aparece com o público permitido no título e o motivo no lugar dos botões de interesse e da lista de espera; turma de lista própria nunca aparece para quem está fora; registro ativo mantém a turma visível; admin vê tudo e \"Ver como\" mostra o que a pessoa vê; a separação de eventos já realizados continua. ADMIN: o formulário abre e grava o campo certo. Sem escrita na vitrine, sem erro de JS. A recusa no banco está em teste-rules-inscricoes.js (bloco V)."
+    },
+    {
       "arquivo": ".github/scripts/teste-turmas-dia-rotulo.js",
       "nome": "Turmas — dia do mês sempre rotulado, singular e plural (desktop e iPhone)",
       "duracao": 3,

@@ -542,6 +542,9 @@
           publicado: e.publicado !== false,
           restritoADiretores: !!e.restritoADiretores,
           publicoRestrito: !!e.publicoRestrito,
+          /* quem VÊ o evento na página Turmas (ausente = 'elegivel'): faTurmasUtil.visibilidadeDoEvento */
+          visibilidade: window.faTurmasUtil.visibilidadeDoEvento(e),
+          visibilidadeGravada: e.visibilidade !== undefined,
           bloqueiaParticipantesDe: e.bloqueiaParticipantesDe || null,
           umaTurmaPorPessoa: !!e.umaTurmaPorPessoa,
           dispensaCmflex: !!e.dispensaCmflex,
@@ -3204,10 +3207,16 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o evento inteiro some da página das pessoas — turmas, lista de espera e a Missão dele. Use para preparar um evento antes de divulgar, ou para tirar do ar um que já acabou. Não muda nada para quem já está inscrita: o acesso dela e a Minha Área continuam iguais, e aqui no painel o evento segue completo.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormEspera" style="width:auto;margin:0" />Aceitar lista de espera neste evento</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o card "Lista de Espera" não aparece na página Turmas e ninguém novo entra na fila deste evento. Quem já está na fila continua aqui no painel — nada é apagado.</p>' +
+      '<fieldset id="eventoFormVisibilidade" style="border:1px solid var(--line-strong);border-radius:8px;padding:10px 14px;margin:0">' +
+        '<legend class="auth-label" style="padding:0 6px">Visibilidade do evento</legend>' +
+        '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="radio" name="eventoFormVisibilidade" id="eventoFormVisElegivel" value="elegivel" style="width:auto;margin:0" />Somente para o público elegível (padrão)</label>' +
+        '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="radio" name="eventoFormVisibilidade" id="eventoFormVisTodos" value="todos" style="width:auto;margin:0" />Mostrar para todos os usuários cadastrados</label>' +
+        '<p style="font-size:.78rem;color:var(--ink-2);margin:4px 0 0">Muda só quem VÊ o evento na página Turmas, nunca quem participa. No padrão, o evento aparece só para quem atende às restrições dele (só diretores, lista de e-mails, Gerentes/Técnicos em "Quem participa", e o público próprio de cada turma). Em "Mostrar para todos", qualquer pessoa logada vê o evento e as informações dele, com o público permitido dito no título; quem não é elegível vê o motivo no lugar do botão e continua sem poder manifestar interesse, entrar na lista de espera ou se inscrever. Turma com lista de e-mails própria nunca aparece para quem está fora dela. Quem já tem interesse ou inscrição numa turma sempre a vê.</p>' +
+      '</fieldset>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormRestritoDiretores" style="width:auto;margin:0" />Visível só para diretores e administradores</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento some da página Turmas para quem não está na aba Diretores nem é admin — mesmo efeito de "fora da página", mas só pra elas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, só diretores (aba Diretores) e admins participam; na visibilidade padrão, o evento some da página Turmas para as demais pessoas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicoRestrito" style="width:auto;margin:0" />Visível só para um público predefinido (lista de e-mails)</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só aparece — e só admite participantes — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só admite participantes — e, na visibilidade padrão, só aparece — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Vagas por turma<input type="number" id="eventoFormVagas" min="1" max="999" step="1" placeholder="sem limite" style="width:110px" /></label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vale para todas as turmas deste evento (interesse + inscrição ocupam vaga). Lotada, o card não aceita interesse novo — quem já está continua podendo remover — e no painel incluir alguém a mais pede um motivo. Uma turma pode ter o próprio número em "Editar turma", que vale por cima deste. Vazio = sem limite.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormDispensaCmflex" style="width:auto;margin:0" />Não exige inscrição no CMFlex</label>' +
@@ -3281,6 +3290,8 @@
     var dispensaCmflexInput = box.querySelector('#eventoFormDispensaCmflex');
     var vagasEventoInput = box.querySelector('#eventoFormVagas');
     var publicoRestritoInput = box.querySelector('#eventoFormPublicoRestrito');
+    var visTodosInput    = box.querySelector('#eventoFormVisTodos');
+    var visElegivelInput = box.querySelector('#eventoFormVisElegivel');
     var bloqueioLista     = box.querySelector('#eventoFormBloqueioLista');
     var umaTurmaInput     = box.querySelector('#eventoFormUmaTurma');
     var umaTurmaLista     = box.querySelector('#eventoFormUmaTurmaLista');
@@ -3323,6 +3334,10 @@
     /* Ausente = evento aberto: evento criado antes deste controle continua
        exatamente como sempre esteve, sem migração nenhuma. */
     publicoRestritoInput.checked = isEdit ? !!existing.publicoRestrito : false;
+    /* evento novo, ou antigo sem o campo: "Somente para o público elegível" — é o que ele já faz na página Turmas */
+    var visTodos = isEdit && existing.visibilidade === 'todos';
+    visTodosInput.checked = visTodos;
+    visElegivelInput.checked = !visTodos;
     formatoInput.value      = isEdit ? (existing.formato || 'presencial') : 'presencial';
     modalidadeLabelInput.value = isEdit ? (existing.modalidadeLabel || '') : '';
     modalidadeDescInput.value  = isEdit ? (existing.modalidadeDesc  || '') : '';
@@ -3404,6 +3419,10 @@
         publicoLabel: (publicoLabelInput.value || '').trim(),
         publicoDesc: (publicoDescInput.value || '').trim()
       };
+      /* a visibilidade só é gravada por escolha do admin: "Mostrar para todos", ou a troca de um valor já gravado.
+         Evento sem o campo salvo em "Somente elegível" continua sem ele (ausente já é "elegível") — nada é escrito
+         nos eventos existentes só por terem sido abertos e salvos por outro motivo. */
+      if (visTodosInput.checked || (isEdit && existing.visibilidadeGravada)) eventData.visibilidade = visTodosInput.checked ? 'todos' : 'elegivel';
       if (isEdit) {
         firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }

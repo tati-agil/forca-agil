@@ -328,6 +328,76 @@
     return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
   }
 
+  /* VISIBILIDADE NA VITRINE (eventos/<evento>/visibilidade) \u2014 decide S\u00d3 o que a p\u00e1gina Turmas mostra, nunca quem
+     participa: quem participa \u00e9 regrasDeEntrada + as regras do banco, e nenhum dos dois l\u00ea este campo.
+       'elegivel' (padr\u00e3o; tamb\u00e9m o de quem n\u00e3o tem o campo): evento e turma s\u00f3 aparecem para quem atende \u00e0s restri\u00e7\u00f5es
+                  deles \u2014 s\u00f3 diretores, lista de e-mails do evento, cargo do evento e da turma, lista da turma;
+       'todos':   o evento aparece para todo mundo logado, com o motivo no lugar do bot\u00e3o. Turma com lista pr\u00f3pria
+                  continua escondida de quem n\u00e3o est\u00e1 nela: "mostrar para todos" nunca revela turma restrita.
+     Admin v\u00ea tudo. Quem tem registro ativo numa turma sempre a v\u00ea: mudar cargo ou lista n\u00e3o some com o v\u00ednculo.
+     p = { admin, diretor, gerente (true/false; null = ainda n\u00e3o sei ou a leitura falhou), naListaEvento, naListaTurma,
+           temRegistro }
+     Cargo ainda n\u00e3o sabido (cargoPendente): no padr\u00e3o, evento e turma de um cargo ESPERAM escondidos at\u00e9 a leitura
+     chegar \u2014 nunca aparecem como se a pessoa fosse eleg\u00edvel; em 'todos' aparecem, com o p\u00fablico dito no t\u00edtulo. */
+  function visibilidadeDoEvento(e) { return e && e.visibilidade === 'todos' ? 'todos' : 'elegivel'; }
+  function foraDoPublicoDoEvento(e, p) {
+    if (!e || p.admin) return '';
+    if (e.restritoADiretores && !p.diretor) return 'diretores';
+    if (e.publicoRestrito && !p.naListaEvento) return 'lista';
+    var c = cargoDoEvento(e);
+    if (c && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
+    return '';
+  }
+  function foraDoPublicoDaTurma(t, e, p) {
+    if (!t || p.admin) return '';
+    if (t.publicoRestrito && !p.naListaTurma) return 'lista-turma';
+    var c = cargoEfetivo(t, e);
+    if (c === 'conflito') return 'cargo';
+    if (cargoDaTurma(t) && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
+    return '';
+  }
+  /* V\u00cdNCULO que mant\u00e9m a turma \u00e0 vista de quem est\u00e1 fora do p\u00fablico (temRegistro) \u2014 s\u00f3 com os registros que j\u00e1 existem:
+     turma por vir: registro ativo em turmas-interesse (interesse ou inscri\u00e7\u00e3o n\u00e3o removidos);
+     turma realizada: participa\u00e7\u00e3o comprovada \u2014 inscri\u00e7\u00e3o n\u00e3o removida (status 'inscrito', confirmada ou de antes do
+       #113) OU presen\u00e7a no check-in (turmas-checkin/<turma>/<dia>/<pessoa>). Interesse que ficou sem confirma\u00e7\u00e3o numa
+       turma que j\u00e1 aconteceu n\u00e3o comprova participa\u00e7\u00e3o; registro removido (interesse retirado, inscri\u00e7\u00e3o cancelada,
+       "n\u00e3o confirmada") nunca conta, nem com presen\u00e7a.
+     S\u00f3 decide o que a vitrine mostra: n\u00e3o muda elegibilidade, hist\u00f3rico nem certificado. */
+  function registroAtivo(r) { return !!(r && !r.removed && r.status !== 'removido'); }
+  function vinculoNaTurma(r, realizada, estevePresente) {
+    if (!realizada) return registroAtivo(r);
+    if (r && !registroAtivo(r)) return false;
+    return !!((r && r.status === 'inscrito') || estevePresente);
+  }
+  function cargoPendente(t, e, p) {
+    return !p.admin && typeof p.gerente !== 'boolean' && !!(cargoDoEvento(e) || cargoDaTurma(t));
+  }
+  function vitrineMostraEvento(e, p, temRegistroNoEvento) {
+    if (p.admin || temRegistroNoEvento) return true;
+    return visibilidadeDoEvento(e) === 'todos' || (!foraDoPublicoDoEvento(e, p) && !cargoPendente(null, e, p));
+  }
+  function vitrineMostraTurma(t, e, p) {
+    if (p.admin || p.temRegistro) return true;
+    var mt = foraDoPublicoDaTurma(t, e, p);
+    if (mt === 'lista-turma') return false;
+    if (visibilidadeDoEvento(e) === 'todos') return true;
+    return !mt && !foraDoPublicoDoEvento(e, p) && !cargoPendente(t, e, p);
+  }
+  /* o p\u00fablico permitido, dito para quem v\u00ea o evento sem poder participar (s\u00f3 no modo 'todos') */
+  function publicoPermitidoTexto(e, motivo) {
+    if (motivo === 'diretores') return 'diretores';
+    if (motivo === 'lista') return 'um p\u00fablico convidado';
+    var c = cargoDoEvento(e);
+    return c === 'gerentes' ? 'gerentes' : c === 'tecnicos' ? 't\u00e9cnicos (quem n\u00e3o \u00e9 gerente)' : 'um p\u00fablico espec\u00edfico';
+  }
+  function mensagemForaDoPublico(e, motivo) {
+    return 'Este evento \u00e9 destinado a ' + publicoPermitidoTexto(e, motivo) + '. Voc\u00ea pode conhec\u00ea-lo, mas n\u00e3o participar.';
+  }
+  /* 'todos' com o cargo ainda n\u00e3o sabido: s\u00f3 o p\u00fablico, sem dizer que a pessoa est\u00e1 dentro nem fora */
+  function mensagemPublicoDoCargo(e) {
+    return 'Este evento \u00e9 destinado a ' + publicoPermitidoTexto(e, 'cargo') + '.';
+  }
+
   window.faTurmasUtil = {
     nomePessoa: nomePessoa,
     formatDias: formatDias, periodoCertificado: periodoCertificado, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
@@ -335,6 +405,9 @@
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo,
     vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
-    regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin
+    regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin,
+    visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
+    vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,
+    cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo, registroAtivo: registroAtivo, vinculoNaTurma: vinculoNaTurma
   };
 })();

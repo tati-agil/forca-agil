@@ -18,7 +18,10 @@
    A. o admin (lista fixa e fa-admins) faz tudo o que o painel faz: ＋ Participante, Confirmar, Desconfirmar,
       Mover da fila, Mover para a espera, matrícula em massa, renomear, corrigir e-mail, excluir participante,
       excluir turma, editar turma/config/equipe, histórico;
-   I. preservação: as tentativas recusadas não mudam nenhum registro existente.
+   I. preservação: as tentativas recusadas não mudam nenhum registro existente;
+   V. "Mostrar para todos" (eventos/<e>/visibilidade = 'todos') é SÓ vitrine: o banco não lê o campo — quem não é
+      elegível continua recusado em evento de Gerentes, de diretores e de lista, e o elegível continua entrando; só o
+      admin grava o campo.
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -69,7 +72,11 @@ async function main() {
         evLivre: { nome: 'LIVRE', publicado: true }, evTec: { nome: 'TECNICOS', publicoDesc: 'Técnicos' },
         evGer: { nome: 'GERENTES', publicoDesc: 'Gerentes' }, evLista: { nome: 'LISTA DO EVENTO', publicoRestrito: true },
         evDir: { nome: 'DIRETORES', restritoADiretores: true }, evOutros: { nome: 'EMPREGADOS', publicoDesc: 'Empregados' },
+        evGerTodos: { nome: 'GERENTES, VISÍVEL A TODOS', publicoDesc: 'Gerentes', visibilidade: 'todos' },
+        evDirTodos: { nome: 'DIRETORES, VISÍVEL A TODOS', restritoADiretores: true, visibilidade: 'todos' },
+        evListaTodos: { nome: 'LISTA, VISÍVEL A TODOS', publicoRestrito: true, visibilidade: 'todos' },
       });
+      await a.ref('eventos-publico/evListaTodos/' + emailKey(TEC)).set({ email: TEC, name: 'TECNICA' });
       await a.ref('eventos-publico/evLista/' + emailKey(TEC)).set({ email: TEC, name: 'TECNICA' });
       const tu = (ev, extra) => Object.assign({ label: 'T', dias: ['2027-11-03'], order: 1, eventoKey: ev }, extra || {});
       await a.ref('turmas').set({
@@ -80,6 +87,7 @@ async function main() {
         tCargoTec: tu('evLivre', { publicoCargo: 'tecnicos' }), tEvLista: tu('evLista'), tDir: tu('evDir'),
         tFinal: tu('evLivre'), tEnc: tu('evLivre'), tAntiga: tu('evLivre', { publicoRestrito: true }), tOutra: tu('evLivre'),
         tEventoSumiu: tu('evQueNaoExiste'),
+        tGerTodos: tu('evGerTodos'), tDirTodos: tu('evDirTodos'), tListaTodos: tu('evListaTodos'),
       });
       await a.ref('turmas-publico').set({
         tLista: { [emailKey(TEC)]: { email: TEC }, [emailKey(GER)]: { email: GER } },
@@ -201,6 +209,19 @@ async function main() {
   await nega('N25 histórico: apagar o próprio histórico inteiro', db(OUTRA).ref('turmas-interesse-log/tLivre/' + emailKey(OUTRA)).remove());
   await nega('N26 sem login: registrar', db(null).ref(ti('tLivre', OUTRA)).set(interesse(OUTRA)));
   await nega('N26 sem login: ler', db(null).ref('turmas-interesse').once('value'));
+
+  console.log('\n== V. "Mostrar para todos" não muda quem participa ==');
+  await nega('V1 técnico em evento de Gerentes visível a todos', registrar(TEC, 'tGerTodos'));
+  await nega('V2 não diretor em evento de diretores visível a todos', registrar(TEC, 'tDirTodos'));
+  await nega('V3 fora da lista em evento de lista visível a todos', registrar(OUTRA, 'tListaTodos'));
+  await pode('V4 gerente continua entrando no evento de Gerentes visível a todos', registrar(GER, 'tGerTodos'));
+  await pode('V4 diretor continua entrando no evento de diretores visível a todos', registrar(DIR, 'tDirTodos'));
+  await pode('V4 quem está na lista continua entrando no evento de lista visível a todos', registrar(TEC, 'tListaTodos'));
+  await nega('V5 participante não grava a visibilidade de um evento', db(OUTRA).ref('eventos/evGer/visibilidade').set('todos'));
+  await nega('V5 diretor não grava a visibilidade de um evento', db(DIR).ref('eventos/evDir/visibilidade').set('todos'));
+  await pode('V6 admin grava a visibilidade de um evento', db(ADMIN).ref('eventos/evGer/visibilidade').set('todos'));
+  await nega('V7 depois de o admin mostrar para todos, o técnico continua recusado', registrar(TEC, 'tGer'));
+  await pode('V6 admin volta o evento ao padrão', db(ADMIN).ref('eventos/evGer/visibilidade').set('elegivel'));
 
   console.log('\n== I. preservação ==');
   const preservadoDepois = await ler(ti('tAntiga', PRESERVADO));
