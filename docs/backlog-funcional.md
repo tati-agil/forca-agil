@@ -40,6 +40,49 @@ ainda não confirmados.
 **Próximo passo:** depois da Porta 2 homologada, apresentar uma proposta visual enxuta e os critérios de aceite para
 aprovação, antes de qualquer implementação.
 
+## Públicos — ativação (PR 2): técnico deixa de ser "quem não é gerente"
+
+*Especificado e aprovado em 2026-11-01; implementar só com autorização própria, DEPOIS de ADMIN › Outros públicos (PR 1)
+publicado, preenchido pela administração e conferido por leitura agregada (quantidades, sobreposições, impacto nas turmas).*
+
+**Hoje** (`turmas-util.js`, `montar-regras-inscricoes.js`): "Técnicos" = quem não está em `fa-gerentes`. Diretores,
+estagiários, menores aprendizes e conselheiros entram como técnicos.
+
+**A ativar, coerente na página Turmas, Minha Área, ADMIN (＋ Participante, Confirmar, Mover, "Ver como", selo "Fora do
+público atual") e nas regras do banco:**
+- **Técnicos**: classificação operacional — conta @previ fora de Gerentes, Diretores e das seis categorias de Outros
+  públicos, com TODAS as leituras respondidas (pendência ou falha nunca vira técnico). Não comprova vínculo empregatício.
+- **Públicos efetivos novos em "Quem participa"**: Estagiários, Menores aprendizes, Estagiários e menores aprendizes,
+  Membros do COAUD, Conselho Deliberativo, Conselho Fiscal, Conselho Consultivo, Conselheiros (= os três conselhos, sem o
+  COAUD). Agrupados calculados das categorias, sem registro próprio; sem precedência entre listas.
+- **Diretores** passa a restringir (= `fa-diretores`). Conferência de 01/11: o único evento real com esse público tem lista
+  de 7 pessoas, 6 em Diretores; a turma já foi realizada — nada muda hoje. A 7ª pessoa pode ter participado como
+  substituta: não é erro e nada é alterado.
+- O formulário diz, em cada opção, se ela **restringe** ou é **só descrição**.
+- **Público-alvo ≠ participantes efetivos — substituição autorizada:** quem está fora do público não manifesta interesse
+  sozinho, mas o ADMIN pode incluir alguém que substitui uma pessoa do público (ex.: um técnico no lugar de um gerente),
+  por um caminho seguro e auditável (motivo registrado). A exceção vale só para aquela turma, não muda o cadastro da
+  pessoa nem autoriza outros eventos. Nada histórico é tratado como irregular, nada é removido. Antes de desenhar,
+  examinar como ＋ Participante, Confirmar, Mover e a inclusão por lista tratam hoje quem está fora do público, e o que as
+  regras do banco permitem ao admin (hoje o admin grava sem a conferência de público do banco; a tela confere).
+- **Continuam só descrição** até haver fonte de dados: Empregados, Cedidos, Quadro próprio (ver abaixo) e Executivos.
+
+**Vínculo funcional (Cedidos, Quadro próprio, Empregados) — decisão pendente.** Definições: Cedidos são técnicos ou
+gerentes; Quadro próprio não é cedido; técnicos e gerentes podem ser de um ou de outro; Empregados = Cedidos + Quadro
+próprio. Não existe hoje nenhuma fonte de vínculo (`fa-users` só tem e-mail, nome e área); "Quadro próprio = não cedido"
+por exclusão não é seguro. Alternativa recomendada: cadastro explícito dos dois vínculos a partir de uma lista do RH.
+
+## Públicos — "Aberto (interno e externo)" (evolução futura)
+
+*Registrado em 2026-11-01. Necessidade real (ex.: BBDW 2026); sem implementação.*
+
+O site é inteiramente @previ.com.br: o login desconecta outros domínios, o cadastro os recusa e as regras do banco exigem
+@previ. Não há fluxo externo no site (nenhum participante de fora em cadastros, inscrições, fila ou listas, em
+01/11/2026). Por isso a opção NÃO entra em "Quem participa" até existir suporte: oferecê-la prometeria uma inscrição que
+o sistema não faz. O BBDW continua administrado como hoje — os participantes externos fora do site; no site, o evento
+segue com a configuração atual (não publicado, com lista). A evolução exige autenticação externa e revisão das regras do
+banco, sem dar a externos acesso às áreas internas — projeto próprio.
+
 ## Turmas — inconsistências de público na lista de espera
 
 *Registrada em 2026-11-01 (decisão 3 do planejamento de inconsistências de público). Fora da primeira entrega do selo
