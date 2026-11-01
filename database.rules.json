@@ -473,7 +473,37 @@
     "fa-espera": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$userKey": {
-        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+        "$origem": {
+          ".write": "(auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || auth != null && (auth.token.email.toLowerCase().matches(/^[ -~]+@previ\\.com\\.br$/) && $userKey.length <= 64 && auth.token.email.toLowerCase().replace('@', '_').replace('.', '_').replace(' ', '').replace('!', '').replace('\"', '').replace('#', '').replace('$', '').replace('%', '').replace('&', '').replace('\\'', '').replace('(', '').replace(')', '').replace('*', '').replace('+', '').replace(',', '').replace('-', '').replace('/', '').replace(':', '').replace(';', '').replace('<', '').replace('=', '').replace('>', '').replace('?', '').replace('[', '').replace('\\\\', '').replace(']', '').replace('^', '').replace('`', '').replace('{', '').replace('|', '').replace('}', '').replace('~', '').beginsWith($userKey) && ($userKey.length === 64 || $userKey === auth.token.email.toLowerCase().replace('@', '_').replace('.', '_').replace(' ', '').replace('!', '').replace('\"', '').replace('#', '').replace('$', '').replace('%', '').replace('&', '').replace('\\'', '').replace('(', '').replace(')', '').replace('*', '').replace('+', '').replace(',', '').replace('-', '').replace('/', '').replace(':', '').replace(';', '').replace('<', '').replace('=', '').replace('>', '').replace('?', '').replace('[', '').replace('\\\\', '').replace(']', '').replace('^', '').replace('`', '').replace('{', '').replace('|', '').replace('}', '').replace('~', ''))) && newData.exists())",
+          "name": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+          },
+          "email": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase())"
+          },
+          "area": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+          },
+          "date": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 40)"
+          },
+          "removed": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isBoolean())"
+          },
+          "eventoKey": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 200)"
+          },
+          "removedDate": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.isString() && newData.val().length <= 40)"
+          },
+          "removedBySelf": {
+            ".validate": "((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || newData.val() === true)"
+          },
+          "$outro": {
+            ".validate": "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
+          }
+        }
       }
     },
 
