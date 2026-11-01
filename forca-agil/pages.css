@@ -328,6 +328,8 @@
   line-height: 1.25; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2);
 }
 .turmas-periodo-divisor + .turmas-evento-grupo { margin-top: 40px; }
+/* sem evento de inscrições abertas, a página começa pelo título da parte: sem o afastamento de separador */
+.turmas-eventos > .turmas-periodo-divisor:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 @media (max-width: 800px) {
   .turmas-evento-grupo + .turmas-evento-grupo { margin-top: 64px; padding-top: 40px; }
   .turmas-periodo-divisor { margin-top: 64px; padding-top: 40px; }

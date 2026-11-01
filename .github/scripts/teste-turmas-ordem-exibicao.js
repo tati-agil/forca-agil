@@ -13,7 +13,8 @@
  * turmaRealizada em app.js): o evento tem turma visível e TODAS estão
  * realizadas (encerrada pelo admin ou com o último dia já passado). Por
  * isso:
- *   - inscrição encerrada (finalizada) com data futura NÃO é antigo;
+ *   - inscrição encerrada (finalizada) com data futura NÃO é antigo: vai
+ *     para a parte do meio, "Próximas turmas — inscrições encerradas";
  *   - evento com uma turma realizada e outra futura NÃO é antigo;
  *   - evento sem data identificável (sem turma, só fila; ou turma sem dias)
  *     fica entre os atuais, na ordem manual;
@@ -22,8 +23,10 @@
  *   - turma sem evento continua no grupo sem título, no fim (como sempre).
  *
  * O QUE ELE EXIGE, em 1440, 1280 e 375 px:
- *   1. a ordem dos grupos: atuais na ordem manual, o divisor "Eventos já
- *      realizados", os realizados na ordem manual, o grupo sem evento;
+ *   1. a ordem dos grupos: atuais na ordem manual, o divisor "Próximas
+ *      turmas — inscrições encerradas" e os de inscrições encerradas, o
+ *      divisor "Eventos já realizados" e os realizados (cada parte na ordem
+ *      manual), o grupo sem evento;
  *   2. TODAS as turmas do banco na tela, cada uma uma vez só, dentro do seu
  *      evento e na ordem manual dele;
  *   3. as informações de cada evento nascem abertas, com o controle
@@ -97,9 +100,11 @@ function banco() {
   };
 }
 
-const ATUAIS = ['evMisto', 'evLotado', 'evFila', 'evSemDias', 'evFuturo', 'evPassadoFila'];
+const ATUAIS = ['evMisto', 'evFila', 'evSemDias', 'evFuturo', 'evPassadoFila'];
+const ENCERRADOS = ['evLotado'];
 const REALIZADOS = ['evPassadoB', 'evPassadoA', 'evEncerrado'];
-const ORDEM_GRUPOS = ATUAIS.concat(['|divisor|'], REALIZADOS, ['']);
+const ORDEM_GRUPOS = ATUAIS.concat(['|divisor|'], ENCERRADOS, ['|divisor|'], REALIZADOS, ['']);
+const DIVISORES = ['Próximas turmas — inscrições encerradas', 'Eventos já realizados'];
 const TURMAS_DO_EVENTO = {
   evPassadoA: ['PA TURMA 1', 'PA TURMA 2'], evMisto: ['MI TURMA 1', 'MI TURMA 2', 'MI TURMA 3'],
   evLotado: ['LO TURMA 1'], evFila: [], evSemDias: ['SD TURMA 1'], evEncerrado: ['EN TURMA 1'],
@@ -195,11 +200,11 @@ function igual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
       // 1. ordem dos grupos
       const ordem = e1.grupos.map((g) => g.key);
       if (!igual(ordem, ORDEM_GRUPOS)) falha(f.nome, 'ordem dos grupos ' + JSON.stringify(ordem) + ', esperava ' + JSON.stringify(ORDEM_GRUPOS));
-      else console.log('  ok    atuais (ordem manual) → divisor → realizados (ordem manual) → sem evento');
-      const div = e1.grupos.find((g) => g.key === '|divisor|');
-      if (!div || div.texto !== 'Eventos já realizados') falha(f.nome, 'divisor ausente ou com outro texto: ' + JSON.stringify(div));
+      else console.log('  ok    atuais → divisor → inscrições encerradas → divisor → realizados (cada parte na ordem manual) → sem evento');
+      const divs = e1.grupos.filter((g) => g.key === '|divisor|').map((g) => g.texto);
+      if (!igual(divs, DIVISORES)) falha(f.nome, 'divisores ausentes ou com outro texto: ' + JSON.stringify(divs));
       const periodos = e1.grupos.filter((g) => g.key && g.key !== '|divisor|');
-      const periodoErrado = periodos.filter((g) => g.periodo !== (REALIZADOS.indexOf(g.key) >= 0 ? 'realizado' : 'atual'));
+      const periodoErrado = periodos.filter((g) => g.periodo !== (REALIZADOS.indexOf(g.key) >= 0 ? 'realizado' : ENCERRADOS.indexOf(g.key) >= 0 ? 'encerrado' : 'atual'));
       if (periodoErrado.length) falha(f.nome, 'data-evento-periodo errado em ' + periodoErrado.map((g) => g.key + '=' + g.periodo).join(', '));
 
       // 2. todas as turmas, uma vez só, no seu evento e na ordem manual
