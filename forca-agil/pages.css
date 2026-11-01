@@ -856,6 +856,10 @@
 #adminCadastrados .cad-filtros { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 #adminCadastrados .cad-filtros-linha { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 #adminCadastrados .cad-filtros-linha #cadastradosFiltro { flex: 1 1 220px; width: auto; }
+/* ADMIN › Outros públicos: a mesma linha de busca + filtro de Cadastrados */
+#adminOutrosPublicos .cad-filtros-linha { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin-bottom: 12px; }
+#adminOutrosPublicos .cad-filtros-linha #outrosBusca { flex: 1 1 220px; width: auto; }
+#adminOutrosPublicos .cad-filtro { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: var(--arq-fs-meta); color: var(--ink-3); }
 #adminCadastrados .cad-mais-filtros > summary {
   display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; cursor: pointer;
   border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink-2);

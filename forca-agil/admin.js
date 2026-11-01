@@ -292,6 +292,7 @@
     loadTiposAtividade();
     loadDiretores();
     loadGerentes();
+    loadOutrosPublicos();
     loadFacilitadores();
     loadSorteios();
     if (window.faInitPedidos) window.faInitPedidos();
@@ -7702,6 +7703,226 @@
       }).catch(function (err) {
         console.error('[admin] erro ao carregar fa-gerentes', err);
         c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar gerentes. Recarregue a página ou verifique sua conexão.</p>';
+      });
+    }
+
+    render();
+  }
+
+  /* ---- Outros públicos ----
+     Um cadastro único das categorias especiais: fa-outros-publicos/<chave do e-mail> = { email, name, categorias,
+     addedAt, addedBy, updatedAt, updatedBy }, com categorias = { estagiario, menorAprendiz, coaud, conselhoDeliberativo,
+     conselhoFiscal, conselhoConsultivo } — uma pessoa, um registro, várias categorias. Gerentes e Diretores continuam
+     nas abas deles; aqui só se SINALIZA quem também está lá (sem precedência, nada é mudado sozinho).
+     NESTA ETAPA nada lê esta lista para decidir participação: quem pode entrar em cada turma continua igual. Ela prepara
+     a ativação dos públicos (Técnicos deixando de ser "quem não é gerente", os públicos novos e os agrupados).
+     Só os dois super-admins leem a lista inteira e gravam (database.rules.json, montar-regras-outros-publicos.js) — há
+     menores de idade nela; os outros admins veem só o aviso. A lista é por e-mail: vale mesmo para quem ainda não tem
+     cadastro no site. */
+  var CATEGORIAS_OUTROS = [
+    { k: 'estagiario', rotulo: 'Estagiários' },
+    { k: 'menorAprendiz', rotulo: 'Menores aprendizes' },
+    { k: 'coaud', rotulo: 'Membros do COAUD' },
+    { k: 'conselhoDeliberativo', rotulo: 'Conselho Deliberativo' },
+    { k: 'conselhoFiscal', rotulo: 'Conselho Fiscal' },
+    { k: 'conselhoConsultivo', rotulo: 'Conselho Consultivo' }
+  ];
+  function loadOutrosPublicos() {
+    const c = document.getElementById('adminOutrosPublicos');
+    if (!c) return;
+    const sess0 = window.faAuth && window.faAuth.getSession();
+    const souSuper = !!(sess0 && SUPER_ADMINS.indexOf((sess0.email || '').toLowerCase()) !== -1);
+    const INFO = 'Estagiários, menores aprendizes, membros do COAUD e dos conselhos Deliberativo, Fiscal e Consultivo — um cadastro por pessoa, com uma ou mais categorias. ' +
+      'Por enquanto esta lista não muda quem pode participar de nenhum evento ou turma: ela prepara a próxima etapa, em que esses públicos passam a valer. A lista é por e-mail: vale mesmo para quem ainda não tem cadastro no site. Não dá acesso ao painel.';
+    const rotuloDe = function (k) { return (CATEGORIAS_OUTROS.filter(function (x) { return x.k === k; })[0] || { rotulo: k }).rotulo; };
+    const marcadas = function (cats) { return CATEGORIAS_OUTROS.filter(function (x) { return cats && cats[x.k] === true; }).map(function (x) { return x.k; }); };
+    const caixas = function (prefixo, cats) {
+      return CATEGORIAS_OUTROS.map(function (x) {
+        return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 14px 6px 0;font-size:.85rem;color:var(--ink-2)">' +
+          '<input type="checkbox" data-' + prefixo + '-cat="' + x.k + '"' + (cats && cats[x.k] ? ' checked' : '') + '> ' + esc(x.rotulo) + '</label>';
+      }).join('');
+    };
+
+    if (!souSuper) {
+      c.innerHTML = '<p class="admin-empty" style="margin-bottom:20px">' + esc(INFO) + '</p>' +
+        '<p class="admin-empty" data-outros-so-super="1">Só os super-admins consultam e mantêm esta lista — ela inclui menores de idade.</p>';
+      return;
+    }
+
+    const estado = { busca: '', filtro: '', editando: '' };
+    function render(aviso) {
+      /* Gerentes e Diretores só para o "Também em": se falharem, a coluna diz que não deu para conferir */
+      const le = function (no) { return firebase.database().ref(no).once('value').then(function (s) { return s.val() || {}; }, function () { return null; }); };
+      Promise.all([firebase.database().ref('fa-outros-publicos').once('value'), firebase.database().ref('fa-users').once('value'), le('fa-gerentes'), le('fa-diretores')]).then(function (snaps) {
+        const data = snaps[0].val() || {}, users = snaps[1].val() || {}, ger = snaps[2], dir = snaps[3];
+        const lista = Object.keys(data).map(function (k) {
+          const r = data[k] || {}, u = users[k] || null;
+          const tambem = [];
+          if (ger === null || dir === null) tambem.push('?');
+          if (ger && ger[k]) tambem.push('Gerentes');
+          if (dir && dir[k]) tambem.push('Diretores');
+          const cats = marcadas(r.categorias);
+          return { key: k, email: r.email || '', name: (u && u.name) || r.name || '', cadastrada: !!u, addedAt: r.addedAt, cats: cats, tambem: tambem,
+            sobreposta: cats.length > 1 || tambem.some(function (x) { return x !== '?'; }) };
+        }).sort(function (a, b) { return (a.name || a.email).localeCompare(b.name || b.email, 'pt'); });
+        const porCat = {}; CATEGORIAS_OUTROS.forEach(function (x) { porCat[x.k] = lista.filter(function (p) { return p.cats.indexOf(x.k) !== -1; }).length; });
+        const sobrepostas = lista.filter(function (p) { return p.sobreposta; }).length;
+        c.innerHTML = '';
+
+        const info = document.createElement('p');
+        info.className = 'admin-empty';
+        info.style.marginBottom = '20px';
+        info.textContent = INFO;
+        c.appendChild(info);
+
+        if (sobrepostas) {
+          const av = document.createElement('p');
+          av.className = 'admin-empty';
+          av.setAttribute('data-sobreposicao-outros', String(sobrepostas));
+          av.style.cssText = 'margin-bottom:16px;color:var(--accent)';
+          av.textContent = '⚠ ' + sobrepostas + (sobrepostas === 1 ? ' pessoa está' : ' pessoas estão') +
+            ' em mais de uma categoria, ou também em Gerentes ou Diretores (selo "Sobreposição"). Nada foi mudado: cada cadastro continua valendo — confira se está certo.';
+          c.appendChild(av);
+        }
+
+        const hdr = document.createElement('h4');
+        hdr.innerHTML = 'Outros públicos <span class="admin-badge">' + lista.length + '</span>';
+        c.appendChild(hdr);
+
+        const filtros = document.createElement('div');
+        filtros.className = 'cad-filtros-linha';
+        filtros.innerHTML =
+          '<input id="outrosBusca" type="search" placeholder="Buscar por nome ou e-mail…" aria-label="Buscar por nome ou e-mail" />' +
+          '<label class="cad-filtro">Categoria<select id="outrosFiltro"><option value="">Todas (' + lista.length + ')</option>' +
+            CATEGORIAS_OUTROS.map(function (x) { return '<option value="' + x.k + '">' + esc(x.rotulo) + ' (' + porCat[x.k] + ')</option>'; }).join('') +
+            '<option value="__sobreposicao">Com sobreposição (' + sobrepostas + ')</option></select></label>';
+        c.appendChild(filtros);
+
+        const corpo = document.createElement('div');
+        c.appendChild(corpo);
+        function desenharTabela() {
+          const q = estado.busca.trim().toLowerCase();
+          const vis = lista.filter(function (p) {
+            if (q && (p.name + ' ' + p.email).toLowerCase().indexOf(q) === -1) return false;
+            if (estado.filtro === '__sobreposicao') return p.sobreposta;
+            return !estado.filtro || p.cats.indexOf(estado.filtro) !== -1;
+          });
+          if (!lista.length) { corpo.innerHTML = '<p class="admin-empty">Ninguém cadastrado ainda.</p>'; return; }
+          if (!vis.length) { corpo.innerHTML = '<p class="admin-empty">Ninguém com esse filtro.</p>'; return; }
+          corpo.innerHTML =
+            '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Categorias</th><th>Também em</th><th>Cadastro no site</th><th>Desde</th><th></th></tr></thead><tbody>' +
+            vis.map(function (p) {
+              const linha = '<tr data-outros-key="' + esc(p.key) + '"' + (p.sobreposta ? ' data-sobreposicao="1"' : '') + '>' +
+                '<td>' + esc(p.name || '—') + '</td>' +
+                '<td>' + esc(p.email || '—') + '</td>' +
+                '<td data-categorias="' + esc(p.cats.join(' ')) + '">' + p.cats.map(function (k) { return '<span class="admin-badge" style="display:inline-block;margin:0 4px 4px 0">' + esc(rotuloDe(k)) + '</span>'; }).join('') +
+                  (p.sobreposta ? '<span class="motivo-badge motivo-fora-publico">Sobreposição</span>' : '') + '</td>' +
+                '<td>' + (p.tambem.length ? esc(p.tambem.map(function (x) { return x === '?' ? 'não foi possível conferir' : x; }).join(', ')) : '—') + '</td>' +
+                '<td>' + (p.cadastrada ? 'Sim' : '<span style="color:var(--ink-3)">Ainda sem cadastro</span>') + '</td>' +
+                '<td>' + fmtDate(p.addedAt) + '</td>' +
+                '<td style="white-space:nowrap"><button class="btn" data-outros-editar="' + esc(p.key) + '">Editar</button> ' +
+                  '<button class="admin-del-btn" data-outros-remover="' + esc(p.key) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>' +
+              '</tr>';
+              if (estado.editando !== p.key) return linha;
+              return linha + '<tr data-outros-edicao="' + esc(p.key) + '"><td colspan="7">' + caixas('ed', data[p.key].categorias) +
+                '<div style="margin-top:6px"><button class="btn btn--primary" data-outros-salvar="' + esc(p.key) + '">Salvar categorias</button> ' +
+                '<button class="btn" data-outros-cancelar="1">Cancelar</button></div>' +
+                '<p data-outros-edicao-msg="1" style="margin-top:6px;font-size:.8rem;color:var(--accent)"></p></td></tr>';
+            }).join('') + '</tbody></table></div>';
+        }
+        desenharTabela();
+        filtros.querySelector('#outrosBusca').addEventListener('input', function (e) { estado.busca = e.target.value || ''; desenharTabela(); });
+        filtros.querySelector('#outrosFiltro').addEventListener('change', function (e) { estado.filtro = e.target.value || ''; desenharTabela(); });
+
+        corpo.addEventListener('click', function (e) {
+          const sess = window.faAuth && window.faAuth.getSession();
+          const quem = (sess && sess.email) || '';
+          const ed = e.target.closest('[data-outros-editar]');
+          if (ed) { estado.editando = ed.getAttribute('data-outros-editar'); desenharTabela(); return; }
+          if (e.target.closest('[data-outros-cancelar]')) { estado.editando = ''; desenharTabela(); return; }
+          const sv = e.target.closest('[data-outros-salvar]');
+          if (sv) {
+            const k = sv.getAttribute('data-outros-salvar');
+            const box = corpo.querySelector('[data-outros-edicao="' + k + '"]');
+            const msg = box.querySelector('[data-outros-edicao-msg]');
+            const novas = {};
+            box.querySelectorAll('[data-ed-cat]').forEach(function (cb) { if (cb.checked) novas[cb.getAttribute('data-ed-cat')] = true; });
+            if (!Object.keys(novas).length) { msg.textContent = 'Marque ao menos uma categoria. Para tirar a pessoa desta lista, use "Remover".'; return; }
+            sv.disabled = true;
+            const up = {};
+            up['fa-outros-publicos/' + k + '/categorias'] = novas;
+            up['fa-outros-publicos/' + k + '/updatedAt'] = new Date().toISOString();
+            up['fa-outros-publicos/' + k + '/updatedBy'] = quem;
+            firebase.database().ref().update(up, function (err) {
+              if (err) { sv.disabled = false; msg.textContent = 'Erro ao salvar. Nada foi alterado — tente novamente.'; return; }
+              estado.editando = '';
+              render('Categorias atualizadas.');
+            });
+            return;
+          }
+          const rm = e.target.closest('[data-outros-remover]');
+          if (rm) {
+            const k = rm.getAttribute('data-outros-remover');
+            adminConfirm('Remover ' + rm.dataset.name + ' de Outros públicos (todas as categorias)?\n\nNão tira a pessoa de nenhuma turma nem muda nada do que ela já fez no site.', function () {
+              firebase.database().ref('fa-outros-publicos/' + k).remove(function (err) {
+                if (err) { adminAlert('Erro ao remover. Nada foi alterado — tente novamente.'); return; }
+                render('Removida da lista.');
+              });
+            });
+          }
+        });
+
+        const form = document.createElement('div');
+        form.className = 'admin-colab-form';
+        form.innerHTML =
+          '<h4 style="margin-top:32px">Incluir pessoas</h4>' +
+          '<p style="font-size:.8rem;color:var(--ink-2);margin:0 0 8px">Um ou vários e-mails @previ.com.br — um por linha, ou separados por vírgula, ponto e vírgula ou espaço — e as categorias de todos eles. Quem já está na lista ganha as categorias marcadas, sem perder as que já tinha.</p>' +
+          '<textarea id="outrosEmails" rows="5" placeholder="fulana@previ.com.br&#10;ciclano@previ.com.br" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea>' +
+          '<div style="margin-top:8px">' + caixas('novo', null) + '</div>' +
+          '<div style="margin-top:8px"><button class="btn btn--primary" id="outrosAddBtn">Incluir</button></div>' +
+          '<p id="outrosMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan);white-space:pre-line"></p>';
+        c.appendChild(form);
+        if (aviso) { const m0 = document.getElementById('outrosMsg'); m0.style.color = 'var(--cyan)'; m0.textContent = aviso; }
+
+        document.getElementById('outrosAddBtn').addEventListener('click', function () {
+          const btn = this, msg = document.getElementById('outrosMsg');
+          const sess = window.faAuth && window.faAuth.getSession();
+          const quem = (sess && sess.email) || '';
+          const brutos = (document.getElementById('outrosEmails').value || '').split(/[\s,;]+/).map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean);
+          const cats = []; form.querySelectorAll('[data-novo-cat]').forEach(function (cb) { if (cb.checked) cats.push(cb.getAttribute('data-novo-cat')); });
+          if (!brutos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Cole pelo menos um e-mail.'; return; }
+          if (!cats.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Marque ao menos uma categoria.'; return; }
+          const invalidos = brutos.filter(function (e) { return !/^[^\s@]+@previ\.com\.br$/.test(e); });
+          if (invalidos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Só e-mails @previ.com.br. Corrija e tente de novo (nada foi gravado):\n' + invalidos.join('\n'); return; }
+          const agora = new Date().toISOString(), up = {}, vistos = {};
+          let novos = 0, acrescidos = 0, iguais = 0;
+          brutos.forEach(function (e) {
+            const k = emailKey(e);
+            if (vistos[k]) return; vistos[k] = true;
+            const ja = data[k];
+            if (!ja) {
+              const u = users[k], cs = {}; cats.forEach(function (x) { cs[x] = true; });
+              up['fa-outros-publicos/' + k] = { email: e, name: u ? window.faTurmasUtil.nomePessoa(u.name) : '', categorias: cs, addedAt: agora, addedBy: quem };
+              novos++; return;
+            }
+            const faltam = cats.filter(function (x) { return !(ja.categorias && ja.categorias[x] === true); });
+            if (!faltam.length) { iguais++; return; }
+            faltam.forEach(function (x) { up['fa-outros-publicos/' + k + '/categorias/' + x] = true; });
+            up['fa-outros-publicos/' + k + '/updatedAt'] = agora;
+            up['fa-outros-publicos/' + k + '/updatedBy'] = quem;
+            acrescidos++;
+          });
+          if (!novos && !acrescidos) { msg.style.color = 'var(--accent)'; msg.textContent = 'Todos esses e-mails já estão na lista com essas categorias.'; return; }
+          btn.disabled = true;
+          firebase.database().ref().update(up, function (err) {
+            if (err) { btn.disabled = false; msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar. Nada foi gravado — tente novamente.'; return; }
+            render(novos + ' incluída(s)' + (acrescidos ? '; ' + acrescidos + ' já na lista, com categoria(s) acrescentada(s)' : '') +
+              (iguais ? '; ' + iguais + ' já tinha(m) essas categorias' : '') + '.');
+          });
+        });
+      }).catch(function (err) {
+        console.error('[admin] erro ao carregar fa-outros-publicos', err);
+        c.innerHTML = '<p class="loading-msg" data-outros-erro="1" style="color:var(--red)">Erro ao carregar Outros públicos. Nada foi alterado — recarregue a página ou verifique sua conexão.</p>';
       });
     }
 

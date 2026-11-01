@@ -133,7 +133,7 @@ Imagens e templates ficam em `forca-agil/assets/` e `forca-agil/cert-template-*.
 
 ## 3. Dicionário do banco
 
-Firebase Realtime Database, projeto `kyber-agil`. **103 nós** na raiz de `database.rules.json`.
+Firebase Realtime Database, projeto `kyber-agil`. **104 nós** na raiz de `database.rules.json`.
 "Módulos" lista os arquivos que leem ou gravam o nó (conferido por busca no código).
 Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
@@ -148,6 +148,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 | `fa-admins` | Quem é admin (além da lista fixa em `auth.js`). | admin, auth, pedidos | Cada pessoa lê só o próprio registro. |
 | `fa-diretores` | Quem vê eventos marcados "só para diretores e administradores". | admin, auth | Não dá acesso de admin. |
 | `fa-gerentes` | Lista de gerentes por e-mail (`{ email, name, addedAt, addedBy }`, chave = chave do e-mail — vale mesmo sem cadastro no site). Público das turmas `publicoCargo` "gerentes" (só quem está) e "tecnicos" (só quem não está). Aba ADMIN › Gerentes, aceita lista colada. | admin, aluno, turmas-util | Só admin grava; só e-mail @previ.com.br (`teste-rules.js`). Não dá acesso de admin. |
+| `fa-outros-publicos` | ADMIN › Outros públicos: um registro por pessoa (`{ email, name, categorias, addedAt, addedBy, updatedAt, updatedBy }`, chave = chave do e-mail), `categorias` = `estagiario`, `menorAprendiz`, `coaud`, `conselhoDeliberativo`, `conselhoFiscal`, `conselhoConsultivo` (só `true`; várias por pessoa). Os agrupados (Estagiários e menores aprendizes; Conselheiros = os três conselhos, sem o COAUD) não têm registro. | admin | Só os super-admins gravam e leem a lista inteira (há menores de idade); admin e a própria pessoa leem um registro (`montar-regras-outros-publicos.js`, `teste-rules-outros-publicos.js`). **Ainda não decide participação** — prepara a ativação dos públicos. |
 | `fa-facilitadores` | Quem vê a página `#facilitador`. | admin, auth | Não põe a pessoa em nenhuma turma (isso é `turmas-equipe`). |
 | `fa-avaliacao-autorizados` | Quem acessa a Avaliação de Produto/Serviço: tipo `avaliacao` ou `avaliacao-arquitetura`. | auth, avaliacao-produto | Ouvido ao vivo; só admin geral grava. |
 | `fa-avaliacao-autorizados-auditoria` | Histórico de concessão, alteração e remoção desses acessos. | avaliacao-produto | Só acréscimo. |

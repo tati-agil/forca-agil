@@ -176,11 +176,12 @@
         'Check-in é aberto pelo admin para um dia; a presença registrada alimenta a frequência e o certificado.',
         'Canal de criação (Cadastrados, coluna "Cadastro e canal", filtro em Mais filtros e Excel): por onde a conta foi criada — "Painel do administrador" ou "Formulário de cadastro" (cadastros anteriores a 14/08/2026 aparecem como formulário pelo fluxo da época, sem marca individual); um caso sem evidência aparece como "Não comprovado", nunca presumido. O canal não comprova quem preencheu o formulário (ele não registra quem digitou); pelo painel, fica registrado o administrador que criou. É diferente da liberação administrativa (quem autorizou o acesso). Calculado na hora, sem gravar nada.',
         'Conta de teste (Cadastrados, menu ⋯, só administração geral): é só uma identificação na lista — selo "Teste", filtro "Contas de teste" e coluna no Excel. A lista começa sem as contas marcadas e avisa quantas não aparecem, com "Mostrar todas". Marcar ou desmarcar não muda login, senha, acesso, permissões, situação, inscrições nem históricos, e fica registrado quem fez e quando. Na correção de e-mail, a marca vai junto depois de os dados mudarem; se não der, o painel avisa para marcar de novo — a marca nunca impede a correção.',
+        'Outros públicos (aba própria, só super-admin consulta e mantém): estagiários, menores aprendizes, membros do COAUD e dos conselhos Deliberativo, Fiscal e Consultivo — um cadastro por pessoa, com uma ou mais categorias; inclusão por e-mail (um ou vários), edição das categorias e remoção com confirmação; selo "Sobreposição" para quem tem mais de uma categoria ou também está em Gerentes ou Diretores (nada é mudado sozinho). Por enquanto a lista não muda quem pode participar de nenhum evento ou turma.',
         'Se a tela deixa editar, ela também salva: uma gravação recusada aparece como erro, nunca em silêncio.',
         'O que só uma pessoa consegue conferir depois de publicar está no checklist pós-deploy do repositório (docs/checklist-pos-deploy.md).',
       ],
       fonte: ['admin.js e os módulos de cada aba', 'database.rules.json'],
-      prova: ['teste-checagens-interface.js', 'teste-acoes-cadastrado.js', 'teste-editar-cadastro.js', 'teste-roteiro-texto-rico.js', 'teste-contas-teste.js', 'teste-rules-contas-teste.js'] },
+      prova: ['teste-checagens-interface.js', 'teste-acoes-cadastrado.js', 'teste-editar-cadastro.js', 'teste-roteiro-texto-rico.js', 'teste-contas-teste.js', 'teste-rules-contas-teste.js', 'teste-admin-outros-publicos.js', 'teste-rules-outros-publicos.js'] },
   ];
 
   function esc(s) {
