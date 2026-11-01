@@ -34,7 +34,8 @@
     ".github/scripts/teste-rules-email-confirmado.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-fa-users-compat.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-fa-users.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-contas-teste.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-contas-teste.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-inscricoes.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
