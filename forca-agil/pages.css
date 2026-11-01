@@ -310,6 +310,11 @@
   color: var(--ink); margin: 0; padding-bottom: 16px;
   border-bottom: 1px solid var(--line-strong);
 }
+/* "Mostrar para todos" e a pessoa fora do público: o público permitido, logo abaixo do título (renderTurmasGrid) */
+.turmas-evento-publico {
+  margin: 12px 0 0; font-size: var(--arq-fs-aux); line-height: 1.5; color: var(--ink-2);
+  border-left: 3px solid var(--accent-2); padding: 6px 0 6px 12px;
+}
 .turmas-evento-grupo .turmas-grid { margin-top: 0; }
 /* "Eventos já realizados": separa os eventos que já aconteceram inteiros
    (renderTurmasGrid), que descem para o fim sem sumir. Mesmo idioma do

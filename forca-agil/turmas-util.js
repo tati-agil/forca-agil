@@ -328,6 +328,54 @@
     return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
   }
 
+  /* VISIBILIDADE NA VITRINE (eventos/<evento>/visibilidade) \u2014 decide S\u00d3 o que a p\u00e1gina Turmas mostra, nunca quem
+     participa: quem participa \u00e9 regrasDeEntrada + as regras do banco, e nenhum dos dois l\u00ea este campo.
+       'elegivel' (padr\u00e3o; tamb\u00e9m o de quem n\u00e3o tem o campo): evento e turma s\u00f3 aparecem para quem atende \u00e0s restri\u00e7\u00f5es
+                  deles \u2014 s\u00f3 diretores, lista de e-mails do evento, cargo do evento e da turma, lista da turma;
+       'todos':   o evento aparece para todo mundo logado, com o motivo no lugar do bot\u00e3o. Turma com lista pr\u00f3pria
+                  continua escondida de quem n\u00e3o est\u00e1 nela: "mostrar para todos" nunca revela turma restrita.
+     Admin v\u00ea tudo. Quem tem registro ativo numa turma sempre a v\u00ea: mudar cargo ou lista n\u00e3o some com o v\u00ednculo.
+     p = { admin, diretor, gerente (true/false; null = ainda n\u00e3o sei: o cargo n\u00e3o esconde, o card confere ao clicar),
+           naListaEvento, naListaTurma, temRegistro } */
+  function visibilidadeDoEvento(e) { return e && e.visibilidade === 'todos' ? 'todos' : 'elegivel'; }
+  function foraDoPublicoDoEvento(e, p) {
+    if (!e || p.admin) return '';
+    if (e.restritoADiretores && !p.diretor) return 'diretores';
+    if (e.publicoRestrito && !p.naListaEvento) return 'lista';
+    var c = cargoDoEvento(e);
+    if (c && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
+    return '';
+  }
+  function foraDoPublicoDaTurma(t, e, p) {
+    if (!t || p.admin) return '';
+    if (t.publicoRestrito && !p.naListaTurma) return 'lista-turma';
+    var c = cargoEfetivo(t, e);
+    if (c === 'conflito') return 'cargo';
+    if (cargoDaTurma(t) && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
+    return '';
+  }
+  function vitrineMostraEvento(e, p, temRegistroNoEvento) {
+    if (p.admin || temRegistroNoEvento) return true;
+    return visibilidadeDoEvento(e) === 'todos' || !foraDoPublicoDoEvento(e, p);
+  }
+  function vitrineMostraTurma(t, e, p) {
+    if (p.admin || p.temRegistro) return true;
+    var mt = foraDoPublicoDaTurma(t, e, p);
+    if (mt === 'lista-turma') return false;
+    if (visibilidadeDoEvento(e) === 'todos') return true;
+    return !mt && !foraDoPublicoDoEvento(e, p);
+  }
+  /* o p\u00fablico permitido, dito para quem v\u00ea o evento sem poder participar (s\u00f3 no modo 'todos') */
+  function publicoPermitidoTexto(e, motivo) {
+    if (motivo === 'diretores') return 'diretores';
+    if (motivo === 'lista') return 'um p\u00fablico convidado';
+    var c = cargoDoEvento(e);
+    return c === 'gerentes' ? 'gerentes' : c === 'tecnicos' ? 't\u00e9cnicos (quem n\u00e3o \u00e9 gerente)' : 'um p\u00fablico espec\u00edfico';
+  }
+  function mensagemForaDoPublico(e, motivo) {
+    return 'Este evento \u00e9 destinado a ' + publicoPermitidoTexto(e, motivo) + '. Voc\u00ea pode conhec\u00ea-lo, mas n\u00e3o participar.';
+  }
+
   window.faTurmasUtil = {
     nomePessoa: nomePessoa,
     formatDias: formatDias, periodoCertificado: periodoCertificado, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
@@ -335,6 +383,8 @@
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo,
     vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
-    regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin
+    regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin,
+    visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
+    vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico
   };
 })();

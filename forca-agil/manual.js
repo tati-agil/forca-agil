@@ -70,11 +70,12 @@
         'Confirmar alguém que já é inscrita em outra turma remove a outra inscrição, com aviso antes.',
         'Lista de espera é por evento. Evento ou turma podem ser restritos: a diretores, ou a um público listado pelo admin.',
         'Quem sai de uma turma fica registrado com motivo e destino; nada é apagado sem querer.',
+        'Visibilidade do evento (ADMIN › Eventos › Editar evento) decide só quem VÊ o evento na página Turmas, nunca quem participa. "Somente para o público elegível" (padrão, e o de todo evento sem a opção gravada): o evento e a turma aparecem só para quem atende às restrições — só diretores, lista de e-mails, Gerentes/Técnicos em "Quem participa" e o público próprio de cada turma. "Mostrar para todos os usuários cadastrados": qualquer pessoa logada vê o evento e as informações dele, com o público permitido no título; quem não é elegível vê o motivo no lugar do botão e não consegue manifestar interesse, entrar na lista de espera nem se inscrever. Turma com lista própria nunca aparece para quem está fora. Quem já tem interesse ou inscrição numa turma sempre a vê. Admin vê tudo; use "Ver esta tela como" para conferir o que uma pessoa vê. A opção só é gravada quando você escolhe "Mostrar para todos" (ou muda uma escolha já gravada): salvar o evento por outro motivo não a grava.',
         'Ordem na página Turmas (só exibição, nada é gravado nem escondido): os eventos seguem a ordem manual do painel; os que já aconteceram inteiros (todas as turmas que a pessoa vê estão realizadas — encerradas ou com o último dia passado) descem para o fim, sob "Eventos já realizados". Inscrição encerrada com data futura não é evento antigo, e evento com fila ligada continua em cima. As informações de cada evento nascem abertas, com "Ocultar informações".',
       ],
       estados: true,
       fonte: ['app.js (vitrine e interesse) e admin.js (confirmar, remover)', 'Nós turmas-interesse, fa-espera, turmas-publico e eventos-publico (database.rules.json)'],
-      prova: ['teste-ordem-vitrine.js', 'teste-turmas-ordem-exibicao.js', 'teste-publico-restrito-evento.js', 'teste-admin-abrir-lista-restrita.js', 'teste-minha-area-fila.js'] },
+      prova: ['teste-ordem-vitrine.js', 'teste-turmas-ordem-exibicao.js', 'teste-visibilidade-evento.js', 'teste-publico-restrito-evento.js', 'teste-admin-abrir-lista-restrita.js', 'teste-minha-area-fila.js'] },
 
     { id: 'conteudos', titulo: 'Conteúdos e Treinamento',
       oque: 'Conteúdos de agilidade e o Treinamento (autodiagnóstico com patente).',

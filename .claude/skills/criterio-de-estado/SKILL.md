@@ -138,7 +138,7 @@ mais, nunca amplia; contraditórios = `'conflito'`, ninguém entra.
 
 | leitor | onde |
 |---|---|
-| grade da página Turmas | `app.js` `renderTurmasGrid` (filtra antes de agrupar por evento) |
+| grade da página Turmas | `app.js` `renderTurmasGrid` (filtra antes de agrupar por evento) — desde a visibilidade do evento, pelo critério único `faTurmasUtil.vitrineMostraEvento`/`vitrineMostraTurma` (`turmas-util.js`), que também esconde por cargo no padrão e mostra para todos com "Mostrar para todos" (`eventos/<e>/visibilidade`), sem nunca liberar participação |
 | blocos A Missão / Plano de Voo | `app.js` `renderMissaoEventos` (mesmo filtro, senão evento ganha missão sem grade) |
 | prévia "Turmas abertas no momento" | `aluno.js` `turmasAbertas` |
 | painel: selo, aviso de divergência, menu ⋯ | `admin.js` `buildTurmaCard` |

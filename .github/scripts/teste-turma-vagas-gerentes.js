@@ -30,7 +30,11 @@
  *
  * VAGAS POR TURMA NO EVENTO (eventos/<ev>/vagasPorTurma; a turma pode ter o próprio número por cima):
  *  13. turma sem número próprio num evento com "Vagas por turma" lota pelo número do evento; o formulário do evento grava
- *      vagasPorTurma. */
+ *      vagasPorTurma.
+ *
+ * VISIBILIDADE: os eventos com turmas de cargo (ev5, ev7, ev8) estão em "Mostrar para todos" (visibilidade 'todos') —
+ * no padrão, a turma de cargo nem aparece para quem está fora (teste-visibilidade-evento.js), e aqui o que se mede são
+ * as mensagens e a recusa de quem vê a turma sem poder participar. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -53,10 +57,10 @@ function banco() {
     'fa-users': users, 'fa-admins': admins, 'fa-diretores': {}, 'fa-facilitadores': {},
     'fa-gerentes': { [chave(GER)]: { email: GER, name: 'GERENTE UM', addedAt: '2026-10-22T10:00:00.000Z' }, [chave(SEMCAD)]: { email: SEMCAD, name: '', addedAt: '2026-10-22T10:00:00.000Z' } },
     'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
-    eventos: { ev5: { nome: 'EPISÓDIO V', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false, dispensaCmflex: true },
+    eventos: { ev5: { nome: 'EPISÓDIO V', order: 1, publicado: true, cargaHoraria: '3', esperaAtiva: false, dispensaCmflex: true, visibilidade: 'todos' },
       ev6: { nome: 'EPISÓDIO VI', order: 2, publicado: true, cargaHoraria: '3', esperaAtiva: false },
-      ev7: { nome: 'EPISÓDIO VII', order: 3, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Gerentes' },
-      ev8: { nome: 'EPISÓDIO VIII', order: 4, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Técnicos' },
+      ev7: { nome: 'EPISÓDIO VII', order: 3, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Gerentes', visibilidade: 'todos' },
+      ev8: { nome: 'EPISÓDIO VIII', order: 4, publicado: true, cargaHoraria: '3', esperaAtiva: false, publicoDesc: 'Técnicos', visibilidade: 'todos' },
       ev9: { nome: 'EPISÓDIO IX', order: 5, publicado: true, cargaHoraria: '3', esperaAtiva: false, vagasPorTurma: 1 } },
     turmas: {
       tL: { label: 'TURMA LOTADA', eventoKey: 'ev5', order: 1, dias: ['2027-11-03'], vagas: 2 },

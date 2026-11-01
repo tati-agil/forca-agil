@@ -11,7 +11,9 @@
  * Agora as duas restrições se somam (cargoEfetivo em turmas-util.js) e
  * contraditórias viram "ninguém entra", com aviso no painel.
  *
- * Roda com o Firebase falso, em 1280 e 375 px.
+ * Roda com o Firebase falso, em 1280 e 375 px. O evento de Técnicos está em "Mostrar para todos" (visibilidade
+ * 'todos'): no padrão, o gerente e a turma contraditória nem aparecem (teste-visibilidade-evento.js) — aqui se medem
+ * as mensagens e a recusa de quem VÊ a turma sem poder participar.
  *
  * O QUE ELE EXIGE:
  *   PESSOA (#turmas)
@@ -62,7 +64,7 @@ function banco() {
     'fa-gerentes': { [chave(GER)]: { email: GER, name: 'GERENTE NA LISTA' }, [chave(ANTIGO)]: { email: ANTIGO, name: 'GERENTE ANTIGO' } },
     'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
     eventos: {
-      evT: { nome: 'EVENTO DE TECNICOS', order: 1, publicado: true, cargaHoraria: '4', esperaAtiva: false, publicoDesc: 'Técnicos', dispensaCmflex: true },
+      evT: { nome: 'EVENTO DE TECNICOS', order: 1, publicado: true, cargaHoraria: '4', esperaAtiva: false, publicoDesc: 'Técnicos', dispensaCmflex: true, visibilidade: 'todos' },
       evL: { nome: 'EVENTO LIVRE', order: 2, publicado: true, cargaHoraria: '4', esperaAtiva: false },
     },
     turmas: {
