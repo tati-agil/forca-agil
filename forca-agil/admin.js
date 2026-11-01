@@ -512,14 +512,20 @@
        dois. Uma só falhar já basta para o painel não saber responder quem
        pode entrar, então ok é o E das duas leituras — meio conhecimento
        decidiria errado com a cara de quem sabe. */
-    Promise.all([
+    var listas = Promise.all([
       firebase.database().ref('turmas-publico').once('value'),
       firebase.database().ref('eventos-publico').once('value')
-    ]).then(function (snaps) {
-      cb(snaps[0].val() || {}, snaps[1].val() || {}, true);
-    }).catch(function () {
-      cb({}, {}, false);
-    });
+    ]).then(function (snaps) { return { pub: snaps[0].val() || {}, pubEv: snaps[1].val() || {}, ok: true }; },
+      function () { return { pub: {}, pubEv: {}, ok: false }; });
+    /* Gerentes e diretores, lidos uma vez e em paralelo, só para o selo "Fora do público atual" (sinalizacaoForaDoPublico):
+       ok próprio, porque falhar aqui não muda nada do que as portas recusam — só impede o painel de dizer quem saiu do
+       público por cargo ou por diretores. */
+    var cargos = Promise.all([
+      firebase.database().ref('fa-gerentes').once('value'),
+      firebase.database().ref('fa-diretores').once('value')
+    ]).then(function (snaps) { return { gerentes: snaps[0].val() || {}, diretores: snaps[1].val() || {}, ok: true }; },
+      function () { return { gerentes: null, diretores: null, ok: false }; });
+    Promise.all([listas, cargos]).then(function (r) { cb(r[0].pub, r[0].pubEv, r[0].ok, r[1]); });
   }
 
   /* Eventos — entidade que agrupa turmas. Armazena nome e carga horária
@@ -684,6 +690,8 @@
      diz que não conseguiu verificar: continua recusando (é o lado seguro),
      mas explicando o motivo certo, e não pinta o aviso de divergência. */
   var _publicoResolvido = true;
+  /* Gerentes e diretores para o selo "Fora do público atual" — null = ainda não sei; ok=false = a leitura falhou. */
+  var _cargosPublico = { gerentes: null, diretores: null, ok: true };
 
   function turmaRestrita(turmaKey) {
     for (var i = 0; i < TURMAS_LIST.length; i++) {
@@ -737,6 +745,31 @@
     return (nome || 'Essa pessoa') + ' não está no público restrito de "' + turmaLabel(turmaKey) + '".\n\n' +
       'Esta turma só admite quem está na lista. Para incluir, abra o menu ⋯ da turma → ' +
       '"\u{1F465} Público restrito", adicione a pessoa lá e volte aqui.\n\nNada foi gravado.';
+  }
+
+  /* "FORA DO PÚBLICO ATUAL" — só SINALIZA, nunca grava nem remove: o sistema sinaliza, o admin decide. Vale para quem
+     tem vínculo ativo (interesse ou inscrição não removidos) numa turma por vir ou em andamento; turma realizada não
+     gera alerta (participação histórica não é inconsistência atual). O critério é faTurmasUtil.foraDoPublicoAtual, com
+     as listas e os cargos lidos UMA vez na carga do painel (lerPublico). Devolve { estado, motivos } ou null quando a
+     pessoa não é avaliada. */
+  function sinalizacaoForaDoPublico(t, r, encerrada) {
+    if (!r || r.removed || r.status === 'removido') return null;
+    var agora = new Date();
+    var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+    if (window.faTurmasUtil.turmaJaRealizada(t.dias, encerrada, hoje)) return null;
+    var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0] || null;
+    var k = emailKey(r.email), cg = _cargosPublico || {};
+    return window.faTurmasUtil.foraDoPublicoAtual(t, ev, {
+      gerente: cg.gerentes ? !!cg.gerentes[k] : null,
+      diretor: cg.diretores ? !!cg.diretores[k] : null,
+      naListaEvento: _publicoResolvido ? !!(ev && noPublicoDoEvento(ev.key, k)) : null,
+      naListaTurma: _publicoResolvido ? noPublicoDaTurma(t.key, k) : null,
+      falhou: !_publicoResolvido || cg.ok === false
+    });
+  }
+  function textoForaDoPublico(t, s) {
+    var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0] || null;
+    return s.motivos.map(function (m) { return window.faTurmasUtil.textoMotivoForaDoPublico(m, t, ev); }).join(' · ');
   }
 
   /* REGRAS DE ENTRADA da turma (público gerentes/técnicos, participação anterior, uma turma por pessoa, vagas) — o MESMO
@@ -818,13 +851,14 @@
            do público para desenhar o selo, o aviso de divergência e para as
            portas recusarem. Se viesse depois, a primeira pintura da tela
            mostraria turma restrita como se fosse aberta. */
-        lerPublico(function (pub, pubEv, ok) {
+        lerPublico(function (pub, pubEv, ok, cargos) {
           var data    = snapI.val()  || {};
           var config  = snapC.val()  || {};
           var checkin = snapCk.val() || {};
           _publicoPorTurma  = pub;
           _publicoPorEvento = pubEv;
           _publicoResolvido = ok;
+          _cargosPublico    = cargos;
           /* Precisa vir antes de desenhar qualquer turma: é daqui que sai
              o "Já participou · Turma 1 — Agosto". */
           registrarTurmasConfirmadas(data, TURMAS_LIST.reduce(function (acc, t) {
@@ -1321,6 +1355,37 @@
               body.appendChild(aviso);
             });
 
+            /* "Fora do público atual" por CARGO ou por DIRETORES — as listas já têm o aviso acima (com "Incluir na lista"),
+               então aqui só os outros motivos, sem repetir. Só sinaliza: nenhum botão, nada gravado. Se a leitura de
+               gerentes/diretores falhou, diz que não dá para verificar, em vez de acusar ou absolver alguém. */
+            (function () {
+              var foraOutros = [], semVerificar = 0;
+              active.forEach(function (reg) {
+                var s = sinalizacaoForaDoPublico(t, reg, encerrada);
+                if (!s) return;
+                var outros = s.motivos.filter(function (m) { return m !== 'lista-evento' && m !== 'lista-turma'; });
+                if (outros.length) foraOutros.push((reg.name || reg.email) + ' (' + textoForaDoPublico(t, { motivos: outros }) + ')');
+                else if (s.estado === 'falha' && _cargosPublico && _cargosPublico.ok === false) semVerificar++;
+              });
+              if (foraOutros.length) {
+                var avisoFora = document.createElement('p');
+                avisoFora.className = 'admin-empty turma-aviso-publico';
+                avisoFora.setAttribute('data-aviso-fora-publico', '1');
+                avisoFora.textContent = foraOutros.length + (foraOutros.length !== 1 ? ' pessoas estão' : ' pessoa está') +
+                  ' fora do público atual desta turma: ' + foraOutros.join(', ') + '. O vínculo continua valendo — ' +
+                  'nada foi alterado; a decisão de manter ou não é sua, com as ações de sempre.';
+                body.appendChild(avisoFora);
+              }
+              if (semVerificar) {
+                var avisoFalhaCargo = document.createElement('p');
+                avisoFalhaCargo.className = 'admin-empty turma-aviso-publico';
+                avisoFalhaCargo.setAttribute('data-aviso-fora-publico', 'falha');
+                avisoFalhaCargo.textContent = 'Não consegui ler a lista de gerentes ou de diretores nesta carga da página, então não dá para ' +
+                  'dizer quem está fora do público atual desta turma — recarregue a página.';
+                body.appendChild(avisoFalhaCargo);
+              }
+            })();
+
             if (!active.length) {
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
             } else {
@@ -1384,7 +1449,7 @@
                   return;
                 }
                 if (g.key === 'todos') {
-                  tabelaWrap.appendChild(buildParticipantesTable(t, active, checkinT, finalizada));
+                  tabelaWrap.appendChild(buildParticipantesTable(t, active, checkinT, finalizada, encerrada));
                   if (removed.length) {
                     var nota = document.createElement('p');
                     nota.className = 'admin-empty';
@@ -1394,7 +1459,7 @@
                   }
                   return;
                 }
-                tabelaWrap.appendChild(buildParticipantesTable(t, g.lista, checkinT, finalizada));
+                tabelaWrap.appendChild(buildParticipantesTable(t, g.lista, checkinT, finalizada, encerrada));
               };
 
               /* A barra some quando há um grupo só: filtro de uma coisa
@@ -1675,7 +1740,7 @@
      presença/frequência exigem duas coisas: turma com interesse encerrado,
      porque o check-in em si (abrir dia, escanear QR) só existe aí, E alguém
      confirmada na lista, porque só ela pode ter presença. */
-  function buildParticipantesTable(t, records, checkinT, finalizada) {
+  function buildParticipantesTable(t, records, checkinT, finalizada, encerrada) {
     var minDias = minimoDiasDaTurma(t);
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
@@ -1739,6 +1804,14 @@
       if (r.acimaDasVagas) {
         var av = r.acimaDasVagas;
         motivoBadge += '<span class="motivo-badge motivo-acima-vagas" title="' + esc('Incluída acima das vagas (' + (av.ocupadas || 0) + ' de ' + (av.vagas || 0) + ') por ' + (av.porNome || av.por || 'admin') + ': ' + (av.motivo || '')) + '">Acima das vagas</span>';
+      }
+      /* fora do público atual: só sinaliza (o vínculo continua valendo; a decisão é do admin) */
+      var fora = sinalizacaoForaDoPublico(t, r, encerrada);
+      if (fora && fora.estado === 'incompativel') {
+        var foraTxt = textoForaDoPublico(t, fora);
+        motivoBadge += '<span class="motivo-badge motivo-fora-publico" data-fora-publico="' + fora.motivos.join(' ') + '" title="' +
+          esc('Fora do público atual: ' + foraTxt + '. O vínculo continua valendo — nada foi alterado.') + '">Fora do público atual</span>' +
+          '<span class="fora-publico-motivos">' + esc(foraTxt) + '</span>';
       }
       var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
 

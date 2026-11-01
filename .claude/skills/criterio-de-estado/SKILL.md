@@ -142,6 +142,7 @@ mais, nunca amplia; contraditórios = `'conflito'`, ninguém entra.
 | blocos A Missão / Plano de Voo | `app.js` `renderMissaoEventos` (mesmo filtro, senão evento ganha missão sem grade) |
 | prévia "Turmas abertas no momento" | `aluno.js` `turmasAbertas` |
 | painel: selo, aviso de divergência, menu ⋯ | `admin.js` `buildTurmaCard` |
+| painel: selo "Fora do público atual" (só sinaliza, cargo/listas/diretores) | `admin.js` `sinalizacaoForaDoPublico` → `faTurmasUtil.foraDoPublicoAtual` |
 
 **Decisões conscientes, não esquecimento:**
 

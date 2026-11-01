@@ -398,6 +398,45 @@
     return 'Este evento \u00e9 destinado a ' + publicoPermitidoTexto(e, 'cargo') + '.';
   }
 
+  /* FORA DO P\u00daBLICO ATUAL (s\u00f3 o ADMIN v\u00ea; s\u00f3 SINALIZA) \u2014 quem tem v\u00ednculo numa turma por vir ou em andamento e deixou de
+     atender ao p\u00fablico configurado HOJE (o cargo mudou, o p\u00fablico do evento ou da turma mudou, saiu de uma lista). Nada
+     \u00e9 gravado e ningu\u00e9m \u00e9 removido: o sistema sinaliza, o admin decide. Mesma sem\u00e2ntica das regras do banco (e de
+     regrasDeEntrada): cargo = estar ou n\u00e3o em fa-gerentes, somando o do evento ("Quem participa" Gerentes/T\u00e9cnicos) e o
+     da turma; lista do evento e da turma; s\u00f3 diretores = estar em fa-diretores. Textos do "Quem participa" que s\u00e3o s\u00f3
+     descri\u00e7\u00e3o n\u00e3o contam.
+     p = { gerente, diretor, naListaEvento, naListaTurma } \u2014 true/false, ou null = ainda n\u00e3o sei; falhou = alguma leitura
+     falhou. Devolve { estado: 'compativel' | 'incompativel' | 'nao-verificado' | 'falha', motivos: [...] }: motivo
+     confirmado vale mesmo com outra leitura pendente; sem motivo confirmado, falta de dado NUNCA vira "compat\u00edvel". */
+  function foraDoPublicoAtual(t, e, p) {
+    var motivos = [], pendente = false;
+    function sabe(v) { if (typeof v === 'boolean') return true; pendente = true; return false; }
+    function cargoNao(c) { return sabe(p.gerente) && (c === 'gerentes') !== p.gerente; }
+    var ce = cargoDoEvento(e), ct = cargoDaTurma(t);
+    if (ce && cargoNao(ce)) motivos.push('cargo-evento');
+    if (ct && cargoNao(ct)) motivos.push('cargo-turma');
+    if (e && e.publicoRestrito && sabe(p.naListaEvento) && !p.naListaEvento) motivos.push('lista-evento');
+    if (t && t.publicoRestrito && sabe(p.naListaTurma) && !p.naListaTurma) motivos.push('lista-turma');
+    if (e && e.restritoADiretores && sabe(p.diretor) && !p.diretor) motivos.push('diretores');
+    if (motivos.length) return { estado: 'incompativel', motivos: motivos };
+    if (pendente) return { estado: p.falhou ? 'falha' : 'nao-verificado', motivos: [] };
+    return { estado: 'compativel', motivos: [] };
+  }
+  function textoMotivoForaDoPublico(m, t, e) {
+    var nome = function (c) { return c === 'gerentes' ? 's\u00f3 gerentes' : 's\u00f3 t\u00e9cnicos'; };
+    if (m === 'cargo-evento') return 'cargo incompat\u00edvel com o p\u00fablico do evento (' + nome(cargoDoEvento(e)) + ')';
+    if (m === 'cargo-turma') return 'cargo incompat\u00edvel com o p\u00fablico da turma (' + nome(cargoDaTurma(t)) + ')';
+    if (m === 'lista-evento') return 'fora da lista restrita do evento';
+    if (m === 'lista-turma') return 'fora da lista restrita da turma';
+    if (m === 'diretores') return 'fora do p\u00fablico de diretores';
+    return m;
+  }
+  /* turma j\u00e1 realizada: encerrada pelo admin OU j\u00e1 passou do \u00faltimo dia (o crit\u00e9rio do card "Turma realizada"). hoje =
+     'AAAA-MM-DD' na data LOCAL de quem v\u00ea. */
+  function turmaJaRealizada(dias, encerrada, hoje) {
+    var d = (dias || []).slice().sort(), ultimo = d[d.length - 1] || '';
+    return !!(encerrada || (ultimo && hoje > ultimo));
+  }
+
   window.faTurmasUtil = {
     nomePessoa: nomePessoa,
     formatDias: formatDias, periodoCertificado: periodoCertificado, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
@@ -408,6 +447,7 @@
     regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin,
     visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
     vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,
-    cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo, registroAtivo: registroAtivo, vinculoNaTurma: vinculoNaTurma
+    cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo, registroAtivo: registroAtivo, vinculoNaTurma: vinculoNaTurma,
+    foraDoPublicoAtual: foraDoPublicoAtual, textoMotivoForaDoPublico: textoMotivoForaDoPublico, turmaJaRealizada: turmaJaRealizada
   };
 })();
