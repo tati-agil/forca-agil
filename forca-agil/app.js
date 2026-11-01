@@ -632,12 +632,14 @@
          continua valendo dentro de cada parte.
            1. inscrições abertas: alguma turma aberta a interesse novo
               (turmaAbertaAInteresse), mesmo com outras já realizadas ou
-              encerradas; ou a fila de espera ligada (também é interesse novo);
-           2. próximas turmas, inscrições encerradas: nenhuma aberta, mas alguma
-              ainda por acontecer ou em andamento — encerrar o interesse NÃO é
-              realizar o evento;
+              encerradas; ou a fila de espera ligada com turma ainda por vir ou
+              em andamento (também é interesse novo). Lotada continua aberta: a
+              falta de vaga é dita no card, não encerra o interesse;
+           2. próximas turmas, inscrições encerradas: nenhuma aberta, sem fila,
+              mas alguma ainda por acontecer ou em andamento — encerrar o
+              interesse NÃO é realizar o evento;
            3. realizados: todas as turmas realizadas (turmaRealizada, o critério
-              do card).
+              do card), mesmo com a fila ligada.
          Critério geral, das turmas e das datas: não depende de quem vê poder
          participar. Evento sem turma (só fila) fica na parte 1. */
       var atuais = [], encerrados = [], realizados = [];
@@ -646,9 +648,9 @@
         var turmasEv = porEvento[ev.key] || [];
         /* sem turma visível em "Mostrar para todos": o período vem das turmas do evento (só a posição; nada delas aparece) */
         if (!turmasEv.length && semTurmaVisivelEmTodos(ev, porEvento)) turmasEv = _turmasList.filter(function (t) { return t.eventoKey === ev.key; });
-        if (!turmasEv.length || ev.esperaAtiva || turmasEv.some(function (t) { return turmaAbertaAInteresse(t, hoje); })) atuais.push(ev);
+        if (!turmasEv.length || turmasEv.some(function (t) { return turmaAbertaAInteresse(t, hoje); })) atuais.push(ev);
         else if (turmasEv.every(function (t) { return turmaRealizada(t, hoje); })) realizados.push(ev);
-        else encerrados.push(ev);
+        else (ev.esperaAtiva ? atuais : encerrados).push(ev);
       });
 
       var html = '';

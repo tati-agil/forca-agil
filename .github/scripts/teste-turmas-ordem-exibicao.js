@@ -18,8 +18,8 @@
  *   - evento com uma turma realizada e outra futura NÃO é antigo;
  *   - evento sem data identificável (sem turma, só fila; ou turma sem dias)
  *     fica entre os atuais, na ordem manual;
- *   - evento com todas as turmas realizadas mas com a fila de espera ligada
- *     fica entre os atuais: a fila é uma ação aberta para a pessoa;
+ *   - evento com todas as turmas realizadas fica entre os realizados mesmo
+ *     com a fila de espera ligada (a fila só sobe evento com turma por vir);
  *   - turma sem evento continua no grupo sem título, no fim (como sempre).
  *
  * O QUE ELE EXIGE, em 1440, 1280 e 375 px:
@@ -100,9 +100,9 @@ function banco() {
   };
 }
 
-const ATUAIS = ['evMisto', 'evFila', 'evSemDias', 'evFuturo', 'evPassadoFila'];
+const ATUAIS = ['evMisto', 'evFila', 'evSemDias', 'evFuturo'];
 const ENCERRADOS = ['evLotado'];
-const REALIZADOS = ['evPassadoB', 'evPassadoA', 'evEncerrado'];
+const REALIZADOS = ['evPassadoB', 'evPassadoA', 'evEncerrado', 'evPassadoFila'];
 const ORDEM_GRUPOS = ATUAIS.concat(['|divisor|'], ENCERRADOS, ['|divisor|'], REALIZADOS, ['']);
 const DIVISORES = ['Próximas turmas — inscrições encerradas', 'Eventos já realizados'];
 const TURMAS_DO_EVENTO = {
