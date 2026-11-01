@@ -335,8 +335,10 @@
        'todos':   o evento aparece para todo mundo logado, com o motivo no lugar do bot\u00e3o. Turma com lista pr\u00f3pria
                   continua escondida de quem n\u00e3o est\u00e1 nela: "mostrar para todos" nunca revela turma restrita.
      Admin v\u00ea tudo. Quem tem registro ativo numa turma sempre a v\u00ea: mudar cargo ou lista n\u00e3o some com o v\u00ednculo.
-     p = { admin, diretor, gerente (true/false; null = ainda n\u00e3o sei: o cargo n\u00e3o esconde, o card confere ao clicar),
-           naListaEvento, naListaTurma, temRegistro } */
+     p = { admin, diretor, gerente (true/false; null = ainda n\u00e3o sei ou a leitura falhou), naListaEvento, naListaTurma,
+           temRegistro }
+     Cargo ainda n\u00e3o sabido (cargoPendente): no padr\u00e3o, evento e turma de um cargo ESPERAM escondidos at\u00e9 a leitura
+     chegar \u2014 nunca aparecem como se a pessoa fosse eleg\u00edvel; em 'todos' aparecem, com o p\u00fablico dito no t\u00edtulo. */
   function visibilidadeDoEvento(e) { return e && e.visibilidade === 'todos' ? 'todos' : 'elegivel'; }
   function foraDoPublicoDoEvento(e, p) {
     if (!e || p.admin) return '';
@@ -354,16 +356,19 @@
     if (cargoDaTurma(t) && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
     return '';
   }
+  function cargoPendente(t, e, p) {
+    return !p.admin && typeof p.gerente !== 'boolean' && !!(cargoDoEvento(e) || cargoDaTurma(t));
+  }
   function vitrineMostraEvento(e, p, temRegistroNoEvento) {
     if (p.admin || temRegistroNoEvento) return true;
-    return visibilidadeDoEvento(e) === 'todos' || !foraDoPublicoDoEvento(e, p);
+    return visibilidadeDoEvento(e) === 'todos' || (!foraDoPublicoDoEvento(e, p) && !cargoPendente(null, e, p));
   }
   function vitrineMostraTurma(t, e, p) {
     if (p.admin || p.temRegistro) return true;
     var mt = foraDoPublicoDaTurma(t, e, p);
     if (mt === 'lista-turma') return false;
     if (visibilidadeDoEvento(e) === 'todos') return true;
-    return !mt && !foraDoPublicoDoEvento(e, p);
+    return !mt && !foraDoPublicoDoEvento(e, p) && !cargoPendente(t, e, p);
   }
   /* o p\u00fablico permitido, dito para quem v\u00ea o evento sem poder participar (s\u00f3 no modo 'todos') */
   function publicoPermitidoTexto(e, motivo) {
@@ -375,6 +380,10 @@
   function mensagemForaDoPublico(e, motivo) {
     return 'Este evento \u00e9 destinado a ' + publicoPermitidoTexto(e, motivo) + '. Voc\u00ea pode conhec\u00ea-lo, mas n\u00e3o participar.';
   }
+  /* 'todos' com o cargo ainda n\u00e3o sabido: s\u00f3 o p\u00fablico, sem dizer que a pessoa est\u00e1 dentro nem fora */
+  function mensagemPublicoDoCargo(e) {
+    return 'Este evento \u00e9 destinado a ' + publicoPermitidoTexto(e, 'cargo') + '.';
+  }
 
   window.faTurmasUtil = {
     nomePessoa: nomePessoa,
@@ -385,6 +394,7 @@
     vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
     regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRegraAdmin: mensagemRegraAdmin,
     visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
-    vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico
+    vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,
+    cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo
   };
 })();

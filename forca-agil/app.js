@@ -395,22 +395,29 @@
     }
 
     /* Lê, para quem está vendo (_sess), o que a visibilidade precisa: gerente ou não e os registros ativos nas
-       turmas. Desenha quando chega — e, se a rede demorar, desenha antes com "ainda não sei" (o cargo não esconde;
-       o card confere ao clicar) e redesenha quando chegar: esperar calado é a tela vazia no 4G da sala. */
+       turmas. Desenha quando chega — e, se a rede demorar, desenha antes com "ainda não sei" e redesenha quando
+       chegar: esperar calado é a tela vazia no 4G da sala. "Ainda não sei" o cargo NÃO é "elegível": no padrão, o
+       evento/turma de um cargo espera escondido (faTurmasUtil.cargoPendente) e a página avisa que está verificando;
+       se a leitura falhar, continua escondido e o aviso diz para recarregar (gerenteFalhou). A resposta do cargo
+       redesenha na hora, sem esperar as leituras dos registros. */
     function carregarVisao(desenhar) {
       var email = _sess && _sess.email;
-      var v = { email: email || '', gerente: null, registros: {} };
+      var v = { email: email || '', gerente: null, gerenteFalhou: false, registros: {} };
       _visao = v;
       if (!email) { desenhar(); return; }
       var db = firebase.database(), k = emailKey(email), pend = 1 + _turmasList.length, desenhou = false;
       var limite = setTimeout(function () { if (_visao === v && !desenhou) { desenhou = true; desenhar(); } }, 4000);
-      function um() {
-        if (--pend > 0 || _visao !== v) return;
+      function um(redesenharJa) {
+        if (--pend > 0 || _visao !== v) {
+          if (redesenharJa && desenhou && _visao === v) desenhar();
+          return;
+        }
         clearTimeout(limite);
         desenhou = true;
         desenhar();
       }
-      db.ref('fa-gerentes/' + k).once('value', function (s) { v.gerente = !!s.val(); um(); }, function () { um(); });
+      db.ref('fa-gerentes/' + k).once('value', function (s) { v.gerente = !!s.val(); um(true); },
+        function () { v.gerenteFalhou = true; um(true); });
       _turmasList.forEach(function (t) {
         db.ref('turmas-interesse/' + t.key + '/' + k).once('value', function (s) {
           var r = s.val();
@@ -532,7 +539,14 @@
          admin sempre deveria. Registro ativo numa turma do evento também mostra o evento (o vínculo nunca some). */
       var temRegistroNoEvento = (porEvento[ev.key] || []).some(function (t) { return _visao.email === (_sess && _sess.email) && _visao.registros[t.key]; });
       if (!window.faTurmasUtil.vitrineMostraEvento(ev, pessoaDaVitrine(_sess, ev.key, ''), temRegistroNoEvento)) return false;
-      return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva;
+      return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva || semTurmaVisivelEmTodos(ev, porEvento);
+    }
+    /* "Mostrar para todos" e nenhuma turma visível para a pessoa (ex.: todas com lista própria): a apresentação do
+       evento aparece assim mesmo — título, aviso e A Missão —, com um aviso no lugar da grade; as turmas continuam
+       escondidas. Evento sem turma nenhuma (e sem fila) segue fora da vitrine, como sempre. */
+    function semTurmaVisivelEmTodos(ev, porEvento) {
+      return ev.visibilidade === 'todos' && !(porEvento[ev.key] || []).length &&
+        _turmasList.some(function (t) { return t.eventoKey === ev.key; });
     }
 
     /* Ordem de exibição por quão exclusivo cada evento/turma é PARA QUEM
@@ -597,6 +611,8 @@
       _eventosList.forEach(function (ev) {
         if (!eventoNaVitrine(ev, porEvento)) return;
         var turmasEv = porEvento[ev.key] || [];
+        /* sem turma visível em "Mostrar para todos": o período vem das turmas do evento (só a posição; nada delas aparece) */
+        if (!turmasEv.length && semTurmaVisivelEmTodos(ev, porEvento)) turmasEv = _turmasList.filter(function (t) { return t.eventoKey === ev.key; });
         var realizado = turmasEv.length > 0 && !ev.esperaAtiva &&
           turmasEv.every(function (t) { return turmaRealizada(t, hoje); });
         (realizado ? realizados : atuais).push(ev);
@@ -611,6 +627,14 @@
         var comRegistro = turmasEv.some(function (t) { return _visao.email === (_sess && _sess.email) && _visao.registros[t.key]; });
         var avisoPublico = motivo && !comRegistro
           ? '<p class="turmas-evento-publico" data-fora-do-publico="' + motivo + '">' + esc(window.faTurmasUtil.mensagemForaDoPublico(ev, motivo)) + '</p>' : '';
+        /* cargo ainda não sabido (ou leitura falhou) em "Mostrar para todos": só o público do evento, sem dizer que a
+           pessoa está dentro — os botões das turmas conferem o cargo antes de agir ("Verificando…") */
+        if (!avisoPublico && !comRegistro && ev.visibilidade === 'todos' && window.faTurmasUtil.cargoDoEvento(ev) &&
+            window.faTurmasUtil.cargoPendente(null, ev, pessoaDaVitrine(_sess, ev.key, ''))) {
+          avisoPublico = '<p class="turmas-evento-publico" data-fora-do-publico="verificando">' + esc(window.faTurmasUtil.mensagemPublicoDoCargo(ev)) + '</p>';
+        }
+        var semTurma = !turmasEv.length && !ev.esperaAtiva
+          ? '<p class="turmas-evento-publico" data-sem-turma-visivel="1">Não há turma deste evento disponível para você.</p>' : '';
         html +=
           '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '" data-evento-periodo="' + periodo + '">' +
             /* h2 do evento: ele é o container de tudo que vem abaixo. A Missão
@@ -629,7 +653,7 @@
                tira solta, sem relação com nada; como resumo do evento, o
                lugar dele é junto do título, e a grade de turmas (o que tem
                ação) fica sendo o fim da seção, não o meio. */
-            '<div class="turmas-evento-missao"></div>' +
+            '<div class="turmas-evento-missao"></div>' + semTurma +
             '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
       }
@@ -644,8 +668,22 @@
             '<div class="turmas-grid">' + semEvento.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
       }
+      /* Cargo ainda não sabido: eventos/turmas de um cargo esperam escondidos — a página diz que está verificando (ou
+         que a leitura falhou), em vez de parecer que não há nada para a pessoa. Some quando o cargo chega. */
+      var notaCargo = '';
+      var esperaCargo = !!email && _visao.email === email && _turmasList.concat([null]).some(function (t) {
+        return _eventosList.some(function (ev) {
+          if (!ev.publicado || ev.visibilidade === 'todos' || (t && t.eventoKey !== ev.key)) return false;
+          return window.faTurmasUtil.cargoPendente(t, ev, pessoaDaVitrine(_sess, ev.key, t ? t.key : ''));
+        });
+      });
+      if (esperaCargo) {
+        notaCargo = _visao.gerenteFalhou
+          ? '<p class="turmas-evento-publico" role="status" data-cargo-pendente="falhou">Não foi possível confirmar o seu cargo agora. Eventos destinados a um cargo específico aparecem quando ele for confirmado — recarregue a página para tentar de novo.</p>'
+          : '<p class="turmas-evento-publico" role="status" data-cargo-pendente="carregando">Verificando o seu cargo para mostrar os eventos destinados a ele…</p>';
+      }
       /* Vazio de verdade: nem turma, nem evento aceitando fila. */
-      host.innerHTML = html || '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
+      host.innerHTML = html ? notaCargo + html : (notaCargo || '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>');
     }
 
     /* "A Missão" / "Como funciona" / "Plano de Voo" — um bloco por evento que
