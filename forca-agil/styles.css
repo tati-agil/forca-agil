@@ -756,9 +756,10 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .tc-label { font-family: var(--font-mono); font-size: .65rem; letter-spacing: .2em; color: var(--ink-3); }
 .tc-month { font-family: var(--font-display); font-size: 1.5rem; text-transform: uppercase; color: var(--ink); line-height: 1.1; }
 .tc-dates { font-family: var(--font-mono); font-size: .78rem; color: var(--accent); letter-spacing: .06em; }
-.tc-horario { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .04em; margin-top: 4px; }
-.turma-status-msg { margin-top: 14px; font-size: .8rem; line-height: 1.5; }
-.turma-status-msg strong { display: block; margin-bottom: 4px; font-size: .85rem; }
+/* horário e situação em texto de leitura, no piso do padrão ou acima (antes .72rem mono = 11,5 px) */
+.tc-horario { font-size: var(--arq-fs-aux); color: var(--ink-2); margin-top: 4px; }
+.turma-status-msg { margin-top: 14px; font-size: var(--arq-fs-aux); line-height: 1.5; }
+.turma-status-msg strong { display: block; margin-bottom: 4px; font-size: var(--arq-fs-texto); }
 .turma-andamento-msg { color: var(--ink-3); }
 .turma-andamento-msg strong { color: #64b5f6; }
 .turma-realizada-msg { color: var(--ink-3); }

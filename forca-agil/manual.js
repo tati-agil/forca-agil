@@ -70,10 +70,11 @@
         'Confirmar alguém que já é inscrita em outra turma remove a outra inscrição, com aviso antes.',
         'Lista de espera é por evento. Evento ou turma podem ser restritos: a diretores, ou a um público listado pelo admin.',
         'Quem sai de uma turma fica registrado com motivo e destino; nada é apagado sem querer.',
+        'Ordem na página Turmas (só exibição, nada é gravado nem escondido): os eventos seguem a ordem manual do painel; os que já aconteceram inteiros (todas as turmas que a pessoa vê estão realizadas — encerradas ou com o último dia passado) descem para o fim, sob "Eventos já realizados". Inscrição encerrada com data futura não é evento antigo, e evento com fila ligada continua em cima. As informações de cada evento nascem abertas, com "Ocultar informações".',
       ],
       estados: true,
       fonte: ['app.js (vitrine e interesse) e admin.js (confirmar, remover)', 'Nós turmas-interesse, fa-espera, turmas-publico e eventos-publico (database.rules.json)'],
-      prova: ['teste-ordem-vitrine.js', 'teste-publico-restrito-evento.js', 'teste-admin-abrir-lista-restrita.js', 'teste-minha-area-fila.js'] },
+      prova: ['teste-ordem-vitrine.js', 'teste-turmas-ordem-exibicao.js', 'teste-publico-restrito-evento.js', 'teste-admin-abrir-lista-restrita.js', 'teste-minha-area-fila.js'] },
 
     { id: 'conteudos', titulo: 'Conteúdos e Treinamento',
       oque: 'Conteúdos de agilidade e o Treinamento (autodiagnóstico com patente).',

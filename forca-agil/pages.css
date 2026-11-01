@@ -311,8 +311,19 @@
   border-bottom: 1px solid var(--line-strong);
 }
 .turmas-evento-grupo .turmas-grid { margin-top: 0; }
+/* "Eventos já realizados": separa os eventos que já aconteceram inteiros
+   (renderTurmasGrid), que descem para o fim sem sumir. Mesmo idioma do
+   cabeçalho do evento (Oswald, caixa-alta), um tom abaixo (--ink-2). */
+.turmas-periodo-divisor {
+  margin: 96px 0 0; padding-top: 56px; border-top: 1px solid var(--line-strong);
+  font-family: var(--font-head); font-weight: 600; font-size: clamp(1rem, 2.4vw, 1.3rem);
+  line-height: 1.25; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2);
+}
+.turmas-periodo-divisor + .turmas-evento-grupo { margin-top: 40px; }
 @media (max-width: 800px) {
   .turmas-evento-grupo + .turmas-evento-grupo { margin-top: 64px; padding-top: 40px; }
+  .turmas-periodo-divisor { margin-top: 64px; padding-top: 40px; }
+  .turmas-periodo-divisor + .turmas-evento-grupo { margin-top: 28px; }
 }
 /* "A Missão" de cada evento: acordeão (<details>/<summary> nativo) em vez
    de bloco sempre aberto. Com um evento só ele nasce aberto (nada muda pra
@@ -337,12 +348,20 @@
   flex: 1; font-family: var(--font-mono); font-size: .74rem; letter-spacing: .12em;
   text-transform: uppercase; color: var(--ink);
 }
+/* o que o clique faz, em palavras (ciano = navegação, §3-A) */
+.turmas-missao-acao {
+  flex-shrink: 0; font-size: var(--arq-fs-meta); color: var(--accent-2);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.turmas-missao-summary:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .turmas-missao-chev { color: var(--ink-3); flex-shrink: 0; transition: transform .2s; }
 .turmas-missao[open] .turmas-missao-chev { transform: rotate(180deg); }
 .turmas-missao .section { padding-left: var(--pad-x); padding-right: var(--pad-x); }
 @media (max-width: 800px) {
   .turmas-missao { margin-bottom: 24px; }
-  .turmas-missao-summary { padding: 14px 16px; }
+  .turmas-missao-summary { padding: 14px 16px; flex-wrap: wrap; row-gap: 6px; }
+  .turmas-missao-summary-texto { flex-basis: calc(100% - 40px); }
+  .turmas-missao-acao { margin-left: 26px; }
 }
 .turma-card-new {
   background: var(--panel); border: 1px solid var(--line-strong);
@@ -356,7 +375,9 @@
   letter-spacing: .08em; color: var(--cyan);
 }
 .turma-card-new .tc-month { font-family: var(--font-display); font-size: 1.8rem; color: var(--ink); line-height: 1; }
-.turma-card-new .tc-dates { font-family: var(--font-mono); font-size: .8rem; color: var(--ink-3); }
+/* datas em texto de leitura (não Space Mono) e no tamanho do padrão — antes
+   .8rem mono em --ink-3, a informação que a pessoa mais procura no card */
+.turma-card-new .tc-dates { font-family: inherit; font-size: var(--arq-fs-aux); letter-spacing: 0; color: var(--ink-2); }
 /* ---- Turmas: Como funciona a oficina ---- */
 .oficina-info-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;

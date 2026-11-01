@@ -420,7 +420,13 @@
       "arquivo": ".github/scripts/teste-turmas-expansiveis.js",
       "nome": "Turmas e Minha Área — acordeão de turma não mistura uma com a outra (desktop e iPhone)",
       "duracao": 8,
-      "sobre": "Hermético. Turmas e Minha Área: cada turma virou um acordeão (<details>/<summary>, mesmo idioma do Manual) porque com duas ou mais turmas/eventos a fronteira entre um e outro não ficava clara — borda quase invisível no tema escuro em Minha Área, e um bloco \"A Missão\" inteiro entre um evento e o próximo na aba Turmas. O cabeçalho fechado agora É a fronteira."
+      "sobre": "Hermético. Turmas e Minha Área: cada turma virou um acordeão (<details>/<summary>, mesmo idioma do Manual) porque com duas ou mais turmas/eventos a fronteira entre um e outro não ficava clara — borda quase invisível no tema escuro em Minha Área, e um bloco \"A Missão\" inteiro entre um evento e o próximo na aba Turmas. Desde 01/11/2026 o bloco de cada evento nasce aberto (decisão da dona) e recolhe sozinho, sem mexer no dos outros."
+    },
+    {
+      "arquivo": ".github/scripts/teste-turmas-ordem-exibicao.js",
+      "nome": "Turmas — eventos já realizados por último, sem sumir nenhuma turma (1440, 1280 e 375 px)",
+      "duracao": 12,
+      "sobre": "Hermético. Reorganização SÓ DE EXIBIÇÃO: eventos com todas as turmas visíveis realizadas (critério do card \"Turma realizada\") descem para depois de \"Eventos já realizados\", na ordem manual; inscrição encerrada com data futura, evento misto, só fila ou com fila ligada continuam entre os atuais. Exige todas as turmas do banco na tela uma vez só, no seu evento e na ordem manual; informações abertas com \"Ocultar informações\" e Enter recolhendo/reabrindo só aquele evento; sem rolagem horizontal, sem escrita, sem erro de JS."
     },
     {
       "arquivo": ".github/scripts/teste-turmas-dia-rotulo.js",
