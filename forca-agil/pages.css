@@ -643,6 +643,22 @@
 .ajuda-campo p { margin: 0 0 6px; }
 .ajuda-campo-fechar { padding: 0; border: none; background: none; color: var(--cyan-soft, #7af0e8); font-size: .78rem; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .ajuda-campo[hidden], .campo-com-ajuda[hidden] { display: none; }
+/* ADMIN › Outros públicos: a ativação em uma linha e uma frase; os números ficam em "Ver impacto da ativação" (recolhível);
+   "Sobre esta lista" recolhe a explicação longa. Padrão visual §3-A: resumo em ciano (complementar), textos no tamanho de leitura. */
+#adminOutrosPublicos .outros-ativacao { display: grid; gap: 10px; margin: 0 0 24px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+#adminOutrosPublicos .outros-ativacao-titulo { margin: 0; font-family: var(--font-head); font-size: 1rem; letter-spacing: .04em; color: var(--ink); }
+#adminOutrosPublicos .outros-ativacao-frase { margin: 0; font-size: var(--arq-fs-texto, .95rem); line-height: 1.55; color: var(--ink-2); }
+#adminOutrosPublicos .outros-ativacao-detalhes > summary, #adminOutrosPublicos .outros-sobre > summary {
+  cursor: pointer; width: fit-content; color: var(--cyan-soft, #7af0e8); font-size: .9rem; text-underline-offset: 2px; border-radius: 2px; }
+#adminOutrosPublicos .outros-ativacao-detalhes > summary:hover, #adminOutrosPublicos .outros-sobre > summary:hover { text-decoration: underline; }
+#adminOutrosPublicos .outros-ativacao-detalhes > summary:focus-visible, #adminOutrosPublicos .outros-sobre > summary:focus-visible { outline: 2px solid var(--cyan-soft, #7af0e8); outline-offset: 2px; }
+#adminOutrosPublicos .outros-ativacao-previa { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 8px; font-size: var(--arq-fs-texto, .95rem); line-height: 1.55; color: var(--ink-2); }
+#adminOutrosPublicos .outros-ativacao-previa b { color: var(--ink); }
+#adminOutrosPublicos .outros-ativacao .btn { justify-self: start; }
+#adminOutrosPublicos .outros-ativacao-msg { margin: 0; font-size: .9rem; color: var(--ink-2); }
+#adminOutrosPublicos .outros-ativacao-msg:empty { display: none; }
+#adminOutrosPublicos .outros-sobre { margin: 0 0 20px; }
+#adminOutrosPublicos .outros-sobre > p { margin: 8px 0 0; max-width: 70ch; font-size: var(--arq-fs-texto, .95rem); line-height: 1.55; color: var(--ink-2); }
 /* "Fora do público atual": o motivo por extenso logo abaixo do selo (no celular não há passar o mouse) */
 .fora-publico-motivos { display: block; margin-top: 4px; max-width: 280px; font-size: .72rem; line-height: 1.4; color: var(--ink-2); white-space: normal; }
 .motivo-incompleta  { background: rgba(255,59,48,.14); color: #ff8080; border: 1px solid rgba(255,59,48,.4); }

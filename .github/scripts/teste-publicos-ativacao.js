@@ -19,6 +19,11 @@
  *   D. vitrine (pessoa), com a ativação ligada: a técnica vê o evento de Técnicos e não o de Estagiários; a estagiária, o
  *      contrário; se a leitura de Outros públicos falhar, o evento de Técnicos NÃO aparece como se ela fosse técnica — a
  *      página pede para recarregar; desligada, a estagiária volta a ver o de Técnicos (como sempre);
+ *   F. ADMIN › Outros públicos legível: a ativação em uma linha ("Ativação dos públicos — Desligada/Ligada") e uma frase; os
+ *      números em "Ver impacto da ativação", recolhido e que abre e fecha; "Sobre esta lista" recolhido; letra de leitura
+ *      (≥ 14 px) e sem rolagem lateral em 375 px; filtros, tabela e formulário de inclusão continuam;
+ *   G. "Público da turma": a turma herda o público-alvo do evento — o seletor não aparece numa turma sem valor próprio, e
+ *      salvar a turma não grava nenhum público nela (o mesmo de sempre);
  *   E. em todas as etapas: nenhuma escrita fora de publicos-config; nenhuma operação de Auth além do login; cadastros,
  *      admins, gerentes, diretores, Outros públicos e inscrições iguais; sem erro de JS, sem rolagem lateral.
  */
@@ -152,6 +157,22 @@ const formulario = (page) => page.evaluate(() => {
       /* B. a ativação, em Outros públicos */
       await aba(page, 'Outros públicos');
       await esperarCondicao(page, () => !!document.querySelector('[data-ativacao-previa]'), null, { limite: 15000, descricao: 'a prévia da ativação' });
+      const tela = await page.evaluate(() => {
+        const c = document.getElementById('adminOutrosPublicos'), det = c.querySelector('[data-ativacao-detalhes]'), frase = c.querySelector('[data-ativacao-situacao]');
+        return { titulo: c.querySelector('.outros-ativacao-titulo').textContent, frase: frase.textContent, fonte: parseFloat(getComputedStyle(frase).fontSize),
+          fonteLista: parseFloat(getComputedStyle(c.querySelector('[data-ativacao-previa]')).fontSize), impactoAberto: det.open, impactoVisivel: c.querySelector('[data-ativacao-previa]').checkVisibility(),
+          sobreAberto: c.querySelector('.outros-sobre').open, filtros: !!c.querySelector('#outrosBusca') && !!c.querySelector('#outrosFiltro'), tabela: !!c.querySelector('table'), inclusao: !!c.querySelector('#outrosAddBtn'),
+          lateral: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+      });
+      anota(f + ': F1 a ativação em uma linha e uma frase; impacto e "Sobre esta lista" recolhidos; letra ≥ 14 px; filtros, tabela e inclusão continuam',
+        tela.titulo === 'Ativação dos públicos — Desligada' && /ainda não valem/.test(tela.frase) && tela.fonte >= 14 && !tela.impactoAberto && !tela.impactoVisivel &&
+        !tela.sobreAberto && tela.filtros && tela.tabela && tela.inclusao && !tela.lateral, JSON.stringify(tela));
+      await page.click('[data-ativacao-detalhes] > summary');
+      const abriu = await page.evaluate(() => ({ aberto: document.querySelector('[data-ativacao-detalhes]').open, visivel: document.querySelector('[data-ativacao-previa]').checkVisibility(),
+        fonte: parseFloat(getComputedStyle(document.querySelector('[data-ativacao-previa]')).fontSize), lateral: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+      await page.click('[data-ativacao-detalhes] > summary');
+      const fechou = await page.evaluate(() => !document.querySelector('[data-ativacao-detalhes]').open);
+      anota(f + ': F2 "Ver impacto da ativação" abre (números legíveis, sem rolagem lateral) e fecha', abriu.aberto && abriu.visivel && abriu.fonte >= 14 && !abriu.lateral && fechou, JSON.stringify(abriu));
       const prev = await page.evaluate(() => ({ sit: document.querySelector('[data-ativacao-situacao]').getAttribute('data-ativacao-situacao'),
         txt: document.querySelector('[data-ativacao-previa]').textContent.replace(/\s+/g, ' '), vinc: document.querySelector('[data-ativacao-vinculos]').getAttribute('data-ativacao-vinculos'),
         botao: (document.querySelector('[data-ativacao-botao]') || {}).textContent }));
@@ -164,6 +185,8 @@ const formulario = (page) => page.evaluate(() => {
       const conf = await page.evaluate(() => document.querySelector('.admin-modal-confirm-btn').closest('.modal-box').textContent);
       await page.evaluate(() => document.querySelector('.admin-modal-confirm-btn').click());
       await esperarCondicao(page, () => (document.querySelector('[data-ativacao-situacao]') || {}).getAttribute && document.querySelector('[data-ativacao-situacao]').getAttribute('data-ativacao-situacao') === 'ligada', null, { limite: 10000, descricao: 'a ativação ligada' });
+      anota(f + ': F3 depois de ligar: "Ativação dos públicos — Ligada", com a frase de que os públicos estão valendo',
+        (await page.textContent('.outros-ativacao-titulo')) === 'Ativação dos públicos — Ligada' && /estão valendo/.test(await page.textContent('[data-ativacao-situacao]')));
       const cfg = await lerNo(page, 'publicos-config');
       anota(f + ': B2 ligar pede confirmação (com o impacto) e grava só publicos-config, assinado por quem está logado',
         /Acessos ao site não mudam/.test(conf) && cfg && cfg.ativo === true && cfg.por === ADM && JSON.stringify(await escritas(page)) === '["publicos-config"]', JSON.stringify({ cfg, e: await escritas(page) }));
@@ -196,8 +219,23 @@ const formulario = (page) => page.evaluate(() => {
       await esperarCondicao(page, () => Array.from(document.querySelectorAll('#turma-card-tTec tr')).length > 0, null, { limite: 15000, descricao: 'as linhas da turma de Técnicos' }).catch(() => {});
       const selo = await page.evaluate(() => Array.from(document.querySelectorAll('#turma-card-tTec tr')).map((tr) => tr.textContent).join(' | ').replace(/\s+/g, ' '));
       anota(f + ': C4 o interesse da estagiária na turma de Técnicos ganha o selo "Fora do público atual" (só técnicos)', /Fora do público atual/.test(selo) && /só técnicos/.test(selo), selo.slice(0, 300));
+      /* G. "Público da turma" herdado do evento */
+      const nG = (await escritas(page)).length;
+      await menuTurma(page, 'tTec', /Editar turma/);
+      await esperarCondicao(page, () => !!document.querySelector('#turmaFormPublicoCargo'), null, { limite: 10000, descricao: 'o formulário da turma' });
+      const campoVisivel = await page.evaluate(() => !!document.querySelector('#turmaFormPublicoCargoBox').getClientRects().length);
+      await page.evaluate(() => document.querySelector('#turmaFormPublicoCargo').closest('.modal-box').querySelector('.admin-modal-save-btn').click());
+      await esperarCondicao(page, () => !document.querySelector('#turmaFormPublicoCargo'), null, { limite: 10000, descricao: 'o formulário salvo' });
+      const tTec = await lerNo(page, 'turmas/tTec');
+      const novas = (await escritas(page)).slice(nG);
+      anota(f + ': G1 "Público da turma" não aparece (a turma segue o evento); salvar não grava público na turma e só toca turmas/tTec',
+        !campoVisivel && tTec && !tTec.publicoCargo && tTec.eventoKey === 'evTec' && novas.length > 0 && novas.every((p) => p === 'turmas/tTec'), JSON.stringify({ campoVisivel, tTec, novas }));
       const muda = [];
-      for (const n of INTACTOS) { if (JSON.stringify(await lerNo(page, n)) !== JSON.stringify(banco(false)[n])) muda.push(n); }
+      for (const n of INTACTOS) {
+        const atual = await lerNo(page, n), orig = banco(false)[n];
+        if (n === 'turmas') { const a = Object.assign({}, atual), o = Object.assign({}, orig); delete a.tTec; delete o.tTec; if (JSON.stringify(a) !== JSON.stringify(o)) muda.push(n); continue; }
+        if (JSON.stringify(atual) !== JSON.stringify(orig)) muda.push(n);
+      }
       anota(f + ': E1 cadastros, admins, gerentes, diretores, Outros públicos, inscrições, eventos e turmas iguais', !muda.length, JSON.stringify(muda));
       anota(f + ': E2 nenhuma operação de Auth além do login', !(await page.evaluate(() => (window.__CFG.__eventosAuth || []).filter((x) => !/^entrar:|^sair$/.test(x)).length)));
       anota(f + ': E3 sem rolagem lateral, sem erro de JS (ADMIN)', !(await largura(page)) && !erros.length, JSON.stringify(erros));

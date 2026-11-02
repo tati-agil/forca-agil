@@ -3832,11 +3832,11 @@
       '<label class="auth-label">Sala <span style="opacity:.6;font-weight:400">(opcional)</span><input type="text" id="turmaFormSala" placeholder="Ex: Sala de Treinamento GETHO" maxlength="120" autocomplete="off" /></label>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
         '<label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = igual ao evento)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' +
-        '<label class="auth-label">Público da turma<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
+        '<label class="auth-label" id="turmaFormPublicoCargoBox">Público da turma<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
           '<option value="">Igual ao evento (padrão)</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
         '</select></label>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" (o padrão) segue o público-alvo do evento — no formulário do evento, o menu diz quais opções restringem e quais só descrevem; "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem é técnico (quem não está em Gerentes; depois da ativação dos públicos, também fora de Diretores e de Outros públicos), somando-se ao do evento — a turma pode restringir mais, nunca ampliar. As listas de e-mails do evento e da turma são restrições à parte, que também se somam.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: a turma segue o público-alvo do evento. Para restringir a turma a convidados, use "Restringir a uma lista específica de e-mails"; para incluir alguém fora do público, use a exceção do ADMIN (＋ Participante, Confirmar, Mover). As listas de e-mails do evento e da turma são restrições à parte, que se somam ao público.</p>' +
       '<p id="turmaFormCargoAviso" role="alert" hidden style="font-size:.82rem;color:#ffb347;margin:-4px 0 0"></p>' +
       '<label class="auth-label" id="turmaFormCmflexBox">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
@@ -3897,6 +3897,11 @@
     /* Ausente = sem limite de vagas / público "Todos": turma antiga continua como estava */
     vagasInput.value  = isEdit && existing.vagas ? String(existing.vagas) : '';
     cargoInput.value  = isEdit ? (existing.publicoCargo || '') : '';
+    /* A turma HERDA o público-alvo do evento. O seletor antigo ("Só gerentes"/"Só técnicos") só aparece numa turma que já
+       tenha um valor próprio gravado — para continuar visível e poder voltar a "Igual ao evento"; nas outras (todas as
+       reais, conferência de 03/11/2026) some, e salvar grava o mesmo de sempre (sem valor = igual ao evento). Para
+       restringir a turma use a lista de e-mails dela; para incluir alguém fora do público, a exceção do ADMIN. */
+    if (!cargoInput.value) box.querySelector('#turmaFormPublicoCargoBox').style.display = 'none';  /* .auth-label é display:flex: [hidden] não venceria */
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
     /* evento que não exige o CMFlex: o campo some (o valor gravado, se houver, fica como está) */
     function mostrarCampoCmflex() { box.querySelector('#turmaFormCmflexBox').style.display = eventoDispensaCmflex(eventoSel.value) ? 'none' : ''; }  /* .auth-label é display:flex: [hidden] não venceria */
@@ -8045,9 +8050,10 @@
     Promise.all([le('publicos-config'), le('eventos'), le('turmas'), le('turmas-config'), le('turmas-interesse')]).then(function (r) {
       const cfg = r[0], eventos = r[1], turmas = r[2], tcfg = r[3], ti = r[4];
       const ativo = !!(cfg && cfg.ativo === true);
-      const situacao = cfg === null ? 'Não foi possível ler a situação da ativação agora.'
-        : ativo ? 'Ligada' + (cfg.em ? ' em ' + fmtDate(cfg.em) : '') + (cfg.porNome || cfg.por ? ' por ' + (cfg.porNome || cfg.por) : '') + '. Os públicos novos e a classificação nova de Técnicos estão valendo.'
-        : 'Desligada. Os públicos novos e a classificação nova de Técnicos ainda NÃO valem — tudo funciona como antes.';
+      const titulo = cfg === null ? 'Ativação dos públicos — não foi possível ler agora' : 'Ativação dos públicos — ' + (ativo ? 'Ligada' : 'Desligada');
+      const situacao = cfg === null ? 'Recarregue a página para tentar de novo.'
+        : ativo ? 'Os públicos novos e a classificação de Técnicos estão valendo' + (cfg.em ? ' desde ' + fmtDate(cfg.em) : '') + (cfg.porNome || cfg.por ? ' (ligada por ' + (cfg.porNome || cfg.por) + ')' : '') + '.'
+        : 'Os públicos novos e a classificação de Técnicos ainda não valem — tudo funciona como antes.';
       let prev = null;
       if (cfg !== null && base.ger && base.dir && eventos && turmas && tcfg && ti) {
         const P = window.faPublicosNucleo, U = window.faTurmasUtil;
@@ -8077,19 +8083,19 @@
         prev = { tecHoje: tecHoje, tecDepois: tecDepois, porDir: porDir, porOutros: porOutros, vinculos: vinculos, cadastros: Object.keys(base.outros || {}).length,
           eventos: Object.keys(eventosAfetados).map(function (ek) { return (eventos[ek] || {}).nome || ek; }) };
       }
-      el.innerHTML = '<h4>Ativação dos públicos</h4>' +
-        '<p class="admin-empty" data-ativacao-situacao="' + (cfg === null ? 'falha' : ativo ? 'ligada' : 'desligada') + '">' + esc(situacao) + '</p>' +
-        (prev ? '<ul class="outros-ativacao-previa" data-ativacao-previa="1">' +
+      el.innerHTML = '<h4 class="outros-ativacao-titulo">' + esc(titulo) + '</h4>' +
+        '<p class="outros-ativacao-frase" data-ativacao-situacao="' + (cfg === null ? 'falha' : ativo ? 'ligada' : 'desligada') + '">' + esc(situacao) + '</p>' +
+        (prev ? '<details class="outros-ativacao-detalhes" data-ativacao-detalhes><summary>Ver impacto da ativação</summary><ul class="outros-ativacao-previa" data-ativacao-previa="1">' +
           '<li>Cadastros em Outros públicos: <b>' + prev.cadastros + '</b>.</li>' +
           '<li>Técnicos (contas do site): <b>' + prev.tecHoje + '</b> pela regra de antes; <b>' + prev.tecDepois + '</b> com a ativação — deixam de ser técnicos ' +
             prev.porDir + ' de Diretores e ' + prev.porOutros + ' de Outros públicos.</li>' +
           '<li>Vínculos ativos em turmas por vir que passariam a ficar fora do público: <b data-ativacao-vinculos="' + prev.vinculos + '">' + prev.vinculos + '</b> (ninguém é removido; ganham o selo, e o admin decide).</li>' +
           '<li>Eventos com turma por vir cujo público passa a restringir: ' + (prev.eventos.length ? esc(prev.eventos.join(', ')) : 'nenhum') + '.</li>' +
-          '<li>Pessoas sem cadastro em Outros públicos continuam sendo técnicas: confira se a lista está completa antes de ligar.</li></ul>'
+          '<li>Pessoas sem cadastro em Outros públicos continuam sendo técnicas: confira se a lista está completa antes de ligar.</li></ul></details>'
           : (cfg === null ? '' : '<p class="admin-empty">Não foi possível calcular o impacto agora (alguma leitura falhou). Recarregue para tentar de novo.</p>')) +
         (cfg !== null && (prev || ativo) ? '<button type="button" class="btn' + (ativo ? '' : ' btn--primary') + '" data-ativacao-botao="' + (ativo ? 'desligar' : 'ligar') + '">' +
           (ativo ? 'Desligar a ativação' : 'Ligar a ativação dos públicos') + '</button>' : '') +
-        '<p class="admin-empty" data-ativacao-msg role="status" style="margin-top:8px"></p>';
+        '<p class="outros-ativacao-msg" data-ativacao-msg role="status"></p>';
       const btn = el.querySelector('[data-ativacao-botao]');
       if (!btn) return;
       btn.addEventListener('click', function () {
@@ -8159,10 +8165,10 @@
         const sobrepostas = lista.filter(function (p) { return p.sobreposta; }).length;
         c.innerHTML = '';
 
-        const info = document.createElement('p');
-        info.className = 'admin-empty';
-        info.style.marginBottom = '20px';
-        info.textContent = INFO;
+        const info = document.createElement('details');
+        info.className = 'outros-sobre';
+        info.innerHTML = '<summary>Sobre esta lista</summary><p></p>';
+        info.querySelector('p').textContent = INFO;
         c.appendChild(info);
 
         const atv = document.createElement('div');
