@@ -232,13 +232,17 @@
   function regraValida(v) { return !!(v && !v.removed && v.status !== 'removido'); }
   function regrasDeEntrada(arg, cb) {
     var eventoKey = (arg && arg.eventoKey) || '', eKey = arg && arg.eKey, turmaKey = (arg && arg.turmaKey) || '';
+    /* arg.dispensar = ['cargo' | 'participacao' | 'umaTurma' | 'lotada'] — SÓ o painel usa, para descobrir TODAS as regras que
+       barram uma inclusão (e registrar a exceção com elas): cada regra já vista é pulada na rodada seguinte. Sem o campo,
+       nada muda. */
+    var dispensa = function (r) { return !!(arg && arg.dispensar && arg.dispensar.indexOf(r) !== -1); };
     if (!eKey) { cb({ estado: 'livre' }); return; }
     var db = firebase.database(), falha = function () { cb({ estado: 'erro' }); };
     db.ref('eventos').once('value', function (eSnap) {
       var eventos = eSnap.val() || {}, ev = eventoKey ? (eventos[eventoKey] || {}) : {};
       var marcadas = function (o) { return Object.keys(o || {}).filter(function (k) { return k !== eventoKey && o[k]; }); };
-      var anteriores = marcadas(ev.bloqueiaParticipantesDe);
-      var grupo = ev.umaTurmaPorPessoa ? [eventoKey].concat(marcadas(ev.umaTurmaComEventos)) : [];
+      var anteriores = dispensa('participacao') ? [] : marcadas(ev.bloqueiaParticipantesDe);
+      var grupo = ev.umaTurmaPorPessoa && !dispensa('umaTurma') ? [eventoKey].concat(marcadas(ev.umaTurmaComEventos)) : [];
       db.ref('turmas').once('value', function (tSnap) {
         var turmas = tSnap.val() || {}, alvoT = turmaKey ? (turmas[turmaKey] || {}) : {};
         var evDaTurma = eventos[alvoT.eventoKey || eventoKey];
@@ -246,7 +250,7 @@
         conferirCargo(function () { conferirEventos(function () { conferirVagas(function () { cb({ estado: 'livre' }); }); }); });
 
         function conferirCargo(seguir) {
-          if (!cargo) { seguir(); return; }
+          if (!cargo || dispensa('cargo')) { seguir(); return; }
           if (cargo === 'conflito') { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
           db.ref('fa-gerentes/' + eKey).once('value', function (s) {
             var gerente = !!s.val();
@@ -294,7 +298,7 @@
           }
         }
         function conferirVagas(seguir) {
-          if (!vagas) { seguir(); return; }
+          if (!vagas || dispensa('lotada')) { seguir(); return; }
           db.ref('turmas-interesse/' + turmaKey).once('value', function (s) {
             var lista = s.val() || {};
             var ocupadas = Object.keys(lista).filter(function (k) { return k !== eKey && regraValida(lista[k]); }).length;
@@ -304,6 +308,31 @@
         }
       }, falha);
     }, falha);
+  }
+  /* CONFLITOS DE PARTICIPA\u00c7\u00c3O \u2014 o mesmo crit\u00e9rio de regrasDeEntrada (participa\u00e7\u00e3o anterior e "uma turma por pessoa"),
+     s\u00f3 que PURO, sobre os dados que o painel j\u00e1 carregou: para o selo "Fora das regras do evento" de um registro que j\u00e1
+     existe. dados = { eventos: { <ev>: { bloqueiaParticipantesDe, umaTurmaPorPessoa, umaTurmaComEventos, nome } },
+     turmas: { <t>: { eventoKey, label } }, interesses: { <t>: { <eKey>: registro } } }. Devolve { participacao: [{ key,
+     nome, inscrita }], umaTurma: [{ key, label, inscrita }] } \u2014 vazio = sem conflito. teste-converter-contar-turmas.js
+     confere que ele concorda com regrasDeEntrada. */
+  function conflitosDeParticipacao(dados, eventoKey, eKey, turmaKey) {
+    var eventos = (dados && dados.eventos) || {}, turmas = (dados && dados.turmas) || {}, interesses = (dados && dados.interesses) || {};
+    var ev = eventos[eventoKey] || {};
+    var marcadas = function (o) { return Object.keys(o || {}).filter(function (k) { return k !== eventoKey && o[k]; }); };
+    var anteriores = marcadas(ev.bloqueiaParticipantesDe);
+    var grupo = ev.umaTurmaPorPessoa ? [eventoKey].concat(marcadas(ev.umaTurmaComEventos)) : [];
+    var out = { participacao: [], umaTurma: [] }, vistos = {};
+    Object.keys(turmas).forEach(function (tk) {
+      var e = (turmas[tk] || {}).eventoKey, r = (interesses[tk] || {})[eKey];
+      if (!regraValida(r)) return;
+      if (anteriores.indexOf(e) !== -1) {
+        if (!vistos[e]) { vistos[e] = { key: e, nome: (eventos[e] || {}).nome || '', inscrita: false }; out.participacao.push(vistos[e]); }
+        if (r.status === 'inscrito' && r.confirmedByAdmin) vistos[e].inscrita = true;
+      } else if (grupo.indexOf(e) !== -1 && tk !== turmaKey) {
+        out.umaTurma.push({ key: tk, label: (turmas[tk] || {}).label || tk, inscrita: r.status === 'inscrito' });
+      }
+    });
+    return out;
   }
   function descreverTurmaRegra(t) {
     var dia = t.dias && t.dias[0] ? formatISOBr(t.dias[0]).slice(0, 5) : '';
@@ -477,7 +506,7 @@
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo,
-    vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
+    vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, conflitosDeParticipacao: conflitosDeParticipacao, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
     regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRestricaoTurma: mensagemRestricaoTurma, mensagemRegraAdmin: mensagemRegraAdmin,
     visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
     vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,

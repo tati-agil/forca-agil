@@ -14,7 +14,9 @@
  *   D. decisões iguais antes/depois (bloqueado × livre) em todos os cenários: nunca participou; interesse ativo,
  *      inscrição confirmada e participação em turma já realizada num evento impeditivo; interesse removido; outra turma do
  *      próprio evento (uma turma, independente); III → IV e IV → III; evento com o campo antigo dormente; lista de espera;
- *   V. a validação acusa uma conversão adulterada (perda de bloqueio, campo de fora mudado).
+ *   V. a validação acusa uma conversão adulterada (perda de bloqueio, campo de fora mudado);
+ *   C. faTurmasUtil.conflitosDeParticipacao (a mesma regra, pura, para o selo "Fora das regras do evento" do ADMIN)
+ *      concorda com regrasDeEntrada em todos os cenários com turma; e o "dispensar" do painel pula só a regra pedida.
  */
 'use strict';
 const fs = require('fs');
@@ -117,6 +119,24 @@ const decidir = (U, eventoKey, email, turmaKey) => new Promise((res) => U.regras
   }
   anota('D-msg só os casos entre III e IV trocam a mensagem ("uma turma" → "participação anterior"); o resto, igual',
     mudouMensagem.length === 3 && mudouMensagem.every((m) => /^(7|8|F1) /.test(m)), JSON.stringify(mudouMensagem));
+
+  console.log('\n== C. a regra pura do painel concorda com regrasDeEntrada ==');
+  for (const [rot, email, evk, tk] of CASOS) {
+    if (!tk) continue;
+    for (const [qual, U, evs] of [['antes', Uantes, EVENTOS], ['depois', Udepois, depois]]) {
+      const r = await decidir(U, evk, email, tk);
+      const c = U.conflitosDeParticipacao({ eventos: evs, turmas: TURMAS, interesses: INTERESSE }, evk, chave(email), tk);
+      const puro = c.participacao.length ? 'participacao' : c.umaTurma.length ? 'umaTurma' : 'livre';
+      const real = r.estado === 'livre' ? 'livre' : r.regra;
+      anota('C' + rot + ' (' + qual + '): pura = ' + puro + ', regrasDeEntrada = ' + real, puro === real);
+    }
+  }
+  const semPart = await new Promise((res) => Uantes.regrasDeEntrada({ eventoKey: 'evIII', eKey: chave(P.intI), turmaKey: 'tIII1', dispensar: ['participacao'] }, res));
+  anota('C-disp dispensar "participacao" libera quem só tinha participação anterior', semPart.estado === 'livre', JSON.stringify(semPart));
+  const soUma = await new Promise((res) => Uantes.regrasDeEntrada({ eventoKey: 'evIII', eKey: chave(P.noIII), turmaKey: 'tIII2', dispensar: ['participacao'] }, res));
+  anota('C-disp dispensar "participacao" NÃO dispensa "uma turma"', soUma.estado === 'bloqueado' && soUma.regra === 'umaTurma', JSON.stringify(soUma));
+  const nada = await new Promise((res) => Uantes.regrasDeEntrada({ eventoKey: 'evIII', eKey: chave(P.noIII), turmaKey: 'tIII2', dispensar: ['umaTurma'] }, res));
+  anota('C-disp dispensar "umaTurma" libera a segunda turma', nada.estado === 'livre', JSON.stringify(nada));
 
   console.log('\n== V. a validação acusa adulteração ==');
   const perdeu = JSON.parse(JSON.stringify(depois)); delete perdeu.evIII.bloqueiaParticipantesDe.evIV;

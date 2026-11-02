@@ -12,7 +12,8 @@
  *   3. "Só gerentes": quem não está na lista vê a explicação; gerente vê "Tenho interesse" e registra;
  *      "Só técnicos": gerente vê a explicação; técnico vê "Tenho interesse";
  *   4. painel — ＋ Participante numa turma lotada pede o motivo (sem motivo nada é gravado) e grava acimaDasVagas;
- *   5. painel — ＋ Participante de quem não é gerente numa turma "Só gerentes" recusa, sem gravar;
+ *   5. painel — ＋ Participante de quem não é gerente numa turma "Só gerentes" não entra sozinho: o painel pede a exceção
+ *      (com o motivo da regra); cancelando, nada é gravado;
  *   6. aba Gerentes: e-mail fora de @previ.com.br recusa a lista inteira; lista colada grava os novos por e-mail (mesmo
  *      sem cadastro), avisa os que já estavam e mostra "Ainda sem cadastro";
  *   7. formulário da turma grava vagas e publicoCargo;
@@ -206,12 +207,14 @@ async function participante(page, tk, busca) {
       const av = gravado && gravado.valor && gravado.valor.acimaDasVagas;
       anota('4. com motivo, grava a pessoa com acimaDasVagas (motivo, vagas, ocupadas, quem)',
         !!av && av.motivo === 'Indicação da diretoria' && av.vagas === 2 && av.ocupadas === 2 && av.por === ADM, JSON.stringify(av));
-      /* 5. "Só gerentes" recusa quem não é gerente */
+      /* 5. "Só gerentes": quem não é gerente não entra sozinho — o painel pede a exceção, com o motivo da regra */
       await page.keyboard.press('Escape');
       await participante(page, 'tG', 'JA ESTA');
-      await page.waitForFunction(() => /lista de Gerentes/.test((document.getElementById('addPartErr') || {}).textContent || ''), null, { timeout: 10000 });
-      const err = await texto(page, '#addPartErr');
-      anota('5. ＋ Participante de quem não é gerente numa turma "Só gerentes": recusa com o motivo e nada é gravado',
+      await page.waitForFunction(() => /lista de Gerentes/.test((document.querySelector('[data-pedido-excecao]') || {}).textContent || ''), null, { timeout: 10000 });
+      const err = await page.evaluate(() => document.querySelector('[data-pedido-excecao]').textContent);
+      await page.evaluate(() => document.querySelector('[data-pedido-excecao] .admin-modal-cancel-btn').click());
+      await page.waitForTimeout(300);
+      anota('5. ＋ Participante de quem não é gerente numa turma "Só gerentes": pede a exceção com o motivo; cancelando, nada é gravado',
         /não está na lista de Gerentes/.test(err) && !(await escritasDe(page, 'turmas-interesse/tG/' + chave(DENTRO))).length, err);
       await page.click('.modal-box .admin-modal-cancel-btn');
       /* 10. Confirmar numa turma de evento sem CMFlex */

@@ -17,7 +17,8 @@
  *   7. quem tem interesse numa turma do grupo vê, nas OUTRAS turmas (do mesmo evento e do outro), em qual turma está e
  *      como trocar ("remova seu interesse"); na própria turma, o "Remover interesse" de sempre; a fila também barra;
  *   8. quem está INSCRITA numa turma do grupo é orientada a pedir ao admin;
- *   9. o painel aplica a mesma regra: "＋ Participante" numa turma do grupo recusa com o motivo e nada é gravado;
+ *   9. o painel aplica a mesma regra: "＋ Participante" numa turma do grupo não entra sozinho — pede a exceção, com o
+ *      motivo da regra; cancelando, nada é gravado;
  *  10. o formulário grava umaTurmaPorPessoa e umaTurmaComEventos;
  *  11. os OUTROS cards se reconferem na hora: removendo o interesse da turma A, a turma B volta a "Tenho interesse"; e,
  *      registrando na B, a A passa a dizer "já tem interesse na B" — sem recarregar a página. */
@@ -230,9 +231,11 @@ const conferido = (page) => page.waitForFunction(() => {
       await page.click('#addPartResults li');
       await page.selectOption('#addPartStatus', 'interessado');
       await page.click('.modal-box .admin-modal-add-btn');
-      await page.waitForFunction(() => /uma turma por pessoa/.test((document.getElementById('addPartErr') || {}).textContent || ''), null, { timeout: 10000 });
-      const err = await texto(page, '#addPartErr');
-      anota('9. painel: "＋ Participante" no Episódio IV recusa quem já tem interesse no III, com o motivo, e nada é gravado',
+      await page.waitForFunction(() => /uma turma por pessoa/.test((document.querySelector('[data-pedido-excecao]') || {}).textContent || ''), null, { timeout: 10000 });
+      const err = await page.evaluate(() => document.querySelector('[data-pedido-excecao]').textContent);
+      await page.evaluate(() => document.querySelector('[data-pedido-excecao] .admin-modal-cancel-btn').click());
+      await page.waitForTimeout(300);
+      anota('9. painel: "＋ Participante" no Episódio IV pede a exceção para quem já tem interesse no III, com o motivo; cancelando, nada é gravado',
         /já tem interesse na TURMA EP3/.test(err) && /retire-a daquela turma primeiro/.test(err) && !(await escritasDe(page, 'turmas-interesse/t4/' + chave(UMA))).length, err);
       anota('sem erro de JavaScript (painel, uma turma)', !erros.length, erros[0]);
       await ctx.close();

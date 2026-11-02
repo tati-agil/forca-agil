@@ -7,9 +7,11 @@
  * pessoa já tinha, ou mostrar a lista a quem não deve (há menores de idade nela).
  *
  * Firebase falso, dados 100% sintéticos. O QUE ELE EXIGE, em 1280 e 375 px:
- *   1. super-admin vê a lista: categorias de cada pessoa, "Cadastro no site", "Também em" (Gerentes/Diretores) e o selo
- *      "Sobreposição" para quem tem mais de uma categoria ou também é gerente/diretor, com o aviso do total;
- *   2. busca por nome/e-mail e filtro por categoria (e "Com sobreposição");
+ *   1. super-admin vê a lista: categorias de cada pessoa, "Cadastro no site" e o selo "Sobreposição: A + B" — que DIZ quais
+ *      cadastros se sobrepõem (categorias desta lista e as abas Gerentes/Diretores; sem a antiga coluna "Também em") —, com o
+ *      aviso do total; a categoria Assessores existe;
+ *   2. busca por nome/e-mail e filtro por categoria (e "Com sobreposição"), com "mostrando X de Y"; depois de gravar, a lista
+ *      volta inteira (filtro e busca limpos) — quem acabou de ser incluído aparece;
  *   3. inclusão individual; inclusão em lote que cria quem não existe e ACRESCENTA categoria a quem já existe (sem perder
  *      as que tinha); e-mail fora de @previ e falta de categoria recusados sem gravar nada;
  *   4. edição das categorias (sem nenhuma marcada, recusa e manda usar "Remover"); remoção com confirmação;
@@ -115,7 +117,10 @@ async function incluir(page, emails, cats) {
       anota(f.nome + ': 1. categorias de cada pessoa', L(P.est).cats === 'estagiario' && L(P.multi).cats === 'coaud conselhoFiscal' && L(P.semCad).cats === 'menorAprendiz', JSON.stringify(e.linhas.map((x) => x.cats)));
       anota(f.nome + ': 1. "Sobreposição" para duas categorias e para quem também é gerente; aviso com o total (2)',
         L(P.multi).sobreposta && L(P.gerCons).sobreposta && !L(P.est).sobreposta && !L(P.semCad).sobreposta && e.aviso === '2', JSON.stringify({ a: e.aviso }));
-      anota(f.nome + ': 1. "Também em: Gerentes" e "Ainda sem cadastro"', /Gerentes/.test(L(P.gerCons).texto) && /Ainda sem cadastro/.test(L(P.semCad).texto) && /Sim/.test(L(P.est).texto));
+      anota(f.nome + ': 1. o selo diz quais cadastros se sobrepõem ("… + Gerentes"; COAUD + "Conselho Fiscal") e "Ainda sem cadastro"; sem a coluna "Também em"',
+        /Sobreposição: .+ \+ Gerentes/.test(L(P.gerCons).texto) && /Sobreposição: Membros do COAUD \+ Conselho Fiscal/.test(L(P.multi).texto) && /Ainda sem cadastro/.test(L(P.semCad).texto) && /Sim/.test(L(P.est).texto) &&
+        !(await page.evaluate(() => Array.from(document.querySelectorAll('#adminOutrosPublicos th')).some((th) => /Também em/.test(th.textContent)))), L(P.gerCons).texto + ' | ' + L(P.multi).texto);
+      anota(f.nome + ': 1. categoria Assessores no formulário', !!(await page.$('[data-novo-cat="assessor"]')));
       if (CAPTURA) { fs.mkdirSync(CAPTURA, { recursive: true }); await page.locator('#adminOutrosPublicos').screenshot({ path: path.join(CAPTURA, 'outros-publicos-' + f.nome + '.png') }); }
 
       await page.fill('#outrosBusca', 'multi');
@@ -127,8 +132,8 @@ async function incluir(page, emails, cats) {
       anota(f.nome + ': 2. filtro por categoria', (await ler(page)).linhas[0].key === chave(P.semCad));
       await page.selectOption('#outrosFiltro', '__sobreposicao');
       await esperarLinhas(page, 2, 'o filtro de sobreposição');
-      anota(f.nome + ': 2. filtro "Com sobreposição"', true);
-      await page.selectOption('#outrosFiltro', '');
+      anota(f.nome + ': 2. filtro "Com sobreposição"', /mostrando 2 de 4/.test(await page.textContent('.outros-mostrando')), await page.textContent('.outros-mostrando'));
+      /* o filtro fica ligado de propósito: a inclusão abaixo tem de aparecer mesmo assim (a lista volta inteira) */
 
       /* 3. inclusão */
       await incluir(page, 'fulano@gmail.com', ['estagiario']);
@@ -136,10 +141,12 @@ async function incluir(page, emails, cats) {
       anota(f.nome + ': 3. e-mail fora de @previ recusado sem gravar', /Só e-mails @previ\.com\.br/.test(e.msg) && !(await escritas(page)).length, e.msg);
       await incluir(page, P.novo1, []);
       anota(f.nome + ': 3. sem categoria recusado sem gravar', /ao menos uma categoria/.test((await ler(page)).msg) && !(await escritas(page)).length);
-      await incluir(page, P.novo1, ['estagiario']);
-      await esperarLinhas(page, 5, 'a inclusão individual');
+      await incluir(page, P.novo1, ['estagiario', 'assessor']);
+      await esperarLinhas(page, 5, 'a inclusão individual (com a lista voltando inteira)');
+      anota(f.nome + ': 2. depois de gravar, filtro e busca limpos e quem entrou aparece', (await page.inputValue('#outrosFiltro')) === '' && (await page.inputValue('#outrosBusca')) === '' &&
+        !(await page.textContent('.outros-mostrando')).trim() && (await ler(page)).linhas.some((x) => x.key === chave(P.novo1)));
       const n1 = await lerNo(page, 'fa-outros-publicos/' + chave(P.novo1));
-      anota(f.nome + ': 3. inclusão individual (registro completo, nome do cadastro do site)', n1 && n1.email === P.novo1 && n1.categorias.estagiario === true && n1.addedBy === SUPER && n1.name === nome(P.novo1), JSON.stringify(n1));
+      anota(f.nome + ': 3. inclusão individual (registro completo, nome do cadastro do site)', n1 && n1.email === P.novo1 && n1.categorias.estagiario === true && n1.categorias.assessor === true && n1.addedBy === SUPER && n1.name === nome(P.novo1), JSON.stringify(n1));
       await incluir(page, P.novo2 + '\n' + P.est, ['coaud']);
       await esperarLinhas(page, 6, 'a inclusão em lote');
       const n2 = await lerNo(page, 'fa-outros-publicos/' + chave(P.novo2)), est = await lerNo(page, 'fa-outros-publicos/' + chave(P.est));

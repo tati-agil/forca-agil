@@ -3,7 +3,7 @@
  *
  * Um registro por pessoa, na chave do próprio e-mail: fa-outros-publicos/<chave> = { email, name, categorias,
  * addedAt, addedBy, updatedAt, updatedBy }, com categorias = { estagiario, menorAprendiz, coaud, conselhoDeliberativo,
- * conselhoFiscal, conselhoConsultivo } (só as verdadeiras; uma pessoa pode ter várias). Os públicos agrupados
+ * conselhoFiscal, conselhoConsultivo, assessor } (só as verdadeiras; uma pessoa pode ter várias). Os públicos agrupados
  * (Estagiários e menores aprendizes, Conselheiros) NÃO têm registro: serão calculados das categorias.
  *   - incluir, editar e remover: só os dois super-admins (decisão de 01/11/2026);
  *   - a lista inteira: só os super-admins leem (há menores de idade nela — nada desta etapa precisa de mais);
@@ -25,7 +25,7 @@ const { ADM, PROPRIA_CHAVE, DERIVADA } = require('./montar-regras-fa-users.js');
 const and = (xs) => xs.join(' && ');
 const or = (xs) => '(' + xs.join(' || ') + ')';
 const SUPER = "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')";
-const CATEGORIAS = ['estagiario', 'menorAprendiz', 'coaud', 'conselhoDeliberativo', 'conselhoFiscal', 'conselhoConsultivo'];
+const CATEGORIAS = ['estagiario', 'menorAprendiz', 'coaud', 'conselhoDeliberativo', 'conselhoFiscal', 'conselhoConsultivo', 'assessor'];
 
 /* a chave do registro = a chave do e-mail gravado nele (a mesma derivação da emailKey do site, provada em
    teste-regras-fa-users-chave.js para o e-mail do login — aqui aplicada ao e-mail do registro) */
