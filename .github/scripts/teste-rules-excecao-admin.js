@@ -106,6 +106,7 @@ async function main() {
   await nega('P4 sair regravando o registro inteiro sem a exceção', db(PESSOA).ref(ti('tLivre', PESSOA)).set(Object.assign(interesse(PESSOA), { removed: true, status: 'removido', removedDate: AGORA })));
   await pode('P5 sair (o caminho do site) mantém a exceção', db(PESSOA).ref(ti('tLivre', PESSOA)).update({ removed: true, status: 'removido', removedDate: AGORA }));
   const depois = await ler(ti('tLivre', PESSOA));
+  await nega('P6 voltar sozinha à turma em que entrou por exceção (o set() do site apagaria a exceção)', db(PESSOA).ref(ti('tLivre', PESSOA)).set(interesse(PESSOA)));
   anota('P5 depois de sair, a exceção continua no registro', !!(depois && depois.excecaoAdmin && depois.excecaoAdmin.motivo === 'Assessor convidado'), JSON.stringify(depois));
 
   console.log('\n== R. correção de e-mail do ADMIN ==');

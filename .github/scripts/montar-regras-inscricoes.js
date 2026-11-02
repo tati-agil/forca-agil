@@ -141,6 +141,9 @@ const REGISTRAR = and([
   "newData.child('email').isString() && newData.child('email').val().toLowerCase() === auth.token.email.toLowerCase()",
   /* não sobrescreve uma inscrição ativa — sair dela é "Remover interesse" (ou o admin) */
   or(['!data.exists()', "data.child('removed').val() === true", "data.child('status').val() !== 'inscrito'"]),
+  /* nem regrava um registro que tem a exceção do admin: o set() do site a apagaria (a pessoa não cria, muda nem apaga
+     exceção). Voltar a uma turma em que entrou por exceção passa de novo pelo admin. */
+  "!data.child('excecaoAdmin').exists()",
   /* o registro resultante não carrega nada do admin (um update que tentasse reativar mantendo a confirmação cai aqui) */
   and(ADMINISTRATIVOS.map((c) => "!newData.child('" + c + "').exists()")),
   ELEGIVEL

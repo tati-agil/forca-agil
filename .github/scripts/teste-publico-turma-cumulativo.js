@@ -288,9 +288,15 @@ async function vitrinePronta(page) {
         await page.waitForFunction(() => { const b = window.__boxVis(); return !!(b && b.querySelector('.admin-table')); }, null, { timeout: 10000 });
         const temBulk = await page.evaluate(() => { const b = window.__boxVis(); const x = Array.from(b.querySelectorAll('button')).find((y) => /Adicionar à turma/i.test(y.textContent || '')); if (x) x.click(); return !!x; });
         anota('8. a lista da Turma 2 oferece "Adicionar à turma"', temBulk);
+        /* o gerente da lista, barrado pelo público da turma (só técnicos), não entra calado: o painel mostra a regra e pede a
+           exceção; "Incluir só quem pode" segue sem ele (as mesmas regras das portas individuais) */
+        await page.waitForFunction(() => /GERENTE NA LISTA/i.test((document.querySelector('[data-pedido-excecao]') || {}).textContent || ''), null, { timeout: 10000 });
+        const txtExc = await page.evaluate(() => document.querySelector('[data-pedido-excecao]').textContent.replace(/\s+/g, ' '));
+        anota('8. o lote mostra o gerente barrado pelo público, com o motivo, antes de gravar', /GERENTE NA LISTA — fora do público \(cargo\)/.test(txtExc), txtExc.slice(0, 300));
+        await page.evaluate(() => document.querySelector('[data-pedido-excecao] .admin-excecao-so-quem-pode').click());
         await page.waitForFunction(() => { const b = window.__boxVis(); return b && /INSCRITAS\?|Ninguém desta lista/i.test(b.textContent || ''); }, null, { timeout: 10000 });
         const txt = await page.evaluate(() => (window.__boxVis().textContent || '').replace(/\s+/g, ' '));
-        anota('8. a confirmação inscreve 1 pessoa e diz que o gerente fica de fora pelo público', /Adicionar 1 pessoa/.test(txt) && /GERENTE NA LISTA/.test(txt) && /gerentes\/técnicos/.test(txt), txt.slice(0, 300));
+        anota('8. a confirmação inscreve só 1 pessoa (o gerente ficou de fora)', /Adicionar 1 pessoa/.test(txt), txt.slice(0, 300));
         await page.evaluate(() => window.__boxVis().querySelector('.admin-modal-confirm-btn').click());
         await esperarCondicaoAte(page, () => (window.__ESCRITAS || []).some((e) => /turmas-interesse\/t2\//.test(e.path)), null, { limite: 10000 });
         await page.waitForTimeout(300);
