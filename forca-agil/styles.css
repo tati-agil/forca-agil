@@ -1945,6 +1945,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
   color: var(--ink-2); background: rgba(155,127,255,.10); border: 1px solid rgba(155,127,255,.35);
 }
 .aluno-vercomo-aviso strong { color: #b9a6ff; }
+/* Turmas › "Ver como": pré-visualização — os botões de participação mostram o estado da pessoa, mas não agem (app.js emPrevia) */
+.turmas-previa .btn--interest, .turmas-previa .btn--espera { opacity: .55; cursor: not-allowed; }
 
 /* Aviso quando o servidor não responde a tempo (evita tela preta sem explicação) */
 .auth-sem-conexao {

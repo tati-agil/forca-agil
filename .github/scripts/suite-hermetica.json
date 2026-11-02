@@ -469,6 +469,12 @@
       "sobre": "Hermético, dados sintéticos. Super-admin: categorias de cada pessoa (inclusive Assessores) e selo \"Sobreposição: A + B\" que diz quais cadastros se sobrepõem (sem a antiga coluna \"Também em\"); busca e filtro por categoria, com \"mostrando X de Y\", e lista inteira de novo depois de gravar; inclusão individual e em lote (acrescenta categoria sem perder as que tinha); e-mail fora de @previ e falta de categoria recusados; edição e remoção com confirmação; gravação recusada e leitura que falha com mensagem. Admin comum vê só o aviso (há menores na lista). Toda gravação é em fa-outros-publicos; turmas, inscrições, eventos, fila, gerentes e diretores iguais; abas Gerentes e Diretores intactas. Nesta etapa a lista não muda quem participa de nada."
     },
     {
+      "arquivo": ".github/scripts/teste-ver-como-card.js",
+      "nome": "Turmas — \"Ver esta tela como\" é espelho do login real (equivalência), 1280/375 px",
+      "duracao": 200,
+      "sobre": "Hermético, dados sintéticos (episódios com exclusão recíproca e uma turma por pessoa). Para cada pessoa — gerente com participação anterior, gerente sem, técnico inscrito em episódio impeditivo, técnico sem impedimento, diretor, estagiária (Outros públicos), exceção do ADMIN, interesse, inscrição confirmada, pessoa de lista — a página Turmas no \"Ver como\" (admin logada) é IGUAL à do login real dela: eventos na ordem e situação, turmas, botões (texto, estado, classe), mensagens, avisos, lista de espera e o texto inteiro. Inclui leitura de Gerentes e de vínculos que falha e perfil lento. Na pré-visualização todos os botões ficam inativos e nenhum clique (mouse, teclado, click()) grava; \"eu mesma\" volta ao normal e grava em nome da sessão real. Falha se os dois modos divergirem."
+    },
+    {
       "arquivo": ".github/scripts/teste-visibilidade-evento.js",
       "nome": "Turmas — visibilidade do evento separada da elegibilidade (\"Mostrar para todos\"), 1440/1280/375 px e ADMIN",
       "duracao": 70,
