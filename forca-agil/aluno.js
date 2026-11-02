@@ -101,9 +101,9 @@
       db.ref('fa-espera').once('value'),
       db.ref('turmas-publico').once('value'),
       db.ref('eventos-publico').once('value'),
-      /* se a pessoa está na lista de Gerentes (turmas "só gerentes" / "só técnicos"); falha de leitura não derruba a
-         Minha Área — só esconde da prévia as turmas que dependem dessa resposta */
-      db.ref('fa-gerentes/' + uKey).once('value').then(function (s) { return { ok: true, gerente: !!s.val() }; }, function () { return { ok: false }; }),
+      /* o perfil de público (turmas-util.js lerPerfilPublico: Gerentes e, com a ativação, Diretores e Outros públicos);
+         leitura que falha fica null — não derruba a Minha Área, só esconde da prévia as turmas que dependem dela */
+      new Promise(function (res) { window.faTurmasUtil.lerPerfilPublico(uKey, res); }),
     ]).then(function (r) {
       var d = {
         interesse: r[0].val() || {},
@@ -115,7 +115,7 @@
         espera:    r[6].val() || {},
         publico:   r[7].val() || {},
         publicoEv: r[8].val() || {},
-        gerente:   r[9],
+        perfil:    r[9],
         avaliacoes: {},
       };
       /* As avaliações são lidas UMA A UMA, só a da própria pessoa em cada
@@ -291,12 +291,13 @@
     var lista = inscritos || {};
     return Object.keys(lista).filter(function (k) { var v = lista[k]; return v && !v.removed && v.status !== 'removido'; }).length >= vagas;
   }
-  function cargoBarra(turma, gerente, evento) {
-    var cargo = window.faTurmasUtil.cargoEfetivo(turma, evento);
+  function cargoBarra(turma, perfil, evento) {
+    var PUB = window.faPublicosNucleo, ativo = perfil ? perfil.ativo : null;
+    if (ativo === null && PUB.dependeDaAtivacao(evento && evento.publicoDesc)) return true;  /* não sei se a ativação vale */
+    var cargo = window.faTurmasUtil.cargoEfetivo(turma, evento, ativo);
     if (!cargo) return false;
     if (cargo === 'conflito') return true;  /* turma × evento contraditórios: ninguém entra */
-    if (!gerente || !gerente.ok) return true;
-    return (cargo === 'gerentes') !== gerente.gerente;
+    return PUB.atende(cargo, perfil) !== true;  /* não atende, ou não deu para verificar: não convida */
   }
 
   function turmasAbertas(d, email) {
@@ -319,7 +320,7 @@
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
         publicoEvento: turma.eventoKey ? ((d.publicoEv || {})[turma.eventoKey] || {}) : {},
         lotada: turmaLotada(turma, d.interesse[tk], turma.eventoKey ? d.eventos[turma.eventoKey] : null),
-        cargoBarra: cargoBarra(turma, d.gerente, turma.eventoKey ? d.eventos[turma.eventoKey] : null),
+        cargoBarra: cargoBarra(turma, d.perfil, turma.eventoKey ? d.eventos[turma.eventoKey] : null),
       };
     }).filter(function (t) {
       return !t.encerrada && !t.interesseEncerrado && !t.jaComecou && !t.lotada && !t.cargoBarra &&

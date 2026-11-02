@@ -18,9 +18,12 @@
  *          resultante é { name, email (o do token), area, date, removed: false, status: 'interessado' }, sem nenhum campo de
  *          confirmação; não sobrescreve uma inscrição (status 'inscrito' ativa); e a pessoa precisa caber, AO MESMO
  *          TEMPO, em todas as restrições do evento e da turma — lista da turma (publicoRestrito), lista do evento
- *          (publicoRestrito), só diretores (restritoADiretores + fa-diretores), público do evento ("Quem participa"
- *          Gerentes/Técnicos) e da turma (publicoCargo) pela lista fa-gerentes, inscrições abertas (turmas-config
- *          finalizada/encerrada). Lista vazia ou ausente numa turma restrita = ninguém entra;
+ *          (publicoRestrito), só diretores (restritoADiretores + fa-diretores), público do evento ("Quem participa") e
+ *          da turma (publicoCargo) pela tabela do núcleo dos públicos (forca-agil/publicos-nucleo.js — Gerentes e
+ *          Técnicos sempre; Diretores, as sete categorias de fa-outros-publicos e os dois agrupados só com
+ *          publicos-config/ativo = true; Técnicos = fora de fa-gerentes e, com a ativação, também fora de fa-diretores
+ *          e de fa-outros-publicos), inscrições abertas (turmas-config finalizada/encerrada). Lista vazia ou ausente
+ *          numa turma restrita = ninguém entra;
  *       b) REMOVER o próprio registro ("Remover interesse", app.js removeInterest — update de removed, removedDate e
  *          status): o resultado tem removed: true e status 'removido', e nenhum campo administrativo muda. Vale para
  *          qualquer registro próprio, inclusive o de quem ficou fora de um público que mudou depois;
@@ -46,6 +49,7 @@ const fs = require('fs');
 const path = require('path');
 const ARQUIVO = path.join(__dirname, '..', '..', 'database.rules.json');
 const { ADM, PROPRIA_CHAVE } = require('./montar-regras-fa-users.js');
+const PUB = require('../../forca-agil/publicos-nucleo.js');
 
 const and = (xs) => xs.join(' && ');
 const or = (xs) => '(' + xs.join(' || ') + ')';
@@ -69,40 +73,43 @@ const DA_PESSOA = ['name', 'email', 'area', 'date', 'removed', 'status', 'remove
 
 /* ── a partir de turmas-interesse/$turmaKey/$userKey ── */
 const T = "root.child('turmas').child($turmaKey)";
-const EVK = T + ".child('eventoKey').val()";
-const TEM_EVENTO = T + ".child('eventoKey').isString() && " + EVK + " !== ''";
-const E = "root.child('eventos').child(" + EVK + ')';
-const GERENTE = "root.child('fa-gerentes').child($userKey).exists()";
 const CFG = "root.child('turmas-config').child($turmaKey)";
 
-/* cada restrição: ou não está ligada, ou a pessoa cabe nela */
-const DO_EVENTO = and([
-  or([E + ".child('publicoRestrito').val() !== true", "root.child('eventos-publico').child(" + EVK + ').child($userKey).exists()']),
-  or([E + ".child('restritoADiretores').val() !== true", "root.child('fa-diretores').child($userKey).exists()"]),
-  or([E + ".child('publicoDesc').val() !== 'Técnicos'", '!' + GERENTE]),
-  or([E + ".child('publicoDesc').val() !== 'Gerentes'", GERENTE])
-]);
-/* o PÚBLICO que o banco consegue conferir (sem inscrições encerradas), sobre o banco depois da gravação — para a exigência
-   de exceção do admin. Mesmas condições de ELEGIVEL/DO_EVENTO, com R no lugar de root. */
-const NOVO = 'newData.parent().parent().parent()';
-function publicoVerificavel(R) {
+/* O PÚBLICO, sobre a raiz R ('root' = o banco antes da gravação; NOVO = depois): a MESMA tabela do site
+   (forca-agil/publicos-nucleo.js). Cada restrição: ou não está ligada, ou a pessoa cabe nela. */
+function publico(R) {
   const Tn = R + ".child('turmas').child($turmaKey)";
   const EVKn = Tn + ".child('eventoKey').val()";
   const En = R + ".child('eventos').child(" + EVKn + ')';
-  const GERn = R + ".child('fa-gerentes').child($userKey).exists()";
-  const TECn = '!' + GERn; /* técnicos, como vale hoje: quem não é gerente (a Entrega B muda, junto com ELEGIVEL) */
+  const GER = R + ".child('fa-gerentes').child($userKey).exists()";
+  const DIR = R + ".child('fa-diretores').child($userKey).exists()";
+  const OUTROS = R + ".child('fa-outros-publicos').child($userKey)";
+  const ATIVO = R + ".child('publicos-config').child('ativo').val() === true";
+  /* técnico: fora de Gerentes; com a ativação, também fora de Diretores e das sete categorias (registro em
+     fa-outros-publicos só existe com ao menos uma categoria) */
+  const TEC = '!' + GER + ' && ' + or(['!(' + ATIVO + ')', '(!' + DIR + ' && !' + OUTROS + '.exists())']);
+  const atende = (p) => p.chave === 'gerentes' ? GER : p.chave === 'tecnicos' ? '(' + TEC + ')' : p.chave === 'diretores' ? DIR
+    : or(p.categorias.map((c) => OUTROS + ".child('categorias').child('" + c + "').val() === true"));
   const doEvento = and([
     or([En + ".child('publicoRestrito').val() !== true", R + ".child('eventos-publico').child(" + EVKn + ').child($userKey).exists()']),
-    or([En + ".child('restritoADiretores').val() !== true", R + ".child('fa-diretores').child($userKey).exists()"]),
-    or([En + ".child('publicoDesc').val() !== 'Técnicos'", TECn]),
-    or([En + ".child('publicoDesc').val() !== 'Gerentes'", GERn])
-  ]);
-  return or(['!' + Tn + '.exists()', '(' + and([
-    or([Tn + ".child('publicoRestrito').val() !== true", R + ".child('turmas-publico').child($turmaKey).child($userKey).exists()"]),
-    or([Tn + ".child('publicoCargo').val() !== 'tecnicos'", TECn]),
-    or([Tn + ".child('publicoCargo').val() !== 'gerentes'", GERn]),
-    or(['!(' + Tn + ".child('eventoKey').isString() && " + EVKn + " !== '')", '(' + doEvento + ')'])
-  ]) + ')']);
+    or([En + ".child('restritoADiretores').val() !== true", DIR])
+  ].concat(PUB.PUBLICOS.map((p) => or([En + ".child('publicoDesc').val() !== '" + p.rotulo + "'"].concat(p.ativacao ? ['!(' + ATIVO + ')'] : [], [atende(p)])))));
+  return {
+    turma: [
+      or([Tn + ".child('publicoRestrito').val() !== true", R + ".child('turmas-publico').child($turmaKey).child($userKey).exists()"]),
+      or([Tn + ".child('publicoCargo').val() !== 'tecnicos'", '(' + TEC + ')']),
+      or([Tn + ".child('publicoCargo').val() !== 'gerentes'", GER])
+    ],
+    /* turma sem evento ('' ou ausente) não tem restrição de evento; com evento, todas as dele valem */
+    evento: or(['!(' + Tn + ".child('eventoKey').isString() && " + EVKn + " !== '')", '(' + doEvento + ')'])
+  };
+}
+/* o PÚBLICO que o banco consegue conferir (sem inscrições encerradas), sobre o banco depois da gravação — para a exigência
+   de exceção do admin. Mesmas condições de ELEGIVEL, com NOVO no lugar de root. */
+const NOVO = 'newData.parent().parent().parent()';
+function publicoVerificavel(R) {
+  const p = publico(R);
+  return or(['!' + R + ".child('turmas').child($turmaKey).exists()", '(' + and(p.turma.concat([p.evento])) + ')']);
 }
 /* A cópia que a correção de e-mail do ADMIN faz (admin.js, corrigir e-mail — fluxo NÃO alterado): registro numa chave nova,
    gravado junto com o cadastro novo, que traz emailCorrigidoDe, numa chave que ainda não tinha cadastro. R = a raiz nova. */
@@ -133,16 +140,12 @@ const EXCECAO = {
   $outro: { '.validate': false }
 };
 
-const ELEGIVEL = and([
-  T + '.exists()',
-  or([T + ".child('publicoRestrito').val() !== true", "root.child('turmas-publico').child($turmaKey).child($userKey).exists()"]),
-  or([T + ".child('publicoCargo').val() !== 'tecnicos'", '!' + GERENTE]),
-  or([T + ".child('publicoCargo').val() !== 'gerentes'", GERENTE]),
+const PUBLICO_ATUAL = publico('root');
+const ELEGIVEL = and([T + '.exists()'].concat(PUBLICO_ATUAL.turma, [
   CFG + ".child('finalizada').val() !== true",
   CFG + ".child('encerrada').val() !== true",
-  /* turma sem evento ('' ou ausente) não tem restrição de evento; com evento, todas as dele valem */
-  or(['!(' + TEM_EVENTO + ')', '(' + DO_EVENTO + ')'])
-]);
+  PUBLICO_ATUAL.evento
+]));
 
 const REGISTRAR = and([
   newOk("status", "=== 'interessado'"),
@@ -163,7 +166,10 @@ const REMOVER = and([
   newOk('removed', '=== true'),
   newOk('status', "=== 'removido'"),
   /* nada do admin muda (nem some, num set que regravasse o registro inteiro) */
-  and(ADMINISTRATIVOS.filter((c) => c !== 'excecaoAdmin').map((c) => "newData.child('" + c + "').val() === data.child('" + c + "').val()")),
+  and(ADMINISTRATIVOS.filter((c) => c !== 'excecaoAdmin' && c !== 'acimaDasVagas').map((c) => "newData.child('" + c + "').val() === data.child('" + c + "').val()")),
+  /* acimaDasVagas também é objeto ({ motivo, vagas, ocupadas, por, porNome, em }): campo a campo, ou a pessoa incluída
+     acima das vagas não conseguiria sair pelo site */
+  and(['motivo', 'vagas', 'ocupadas', 'por', 'porNome', 'em'].map((c) => "newData.child('acimaDasVagas').child('" + c + "').val() === data.child('acimaDasVagas').child('" + c + "').val()")),
   /* a exceção é um objeto: .val() não serve para compará-la inteira — campo a campo (e cada regra dispensada) */
   and(['motivo', 'por', 'porNome', 'em', 'turma'].map((c) => "newData.child('excecaoAdmin').child('" + c + "').val() === data.child('excecaoAdmin').child('" + c + "').val()")
     .concat(REGRAS_DA_EXCECAO.map((r) => "newData.child('excecaoAdmin').child('regras').child('" + r + "').val() === data.child('excecaoAdmin').child('regras').child('" + r + "').val()")))

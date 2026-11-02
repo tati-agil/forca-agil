@@ -37,6 +37,7 @@
     ".github/scripts/teste-rules-contas-teste.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-inscricoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-excecao-admin.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-publicos-ativacao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-fila-espera.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-outros-publicos.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
@@ -442,6 +443,18 @@
       "nome": "ADMIN › Editar evento — listas de eventos para marcar (participação anterior e uma turma por pessoa), 1280/375 px",
       "duracao": 35,
       "sobre": "Hermético, dados sintéticos. As listas \"Não aceitar interesse de quem já participou de\" e \"Contando também as turmas de\": ordem do painel, não publicados no fim (selecionáveis), o próprio evento fora; etiquetas Não publicado / Já realizado / Evento inexistente; referência a evento que não existe mais continua marcada e só sai se desmarcada; busca independente em cada lista (mais de 8 eventos), sem desmarcar o escondido; Marcar/Desmarcar todos só nos visíveis; salvar com busca ativa ou outro campo não apaga seleção; evento novo aparece e renomeado continua marcado; toda gravação em eventos/<editado>; sem rolagem lateral nem erro de JS."
+    },
+    {
+      "arquivo": ".github/scripts/teste-publicos-nucleo.js",
+      "nome": "Núcleo dos públicos — sete categorias, dois agrupados, Técnicos antes/depois da ativação (Node puro)",
+      "duracao": 5,
+      "sobre": "Puro, sem navegador. A tabela única de publicos-nucleo.js: cada categoria admite só a sua; Estagiários e menores aprendizes = união; Conselheiros = Deliberativo, Fiscal e Consultivo, sem o COAUD; Técnicos = não gerente antes da ativação e fora de Gerentes, Diretores e das sete categorias depois; leitura que falhou nunca vira técnico; Diretores só restringe com a ativação; descritivos nunca restringem; sem público Executivos."
+    },
+    {
+      "arquivo": ".github/scripts/teste-publicos-ativacao.js",
+      "nome": "Entrega B — ativação dos públicos, formulário de evento com ⓘ, vitrine e ADMIN, 1280/375 px",
+      "duracao": 90,
+      "sobre": "Hermético, dados sintéticos. Formulário Novo evento: nenhuma explicação longa à vista, um ⓘ por explicação, uma aberta por vez, Fechar e Esc fecham só a ajuda sem perder o digitado; Público-alvo separa restringem / só depois da ativação / só descrição. Outros públicos: ativação desligada com prévia em números; ligar pede confirmação e grava só publicos-config assinado por quem está logado. Ligada: formulário oferece os públicos novos e esconde Visível só para diretores; ＋ Participante de assessor em evento de Técnicos pede exceção; selo Fora do público atual. Vitrine: técnica vê Técnicos e não Estagiários; estagiária o contrário; leitura de Outros públicos que falha nunca vira técnico; desligada, como antes. Nenhuma escrita além de publicos-config; nenhuma operação de Auth; cadastros e inscrições iguais."
     },
     {
       "arquivo": ".github/scripts/teste-admin-excecao-portas.js",

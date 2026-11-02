@@ -222,12 +222,28 @@
   function vagasDoEvento(e) { var n = Math.floor(Number(e && e.vagasPorTurma)); return n > 0 ? n : 0; }
   function vagasEfetivas(t, e) { return vagasDaTurma(t) || vagasDoEvento(e); }
   function cargoDaTurma(t) { var c = t && t.publicoCargo; return c === 'gerentes' || c === 'tecnicos' ? c : ''; }
-  function cargoDoEvento(e) { var d = e && e.publicoDesc; return d === 'Gerentes' ? 'gerentes' : d === 'Técnicos' ? 'tecnicos' : ''; }
-  /* o público que vale para a turma: as duas restrições somadas. Iguais ou só uma → ela; contraditórias → 'conflito'
+  /* PÚBLICO DO EVENTO — a tabela é do núcleo dos públicos (publicos-nucleo.js): Gerentes e Técnicos restringem sempre;
+     Diretores, as sete categorias de Outros públicos e os dois agrupados só depois da ativação (ativo = true); o resto é
+     descrição. Devolve a chave ('gerentes', 'tecnicos', 'diretores', 'estagiario', 'conselheiros'…) ou ''. */
+  var PUB = window.faPublicosNucleo;
+  function cargoDoEvento(e, ativo) { var p = PUB.publicoDoRotulo(e && e.publicoDesc, ativo); return p ? p.chave : ''; }
+  /* o público que vale para a turma: as duas restrições somadas. Iguais ou só uma → ela; diferentes → 'conflito'
      (ninguém entra). Antes o da turma valia POR CIMA do evento e podia ampliar o público dele. */
-  function cargoEfetivo(t, e) {
-    var ct = cargoDaTurma(t), ce = cargoDoEvento(e);
+  function cargoEfetivo(t, e, ativo) {
+    var ct = cargoDaTurma(t), ce = cargoDoEvento(e, ativo);
     return ct && ce && ct !== ce ? 'conflito' : (ct || ce);
+  }
+  /* PERFIL DE PÚBLICO de uma pessoa, lido do banco na hora: a ativação e os três cadastros (só o registro dela). Cada
+     leitura que falha vira null — "não sei", nunca "não está". cb({ ativo, gerente, diretor, categorias }). */
+  function lerPerfilPublico(eKey, cb) {
+    var db = firebase.database();
+    var ler = function (caminho, de) { return db.ref(caminho).once('value').then(function (s) { return de(s.val()); }, function () { return null; }); };
+    Promise.all([
+      ler('publicos-config/ativo', function (v) { return v === true; }),
+      ler('fa-gerentes/' + eKey, function (v) { return !!v; }),
+      ler('fa-diretores/' + eKey, function (v) { return !!v; }),
+      ler('fa-outros-publicos/' + eKey + '/categorias', function (v) { return v || {}; })
+    ]).then(function (r) { cb({ ativo: r[0], gerente: r[1], diretor: r[2], categorias: r[3] }); });
   }
   function regraValida(v) { return !!(v && !v.removed && v.status !== 'removido'); }
   function regrasDeEntrada(arg, cb) {
@@ -246,17 +262,22 @@
       db.ref('turmas').once('value', function (tSnap) {
         var turmas = tSnap.val() || {}, alvoT = turmaKey ? (turmas[turmaKey] || {}) : {};
         var evDaTurma = eventos[alvoT.eventoKey || eventoKey];
-        var cargo = cargoEfetivo(alvoT, evDaTurma), vagas = vagasEfetivas(alvoT, evDaTurma);
+        var vagas = vagasEfetivas(alvoT, evDaTurma);
         conferirCargo(function () { conferirEventos(function () { conferirVagas(function () { cb({ estado: 'livre' }); }); }); });
 
+        /* sem público que restrinja (nem na turma, nem um rótulo do evento que possa restringir), nada a ler — como sempre */
         function conferirCargo(seguir) {
-          if (!cargo || dispensa('cargo')) { seguir(); return; }
-          if (cargo === 'conflito') { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
-          db.ref('fa-gerentes/' + eKey).once('value', function (s) {
-            var gerente = !!s.val();
-            if ((cargo === 'gerentes') !== gerente) { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
+          if (dispensa('cargo') || (!cargoDaTurma(alvoT) && PUB.ehDescritivo(evDaTurma && evDaTurma.publicoDesc))) { seguir(); return; }
+          lerPerfilPublico(eKey, function (perfil) {
+            if (perfil.ativo === null && PUB.dependeDaAtivacao(evDaTurma && evDaTurma.publicoDesc)) { cb({ estado: 'erro', regra: 'cargo' }); return; }
+            var cargo = cargoEfetivo(alvoT, evDaTurma, perfil.ativo);
+            if (!cargo) { seguir(); return; }
+            if (cargo === 'conflito') { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
+            var ok = PUB.atende(cargo, perfil);
+            if (ok === null) { cb({ estado: 'erro', regra: 'cargo' }); return; }
+            if (!ok) { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo, ativo: perfil.ativo, foraPor: cargo === 'tecnicos' ? PUB.motivoNaoTecnico(perfil) : '' }); return; }
             seguir();
-          }, falha);
+          });
         }
         function conferirEventos(seguir) {
           var alvo = Object.keys(turmas).filter(function (k) {
@@ -340,9 +361,12 @@
   }
   /* o que a PESSOA lê no card (sem HTML) */
   function mensagemRegraPessoa(r) {
+    if (r && r.estado === 'erro' && r.regra === 'cargo') return 'Não foi possível verificar agora se você faz parte do público desta turma. Recarregue a página e tente de novo.';
     if (!r || r.estado === 'erro') return 'Não foi possível verificar suas outras turmas agora. Recarregue a página e tente de novo.';
     if (r.regra === 'cargo' && r.cargo === 'conflito') return 'Esta turma não está recebendo inscrições no momento. Procure a organização do evento.';
-    if (r.regra === 'cargo') return r.cargo === 'gerentes' ? 'Esta turma é só para gerentes.' : 'Esta turma não é para gerentes — procure a turma de gerentes deste evento.';
+    if (r.regra === 'cargo' && r.cargo === 'gerentes') return 'Esta turma é só para gerentes.';
+    if (r.regra === 'cargo' && r.cargo === 'tecnicos') return r.foraPor && r.foraPor !== 'gerentes' ? 'Esta turma é só para técnicos.' : 'Esta turma não é para gerentes — procure a turma de gerentes deste evento.';
+    if (r.regra === 'cargo') return 'Esta turma é só para ' + ((PUB.definicao(r.cargo) || {}).nome || 'um público específico') + '.';
     if (r.regra === 'participacao') return 'Estas turmas são para quem ainda não participou de ' + (r.evento || 'um evento anterior') + '. Você já tem interesse ou inscrição registrada lá.';
     if (r.regra === 'lotada') return 'Turma lotada — as ' + r.vagas + ' vagas já foram preenchidas. Se alguém sair, ela reabre.';
     return 'Você já ' + (r.turma.inscrita ? 'está inscrita' : 'tem interesse') + ' na ' + descreverTurmaRegra(r.turma) + '. Só é possível participar de uma turma por vez. ' +
@@ -374,11 +398,16 @@
   /* o que o ADMIN l\u00ea no painel ao tentar incluir algu\u00e9m (sem HTML). 'lotada' n\u00e3o \u00e9 recusa: o painel pede o motivo. */
   function mensagemRegraAdmin(r, nome) {
     var quem = nome || 'Essa pessoa';
+    if (r && r.estado === 'erro' && r.regra === 'cargo') return 'Não consegui verificar agora se ' + quem + ' faz parte do público desta turma (a leitura dos cadastros não respondeu). Recarregue a página e tente de novo. Nada foi gravado.';
     if (!r || r.estado === 'erro') return 'Não consegui verificar as regras da turma para ' + quem + ' agora. Recarregue a página e tente de novo. Nada foi gravado.';
-    if (r.regra === 'cargo' && r.cargo === 'conflito') return 'O público desta turma contradiz o "Quem participa" do evento (um é só gerentes, o outro só técnicos), então ninguém pode entrar. Ajuste o "Público" da turma ou o do evento. Nada foi gravado.';
-    if (r.regra === 'cargo') return r.cargo === 'gerentes'
-      ? quem + ' não está na lista de Gerentes, e esta turma é só para gerentes. Se for gerente, inclua o e-mail na aba Gerentes primeiro. Nada foi gravado.'
+    if (r.regra === 'cargo' && r.cargo === 'conflito') return 'O público desta turma contradiz o "Quem participa" do evento (por exemplo, um é só gerentes e o outro só técnicos), então ninguém pode entrar. Ajuste o "Público" da turma ou o do evento. Nada foi gravado.';
+    if (r.regra === 'cargo' && r.cargo === 'gerentes') return quem + ' não está na lista de Gerentes, e esta turma é só para gerentes. Se for gerente, inclua o e-mail na aba Gerentes primeiro. Nada foi gravado.';
+    if (r.regra === 'cargo' && r.cargo === 'tecnicos') return r.foraPor === 'diretores'
+      ? quem + ' está na lista de Diretores, e esta turma é só para técnicos. Nada foi gravado.'
+      : r.foraPor === 'outros' ? quem + ' está em Outros públicos (estagiários, aprendizes, COAUD, conselhos ou assessores), e esta turma é só para técnicos. Nada foi gravado.'
       : quem + ' está na lista de Gerentes, e esta turma não é para gerentes. Nada foi gravado.';
+    if (r.regra === 'cargo') { var def = PUB.definicao(r.cargo) || {};
+      return quem + ' não está ' + (r.cargo === 'diretores' ? 'na lista de Diretores' : 'em Outros públicos na categoria certa') + ', e esta turma é só para ' + (def.nome || 'um público específico') + '. Nada foi gravado.'; }
     if (r.regra === 'participacao') return quem + ' já tem interesse ou inscrição em ' + (r.evento || 'um evento anterior') + ', e este evento não aceita quem já participou dele. Nada foi gravado.';
     if (r.regra === 'lotada') return 'A turma está lotada (' + r.ocupadas + ' de ' + r.vagas + ' vagas). Para incluir ' + quem + ' mesmo assim, escreva o motivo.';
     return quem + ' já ' + (r.turma.inscrita ? 'está inscrita' : 'tem interesse') + ' na ' + descreverTurmaRegra(r.turma) + '. Este evento admite uma turma por pessoa: retire-a daquela turma primeiro. Nada foi gravado.';
@@ -403,20 +432,25 @@
      Cargo ainda n\u00e3o sabido (cargoPendente): no padr\u00e3o, evento e turma de um cargo ESPERAM escondidos at\u00e9 a leitura
      chegar \u2014 nunca aparecem como se a pessoa fosse eleg\u00edvel; em 'todos' aparecem, com o p\u00fablico dito no t\u00edtulo. */
   function visibilidadeDoEvento(e) { return e && e.visibilidade === 'todos' ? 'todos' : 'elegivel'; }
+  /* o perfil de público que está em p (p.ativo ausente = como antes da ativação: só o cadastro de Gerentes conta) */
+  function perfilDe(p) {
+    return { ativo: p.ativo === undefined ? false : p.ativo, gerente: typeof p.gerente === 'boolean' ? p.gerente : null,
+      diretor: typeof p.diretorCadastro === 'boolean' ? p.diretorCadastro : null, categorias: p.categorias === undefined ? null : p.categorias };
+  }
   function foraDoPublicoDoEvento(e, p) {
     if (!e || p.admin) return '';
     if (e.restritoADiretores && !p.diretor) return 'diretores';
     if (e.publicoRestrito && !p.naListaEvento) return 'lista';
-    var c = cargoDoEvento(e);
-    if (c && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
+    var perfil = perfilDe(p), c = cargoDoEvento(e, perfil.ativo);
+    if (c && PUB.atende(c, perfil) === false) return 'cargo';
     return '';
   }
   function foraDoPublicoDaTurma(t, e, p) {
     if (!t || p.admin) return '';
     if (t.publicoRestrito && !p.naListaTurma) return 'lista-turma';
-    var c = cargoEfetivo(t, e);
+    var perfil = perfilDe(p), c = cargoEfetivo(t, e, perfil.ativo);
     if (c === 'conflito') return 'cargo';
-    if (cargoDaTurma(t) && typeof p.gerente === 'boolean' && (c === 'gerentes') !== p.gerente) return 'cargo';
+    if (cargoDaTurma(t) && PUB.atende(c, perfil) === false) return 'cargo';
     return '';
   }
   /* V\u00cdNCULO que mant\u00e9m a turma \u00e0 vista de quem est\u00e1 fora do p\u00fablico (temRegistro) \u2014 s\u00f3 com os registros que j\u00e1 existem:
@@ -432,8 +466,13 @@
     if (r && !registroAtivo(r)) return false;
     return !!((r && r.status === 'inscrito') || estevePresente);
   }
+  /* "ainda não sei" se a pessoa atende ao público do evento ou da turma (leitura pendente ou que falhou) */
   function cargoPendente(t, e, p) {
-    return !p.admin && typeof p.gerente !== 'boolean' && !!(cargoDoEvento(e) || cargoDaTurma(t));
+    if (p.admin) return false;
+    var perfil = perfilDe(p);
+    if (perfil.ativo === null && PUB.dependeDaAtivacao(e && e.publicoDesc)) return true;
+    var ce = cargoDoEvento(e, perfil.ativo), ct = cargoDaTurma(t);
+    return (!!ce && PUB.atende(ce, perfil) === null) || (!!ct && PUB.atende(ct, perfil) === null);
   }
   function vitrineMostraEvento(e, p, temRegistroNoEvento) {
     if (p.admin || temRegistroNoEvento) return true;
@@ -450,8 +489,9 @@
   function publicoPermitidoTexto(e, motivo) {
     if (motivo === 'diretores') return 'diretores';
     if (motivo === 'lista') return 'um p\u00fablico convidado';
-    var c = cargoDoEvento(e);
-    return c === 'gerentes' ? 'gerentes' : c === 'tecnicos' ? 't\u00e9cnicos (quem n\u00e3o \u00e9 gerente)' : 'um p\u00fablico espec\u00edfico';
+    var c = cargoDoEvento(e, true);
+    if (c === 'tecnicos') return PUB.dependeDaAtivacao(e && e.publicoDesc) ? 't\u00e9cnicos' : 't\u00e9cnicos (quem n\u00e3o \u00e9 gerente)';
+    return c ? PUB.definicao(c).nome : 'um p\u00fablico espec\u00edfico';
   }
   function mensagemForaDoPublico(e, motivo) {
     return 'Este evento \u00e9 destinado a ' + publicoPermitidoTexto(e, motivo) + '. Voc\u00ea pode conhec\u00ea-lo, mas n\u00e3o participar.';
@@ -471,10 +511,11 @@
      falhou. Devolve { estado: 'compativel' | 'incompativel' | 'nao-verificado' | 'falha', motivos: [...] }: motivo
      confirmado vale mesmo com outra leitura pendente; sem motivo confirmado, falta de dado NUNCA vira "compat\u00edvel". */
   function foraDoPublicoAtual(t, e, p) {
-    var motivos = [], pendente = false;
+    var motivos = [], pendente = false, perfil = perfilDe(p);
     function sabe(v) { if (typeof v === 'boolean') return true; pendente = true; return false; }
-    function cargoNao(c) { return sabe(p.gerente) && (c === 'gerentes') !== p.gerente; }
-    var ce = cargoDoEvento(e), ct = cargoDaTurma(t);
+    function cargoNao(c) { var a = PUB.atende(c, perfil); return sabe(a) && !a; }
+    if (perfil.ativo === null && PUB.dependeDaAtivacao(e && e.publicoDesc)) pendente = true;
+    var ce = cargoDoEvento(e, perfil.ativo), ct = cargoDaTurma(t);
     if (ce && cargoNao(ce)) motivos.push('cargo-evento');
     if (ct && cargoNao(ct)) motivos.push('cargo-turma');
     if (e && e.publicoRestrito && sabe(p.naListaEvento) && !p.naListaEvento) motivos.push('lista-evento');
@@ -485,8 +526,8 @@
     return { estado: 'compativel', motivos: [] };
   }
   function textoMotivoForaDoPublico(m, t, e) {
-    var nome = function (c) { return c === 'gerentes' ? 's\u00f3 gerentes' : 's\u00f3 t\u00e9cnicos'; };
-    if (m === 'cargo-evento') return 'cargo incompat\u00edvel com o p\u00fablico do evento (' + nome(cargoDoEvento(e)) + ')';
+    var nome = function (c) { return 's\u00f3 ' + ((PUB.definicao(c) || {}).nome || c); };
+    if (m === 'cargo-evento') return 'cargo incompat\u00edvel com o p\u00fablico do evento (' + nome(cargoDoEvento(e, true)) + ')';
     if (m === 'cargo-turma') return 'cargo incompat\u00edvel com o p\u00fablico da turma (' + nome(cargoDaTurma(t)) + ')';
     if (m === 'lista-evento') return 'fora da lista restrita do evento';
     if (m === 'lista-turma') return 'fora da lista restrita da turma';
@@ -506,7 +547,7 @@
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo,
-    vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, conflitosDeParticipacao: conflitosDeParticipacao, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo,
+    vagasDaTurma: vagasDaTurma, vagasDoEvento: vagasDoEvento, vagasEfetivas: vagasEfetivas, cargoDaTurma: cargoDaTurma, conflitosDeParticipacao: conflitosDeParticipacao, cargoDoEvento: cargoDoEvento, cargoEfetivo: cargoEfetivo, lerPerfilPublico: lerPerfilPublico,
     regrasDeEntrada: regrasDeEntrada, mensagemRegraPessoa: mensagemRegraPessoa, mensagemRestricaoTurma: mensagemRestricaoTurma, mensagemRegraAdmin: mensagemRegraAdmin,
     visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
     vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,

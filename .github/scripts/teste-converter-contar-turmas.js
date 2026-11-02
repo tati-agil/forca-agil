@@ -58,9 +58,10 @@ const INTERESSE = {
 /* o código de decisão de verdade (turmas-util.js), com um Firebase mínimo em memória */
 function carregarUtil(db) {
   const get = (p) => p.split('/').filter(Boolean).reduce((o, k) => (o == null ? undefined : o[k]), db);
-  const firebase = { database: () => ({ ref: (p) => ({ once: (_e, cb) => { const v = get(p); cb({ val: () => (v === undefined ? null : JSON.parse(JSON.stringify(v))) }); } }) }) };
+  const firebase = { database: () => ({ ref: (p) => ({ once: (_e, cb) => { const v = get(p); const snap = { val: () => (v === undefined ? null : JSON.parse(JSON.stringify(v))) }; if (cb) cb(snap); return Promise.resolve(snap); } }) }) };
   const ctx = { window: {}, firebase, console };
   vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'publicos-nucleo.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'turmas-util.js'), 'utf8'), ctx);
   return ctx.window.faTurmasUtil;
 }
