@@ -83,6 +83,20 @@ o sistema não faz. O BBDW continua administrado como hoje — os participantes 
 segue com a configuração atual (não publicado, com lista). A evolução exige autenticação externa e revisão das regras do
 banco, sem dar a externos acesso às áreas internas — projeto próprio.
 
+## Segurança — regras de participação conferidas só na tela (três achados, especificação própria)
+
+*Registrado em 2026-11-02, no diagnóstico da simplificação das regras de participação. Não corrigir sem especificação
+funcional própria: o administrador precisa continuar podendo incluir substitutos legítimos fora do público-alvo.*
+
+1. **Inclusão em lote pelo ADMIN não verifica os impedimentos.** "Adicionar à turma" a partir da lista de público confere
+   só o cargo (`admin.js`, perto de `seguirComCargo`); participação anterior e "uma turma por pessoa" não são conferidas ali —
+   ao contrário de ＋ Participante, Confirmar e Mover da fila (`barradoPelasRegrasDoEvento`).
+2. **As regras do banco não verificam participação anterior nem "uma turma por pessoa".** Dependem de contar registros e
+   são conferidas na tela (`montar-regras-inscricoes.js`, comentário do topo): pela API, a pessoa conseguiria gravar o
+   próprio interesse num evento que a tela barraria.
+3. **Exceções administrativas para substitutos** (público-alvo ≠ participantes efetivos — PR 2 dos públicos) precisam de
+   autorização e rastreabilidade (quem, quando, motivo), no mesmo espírito do "acima das vagas" (`acimaDasVagas`).
+
 ## Turmas — inconsistências de público na lista de espera
 
 *Registrada em 2026-11-01 (decisão 3 do planejamento de inconsistências de público). Fora da primeira entrega do selo

@@ -158,13 +158,14 @@ const conferido = (page) => page.waitForFunction(() => {
       await page.waitForSelector('#eventoFormBloqueioLista .evento-bloqueio-cb', { state: 'attached', timeout: 10000 });
       const opcoes = await page.$$eval('#eventoFormBloqueioLista .evento-bloqueio-cb', (cs) => cs.map((c) => c.value + ':' + c.checked));
       anota('o formulário do Episódio III lista os outros eventos, com o Episódio I marcado (e não lista o próprio evento)', JSON.stringify(opcoes) === JSON.stringify(['ev1:true', 'ev4:false']), JSON.stringify(opcoes));
-      const grupo = await page.$$eval('#eventoFormUmaTurmaLista .evento-umaturma-cb', (cs) => cs.map((c) => c.value + ':' + c.checked));
-      anota('10. "Só uma turma por pessoa" marcada, contando também o Episódio IV', await page.$eval('#eventoFormUmaTurma', (c) => c.checked) && JSON.stringify(grupo) === JSON.stringify(['ev1:false', 'ev4:true']), JSON.stringify(grupo));
+      /* "Contar turmas de outros eventos" saiu da tela: o campo antigo aparece só como aviso, e continua valendo */
+      const aviso = await page.$eval('#eventoFormContarAntigo', (p) => (p.hidden ? '' : p.textContent));
+      anota('10. "Só uma turma por pessoa" marcada, e o aviso da configuração anterior cita o Episódio IV', await page.$eval('#eventoFormUmaTurma', (c) => c.checked) && /EPIS[ÓO]DIO IV/.test(aviso), aviso);
       await page.click('.modal-box .admin-modal-save-btn');
       await page.waitForFunction(() => (window.__ESCRITAS || []).some((e) => e.path === 'eventos/ev3'), null, { timeout: 10000 });
       const gravado = (await escritasDe(page, 'eventos/ev3')).pop();
       anota('salvar grava bloqueiaParticipantesDe = { ev1: true }', !!gravado && JSON.stringify(gravado.valor.bloqueiaParticipantesDe) === JSON.stringify({ ev1: true }), JSON.stringify(gravado && gravado.valor.bloqueiaParticipantesDe));
-      anota('10. e grava umaTurmaPorPessoa = true com umaTurmaComEventos = { ev4: true }', !!gravado && gravado.valor.umaTurmaPorPessoa === true && JSON.stringify(gravado.valor.umaTurmaComEventos) === JSON.stringify({ ev4: true }),
+      anota('10. e grava umaTurmaPorPessoa = true SEM tocar em umaTurmaComEventos (o campo antigo fica como estava)', !!gravado && gravado.valor.umaTurmaPorPessoa === true && !('umaTurmaComEventos' in gravado.valor),
         JSON.stringify(gravado && [gravado.valor.umaTurmaPorPessoa, gravado.valor.umaTurmaComEventos]));
       anota('sem erro de JavaScript (painel)', !erros.length, erros[0]);
       await ctx.close();
