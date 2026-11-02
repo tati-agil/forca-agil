@@ -15,7 +15,8 @@
       ou sem status 'removido'; apagar o registro; reativar fora do público; sobrescrever uma inscrição ativa;
       gravar a turma inteira; multipath que esconde uma gravação proibida; não admin em turmas, turmas-config e
       turmas-equipe (todos os perfis); histórico de outra pessoa, ação falsa, mudar ou apagar item; sem login;
-   A. o admin (lista fixa e fa-admins) faz tudo o que o painel faz: ＋ Participante, Confirmar, Desconfirmar,
+   A. o admin (lista fixa e fa-admins) faz tudo o que o painel faz — e, fora do público que o banco confere, com a exceção
+      registrada (excecaoAdmin; os casos sem ela estão em teste-rules-excecao-admin.js): ＋ Participante, Confirmar, Desconfirmar,
       Mover da fila, Mover para a espera, matrícula em massa, renomear, corrigir e-mail, excluir participante,
       excluir turma, editar turma/config/equipe, histórico;
    I. preservação: as tentativas recusadas não mudam nenhum registro existente;
@@ -232,18 +233,20 @@ async function main() {
   anota('I5 o histórico de terceiros não ganhou item', Object.keys((await ler('turmas-interesse-log/tLivre/' + emailKey(TEC))) || {}).length === 3);
 
   console.log('\n== A. o admin faz tudo o que o painel faz ==');
+  /* a exceção que o painel grava quando inclui alguém fora do público (montar-regras-inscricoes.js exige) */
+  const exc = (turma, regras, adm) => ({ regras: Object.fromEntries(regras.map((r) => [r, true])), motivo: 'Exceção autorizada no teste', por: adm, porNome: 'ADMIN', em: AGORA, turma });
   for (const adm of [ADMIN, ADMIN_FIXO]) {
     await reiniciar();
     const qual = adm === ADMIN ? '(fa-admins)' : '(lista fixa)';
     const a = db(adm);
-    await pode('A1 ' + qual + ' ＋ Participante como Inscrita, fora da lista e do cargo', a.ref(ti('tTecLista', GER)).set(Object.assign(inscrita(GER, adm), { addedByAdmin: adm })));
-    await pode('A2 ' + qual + ' Confirmar', a.ref().update({ [ti('tAntiga', ANTIGA_INT) + '/status']: 'inscrito', [ti('tAntiga', ANTIGA_INT) + '/confirmedByAdmin']: adm,
-      [ti('tAntiga', ANTIGA_INT) + '/confirmedByAdminName']: 'ADMIN', [ti('tAntiga', ANTIGA_INT) + '/confirmedDate']: AGORA }));
+    await pode('A1 ' + qual + ' ＋ Participante como Inscrita, fora da lista e do cargo — como exceção', a.ref(ti('tTecLista', GER)).set(Object.assign(inscrita(GER, adm), { addedByAdmin: adm, excecaoAdmin: exc('tTecLista', ['cargo'], adm) })));
+    await pode('A2 ' + qual + ' Confirmar quem ficou fora da lista — como exceção', a.ref().update({ [ti('tAntiga', ANTIGA_INT) + '/status']: 'inscrito', [ti('tAntiga', ANTIGA_INT) + '/confirmedByAdmin']: adm,
+      [ti('tAntiga', ANTIGA_INT) + '/confirmedByAdminName']: 'ADMIN', [ti('tAntiga', ANTIGA_INT) + '/confirmedDate']: AGORA, [ti('tAntiga', ANTIGA_INT) + '/excecaoAdmin']: exc('tAntiga', ['lista-turma'], adm) }));
     await pode('A2 ' + qual + ' Confirmar removendo a inscrição em outra turma (multipath)', a.ref().update({ [ti('tLivre', TEC)]: inscrita(TEC, adm),
       [ti('tOutra', TEC) + '/removed']: true, [ti('tOutra', TEC) + '/removedDate']: AGORA, [ti('tOutra', TEC) + '/removedReason']: 'Inscrita automaticamente' }));
     await pode('A3 ' + qual + ' Desconfirmar', a.ref().update({ [ti('tAntiga', ANTIGO) + '/status']: 'interessado', [ti('tAntiga', ANTIGO) + '/confirmedByAdmin']: null,
       [ti('tAntiga', ANTIGO) + '/confirmedByAdminName']: null, [ti('tAntiga', ANTIGO) + '/confirmedDate']: null }));
-    await pode('A4 ' + qual + ' Mover da fila (registro novo com acimaDasVagas)', a.ref().update({ [ti('tLista', OUTRA)]: Object.assign(inscrita(OUTRA, adm), { acimaDasVagas: { motivo: 'm', vagas: 1, ocupadas: 1, por: adm, em: AGORA } }),
+    await pode('A4 ' + qual + ' Mover da fila (registro novo com acimaDasVagas; fora da lista — como exceção)', a.ref().update({ [ti('tLista', OUTRA)]: Object.assign(inscrita(OUTRA, adm), { acimaDasVagas: { motivo: 'm', vagas: 1, ocupadas: 1, por: adm, em: AGORA }, excecaoAdmin: exc('tLista', ['lista-turma'], adm) }),
       ['fa-espera/' + emailKey(OUTRA)]: null }));
     await pode('A5 ' + qual + ' Mover para a espera', a.ref().update({ [ti('tAntiga', PRESERVADO) + '/removed']: true, [ti('tAntiga', PRESERVADO) + '/removedDate']: AGORA,
       [ti('tAntiga', PRESERVADO) + '/removedReason']: 'Movida para lista de espera', [ti('tAntiga', PRESERVADO) + '/movedToEspera']: true,
@@ -251,7 +254,10 @@ async function main() {
       ['fa-espera/' + emailKey(PRESERVADO)]: { evLivre: { email: PRESERVADO, eventoKey: 'evLivre', date: AGORA } } }));
     await pode('A6 ' + qual + ' matrícula em massa (multipath)', a.ref().update({ [ti('tLista', TEC)]: inscrita(TEC, adm), [ti('tLista', GER)]: inscrita(GER, adm) }));
     await pode('A7 ' + qual + ' renomear participante', a.ref().update({ [ti('tAntiga', ANTIGO) + '/name']: 'NOME CORRIGIDO' }));
-    await pode('A8 ' + qual + ' corrigir e-mail (mover o registro de chave)', a.ref().update({ [ti('tAntiga', ANTIGA_INT)]: null, [ti('tAntiga', 'nova.chave@previ.com.br')]: interesse('nova.chave@previ.com.br') }));
+    /* como o painel faz de verdade: o cadastro vai junto, para a chave nova, com emailCorrigidoDe (admin.js, corrigir e-mail) */
+    await pode('A8 ' + qual + ' corrigir e-mail (mover o cadastro e o registro de chave, na mesma gravação)', a.ref().update({ [ti('tAntiga', ANTIGA_INT)]: null,
+      [ti('tAntiga', 'nova.chave@previ.com.br')]: interesse('nova.chave@previ.com.br'),
+      ['fa-users/' + emailKey('nova.chave@previ.com.br')]: { email: 'nova.chave@previ.com.br', name: 'PESSOA NOVA CHAVE', area: 'GETHO', emailVerificationRequired: false, createdAt: AGORA, emailCorrigidoDe: ANTIGA_INT } }));
     await pode('A9 ' + qual + ' excluir participante (registro + histórico)', a.ref().update({ [ti('tOutra', TEC)]: null, ['turmas-interesse-log/tOutra/' + emailKey(TEC)]: null }));
     await pode('A10 ' + qual + ' editar turma / config / equipe', a.ref().update({ 'turmas/tLista/publicoRestrito': false, 'turmas-config/tFinal/finalizada': false,
       'turmas-config/tLivre/diaAtivo': '2027-11-03', ['turmas-equipe/tLivre/' + emailKey('fac@previ.com.br') + '/papel']: 'responsavel' }));

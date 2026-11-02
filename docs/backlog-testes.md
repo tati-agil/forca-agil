@@ -344,3 +344,44 @@ caracteres"; a página de redefinição do Firebase aceita qualquer senha com 6 
 senha válida no Firebase (contas antigas com outros formatos continuam entrando — `teste-login-contas-existentes.js`).
 **Decisão registrada: o mínimo é 8** (não 15). Uma futura harmonização precisa de escopo aprovado à parte e não pode
 invalidar senhas existentes nem barrar quem já entra.
+
+## Risco residual registrado (Entrega A dos públicos — D5): regras que o banco não confere
+
+Aprovado assim (D5, alternativa 1, sem índice de participação, migração nem Cloud Functions). O banco exige a exceção do
+admin (`excecaoAdmin`) quando ele põe na turma alguém fora do público que as regras do banco conseguem verificar — cargo
+do evento/turma (`fa-gerentes`), lista do evento/turma, só diretores. **Participação anterior, uma turma por pessoa e
+vagas continuam só na tela**: conferi-las no banco exigiria um índice de participação por pessoa.
+
+- **Efeito:** quem escreve direto no banco (sem o site) consegue registrar o próprio **interesse** numa turma do seu
+  público mesmo tendo participado de um evento marcado, ou tendo outra turma no grupo, ou com a turma lotada. Esse
+  interesse **ocupa vaga** na contagem e aparece no painel com o selo "Fora das regras do evento" (participação/uma turma).
+  **Não vira inscrição** sem o admin: Confirmar pede a exceção. Não dá acesso a nada (interesse nunca dá).
+- **Mitigação existente:** o selo no painel; a remoção pelo admin com motivo; o histórico em `turmas-interesse-log`.
+- **Para fechar de vez (fora do escopo aprovado):** índice de participação mantido por uma fronteira confiável, ou
+  conferência em Cloud Function — decisão da responsável.
+
+## Limitação registrada (Entrega A dos públicos — D6): Outros públicos só por consulta individual
+
+`fa-outros-publicos` segue unificado (sem nó separado para menores). A lista inteira só os super-admins leem; o admin
+comum e a própria pessoa só conseguem ler **um registro pela chave**. Consequência: uma tela de admin comum não consegue
+listar quem é de cada categoria — só perguntar por uma pessoa de cada vez (a ativação dos públicos, na Entrega B,
+precisa ler pessoa a pessoa, nunca a lista). Mudar isso exige decisão sobre a proteção dos dados de menores.
+
+## Suspeita registrada (PR #464, a confirmar no emulador): sair da turma com `acimaDasVagas`
+
+No caminho "remover o próprio interesse" (`REMOVER` em `montar-regras-inscricoes.js`), cada campo administrativo é
+comparado com `.val()`. Para um campo que é **objeto**, essa comparação não funciona — foi o que o emulador mostrou para
+`excecaoAdmin` na PR #464 (corrigido lá, campo a campo). `acimaDasVagas` também é objeto: é provável que, já na `main`,
+quem entrou "acima das vagas" não consiga sair sozinha pelo site (o admin consegue). Não introduzido pela #464.
+
+- **Prova a criar:** em `teste-rules-inscricoes.js`, a pessoa com `acimaDasVagas` no registro sai pelo `update` do site.
+- **Correção sugerida, se confirmado:** comparar `acimaDasVagas` campo a campo, como `excecaoAdmin`.
+- **Prioridade sugerida:** média — caso raro (lotação com motivo), sem perda de dados; a saída pelo admin continua.
+
+## Limitação registrada (PR #464): autoria da exceção na cópia da correção de e-mail
+
+`excecaoAdmin.por` tem de ser o e-mail de quem grava (`auth.token.email`), salvo na cópia que a correção de e-mail do
+ADMIN faz para a chave nova — ali a exceção vai com o autor original, e o banco não tem como comparar com o registro
+de origem (a chave antiga não é derivável nas regras). Nesse único caminho, um admin que esteja corrigindo um e-mail
+conseguiria gravar outro autor. Mitigação: só admin chega ali, a gravação exige o cadastro novo com `emailCorrigidoDe`
+na mesma operação, e a correção fica registrada no próprio cadastro. Fechar de vez pediria uma fronteira confiável.

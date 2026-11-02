@@ -64,6 +64,7 @@ async function main() {
       [r(novo) + '/updatedAt']: AGORA, [r(novo) + '/updatedBy']: s }));
     await pode('S3 ' + s.split('@')[0] + ': troca as categorias', db(s).ref(r(novo) + '/categorias').set({ estagiario: true, menorAprendiz: true }));
     await pode('S4 ' + s.split('@')[0] + ': tira uma categoria (sobra outra)', db(s).ref(r(novo) + '/categorias/menorAprendiz').remove());
+    await pode('S4 ' + s.split('@')[0] + ': categoria Assessores (assessor)', db(s).ref(r(novo) + '/categorias/assessor').set(true));
     await pode('S5 ' + s.split('@')[0] + ': remove a pessoa', db(s).ref(r(novo)).remove());
   }
   await pode('S6 e-mail com hífen', db(SUPER1).ref(r(HIFEN)).set(reg(HIFEN, { coaud: true })));

@@ -321,6 +321,12 @@ const buscarParticipante = async (page, termo) => {
         /\b8\b/.test(rotuloBulk), rotuloBulk);
 
       await botaoDoModal(page, /Adicionar à turma/);
+      /* quem as regras barram (ADRIANA, fora da lista do EVENTO) não entra calada: o painel pede a exceção, e oferece
+         "Incluir só quem pode" — a mesma decisão das portas individuais */
+      await page.waitForFunction(() => /ADRIANA/i.test((document.querySelector('[data-pedido-excecao]') || {}).textContent || ''), null, { timeout: 10000 });
+      const txtExc = await page.evaluate(() => document.querySelector('[data-pedido-excecao]').textContent);
+      anota('o lote mostra quem as regras barram, com o motivo, antes de gravar', /ADRIANA/i.test(txtExc) && /lista de convidados do evento/i.test(txtExc), txtExc.slice(0, 200));
+      await page.evaluate(() => document.querySelector('[data-pedido-excecao] .admin-excecao-so-quem-pode').click());
       await page.waitForFunction(() => {
         const box = window.__boxVis();
         return box && /INSCRITAS\?/i.test(box.textContent || '');

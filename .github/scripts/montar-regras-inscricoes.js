@@ -27,7 +27,16 @@
  *     a pessoa nunca grava status 'inscrito', campos de confirmação ou de decisão do admin, nem apaga o registro;
  *   - turmas-interesse-log: o admin grava tudo, como antes; a pessoa só ACRESCENTA itens no próprio histórico, com
  *     action 'registrado' ou 'removido' e o próprio e-mail — nunca muda nem apaga um item, nem escreve no de outra.
- * Vagas, "uma turma por pessoa" e "já participou" dependem de contar registros e continuam conferidas na tela.
+ * Vagas, "uma turma por pessoa" e "já participou" dependem de contar registros e continuam conferidas na tela (o painel
+ * mostra "Fora das regras do evento" e o Confirmar recusa sem exceção).
+ * EXCEÇÃO DO ADMIN (excecaoAdmin = { regras, motivo, por, porNome, em, turma }): incluir alguém FORA do público que o banco
+ * consegue conferir (lista do evento, só diretores, cargo do evento, lista e cargo da turma) só com a exceção gravada no
+ * registro — vale para ENTRAR na turma (registro novo, reativado, ou interesse que vira inscrição); edição, remoção e
+ * manutenção de registros que já existem não pedem nada. A conferência usa o banco DEPOIS da gravação (newData), para a
+ * correção de e-mail do ADMIN — que move as listas e o registro na mesma gravação — continuar valendo SEM ser alterada: o
+ * registro que nasce na chave nova junto com o cadastro corrigido (fa-users/<chave nova> criado nessa gravação, com o
+ * emailCorrigidoDe que a correção já grava) é o mesmo vínculo, não uma participação nova. Nada aqui lê nem muda
+ * autenticação, senha, liberação ou perfil. Só o admin grava a exceção; a pessoa não cria, não muda, não apaga.
  *
  *   node .github/scripts/montar-regras-inscricoes.js --gravar   (reescreve os 5 nós)
  *   node .github/scripts/montar-regras-inscricoes.js            (só confere; sai com erro se divergir)
@@ -54,7 +63,7 @@ const ADMINISTRATIVOS = ['confirmedByAdmin', 'confirmedByAdminName', 'confirmedD
   'substituida', 'substituidaPor', 'substituidaPorNome', 'substituidaEm', 'substituidaPorAdmin',
   'motivoNaoConfirmado', 'motivoRegistradoEm', 'motivoRegistradoPor', 'motivoCompletadoEm', 'motivoCompletadoPor',
   'motivoEntrada', 'motivoEntradaDetalhe', 'motivoSaida', 'motivoSaidaDetalhe',
-  'jaParticipouTurma', 'jaParticipouTurmaLabel'];
+  'jaParticipouTurma', 'jaParticipouTurmaLabel', 'excecaoAdmin'];
 /* o que a pessoa grava (app.js): registrar = os 6 primeiros; remover = removed, removedDate, status */
 const DA_PESSOA = ['name', 'email', 'area', 'date', 'removed', 'status', 'removedDate'];
 
@@ -73,6 +82,57 @@ const DO_EVENTO = and([
   or([E + ".child('publicoDesc').val() !== 'Técnicos'", '!' + GERENTE]),
   or([E + ".child('publicoDesc').val() !== 'Gerentes'", GERENTE])
 ]);
+/* o PÚBLICO que o banco consegue conferir (sem inscrições encerradas), sobre o banco depois da gravação — para a exigência
+   de exceção do admin. Mesmas condições de ELEGIVEL/DO_EVENTO, com R no lugar de root. */
+const NOVO = 'newData.parent().parent().parent()';
+function publicoVerificavel(R) {
+  const Tn = R + ".child('turmas').child($turmaKey)";
+  const EVKn = Tn + ".child('eventoKey').val()";
+  const En = R + ".child('eventos').child(" + EVKn + ')';
+  const GERn = R + ".child('fa-gerentes').child($userKey).exists()";
+  const TECn = '!' + GERn; /* técnicos, como vale hoje: quem não é gerente (a Entrega B muda, junto com ELEGIVEL) */
+  const doEvento = and([
+    or([En + ".child('publicoRestrito').val() !== true", R + ".child('eventos-publico').child(" + EVKn + ').child($userKey).exists()']),
+    or([En + ".child('restritoADiretores').val() !== true", R + ".child('fa-diretores').child($userKey).exists()"]),
+    or([En + ".child('publicoDesc').val() !== 'Técnicos'", TECn]),
+    or([En + ".child('publicoDesc').val() !== 'Gerentes'", GERn])
+  ]);
+  return or(['!' + Tn + '.exists()', '(' + and([
+    or([Tn + ".child('publicoRestrito').val() !== true", R + ".child('turmas-publico').child($turmaKey).child($userKey).exists()"]),
+    or([Tn + ".child('publicoCargo').val() !== 'tecnicos'", TECn]),
+    or([Tn + ".child('publicoCargo').val() !== 'gerentes'", GERn]),
+    or(['!(' + Tn + ".child('eventoKey').isString() && " + EVKn + " !== '')", '(' + doEvento + ')'])
+  ]) + ')']);
+}
+/* A cópia que a correção de e-mail do ADMIN faz (admin.js, corrigir e-mail — fluxo NÃO alterado): registro numa chave nova,
+   gravado junto com o cadastro novo, que traz emailCorrigidoDe, numa chave que ainda não tinha cadastro. R = a raiz nova. */
+function copiaDaCorrecaoDeEmail(R) {
+  return "(!root.child('turmas-interesse').child($turmaKey).child($userKey).exists() && !root.child('fa-users').child($userKey).exists() && " +
+    R + ".child('fa-users').child($userKey).child('emailCorrigidoDe').isString())";
+}
+/* ENTRAR na turma: registro novo, reativado, ou interesse que vira inscrição */
+const ATIVO_NOVO = "newData.child('removed').val() !== true && newData.child('status').val() !== 'removido'";
+const ENTRADA = and([ATIVO_NOVO, or(['!data.exists()', "data.child('removed').val() === true", "data.child('status').val() === 'removido'",
+  "(data.child('status').val() !== 'inscrito' && newData.child('status').val() === 'inscrito')"])]);
+const EXIGE_EXCECAO = or(['!(' + ENTRADA + ')', publicoVerificavel(NOVO), "newData.child('excecaoAdmin').exists()",
+  /* a cópia feita pela correção de e-mail do ADMIN (chave nova, criada junto com o cadastro corrigido): o vínculo já existia */
+  copiaDaCorrecaoDeEmail(NOVO)]);
+const REGRAS_DA_EXCECAO = ['lista-evento', 'lista-turma', 'diretores', 'cargo', 'participacao', 'umaTurma'];
+const EXCECAO = {
+  '.validate': and([ADM, "newData.hasChildren(['regras', 'motivo', 'por', 'em', 'turma'])", "newData.child('turma').val() === $turmaKey"]),
+  regras: { '.validate': 'newData.hasChildren()', $regra: { '.validate': or(REGRAS_DA_EXCECAO.map((r) => "$regra === '" + r + "'")) + ' && newData.val() === true' } },
+  motivo: { '.validate': 'newData.isString() && newData.val().length >= 5 && newData.val().length <= 500' },
+  /* quem autorizou = quem está gravando (o token): ninguém registra exceção em nome de outro admin. Só gravar a exceção
+     passa por aqui — Confirmar, desconfirmar, remover e renomear mexem em outros campos, e a exceção antiga fica como
+     está. A cópia da correção de e-mail leva a exceção original, com o autor original. */
+  por: { '.validate': and(["newData.isString() && newData.val().matches(/^[^@]+@previ\\.com\\.br$/)",
+    or(['newData.val().toLowerCase() === auth.token.email.toLowerCase()', copiaDaCorrecaoDeEmail('newData.parent().parent().parent().parent().parent()')])]) },
+  porNome: { '.validate': 'newData.isString() && newData.val().length <= 200' },
+  em: { '.validate': 'newData.isString() && newData.val().length <= 40' },
+  turma: { '.validate': 'newData.isString()' },
+  $outro: { '.validate': false }
+};
+
 const ELEGIVEL = and([
   T + '.exists()',
   or([T + ".child('publicoRestrito').val() !== true", "root.child('turmas-publico').child($turmaKey).child($userKey).exists()"]),
@@ -91,6 +151,9 @@ const REGISTRAR = and([
   "newData.child('email').isString() && newData.child('email').val().toLowerCase() === auth.token.email.toLowerCase()",
   /* não sobrescreve uma inscrição ativa — sair dela é "Remover interesse" (ou o admin) */
   or(['!data.exists()', "data.child('removed').val() === true", "data.child('status').val() !== 'inscrito'"]),
+  /* nem regrava um registro que tem a exceção do admin: o set() do site a apagaria (a pessoa não cria, muda nem apaga
+     exceção). Voltar a uma turma em que entrou por exceção passa de novo pelo admin. */
+  "!data.child('excecaoAdmin').exists()",
   /* o registro resultante não carrega nada do admin (um update que tentasse reativar mantendo a confirmação cai aqui) */
   and(ADMINISTRATIVOS.map((c) => "!newData.child('" + c + "').exists()")),
   ELEGIVEL
@@ -100,7 +163,10 @@ const REMOVER = and([
   newOk('removed', '=== true'),
   newOk('status', "=== 'removido'"),
   /* nada do admin muda (nem some, num set que regravasse o registro inteiro) */
-  and(ADMINISTRATIVOS.map((c) => "newData.child('" + c + "').val() === data.child('" + c + "').val()"))
+  and(ADMINISTRATIVOS.filter((c) => c !== 'excecaoAdmin').map((c) => "newData.child('" + c + "').val() === data.child('" + c + "').val()")),
+  /* a exceção é um objeto: .val() não serve para compará-la inteira — campo a campo (e cada regra dispensada) */
+  and(['motivo', 'por', 'porNome', 'em', 'turma'].map((c) => "newData.child('excecaoAdmin').child('" + c + "').val() === data.child('excecaoAdmin').child('" + c + "').val()")
+    .concat(REGRAS_DA_EXCECAO.map((r) => "newData.child('excecaoAdmin').child('regras').child('" + r + "').val() === data.child('excecaoAdmin').child('regras').child('" + r + "').val()")))
 ]);
 function newOk(c, cond) { return "newData.child('" + c + "').val() " + cond; }
 
@@ -114,6 +180,9 @@ const blocoInteresse = {
     '.write': SO_ADMIN,
     $userKey: {
       '.write': or([SO_ADMIN, PESSOA]),
+      /* .validate não é vencido por .write de nó acima: vale também para gravações do admin na turma inteira */
+      '.validate': EXIGE_EXCECAO,
+      excecaoAdmin: EXCECAO,
       name: campoDaPessoa('newData.isString() && newData.val().length <= 200'),
       email: campoDaPessoa('newData.isString() && newData.val().length <= 200'),
       area: campoDaPessoa('newData.isString() && newData.val().length <= 200'),

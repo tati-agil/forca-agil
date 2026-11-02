@@ -678,6 +678,8 @@
      (app.js) faz a mesma pergunta com os mesmos dois dados. */
   /* turmas-config da última carga do painel (encerrada etc.): o "Já realizado" das listas de eventos do formulário */
   var _configTurmasAdmin = {};
+  /* turmas-interesse da última carga do painel: o selo "Fora das regras do evento" e a exceção já gravada num registro */
+  var _interessesAdmin = {};
   var _publicoPorTurma  = {};  /* { [turmaKey]:  { [emailKey]: {name,email,area,...} } } */
   /* Mesma ideia um nível acima: evento marcado "publicoRestrito" só admite
      quem está em eventos-publico/<evento>/<chave do e-mail>, e isso vale para
@@ -762,13 +764,39 @@
     if (window.faTurmasUtil.turmaJaRealizada(t.dias, encerrada, hoje)) return null;
     var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0] || null;
     var k = emailKey(r.email), cg = _cargosPublico || {};
-    return window.faTurmasUtil.foraDoPublicoAtual(t, ev, {
+    var dispensadas = (r.excecaoAdmin && r.excecaoAdmin.regras) || {};
+    var res = window.faTurmasUtil.foraDoPublicoAtual(t, ev, {
       gerente: cg.gerentes ? !!cg.gerentes[k] : null,
       diretor: cg.diretores ? !!cg.diretores[k] : null,
       naListaEvento: _publicoResolvido ? !!(ev && noPublicoDoEvento(ev.key, k)) : null,
       naListaTurma: _publicoResolvido ? noPublicoDaTurma(t.key, k) : null,
       falhou: !_publicoResolvido || cg.ok === false
     });
+    /* a exceção autorizada pelo admin cobre o que ela dispensou (cargo-evento e cargo-turma = "cargo") */
+    if (res && res.motivos && res.motivos.length) {
+      res.motivos = res.motivos.filter(function (m) { return !dispensadas[m.indexOf('cargo') === 0 ? 'cargo' : m]; });
+      if (!res.motivos.length && res.estado === 'incompativel') return null;
+    }
+    return res;
+  }
+  /* "FORA DAS REGRAS DO EVENTO" — só SINALIZA: interesse ou inscrição (turma por vir ou em andamento) que contraria a
+     participação anterior impeditiva ou "uma turma por pessoa" — por exemplo gravado direto no banco, que não confere essas
+     regras. É o mesmo critério da pessoa (faTurmasUtil.conflitosDeParticipacao = regrasDeEntrada), sem o que uma exceção
+     autorizada já dispensou. O Confirmar recusa (ou pede a exceção). Nada é gravado nem removido. */
+  function sinalizacaoForaDasRegras(t, r, encerrada) {
+    if (!r || r.removed || r.status === 'removido' || !t.eventoKey) return null;
+    var agora = new Date();
+    var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+    if (window.faTurmasUtil.turmaJaRealizada(t.dias, encerrada, hoje)) return null;
+    var eventos = {}, turmas = {};
+    EVENTOS_LIST.forEach(function (e) { eventos[e.key] = e; });
+    TURMAS_LIST.forEach(function (x) { turmas[x.key] = { eventoKey: x.eventoKey, label: x.label }; });
+    var c = window.faTurmasUtil.conflitosDeParticipacao({ eventos: eventos, turmas: turmas, interesses: _interessesAdmin }, t.eventoKey, emailKey(r.email), t.key);
+    var dispensadas = (r.excecaoAdmin && r.excecaoAdmin.regras) || {};
+    var textos = [];
+    if (c.participacao.length && !dispensadas.participacao) textos.push('já tem interesse ou inscrição em ' + c.participacao.map(function (e) { return e.nome; }).join(', '));
+    if (c.umaTurma.length && !dispensadas.umaTurma) textos.push('já está em ' + c.umaTurma.map(function (x) { return '"' + x.label + '"'; }).join(', ') + ' (uma turma por pessoa)');
+    return textos.length ? textos.join('; ') : null;
   }
   function textoForaDoPublico(t, s) {
     var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0] || null;
@@ -785,6 +813,110 @@
       if (r.estado === 'livre') { cb(null, null); return; }
       if (r.regra === 'lotada') { cb(null, { vagas: r.vagas, ocupadas: r.ocupadas, mensagem: window.faTurmasUtil.mensagemRegraAdmin(r, nome) }); return; }
       cb(window.faTurmasUtil.mensagemRegraAdmin(r, nome), null);
+    });
+  }
+
+  /* PORTA ÚNICA DO PAINEL para pôr alguém numa turma — ＋ Participante, Confirmar, Mover da fila e "Adicionar à turma" em
+     lote decidem igual. Junta TODAS as regras que barram a pessoa: as listas (do evento e da turma) e "só diretores" lidas
+     na carga do painel, e as de regrasDeEntrada (cargo, participação anterior, uma turma por pessoa) — cada regra vista é
+     dispensada na rodada seguinte, para achar a próxima. Leitura que falha RECUSA (falha não é exceção). Se alguma regra
+     barra, o admin pode incluir COMO EXCEÇÃO, com motivo obrigatório: o registro daquela turma leva
+     excecaoAdmin = { regras, motivo, por, porNome, em, turma } — vale só ali, não muda o cadastro, o público nem o acesso
+     ao site de ninguém (que continua vindo só da inscrição confirmada). O banco exige a exceção quando o admin põe na
+     turma alguém fora do público que ele consegue conferir (montar-regras-inscricoes.js). Turma lotada: o pedido de motivo
+     de sempre (acimaDasVagas), à parte. */
+  var ROTULO_REGRA_EXCECAO = {
+    'lista-evento': 'fora da lista de convidados do evento', 'lista-turma': 'fora da lista da turma', diretores: 'evento só para diretores',
+    cargo: 'fora do público (cargo) do evento ou da turma', participacao: 'participação em evento impeditivo', umaTurma: 'já está em outra turma (uma turma por pessoa)'
+  };
+  function motivosDePublicoAdmin(turmaKey, eKey, nome) {
+    var evKey = turmaEventoKey(turmaKey), ev = EVENTOS_LIST.filter(function (e) { return e.key === evKey; })[0] || null, motivos = [];
+    if ((eventoRestrito(evKey) || turmaRestrita(turmaKey)) && !_publicoResolvido) {
+      return { falha: falhaLeituraPublico(eventoRestrito(evKey) ? 'o evento "' + eventoLabel(evKey) + '"' : 'a turma "' + turmaLabel(turmaKey) + '"') };
+    }
+    if (eventoRestrito(evKey) && !noPublicoDoEvento(evKey, eKey)) motivos.push({ regra: 'lista-evento', texto: nome + ' não está na lista de convidados do evento "' + eventoLabel(evKey) + '".' });
+    if (turmaRestrita(turmaKey) && !noPublicoDaTurma(turmaKey, eKey)) motivos.push({ regra: 'lista-turma', texto: nome + ' não está na lista da turma "' + turmaLabel(turmaKey) + '".' });
+    if (ev && ev.restritoADiretores) {
+      var cg = _cargosPublico || {};
+      if (!cg.diretores) return { falha: 'Não consegui ler a lista de Diretores nesta carga da página, e este evento é só para diretores. Recarregue a página e tente de novo. Nada foi gravado.' };
+      if (!cg.diretores[eKey]) motivos.push({ regra: 'diretores', texto: nome + ' não está na lista de Diretores, e este evento é só para diretores.' });
+    }
+    return { motivos: motivos };
+  }
+  /* opcoes = { semVagas (não conferir lotação), jaDispensadas ({ regra: true } de uma exceção já gravada no registro) } */
+  function avaliarEntradaAdmin(turmaKey, eKey, nome, opcoes, cb) {
+    nome = nome || 'Essa pessoa';
+    var pub = motivosDePublicoAdmin(turmaKey, eKey, nome);
+    if (pub.falha) { cb({ erro: pub.falha }); return; }
+    var bloqueios = pub.motivos.slice(), dispensar = opcoes && opcoes.semVagas ? ['lotada'] : [];
+    var ja = (opcoes && opcoes.jaDispensadas) || {};
+    (function rodada() {
+      window.faTurmasUtil.regrasDeEntrada({ eventoKey: turmaEventoKey(turmaKey), eKey: eKey, turmaKey: turmaKey, dispensar: dispensar.slice() }, function (r) {
+        if (r.estado === 'erro') { cb({ erro: window.faTurmasUtil.mensagemRegraAdmin(r, nome) }); return; }
+        var fim = function (lotacao) { cb({ bloqueios: bloqueios.filter(function (b) { return !ja[b.regra]; }), lotacao: lotacao }); };
+        if (r.estado === 'livre') { fim(null); return; }
+        if (r.regra === 'lotada') { fim({ vagas: r.vagas, ocupadas: r.ocupadas, mensagem: window.faTurmasUtil.mensagemRegraAdmin(r, nome) }); return; }
+        if (dispensar.indexOf(r.regra) !== -1 || !ROTULO_REGRA_EXCECAO[r.regra]) { cb({ erro: window.faTurmasUtil.mensagemRegraAdmin(r, nome) }); return; }
+        bloqueios.push({ regra: r.regra, texto: window.faTurmasUtil.mensagemRegraAdmin(r, nome).replace(/\s*Nada foi gravado\.?\s*$/, '') });
+        dispensar.push(r.regra);
+        rodada();
+      });
+    })();
+  }
+  function montarExcecaoAdmin(regras, motivo, sess, turmaKey) {
+    var r = {}; regras.forEach(function (x) { r[x] = true; });
+    return { regras: r, motivo: motivo, por: sess.email, porNome: sess.name || sess.email, em: new Date().toISOString(), turma: turmaKey };
+  }
+  /* o pedido da exceção: diz quais regras barram, exige o motivo, e deixa claro que nada mais muda */
+  function pedirExcecaoAdmin(titulo, linhas, cb, opcoesBotoes) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10000';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.setAttribute('data-pedido-excecao', '1');
+    box.style.cssText = 'max-width:520px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto';
+    var soQuemPode = opcoesBotoes && opcoesBotoes.soQuemPode;
+    box.innerHTML =
+      '<p style="font-size:.95rem;line-height:1.55;color:var(--ink);margin:0">' + esc(titulo) + '</p>' +
+      '<ul class="excecao-regras" style="margin:0;padding-left:18px;font-size:.86rem;line-height:1.5;color:var(--ink-2)">' + linhas.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>' +
+      '<p style="font-size:.8rem;line-height:1.5;color:var(--ink-2);margin:0">Incluir como exceção vale só nesta turma e fica registrado (motivo, quem e quando). Não muda o cadastro, o público nem o acesso de ninguém.</p>' +
+      '<label class="admin-field-label">Motivo da exceção<textarea class="admin-excecao-motivo" rows="3" maxlength="500" placeholder="Ex.: assessor convidado; substitui o gerente que não pôde participar." style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
+      '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        (soQuemPode ? '<button class="btn admin-excecao-so-quem-pode">' + esc(soQuemPode) + '</button>' : '') +
+        '<button class="btn btn--primary admin-excecao-confirm-btn">Incluir como exceção</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var campo = box.querySelector('.admin-excecao-motivo'), erro = box.querySelector('.admin-motivo-erro');
+    function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    if (soQuemPode) box.querySelector('.admin-excecao-so-quem-pode').addEventListener('click', function () { fechar(); cb(null); });
+    box.querySelector('.admin-excecao-confirm-btn').addEventListener('click', function () {
+      var motivo = (campo.value || '').trim();
+      if (motivo.length < 5) { erro.textContent = 'Escreva o motivo da exceção (pelo menos 5 caracteres). Sem ele, nada é gravado.'; erro.hidden = false; campo.focus(); return; }
+      fechar();
+      cb(motivo);
+    });
+    campo.focus();
+  }
+  /* uma pessoa, uma porta: cb({ excecao, acima }) só quando pode gravar (com ou sem exceção); senão onErro(mensagem) */
+  function portaDoAdmin(turmaKey, eKey, nome, sess, opcoes, onErro, cb) {
+    avaliarEntradaAdmin(turmaKey, eKey, nome, opcoes, function (a) {
+      if (a.erro) { onErro(a.erro); return; }
+      function vagas(excecao) {
+        if (!a.lotacao) { cb({ excecao: excecao, acima: null }); return; }
+        pedirMotivoAcimaDasVagas(a.lotacao, sess, function (acima) { cb({ excecao: excecao, acima: acima }); });
+      }
+      if (!a.bloqueios.length) { vagas(null); return; }
+      if (!sess) { onErro('Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo. Nada foi gravado.'); return; }
+      pedirExcecaoAdmin((nome || 'Essa pessoa') + ' não pode entrar em "' + turmaLabel(turmaKey) + '" pelas regras:', a.bloqueios.map(function (b) { return b.texto; }), function (motivo) {
+        if (!motivo) return;
+        vagas(montarExcecaoAdmin(a.bloqueios.map(function (b) { return b.regra; }), motivo, sess, turmaKey));
+      });
     });
   }
 
@@ -859,6 +991,7 @@
           var config  = snapC.val()  || {};
           var checkin = snapCk.val() || {};
           _configTurmasAdmin = config;
+          _interessesAdmin = data;
           _publicoPorTurma  = pub;
           _publicoPorEvento = pubEv;
           _publicoResolvido = ok;
@@ -1816,6 +1949,18 @@
         motivoBadge += '<span class="motivo-badge motivo-fora-publico" data-fora-publico="' + fora.motivos.join(' ') + '" title="' +
           esc('Fora do público atual: ' + foraTxt + '. O vínculo continua valendo — nada foi alterado.') + '">Fora do público atual</span>' +
           '<span class="fora-publico-motivos">' + esc(foraTxt) + '</span>';
+      }
+      var foraRegras = sinalizacaoForaDasRegras(t, r, encerrada);
+      if (foraRegras) {
+        motivoBadge += '<span class="motivo-badge motivo-fora-publico" data-fora-regras="1" title="' + esc('Fora das regras do evento: ' + foraRegras + '. Nada foi alterado — confirmar só como exceção.') + '">Fora das regras do evento</span>' +
+          '<span class="fora-publico-motivos">' + esc(foraRegras) + '</span>';
+      }
+      /* exceção autorizada pelo admin: o que foi dispensado, o motivo, quem e quando */
+      if (r.excecaoAdmin) {
+        var ex = r.excecaoAdmin, exRegras = Object.keys(ex.regras || {}).map(function (x) { return ROTULO_REGRA_EXCECAO[x] || x; }).join('; ');
+        motivoBadge += '<span class="motivo-badge motivo-excecao" data-excecao-admin="' + esc(Object.keys(ex.regras || {}).join(' ')) + '" title="' +
+          esc('Exceção autorizada por ' + (ex.porNome || ex.por || 'admin') + ' em ' + fmtDate(ex.em) + ': ' + exRegras + '. Motivo: ' + (ex.motivo || '')) + '">Exceção autorizada</span>' +
+          '<span class="fora-publico-motivos">' + esc(exRegras + ' — ' + (ex.motivo || '') + ' (' + (ex.porNome || ex.por || 'admin') + ', ' + fmtDate(ex.em) + ')') + '</span>';
       }
       var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
 
@@ -3205,15 +3350,10 @@
       var eKey = emailKeyFromEmail(email);
       /* Rede de segurança: a lista pode ter mudado noutra aba com este modal
          aberto. Mesmo critério das outras portas, uma função só. */
-      var barrado = barradoPeloPublico(turmaKey, name, eKey);
-      if (barrado) { errEl.textContent = barrado.split('\n')[0]; errEl.style.display = ''; return; }
-      /* regras de entrada do evento (participação anterior, uma turma por pessoa) — as mesmas da pessoa */
-      barradoPelasRegrasDoEvento(turmaKey, eKey, name, function (msgRegra, lotacao) {
-      if (msgRegra) { errEl.textContent = msgRegra; errEl.style.display = ''; return; }
-      /* turma lotada: só com motivo (o registro leva acimaDasVagas) */
-      if (lotacao) { pedirMotivoAcimaDasVagas(lotacao, sess, function (acima) { seguirAdicionando(acima); }); return; }
-      seguirAdicionando(null);
-      function seguirAdicionando(acimaDasVagas) {
+      /* a porta única do painel: todas as regras que barram, a exceção com motivo e a lotação (acimaDasVagas) */
+      portaDoAdmin(turmaKey, eKey, name, sess, null, function (msg) { errEl.textContent = msg; errEl.style.display = ''; }, function (res) {
+      seguirAdicionando(res.acima, res.excecao);
+      function seguirAdicionando(acimaDasVagas, excecaoAdmin) {
       var ref  = firebase.database().ref('turmas-interesse/' + turmaKey + '/' + eKey);
       ref.once('value', function (snap) {
         if (snap.val() && !snap.val().removed) {
@@ -3229,6 +3369,7 @@
           var registro = registroInscricaoAdmin(
             { name: name, email: email, area: area }, status, sess, now);
           if (acimaDasVagas) registro.acimaDasVagas = acimaDasVagas;
+          if (excecaoAdmin) registro.excecaoAdmin = excecaoAdmin;
           updates['turmas-interesse/' + turmaKey + '/' + eKey] = registro;
           overlaps.forEach(function (o) {
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
@@ -3930,15 +4071,19 @@
             /* Só se afirma o que está gravado: linha antiga sem quem incluiu
                não ganha uma autoria inventada. */
             var quem = pp.addedByName ? '<span class="removido-por">por ' + esc(pp.addedByName) + '</span>' : '';
-            return '<tr><td>' + esc(pp.name || '—') + '</td><td>' + esc(pp.email || '—') + '</td>' +
+            /* nome, e-mail e "Remover" na MESMA célula: no celular a tabela rola para o lado, e a ação na última coluna
+               ficava longe do nome — dava para remover a pessoa errada */
+            return '<tr><td class="pub-pessoa"><div class="pub-pessoa-linha"><span class="pub-pessoa-id"><strong>' + esc(pp.name || '—') + '</strong>' +
+                '<span class="pub-pessoa-email">' + esc(pp.email || '—') + '</span></span>' +
+              '<button class="btn btn--sm pub-del-btn" data-ekey="' + esc(pp._key) +
+                '" data-name="' + esc(pp.name || pp.email || '') + '" data-email="' + esc(pp.email || '') +
+                '" aria-label="' + esc('Remover ' + (pp.name || pp.email || '') + ' (' + (pp.email || '') + ')') +
+                '" style="padding:4px 9px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080">Remover</button></div></td>' +
               '<td>' + esc(pp.area || '—') + '</td><td>' + naTurma + '</td>' +
-              '<td>' + (pp.date ? fmtDate(pp.date) : '—') + quem + '</td>' +
-              '<td><button class="btn btn--sm pub-del-btn" data-ekey="' + esc(pp._key) +
-                '" data-name="' + esc(pp.name || pp.email || '') +
-                '" style="padding:4px 9px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080">Remover</button></td></tr>';
+              '<td>' + (pp.date ? fmtDate(pp.date) : '—') + quem + '</td></tr>';
           }).join('');
         wrap.innerHTML = '<table class="admin-table"><thead><tr>' +
-          '<th>Nome</th><th>E-mail</th><th>Área</th><th>' + (ehEvento ? 'Em alguma turma' : 'Na turma') + '</th><th>Incluída em</th><th></th>' +
+          '<th>Pessoa</th><th>Área</th><th>' + (ehEvento ? 'Em alguma turma' : 'Na turma') + '</th><th>Incluída em</th>' +
           '</tr></thead><tbody>' + linhas + '</tbody></table>';
         body.appendChild(wrap);
         wrap.addEventListener('click', function (e) {
@@ -3950,7 +4095,7 @@
               'Remover da lista não a remove da turma — ' +
               'ela continua participando, e o card vai passar a avisar que está lá sem estar na lista.'
             : '';
-          adminConfirm('Remover ' + b.dataset.name + ' do público restrito de "' + alvo.label + '"?' + extra,
+          adminConfirm('Remover ' + b.dataset.name + (b.dataset.email ? ' (' + b.dataset.email + ')' : '') + ' do público restrito de "' + alvo.label + '"?' + extra,
             function () {
               firebase.database().ref(noPath + alvo.key + '/' + b.dataset.ekey).remove(function (err) {
                 if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
@@ -4075,52 +4220,63 @@
         return;
       }
 
-      var podem = [], barradas = [];
+      /* a porta única do painel, pessoa por pessoa (sem pedir nada ainda): quem passa, quem as regras barram e por quê */
+      var avaliados = [], pend = eKeys.length;
       eKeys.forEach(function (k) {
         var p = lista[k] || {};
-        var nome = p.name || p.email || k;
-        if (barradoPeloPublico(alvo.key, nome, k)) barradas.push(nome);
-        else podem.push(k);
-      });
-
-      if (!podem.length) {
-        adminAlert('Ninguém desta lista pode entrar na turma agora.\n\n' +
-          'Fora do público restrito do evento:\n' + barradas.join('\n') +
-          '\n\nInclua essas pessoas na lista do EVENTO primeiro. Nada foi gravado.');
-        return;
-      }
-
-      /* Estar na lista da turma não vence o público (gerentes/técnicos) do evento nem o da turma: as regras se somam.
-         Só a regra de cargo de regrasDeEntrada barra aqui — as outras (vagas, uma turma, participação) continuam como
-         sempre foram nesta porta. Leitura que falha barra a pessoa (falhar recusando é o lado seguro). */
-      var pendentes = podem.length, foraDoCargo = [], cargoOk = [];
-      podem.forEach(function (k) {
-        window.faTurmasUtil.regrasDeEntrada({ eventoKey: turmaEventoKey(alvo.key), eKey: k, turmaKey: alvo.key }, function (r) {
-          var p = lista[k] || {};
-          if (r.estado === 'erro' || (r.estado === 'bloqueado' && r.regra === 'cargo')) {
-            foraDoCargo.push((p.name || p.email || k) + (r.estado === 'erro' ? ' (não consegui verificar)' : ''));
-          } else cargoOk.push(k);
-          if (--pendentes === 0) seguirComCargo();
+        avaliarEntradaAdmin(alvo.key, k, p.name || p.email || k, { semVagas: true }, function (a) {
+          avaliados.push({ k: k, nome: p.name || p.email || k, a: a });
+          if (--pend === 0) decidirLote();
         });
       });
-      function seguirComCargo() {
-      podem = podem.filter(function (k) { return cargoOk.indexOf(k) !== -1; });
-      if (!podem.length) {
-        adminAlert('Ninguém desta lista pode entrar na turma agora.\n\n' +
-          (barradas.length ? 'Fora do público restrito do evento:\n' + barradas.join('\n') + '\n\n' : '') +
-          'Fora do público (gerentes/técnicos) do evento ou da turma:\n' + foraDoCargo.join('\n') + '\n\nNada foi gravado.');
-        return;
+      function decidirLote() {
+        var erros = avaliados.filter(function (x) { return x.a.erro; });
+        if (erros.length) {
+          adminAlert('Não consegui verificar as regras da turma para:\n' + erros.map(function (x) { return x.nome; }).join('\n') +
+            '\n\nRecarregue a página e tente de novo. Nada foi gravado.');
+          return;
+        }
+        var barrados = avaliados.filter(function (x) { return x.a.bloqueios.length; });
+        var livres = avaliados.filter(function (x) { return !x.a.bloqueios.length; });
+        if (!barrados.length) { conferirVagasLote(livres.map(function (x) { return { k: x.k, excecao: null }; }), []); return; }
+        pedirExcecaoAdmin(barrados.length + (barrados.length > 1 ? ' pessoas não podem' : ' pessoa não pode') + ' entrar em "' + alvo.label + '" pelas regras:',
+          barrados.map(function (x) { return x.nome + ' — ' + x.a.bloqueios.map(function (b) { return ROTULO_REGRA_EXCECAO[b.regra] || b.regra; }).join('; '); }),
+          function (motivo) {
+            if (!motivo) { /* só quem pode */
+              if (!livres.length) { adminAlert('Ninguém desta lista pode entrar na turma sem exceção. Nada foi gravado.'); return; }
+              conferirVagasLote(livres.map(function (x) { return { k: x.k, excecao: null }; }), barrados);
+              return;
+            }
+            conferirVagasLote(livres.map(function (x) { return { k: x.k, excecao: null }; }).concat(barrados.map(function (x) {
+              return { k: x.k, excecao: montarExcecaoAdmin(x.a.bloqueios.map(function (b) { return b.regra; }), motivo, sess, alvo.key) };
+            })), []);
+          },
+          { soQuemPode: livres.length ? 'Incluir só quem pode (' + livres.length + ')' : '' });
       }
-
+      /* vagas: a turma com limite pede o motivo de sempre (acimaDasVagas) se o lote passar dele */
+      function conferirVagasLote(entram, deFora) {
+        var t = TURMAS_LIST.filter(function (x) { return x.key === alvo.key; })[0] || {};
+        var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0] || {};
+        var vagas = window.faTurmasUtil.vagasEfetivas({ vagas: t.vagas }, { vagasPorTurma: ev.vagasPorTurma });
+        if (!vagas) { gravarLote(entram, deFora, null); return; }
+        firebase.database().ref('turmas-interesse/' + alvo.key).once('value', function (snapT) {
+          var atuais = snapT.val() || {}, chaves = entram.map(function (x) { return x.k; });
+          var ocupadas = Object.keys(atuais).filter(function (k) { var v = atuais[k]; return chaves.indexOf(k) === -1 && v && !v.removed && v.status !== 'removido'; }).length;
+          if (ocupadas + entram.length <= vagas) { gravarLote(entram, deFora, null); return; }
+          pedirMotivoAcimaDasVagas({ vagas: vagas, ocupadas: ocupadas, mensagem: 'A turma tem ' + vagas + ' vagas e ' + ocupadas + ' ocupadas; incluir ' + entram.length +
+            (entram.length > 1 ? ' pessoas' : ' pessoa') + ' passa do limite. Para incluir mesmo assim, escreva o motivo.' }, sess, function (acima) { gravarLote(entram, deFora, acima); });
+        }, function () { adminAlert('Não consegui ler as vagas da turma agora. Recarregue a página e tente de novo. Nada foi gravado.'); });
+      }
+      function gravarLote(entram, deFora, acimaDasVagas) {
+      var podem = entram.map(function (x) { return x.k; });
       checkOutrasTurmas(alvo.key, podem, function (overlaps) {
         var msg = 'Adicionar ' + podem.length + (podem.length > 1 ? ' pessoas' : ' pessoa') +
           ' à turma "' + alvo.label + '" como INSCRITAS?\n\n' +
           'Elas passam a ter acesso a Conteúdos e Treinamento, como se você tivesse confirmado uma por uma.';
-        if (barradas.length) {
-          msg += '\n\nFicam de fora, por não estarem no público restrito do evento:\n' + barradas.join('\n');
-        }
-        if (foraDoCargo.length) {
-          msg += '\n\nFicam de fora, por não estarem no público (gerentes/técnicos) do evento ou da turma:\n' + foraDoCargo.join('\n');
+        var comExcecao = entram.filter(function (x) { return x.excecao; }).length;
+        if (comExcecao) msg += '\n\n' + comExcecao + (comExcecao > 1 ? ' delas entram' : ' delas entra') + ' como exceção, com o motivo registrado.';
+        if (deFora.length) {
+          msg += '\n\nFicam de fora, pelas regras da turma:\n' + deFora.map(function (x) { return x.nome; }).join('\n');
         }
         if (overlaps.length) {
           msg += '\n\nJá inscritas em outra turma — essa inscrição anterior será removida, porque ninguém fica em duas:\n' +
@@ -4129,9 +4285,11 @@
         adminConfirm(msg, function () {
           var now = new Date().toISOString();
           var updates = {};
-          podem.forEach(function (k) {
-            updates['turmas-interesse/' + alvo.key + '/' + k] =
-              registroInscricaoAdmin(lista[k] || {}, 'inscrito', sess, now);
+          entram.forEach(function (x) {
+            var registro = registroInscricaoAdmin(lista[x.k] || {}, 'inscrito', sess, now);
+            if (x.excecao) registro.excecaoAdmin = x.excecao;
+            if (acimaDasVagas) registro.acimaDasVagas = acimaDasVagas;
+            updates['turmas-interesse/' + alvo.key + '/' + x.k] = registro;
           });
           overlaps.forEach(function (o) {
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
@@ -4379,11 +4537,11 @@
     /* Vale para quem já está na turma também: se a turma virou restrita
        depois, confirmar alguém de fora da lista faria a lista mentir. O card
        mostra essa divergência com os nomes, e o conserto é um clique. */
-    var barrado = barradoPeloPublico(turmaKey, pessoa && pessoa.name, eKey);
-    if (barrado) { adminAlert(barrado); return; }
-    /* regras de entrada do evento (participação anterior, uma turma por pessoa) — as mesmas da pessoa */
-    barradoPelasRegrasDoEvento(turmaKey, eKey, pessoa && pessoa.name, function (msgRegra) {
-    if (msgRegra) { adminAlert(msgRegra); return; }
+    /* a porta única do painel (sem lotação: a pessoa já está na turma); a exceção já gravada no registro vale */
+    var regAtual = (_interessesAdmin[turmaKey] || {})[eKey] || {};
+    var sessPorta = window.faAuth && window.faAuth.getSession();
+    portaDoAdmin(turmaKey, eKey, pessoa && pessoa.name, sessPorta, { semVagas: true, jaDispensadas: (regAtual.excecaoAdmin && regAtual.excecaoAdmin.regras) || {} }, adminAlert, function (res) {
+    var excecaoAdmin = res.excecao;
     checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
       var msg = (eventoDispensaCmflex(turmaEventoKey(turmaKey))
           ? 'Confirmar a vaga de ' + pessoa.name + ' em "' + turmaLabel(turmaKey) + '"?'
@@ -4416,6 +4574,7 @@
         updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdmin'] = sess.email;
         updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdminName'] = sess.name || sess.email;
         updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedDate'] = new Date().toISOString();
+        if (excecaoAdmin) updates['turmas-interesse/' + turmaKey + '/' + eKey + '/excecaoAdmin'] = excecaoAdmin;
         var now = new Date().toISOString();
         overlaps.forEach(function (o) {
           updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
@@ -5534,14 +5693,11 @@
       return;
     }
     var eKey = emailKeyFromEmail(person.email);
-    var barrado = barradoPeloPublico(turmaKey, person.name, eKey);
-    if (barrado) { adminAlert(barrado); return; }
-    /* regras de entrada do evento (participação anterior, uma turma por pessoa) — as mesmas da pessoa */
-    barradoPelasRegrasDoEvento(turmaKey, eKey, person.name, function (msgRegra, lotacao) {
-    if (msgRegra) { adminAlert(msgRegra); return; }
-    /* turma lotada: só com motivo (o registro leva acimaDasVagas) */
-    if (lotacao) { pedirMotivoAcimaDasVagas(lotacao, sess, conferirOutras); return; }
-    conferirOutras(null);
+    /* a porta única do painel: todas as regras que barram, a exceção com motivo e a lotação (acimaDasVagas) */
+    var excecaoAdmin = null;
+    portaDoAdmin(turmaKey, eKey, person.name, sess, null, adminAlert, function (res) {
+    excecaoAdmin = res.excecao;
+    conferirOutras(res.acima);
     /* Mesma exclusividade do Confirmar: inscrita em outra turma, a outra inscrição sai (com aviso antes). Antes o Mover
        não fazia isso e a pessoa podia ficar inscrita em duas turmas. */
     function conferirOutras(acimaDasVagas) {
@@ -5566,6 +5722,7 @@
       fromEspera: true
     };
     if (acimaDasVagas) updates['turmas-interesse/' + turmaKey + '/' + eKey].acimaDasVagas = acimaDasVagas;
+    if (excecaoAdmin) updates['turmas-interesse/' + turmaKey + '/' + eKey].excecaoAdmin = excecaoAdmin;
     (overlaps || []).forEach(function (o) {
       updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
       updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
@@ -7789,14 +7946,15 @@
     { k: 'coaud', rotulo: 'Membros do COAUD' },
     { k: 'conselhoDeliberativo', rotulo: 'Conselho Deliberativo' },
     { k: 'conselhoFiscal', rotulo: 'Conselho Fiscal' },
-    { k: 'conselhoConsultivo', rotulo: 'Conselho Consultivo' }
+    { k: 'conselhoConsultivo', rotulo: 'Conselho Consultivo' },
+    { k: 'assessor', rotulo: 'Assessores' }
   ];
   function loadOutrosPublicos() {
     const c = document.getElementById('adminOutrosPublicos');
     if (!c) return;
     const sess0 = window.faAuth && window.faAuth.getSession();
     const souSuper = !!(sess0 && SUPER_ADMINS.indexOf((sess0.email || '').toLowerCase()) !== -1);
-    const INFO = 'Estagiários, menores aprendizes, membros do COAUD e dos conselhos Deliberativo, Fiscal e Consultivo — um cadastro por pessoa, com uma ou mais categorias. ' +
+    const INFO = 'Estagiários, menores aprendizes, membros do COAUD, dos conselhos Deliberativo, Fiscal e Consultivo, e assessores — um cadastro por pessoa, com uma ou mais categorias. ' +
       'Por enquanto esta lista não muda quem pode participar de nenhum evento ou turma: ela prepara a próxima etapa, em que esses públicos passam a valer. A lista é por e-mail: vale mesmo para quem ainda não tem cadastro no site. Não dá acesso ao painel.';
     const rotuloDe = function (k) { return (CATEGORIAS_OUTROS.filter(function (x) { return x.k === k; })[0] || { rotulo: k }).rotulo; };
     const marcadas = function (cats) { return CATEGORIAS_OUTROS.filter(function (x) { return cats && cats[x.k] === true; }).map(function (x) { return x.k; }); };
@@ -7815,19 +7973,24 @@
 
     const estado = { busca: '', filtro: '', editando: '' };
     function render(aviso) {
-      /* Gerentes e Diretores só para o "Também em": se falharem, a coluna diz que não deu para conferir */
+      /* depois de gravar, a lista volta inteira: quem acabou de ser incluído ou mudado aparece (um filtro esquecido fazia a
+         pessoa "sumir", com o contador dizendo outra coisa) */
+      if (aviso) { estado.busca = ''; estado.filtro = ''; }
+      /* Gerentes e Diretores só para a sobreposição: se falharem, a linha diz que não deu para conferir */
       const le = function (no) { return firebase.database().ref(no).once('value').then(function (s) { return s.val() || {}; }, function () { return null; }); };
       Promise.all([firebase.database().ref('fa-outros-publicos').once('value'), firebase.database().ref('fa-users').once('value'), le('fa-gerentes'), le('fa-diretores')]).then(function (snaps) {
         const data = snaps[0].val() || {}, users = snaps[1].val() || {}, ger = snaps[2], dir = snaps[3];
         const lista = Object.keys(data).map(function (k) {
           const r = data[k] || {}, u = users[k] || null;
-          const tambem = [];
-          if (ger === null || dir === null) tambem.push('?');
-          if (ger && ger[k]) tambem.push('Gerentes');
-          if (dir && dir[k]) tambem.push('Diretores');
+          /* sobreposição: as categorias desta lista + os cadastros de Gerentes e Diretores (abas próprias) */
+          const naoConferido = ger === null || dir === null;
+          const cadastros = [];
+          if (ger && ger[k]) cadastros.push('Gerentes');
+          if (dir && dir[k]) cadastros.push('Diretores');
           const cats = marcadas(r.categorias);
-          return { key: k, email: r.email || '', name: (u && u.name) || r.name || '', cadastrada: !!u, addedAt: r.addedAt, cats: cats, tambem: tambem,
-            sobreposta: cats.length > 1 || tambem.some(function (x) { return x !== '?'; }) };
+          const sobre = cats.map(rotuloDe).concat(cadastros);
+          return { key: k, email: r.email || '', name: (u && u.name) || r.name || '', cadastrada: !!u, addedAt: r.addedAt, cats: cats, naoConferido: naoConferido,
+            sobreposta: sobre.length > 1, sobreposicao: sobre };
         }).sort(function (a, b) { return (a.name || a.email).localeCompare(b.name || b.email, 'pt'); });
         const porCat = {}; CATEGORIAS_OUTROS.forEach(function (x) { porCat[x.k] = lista.filter(function (p) { return p.cats.indexOf(x.k) !== -1; }).length; });
         const sobrepostas = lista.filter(function (p) { return p.sobreposta; }).length;
@@ -7845,22 +8008,23 @@
           av.setAttribute('data-sobreposicao-outros', String(sobrepostas));
           av.style.cssText = 'margin-bottom:16px;color:var(--accent)';
           av.textContent = '⚠ ' + sobrepostas + (sobrepostas === 1 ? ' pessoa está' : ' pessoas estão') +
-            ' em mais de uma categoria, ou também em Gerentes ou Diretores (selo "Sobreposição"). Nada foi mudado: cada cadastro continua valendo — confira se está certo.';
+            ' em mais de um cadastro — várias categorias, ou também na aba Gerentes ou Diretores. O selo de cada linha diz quais. Nada foi mudado: cada cadastro continua valendo — confira se está certo.';
           c.appendChild(av);
         }
 
         const hdr = document.createElement('h4');
-        hdr.innerHTML = 'Outros públicos <span class="admin-badge">' + lista.length + '</span>';
+        hdr.innerHTML = 'Outros públicos <span class="admin-badge">' + lista.length + '</span> <span class="outros-mostrando" style="font-size:.78rem;color:var(--ink-3);text-transform:none;letter-spacing:0"></span>';
         c.appendChild(hdr);
 
         const filtros = document.createElement('div');
         filtros.className = 'cad-filtros-linha';
         filtros.innerHTML =
-          '<input id="outrosBusca" type="search" placeholder="Buscar por nome ou e-mail…" aria-label="Buscar por nome ou e-mail" />' +
+          '<input id="outrosBusca" type="search" placeholder="Buscar por nome ou e-mail…" aria-label="Buscar por nome ou e-mail" value="' + esc(estado.busca) + '" />' +
           '<label class="cad-filtro">Categoria<select id="outrosFiltro"><option value="">Todas (' + lista.length + ')</option>' +
             CATEGORIAS_OUTROS.map(function (x) { return '<option value="' + x.k + '">' + esc(x.rotulo) + ' (' + porCat[x.k] + ')</option>'; }).join('') +
             '<option value="__sobreposicao">Com sobreposição (' + sobrepostas + ')</option></select></label>';
         c.appendChild(filtros);
+        filtros.querySelector('#outrosFiltro').value = estado.filtro; /* o que a tela mostra = o filtro que vale */
 
         const corpo = document.createElement('div');
         c.appendChild(corpo);
@@ -7871,24 +8035,26 @@
             if (estado.filtro === '__sobreposicao') return p.sobreposta;
             return !estado.filtro || p.cats.indexOf(estado.filtro) !== -1;
           });
+          const mostrando = c.querySelector('.outros-mostrando');
+          if (mostrando) mostrando.textContent = (estado.busca.trim() || estado.filtro) && lista.length ? '· mostrando ' + vis.length + ' de ' + lista.length : '';
           if (!lista.length) { corpo.innerHTML = '<p class="admin-empty">Ninguém cadastrado ainda.</p>'; return; }
           if (!vis.length) { corpo.innerHTML = '<p class="admin-empty">Ninguém com esse filtro.</p>'; return; }
           corpo.innerHTML =
-            '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Categorias</th><th>Também em</th><th>Cadastro no site</th><th>Desde</th><th></th></tr></thead><tbody>' +
+            '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Categorias</th><th>Cadastro no site</th><th>Desde</th><th></th></tr></thead><tbody>' +
             vis.map(function (p) {
               const linha = '<tr data-outros-key="' + esc(p.key) + '"' + (p.sobreposta ? ' data-sobreposicao="1"' : '') + '>' +
                 '<td>' + esc(p.name || '—') + '</td>' +
                 '<td>' + esc(p.email || '—') + '</td>' +
                 '<td data-categorias="' + esc(p.cats.join(' ')) + '">' + p.cats.map(function (k) { return '<span class="admin-badge" style="display:inline-block;margin:0 4px 4px 0">' + esc(rotuloDe(k)) + '</span>'; }).join('') +
-                  (p.sobreposta ? '<span class="motivo-badge motivo-fora-publico">Sobreposição</span>' : '') + '</td>' +
-                '<td>' + (p.tambem.length ? esc(p.tambem.map(function (x) { return x === '?' ? 'não foi possível conferir' : x; }).join(', ')) : '—') + '</td>' +
+                  (p.sobreposta ? '<span class="motivo-badge motivo-fora-publico" data-sobreposicao-de="' + esc(p.sobreposicao.join(' + ')) + '">Sobreposição: ' + esc(p.sobreposicao.join(' + ')) + '</span>' : '') +
+                  (p.naoConferido ? '<span class="fora-publico-motivos">Não foi possível conferir Gerentes/Diretores agora.</span>' : '') + '</td>' +
                 '<td>' + (p.cadastrada ? 'Sim' : '<span style="color:var(--ink-3)">Ainda sem cadastro</span>') + '</td>' +
                 '<td>' + fmtDate(p.addedAt) + '</td>' +
                 '<td style="white-space:nowrap"><button class="btn" data-outros-editar="' + esc(p.key) + '">Editar</button> ' +
                   '<button class="admin-del-btn" data-outros-remover="' + esc(p.key) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>' +
               '</tr>';
               if (estado.editando !== p.key) return linha;
-              return linha + '<tr data-outros-edicao="' + esc(p.key) + '"><td colspan="7">' + caixas('ed', data[p.key].categorias) +
+              return linha + '<tr data-outros-edicao="' + esc(p.key) + '"><td colspan="6">' + caixas('ed', data[p.key].categorias) +
                 '<div style="margin-top:6px"><button class="btn btn--primary" data-outros-salvar="' + esc(p.key) + '">Salvar categorias</button> ' +
                 '<button class="btn" data-outros-cancelar="1">Cancelar</button></div>' +
                 '<p data-outros-edicao-msg="1" style="margin-top:6px;font-size:.8rem;color:var(--accent)"></p></td></tr>';
@@ -7976,7 +8142,7 @@
             up['fa-outros-publicos/' + k + '/updatedBy'] = quem;
             acrescidos++;
           });
-          if (!novos && !acrescidos) { msg.style.color = 'var(--accent)'; msg.textContent = 'Todos esses e-mails já estão na lista com essas categorias.'; return; }
+          if (!novos && !acrescidos) { msg.style.color = 'var(--cyan)'; msg.textContent = 'Nada a fazer: todos esses e-mails já estão na lista com essas categorias.'; return; }
           btn.disabled = true;
           firebase.database().ref().update(up, function (err) {
             if (err) { btn.disabled = false; msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar. Nada foi gravado — tente novamente.'; return; }

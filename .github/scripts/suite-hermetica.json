@@ -36,6 +36,7 @@
     ".github/scripts/teste-rules-fa-users.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-contas-teste.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-inscricoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-excecao-admin.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-fila-espera.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-outros-publicos.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
@@ -443,10 +444,16 @@
       "sobre": "Hermético, dados sintéticos. As listas \"Não aceitar interesse de quem já participou de\" e \"Contando também as turmas de\": ordem do painel, não publicados no fim (selecionáveis), o próprio evento fora; etiquetas Não publicado / Já realizado / Evento inexistente; referência a evento que não existe mais continua marcada e só sai se desmarcada; busca independente em cada lista (mais de 8 eventos), sem desmarcar o escondido; Marcar/Desmarcar todos só nos visíveis; salvar com busca ativa ou outro campo não apaga seleção; evento novo aparece e renomeado continua marcado; toda gravação em eventos/<editado>; sem rolagem lateral nem erro de JS."
     },
     {
+      "arquivo": ".github/scripts/teste-admin-excecao-portas.js",
+      "nome": "ADMIN › exceção do admin nas portas da turma (＋ Participante, Confirmar, Mover, lote), 1280/375 px",
+      "duracao": 45,
+      "sobre": "Hermético, dados sintéticos. Gerente em evento de Gerentes entra sem nada a mais; assessor (fora do cargo) só como exceção, com motivo, responsável, data, regras dispensadas e turma; técnico substituindo gerente pelo Confirmar; substituto de diretor pelo Mover; o lote segue as mesmas regras (\"Incluir só quem pode\"); selos \"Fora das regras do evento\" e \"Exceção autorizada\"; participantes históricos do Executivos intactos. Toda gravação em turmas-interesse, no histórico e na fila; nenhuma operação de Auth; fa-users, fa-admins, gerentes, diretores e outros públicos iguais. A recusa no banco está em teste-rules-excecao-admin.js."
+    },
+    {
       "arquivo": ".github/scripts/teste-admin-outros-publicos.js",
       "nome": "ADMIN › Outros públicos — cadastro único das categorias especiais, 1280/375 px",
       "duracao": 30,
-      "sobre": "Hermético, dados sintéticos. Super-admin: categorias de cada pessoa, \"Também em\" Gerentes/Diretores e selo \"Sobreposição\"; busca e filtro por categoria; inclusão individual e em lote (acrescenta categoria sem perder as que tinha); e-mail fora de @previ e falta de categoria recusados; edição e remoção com confirmação; gravação recusada e leitura que falha com mensagem. Admin comum vê só o aviso (há menores na lista). Toda gravação é em fa-outros-publicos; turmas, inscrições, eventos, fila, gerentes e diretores iguais; abas Gerentes e Diretores intactas. Nesta etapa a lista não muda quem participa de nada."
+      "sobre": "Hermético, dados sintéticos. Super-admin: categorias de cada pessoa (inclusive Assessores) e selo \"Sobreposição: A + B\" que diz quais cadastros se sobrepõem (sem a antiga coluna \"Também em\"); busca e filtro por categoria, com \"mostrando X de Y\", e lista inteira de novo depois de gravar; inclusão individual e em lote (acrescenta categoria sem perder as que tinha); e-mail fora de @previ e falta de categoria recusados; edição e remoção com confirmação; gravação recusada e leitura que falha com mensagem. Admin comum vê só o aviso (há menores na lista). Toda gravação é em fa-outros-publicos; turmas, inscrições, eventos, fila, gerentes e diretores iguais; abas Gerentes e Diretores intactas. Nesta etapa a lista não muda quem participa de nada."
     },
     {
       "arquivo": ".github/scripts/teste-visibilidade-evento.js",
