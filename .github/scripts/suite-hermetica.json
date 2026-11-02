@@ -475,6 +475,18 @@
       "sobre": "Hermético, dados sintéticos (episódios com exclusão recíproca e uma turma por pessoa). Para cada pessoa — gerente com participação anterior, gerente sem, técnico inscrito em episódio impeditivo, técnico sem impedimento, diretor, estagiária (Outros públicos), exceção do ADMIN, interesse, inscrição confirmada, pessoa de lista — a página Turmas no \"Ver como\" (admin logada) é IGUAL à do login real dela: eventos na ordem e situação, turmas, botões (texto, estado, classe), mensagens, avisos, lista de espera e o texto inteiro. Inclui leitura de Gerentes e de vínculos que falha e perfil lento. Na pré-visualização todos os botões ficam inativos e nenhum clique (mouse, teclado, click()) grava; \"eu mesma\" volta ao normal e grava em nome da sessão real. Falha se os dois modos divergirem."
     },
     {
+      "arquivo": ".github/scripts/teste-ver-como-troca-conta.js",
+      "nome": "Turmas e Minha Área — \"Ver esta tela como\" só para admin, também depois de trocar de conta na mesma aba, 1280/375 px",
+      "duracao": 90,
+      "sobre": "Hermético, contas sintéticas. Sair da conta não recarrega a página: admin → sair → gerente/técnica/estagiária na mesma aba não herda a barra, o aviso, a pré-visualização nem a pessoa simulada, e a página é exatamente a da conta abrindo do zero; a gerente age normalmente e só grava na própria chave; admin de volta na mesma aba tem o recurso em \"eu mesma\" e funcionando; trocas rápidas não deixam estado de ADMIN; fa-admins que falha não dá o recurso e lento só depois que chega; Minha Área idem."
+    },
+    {
+      "arquivo": ".github/scripts/teste-certificados-selecao.js",
+      "nome": "ADMIN › Certificados — a tela pertence sempre à seleção atual (sem misturar turmas ou eventos), 1280/375 px",
+      "duracao": 70,
+      "sobre": "Hermético, dados sintéticos. Turma A lenta e logo a B, outras ordens de chegada (inclusive a configuração da A chegando no meio das leituras da B) e troca de evento com a turma carregando: lista, conclusão, prévia e \"Baixar todos\" são sempre e só da última escolha; durante o carregamento e em leitura que falha não há prévia nem download, e nada da seleção anterior é reaproveitado; prévia atrasada nunca aparece depois da troca; prévia e downloads (PNG/PDF) recebem os mesmos dados (buildData); conta comum após troca de conta, com autorização lenta, nunca vê o painel. Sem gravação."
+    },
+    {
       "arquivo": ".github/scripts/teste-visibilidade-evento.js",
       "nome": "Turmas — visibilidade do evento separada da elegibilidade (\"Mostrar para todos\"), 1440/1280/375 px e ADMIN",
       "duracao": 70,

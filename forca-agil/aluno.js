@@ -627,9 +627,27 @@
      arquivo que o admin já emite na aba Certificados, e ver o botão
      funcionando faz parte de conferir a tela.
      ══════════════════════════════════════════════════════════════════ */
+  /* DONO do "Ver como" da Minha Área: a conta autenticada (admin) que montou a barra. Trocar de conta na mesma aba
+     (sair não recarrega a página) encerra o recurso: a barra sai do DOM e nenhuma carga antiga desenha por cima da
+     tela da conta nova (_geracaoMA). Mesmo critério da página Turmas (app.js encerrarVerComoSeTrocou). */
+  var _verComoDonoMA = '', _geracaoMA = 0;
+  function encerrarVerComoSeTrocou() {
+    var barra = document.querySelector('.minha-area-vercomo');
+    if (!barra) return;
+    var sess = window.faAuth && window.faAuth.getSession();
+    if (sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email) && sess.email === _verComoDonoMA) return;
+    barra.parentNode.removeChild(barra);
+    _verComoDonoMA = '';
+    _geracaoMA++;
+    var wrap = document.getElementById('minhaAreaContent');
+    if (wrap) wrap.innerHTML = '';
+  }
+  window.addEventListener('fa-auth-change', encerrarVerComoSeTrocou);
+
   function montarBarraVerComo(wrap, sess) {
     var barra = document.createElement('div');
-    barra.className = 'aluno-vercomo';
+    barra.className = 'aluno-vercomo minha-area-vercomo';
+    _verComoDonoMA = sess.email;
     barra.innerHTML =
       '<span class="aluno-vercomo-tag">ADMIN</span>' +
       '<label class="aluno-vercomo-campo">Ver esta tela como ' +
@@ -657,9 +675,12 @@
     });
 
     sel.addEventListener('change', function () {
+      /* a conta logada AGORA: se não é mais a admin dona da barra, o recurso acaba e a tela volta a ser a dela */
+      var atual = window.faAuth && window.faAuth.getSession();
+      if (!atual || atual.email !== _verComoDonoMA || !window.faAuth.isAdmin(atual.email)) { encerrarVerComoSeTrocou(); init(); return; }
       var opt = sel.options[sel.selectedIndex];
       barra.classList.toggle('aluno-vercomo--ativo', !!sel.value);
-      if (!sel.value) { carregarE(wrap, emailKey(sess.email), sess.email, sess.name || sess.email, null); return; }
+      if (!sel.value) { carregarE(wrap, emailKey(atual.email), atual.email, atual.name || atual.email, null); return; }
       carregarE(wrap, sel.value, opt.dataset.email, opt.dataset.nome, opt.dataset.nome);
     });
   }
@@ -668,7 +689,9 @@
      admin está olhando a tela de outra pessoa. */
   function carregarE(wrap, uKey, email, nome, verComo) {
     wrap.innerHTML = '<p class="loading-msg">Carregando…</p>';
+    var geracao = ++_geracaoMA;
     carregar(uKey, email, function (d) {
+      if (geracao !== _geracaoMA) return;  /* outra carga (outra pessoa, ou outra conta) começou depois: esta não desenha */
       render(wrap, d, uKey, nome, email);
       if (verComo) {
         wrap.insertAdjacentHTML('afterbegin',
@@ -699,6 +722,7 @@
       return;
     }
 
+    encerrarVerComoSeTrocou();
     var ehAdmin = window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
     if (ehAdmin && !document.querySelector('.aluno-vercomo')) montarBarraVerComo(wrap, sess);
 

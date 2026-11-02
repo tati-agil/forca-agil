@@ -8603,6 +8603,14 @@
     var _encerrada       = false; /* turma concluída → emissão habilitada */
     var _checkinTurma    = {};    /* { [dia]: { [emailKey]: true } } */
     var _diasTurma       = [];    /* array de ISO dates da turma */
+    /* SELEÇÃO ATUAL. Cada escolha de evento ou turma abre uma seleção nova (_selecao + 1); as leituras de uma seleção
+       antiga que chegam depois são DESCARTADAS — nunca mudam o estado acima nem a tela. Antes, trocar de turma antes de a
+       anterior responder misturava as duas: o seletor dizia turma B e a lista, a data de conclusão e o "Baixar todos"
+       eram da turma A (02/11/2026). _pronto = os dados da seleção atual chegaram TODOS (evento, configuração, presenças e
+       inscritos); só então há prévia e downloads. Leitura que falha não usa dado antigo: a tela diz que falhou. */
+    var _selecao         = 0;
+    var _pronto          = false;
+    var _previaSeq       = 0;
 
     var MESES = ['janeiro','fevereiro','março','abril','maio','junho',
                  'julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -8627,9 +8635,25 @@
     }
 
     function updateLoteButtons() {
-      if (dlTodos)    { dlTodos.disabled    = !_encerrada; dlTodos.title    = _encerrada ? '' : TOOLTIP_BLOQUEADO; }
-      if (dlTodosPDF) { dlTodosPDF.disabled = !_encerrada; dlTodosPDF.title = _encerrada ? '' : TOOLTIP_BLOQUEADO; }
+      var ok = _pronto && _encerrada, dica = !_pronto ? 'Aguarde os dados da turma.' : TOOLTIP_BLOQUEADO;
+      if (dlTodos)    { dlTodos.disabled    = !ok; dlTodos.title    = ok ? '' : dica; }
+      if (dlTodosPDF) { dlTodosPDF.disabled = !ok; dlTodosPDF.title = ok ? '' : dica; }
     }
+    /* nova seleção: invalida a anterior e apaga da tela tudo o que era dela (lista, prévia, lote) */
+    function novaSelecao() {
+      _selecao++;
+      _pronto = false;
+      _previaSeq++;
+      _evento = null; _dataConclusao = null; _encerrada = false; _checkinTurma = {}; _diasTurma = [];
+      if (listEl) listEl.innerHTML = '';
+      if (wrap) wrap.style.display = 'none';
+      var cv = document.getElementById('certPreviewCanvas');
+      if (cv) { cv.getContext('2d').clearRect(0, 0, cv.width, cv.height); cv.width = 0; cv.height = 0; }
+      if (hint) { hint.textContent = 'Selecione um participante para visualizar a prévia do certificado.'; hint.style.display = ''; }
+      updateLoteButtons();
+      return _selecao;
+    }
+    function selecaoAtual(minha) { return minha === _selecao; }
 
     function updateInfoDisplay(turmaKey) {
       if (!infoEl) return;
@@ -8706,18 +8730,11 @@
 
     if (selEv) {
       selEv.addEventListener('change', function () {
-        /* resetar estado da turma ao trocar evento */
-        _evento        = null;
-        _dataConclusao = null;
-        _encerrada     = false;
-        _checkinTurma  = {};
-        _diasTurma     = [];
+        /* resetar estado da turma ao trocar evento — e invalidar o que a turma anterior ainda estiver carregando */
+        novaSelecao();
         sel.value      = '';
         if (infoEl) infoEl.style.display = 'none';
         updatePreviaBanner('');
-        updateLoteButtons();
-        if (wrap) wrap.style.display = 'none';
-        if (hint) hint.style.display = '';
         populateTurmaSelect(selEv.value);
       });
     }
@@ -8735,14 +8752,23 @@
       };
     }
 
-    function renderPreview(participant, turma) {
-      var data = buildData(participant, turma);
-      certif.preview('certPreviewCanvas', data);
-      if (hint) hint.style.display = 'none';
+    /* mesma composição do download (buildData + certif.draw, o que certif.preview faz); desenha fora da tela e só copia
+       para a prévia se a seleção e o participante ainda forem os mesmos — um desenho atrasado nunca aparece */
+    function renderPreview(participant, turma, minha) {
+      if (!selecaoAtual(minha) || !_pronto) return;
+      var seq = ++_previaSeq, data = buildData(participant, turma), fora = document.createElement('canvas');
+      Promise.resolve(certif.draw(fora, data, 1)).then(function () {
+        if (seq !== _previaSeq || !selecaoAtual(minha)) return;
+        var cv = document.getElementById('certPreviewCanvas');
+        if (!cv) return;
+        cv.width = fora.width; cv.height = fora.height;
+        cv.getContext('2d').drawImage(fora, 0, 0);
+        if (hint) hint.style.display = 'none';
+      });
     }
 
-    function renderLista(turma, inscritos) {
-      if (!wrap || !listEl) return;
+    function renderLista(turma, inscritos, minha) {
+      if (!wrap || !listEl || !selecaoAtual(minha)) return;
       wrap.style.display = '';
       var title = document.getElementById('certListTitle');
       if (title) title.textContent = 'Participantes inscritos — ' + turma.label + ' (' + inscritos.length + ')';
@@ -8794,9 +8820,10 @@
         btnPrev.className = 'btn btn--sm cert-btn-prev';
         btnPrev.textContent = '👁 Prévia';
         btnPrev.addEventListener('click', function () {
+          if (!selecaoAtual(minha)) return;
           document.querySelectorAll('.cert-participant-row').forEach(function (r) { r.classList.remove('cert-active'); });
           row.classList.add('cert-active');
-          renderPreview(p, turma);
+          renderPreview(p, turma, minha);
         });
 
         var btnDl = document.createElement('button');
@@ -8804,6 +8831,7 @@
         btnDl.textContent = '⬇ PNG';
         if (_encerrada && atingiu) {
           btnDl.addEventListener('click', function () {
+            if (!selecaoAtual(minha) || !_pronto) return;
             certif.download(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
           });
         } else {
@@ -8816,6 +8844,7 @@
         btnPdf.textContent = '⬇ PDF';
         if (_encerrada && atingiu) {
           btnPdf.addEventListener('click', function () {
+            if (!selecaoAtual(minha) || !_pronto) return;
             certif.downloadPDF(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
           });
         } else {
@@ -8847,82 +8876,96 @@
       return Math.round((presentes / _diasTurma.length) * 100);
     }
 
-    function loadInscritos(turmaKey, cb) {
+    /* falha(): a leitura não respondeu — quem chama não usa dado nenhum no lugar */
+    function loadInscritos(turmaKey, cb, falha) {
       firebase.database().ref('turmas-interesse/' + turmaKey).once('value', function (snap) {
         var val = snap.val() || {};
         var inscritos = Object.values(val).filter(function (r) {
           return r && !r.removed && r.status === 'inscrito';
         }).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt-BR'); });
         cb(inscritos);
-      });
+      }, function () { if (falha) falha(); });
     }
 
-    function loadEventoParaTurma(turma, cb) {
-      _evento = null;
+    /* o evento da turma — só vira _evento se a seleção ainda for a mesma */
+    function loadEventoParaTurma(turma, minha, cb, falha) {
       if (!turma.eventoKey) { cb(); return; }
       var ev = EVENTOS_LIST.filter(function (e) { return e.key === turma.eventoKey; })[0];
-      if (ev) { _evento = ev; cb(); return; }
+      if (ev) { if (selecaoAtual(minha)) { _evento = ev; cb(); } return; }
       firebase.database().ref('eventos/' + turma.eventoKey).once('value', function (snap) {
+        if (!selecaoAtual(minha)) return;
         var v = snap.val();
         _evento = v ? { key: turma.eventoKey, nome: v.nome || '', cargaHoraria: v.cargaHoraria || '20' } : null;
         cb();
-      });
+      }, falha);
+    }
+    function falhaLeituraTurma(minha) {
+      if (!selecaoAtual(minha)) return;
+      _selecao++;  /* o que ainda estiver chegando desta seleção também não vale mais */
+      _pronto = false;
+      updateLoteButtons();
+      if (wrap) wrap.style.display = 'none';
+      if (infoEl) {
+        infoEl.style.cssText = 'padding:10px 14px;background:var(--panel-2);border-radius:6px;font-size:.88rem;color:var(--amber,#ffb347);margin-bottom:16px;display:block';
+        infoEl.textContent = '⚠ Não foi possível carregar os dados desta turma agora. Recarregue a página e selecione a turma de novo — nenhuma prévia nem download foi liberado.';
+      }
     }
 
     sel.addEventListener('change', function () {
       var key = sel.value;
-      _evento        = null;
-      _dataConclusao = null;
-      _encerrada     = false;
-      _checkinTurma  = {};
-      _diasTurma     = [];
+      var minha = novaSelecao();
       updateInfoDisplay(key);
       updatePreviaBanner(key);
-      updateLoteButtons();
 
-      if (!key) {
-        if (wrap) wrap.style.display = 'none';
-        if (hint) hint.style.display = '';
-        return;
-      }
+      if (!key) return;
 
       var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
       if (!turma) return;
 
       _diasTurma = turma.dias || [];
 
+      /* as três leituras da turma e depois os inscritos: cada resposta só vale para a seleção que a pediu */
       var pending = 3;
       function done() {
+        if (!selecaoAtual(minha)) return;
         pending--;
         if (pending > 0) return;
         updateInfoDisplay(key);
         updatePreviaBanner(key);
-        updateLoteButtons();
-        loadInscritos(key, function (inscritos) { renderLista(turma, inscritos); });
+        loadInscritos(key, function (inscritos) {
+          if (!selecaoAtual(minha)) return;
+          _pronto = true;
+          updateLoteButtons();
+          renderLista(turma, inscritos, minha);
+        }, function () { falhaLeituraTurma(minha); });
       }
+      var falhou = function () { falhaLeituraTurma(minha); };
 
-      loadEventoParaTurma(turma, done);
+      loadEventoParaTurma(turma, minha, done, falhou);
       firebase.database().ref('turmas-config/' + key).once('value', function (snap) {
+        if (!selecaoAtual(minha)) return;
         var cfg = snap.val() || {};
         _dataConclusao = cfg.dataConclusao || null;
         _encerrada     = !!cfg.encerrada;
         done();
-      });
+      }, falhou);
       firebase.database().ref('turmas-checkin/' + key).once('value', function (snap) {
+        if (!selecaoAtual(minha)) return;
         _checkinTurma = snap.val() || {};
         done();
-      });
+      }, falhou);
     });
 
     /* baixar todos — apenas participantes que atingiram o percentual mínimo */
     function baixarTodos(usePDF) {
-      if (!_encerrada) return;
-      var key = sel.value;
+      if (!_pronto || !_encerrada) return;
+      var key = sel.value, minha = _selecao;
       if (!key) { alert('Selecione uma turma primeiro.'); return; }
       var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
       if (!turma) return;
       var minPct = _evento ? (_evento.percentualMinimo || 75) : 75;
       loadInscritos(key, function (inscritos) {
+        if (!selecaoAtual(minha) || !_pronto) return;
         var elegiveis = inscritos.filter(function (p) {
           var freq = calcFreq(p.email);
           return freq === null || freq >= minPct;
@@ -8930,7 +8973,7 @@
         if (!elegiveis.length) { adminAlert('Nenhum participante atingiu o percentual mínimo de ' + minPct + '% de presença.'); return; }
         var i = 0;
         function next() {
-          if (i >= elegiveis.length) return;
+          if (i >= elegiveis.length || !selecaoAtual(minha)) return;  /* trocou a turma no meio: para */
           var p = elegiveis[i++];
           var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
           if (usePDF) certif.downloadPDF(buildData(p, turma), 'certificado_' + slug);
@@ -8938,7 +8981,7 @@
           setTimeout(next, 800);
         }
         next();
-      });
+      }, function () { adminAlert('Não foi possível ler os inscritos da turma agora. Recarregue a página e tente de novo. Nada foi baixado.'); });
     }
 
     if (dlTodos)    dlTodos.addEventListener('click',    function () { baixarTodos(false); });
