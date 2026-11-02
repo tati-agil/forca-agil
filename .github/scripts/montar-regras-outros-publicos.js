@@ -25,7 +25,8 @@ const { ADM, PROPRIA_CHAVE, DERIVADA } = require('./montar-regras-fa-users.js');
 const and = (xs) => xs.join(' && ');
 const or = (xs) => '(' + xs.join(' || ') + ')';
 const SUPER = "(auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')";
-const CATEGORIAS = ['estagiario', 'menorAprendiz', 'coaud', 'conselhoDeliberativo', 'conselhoFiscal', 'conselhoConsultivo', 'assessor'];
+/* as sete categorias: a tabela do núcleo dos públicos (a mesma que o site e as regras de participação usam) */
+const { CATEGORIAS } = require('../../forca-agil/publicos-nucleo.js');
 
 /* a chave do registro = a chave do e-mail gravado nele (a mesma derivação da emailKey do site, provada em
    teste-regras-fa-users-chave.js para o e-mail do login — aqui aplicada ao e-mail do registro) */
@@ -56,7 +57,21 @@ const BLOCO = {
     $outro: { '.validate': false }
   }
 };
-const BLOCOS = { 'fa-outros-publicos': BLOCO };
+/* ATIVAÇÃO DOS PÚBLICOS (Entrega B): publicos-config/ativo = true liga Diretores, as sete categorias e os dois agrupados
+   como públicos que restringem, e a classificação nova de Técnicos (fora de Gerentes, Diretores e das sete categorias).
+   Ausente ou false = tudo como antes. Só os super-admins ligam/desligam (ADMIN › Outros públicos), com quem e quando;
+   qualquer conta @previ lê (o site precisa saber para decidir quem vê e quem entra). */
+const CONFIG = {
+  '.read': "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+  '.write': 'auth != null && ' + SUPER,
+  '.validate': "newData.hasChildren(['ativo', 'em', 'por'])",
+  ativo: { '.validate': 'newData.isBoolean()' },
+  em: { '.validate': TEXTO(40) },
+  por: { '.validate': 'newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase()' },
+  porNome: { '.validate': TEXTO(200) },
+  $outro: { '.validate': false }
+};
+const BLOCOS = { 'fa-outros-publicos': BLOCO, 'publicos-config': CONFIG };
 
 if (require.main === module) {
   let s = fs.readFileSync(ARQUIVO, 'utf8');
@@ -66,10 +81,14 @@ if (require.main === module) {
     if (s.indexOf(marca) === -1) throw new Error('fa-facilitadores não encontrado em database.rules.json');
     s = s.replace(marca, '\n    "fa-outros-publicos": {},\n' + marca);
   }
+  if (s.indexOf('\n    "publicos-config": {') === -1) {
+    const marca = '\n    "fa-facilitadores": {';
+    s = s.replace(marca, '\n    "publicos-config": {},\n' + marca);
+  }
   const regras = JSON.parse(s).rules;
   const divergentes = Object.keys(BLOCOS).filter((n) => JSON.stringify(regras[n]) !== JSON.stringify(BLOCOS[n]));
   if (process.argv.indexOf('--gravar') === -1) {
-    console.log(divergentes.length ? 'DIVERGE de database.rules.json: ' + divergentes.join(', ') : 'o nó fa-outros-publicos publicado é o montado');
+    console.log(divergentes.length ? 'DIVERGE de database.rules.json: ' + divergentes.join(', ') : 'os nós fa-outros-publicos e publicos-config publicados são os montados');
     process.exit(divergentes.length ? 1 : 0);
   }
   const ind = (o) => JSON.stringify(o, null, 2).split('\n').map((l, k) => (k === 0 ? l : '    ' + l)).join('\n');

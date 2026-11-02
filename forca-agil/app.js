@@ -288,7 +288,17 @@
       'Gerentes':       { aberta: 'aberta a todos os<br>Gerentes da Previ',          restrita: 'restrita a uma lista de<br>Gerentes da Previ' },
       'Técnicos':       { aberta: 'aberta a todos os<br>Técnicos da Previ',          restrita: 'restrita a uma lista de<br>Técnicos da Previ' },
       'Cedidos':        { aberta: 'aberta a todos os<br>Cedidos da Previ',           restrita: 'restrita a uma lista de<br>Cedidos da Previ' },
-      'Quadro próprio': { aberta: 'aberta a todo o<br>Quadro próprio da Previ',      restrita: 'restrita a uma lista do<br>Quadro próprio da Previ' }
+      'Quadro próprio': { aberta: 'aberta a todo o<br>Quadro próprio da Previ',      restrita: 'restrita a uma lista do<br>Quadro próprio da Previ' },
+      /* públicos da ativação (publicos-nucleo.js) */
+      'Estagiários':    { aberta: 'aberta a todos os<br>Estagiários da Previ',       restrita: 'restrita a uma lista de<br>Estagiários da Previ' },
+      'Menores aprendizes': { aberta: 'aberta a todos os<br>Menores aprendizes da Previ', restrita: 'restrita a uma lista de<br>Menores aprendizes da Previ' },
+      'Estagiários e menores aprendizes': { aberta: 'aberta a todos os Estagiários e<br>Menores aprendizes da Previ', restrita: 'restrita a uma lista de Estagiários e<br>Menores aprendizes da Previ' },
+      'Membros do COAUD': { aberta: 'aberta a todos os<br>Membros do COAUD',       restrita: 'restrita a uma lista de<br>Membros do COAUD' },
+      'Conselho Deliberativo': { aberta: 'aberta aos membros do<br>Conselho Deliberativo', restrita: 'restrita a uma lista do<br>Conselho Deliberativo' },
+      'Conselho Fiscal': { aberta: 'aberta aos membros do<br>Conselho Fiscal',     restrita: 'restrita a uma lista do<br>Conselho Fiscal' },
+      'Conselho Consultivo': { aberta: 'aberta aos membros do<br>Conselho Consultivo', restrita: 'restrita a uma lista do<br>Conselho Consultivo' },
+      'Conselheiros':   { aberta: 'aberta a todos os<br>Conselheiros da Previ',      restrita: 'restrita a uma lista de<br>Conselheiros da Previ' },
+      'Assessores':     { aberta: 'aberta a todos os<br>Assessores da Previ',        restrita: 'restrita a uma lista de<br>Assessores da Previ' }
     };
 
     function loadTurmas(cb) {
@@ -385,6 +395,10 @@
         admin: !!(email && window.faAuth && window.faAuth.isAdmin(email)),
         diretor: !!(email && window.faAuth && window.faAuth.isDiretor(email)),
         gerente: mesma ? _visao.gerente : null,
+        /* o resto do perfil de público (turmas-util.js lerPerfilPublico): a ativação, Diretores e Outros públicos */
+        ativo: mesma ? _visao.ativo : null,
+        diretorCadastro: mesma ? _visao.diretorCadastro : null,
+        categorias: mesma ? _visao.categorias : null,
         naListaEvento: !!(k && eventoKey && (_publicoPorEvento[eventoKey] || {})[k]),
         naListaTurma: !!(k && turmaKey && (_publicoPorTurma[turmaKey] || {})[k]),
         temRegistro: !!(mesma && turmaKey && _visao.registros[turmaKey])
@@ -402,7 +416,7 @@
        redesenha na hora, sem esperar as leituras dos registros. */
     function carregarVisao(desenhar) {
       var email = _sess && _sess.email;
-      var v = { email: email || '', gerente: null, gerenteFalhou: false, registros: {}, vinculos: {} };
+      var v = { email: email || '', gerente: null, ativo: null, diretorCadastro: null, categorias: null, gerenteFalhou: false, registros: {}, vinculos: {} };
       _visao = v;
       if (!email) { desenhar(); return; }
       var db = firebase.database(), k = emailKey(email), pend = 1 + _turmasList.length, desenhou = false;
@@ -416,8 +430,13 @@
         desenhou = true;
         desenhar();
       }
-      db.ref('fa-gerentes/' + k).once('value', function (s) { v.gerente = !!s.val(); um(true); },
-        function () { v.gerenteFalhou = true; um(true); });
+      /* o perfil de público (Gerentes, e — com a ativação — Diretores e Outros públicos): cada leitura que falha fica null,
+         "não sei", e o que depende dela continua escondido (gerenteFalhou → aviso para recarregar) */
+      window.faTurmasUtil.lerPerfilPublico(k, function (pf) {
+        v.ativo = pf.ativo; v.gerente = pf.gerente; v.diretorCadastro = pf.diretor; v.categorias = pf.categorias;
+        v.gerenteFalhou = pf.gerente === null || pf.ativo === null || (pf.ativo === true && (pf.diretor === null || pf.categorias === null));
+        um(true);
+      });
       /* vínculo por turma (faTurmasUtil.vinculoNaTurma): na turma por vir, o registro ativo; na realizada, a
          participação comprovada — inscrição não removida ou presença no check-in. A presença só é lida (dia a dia,
          só a própria) quando o registro sozinho não decide. */
@@ -664,7 +683,7 @@
           ? '<p class="turmas-evento-publico" data-fora-do-publico="' + motivo + '">' + esc(window.faTurmasUtil.mensagemForaDoPublico(ev, motivo)) + '</p>' : '';
         /* cargo ainda não sabido (ou leitura falhou) em "Mostrar para todos": só o público do evento, sem dizer que a
            pessoa está dentro — os botões das turmas conferem o cargo antes de agir ("Verificando…") */
-        if (!avisoPublico && !comRegistro && ev.visibilidade === 'todos' && window.faTurmasUtil.cargoDoEvento(ev) &&
+        if (!avisoPublico && !comRegistro && ev.visibilidade === 'todos' && !window.faPublicosNucleo.ehDescritivo(ev.publicoDesc) &&
             window.faTurmasUtil.cargoPendente(null, ev, pessoaDaVitrine(_sess, ev.key, ''))) {
           avisoPublico = '<p class="turmas-evento-publico" data-fora-do-publico="verificando">' + esc(window.faTurmasUtil.mensagemPublicoDoCargo(ev)) + '</p>';
         }
@@ -971,8 +990,8 @@
             btn.style.display = 'none';
             showEsperaMsg(btn, esc(window.faTurmasUtil.mensagemForaDoPublico(ev, foraEspera)));
           }, function () { btn.style.display = 'none'; showEsperaMsg(btn, esc(window.faTurmasUtil.mensagemForaDoPublico(ev, foraEspera))); });
-        } else if (sess && (temBloqueioPorParticipacao(ev) || window.faTurmasUtil.cargoDoEvento(ev))) {
-          /* o cargo do evento (Gerentes/Técnicos) também vale para a fila: regrasDeEntrada confere, como no card da turma */
+        } else if (sess && (temBloqueioPorParticipacao(ev) || !window.faPublicosNucleo.ehDescritivo(ev.publicoDesc))) {
+          /* o público do evento (Gerentes/Técnicos, e os da ativação) também vale para a fila: regrasDeEntrada confere, como no card da turma */
           btn.disabled = true; btn.innerHTML = 'Verificando…';
           verificarParticipacaoAnterior(ev.key, sess.email, function (r) {
             if (r.estado === 'livre') { setEsperaInitial(btn); checkEsperaState(btn, sess.email, ev.key); return; }
@@ -1288,9 +1307,9 @@
     function temRegrasDeEntrada(turmaKey) {
       var t = _turmasList.filter(function (x) { return x.key === turmaKey; })[0];
       if (t && (t.vagas || t.publicoCargo)) return true;
-      /* "Quem participa" do evento = Gerentes/Técnicos também é regra (cargoEfetivo, turmas-util.js) */
+      /* "Quem participa" do evento que pode restringir também é regra (cargoEfetivo, turmas-util.js; publicos-nucleo.js) */
       var evT = eventoDaTurma(turmaKey);
-      if (window.faTurmasUtil.cargoDoEvento(evT) || window.faTurmasUtil.vagasDoEvento(evT)) return true;
+      if (!window.faPublicosNucleo.ehDescritivo(evT && evT.publicoDesc) || window.faTurmasUtil.vagasDoEvento(evT)) return true;
       return temBloqueioPorParticipacao(eventoDaTurma(turmaKey));
     }
     function eventoDaTurma(turmaKey) {

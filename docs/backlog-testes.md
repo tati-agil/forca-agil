@@ -367,16 +367,13 @@ comum e a própria pessoa só conseguem ler **um registro pela chave**. Consequ�
 listar quem é de cada categoria — só perguntar por uma pessoa de cada vez (a ativação dos públicos, na Entrega B,
 precisa ler pessoa a pessoa, nunca a lista). Mudar isso exige decisão sobre a proteção dos dados de menores.
 
-## Suspeita registrada (PR #464, a confirmar no emulador): sair da turma com `acimaDasVagas`
+## Resolvido na Entrega B: sair da turma com `acimaDasVagas`
 
-No caminho "remover o próprio interesse" (`REMOVER` em `montar-regras-inscricoes.js`), cada campo administrativo é
-comparado com `.val()`. Para um campo que é **objeto**, essa comparação não funciona — foi o que o emulador mostrou para
-`excecaoAdmin` na PR #464 (corrigido lá, campo a campo). `acimaDasVagas` também é objeto: é provável que, já na `main`,
-quem entrou "acima das vagas" não consiga sair sozinha pelo site (o admin consegue). Não introduzido pela #464.
-
-- **Prova a criar:** em `teste-rules-inscricoes.js`, a pessoa com `acimaDasVagas` no registro sai pelo `update` do site.
-- **Correção sugerida, se confirmado:** comparar `acimaDasVagas` campo a campo, como `excecaoAdmin`.
-- **Prioridade sugerida:** média — caso raro (lotação com motivo), sem perda de dados; a saída pelo admin continua.
+A suspeita registrada na PR #464 foi confirmada pela leitura das regras (o campo-objeto era comparado com `.val()`, que não
+compara objetos — o mesmo defeito provado no emulador com `excecaoAdmin`) e havia 1 registro ativo em produção nessa
+situação (contagem agregada de 03/11/2026). Correção: `acimaDasVagas` comparado campo a campo no caminho "remover";
+a justificativa original continua no registro e não pode ser mudada pela pessoa (`teste-rules-publicos-ativacao.js`,
+bloco H). Nenhum registro foi alterado.
 
 ## Limitação registrada (PR #464): autoria da exceção na cópia da correção de e-mail
 

@@ -42,6 +42,11 @@ aprovação, antes de qualquer implementação.
 
 ## Públicos — ativação (PR 2): técnico deixa de ser "quem não é gerente"
 
+> **Implementado na Entrega B (PR consolidada), com a ativação DESLIGADA:** tabela única em `forca-agil/publicos-nucleo.js`,
+> site e regras do banco; liga e desliga em ADMIN › Outros públicos (`publicos-config`), só super-admins, com prévia do
+> impacto. Substituição autorizada = exceção do ADMIN da #464. Ligar em produção depende de Outros públicos completo e de
+> autorização expressa. Cedidos, Quadro próprio, Empregados e Executivos continuam só descrição.
+
 *Especificado e aprovado em 2026-11-01; implementar só com autorização própria, DEPOIS de ADMIN › Outros públicos (PR 1)
 publicado, preenchido pela administração e conferido por leitura agregada (quantidades, sobreposições, impacto nas turmas).*
 
@@ -112,6 +117,10 @@ aplicam.
 **Restrições:** não mexer na fila, nos botões, na elegibilidade, nos dados nem nas gravações dela sem aprovação própria.
 
 ## Turmas — confirmação do ADMIN não confere "só diretores"
+
+> **Resolvido na #464:** as portas do ADMIN conferem "só diretores" (exceção `diretores`). Na Entrega B, depois da
+> ativação, "Visível só para diretores" sai do formulário (é o mesmo que Público-alvo = Diretores); o campo continua
+> valendo onde estiver gravado (nenhum evento real o usa — conferência de 03/11/2026).
 
 *Registrada em 2026-11-01 (decisão 4). Tratar em PR própria; não corrigir junto de outras entregas.*
 

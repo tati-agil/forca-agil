@@ -526,7 +526,30 @@
       firebase.database().ref('fa-diretores').once('value')
     ]).then(function (snaps) { return { gerentes: snaps[0].val() || {}, diretores: snaps[1].val() || {}, ok: true }; },
       function () { return { gerentes: null, diretores: null, ok: false }; });
-    Promise.all([listas, cargos]).then(function (r) { cb(r[0].pub, r[0].pubEv, r[0].ok, r[1]); });
+    /* a ativação dos públicos (publicos-config/ativo) e, com ela ligada, Outros públicos: a lista inteira só os super-admins
+       leem (D6); o admin comum lê só os registros de quem tem vínculo ativo numa turma (um por pessoa). Falha = null. */
+    var db = firebase.database();
+    var publicos = db.ref('publicos-config/ativo').once('value').then(function (s) { return s.val() === true; }, function () { return null; })
+      .then(function (ativo) {
+        if (ativo !== true) return { ativo: ativo, outros: ativo === false ? {} : null };
+        return db.ref('fa-outros-publicos').once('value').then(function (s) { return { ativo: true, outros: s.val() || {} }; }, function () {
+          return db.ref('turmas-interesse').once('value').then(function (si) { return si.val() || {}; }, function () { return null; }).then(function (interesses) {
+          if (!interesses) return { ativo: true, outros: null };
+          var chaves = {};
+          Object.keys(interesses || {}).forEach(function (tk) { Object.keys(interesses[tk] || {}).forEach(function (k) {
+            var r = interesses[tk][k]; if (r && !r.removed && r.status !== 'removido') chaves[k] = true; }); });
+          var outros = {}, falhou = false;
+          return Promise.all(Object.keys(chaves).map(function (k) {
+            return db.ref('fa-outros-publicos/' + k + '/categorias').once('value').then(function (s) { if (s.val()) outros[k] = { categorias: s.val() }; }, function () { falhou = true; });
+          })).then(function () { return { ativo: true, outros: falhou ? null : outros }; });
+          });
+        });
+      });
+    Promise.all([listas, cargos, publicos]).then(function (r) {
+      r[1].ativo = r[2].ativo; r[1].outros = r[2].outros;
+      _publicosAtivo = r[2].ativo;
+      cb(r[0].pub, r[0].pubEv, r[0].ok, r[1]);
+    });
   }
 
   /* Eventos — entidade que agrupa turmas. Armazena nome e carga horária
@@ -697,6 +720,15 @@
   var _publicoResolvido = true;
   /* Gerentes e diretores para o selo "Fora do público atual" — null = ainda não sei; ok=false = a leitura falhou. */
   var _cargosPublico = { gerentes: null, diretores: null, ok: true };
+  /* a ativação dos públicos (publicos-config/ativo): true | false | null (não sei) — lida em lerPublico */
+  var _publicosAtivo = null;
+  /* o perfil de público de uma pessoa, com o que o painel já carregou (lerPublico) — o mesmo formato de
+     faTurmasUtil.lerPerfilPublico; null = não sei */
+  function perfilDoPainel(k) {
+    var cg = _cargosPublico || {};
+    return { ativo: cg.ativo === undefined ? null : cg.ativo, gerente: cg.gerentes ? !!cg.gerentes[k] : null, diretor: cg.diretores ? !!cg.diretores[k] : null,
+      categorias: cg.outros ? ((cg.outros[k] && cg.outros[k].categorias) || {}) : null };
+  }
 
   function turmaRestrita(turmaKey) {
     for (var i = 0; i < TURMAS_LIST.length; i++) {
@@ -765,8 +797,9 @@
     var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0] || null;
     var k = emailKey(r.email), cg = _cargosPublico || {};
     var dispensadas = (r.excecaoAdmin && r.excecaoAdmin.regras) || {};
+    var pf = perfilDoPainel(k);
     var res = window.faTurmasUtil.foraDoPublicoAtual(t, ev, {
-      gerente: cg.gerentes ? !!cg.gerentes[k] : null,
+      gerente: pf.gerente, ativo: pf.ativo, diretorCadastro: pf.diretor, categorias: pf.categorias,
       diretor: cg.diretores ? !!cg.diretores[k] : null,
       naListaEvento: _publicoResolvido ? !!(ev && noPublicoDoEvento(ev.key, k)) : null,
       naListaTurma: _publicoResolvido ? noPublicoDaTurma(t.key, k) : null,
@@ -1101,9 +1134,9 @@
               })() +
               (function () {
                 var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0];
-                var c = window.faTurmasUtil.cargoEfetivo(t, ev);
+                var c = window.faTurmasUtil.cargoEfetivo(t, ev, _publicosAtivo);
                 if (c === 'conflito') return ' · ⚠ público da turma contradiz o do evento: ninguém entra';
-                return c ? ' · só ' + (c === 'gerentes' ? 'gerentes' : 'técnicos') : '';
+                return c ? ' · só ' + window.faPublicosNucleo.definicao(c).nome : '';
               })();
 
             var card = document.createElement('div');
@@ -3472,6 +3505,58 @@
   }
 
   /* ---- Criar / Editar evento ---- */
+  /* AJUDA DE CAMPO (ⓘ): a explicação completa de um parâmetro, escondida até ser pedida, logo abaixo do próprio campo.
+     Abre e fecha pelo botão (clique, Enter ou Espaço), pelo "Fechar explicação" ou pelo Esc — que, com uma explicação
+     aberta, fecha só ela, nunca o formulário. Uma aberta por vez. Nada do que foi preenchido muda. */
+  function ajudaBtn(id, rotulo) {
+    return '<button type="button" class="ajuda-campo-btn" aria-expanded="false" aria-controls="' + id + '" aria-label="Explicação: ' + esc(rotulo) + '" title="Explicação">ⓘ</button>';
+  }
+  function ajudaTexto(id, html) {
+    return '<div class="ajuda-campo" id="' + id + '" role="note" hidden><p>' + html + '</p>' +
+      '<button type="button" class="ajuda-campo-fechar" data-fecha="' + id + '">Fechar explicação</button></div>';
+  }
+  function ligarAjudas(box) {
+    function fechar(id, devolverFoco) {
+      var p = box.querySelector('#' + id), b = box.querySelector('.ajuda-campo-btn[aria-controls="' + id + '"]');
+      if (p) p.hidden = true;
+      if (b) { b.setAttribute('aria-expanded', 'false'); if (devolverFoco) b.focus(); }
+    }
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('.ajuda-campo-btn');
+      if (b && box.contains(b)) {
+        e.preventDefault();
+        var id = b.getAttribute('aria-controls'), aberta = b.getAttribute('aria-expanded') === 'true';
+        box.querySelectorAll('.ajuda-campo-btn[aria-expanded="true"]').forEach(function (x) { fechar(x.getAttribute('aria-controls')); });
+        if (!aberta) { box.querySelector('#' + id).hidden = false; b.setAttribute('aria-expanded', 'true'); }
+        return;
+      }
+      var f = e.target.closest('.ajuda-campo-fechar');
+      if (f && box.contains(f)) { e.preventDefault(); fechar(f.getAttribute('data-fecha'), true); }
+    });
+    box.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var aberto = box.querySelector('.ajuda-campo-btn[aria-expanded="true"]');
+      if (!aberto) return;
+      e.preventDefault(); e.stopPropagation();
+      fechar(aberto.getAttribute('aria-controls'), true);
+    });
+  }
+  /* PÚBLICO-ALVO do evento: as opções agrupadas pelo que FAZEM (tabela de publicos-nucleo.js). Antes da ativação, os
+     públicos dela aparecem desabilitados — Diretores continua escolhível, como descrição, porque já é usado. */
+  function opcoesPublicoAlvo(ativo) {
+    var P = window.faPublicosNucleo, ja = [], depois = [];
+    P.PUBLICOS.forEach(function (p) { (p.ativacao && ativo !== true ? depois : ja).push(p); });
+    var opt = function (v, t, desab) { return '<option value="' + esc(v) + '"' + (desab ? ' disabled' : '') + '>' + esc(t) + '</option>'; };
+    var html = '<optgroup label="Restringem quem participa">' + ja.map(function (p) { return opt(p.rotulo, p.rotulo); }).join('') + '</optgroup>';
+    if (depois.length) {
+      html += '<optgroup label="Restringem só depois da ativação dos públicos">' + depois.map(function (p) {
+        return p.rotulo === 'Diretores' ? opt(p.rotulo, 'Diretores (hoje só descrição)') : opt(p.rotulo, p.rotulo + ' (após a ativação)', true);
+      }).join('') + '</optgroup>';
+    }
+    return html + '<optgroup label="Só descrição (não restringem)">' + opt('', 'Empregados') + opt('Executivos', 'Executivos') +
+      opt('Cedidos', 'Cedidos') + opt('Quadro próprio', 'Quadro próprio') + '</optgroup>';
+  }
+
   function openEventoFormModal(existing) {
     var isEdit = !!existing;
     var overlay = document.createElement('div');
@@ -3486,34 +3571,30 @@
       '<label class="auth-label">Nome do evento<input type="text" id="eventoFormNome" placeholder="Ex: FORÇA ÁGIL · JORNADA DE IMERSÃO" autocomplete="off" /></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Carga horária<input type="number" id="eventoFormCarga" placeholder="20" min="1" max="999" style="width:80px" /><span style="opacity:.7">horas</span></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Frequência mínima p/ certificado<input type="number" id="eventoFormPercentual" placeholder="75" min="1" max="100" style="width:80px" /><span style="opacity:.7">%</span></label>' +
-      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicado" style="width:auto;margin:0" />Divulgar este evento na página Turmas</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o evento inteiro some da página das pessoas — turmas, lista de espera e a Missão dele. Use para preparar um evento antes de divulgar, ou para tirar do ar um que já acabou. Não muda nada para quem já está inscrita: o acesso dela e a Minha Área continuam iguais, e aqui no painel o evento segue completo.</p>' +
-      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormEspera" style="width:auto;margin:0" />Aceitar lista de espera neste evento</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o card "Lista de Espera" não aparece na página Turmas e ninguém novo entra na fila deste evento. Quem já está na fila continua aqui no painel — nada é apagado.</p>' +
+      '<p class="form-grupo-titulo">Divulgação e visibilidade</p>' +
+      '<div class="campo-com-ajuda"><label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicado" style="width:auto;margin:0" />Divulgar este evento na página Turmas</label>' + ajudaBtn('ajudaEvDivulgar', 'Divulgar este evento') + '</div>' + ajudaTexto('ajudaEvDivulgar', 'Desmarcado, o evento inteiro some da página das pessoas — turmas, lista de espera e a Missão dele. Use para preparar um evento antes de divulgar, ou para tirar do ar um que já acabou. Não muda nada para quem já está inscrita: o acesso dela e a Minha Área continuam iguais, e aqui no painel o evento segue completo.') +
+      '<div class="campo-com-ajuda"><label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormEspera" style="width:auto;margin:0" />Aceitar lista de espera neste evento</label>' + ajudaBtn('ajudaEvEspera', 'Lista de espera') + '</div>' + ajudaTexto('ajudaEvEspera', 'Desmarcado, o card "Lista de Espera" não aparece na página Turmas e ninguém novo entra na fila deste evento. Quem já está na fila continua aqui no painel — nada é apagado.') +
       '<fieldset id="eventoFormVisibilidade" style="border:1px solid var(--line-strong);border-radius:8px;padding:10px 14px;margin:0">' +
-        '<legend class="auth-label" style="padding:0 6px">Visibilidade do evento</legend>' +
+        '<legend class="auth-label" style="padding:0 6px;flex-direction:row;align-items:center;gap:6px">Visibilidade do evento ' + ajudaBtn('ajudaEvVisibilidade', 'Visibilidade do evento') + '</legend>' +
         '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="radio" name="eventoFormVisibilidade" id="eventoFormVisElegivel" value="elegivel" style="width:auto;margin:0" />Somente para o público elegível (padrão)</label>' +
         '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="radio" name="eventoFormVisibilidade" id="eventoFormVisTodos" value="todos" style="width:auto;margin:0" />Mostrar para todos os usuários cadastrados</label>' +
-        '<p style="font-size:.78rem;color:var(--ink-2);margin:4px 0 0">Muda só quem VÊ o evento na página Turmas, nunca quem participa. No padrão, o evento aparece só para quem atende às restrições dele (só diretores, lista de e-mails, Gerentes/Técnicos em "Quem participa", e o público próprio de cada turma). Em "Mostrar para todos", qualquer pessoa logada vê o evento e as informações dele, com o público permitido dito no título; quem não é elegível vê o motivo no lugar do botão e continua sem poder manifestar interesse, entrar na lista de espera ou se inscrever. Turma com lista de e-mails própria nunca aparece para quem está fora dela. Quem já tem interesse ou inscrição numa turma sempre a vê.</p>' +
+        ajudaTexto('ajudaEvVisibilidade', 'Muda só quem VÊ o evento na página Turmas, nunca quem participa. No padrão, o evento aparece só para quem atende às restrições dele (só diretores, lista de e-mails, o público-alvo de "Quem participa" que restringe, e o público próprio de cada turma). Em "Mostrar para todos", qualquer pessoa logada vê o evento e as informações dele, com o público permitido dito no título; quem não é elegível vê o motivo no lugar do botão e continua sem poder manifestar interesse, entrar na lista de espera ou se inscrever. Turma com lista de e-mails própria nunca aparece para quem está fora dela. Quem já tem interesse ou inscrição numa turma sempre a vê.') +
       '</fieldset>' +
-      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormRestritoDiretores" style="width:auto;margin:0" />Visível só para diretores e administradores</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, só diretores (aba Diretores) e admins participam; na visibilidade padrão, o evento some da página Turmas para as demais pessoas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
-      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicoRestrito" style="width:auto;margin:0" />Visível só para um público predefinido (lista de e-mails)</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só admite participantes — e, na visibilidade padrão, só aparece — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
-      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Vagas por turma<input type="number" id="eventoFormVagas" min="1" max="999" step="1" placeholder="sem limite" style="width:110px" /></label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vale para todas as turmas deste evento (interesse + inscrição ocupam vaga). Lotada, o card não aceita interesse novo — quem já está continua podendo remover — e no painel incluir alguém a mais pede um motivo. Uma turma pode ter o próprio número em "Editar turma", que vale por cima deste. Vazio = sem limite.</p>' +
-      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormDispensaCmflex" style="width:auto;margin:0" />Não exige inscrição no CMFlex</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, o card não manda ninguém para o CMFlex: depois do interesse diz que a organização confirma a vaga, e o "Confirmar" aqui no painel confirma a vaga direto. O resto é igual — só a sua confirmação torna a pessoa inscrita. Desmarcado (padrão), como sempre foi: a inscrição oficial é no CMFlex.</p>' +
+      '<div class="campo-com-ajuda"><label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormRestritoDiretores" style="width:auto;margin:0" />Visível só para diretores e administradores</label>' + ajudaBtn('ajudaEvDiretores', 'Visível só para diretores') + '</div>' + ajudaTexto('ajudaEvDiretores', 'Marcado, só diretores (aba Diretores) e admins participam; na visibilidade padrão, o evento some da página Turmas para as demais pessoas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.') +
+      '<div class="campo-com-ajuda"><label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicoRestrito" style="width:auto;margin:0" />Visível só para um público predefinido (lista de e-mails)</label>' + ajudaBtn('ajudaEvLista', 'Público predefinido') + '</div>' + ajudaTexto('ajudaEvLista', 'Marcado, este evento só admite participantes — e, na visibilidade padrão, só aparece — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.') +
+      '<p class="form-grupo-titulo">Participação</p>' +
+      '<div class="campo-com-ajuda"><label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Vagas por turma<input type="number" id="eventoFormVagas" min="1" max="999" step="1" placeholder="sem limite" style="width:110px" /></label>' + ajudaBtn('ajudaEvVagas', 'Vagas por turma') + '</div>' + ajudaTexto('ajudaEvVagas', 'Vale para todas as turmas deste evento (interesse + inscrição ocupam vaga). Lotada, o card não aceita interesse novo — quem já está continua podendo remover — e no painel incluir alguém a mais pede um motivo. Uma turma pode ter o próprio número em "Editar turma", que vale por cima deste. Vazio = sem limite.') +
+      '<div class="campo-com-ajuda"><label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormDispensaCmflex" style="width:auto;margin:0" />Não exige inscrição no CMFlex</label>' + ajudaBtn('ajudaEvCmflex', 'CMFlex') + '</div>' + ajudaTexto('ajudaEvCmflex', 'Marcado, o card não manda ninguém para o CMFlex: depois do interesse diz que a organização confirma a vaga, e o "Confirmar" aqui no painel confirma a vaga direto. O resto é igual — só a sua confirmação torna a pessoa inscrita. Desmarcado (padrão), como sempre foi: a inscrição oficial é no CMFlex.') +
       '<details class="evento-lista-bloco" id="eventoFormBloqueioBloco"><summary><span class="evento-lista-titulo">Impedir nova participação</span>' +
           '<span class="evento-lista-resumo"></span></summary>' +
-        '<div class="evento-lista-corpo"><p class="evento-lista-ajuda">Quem tem interesse ou inscrição (não removidos) em turma de um evento marcado — inclusive já realizada — não consegue manifestar interesse neste evento nem entrar na lista de espera dele. Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila). Ninguém é removido.</p>' +
+        '<div class="evento-lista-corpo"><div class="campo-com-ajuda"><span class="evento-lista-ajuda">Eventos que impedem a participação</span>' + ajudaBtn('ajudaEvBloqueio', 'Impedir nova participação') + '</div>' + ajudaTexto('ajudaEvBloqueio', 'Quem tem interesse ou inscrição (não removidos) em turma de um evento marcado — inclusive já realizada — não consegue manifestar interesse neste evento nem entrar na lista de espera dele. Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila). Ninguém é removido.') +
         '<div id="eventoFormBloqueioLista" class="evento-lista"></div></div></details>' +
       /* configuração anterior ("Contar turmas de outros eventos"), enquanto não for convertida: só informa */
       '<p id="eventoFormContarAntigo" class="evento-lista-ajuda" hidden></p>' +
-      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormUmaTurma" style="width:auto;margin:0" />Só uma turma por pessoa (interesse ou inscrição)</label>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, quem já tem interesse ou inscrição numa turma deste evento não consegue entrar em outra — o card mostra em qual ela está e como trocar. Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila).</p>' +
+      '<div class="campo-com-ajuda"><label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormUmaTurma" style="width:auto;margin:0" />Só uma turma por pessoa (interesse ou inscrição)</label>' + ajudaBtn('ajudaEvUmaTurma', 'Só uma turma por pessoa') + '</div>' + ajudaTexto('ajudaEvUmaTurma', 'Marcado, quem já tem interesse ou inscrição numa turma deste evento não consegue entrar em outra — o card mostra em qual ela está e como trocar. Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila).') +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
+      '<div class="campo-com-ajuda"><p class="form-grupo-titulo">Conteúdo da página Turmas</p>' + ajudaBtn('ajudaEvConteudo', 'Conteúdo da página Turmas') + '</div>' +
+      ajudaTexto('ajudaEvConteudo', 'Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.') +
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
       '<label class="auth-label">Missão (texto)<textarea id="eventoFormMissaoTexto" rows="2" placeholder="Ex: Eficiência com foco no futuro: trabalhar de forma mais simples, colaborativa e com propósito..." style="resize:vertical;font-family:var(--font-body)"></textarea></label>' +
       '<label class="auth-label">Tópicos abordados<textarea id="eventoFormTopicos" rows="2" placeholder="Ex: Serão abordados: fundamentos ágeis, OKR, Scrum..." style="resize:vertical;font-family:var(--font-body)"></textarea></label>' +
@@ -3527,7 +3608,8 @@
         '<div id="eventoItinerarioList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
         '<button type="button" class="btn btn--sm" id="eventoAddDiaBtn" style="margin-top:8px">+ Adicionar dia</button>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:8px 0 0">Os dois últimos chips do bloco "Como funciona" (abaixo do itinerário, na página Turmas). Os quatro campos são listas fechadas, pra não ter "Híbrido"/"hibrido" escrito diferente em cada evento. Em "Quem participa" você escolhe só a categoria — o site completa sozinho com "aberta a todos os ___ da Previ" na frente e atrás. <b>Gerentes</b> e <b>Técnicos</b> também decidem quem entra, em todas as turmas do evento: Gerentes = só quem está na aba Gerentes; Técnicos = só quem não está. As outras categorias são só descrição.</p>' +
+      '<div class="campo-com-ajuda"><p class="form-grupo-titulo">Chips do bloco "Como funciona" e público-alvo</p>' + ajudaBtn('ajudaEvChips', 'Chips e público-alvo') + '</div>' +
+      ajudaTexto('ajudaEvChips', 'Os dois últimos chips do bloco "Como funciona" (abaixo do itinerário, na página Turmas). Os quatro campos são listas fechadas, pra não ter "Híbrido"/"hibrido" escrito diferente em cada evento. Em "Quem participa" você escolhe só a categoria — o site completa sozinho com "aberta a todos os ___ da Previ" na frente e atrás. <b>Gerentes</b> e <b>Técnicos</b> também decidem quem entra, em todas as turmas do evento: Gerentes = só quem está na aba Gerentes; Técnicos = só quem não está (depois da ativação dos públicos, também fora de Diretores e de Outros públicos). Diretores, as categorias de Outros públicos e os dois agrupados passam a decidir depois da ativação; Empregados, Executivos, Cedidos e Quadro próprio são só descrição. O próprio menu separa as opções que restringem das que só descrevem.') +
       '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
         '<label class="auth-label" style="flex:1;min-width:140px">Modalidade (chip curto)<select id="eventoFormModalidadeLabel" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
           '<option value="">— usar padrão (Prática) —</option>' +
@@ -3543,14 +3625,8 @@
           '<option value="Opcional">Opcional</option>' +
           '<option value="Obrigatória">Obrigatória</option>' +
         '</select></label>' +
-        '<label class="auth-label" style="flex:2;min-width:220px">Quem participa (descrição)<select id="eventoFormPublicoDesc" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
-          '<option value="">Empregados</option>' +
-          '<option value="Diretores">Diretores</option>' +
-          '<option value="Executivos">Executivos</option>' +
-          '<option value="Gerentes">Gerentes</option>' +
-          '<option value="Técnicos">Técnicos</option>' +
-          '<option value="Cedidos">Cedidos</option>' +
-          '<option value="Quadro próprio">Quadro próprio</option>' +
+        '<label class="auth-label" style="flex:2;min-width:220px">Público-alvo (Quem participa)<select id="eventoFormPublicoDesc" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
+          opcoesPublicoAlvo(_publicosAtivo) +
         '</select></label>' +
       '</div>' +
       '<p id="eventoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
@@ -3562,6 +3638,7 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
+    ligarAjudas(box);
     var nomeInput         = box.querySelector('#eventoFormNome');
     var cargaInput        = box.querySelector('#eventoFormCarga');
     var percentualInput   = box.querySelector('#eventoFormPercentual');
@@ -3598,6 +3675,10 @@
     esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
     publicadoInput.checked  = isEdit ? existing.publicado !== false : true;
     restritoInput.checked   = isEdit ? !!existing.restritoADiretores : false;
+    if (_publicosAtivo === true && !restritoInput.checked) {
+      var linhaDiretores = restritoInput.closest('.campo-com-ajuda');
+      linhaDiretores.hidden = true; box.querySelector('#ajudaEvDiretores').hidden = true;
+    }
     /* os OUTROS eventos, para marcar de quais a participação impede este (ausente = sem restrição) */
     var bloqueioAtual = (isEdit && existing.bloqueiaParticipantesDe) || {};
     montarListaDeEventos(bloqueioLista, 'evento-bloqueio-cb', bloqueioAtual, isEdit ? existing.key : '');
@@ -3751,11 +3832,11 @@
       '<label class="auth-label">Sala <span style="opacity:.6;font-weight:400">(opcional)</span><input type="text" id="turmaFormSala" placeholder="Ex: Sala de Treinamento GETHO" maxlength="120" autocomplete="off" /></label>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
         '<label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = igual ao evento)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' +
-        '<label class="auth-label">Público<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
-          '<option value="">Igual ao evento</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
+        '<label class="auth-label">Público da turma<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
+          '<option value="">Igual ao evento (padrão)</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
         '</select></label>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" segue o "Quem participa" do evento (Gerentes ou Técnicos restringem; as outras categorias não); "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem não está, somando-se ao do evento — a turma pode restringir mais, nunca ampliar.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: "Igual ao evento" (o padrão) segue o público-alvo do evento — no formulário do evento, o menu diz quais opções restringem e quais só descrevem; "Só gerentes" admite quem está na aba Gerentes e "Só técnicos" quem é técnico (quem não está em Gerentes; depois da ativação dos públicos, também fora de Diretores e de Outros públicos), somando-se ao do evento — a turma pode restringir mais, nunca ampliar. As listas de e-mails do evento e da turma são restrições à parte, que também se somam.</p>' +
       '<p id="turmaFormCargoAviso" role="alert" hidden style="font-size:.82rem;color:#ffb347;margin:-4px 0 0"></p>' +
       '<label class="auth-label" id="turmaFormCmflexBox">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
@@ -3833,10 +3914,10 @@
     var cargoAviso = box.querySelector('#turmaFormCargoAviso');
     function avisarCargoContraditorio() {
       var ev = EVENTOS_LIST.filter(function (e) { return e.key === eventoSel.value; })[0];
-      var conflito = window.faTurmasUtil.cargoEfetivo({ publicoCargo: cargoInput.value }, ev) === 'conflito';
+      var conflito = window.faTurmasUtil.cargoEfetivo({ publicoCargo: cargoInput.value }, ev, _publicosAtivo) === 'conflito';
       cargoAviso.hidden = !conflito;
       cargoAviso.textContent = conflito
-        ? '⚠ Contraditório: o evento é só para ' + (window.faTurmasUtil.cargoDoEvento(ev) === 'gerentes' ? 'gerentes' : 'técnicos') +
+        ? '⚠ Contraditório: o evento é só para ' + window.faPublicosNucleo.definicao(window.faTurmasUtil.cargoDoEvento(ev, _publicosAtivo)).nome +
           ' e esta turma só para ' + (cargoInput.value === 'gerentes' ? 'gerentes' : 'técnicos') +
           '. As regras se somam, então ninguém conseguiria entrar nesta turma. Escolha "Igual ao evento" ou ajuste o evento.'
         : '';
@@ -4788,7 +4869,8 @@
         var br = function (iso) { var p = String(iso).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; };
         var nomesDe = function (o) { return Object.keys(o || {}).filter(function (k) { return o[k]; }).map(function (k) { return (eventos[k] || {}).nome || k; }).join('; '); };
         var h = new Date(), hojeISO = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-' + String(h.getDate()).padStart(2, '0');
-        var PUBLICO_TURMA = { gerentes: 'Só gerentes', tecnicos: 'Só técnicos', conflito: 'Contraditório (turma × evento): ninguém entra' };
+        var PUBLICO_TURMA = { conflito: 'Contraditório (turma × evento): ninguém entra' };
+        window.faPublicosNucleo.PUBLICOS.forEach(function (p) { PUBLICO_TURMA[p.chave] = 'Só ' + p.nome; });
         function paramsEvento(e) {
           return {
             'Quem participa': e.publicoDesc || 'Empregados',
@@ -4832,7 +4914,7 @@
               'Vagas': vagas || 'Sem limite',
               'Ocupadas (interesse + inscrição)': regs.length,
               'Inscritas confirmadas': regs.filter(inscricaoValida).length,
-              'Público da turma': PUBLICO_TURMA[window.faTurmasUtil.cargoEfetivo(t, e)] || 'Todos',
+              'Público da turma': PUBLICO_TURMA[window.faTurmasUtil.cargoEfetivo(t, e, _publicosAtivo)] || 'Todos',
               'Público restrito (lista da turma)': sim(!!t.publicoRestrito),
               'Avaliação liberada': sim(!!t.avaliacaoHabilitada),
               'Construção da Aposta': sim(!!t.apostaHabilitada),
@@ -7935,8 +8017,10 @@
      addedAt, addedBy, updatedAt, updatedBy }, com categorias = { estagiario, menorAprendiz, coaud, conselhoDeliberativo,
      conselhoFiscal, conselhoConsultivo } — uma pessoa, um registro, várias categorias. Gerentes e Diretores continuam
      nas abas deles; aqui só se SINALIZA quem também está lá (sem precedência, nada é mudado sozinho).
-     NESTA ETAPA nada lê esta lista para decidir participação: quem pode entrar em cada turma continua igual. Ela prepara
-     a ativação dos públicos (Técnicos deixando de ser "quem não é gerente", os públicos novos e os agrupados).
+     A lista só decide participação com a ATIVAÇÃO DOS PÚBLICOS ligada (publicos-config/ativo; bloco no topo desta aba, só
+     super-admins): Técnicos deixa de ser "quem não é gerente" (fica fora de Gerentes, Diretores e das sete categorias), e
+     Diretores, as sete categorias e os dois agrupados passam a restringir no "Público-alvo" do evento (publicos-nucleo.js).
+     Desligada (o padrão), tudo é como antes.
      Só os dois super-admins leem a lista inteira e gravam (database.rules.json, montar-regras-outros-publicos.js) — há
      menores de idade nela; os outros admins veem só o aviso. A lista é por e-mail: vale mesmo para quem ainda não tem
      cadastro no site. */
@@ -7949,13 +8033,92 @@
     { k: 'conselhoConsultivo', rotulo: 'Conselho Consultivo' },
     { k: 'assessor', rotulo: 'Assessores' }
   ];
+  /* ATIVAÇÃO DOS PÚBLICOS (publicos-config = { ativo, em, por, porNome }; só super-admins gravam — montar-regras-outros-publicos.js).
+     Antes de ligar, a PRÉVIA do impacto, calculada dos dados (só contagens, com a mesma regra do site — publicos-nucleo.js e
+     faTurmasUtil.foraDoPublicoAtual): quem deixa de ser técnico e por quê; vínculos ativos em turmas por vir que passariam a
+     estar fora do público (ninguém é removido: só ganham o selo e as entradas novas passam a seguir a regra); eventos cujo
+     público passa a restringir. Leitura que falha = sem prévia e sem botão. Desligar volta tudo a como era. */
+  function montarAtivacaoPublicos(el, base, depois) {
+    const db = firebase.database();
+    const le = function (no) { return db.ref(no).once('value').then(function (s) { return s.val() || {}; }, function () { return null; }); };
+    el.innerHTML = '<p class="loading-msg">Conferindo a ativação dos públicos…</p>';
+    Promise.all([le('publicos-config'), le('eventos'), le('turmas'), le('turmas-config'), le('turmas-interesse')]).then(function (r) {
+      const cfg = r[0], eventos = r[1], turmas = r[2], tcfg = r[3], ti = r[4];
+      const ativo = !!(cfg && cfg.ativo === true);
+      const situacao = cfg === null ? 'Não foi possível ler a situação da ativação agora.'
+        : ativo ? 'Ligada' + (cfg.em ? ' em ' + fmtDate(cfg.em) : '') + (cfg.porNome || cfg.por ? ' por ' + (cfg.porNome || cfg.por) : '') + '. Os públicos novos e a classificação nova de Técnicos estão valendo.'
+        : 'Desligada. Os públicos novos e a classificação nova de Técnicos ainda NÃO valem — tudo funciona como antes.';
+      let prev = null;
+      if (cfg !== null && base.ger && base.dir && eventos && turmas && tcfg && ti) {
+        const P = window.faPublicosNucleo, U = window.faTurmasUtil;
+        const perfil = function (k, at) { return { ativo: at, gerente: !!base.ger[k], diretor: !!base.dir[k], categorias: (base.outros[k] && base.outros[k].categorias) || {} }; };
+        let tecHoje = 0, tecDepois = 0, porDir = 0, porOutros = 0;
+        Object.keys(base.users || {}).forEach(function (k) {
+          if (P.ehTecnico(perfil(k, false)) === true) tecHoje++;
+          if (P.ehTecnico(perfil(k, true)) === true) tecDepois++;
+          else if (P.ehTecnico(perfil(k, false)) === true) { if (base.dir[k]) porDir++; else porOutros++; }
+        });
+        const agora = new Date();
+        const hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+        let vinculos = 0;
+        const eventosAfetados = {};
+        Object.keys(turmas).forEach(function (tk) {
+          const t = Object.assign({ key: tk }, turmas[tk]), ev = eventos[t.eventoKey] || null;
+          if (U.turmaJaRealizada(t.dias, (tcfg[tk] || {}).encerrada, hoje)) return;
+          if (ev && P.dependeDaAtivacao(ev.publicoDesc)) eventosAfetados[t.eventoKey] = (eventosAfetados[t.eventoKey] || 0) + 1;
+          Object.keys(ti[tk] || {}).forEach(function (k) {
+            const reg = ti[tk][k];
+            if (!reg || reg.removed || reg.status === 'removido') return;
+            const p = function (at) { const x = perfil(k, at); return { gerente: x.gerente, ativo: at, diretorCadastro: x.diretor, categorias: x.categorias, diretor: true, naListaEvento: true, naListaTurma: true }; };
+            const antes = U.foraDoPublicoAtual(t, ev, p(false)).estado, apos = U.foraDoPublicoAtual(t, ev, p(true)).estado;
+            if (apos === 'incompativel' && antes !== 'incompativel' && !(reg.excecaoAdmin && reg.excecaoAdmin.regras && reg.excecaoAdmin.regras.cargo)) vinculos++;
+          });
+        });
+        prev = { tecHoje: tecHoje, tecDepois: tecDepois, porDir: porDir, porOutros: porOutros, vinculos: vinculos, cadastros: Object.keys(base.outros || {}).length,
+          eventos: Object.keys(eventosAfetados).map(function (ek) { return (eventos[ek] || {}).nome || ek; }) };
+      }
+      el.innerHTML = '<h4>Ativação dos públicos</h4>' +
+        '<p class="admin-empty" data-ativacao-situacao="' + (cfg === null ? 'falha' : ativo ? 'ligada' : 'desligada') + '">' + esc(situacao) + '</p>' +
+        (prev ? '<ul class="outros-ativacao-previa" data-ativacao-previa="1">' +
+          '<li>Cadastros em Outros públicos: <b>' + prev.cadastros + '</b>.</li>' +
+          '<li>Técnicos (contas do site): <b>' + prev.tecHoje + '</b> pela regra de antes; <b>' + prev.tecDepois + '</b> com a ativação — deixam de ser técnicos ' +
+            prev.porDir + ' de Diretores e ' + prev.porOutros + ' de Outros públicos.</li>' +
+          '<li>Vínculos ativos em turmas por vir que passariam a ficar fora do público: <b data-ativacao-vinculos="' + prev.vinculos + '">' + prev.vinculos + '</b> (ninguém é removido; ganham o selo, e o admin decide).</li>' +
+          '<li>Eventos com turma por vir cujo público passa a restringir: ' + (prev.eventos.length ? esc(prev.eventos.join(', ')) : 'nenhum') + '.</li>' +
+          '<li>Pessoas sem cadastro em Outros públicos continuam sendo técnicas: confira se a lista está completa antes de ligar.</li></ul>'
+          : (cfg === null ? '' : '<p class="admin-empty">Não foi possível calcular o impacto agora (alguma leitura falhou). Recarregue para tentar de novo.</p>')) +
+        (cfg !== null && (prev || ativo) ? '<button type="button" class="btn' + (ativo ? '' : ' btn--primary') + '" data-ativacao-botao="' + (ativo ? 'desligar' : 'ligar') + '">' +
+          (ativo ? 'Desligar a ativação' : 'Ligar a ativação dos públicos') + '</button>' : '') +
+        '<p class="admin-empty" data-ativacao-msg role="status" style="margin-top:8px"></p>';
+      const btn = el.querySelector('[data-ativacao-botao]');
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        const sess = window.faAuth && window.faAuth.getSession();
+        if (!sess || !sess.email) { el.querySelector('[data-ativacao-msg]').textContent = 'Sessão não encontrada. Nada foi gravado.'; return; }
+        const texto = ativo
+          ? 'Desligar a ativação dos públicos?\n\nTécnicos volta a ser "quem não é gerente", e Diretores, as sete categorias e os agrupados voltam a ser só descrição. Ninguém é removido de turma; acessos não mudam.'
+          : 'Ligar a ativação dos públicos?\n\nTécnicos passa a excluir Diretores e Outros públicos (' + prev.porDir + ' + ' + prev.porOutros + ' contas deixam de ser técnicas), e Diretores, as sete categorias e os agrupados passam a restringir. ' +
+            prev.vinculos + ' vínculo(s) ativo(s) em turma por vir ficariam fora do público — ninguém é removido. Acessos ao site não mudam. Dá para desligar depois.';
+        adminConfirm(texto, function () {
+          db.ref('publicos-config').set({ ativo: !ativo, em: new Date().toISOString(), por: sess.email, porNome: sess.name || sess.email }).then(function () {
+            _publicosAtivo = !ativo;
+            /* a aba Eventos relê os cadastros e a ativação: selos e portas passam a seguir a regra nova sem recarregar a página */
+            loadInterests();
+            depois();
+          }, function () {
+            el.querySelector('[data-ativacao-msg]').textContent = 'O banco recusou a gravação: nada foi mudado. Só os super-admins ligam ou desligam a ativação.';
+          });
+        });
+      });
+    });
+  }
   function loadOutrosPublicos() {
     const c = document.getElementById('adminOutrosPublicos');
     if (!c) return;
     const sess0 = window.faAuth && window.faAuth.getSession();
     const souSuper = !!(sess0 && SUPER_ADMINS.indexOf((sess0.email || '').toLowerCase()) !== -1);
     const INFO = 'Estagiários, menores aprendizes, membros do COAUD, dos conselhos Deliberativo, Fiscal e Consultivo, e assessores — um cadastro por pessoa, com uma ou mais categorias. ' +
-      'Por enquanto esta lista não muda quem pode participar de nenhum evento ou turma: ela prepara a próxima etapa, em que esses públicos passam a valer. A lista é por e-mail: vale mesmo para quem ainda não tem cadastro no site. Não dá acesso ao painel.';
+      'Enquanto a ativação dos públicos estiver desligada, esta lista não muda quem pode participar de nenhum evento ou turma. Ligada, ela decide os públicos novos e a classificação de Técnicos. A lista é por e-mail: vale mesmo para quem ainda não tem cadastro no site. Não dá acesso ao painel nem muda acesso ao site.';
     const rotuloDe = function (k) { return (CATEGORIAS_OUTROS.filter(function (x) { return x.k === k; })[0] || { rotulo: k }).rotulo; };
     const marcadas = function (cats) { return CATEGORIAS_OUTROS.filter(function (x) { return cats && cats[x.k] === true; }).map(function (x) { return x.k; }); };
     const caixas = function (prefixo, cats) {
@@ -8001,6 +8164,12 @@
         info.style.marginBottom = '20px';
         info.textContent = INFO;
         c.appendChild(info);
+
+        const atv = document.createElement('div');
+        atv.className = 'outros-ativacao';
+        atv.setAttribute('data-ativacao-publicos', '');
+        c.appendChild(atv);
+        montarAtivacaoPublicos(atv, { outros: data, users: users, ger: ger, dir: dir }, function () { render(); });
 
         if (sobrepostas) {
           const av = document.createElement('p');
