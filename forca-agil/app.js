@@ -896,6 +896,23 @@
        clique). Mesma consulta de pessoas da Minha Área
        (window.faTurmasUtil.listarPessoasVerComo, ver turmas-util.js). */
     function emPrevia() { return !!_verComoPessoa; }
+    /* DONO do "Ver como": a conta AUTENTICADA que montou a barra. O recurso só existe enquanto a conta logada for admin
+       (faAuth.isAdmin — a lista fixa + fa-admins, a mesma regra de sempre; leitura pendente ou que falhou = não é) e for
+       a MESMA que o montou. Sair da conta não recarrega a página: antes, a barra, a pessoa simulada e o "eu mesma"
+       (que apontava para a sessão da abertura) sobreviviam à troca de conta na mesma aba — uma gerente que entrava
+       depois de uma admin via a barra de ADMIN e até a página da pessoa simulada (02/11/2026). */
+    var _verComoDono = '';
+    function verComoAutorizado(sess) { return !!(sess && sess.email && window.faAuth && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)); }
+    /* encerra o "Ver como" quando a conta logada mudou ou deixou de ser admin: tira a barra e o aviso do DOM (os
+       ouvintes vão junto com os elementos) e limpa a pessoa simulada — a página volta a ser a da conta logada */
+    function encerrarVerComoSeTrocou() {
+      var sess = window.faAuth && window.faAuth.getSession();
+      if (_verComoDono && verComoAutorizado(sess) && sess.email === _verComoDono) return;
+      Array.prototype.forEach.call(document.querySelectorAll('.turmas-vercomo, .turmas-vercomo-aviso'), function (el) { el.parentNode.removeChild(el); });
+      _verComoPessoa = null;
+      _verComoDono = '';
+      marcarPrevia();
+    }
     function marcarPrevia() {
       var host = document.querySelector('.turmas-eventos');
       if (host) host.classList.toggle('turmas-previa', emPrevia());
@@ -909,7 +926,8 @@
     }, true);
     function montarBarraVerComoTurmas(sessReal) {
       var host = document.querySelector('.turmas-eventos');
-      if (!host || document.querySelector('.turmas-vercomo')) return;
+      if (!host || document.querySelector('.turmas-vercomo') || !verComoAutorizado(sessReal)) return;
+      _verComoDono = sessReal.email;
 
       var barra = document.createElement('div');
       barra.className = 'aluno-vercomo turmas-vercomo';
@@ -922,7 +940,7 @@
       host.parentNode.insertBefore(barra, host);
 
       var aviso = document.createElement('div');
-      aviso.className = 'aluno-vercomo-aviso';
+      aviso.className = 'aluno-vercomo-aviso turmas-vercomo-aviso';
       aviso.style.display = 'none';
       host.parentNode.insertBefore(aviso, host);
 
@@ -939,6 +957,9 @@
       });
 
       sel.addEventListener('change', function () {
+        /* a conta logada AGORA, não a da abertura: se não é mais a admin dona da barra, o recurso acaba aqui */
+        var atual = window.faAuth && window.faAuth.getSession();
+        if (!verComoAutorizado(atual) || atual.email !== _verComoDono) { encerrarVerComoSeTrocou(); initTurmaInterest(); return; }
         var opt = sel.options[sel.selectedIndex];
         barra.classList.toggle('aluno-vercomo--ativo', !!sel.value);
         if (!sel.value) {
@@ -950,7 +971,7 @@
             '</strong> veria. Tudo abaixo é o que aparece para essa pessoa.';
           aviso.style.display = '';
         }
-        _sess = _verComoPessoa || sessReal;
+        _sess = _verComoPessoa || atual;
         carregarVisao(function () {
           renderTurmasGrid();
           marcarPrevia();
@@ -962,6 +983,7 @@
     }
 
     function initTurmaInterest() {
+      encerrarVerComoSeTrocou();
       var sess = window.faAuth && window.faAuth.getSession();
       _sess = _verComoPessoa || sess;
       loadTurmas(function () {
@@ -972,7 +994,7 @@
           renderEsperaCard(_sess);
           renderMissaoEventos();
           initInterestButtons(_sess);
-          if (sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) montarBarraVerComoTurmas(sess);
+          if (verComoAutorizado(sess) && sess === window.faAuth.getSession()) montarBarraVerComoTurmas(sess);
         });
       });
     }
@@ -1470,6 +1492,8 @@
     window.faInitTurmas = initTurmaInterest;
     if (window.faRouter) window.faRouter.onPageInit('turmas', initTurmaInterest);
     window.addEventListener('fa-auth-change', function () {
+      /* em qualquer página: a troca de conta encerra o "Ver como" na hora, não só quando Turmas abrir de novo */
+      encerrarVerComoSeTrocou();
       if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
     });
     /* isDiretor() só resolve depois de uma leitura assíncrona própria (ver
