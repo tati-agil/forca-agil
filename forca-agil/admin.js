@@ -3831,31 +3831,33 @@
       '</div>' +
       '<label class="auth-label">Sala <span style="opacity:.6;font-weight:400">(opcional)</span><input type="text" id="turmaFormSala" placeholder="Ex: Sala de Treinamento GETHO" maxlength="120" autocomplete="off" /></label>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
-        '<label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = igual ao evento)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' +
+        '<div class="campo-com-ajuda"><label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = igual ao evento)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' + ajudaBtn('ajudaTuVagas', 'Vagas') + '</div>' +
         '<label class="auth-label" id="turmaFormPublicoCargoBox">Público da turma<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
           '<option value="">Igual ao evento (padrão)</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
         '</select></label>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo. Público: a turma segue o público-alvo do evento. Para restringir a turma a convidados, use "Restringir a uma lista específica de e-mails"; para incluir alguém fora do público, use a exceção do ADMIN (＋ Participante, Confirmar, Mover). As listas de e-mails do evento e da turma são restrições à parte, que se somam ao público.</p>' +
+      ajudaTexto('ajudaTuVagas', 'Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo.') +
       '<p id="turmaFormCargoAviso" role="alert" hidden style="font-size:.82rem;color:#ffb347;margin:-4px 0 0"></p>' +
       '<label class="auth-label" id="turmaFormCmflexBox">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       /* Duas opções explícitas em vez de uma caixa solta — o MESMO campo publicoRestrito e a MESMA lista
          (turmas-publico), sem dado novo nem migração: "Seguir as regras do evento" = desmarcado. */
       '<fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:6px">' +
-        '<legend class="auth-label" style="padding:0;margin-bottom:6px">Público desta turma</legend>' +
+        '<legend class="auth-label" style="padding:0;margin-bottom:6px;flex-direction:row;align-items:center;gap:6px">Lista de convidados da turma ' + ajudaBtn('ajudaTuLista', 'Lista de convidados da turma') + '</legend>' +
+        ajudaTexto('ajudaTuLista', 'A turma segue o público-alvo do evento. ' +
+          'A lista específica soma-se às regras do evento, nunca as substitui: quem o evento não admite continua de fora, mesmo na lista. ' +
+          'O card não aparece para quem está fora da lista, e o painel recusa adicionar quem não está nela. ' +
+          'Lista vazia = ninguém além do admin vê a turma. A lista se monta no menu ⋯ da turma, depois de salvar; ' +
+          'mudar esta opção não remove ninguém da turma. ' +
+          'Para incluir alguém fora do público, use a exceção do ADMIN (＋ Participante, Confirmar, Mover): fica registrada, com o motivo, e não muda a categoria da pessoa. ' +
+          'As listas de e-mails do evento e da turma são restrições à parte, que se somam ao público.') +
         '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
           '<input type="radio" name="turmaFormPublicoModo" id="turmaFormPublicoEvento" style="margin-top:3px">' +
-          '<span>Seguir as regras do evento <span style="opacity:.65">(padrão)</span></span>' +
+          '<span>Sem lista específica <span style="opacity:.65">(padrão)</span></span>' +
         '</label>' +
         '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
           '<input type="radio" name="turmaFormPublicoModo" id="turmaFormPublicoRestrito" style="margin-top:3px">' +
-          '<span>Restringir a uma lista específica de e-mails' +
-          '<span style="display:block;opacity:.65;font-size:.78rem;margin-top:2px">' +
-          'Soma-se às regras do evento, nunca as substitui: quem o evento não admite continua de fora, mesmo na lista. ' +
-          'O card não aparece para quem está fora da lista, e o painel recusa adicionar quem não está nela. ' +
-          'Lista vazia = ninguém além do admin vê a turma. A lista se monta no menu ⋯ da turma, depois de salvar; ' +
-          'mudar esta opção não remove ninguém da turma.</span></span>' +
+          '<span>Restringir a uma lista específica de e-mails</span>' +
         '</label>' +
       '</fieldset>' +
       '<div>' +
@@ -3872,6 +3874,7 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
+    ligarAjudas(box);  /* as mesmas ajudas ⓘ do formulário de evento */
     var eventoSel   = box.querySelector('#turmaFormEvento');
     var labelInput  = box.querySelector('#turmaFormLabel');
     var horaInicioInput = box.querySelector('#turmaFormHoraInicio');

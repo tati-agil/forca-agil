@@ -27,7 +27,7 @@
  *      ninguém e diz isso sem culpar a pessoa;
  *   ADMIN (#admin › Eventos)
  *   5. o card da turma contraditória avisa que ninguém entra;
- *   6. "Editar turma" mostra "Seguir as regras do evento" × "Restringir a uma
+ *   6. "Editar turma" mostra "Sem lista específica" × "Restringir a uma
  *      lista específica de e-mails", marcado conforme o gravado, e o aviso de
  *      contradição aparece só na turma contraditória;
  *   7. salvar a Turma 1 sem mudar nada grava publicoRestrito = false nela e
@@ -249,7 +249,7 @@ async function vitrinePronta(page) {
         try {
         await abrirEditar('t2');
         let f = await estadoForm();
-        anota('6. Editar turma oferece as duas opções de público', f.tipo === 'radio' && /Seguir as regras do evento/.test(f.textos) && /Restringir a uma lista específica de e-mails/.test(f.textos), f.textos.slice(0, 160));
+        anota('6. Editar turma oferece as duas opções de público', f.tipo === 'radio' && /Sem lista específica/.test(f.textos) && /Restringir a uma lista específica de e-mails/.test(f.textos), f.textos.slice(0, 160));
         anota('6. Turma 2 abre com "Restringir a uma lista" marcado', f.lista && !f.evento, JSON.stringify(f));
         anota('6. Turma 2 (lista, sem cargo próprio) não mostra aviso de contradição', !f.aviso);
         anota('6. o formulário cabe na tela sem rolagem lateral', f.cabe);
@@ -265,7 +265,7 @@ async function vitrinePronta(page) {
 
         await abrirEditar('t1');
         f = await estadoForm();
-        anota('6. Turma 1 abre com "Seguir as regras do evento" marcado (padrão)', f.evento && !f.lista, JSON.stringify(f));
+        anota('6. Turma 1 abre com "Sem lista específica" marcado (padrão)', f.evento && !f.lista, JSON.stringify(f));
         await page.evaluate(() => { window.__ESCRITAS = []; });
         await page.evaluate(() => { const b = window.__boxVis(); Array.from(b.querySelectorAll('button')).find((x) => /^Salvar/i.test((x.textContent || '').trim())).click(); });
         await esperarCondicaoAte(page, () => (window.__ESCRITAS || []).length > 0, null, { limite: 10000 });
