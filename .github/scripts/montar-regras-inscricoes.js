@@ -153,8 +153,10 @@ const REMOVER = and([
   newOk('removed', '=== true'),
   newOk('status', "=== 'removido'"),
   /* nada do admin muda (nem some, num set que regravasse o registro inteiro) */
-  and(ADMINISTRATIVOS.map((c) => "newData.child('" + c + "').val() === data.child('" + c + "').val()")),
-  "newData.child('excecaoAdmin').child('motivo').val() === data.child('excecaoAdmin').child('motivo').val()"
+  and(ADMINISTRATIVOS.filter((c) => c !== 'excecaoAdmin').map((c) => "newData.child('" + c + "').val() === data.child('" + c + "').val()")),
+  /* a exceção é um objeto: .val() não serve para compará-la inteira — campo a campo (e cada regra dispensada) */
+  and(['motivo', 'por', 'porNome', 'em', 'turma'].map((c) => "newData.child('excecaoAdmin').child('" + c + "').val() === data.child('excecaoAdmin').child('" + c + "').val()")
+    .concat(REGRAS_DA_EXCECAO.map((r) => "newData.child('excecaoAdmin').child('regras').child('" + r + "').val() === data.child('excecaoAdmin').child('regras').child('" + r + "').val()")))
 ]);
 function newOk(c, cond) { return "newData.child('" + c + "').val() " + cond; }
 

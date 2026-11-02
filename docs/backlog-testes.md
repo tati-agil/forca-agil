@@ -366,3 +366,14 @@ vagas continuam só na tela**: conferi-las no banco exigiria um índice de parti
 comum e a própria pessoa só conseguem ler **um registro pela chave**. Consequência: uma tela de admin comum não consegue
 listar quem é de cada categoria — só perguntar por uma pessoa de cada vez (a ativação dos públicos, na Entrega B,
 precisa ler pessoa a pessoa, nunca a lista). Mudar isso exige decisão sobre a proteção dos dados de menores.
+
+## Suspeita registrada (PR #464, a confirmar no emulador): sair da turma com `acimaDasVagas`
+
+No caminho "remover o próprio interesse" (`REMOVER` em `montar-regras-inscricoes.js`), cada campo administrativo é
+comparado com `.val()`. Para um campo que é **objeto**, essa comparação não funciona — foi o que o emulador mostrou para
+`excecaoAdmin` na PR #464 (corrigido lá, campo a campo). `acimaDasVagas` também é objeto: é provável que, já na `main`,
+quem entrou "acima das vagas" não consiga sair sozinha pelo site (o admin consegue). Não introduzido pela #464.
+
+- **Prova a criar:** em `teste-rules-inscricoes.js`, a pessoa com `acimaDasVagas` no registro sai pelo `update` do site.
+- **Correção sugerida, se confirmado:** comparar `acimaDasVagas` campo a campo, como `excecaoAdmin`.
+- **Prioridade sugerida:** média — caso raro (lotação com motivo), sem perda de dados; a saída pelo admin continua.
