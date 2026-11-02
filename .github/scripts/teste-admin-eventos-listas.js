@@ -1,4 +1,6 @@
-/* ADMIN › Eventos › Editar evento: as listas "Não aceitar interesse de quem já participou de" e "Contando também as
+/* ADMIN › Eventos › Editar evento: "Impedir nova participação" (e, desde a simplificação, o fim de "Contar turmas de
+ * outros eventos" na tela — o campo antigo é preservado até a conversão). Antes: as listas "Não aceitar interesse de
+ * quem já participou de" e "Contando também as
  * turmas de".
  *
  * POR QUE ESTE TESTE EXISTE
@@ -17,7 +19,9 @@
  *      antiga); desmarcar a referência antiga é o único jeito de ela sair;
  *   6. evento novo aparece sozinho; evento renomeado continua marcado (pela chave), com o nome novo;
  *   7. toda gravação é em eventos/<o evento editado>; sem rolagem lateral, sem erro de JS;
- *   8. apresentação: os dois blocos ("Impedir nova participação", "Contar turmas de outros eventos") nascem fechados e
+ *   9. simplificação: o bloco "Contar turmas de outros eventos" não existe mais; o evento com o campo antigo mostra um
+ *      aviso com os eventos dele; salvar NÃO grava o campo antigo (ele fica como estava) — nada se perde em silêncio;
+ *   8. apresentação: o bloco "Impedir nova participação" nasce fechado e
  *      dizem no título quantos eventos estão marcados — o resumo acompanha as marcações; a busca existe mesmo com poucos
  *      eventos; a situação ("Já realizado"…) fica dentro do nome, não numa linha solta; nome longo quebra sem rolagem.
  */
@@ -78,7 +82,7 @@ async function abrirEdicao(page, k, fechado) {
   await esperarCondicao(page, () => !!document.querySelector('#eventoFormBloqueioLista .evento-bloqueio-cb'), null, { descricao: 'o formulário do evento' });
   if (!fechado) await abrirBlocos(page);
 }
-const blocos = (page) => page.evaluate(() => ['eventoFormBloqueioBloco', 'eventoFormUmaTurmaBloco'].map((id) => { const d = document.getElementById(id);
+const blocos = (page) => page.evaluate(() => ['eventoFormBloqueioBloco'].map((id) => { const d = document.getElementById(id);
   return { aberto: d.open, titulo: d.querySelector('.evento-lista-titulo').textContent.trim(), resumo: d.querySelector('.evento-lista-resumo').textContent.trim(),
     busca: !!d.querySelector('.evento-lista-busca') }; }));
 const lista = (page, id) => page.evaluate((i) => Array.from(document.querySelectorAll('#' + i + ' .evento-lista-item')).map((l) => ({
@@ -110,8 +114,11 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
       await abrirEdicao(page, 'evAlvo', true);
       const bl0 = await blocos(page);
       anota(f.nome + ': 8. os dois blocos nascem fechados, com título claro e o resumo das seleções',
-        !bl0[0].aberto && !bl0[1].aberto && bl0[0].titulo === 'Impedir nova participação' && bl0[1].titulo === 'Contar turmas de outros eventos' &&
-        bl0[0].resumo === '3 eventos marcados' && bl0[1].resumo === '2 eventos marcados', JSON.stringify(bl0));
+        !bl0[0].aberto && bl0[0].titulo === 'Impedir nova participação' && bl0[0].resumo === '3 eventos marcados', JSON.stringify(bl0));
+      const sim = await page.evaluate(() => ({ terceiro: !!document.getElementById('eventoFormUmaTurmaBloco') || !!document.getElementById('eventoFormUmaTurmaLista'),
+        aviso: (function () { const p = document.getElementById('eventoFormContarAntigo'); return p && !p.hidden ? p.textContent : ''; })() }));
+      anota(f.nome + ': 9. o bloco "Contar turmas de outros eventos" não existe mais', !sim.terceiro);
+      anota(f.nome + ': 9. o evento com o campo antigo mostra o aviso, com os eventos dele', /Configuração anterior/.test(sim.aviso) && /EVENTO GAMA/.test(sim.aviso) && /evSumiu2/.test(sim.aviso), sim.aviso);
       await abrirBlocos(page);
       let b = await lista(page, 'eventoFormBloqueioLista');
       anota(f.nome + ': 8. a situação fica dentro do nome (nenhuma etiqueta em linha solta)', b.every((x) => x.tagsNoNome));
@@ -122,16 +129,13 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
       anota(f.nome + ': 1. etiquetas "Não publicado", "Já realizado" e "Referência antiga"',
         igual(et('evOff'), ['Não publicado']) && igual(et('evReal'), ['Já realizado']) && igual(et('evSumiu'), ['Referência antiga']) && /Evento não encontrado \(evSumiu\)/.test((b.find((x) => x.key === 'evSumiu') || {}).texto) && !et('evA').length && !et('evB').length, JSON.stringify(b.map((x) => [x.key, x.etiquetas])));
       anota(f.nome + ': 2. seleções gravadas marcadas (inclusive não publicado e inexistente)', igual(b.filter((x) => x.marcado).map((x) => x.key).sort(), ['evB', 'evOff', 'evSumiu']));
-      const g = await lista(page, 'eventoFormUmaTurmaLista');
-      anota(f.nome + ': 2. "Contando também as turmas de": marcados e a referência antiga preservada', igual(g.filter((x) => x.marcado).map((x) => x.key).sort(), ['evC', 'evSumiu2']));
 
       /* 3–4. busca independente; marcar todos só nos visíveis */
-      anota(f.nome + ': 3. busca nas duas listas (mais de 8 eventos)', (await page.$$('.evento-lista-busca')).length === 2);
+      anota(f.nome + ': 3. a lista tem busca', (await page.$$('.evento-lista-busca')).length === 1);
       await page.fill('#eventoFormBloqueioLista .evento-lista-busca', 'gáma');
       b = await lista(page, 'eventoFormBloqueioLista');
       anota(f.nome + ': 3. busca (sem acento) mostra só o que casa; esconder não desmarca',
         igual(b.filter((x) => x.visivel).map((x) => x.key), ['evC']) && igual(b.filter((x) => x.marcado).map((x) => x.key).sort(), ['evB', 'evOff', 'evSumiu']), JSON.stringify(b.filter((x) => x.visivel)));
-      anota(f.nome + ': 3. a busca de uma lista não mexe na outra', (await lista(page, 'eventoFormUmaTurmaLista')).every((x) => x.visivel));
       await page.click('#eventoFormBloqueioLista [data-evento-lista-marcar="1"]');
       b = await lista(page, 'eventoFormBloqueioLista');
       anota(f.nome + ': 4. "Marcar todos" marca só o visível', igual(b.filter((x) => x.marcado).map((x) => x.key).sort(), ['evB', 'evC', 'evOff', 'evSumiu']));
@@ -142,7 +146,7 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
       escritasTodas.push(...(await page.evaluate(() => (window.__ESCRITAS || []).map((e) => e.path))));
       let gr = await lerNo(page, 'eventos/evAlvo');
       anota(f.nome + ': 5. salvar com a busca ativa grava também o que estava escondido (e a referência antiga)', igual(marcados(gr.bloqueiaParticipantesDe), ['evB', 'evC', 'evOff', 'evSumiu']), JSON.stringify(gr.bloqueiaParticipantesDe));
-      anota(f.nome + ': 5. a outra lista (com a antiga) continua igual', igual(marcados(gr.umaTurmaComEventos), ['evC', 'evSumiu2']), JSON.stringify(gr.umaTurmaComEventos));
+      anota(f.nome + ': 9. salvar não grava o campo antigo: ele continua exatamente como estava', igual(marcados(gr.umaTurmaComEventos), ['evC', 'evSumiu2']), JSON.stringify(gr.umaTurmaComEventos));
 
       /* desmarcar todos com filtro: só o visível */
       await abrirEdicao(page, 'evAlvo');
@@ -191,7 +195,8 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
       await p2.evaluate(() => Array.from(document.querySelectorAll('button')).find((x) => /\+ Novo evento/.test(x.textContent)).click());
       await esperarCondicao(p2, () => !!document.querySelector('#eventoFormBloqueioLista .evento-bloqueio-cb'), null, { descricao: 'o formulário de evento novo' });
       const bn = await blocos(p2);
-      anota(f.nome + ': 8. evento novo: blocos fechados com "Nenhum evento marcado"', bn.every((x) => !x.aberto && x.resumo === 'Nenhum evento marcado'), JSON.stringify(bn));
+      anota(f.nome + ': 8. evento novo: bloco fechado com "Nenhum evento marcado", sem aviso de configuração anterior', bn.every((x) => !x.aberto && x.resumo === 'Nenhum evento marcado') &&
+        await p2.evaluate(() => document.getElementById('eventoFormContarAntigo').hidden), JSON.stringify(bn));
       await abrirBlocos(p2);
       const n = await lista(p2, 'eventoFormBloqueioLista');
       anota(f.nome + ': 6. no evento novo, todos os eventos aparecem e nenhum vem marcado', n.length === 11 && !n.some((x) => x.marcado), JSON.stringify(n.map((x) => x.key)));
@@ -204,7 +209,7 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
       await abrirEdicao(p3, 'evAlvo');
       const bp = await blocos(p3);
       const lp = await lista(p3, 'eventoFormBloqueioLista');
-      anota(f.nome + ': 8. com poucos eventos a busca continua nas duas listas, e as referências a eventos apagados continuam marcadas',
+      anota(f.nome + ': 8. com poucos eventos a busca continua, e as referências a eventos apagados continuam marcadas',
         bp.every((x) => x.busca) && igual(lp.filter((x) => x.marcado).map((x) => x.key).sort(), ['evB', 'evOff', 'evSumiu']) && lp.filter((x) => x.etiquetas.indexOf('Referência antiga') !== -1).length === 3,
         JSON.stringify({ bp, lp: lp.map((x) => [x.key, x.marcado, x.etiquetas]) }));
       anota(f.nome + ': 7. sem erro de JS (poucos eventos)', !e3.length, JSON.stringify(e3));

@@ -3365,14 +3365,12 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, o card não manda ninguém para o CMFlex: depois do interesse diz que a organização confirma a vaga, e o "Confirmar" aqui no painel confirma a vaga direto. O resto é igual — só a sua confirmação torna a pessoa inscrita. Desmarcado (padrão), como sempre foi: a inscrição oficial é no CMFlex.</p>' +
       '<details class="evento-lista-bloco" id="eventoFormBloqueioBloco"><summary><span class="evento-lista-titulo">Impedir nova participação</span>' +
           '<span class="evento-lista-resumo"></span></summary>' +
-        '<div class="evento-lista-corpo"><p class="evento-lista-ajuda">Quem tem interesse ou inscrição em turma de um evento marcado não consegue manifestar interesse neste evento nem entrar na lista de espera dele. Ninguém é removido, e aqui no painel você continua podendo incluir pessoas.</p>' +
+        '<div class="evento-lista-corpo"><p class="evento-lista-ajuda">Quem tem interesse ou inscrição (não removidos) em turma de um evento marcado — inclusive já realizada — não consegue manifestar interesse neste evento nem entrar na lista de espera dele. Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila). Ninguém é removido.</p>' +
         '<div id="eventoFormBloqueioLista" class="evento-lista"></div></div></details>' +
+      /* configuração anterior ("Contar turmas de outros eventos"), enquanto não for convertida: só informa */
+      '<p id="eventoFormContarAntigo" class="evento-lista-ajuda" hidden></p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormUmaTurma" style="width:auto;margin:0" />Só uma turma por pessoa (interesse ou inscrição)</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, quem já tem interesse ou inscrição numa turma deste evento não consegue entrar em outra — o card mostra em qual ela está e como trocar. Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila).</p>' +
-      '<div id="eventoFormUmaTurmaGrupoBox"><details class="evento-lista-bloco" id="eventoFormUmaTurmaBloco"><summary><span class="evento-lista-titulo">Contar turmas de outros eventos</span>' +
-          '<span class="evento-lista-resumo"></span></summary>' +
-        '<div class="evento-lista-corpo"><p class="evento-lista-ajuda">Com "Só uma turma por pessoa", as turmas dos eventos marcados contam junto com as deste. Para valer nos dois sentidos, marque um no outro.</p>' +
-        '<div id="eventoFormUmaTurmaLista" class="evento-lista"></div></div></details></div>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
@@ -3439,7 +3437,7 @@
     var visElegivelInput = box.querySelector('#eventoFormVisElegivel');
     var bloqueioLista     = box.querySelector('#eventoFormBloqueioLista');
     var umaTurmaInput     = box.querySelector('#eventoFormUmaTurma');
-    var umaTurmaLista     = box.querySelector('#eventoFormUmaTurmaLista');
+    var contarAntigo      = box.querySelector('#eventoFormContarAntigo');
     var formatoInput      = box.querySelector('#eventoFormFormato');
     var modalidadeLabelInput = box.querySelector('#eventoFormModalidadeLabel');
     var modalidadeDescInput  = box.querySelector('#eventoFormModalidadeDesc');
@@ -3467,8 +3465,16 @@
     /* ausente = exige o CMFlex: evento antigo continua como sempre foi */
     dispensaCmflexInput.checked = isEdit ? !!existing.dispensaCmflex : false;
     vagasEventoInput.value = isEdit && existing.vagasPorTurma ? String(existing.vagasPorTurma) : '';
-    var grupoAtual = (isEdit && existing.umaTurmaComEventos) || {};
-    montarListaDeEventos(umaTurmaLista, 'evento-umaturma-cb', grupoAtual, isEdit ? existing.key : '');
+    /* "Contar turmas de outros eventos" saiu da tela: "Impedir nova participação" bloqueia as mesmas pessoas. O campo
+       antigo (umaTurmaComEventos) continua valendo até a conversão (converter-contar-turmas.js) e não é gravado aqui —
+       salvar não o apaga nem o muda. Enquanto existir, o formulário só avisa, para nada valer escondido. */
+    var antigos = Object.keys((isEdit && existing.umaTurmaComEventos) || {}).filter(function (k) { return existing.umaTurmaComEventos[k] && k !== existing.key; });
+    if (antigos.length) {
+      contarAntigo.hidden = false;
+      contarAntigo.textContent = 'Configuração anterior ainda guardada: com "Só uma turma por pessoa" ligada, quem tem turma em ' +
+        antigos.map(function (k) { return eventoLabel(k); }).join(', ') + ' também não entra neste evento' +
+        (existing.umaTurmaPorPessoa ? '' : ' (hoje sem efeito, porque a caixa está desligada)') + '. Ela passa para a lista acima na conversão; salvar não a apaga.';
+    }
     /* Ausente = evento aberto: evento criado antes deste controle continua
        exatamente como sempre esteve, sem migração nenhuma. */
     publicoRestritoInput.checked = isEdit ? !!existing.publicoRestrito : false;
@@ -3545,12 +3551,6 @@
         dispensaCmflex: !!dispensaCmflexInput.checked,
         /* vazio = sem limite (null apaga o campo) */
         vagasPorTurma: (function () { var n = Math.floor(Number(vagasEventoInput.value)); return n >= 1 && n <= 999 ? n : null; })(),
-        umaTurmaComEventos: (function () {
-          if (!umaTurmaInput.checked) return null;
-          var marcados = {};
-          umaTurmaLista.querySelectorAll('.evento-umaturma-cb:checked').forEach(function (cb) { marcados[cb.value] = true; });
-          return Object.keys(marcados).length ? marcados : null;
-        })(),
         formato: formatoInput.value || 'presencial',
         modalidadeLabel: (modalidadeLabelInput.value || '').trim(),
         modalidadeDesc: (modalidadeDescInput.value || '').trim(),
