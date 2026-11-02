@@ -377,3 +377,11 @@ quem entrou "acima das vagas" não consiga sair sozinha pelo site (o admin conse
 - **Prova a criar:** em `teste-rules-inscricoes.js`, a pessoa com `acimaDasVagas` no registro sai pelo `update` do site.
 - **Correção sugerida, se confirmado:** comparar `acimaDasVagas` campo a campo, como `excecaoAdmin`.
 - **Prioridade sugerida:** média — caso raro (lotação com motivo), sem perda de dados; a saída pelo admin continua.
+
+## Limitação registrada (PR #464): autoria da exceção na cópia da correção de e-mail
+
+`excecaoAdmin.por` tem de ser o e-mail de quem grava (`auth.token.email`), salvo na cópia que a correção de e-mail do
+ADMIN faz para a chave nova — ali a exceção vai com o autor original, e o banco não tem como comparar com o registro
+de origem (a chave antiga não é derivável nas regras). Nesse único caminho, um admin que esteja corrigindo um e-mail
+conseguiria gravar outro autor. Mitigação: só admin chega ali, a gravação exige o cadastro novo com `emailCorrigidoDe`
+na mesma operação, e a correção fica registrada no próprio cadastro. Fechar de vez pediria uma fronteira confiável.

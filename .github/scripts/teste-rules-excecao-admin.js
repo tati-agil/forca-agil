@@ -10,7 +10,10 @@
       históricos fora do público continuam intocáveis e editáveis; reativar um removido fora do público pede a exceção;
    P. a pessoa: registra o próprio interesse como sempre; não cria nem muda exceção; ao sair, a exceção fica;
    R. a correção de e-mail do ADMIN (cadastro e registros movidos juntos) continua valendo sem exceção; mover um
-      registro fora do público SEM o cadastro novo, não.
+      registro fora do público SEM o cadastro novo, não; a exceção movida junto mantém o autor original;
+   A. AUTORIA: quem autorizou (excecaoAdmin.por) é quem está gravando — exceção nova em nome de outro admin é recusada
+      (＋ Participante e Confirmar); a própria identidade passa (maiúsculas não importam); exceção antiga de outro admin
+      continua valendo para Confirmar, renomear e desconfirmar.
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
 const fs = require('fs');
@@ -25,6 +28,7 @@ const AGORA = '2026-11-02T10:00:00.000Z';
 
 const ADMIN = 'admin.ex@previ.com.br', GER = 'gerente.rex@previ.com.br', ASS = 'assessor.rex@previ.com.br', ASS2 = 'assessor.dois.rex@previ.com.br';
 const ASS3 = 'assessor.tres.rex@previ.com.br', HIST = 'historico.rex@previ.com.br', FUT = 'futuro.rex@previ.com.br', NOVA = 'futuro.corrigido.rex@previ.com.br';
+const ADMIN2 = 'outro.admin.ex@previ.com.br', ASS4 = 'assessor.quatro.rex@previ.com.br', MOV = 'movido.rex@previ.com.br', MOVN = 'movido.corrigido.rex@previ.com.br';
 const PESSOA = 'pessoa.rex@previ.com.br', GER2 = 'gerente.dois.rex@previ.com.br';
 
 const ti = (t, e) => 'turmas-interesse/' + t + '/' + emailKey(e);
@@ -44,6 +48,7 @@ async function main() {
 
   await semear(async (r) => {
     await r.ref('fa-admins/' + emailKey(ADMIN)).set({ email: ADMIN, name: 'ADMIN' });
+    await r.ref('fa-admins/' + emailKey(ADMIN2)).set({ email: ADMIN2, name: 'OUTRO ADMIN' });
     await r.ref('fa-gerentes/' + emailKey(GER)).set({ email: GER, name: 'G' });
     await r.ref('fa-gerentes/' + emailKey(GER2)).set({ email: GER2, name: 'G2' });
     await r.ref('eventos').set({
@@ -55,7 +60,9 @@ async function main() {
       tHist: tu('evG', { dias: ['2026-09-10'] }) });
     await r.ref('turmas-config/tHist').set({ encerrada: true, dataConclusao: '2026-09-11' });
     await r.ref(ti('tG', ASS2)).set(interesse(ASS2));                                         /* interesse antigo, fora do público */
-    await r.ref(ti('tG', ASS3)).set(Object.assign(interesse(ASS3), { excecaoAdmin: exc('tG', ['cargo']) })); /* já com exceção */
+    await r.ref(ti('tG', ASS3)).set(Object.assign(interesse(ASS3), { excecaoAdmin: exc('tG', ['cargo'], { por: ADMIN2, porNome: 'OUTRO ADMIN' }) })); /* já com exceção, autorizada por OUTRO admin */
+    await r.ref(ti('tG', MOV)).set(Object.assign(inscrita(MOV), { excecaoAdmin: exc('tG', ['cargo'], { por: ADMIN2, porNome: 'OUTRO ADMIN' }) }));
+    await r.ref('fa-users/' + emailKey(MOV)).set({ email: MOV, name: 'MOVIDO', area: 'TI', emailVerificationRequired: false, createdAt: AGORA });
     await r.ref(ti('tHist', HIST)).set(inscrita(HIST));                                        /* participante histórico, fora do público */
     await r.ref(ti('tG', FUT)).set(inscrita(FUT));                                              /* futuro, fora do público, sem exceção */
     await r.ref(ti('tLivre', PESSOA)).set(Object.assign(interesse(PESSOA), { excecaoAdmin: exc('tLivre', ['participacao']) }));
@@ -85,7 +92,7 @@ async function main() {
     [ti('tG', e) + '/confirmedByAdminName']: 'ADMIN', [ti('tG', e) + '/confirmedDate']: AGORA }, extra || {}));
   await nega('C1 confirmar interesse antigo fora do público, SEM exceção', confirmar(ASS2));
   await pode('C2 confirmar com a exceção na mesma gravação', confirmar(ASS2, { [ti('tG', ASS2) + '/excecaoAdmin']: exc('tG', ['cargo']) }));
-  await pode('C3 confirmar quem já tem exceção no registro', confirmar(ASS3));
+  await pode('C3 confirmar quem já tem exceção no registro (autorizada por outro admin, antes)', confirmar(ASS3));
 
   console.log('\n== M. manutenção de registros que já existem ==');
   await pode('M1 renomear participante histórico fora do público', a.ref(ti('tHist', HIST) + '/name').set('NOME CORRIGIDO'));
@@ -118,6 +125,26 @@ async function main() {
   anota('R2 o vínculo continua, na chave nova', !!(await ler(ti('tG', NOVA))) && !(await ler(ti('tG', FUT))));
   await nega('R3 com o cadastro já existente na chave nova, um registro fora do público não passa como correção', a.ref().update({ [ti('tD', NOVA)]: inscrita(NOVA),
     ['fa-users/' + emailKey(NOVA) + '/emailCorrigidoDe']: FUT }));
+
+  await pode('R4 a correção de e-mail move a exceção de OUTRO admin com o autor original', a.ref().update({ [ti('tG', MOV)]: null,
+    [ti('tG', MOVN)]: Object.assign(inscrita(MOVN), { excecaoAdmin: exc('tG', ['cargo'], { por: ADMIN2, porNome: 'OUTRO ADMIN' }) }),
+    ['fa-users/' + emailKey(MOV)]: null, ['fa-users/' + emailKey(MOVN)]: { email: MOVN, name: 'MOVIDO', area: 'TI', emailVerificationRequired: false, createdAt: AGORA, emailCorrigidoDe: MOV } }));
+  anota('R4 o autor original continua no registro movido', ((await ler(ti('tG', MOVN))) || { excecaoAdmin: {} }).excecaoAdmin.por === ADMIN2);
+
+  console.log('\n== A. autoria da exceção ==');
+  const comExc = (e, extra) => Object.assign(inscrita(e), { excecaoAdmin: exc('tG', ['cargo'], extra) });
+  await nega('A1 ＋ Participante: exceção nova atribuída a OUTRO admin', a.ref(ti('tG', ASS4)).set(comExc(ASS4, { por: ADMIN2, porNome: 'OUTRO ADMIN' })));
+  await nega('A1 o outro admin, gravando, também não assina pelo primeiro', db(ADMIN2).ref(ti('tG', ASS4)).set(comExc(ASS4, { por: ADMIN })));
+  await pode('A2 ＋ Participante: exceção com a identidade de quem grava (maiúsculas não importam)', a.ref(ti('tG', ASS4)).set(comExc(ASS4, { por: ADMIN.toUpperCase().replace('@PREVI.COM.BR', '@previ.com.br') })));
+  await semear(async (r) => { await r.ref(ti('tG', 'assessor.cinco.rex@previ.com.br')).set(interesse('assessor.cinco.rex@previ.com.br')); });
+  const C5 = 'assessor.cinco.rex@previ.com.br';
+  await nega('A3 Confirmar com exceção atribuída a OUTRO admin', confirmar(C5, { [ti('tG', C5) + '/excecaoAdmin']: exc('tG', ['cargo'], { por: ADMIN2 }) }));
+  await pode('A3 Confirmar com a exceção de quem grava', confirmar(C5, { [ti('tG', C5) + '/excecaoAdmin']: exc('tG', ['cargo']) }));
+  await nega('A4 trocar o autor de uma exceção já gravada', a.ref(ti('tG', ASS3) + '/excecaoAdmin/por').set(ADMIN2.replace('outro', 'terceiro')));
+  await pode('A5 renomear quem tem exceção antiga de outro admin', a.ref(ti('tG', ASS3) + '/name').set('NOME NOVO'));
+  await pode('A5 desconfirmar quem tem exceção antiga de outro admin', a.ref().update({ [ti('tG', ASS3) + '/status']: 'interessado', [ti('tG', ASS3) + '/confirmedByAdmin']: null,
+    [ti('tG', ASS3) + '/confirmedByAdminName']: null, [ti('tG', ASS3) + '/confirmedDate']: null }));
+  anota('A5 a exceção antiga continua com o autor original', ((await ler(ti('tG', ASS3))) || { excecaoAdmin: {} }).excecaoAdmin.por === ADMIN2);
 
   await env.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

@@ -104,19 +104,29 @@ function publicoVerificavel(R) {
     or(['!(' + Tn + ".child('eventoKey').isString() && " + EVKn + " !== '')", '(' + doEvento + ')'])
   ]) + ')']);
 }
+/* A cópia que a correção de e-mail do ADMIN faz (admin.js, corrigir e-mail — fluxo NÃO alterado): registro numa chave nova,
+   gravado junto com o cadastro novo, que traz emailCorrigidoDe, numa chave que ainda não tinha cadastro. R = a raiz nova. */
+function copiaDaCorrecaoDeEmail(R) {
+  return "(!root.child('turmas-interesse').child($turmaKey).child($userKey).exists() && !root.child('fa-users').child($userKey).exists() && " +
+    R + ".child('fa-users').child($userKey).child('emailCorrigidoDe').isString())";
+}
 /* ENTRAR na turma: registro novo, reativado, ou interesse que vira inscrição */
 const ATIVO_NOVO = "newData.child('removed').val() !== true && newData.child('status').val() !== 'removido'";
 const ENTRADA = and([ATIVO_NOVO, or(['!data.exists()', "data.child('removed').val() === true", "data.child('status').val() === 'removido'",
   "(data.child('status').val() !== 'inscrito' && newData.child('status').val() === 'inscrito')"])]);
 const EXIGE_EXCECAO = or(['!(' + ENTRADA + ')', publicoVerificavel(NOVO), "newData.child('excecaoAdmin').exists()",
   /* a cópia feita pela correção de e-mail do ADMIN (chave nova, criada junto com o cadastro corrigido): o vínculo já existia */
-  '(!data.exists() && !root.child(\'fa-users\').child($userKey).exists() && ' + NOVO + ".child('fa-users').child($userKey).child('emailCorrigidoDe').isString())"]);
+  copiaDaCorrecaoDeEmail(NOVO)]);
 const REGRAS_DA_EXCECAO = ['lista-evento', 'lista-turma', 'diretores', 'cargo', 'participacao', 'umaTurma'];
 const EXCECAO = {
   '.validate': and([ADM, "newData.hasChildren(['regras', 'motivo', 'por', 'em', 'turma'])", "newData.child('turma').val() === $turmaKey"]),
   regras: { '.validate': 'newData.hasChildren()', $regra: { '.validate': or(REGRAS_DA_EXCECAO.map((r) => "$regra === '" + r + "'")) + ' && newData.val() === true' } },
   motivo: { '.validate': 'newData.isString() && newData.val().length >= 5 && newData.val().length <= 500' },
-  por: { '.validate': "newData.isString() && newData.val().matches(/^[^@]+@previ\\.com\\.br$/)" },
+  /* quem autorizou = quem está gravando (o token): ninguém registra exceção em nome de outro admin. Só gravar a exceção
+     passa por aqui — Confirmar, desconfirmar, remover e renomear mexem em outros campos, e a exceção antiga fica como
+     está. A cópia da correção de e-mail leva a exceção original, com o autor original. */
+  por: { '.validate': and(["newData.isString() && newData.val().matches(/^[^@]+@previ\\.com\\.br$/)",
+    or(['newData.val().toLowerCase() === auth.token.email.toLowerCase()', copiaDaCorrecaoDeEmail('newData.parent().parent().parent().parent().parent()')])]) },
   porNome: { '.validate': 'newData.isString() && newData.val().length <= 200' },
   em: { '.validate': 'newData.isString() && newData.val().length <= 40' },
   turma: { '.validate': 'newData.isString()' },
