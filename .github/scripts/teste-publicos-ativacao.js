@@ -24,6 +24,10 @@
  *      (≥ 14 px) e sem rolagem lateral em 375 px; filtros, tabela e formulário de inclusão continuam;
  *   G. "Público da turma": a turma herda o público-alvo do evento — o seletor não aparece numa turma sem valor próprio, e
  *      salvar a turma não grava nenhum público nela (o mesmo de sempre);
+ *   H. formulário Criar/Editar Turma com as MESMAS ajudas ⓘ do evento: nenhuma explicação longa à vista; ⓘ em Vagas e em
+ *      "Lista de convidados da turma" (opções "Sem lista específica (padrão)" × "Restringir a uma lista específica de
+ *      e-mails", os mesmos campos e ids); uma explicação por vez; Esc e "Fechar explicação" fecham só a ajuda, sem perder o
+ *      que foi digitado; salvar grava o mesmo de antes;
  *   E. em todas as etapas: nenhuma escrita fora de publicos-config; nenhuma operação de Auth além do login; cadastros,
  *      admins, gerentes, diretores, Outros públicos e inscrições iguais; sem erro de JS, sem rolagem lateral.
  */
@@ -224,10 +228,54 @@ const formulario = (page) => page.evaluate(() => {
       await menuTurma(page, 'tTec', /Editar turma/);
       await esperarCondicao(page, () => !!document.querySelector('#turmaFormPublicoCargo'), null, { limite: 10000, descricao: 'o formulário da turma' });
       const campoVisivel = await page.evaluate(() => !!document.querySelector('#turmaFormPublicoCargoBox').getClientRects().length);
+      /* H. as ajudas ⓘ do formulário de turma */
+      const turmaForm = () => page.evaluate(() => {
+        const box = document.querySelector('#turmaFormVagas').closest('.modal-box');
+        const vis = (el) => !!(el && el.checkVisibility());
+        return { botoes: Array.from(box.querySelectorAll('.ajuda-campo-btn')).map((b) => b.getAttribute('aria-controls')),
+          abertas: Array.from(box.querySelectorAll('.ajuda-campo')).filter(vis).map((a) => a.id),
+          longos: Array.from(box.querySelectorAll('p, span')).filter((p) => vis(p) && !p.closest('.ajuda-campo') && p.textContent.length > 140).length,
+          opcoes: (box.querySelector('#turmaFormPublicoEvento').closest('fieldset').textContent || '').replace(/\s+/g, ' '),
+          lista: box.querySelector('#turmaFormPublicoRestrito').checked, padrao: box.querySelector('#turmaFormPublicoEvento').checked,
+          vagas: box.querySelector('#turmaFormVagas').value, aberto: !!document.querySelector('#turmaFormVagas'),
+          lateral: box.scrollWidth > box.clientWidth + 1 || document.documentElement.scrollWidth > document.documentElement.clientWidth };
+      });
+      let tf = await turmaForm();
+      anota(f + ': H1 Editar turma: nenhuma explicação longa à vista; ⓘ em Vagas e na Lista de convidados; opções e valores de sempre',
+        JSON.stringify(tf.botoes) === '["ajudaTuVagas","ajudaTuLista"]' && !tf.abertas.length && !tf.longos && /Lista de convidados da turma/.test(tf.opcoes) &&
+        /Sem lista específica \(padrão\)/.test(tf.opcoes) && /Restringir a uma lista específica de e-mails/.test(tf.opcoes) && tf.padrao && !tf.lista && tf.vagas === '' && !tf.lateral, JSON.stringify(tf));
+      await page.fill('#turmaFormVagas', '15');
+      await page.click('.ajuda-campo-btn[aria-controls="ajudaTuVagas"]');
+      const umaV = (await turmaForm()).abertas, txtV = await page.textContent('#ajudaTuVagas');
+      await page.click('.ajuda-campo-btn[aria-controls="ajudaTuLista"]');
+      const umaL = (await turmaForm()).abertas, txtL = await page.textContent('#ajudaTuLista');
+      anota(f + ': H2 cada ⓘ abre a sua explicação completa, uma por vez (Vagas: lotação e motivo; Lista: herda o evento, soma-se, exceção do ADMIN)',
+        JSON.stringify(umaV) === '["ajudaTuVagas"]' && /pede um motivo/.test(txtV) && JSON.stringify(umaL) === '["ajudaTuLista"]' &&
+        /segue o público-alvo do evento/.test(txtL) && /nunca as substitui/.test(txtL) && /exceção do ADMIN/.test(txtL), JSON.stringify({ umaV, umaL }));
+      await page.keyboard.press('Escape');
+      tf = await turmaForm();
+      const aposEsc = tf;
+      await page.click('.ajuda-campo-btn[aria-controls="ajudaTuVagas"]');
+      await page.click('#ajudaTuVagas .ajuda-campo-fechar');
+      tf = await turmaForm();
+      anota(f + ': H3 Esc e "Fechar explicação" fecham só a ajuda: o formulário fica e o valor digitado (15) continua',
+        !aposEsc.abertas.length && aposEsc.aberto && aposEsc.vagas === '15' && !tf.abertas.length && tf.vagas === '15', JSON.stringify({ aposEsc, tf }));
+      await page.fill('#turmaFormVagas', '');  /* volta ao valor de antes: salvar tem de gravar o mesmo de sempre */
       await page.evaluate(() => document.querySelector('#turmaFormPublicoCargo').closest('.modal-box').querySelector('.admin-modal-save-btn').click());
       await esperarCondicao(page, () => !document.querySelector('#turmaFormPublicoCargo'), null, { limite: 10000, descricao: 'o formulário salvo' });
       const tTec = await lerNo(page, 'turmas/tTec');
       const novas = (await escritas(page)).slice(nG);
+      /* H4. Nova turma: as mesmas ajudas, fechadas; Cancelar não grava nada */
+      const nN = (await escritas(page)).length;
+      await page.evaluate(() => { const c = document.getElementById('turma-card-tTec').closest('[data-ev-key]'); const b = Array.from(c.querySelectorAll('button')).find((x) => /Nova turma/.test(x.textContent)); b.click(); });
+      await esperarCondicao(page, () => !!document.querySelector('#turmaFormVagas'), null, { limite: 10000, descricao: 'o formulário de Nova turma' });
+      const nova = await turmaForm();
+      await page.click('.ajuda-campo-btn[aria-controls="ajudaTuLista"]');
+      const novaAberta = (await turmaForm()).abertas;
+      await page.evaluate(() => document.querySelector('#turmaFormVagas').closest('.modal-box').querySelector('.admin-modal-cancel-btn').click());
+      anota(f + ': H4 Nova turma: as mesmas ajudas, fechadas, sem explicação longa; abre a da lista; Cancelar não grava nada',
+        JSON.stringify(nova.botoes) === '["ajudaTuVagas","ajudaTuLista"]' && !nova.abertas.length && !nova.longos && nova.padrao && !nova.lateral &&
+        JSON.stringify(novaAberta) === '["ajudaTuLista"]' && (await escritas(page)).length === nN, JSON.stringify(nova));
       anota(f + ': G1 "Público da turma" não aparece (a turma segue o evento); salvar não grava público na turma e só toca turmas/tTec',
         !campoVisivel && tTec && !tTec.publicoCargo && tTec.eventoKey === 'evTec' && novas.length > 0 && novas.every((p) => p === 'turmas/tTec'), JSON.stringify({ campoVisivel, tTec, novas }));
       const muda = [];
