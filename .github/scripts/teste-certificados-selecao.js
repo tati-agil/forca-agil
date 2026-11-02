@@ -168,7 +168,9 @@ const nomesDe = (l) => l.map(NOME);
       await page.selectOption('#certEventoSelect', 'ev1'); await page.selectOption('#certTurmaSelect', 'tA');
       await esperarCondicao(page, () => document.querySelectorAll('#certParticipantesList .cert-p-name').length === 2, null, { descricao: 'lista da A' });
       await page.evaluate(() => { window.__atrasoDraw = 1500; });
-      await page.locator('.cert-participant-row').first().locator('.cert-btn-prev').click();
+      /* os botões da linha são acionados pelo próprio elemento: o que se mede aqui são os dados, não o layout (a 375 px a
+         linha do participante já não cabia antes desta mudança — o "⬇ PDF" fica parte fora da tela) */
+      await page.locator('.cert-participant-row').first().locator('.cert-btn-prev').evaluate((el) => el.click());
       await page.selectOption('#certTurmaSelect', 'tB');
       await page.waitForTimeout(2500);
       const t5 = await tela(page);
@@ -177,10 +179,10 @@ const nomesDe = (l) => l.map(NOME);
       await page.selectOption('#certTurmaSelect', 'tA');
       await esperarCondicao(page, () => document.querySelectorAll('#certParticipantesList .cert-p-name').length === 2, null, { descricao: 'lista da A de novo' });
       const linha = page.locator('.cert-participant-row').first();
-      await linha.locator('.cert-btn-prev').click();
+      await linha.locator('.cert-btn-prev').evaluate((el) => el.click());
       await esperarCondicao(page, () => { const c = document.getElementById('certPreviewCanvas'); return c.width > 0; }, null, { descricao: 'prévia desenhada' });
-      await linha.locator('.cert-btn-dl').first().click();
-      await linha.locator('.cert-btn-dl').nth(1).click();
+      await linha.locator('.cert-btn-dl').first().evaluate((el) => el.click());
+      await linha.locator('.cert-btn-dl').nth(1).evaluate((el) => el.click());
       const r = await page.evaluate(() => ({ d: window.__desenhos, w: window.__downloads }));
       anota('6 @' + F + ': prévia e downloads (PNG e PDF) recebem exatamente os mesmos dados, todos da turma A',
         r.d.length === 1 && r.w.length === 2 && r.w.every((x) => JSON.stringify(x.data) === JSON.stringify(r.d[0])) && r.d[0].identificacaoTurma === 'TURMA A CS' && /5 de outubro de 2026/.test(r.d[0].dataEmissao),
@@ -194,7 +196,7 @@ const nomesDe = (l) => l.map(NOME);
       const { ctx, page, erros } = await abrir(browser, vp, mob, { delays: { ['fa-admins/' + chave(GER)]: 4000 } });
       await page.selectOption('#certEventoSelect', 'ev1'); await page.selectOption('#certTurmaSelect', 'tA');
       await esperarCondicao(page, () => document.querySelectorAll('#certParticipantesList .cert-p-name').length === 2, null, { descricao: 'lista da A' });
-      await page.locator('.cert-participant-row').first().locator('.cert-btn-prev').click();
+      await page.locator('.cert-participant-row').first().locator('.cert-btn-prev').evaluate((el) => el.click());
       await page.evaluate(() => window.faAuth.logout());
       await esperarCondicao(page, () => !window.faAuth.getSession(), null, { descricao: 'saiu' });
       await page.evaluate((e) => firebase.auth().signInWithEmailAndPassword(e, 'x'), GER);
