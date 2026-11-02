@@ -154,7 +154,8 @@ const conferido = (page) => page.waitForFunction(() => {
       await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.admin-tab-btn')).find((x) => /Eventos/i.test(x.textContent)); if (b) b.click(); });
       await page.waitForSelector('[data-ev-key="ev3"]', { timeout: 15000 });
       await page.evaluate(() => { const b = Array.from(document.querySelectorAll('[data-ev-key="ev3"] button')).find((x) => /Editar evento/.test(x.textContent)); b.click(); });
-      await page.waitForSelector('#eventoFormBloqueioLista .evento-bloqueio-cb', { timeout: 10000 });
+      /* os blocos de listas nascem fechados: a caixa existe no formulário, só não está à vista */
+      await page.waitForSelector('#eventoFormBloqueioLista .evento-bloqueio-cb', { state: 'attached', timeout: 10000 });
       const opcoes = await page.$$eval('#eventoFormBloqueioLista .evento-bloqueio-cb', (cs) => cs.map((c) => c.value + ':' + c.checked));
       anota('o formulário do Episódio III lista os outros eventos, com o Episódio I marcado (e não lista o próprio evento)', JSON.stringify(opcoes) === JSON.stringify(['ev1:true', 'ev4:false']), JSON.stringify(opcoes));
       const grupo = await page.$$eval('#eventoFormUmaTurmaLista .evento-umaturma-cb', (cs) => cs.map((c) => c.value + ':' + c.checked));

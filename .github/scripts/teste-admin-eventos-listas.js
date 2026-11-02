@@ -16,7 +16,10 @@
  *   5. salvar com a busca ativa grava o que estava escondido; salvar outro campo não apaga nenhuma referência (nem a
  *      antiga); desmarcar a referência antiga é o único jeito de ela sair;
  *   6. evento novo aparece sozinho; evento renomeado continua marcado (pela chave), com o nome novo;
- *   7. toda gravação é em eventos/<o evento editado>; sem rolagem lateral, sem erro de JS.
+ *   7. toda gravação é em eventos/<o evento editado>; sem rolagem lateral, sem erro de JS;
+ *   8. apresentação: os dois blocos ("Impedir nova participação", "Contar turmas de outros eventos") nascem fechados e
+ *      dizem no título quantos eventos estão marcados — o resumo acompanha as marcações; a busca existe mesmo com poucos
+ *      eventos; a situação ("Já realizado"…) fica dentro do nome, não numa linha solta; nome longo quebra sem rolagem.
  */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -33,10 +36,11 @@ const ev = (nome, order, extra) => Object.assign({ nome, order, publicado: true,
 function banco(variante) {
   const eventos = {
     evA: ev('EVENTO ALFA', 1), evOff: ev('EVENTO OCULTO', 2, { publicado: false }), evB: ev('EVENTO BETA', 3), evC: ev('EVENTO GAMA', 4),
-    evD: ev('EVENTO DELTA', 5), evE: ev('EVENTO EPSILON', 6), evF: ev('EVENTO ZETA', 7), evReal: ev('EVENTO JA REALIZADO', 8), evG: ev('EVENTO ETA', 9),
+    evD: ev('EVENTO DELTA COM UM NOME BEM COMPRIDO PARA CONFERIR A QUEBRA DE LINHA NO CELULAR SEM ROLAGEM LATERAL', 5), evE: ev('EVENTO EPSILON', 6), evF: ev('EVENTO ZETA', 7), evReal: ev('EVENTO JA REALIZADO', 8), evG: ev('EVENTO ETA', 9),
     evAlvo: ev('EVENTO ALVO', 10, { bloqueiaParticipantesDe: { evB: true, evOff: true, evSumiu: true }, umaTurmaPorPessoa: true, umaTurmaComEventos: { evC: true, evSumiu2: true } }),
   };
   if (variante === 'mudou') { eventos.evB.nome = 'EVENTO BETA RENOMEADO'; eventos.evNovo = ev('EVENTO NOVO', 11); }
+  if (variante === 'poucos') Object.keys(eventos).forEach((k) => { if (k !== 'evA' && k !== 'evAlvo') delete eventos[k]; });
   const users = { [chave(ADM)]: { name: 'ADMIN', email: ADM, area: 'TI', emailConfirmado: true } };
   return {
     'fa-users': users, 'fa-admins': {}, 'fa-gerentes': {}, 'fa-diretores': {}, 'fa-facilitadores': {}, 'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
@@ -67,14 +71,20 @@ async function abrir(browser, viewport, mobile, variante) {
   await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).find((x) => /Eventos/i.test(x.textContent)).click());
   return { ctx, page, erros };
 }
-async function abrirEdicao(page, k) {
+const abrirBlocos = (page) => page.evaluate(() => document.querySelectorAll('.evento-lista-bloco').forEach((d) => { if (!d.open) d.querySelector('summary').click(); }));
+async function abrirEdicao(page, k, fechado) {
   await esperarCondicao(page, (kk) => !!document.querySelector('[data-ev-key="' + kk + '"]'), k, { limite: 15000, descricao: 'o evento ' + k + ' no ADMIN' });
   await page.evaluate((kk) => Array.from(document.querySelectorAll('[data-ev-key="' + kk + '"] button')).find((x) => /Editar evento/.test(x.textContent)).click(), k);
   await esperarCondicao(page, () => !!document.querySelector('#eventoFormBloqueioLista .evento-bloqueio-cb'), null, { descricao: 'o formulário do evento' });
+  if (!fechado) await abrirBlocos(page);
 }
+const blocos = (page) => page.evaluate(() => ['eventoFormBloqueioBloco', 'eventoFormUmaTurmaBloco'].map((id) => { const d = document.getElementById(id);
+  return { aberto: d.open, titulo: d.querySelector('.evento-lista-titulo').textContent.trim(), resumo: d.querySelector('.evento-lista-resumo').textContent.trim(),
+    busca: !!d.querySelector('.evento-lista-busca') }; }));
 const lista = (page, id) => page.evaluate((i) => Array.from(document.querySelectorAll('#' + i + ' .evento-lista-item')).map((l) => ({
   key: l.querySelector('input').value, marcado: l.querySelector('input').checked, visivel: !l.hidden && l.offsetParent !== null,
-  etiquetas: Array.from(l.querySelectorAll('.admin-badge')).map((b) => b.textContent.trim()), texto: l.textContent.trim() })), id);
+  etiquetas: Array.from(l.querySelectorAll('.evento-lista-tag')).map((b) => b.textContent.trim()), texto: l.textContent.trim(),
+  tagsNoNome: Array.from(l.querySelectorAll('.evento-lista-tag')).every((t) => t.parentElement.classList.contains('evento-lista-nome')) })), id);
 /* depois de salvar, o painel fecha o formulário e RECARREGA a lista de eventos (loadInterests): reabrir antes disso
    pegaria a versão de antes — espera o cartão do evento ser redesenhado */
 const salvar = async (page) => {
@@ -97,14 +107,20 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
     const { ctx, page, erros } = await abrir(browser, f.vp, f.mob);
     const escritasTodas = [];
     try {
-      await abrirEdicao(page, 'evAlvo');
+      await abrirEdicao(page, 'evAlvo', true);
+      const bl0 = await blocos(page);
+      anota(f.nome + ': 8. os dois blocos nascem fechados, com título claro e o resumo das seleções',
+        !bl0[0].aberto && !bl0[1].aberto && bl0[0].titulo === 'Impedir nova participação' && bl0[1].titulo === 'Contar turmas de outros eventos' &&
+        bl0[0].resumo === '3 eventos marcados' && bl0[1].resumo === '2 eventos marcados', JSON.stringify(bl0));
+      await abrirBlocos(page);
       let b = await lista(page, 'eventoFormBloqueioLista');
+      anota(f.nome + ': 8. a situação fica dentro do nome (nenhuma etiqueta em linha solta)', b.every((x) => x.tagsNoNome));
       const ordem = b.map((x) => x.key);
       anota(f.nome + ': 1. ordem do painel, não publicado no fim, referência antiga por último, o próprio evento fora',
         igual(ordem, ['evA', 'evB', 'evC', 'evD', 'evE', 'evF', 'evReal', 'evG', 'evOff', 'evSumiu']), JSON.stringify(ordem));
       const et = (k) => (b.find((x) => x.key === k) || {}).etiquetas || [];
-      anota(f.nome + ': 1. etiquetas "Não publicado", "Já realizado" e "Evento inexistente"',
-        igual(et('evOff'), ['Não publicado']) && igual(et('evReal'), ['Já realizado']) && /Evento inexistente/.test(et('evSumiu').join()) && !et('evA').length && !et('evB').length, JSON.stringify(b.map((x) => [x.key, x.etiquetas])));
+      anota(f.nome + ': 1. etiquetas "Não publicado", "Já realizado" e "Referência antiga"',
+        igual(et('evOff'), ['Não publicado']) && igual(et('evReal'), ['Já realizado']) && igual(et('evSumiu'), ['Referência antiga']) && /Evento não encontrado \(evSumiu\)/.test((b.find((x) => x.key === 'evSumiu') || {}).texto) && !et('evA').length && !et('evB').length, JSON.stringify(b.map((x) => [x.key, x.etiquetas])));
       anota(f.nome + ': 2. seleções gravadas marcadas (inclusive não publicado e inexistente)', igual(b.filter((x) => x.marcado).map((x) => x.key).sort(), ['evB', 'evOff', 'evSumiu']));
       const g = await lista(page, 'eventoFormUmaTurmaLista');
       anota(f.nome + ': 2. "Contando também as turmas de": marcados e a referência antiga preservada', igual(g.filter((x) => x.marcado).map((x) => x.key).sort(), ['evC', 'evSumiu2']));
@@ -119,6 +135,7 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
       await page.click('#eventoFormBloqueioLista [data-evento-lista-marcar="1"]');
       b = await lista(page, 'eventoFormBloqueioLista');
       anota(f.nome + ': 4. "Marcar todos" marca só o visível', igual(b.filter((x) => x.marcado).map((x) => x.key).sort(), ['evB', 'evC', 'evOff', 'evSumiu']));
+      anota(f.nome + ': 8. o resumo acompanha as marcações', (await blocos(page))[0].resumo === '4 eventos marcados');
 
       /* 5. salvar com a busca ativa */
       await salvar(page);
@@ -173,10 +190,25 @@ const marcados = (o) => Object.keys(o || {}).filter((k) => o[k]).sort();
       await p2.click('.modal-box .admin-modal-cancel-btn');
       await p2.evaluate(() => Array.from(document.querySelectorAll('button')).find((x) => /\+ Novo evento/.test(x.textContent)).click());
       await esperarCondicao(p2, () => !!document.querySelector('#eventoFormBloqueioLista .evento-bloqueio-cb'), null, { descricao: 'o formulário de evento novo' });
+      const bn = await blocos(p2);
+      anota(f.nome + ': 8. evento novo: blocos fechados com "Nenhum evento marcado"', bn.every((x) => !x.aberto && x.resumo === 'Nenhum evento marcado'), JSON.stringify(bn));
+      await abrirBlocos(p2);
       const n = await lista(p2, 'eventoFormBloqueioLista');
       anota(f.nome + ': 6. no evento novo, todos os eventos aparecem e nenhum vem marcado', n.length === 11 && !n.some((x) => x.marcado), JSON.stringify(n.map((x) => x.key)));
       anota(f.nome + ': 7. sem erro de JS (evento novo e renomeado)', !e2.length, JSON.stringify(e2));
     } finally { await c2.close(); }
+
+    /* poucos eventos: a busca continua lá */
+    const { ctx: c3, page: p3, erros: e3 } = await abrir(browser, f.vp, f.mob, 'poucos');
+    try {
+      await abrirEdicao(p3, 'evAlvo');
+      const bp = await blocos(p3);
+      const lp = await lista(p3, 'eventoFormBloqueioLista');
+      anota(f.nome + ': 8. com poucos eventos a busca continua nas duas listas, e as referências a eventos apagados continuam marcadas',
+        bp.every((x) => x.busca) && igual(lp.filter((x) => x.marcado).map((x) => x.key).sort(), ['evB', 'evOff', 'evSumiu']) && lp.filter((x) => x.etiquetas.indexOf('Referência antiga') !== -1).length === 3,
+        JSON.stringify({ bp, lp: lp.map((x) => [x.key, x.marcado, x.etiquetas]) }));
+      anota(f.nome + ': 7. sem erro de JS (poucos eventos)', !e3.length, JSON.stringify(e3));
+    } finally { await c3.close(); }
   }
   await browser.close();
   console.log('\n' + oks + ' ok, ' + falhas + ' falha(s).');
