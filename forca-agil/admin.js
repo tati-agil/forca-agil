@@ -676,6 +676,8 @@
      "Mover para turma" — perguntam todas aqui. Acrescentar uma exigência
      nova se faz mudando esta função, nunca as três cópias. O lado público
      (app.js) faz a mesma pergunta com os mesmos dois dados. */
+  /* turmas-config da última carga do painel (encerrada etc.): o "Já realizado" das listas de eventos do formulário */
+  var _configTurmasAdmin = {};
   var _publicoPorTurma  = {};  /* { [turmaKey]:  { [emailKey]: {name,email,area,...} } } */
   /* Mesma ideia um nível acima: evento marcado "publicoRestrito" só admite
      quem está em eventos-publico/<evento>/<chave do e-mail>, e isso vale para
@@ -856,6 +858,7 @@
           var data    = snapI.val()  || {};
           var config  = snapC.val()  || {};
           var checkin = snapCk.val() || {};
+          _configTurmasAdmin = config;
           _publicoPorTurma  = pub;
           _publicoPorEvento = pubEv;
           _publicoResolvido = ok;
@@ -3262,6 +3265,57 @@
     });
   }
 
+  /* LISTA DE EVENTOS PARA MARCAR — os blocos "Não aceitar interesse de quem já participou de" e "Contando também as
+     turmas de", no formulário do evento. A origem e a gravação continuam as de sempre: EVENTOS_LIST (todos os eventos do
+     banco, na ordem do painel) e { <chave do evento>: true }. Aqui só se monta a seleção:
+     - o próprio evento não entra (não faz sentido um evento restringir pelos próprios participantes);
+     - os não publicados vão para o fim, ainda selecionáveis; etiquetas "Não publicado" e "Já realizado";
+     - chave já gravada de evento que não existe mais continua na lista, marcada, com "Evento inexistente" — salvar outra
+       coisa não apaga a referência; só sai se o admin desmarcar;
+     - busca por nome (com mais de 8 itens), uma em cada lista: esconder um item NÃO o desmarca (salvar lê todas as
+       caixas, inclusive as escondidas), e "Marcar todos" / "Desmarcar todos" só mexem nos itens visíveis. */
+  function montarListaDeEventos(host, classe, marcadosAntes, keyProprio) {
+    var antes = marcadosAntes || {};
+    var agora = new Date();
+    var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+    var norm = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+    var realizado = function (ev) {
+      var ts = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; });
+      return ts.length > 0 && ts.every(function (t) { return window.faTurmasUtil.turmaJaRealizada(t.dias, !!(_configTurmasAdmin[t.key] || {}).encerrada, hoje); });
+    };
+    var outros = EVENTOS_LIST.filter(function (ev) { return ev.key !== keyProprio; });
+    var itens = outros.filter(function (ev) { return ev.publicado; }).concat(outros.filter(function (ev) { return !ev.publicado; })).map(function (ev) {
+      return { key: ev.key, nome: ev.nome || ev.key, etiquetas: (ev.publicado ? [] : ['Não publicado']).concat(realizado(ev) ? ['Já realizado'] : []) };
+    });
+    Object.keys(antes).forEach(function (k) {
+      if (!antes[k] || k === keyProprio || itens.some(function (i) { return i.key === k; })) return;
+      itens.push({ key: k, nome: k, etiquetas: ['Evento inexistente (referência antiga)'] });
+    });
+    if (!itens.length) { host.innerHTML = '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>'; return; }
+    host.innerHTML =
+      (itens.length > 8 ? '<label class="auth-label">Buscar evento<input type="search" class="evento-lista-busca" placeholder="Nome do evento…" autocomplete="off" /></label>' : '') +
+      '<div class="evento-lista-acoes"><button type="button" class="avp-mapa-link" data-evento-lista-marcar="1">Marcar todos</button>' +
+        '<button type="button" class="avp-mapa-link" data-evento-lista-marcar="0">Desmarcar todos</button></div>' +
+      itens.map(function (i) {
+        return '<label class="auth-label evento-lista-item" data-nome="' + esc(norm(i.nome)) + '" style="flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap">' +
+          '<input type="checkbox" class="' + classe + '" value="' + esc(i.key) + '" style="width:auto;margin:0"' + (antes[i.key] ? ' checked' : '') + ' />' + esc(i.nome) +
+          i.etiquetas.map(function (e) { return ' <span class="admin-badge">' + esc(e) + '</span>'; }).join('') + '</label>';
+      }).join('') +
+      '<p class="evento-lista-vazia" hidden style="font-size:.78rem;color:var(--ink-2);margin:0">Nenhum evento com esse nome.</p>';
+    var busca = host.querySelector('.evento-lista-busca');
+    if (busca) busca.addEventListener('input', function () {
+      var q = norm(busca.value).trim(), algum = false;
+      host.querySelectorAll('.evento-lista-item').forEach(function (l) { var ve = !q || l.getAttribute('data-nome').indexOf(q) !== -1; l.hidden = !ve; if (ve) algum = true; });
+      host.querySelector('.evento-lista-vazia').hidden = algum;
+    });
+    host.querySelectorAll('[data-evento-lista-marcar]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.getAttribute('data-evento-lista-marcar') === '1';
+        host.querySelectorAll('.evento-lista-item:not([hidden]) .' + classe).forEach(function (cb) { cb.checked = v; });
+      });
+    });
+  }
+
   /* ---- Criar / Editar evento ---- */
   function openEventoFormModal(existing) {
     var isEdit = !!existing;
@@ -3390,21 +3444,14 @@
     restritoInput.checked   = isEdit ? !!existing.restritoADiretores : false;
     /* os OUTROS eventos, para marcar de quais a participação impede este (ausente = sem restrição) */
     var bloqueioAtual = (isEdit && existing.bloqueiaParticipantesDe) || {};
-    var outrosEventos = EVENTOS_LIST.filter(function (ev) { return !isEdit || ev.key !== existing.key; });
-    bloqueioLista.innerHTML = outrosEventos.length ? outrosEventos.map(function (ev) {
-      return '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" class="evento-bloqueio-cb" value="' + esc(ev.key) + '" style="width:auto;margin:0"' +
-        (bloqueioAtual[ev.key] ? ' checked' : '') + ' />' + esc(ev.nome) + '</label>';
-    }).join('') : '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>';
+    montarListaDeEventos(bloqueioLista, 'evento-bloqueio-cb', bloqueioAtual, isEdit ? existing.key : '');
     /* uma turma por pessoa: a caixa e o grupo (os outros eventos que contam junto com este) */
     umaTurmaInput.checked = isEdit ? !!existing.umaTurmaPorPessoa : false;
     /* ausente = exige o CMFlex: evento antigo continua como sempre foi */
     dispensaCmflexInput.checked = isEdit ? !!existing.dispensaCmflex : false;
     vagasEventoInput.value = isEdit && existing.vagasPorTurma ? String(existing.vagasPorTurma) : '';
     var grupoAtual = (isEdit && existing.umaTurmaComEventos) || {};
-    umaTurmaLista.innerHTML = outrosEventos.length ? outrosEventos.map(function (ev) {
-      return '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" class="evento-umaturma-cb" value="' + esc(ev.key) + '" style="width:auto;margin:0"' +
-        (grupoAtual[ev.key] ? ' checked' : '') + ' />' + esc(ev.nome) + '</label>';
-    }).join('') : '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>';
+    montarListaDeEventos(umaTurmaLista, 'evento-umaturma-cb', grupoAtual, isEdit ? existing.key : '');
     /* Ausente = evento aberto: evento criado antes deste controle continua
        exatamente como sempre esteve, sem migração nenhuma. */
     publicoRestritoInput.checked = isEdit ? !!existing.publicoRestrito : false;
