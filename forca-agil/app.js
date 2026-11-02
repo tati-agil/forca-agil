@@ -231,7 +231,13 @@
        "turma confirmada" substituindo o grid inteiro). */
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
     var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado, restritoADiretores, formato }]
-    var _sess        = null; // sessão atual, usada por eventoNaVitrine para decidir eventos restritos
+    /* IDENTIDADE DE VISUALIZAÇÃO: de quem é a página Turmas que está sendo desenhada — a pessoa logada, ou a escolhida no
+       "Ver esta tela como" (admin). É a ÚNICA entrada de pessoa de todo o fluxo de exibição: carregarVisao, vitrine
+       (eventoNaVitrine/turmaVisivelPara), ordem, cards (initInterestButtons e o que ele chama: regrasDeEntrada,
+       foraDoPublicoParaAgir, o registro próprio, as mensagens) e lista de espera (renderEsperaCard). Não há outro
+       desenho nem outra regra para o "Ver como": é este mesmo código com outra pessoa. A IDENTIDADE AUTENTICADA (quem
+       grava) é sempre faAuth.getSession(), lida só nos cliques — e na pré-visualização nenhum clique grava (emPrevia). */
+    var _sess        = null;
     /* Público restrito por turma (turmas-publico/<turma>/<chave do e-mail>).
        Lido junto com as turmas, antes de desenhar a grade: se viesse depois,
        a turma restrita apareceria por um instante para quem não pode vê-la —
@@ -876,12 +882,31 @@
        eventoNaVitrine/turmaVisivelPara, todas por _sess.email), e essa
        regra já foi esquecida mais de uma vez por só existir no código, sem
        um jeito de o admin conferir na prática o que uma pessoa específica
-       vê. Troca só _sess (o que decide visibilidade e ordem); os botões de
-       interesse e lista de espera continuam lendo a sessão REAL de quem
-       clica (initInterestButtons/renderEsperaCard recebem `sessReal`, não
-       a pessoa escolhida), então o preview nunca grava nada em nome de
-       outra pessoa — mesma garantia da Minha Área, com a mesma consulta
+       vê. Troca _sess, e TUDO o que a tela decide passa a ser da pessoa
+       escolhida: visibilidade, ordem, e também o card (registro próprio,
+       público, impedimentos, lotação — initInterestButtons) e a lista de
+       espera (renderEsperaCard), com as mesmas funções de sempre. Antes os
+       dois recebiam a sessão real, e o card mostrava a situação da
+       ADMINISTRADORA sob o aviso "o que aparece para essa pessoa" (02/11/2026).
+       Enquanto a pré-visualização está ativa, nenhuma ação de participação
+       grava (emPrevia): os botões ficam inativos, um clique por qualquer
+       caminho é barrado antes de chegar a eles, e as quatro funções que
+       gravam recusam por conta própria. "— eu mesma —" volta tudo ao normal.
+       Gravação, quando há, é sempre da sessão REAL (faAuth.getSession no
+       clique). Mesma consulta de pessoas da Minha Área
        (window.faTurmasUtil.listarPessoasVerComo, ver turmas-util.js). */
+    function emPrevia() { return !!_verComoPessoa; }
+    function marcarPrevia() {
+      var host = document.querySelector('.turmas-eventos');
+      if (host) host.classList.toggle('turmas-previa', emPrevia());
+    }
+    /* na pré-visualização, o clique num botão de participação não chega a ele (nem pelo teclado, que também gera click) */
+    document.addEventListener('click', function (e) {
+      if (!emPrevia() || !e.target || !e.target.closest) return;
+      if (!e.target.closest('.btn--interest, .btn--espera')) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
     function montarBarraVerComoTurmas(sessReal) {
       var host = document.querySelector('.turmas-eventos');
       if (!host || document.querySelector('.turmas-vercomo')) return;
@@ -893,7 +918,7 @@
         '<label class="aluno-vercomo-campo">Ver esta tela como ' +
           '<select class="aluno-vercomo-sel"><option value="">— eu mesma —</option></select>' +
         '</label>' +
-        '<span class="aluno-vercomo-dica">Só muda o que aparece — interesse e lista de espera continuam em seu próprio nome.</span>';
+        '<span class="aluno-vercomo-dica">Pré-visualização: interesse e lista de espera ficam desativados — nada é gravado.</span>';
       host.parentNode.insertBefore(barra, host);
 
       var aviso = document.createElement('div');
@@ -928,9 +953,10 @@
         _sess = _verComoPessoa || sessReal;
         carregarVisao(function () {
           renderTurmasGrid();
-          renderEsperaCard(sessReal);
+          marcarPrevia();
+          renderEsperaCard(_sess);
           renderMissaoEventos();
-          initInterestButtons(sessReal);
+          initInterestButtons(_sess);
         });
       });
     }
@@ -941,9 +967,11 @@
       loadTurmas(function () {
         carregarVisao(function () {
           renderTurmasGrid();
-          renderEsperaCard(sess);
+          marcarPrevia();
+          /* o card e a fila mostram a situação de quem está sendo visto (a pessoa do "Ver como", se houver) */
+          renderEsperaCard(_sess);
           renderMissaoEventos();
-          initInterestButtons(sess);
+          initInterestButtons(_sess);
           if (sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) montarBarraVerComoTurmas(sess);
         });
       });
@@ -980,6 +1008,7 @@
           '<div class="turma-intent-msg"></div>';
         grid.appendChild(card);
         var btn = card.querySelector('.btn--espera');
+        if (emPrevia()) btn.setAttribute('aria-disabled', 'true');
         var foraEspera = foraDoPublicoParaAgir(sess, ev);
         if (sess && foraEspera) {
           /* fora do público (lista/diretores, só com "Mostrar para todos"): o motivo no lugar do botão; quem já está na fila pode sair */
@@ -1026,6 +1055,7 @@
     }
 
     function joinEspera(btn, sess, eventoKey) {
+      if (emPrevia()) return;
       btn.disabled = true;
       var key = emailKey(sess.email);
       var now = new Date().toISOString();
@@ -1069,6 +1099,7 @@
     }
 
     function removeEspera(btn, sess, eventoKey) {
+      if (emPrevia()) return;
       btn.disabled = true;
       var key = emailKey(sess.email);
       var agora = new Date().toISOString();
@@ -1120,6 +1151,7 @@
       document.querySelectorAll('.btn--interest').forEach(function (btn) {
         const turmaKey = btn.dataset.turma;
         if (!turmaKey) return;
+        if (emPrevia()) btn.setAttribute('aria-disabled', 'true'); else btn.removeAttribute('aria-disabled');
 
         if (sess) {
           var evB = eventoDaTurma(turmaKey), fora = foraDoPublicoParaAgir(sess, evB);
@@ -1163,6 +1195,7 @@
     }
 
     function registerInterest(btn, turmaKey, sess) {
+      if (emPrevia()) return;
       /* Desabilita imediatamente para evitar clique duplo disparar 2 gravações antes da resposta do Firebase */
       btn.disabled = true;
       const key   = emailKey(sess.email);
@@ -1237,6 +1270,7 @@
     }
 
     function removeInterest(btn, turmaKey, sess) {
+      if (emPrevia()) return;
       /* Desabilita imediatamente para evitar clique duplo disparar 2 gravações antes da resposta do Firebase */
       btn.disabled = true;
       const key = emailKey(sess.email);
