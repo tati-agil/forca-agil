@@ -431,6 +431,12 @@
       "sobre": "Hermético. Reorganização SÓ DE EXIBIÇÃO: eventos com todas as turmas visíveis realizadas (critério do card \"Turma realizada\") descem para depois de \"Eventos já realizados\"; os sem turma aberta a interesse mas com turma por vir (inscrição encerrada com data futura) ficam no meio, sob \"Próximas turmas — inscrições encerradas\"; evento misto com turma aberta, só fila, ou fila ligada com turma por vir continuam em cima; todas realizadas descem mesmo com a fila ligada. Cada parte na ordem manual. Exige todas as turmas do banco na tela uma vez só, no seu evento e na ordem manual; informações abertas com \"Ocultar informações\" e Enter recolhendo/reabrindo só aquele evento; sem rolagem horizontal, sem escrita, sem erro de JS."
     },
     {
+      "arquivo": ".github/scripts/teste-admin-eventos-listas.js",
+      "nome": "ADMIN › Editar evento — listas de eventos para marcar (participação anterior e uma turma por pessoa), 1280/375 px",
+      "duracao": 35,
+      "sobre": "Hermético, dados sintéticos. As listas \"Não aceitar interesse de quem já participou de\" e \"Contando também as turmas de\": ordem do painel, não publicados no fim (selecionáveis), o próprio evento fora; etiquetas Não publicado / Já realizado / Evento inexistente; referência a evento que não existe mais continua marcada e só sai se desmarcada; busca independente em cada lista (mais de 8 eventos), sem desmarcar o escondido; Marcar/Desmarcar todos só nos visíveis; salvar com busca ativa ou outro campo não apaga seleção; evento novo aparece e renomeado continua marcado; toda gravação em eventos/<editado>; sem rolagem lateral nem erro de JS."
+    },
+    {
       "arquivo": ".github/scripts/teste-admin-outros-publicos.js",
       "nome": "ADMIN › Outros públicos — cadastro único das categorias especiais, 1280/375 px",
       "duracao": 30,

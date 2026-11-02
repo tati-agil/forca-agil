@@ -856,6 +856,12 @@
 #adminCadastrados .cad-filtros { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 #adminCadastrados .cad-filtros-linha { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 #adminCadastrados .cad-filtros-linha #cadastradosFiltro { flex: 1 1 220px; width: auto; }
+/* Formulário do evento: listas de eventos para marcar (montarListaDeEventos) — o item escondido pela busca some (a
+   classe .auth-label põe display:flex, que venceria o [hidden]); "Marcar todos"/"Desmarcar todos" são links complementares */
+.evento-lista-item[hidden] { display: none; }
+.evento-lista-acoes { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.evento-lista-acoes .avp-mapa-link { background: none; border: 0; padding: 0; font: inherit; font-size: var(--arq-fs-meta); cursor: pointer; }
+.evento-lista-acoes .avp-mapa-link:focus-visible { outline: 2px solid var(--cyan-soft, #7af0e8); outline-offset: 2px; }
 /* ADMIN › Outros públicos: a mesma linha de busca + filtro de Cadastrados */
 #adminOutrosPublicos .cad-filtros-linha { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin-bottom: 12px; }
 #adminOutrosPublicos .cad-filtros-linha #outrosBusca { flex: 1 1 220px; width: auto; }
