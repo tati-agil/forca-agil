@@ -3270,10 +3270,12 @@
      banco, na ordem do painel) e { <chave do evento>: true }. Aqui só se monta a seleção:
      - o próprio evento não entra (não faz sentido um evento restringir pelos próprios participantes);
      - os não publicados vão para o fim, ainda selecionáveis; etiquetas "Não publicado" e "Já realizado";
-     - chave já gravada de evento que não existe mais continua na lista, marcada, com "Evento inexistente" — salvar outra
+     - chave já gravada de evento que não existe mais continua na lista, marcada, como "Evento não encontrado (<chave>)"
+       com a etiqueta "Referência antiga" — salvar outra
        coisa não apaga a referência; só sai se o admin desmarcar;
-     - busca por nome (com mais de 8 itens), uma em cada lista: esconder um item NÃO o desmarca (salvar lê todas as
-       caixas, inclusive as escondidas), e "Marcar todos" / "Desmarcar todos" só mexem nos itens visíveis. */
+     - busca por nome, uma em cada lista: esconder um item NÃO o desmarca (salvar lê todas as caixas, inclusive as
+       escondidas), e "Marcar todos" / "Desmarcar todos" só mexem nos itens visíveis;
+     - o bloco (details) mostra no título quantos estão marcados, também fechado. */
   function montarListaDeEventos(host, classe, marcadosAntes, keyProprio) {
     var antes = marcadosAntes || {};
     var agora = new Date();
@@ -3289,19 +3291,30 @@
     });
     Object.keys(antes).forEach(function (k) {
       if (!antes[k] || k === keyProprio || itens.some(function (i) { return i.key === k; })) return;
-      itens.push({ key: k, nome: k, etiquetas: ['Evento inexistente (referência antiga)'] });
+      itens.push({ key: k, nome: 'Evento não encontrado (' + k + ')', etiquetas: ['Referência antiga'] });
     });
-    if (!itens.length) { host.innerHTML = '<span style="font-size:.78rem;color:var(--ink-2)">Nenhum outro evento cadastrado.</span>'; return; }
+    var bloco = host.closest('details'), resumo = bloco && bloco.querySelector('.evento-lista-resumo');
+    function atualizarResumo() {
+      if (!resumo) return;
+      var n = host.querySelectorAll('.' + classe + ':checked').length;
+      resumo.textContent = n === 0 ? 'Nenhum evento marcado' : n === 1 ? '1 evento marcado' : n + ' eventos marcados';
+      resumo.classList.toggle('evento-lista-resumo--ativo', n > 0);
+    }
+    if (!itens.length) { host.innerHTML = '<span class="evento-lista-ajuda">Nenhum outro evento cadastrado.</span>'; atualizarResumo(); return; }
     host.innerHTML =
-      (itens.length > 8 ? '<label class="auth-label">Buscar evento<input type="search" class="evento-lista-busca" placeholder="Nome do evento…" autocomplete="off" /></label>' : '') +
+      '<div class="evento-lista-ferramentas"><label class="auth-label evento-lista-busca-rotulo"><span class="sr-only">Buscar evento</span>' +
+        '<input type="search" class="evento-lista-busca" placeholder="Buscar evento pelo nome…" autocomplete="off" /></label>' +
       '<div class="evento-lista-acoes"><button type="button" class="avp-mapa-link" data-evento-lista-marcar="1">Marcar todos</button>' +
-        '<button type="button" class="avp-mapa-link" data-evento-lista-marcar="0">Desmarcar todos</button></div>' +
+        '<button type="button" class="avp-mapa-link" data-evento-lista-marcar="0">Desmarcar todos</button></div></div>' +
       itens.map(function (i) {
-        return '<label class="auth-label evento-lista-item" data-nome="' + esc(norm(i.nome)) + '" style="flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap">' +
-          '<input type="checkbox" class="' + classe + '" value="' + esc(i.key) + '" style="width:auto;margin:0"' + (antes[i.key] ? ' checked' : '') + ' />' + esc(i.nome) +
-          i.etiquetas.map(function (e) { return ' <span class="admin-badge">' + esc(e) + '</span>'; }).join('') + '</label>';
+        return '<label class="evento-lista-item" data-nome="' + esc(norm(i.nome)) + '">' +
+          '<input type="checkbox" class="' + classe + '" value="' + esc(i.key) + '"' + (antes[i.key] ? ' checked' : '') + ' />' +
+          '<span class="evento-lista-nome">' + esc(i.nome) +
+            i.etiquetas.map(function (e) { return ' <span class="evento-lista-tag">' + esc(e) + '</span>'; }).join('') + '</span></label>';
       }).join('') +
-      '<p class="evento-lista-vazia" hidden style="font-size:.78rem;color:var(--ink-2);margin:0">Nenhum evento com esse nome.</p>';
+      '<p class="evento-lista-vazia evento-lista-ajuda" hidden>Nenhum evento com esse nome.</p>';
+    atualizarResumo();
+    host.addEventListener('change', atualizarResumo);
     var busca = host.querySelector('.evento-lista-busca');
     if (busca) busca.addEventListener('input', function () {
       var q = norm(busca.value).trim(), algum = false;
@@ -3312,6 +3325,7 @@
       b.addEventListener('click', function () {
         var v = b.getAttribute('data-evento-lista-marcar') === '1';
         host.querySelectorAll('.evento-lista-item:not([hidden]) .' + classe).forEach(function (cb) { cb.checked = v; });
+        atualizarResumo();
       });
     });
   }
@@ -3349,13 +3363,16 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Vale para todas as turmas deste evento (interesse + inscrição ocupam vaga). Lotada, o card não aceita interesse novo — quem já está continua podendo remover — e no painel incluir alguém a mais pede um motivo. Uma turma pode ter o próprio número em "Editar turma", que vale por cima deste. Vazio = sem limite.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormDispensaCmflex" style="width:auto;margin:0" />Não exige inscrição no CMFlex</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, o card não manda ninguém para o CMFlex: depois do interesse diz que a organização confirma a vaga, e o "Confirmar" aqui no painel confirma a vaga direto. O resto é igual — só a sua confirmação torna a pessoa inscrita. Desmarcado (padrão), como sempre foi: a inscrição oficial é no CMFlex.</p>' +
-      '<div><span class="auth-label" style="display:block;margin-bottom:6px">Não aceitar interesse de quem já participou de:</span>' +
-        '<div id="eventoFormBloqueioLista" style="display:flex;flex-direction:column;gap:6px"></div></div>' +
+      '<details class="evento-lista-bloco" id="eventoFormBloqueioBloco"><summary><span class="evento-lista-titulo">Impedir nova participação</span>' +
+          '<span class="evento-lista-resumo"></span></summary>' +
+        '<div class="evento-lista-corpo"><p class="evento-lista-ajuda">Quem tem interesse ou inscrição em turma de um evento marcado não consegue manifestar interesse neste evento nem entrar na lista de espera dele. Ninguém é removido, e aqui no painel você continua podendo incluir pessoas.</p>' +
+        '<div id="eventoFormBloqueioLista" class="evento-lista"></div></div></details>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormUmaTurma" style="width:auto;margin:0" />Só uma turma por pessoa (interesse ou inscrição)</label>' +
-      '<div id="eventoFormUmaTurmaGrupoBox"><span class="auth-label" style="display:block;margin-bottom:6px">Contando também as turmas de:</span>' +
-        '<div id="eventoFormUmaTurmaLista" style="display:flex;flex-direction:column;gap:6px"></div></div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, quem já tem interesse ou inscrição (não removida) numa turma deste evento — ou dos eventos marcados logo acima, que contam juntos — não consegue entrar em outra; o card mostra em qual turma ela está e como trocar (remover o próprio interesse, ou pedir ao admin). Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila): retire a pessoa da outra turma primeiro. Para os eventos contarem juntos, marque um no outro.</p>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Quem tem interesse ou inscrição (não removida) em qualquer turma dos eventos marcados não consegue manifestar interesse nas turmas deste evento nem entrar na lista de espera dele — o card da turma explica por quê. Não remove ninguém que já está nas turmas deste evento, e aqui no painel você continua podendo adicionar pessoas manualmente. Nenhum marcado = sem essa restrição.</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, quem já tem interesse ou inscrição numa turma deste evento não consegue entrar em outra — o card mostra em qual ela está e como trocar. Vale também aqui no painel (＋ Participante, Confirmar e Mover da fila).</p>' +
+      '<div id="eventoFormUmaTurmaGrupoBox"><details class="evento-lista-bloco" id="eventoFormUmaTurmaBloco"><summary><span class="evento-lista-titulo">Contar turmas de outros eventos</span>' +
+          '<span class="evento-lista-resumo"></span></summary>' +
+        '<div class="evento-lista-corpo"><p class="evento-lista-ajuda">Com "Só uma turma por pessoa", as turmas dos eventos marcados contam junto com as deste. Para valer nos dois sentidos, marque um no outro.</p>' +
+        '<div id="eventoFormUmaTurmaLista" class="evento-lista"></div></div></details></div>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
