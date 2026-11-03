@@ -616,6 +616,25 @@
     return p[2] + '/' + p[1];
   }
 
+  /* Datas dos encontros com mês e ano, para ler sem abrir a turma — t.dates sai sem mês quando a turma é de um mês só
+     ("10, 12 e 14"), porque no site o mês está no rótulo ao lado; no painel e na lista de presença não está. */
+  function datasDaTurma(t) { return window.faTurmasUtil.periodoCertificado(t && t.dias) || (t && t.dates) || ''; }
+  /* Período do evento: do primeiro ao último encontro das turmas dele ("03/11/2026 a 03/12/2026") */
+  function periodoDoEvento(turmas) {
+    var dias = [];
+    (turmas || []).forEach(function (t) { dias = dias.concat(t.dias || []); });
+    dias = dias.filter(Boolean).sort();
+    if (!dias.length) return '';
+    var f = window.faTurmasUtil.formatISOBr;
+    return dias[0] === dias[dias.length - 1] ? f(dias[0]) : f(dias[0]) + ' a ' + f(dias[dias.length - 1]);
+  }
+  /* "2026-11-10" → "ter 10/11/2026" (dia local, nunca UTC) */
+  function diaComSemana(iso) {
+    var p = String(iso || '').split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()] + ' ' + window.faTurmasUtil.formatISOBr(iso);
+  }
+
   function todayISO() {
     var d = new Date();
     return d.getFullYear() + '-' +
@@ -876,7 +895,8 @@
     }
     return { motivos: motivos };
   }
-  /* opcoes = { semVagas (não conferir lotação), jaDispensadas ({ regra: true } de uma exceção já gravada no registro) } */
+  /* opcoes = { semVagas (não conferir lotação), jaDispensadas ({ regra: true } de uma exceção já gravada no registro),
+     ignorarTurma (a turma de onde a pessoa sai na mesma gravação — transferência) } */
   function avaliarEntradaAdmin(turmaKey, eKey, nome, opcoes, cb) {
     nome = nome || 'Essa pessoa';
     var pub = motivosDePublicoAdmin(turmaKey, eKey, nome);
@@ -884,7 +904,7 @@
     var bloqueios = pub.motivos.slice(), dispensar = opcoes && opcoes.semVagas ? ['lotada'] : [];
     var ja = (opcoes && opcoes.jaDispensadas) || {};
     (function rodada() {
-      window.faTurmasUtil.regrasDeEntrada({ eventoKey: turmaEventoKey(turmaKey), eKey: eKey, turmaKey: turmaKey, dispensar: dispensar.slice() }, function (r) {
+      window.faTurmasUtil.regrasDeEntrada({ eventoKey: turmaEventoKey(turmaKey), eKey: eKey, turmaKey: turmaKey, dispensar: dispensar.slice(), ignorarTurma: (opcoes && opcoes.ignorarTurma) || '' }, function (r) {
         if (r.estado === 'erro') { cb({ erro: window.faTurmasUtil.mensagemRegraAdmin(r, nome) }); return; }
         var fim = function (lotacao) { cb({ bloqueios: bloqueios.filter(function (b) { return !ja[b.regra]; }), lotacao: lotacao }); };
         if (r.estado === 'livre') { fim(null); return; }
@@ -1172,7 +1192,7 @@
               '<div class="turma-admin-title" style="cursor:pointer;user-select:none">' +
                 '<span class="turma-toggle-icon" style="color:var(--ink-2);font-size:.8rem;flex-shrink:0;margin-right:6px">▸</span>' +
                 '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
-                '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
+                '<span class="turma-admin-dates turma-admin-encontros">&#x1F4C5; ' + esc(datasDaTurma(t)) + '</span>' +
                 '<span class="turma-admin-dates turma-admin-horario">&#x23F0; ' + esc(window.faTurmasUtil.formatHorario(t.horarioInicio, t.horarioFim)) + '</span>' +
                 (t.sala ? '<span class="turma-admin-dates turma-admin-sala">&#x1F4CD; ' + esc(t.sala) + '</span>' : '') +
                 (publicoDoEvento(t.eventoKey) ? '<span class="turma-admin-dates turma-admin-publico">&#x1F465; ' + esc(publicoDoEvento(t.eventoKey)) + '</span>' : '') +
@@ -1717,8 +1737,11 @@
             var evQuebraLinha = document.createElement('span');
             evQuebraLinha.style.cssText = 'flex-basis:100%;height:0';
             var evMeta = document.createElement('span');
-            evMeta.style.cssText = 'color:var(--ink-2);font-size:.85rem;white-space:nowrap';
-            evMeta.textContent = ev.cargaHoraria + 'h · ' + turmasEvento.length + ' turma' + (turmasEvento.length !== 1 ? 's' : '');
+            evMeta.style.cssText = 'color:var(--ink-2);font-size:.85rem;min-width:0;overflow-wrap:anywhere';
+            /* o período aparece com o evento FECHADO: é o que se procura ao bater o olho na lista de eventos */
+            var evPeriodo = periodoDoEvento(turmasEvento);
+            evMeta.className = 'ev-admin-meta';
+            evMeta.textContent = (evPeriodo ? '📅 ' + evPeriodo + ' · ' : '') + ev.cargaHoraria + 'h · ' + turmasEvento.length + ' turma' + (turmasEvento.length !== 1 ? 's' : '');
             var evEditBtn = document.createElement('button');
             evEditBtn.className = 'btn btn--sm';
             evEditBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
@@ -2095,7 +2118,7 @@
         adminConfirmComMotivo(
           'Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista de participantes. O histórico de presença é preservado.',
           MOTIVOS_REMOCAO_TURMA,
-          function (motivo, detalhe, turmaDestino, paraEspera) {
+          function (motivo, detalhe, turmaDestino, para) {
             var pessoa = {
               name:  remBtn.dataset.name,
               email: remBtn.dataset.email,
@@ -2107,8 +2130,14 @@
 
             function aplicar(subst) {
               var razao = subst ? ('Substituída por ' + subst.name) : (detalhe || motivoEsperaLabel(motivo));
-              if (paraEspera) {
+              if (para && para.tipo === 'espera') {
                 migrarParaEspera(remBtn.dataset.turma, remBtn.dataset.ekey, pessoa, motivo, razao, subst);
+                return;
+              }
+              /* outra turma: a porta única da transferência valida o destino ANTES de tirar a pessoa daqui */
+              if (para && para.tipo === 'turma') {
+                movimentarParaTurma({ pessoa: pessoa, eKey: remBtn.dataset.ekey, destino: para.turmaKey, status: para.status,
+                  origem: { tipo: 'turma', turmaKey: remBtn.dataset.turma }, motivo: motivo, razao: razao, subst: subst }, adminAlert, loadInterests);
                 return;
               }
               /* "Já participou" também escolhe uma turma, mas a que ela JÁ
@@ -2151,7 +2180,15 @@
             }
             aplicar(null);
           },
-          { label: 'Colocar na lista de espera (mantém a data original do interesse)' },
+          (function () {
+            /* a lista de espera só é oferecida quando o evento da turma a aceita (esperaAtiva) */
+            var evR = EVENTOS_LIST.filter(function (x) { return x.key === turmaEventoKey(remBtn.dataset.turma); })[0];
+            var aceita = !!(evR && evR.esperaAtiva);
+            var regR = (_interessesAdmin[remBtn.dataset.turma] || {})[remBtn.dataset.ekey] || {};
+            return { destinos: true, excluirTurma: remBtn.dataset.turma, padrao: aceita ? 'espera' : 'nenhum',
+              espera: { permitida: aceita, nota: 'desligada neste evento ("Aceitar lista de espera" está desmarcado)' },
+              origemInscrita: inscricaoValida(regR) };
+          })(),
           ondeJaParticipou(remBtn.dataset.ekey, remBtn.dataset.turma));
       }
     });
@@ -2470,7 +2507,8 @@
     overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeAlert(); } });
   }
 
-  function adminConfirm(mensagem, callbackSim) {
+  /* callbackNao (opcional): chamado quando a caixa fecha sem confirmar (Cancelar, clique fora, Esc) */
+  function adminConfirm(mensagem, callbackSim, callbackNao) {
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
@@ -2486,11 +2524,12 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     function closeConfirm() { document.body.removeChild(overlay); }
-    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeConfirm);
+    function desistir() { closeConfirm(); if (callbackNao) callbackNao(); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', desistir);
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeConfirm(); });
-    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); } });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) desistir(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); desistir(); } });
     box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
       closeConfirm();
       if (callbackSim) callbackSim();
@@ -3028,16 +3067,43 @@
     });
   }
 
+  /* "Para onde ela vai?" — p = { destinos: true, excluirTurma (a turma de origem), espera: { permitida, nota } (ausente =
+     a opção não se aplica, como na saída da própria fila), padrao, origemInscrita } */
+  function blocoDestinoHtml(p) {
+    var esp = p.espera;
+    return '<fieldset class="mov-destino"><legend class="admin-field-label">Para onde ela vai?</legend>' +
+      '<label class="mov-op"><input type="radio" name="movDestino" value="nenhum"> Nenhum lugar — só sai</label>' +
+      (esp ? '<label class="mov-op' + (esp.permitida ? '' : ' mov-op--off') + '"><input type="radio" name="movDestino" value="espera"' + (esp.permitida ? '' : ' disabled') + '> ' +
+        'Lista de espera do evento <span class="mov-nota">' + esc(esp.permitida ? 'mantém a data original do interesse' : esp.nota) + '</span></label>' : '') +
+      '<label class="mov-op"><input type="radio" name="movDestino" value="turma"> Outra turma</label>' +
+      '<div class="mov-turma" hidden>' +
+        '<select class="admin-motivo-select mov-turma-select" aria-label="Turma de destino"><option value="">— escolha a turma de destino —</option>' +
+          opcoesTurmaDestino(p.excluirTurma || '') + '</select>' +
+        '<p class="mov-resumo" hidden></p>' +
+        '<div class="mov-situacao" role="radiogroup" aria-label="Situação no destino"><span class="mov-nota">Entra como:</span>' +
+          '<label class="mov-op"><input type="radio" name="movSituacao" value="interessado"> Interessada</label>' +
+          '<label class="mov-op"><input type="radio" name="movSituacao" value="inscrito"> Inscrita</label>' +
+        '</div>' +
+        '<p class="mov-aviso" hidden></p>' +
+      '</div></fieldset>';
+  }
+
   function adminConfirmComMotivo(mensagem, motivos, callbackSim, pergunta, jaFezTurmas, motivoInicial) {
     /* Turmas que a pessoa já fez, quando o chamador souber — vem de
        ondeJaParticipou(), a mesma fonte do selo "Já participou". */
     var jaFez = jaFezTurmas || [];
+    /* pergunta.destinos: em vez da caixa "ir para a lista de espera", a pergunta "Para onde ela vai?" — nenhum lugar, a
+       lista de espera (quando o evento aceita) ou outra turma, como Interessada ou Inscrita. O 4º argumento do callback
+       passa a ser { tipo: 'nenhum' | 'espera' | 'turma', turmaKey, label, status }. */
+    var comDestino = !!(pergunta && pergunta.destinos);
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
     var box = document.createElement('div');
     box.className = 'modal-box';
-    box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+    /* com a pergunta de destino a caixa cresce: no celular ela rola por dentro em vez de passar da tela */
+    box.style.cssText = 'max-width:' + (comDestino ? '520px' : '460px') + ';width:90%;padding:' + (comDestino ? '22px' : '28px') +
+      ';display:flex;flex-direction:column;gap:16px;max-height:90vh;overflow-y:auto;box-sizing:border-box';
     box.innerHTML =
       '<p style="font-size:.95rem;line-height:1.6;color:var(--ink);white-space:pre-line">' + esc(mensagem) + '</p>' +
       '<label class="admin-field-label">Motivo' +
@@ -3057,7 +3123,8 @@
          querendo fazer, e a fila preserva a data original do interesse.
          Antes vinha marcada só em alguns motivos, o que fazia a escolha
          depender de lembrar quais eram. Quem não quer, desmarca. */
-      (pergunta ? '<label class="admin-motivo-check"><input type="checkbox" class="admin-motivo-extra" checked> ' + esc(pergunta.label) + '</label>' : '') +
+      (comDestino ? blocoDestinoHtml(pergunta)
+        : pergunta ? '<label class="admin-motivo-check"><input type="checkbox" class="admin-motivo-extra" checked> ' + esc(pergunta.label) + '</label>' : '') +
       '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -3079,10 +3146,36 @@
     var chkTocado = false;
     if (chk) chk.addEventListener('change', function () { chkTocado = true; });
 
+    var dst = comDestino ? box.querySelector('.mov-destino') : null;
+    var selDest = dst ? dst.querySelector('.mov-turma-select') : null;
+    function destinoEscolhido() { var r = dst && dst.querySelector('input[name="movDestino"]:checked'); return r ? r.value : ''; }
+    function situacaoEscolhida() { var r = dst && dst.querySelector('input[name="movSituacao"]:checked'); return r ? r.value : ''; }
+    function atualizarDestino() {
+      dst.querySelector('.mov-turma').hidden = destinoEscolhido() !== 'turma';
+      var res = dst.querySelector('.mov-resumo');
+      res.hidden = !selDest.value;
+      /* o resumo repete tudo (evento, turma, datas, situação, vagas): no celular a opção escolhida aparece cortada */
+      var tD = TURMAS_LIST.filter(function (x) { return x.key === selDest.value; })[0];
+      if (tD) res.textContent = 'Destino: ' + eventoLabel(tD.eventoKey) + ' › ' + rotuloTurmaDestino(tD);
+      /* inscrita que vai como Interessada perde o acesso na hora — dizer ANTES de confirmar */
+      var av = dst.querySelector('.mov-aviso');
+      var perde = !!pergunta.origemInscrita && situacaoEscolhida() === 'interessado';
+      av.hidden = !perde;
+      if (perde) av.textContent = 'Ela é inscrita aqui e vai entrar como Interessada: perde o acesso a Conteúdos e Treinamento até ser confirmada no destino.';
+    }
+    function marcarDestino(v) {
+      var r = dst.querySelector('input[name="movDestino"][value="' + v + '"]');
+      if (r && !r.disabled) r.checked = true;
+      atualizarDestino();
+    }
+    if (dst) { marcarDestino(pergunta.padrao || 'nenhum'); dst.addEventListener('change', atualizarDestino); }
+
     function fechar() { document.body.removeChild(overlay); }
     sel.addEventListener('change', function () {
       outro.hidden = sel.value !== 'outro';
       selTurma.hidden = !pedeTurma(sel.value);
+      /* "Vai fazer em outra turma" com a pergunta de destino: a turma é escolhida ali, e ela entra de fato */
+      if (comDestino && pedeTurma(sel.value) && !turmaJaFeita(sel.value)) { selTurma.hidden = true; marcarDestino('turma'); }
       /* A mesma lista serve às duas perguntas — o rótulo é que diz qual
          delas está sendo feita, senão "qual turma?" fica ambíguo. */
       if (!selTurma.hidden) {
@@ -3117,14 +3210,27 @@
       if (sel.value === 'outro' && !outro.value.trim()) {
         erro.textContent = 'Descreva o motivo.'; erro.hidden = false; outro.focus(); return;
       }
-      if (pedeTurma(sel.value) && !selTurma.value) {
+      var destinoNaTurma = comDestino && pedeTurma(sel.value) && !turmaJaFeita(sel.value);
+      if (pedeTurma(sel.value) && !destinoNaTurma && !selTurma.value) {
         erro.textContent = turmaJaFeita(sel.value) ? 'Escolha a turma que ela já fez.' : 'Escolha a turma em que ela vai fazer.';
         erro.hidden = false; selTurma.focus(); return;
+      }
+      var destino = null;
+      if (comDestino) {
+        var tipoD = destinoEscolhido() || 'nenhum';
+        if (destinoNaTurma && tipoD !== 'turma') { erro.textContent = 'Esse motivo pede a turma: em "Para onde ela vai?", escolha "Outra turma".'; erro.hidden = false; return; }
+        if (tipoD === 'turma' && !selDest.value) { erro.textContent = 'Escolha a turma de destino.'; erro.hidden = false; selDest.focus(); return; }
+        if (tipoD === 'turma' && !situacaoEscolhida()) { erro.textContent = 'Escolha se ela entra no destino como Interessada ou Inscrita.'; erro.hidden = false; return; }
+        destino = { tipo: tipoD, turmaKey: tipoD === 'turma' ? selDest.value : '', label: tipoD === 'turma' ? destinoPorExtenso(selDest.value) : '',
+          status: tipoD === 'turma' ? situacaoEscolhida() : '' };
       }
       var motivo = sel.value;
       var detalhe = sel.value === 'outro' ? outro.value.trim() : '';
       var turmaEscolhida = null;
-      if (pedeTurma(sel.value) && selTurma.value) {
+      if (destinoNaTurma) {
+        turmaEscolhida = { key: destino.turmaKey, label: turmaLabel(destino.turmaKey), jaFeita: false };
+        detalhe = 'Vai fazer na ' + destino.label;
+      } else if (pedeTurma(sel.value) && selTurma.value) {
         var o = selTurma.options[selTurma.selectedIndex];
         var jaFeita = turmaJaFeita(sel.value);
         turmaEscolhida = { key: selTurma.value, label: o.dataset.label, jaFeita: jaFeita };
@@ -3132,7 +3238,7 @@
       }
       var extra = !!(chk && chk.checked && chkWrap && !chkWrap.hidden);
       fechar();
-      if (callbackSim) callbackSim(motivo, detalhe, turmaEscolhida, extra);
+      if (callbackSim) callbackSim(motivo, detalhe, turmaEscolhida, comDestino ? destino : extra);
     });
     /* Completar um motivo já escolhido abre com ele selecionado e travado:
        trocar de motivo aqui seria reescrever a decisão, não preencher a
@@ -4804,11 +4910,29 @@
       ? '<th>Frequência</th><th>Atingiu critério (' + percentualMinimoDaTurma(t) + '%)</th>'
       : '';
 
-    var html = '<!doctype html><html><head><meta charset="utf-8"><title>Lista de presença — ' + esc(t.label) + '</title>' +
+    /* A folha vai para o RH sozinha, sem o painel ao lado: tem de dizer de QUAL evento é a turma (há "Turma 1" em
+       vários) e as datas com mês e ano — antes saíam só "Turma 3" e "10, 12 e 14". */
+    var evLp = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0] || null;
+    var nomeEvento = evLp ? evLp.nome : '';
+    var encontros = (t.dias || []).map(diaComSemana).join(' · ');
+    var metaLp = [
+      ['Evento', nomeEvento || '—'],
+      ['Turma', t.label],
+      ['Datas dos encontros', (encontros || '—') + (t.dias && t.dias.length ? ' (' + t.dias.length + ' encontro' + (t.dias.length !== 1 ? 's' : '') + ')' : '')],
+      ['Horário', window.faTurmasUtil.formatHorario(t.horarioInicio, t.horarioFim)],
+      ['Sala', t.sala || ''],
+      ['Carga horária', evLp && evLp.cargaHoraria ? evLp.cargaHoraria + 'h' : '']
+    ].filter(function (l) { return l[1]; }).map(function (l) {
+      return '<div><span class="lp-rot">' + esc(l[0]) + ':</span> ' + esc(l[1]) + '</div>';
+    }).join('');
+    var tituloLp = 'Lista de presença — ' + (nomeEvento ? nomeEvento + ' — ' : '') + t.label;
+
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(tituloLp) + '</title>' +
       '<style>' +
       'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}' +
       'h1{font-size:1.3rem;margin:0 0 4px;}' +
-      '.lp-meta{font-size:.85rem;color:#444;margin-bottom:16px;}' +
+      '.lp-meta{font-size:.85rem;color:#444;margin-bottom:16px;display:flex;flex-direction:column;gap:2px;}' +
+      '.lp-rot{font-weight:bold;color:#111;}' +
       'table{border-collapse:collapse;width:100%;font-size:.78rem;}' +
       'th,td{border:1px solid #999;padding:4px 6px;text-align:left;}' +
       'th{background:#eee;}' +
@@ -4820,8 +4944,8 @@
       '@page{size:A4 landscape;margin:14mm;}' +
       '</style></head><body>' +
       '<div class="lp-actions"><button id="lp-print-btn">Imprimir / salvar como PDF</button></div>' +
-      '<h1>Lista de presença — ' + esc(t.label) + '</h1>' +
-      '<div class="lp-meta">Período: ' + esc(t.dates || '—') + ' · Gerado em ' + esc(geradoEm) + '</div>' +
+      '<h1>Lista de presença</h1>' +
+      '<div class="lp-meta">' + metaLp + '<div><span class="lp-rot">Gerado em:</span> ' + esc(geradoEm) + '</div></div>' +
       '<table><thead><tr><th>#</th><th>Nome</th><th>E-mail</th><th>Área</th>' + diaCols + freqHead + '</tr></thead>' +
       '<tbody>' + rowsHtml + '</tbody></table>' +
       '<div class="lp-assinaturas"><div class="lp-assinatura">Responsável pela turma</div><div class="lp-assinatura">RH</div></div>' +
@@ -4974,9 +5098,20 @@
     var db = firebase.database();
     db.ref('turmas-interesse-log').once('value', function (snapLog) {
       db.ref('turmas-interesse').once('value', function (snapI) {
+      db.ref('fa-espera').once('value', function (snapE) {
         var logData      = snapLog.val() || {};
         var interestData = snapI.val()   || {};
+        var esperaData   = snapE.val()   || {};
         var rows = [];
+        /* "EVENTO › Turma 3 · como Inscrita" — um lado de uma transferência, como foi gravado no histórico */
+        function ladoTransf(x, comSituacao) {
+          if (!x) return '';
+          var onde = x.tipo === 'espera' ? 'Lista de espera' + (x.evento ? ' — ' + x.evento : '')
+            : (x.evento ? x.evento + ' › ' : '') + (x.turmaLabel || x.turma || '');
+          var sit = x.situacao === 'inscrito' ? 'Inscrita' : x.situacao === 'interessado' ? 'Interessada' : (x.situacao || '');
+          if (comSituacao) return onde + (sit ? ' · como ' + sit : '');
+          return onde + (sit && x.tipo !== 'espera' ? ' (era ' + sit + ')' : '');
+        }
 
         function fmtData(iso) { if (!iso) return ''; var d = new Date(iso); return d.toLocaleDateString('pt-BR'); }
         function fmtHora(iso) { if (!iso) return ''; var d = new Date(iso); return d.toLocaleTimeString('pt-BR'); }
@@ -4990,25 +5125,40 @@
             Object.values(userLog).forEach(function (entry) {
               var ACAO_LABELS = {
                 registrado: 'Interesse registrado', removido: 'Interesse removido',
-                confirmado: 'Confirmado como inscrita', desconfirmado: 'Desconfirmado (voltou a interessada)'
+                confirmado: 'Confirmado como inscrita', desconfirmado: 'Desconfirmado (voltou a interessada)',
+                transferida_saida: 'Transferida para outra turma', transferida_entrada: 'Entrou por transferência'
               };
               var acao = ACAO_LABELS[entry.action] || entry.action;
               var origem = entry.adminName ? 'Admin — ' + entry.adminName : 'Participante';
-              entries.push({ ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem, '', ''] });
+              /* transferência: a linha do histórico é a fonte (de onde, para onde, situação, motivo); o registro que a
+                 entrada nova substituiu no destino — uma saída antiga — volta como a linha que era */
+              var motivoL = '', destinoL = '';
+              if (entry.action === 'transferida_saida') { motivoL = entry.motivo || ''; destinoL = ladoTransf(entry.para, true); }
+              if (entry.action === 'transferida_entrada') {
+                motivoL = entry.motivo || '';
+                destinoL = 'Veio de ' + ladoTransf(entry.de, false) + ' · entrou como ' + (entry.para && entry.para.situacao === 'inscrito' ? 'Inscrita' : 'Interessada');
+                var ant = entry.registroAnterior;
+                if (ant && ant.removed && ant.status !== 'removido') {
+                  entries.push({ ts: ant.removedDate || '', row: [t.label, ant.name||'', ant.email||'', ant.area||'', fmtData(ant.removedDate), fmtHora(ant.removedDate), 'Removido da turma',
+                    ant.removedByAdminName ? 'Admin — ' + ant.removedByAdminName : 'Não registrado', ant.removedReason || '', ant.movedToEspera ? 'Lista de espera' : (ant.removedParaTurmaLabel || 'Saiu')] });
+                }
+              }
+              entries.push({ ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem, motivoL, destinoL] });
             });
           });
 
           /* Ações do admin lidas diretamente de turmas-interesse (add e remove) */
           var turmaI = interestData[t.key] || {};
           Object.values(turmaI).forEach(function (r) {
-            if (r.addedByAdmin && r.addedByAdminName) {
+            /* entrada e saída por transferência já vieram do histórico acima, com origem e destino */
+            if (r.addedByAdmin && r.addedByAdminName && !r.movimentadaEm) {
               entries.push({ ts: r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.date), fmtHora(r.date), 'Adicionado pelo admin', 'Admin — ' + r.addedByAdminName, '', ''] });
             }
             /* Quem tirou o próprio interesse já entrou pelo log acima (é o
                único caminho que grava status "removido"), então aqui só entra
                a saída pelo painel — inclusive a antiga, que não guardou o nome
                de quem removeu e antes sumia do histórico. */
-            if (r.removed && r.status !== 'removido') {
+            if (r.removed && r.status !== 'removido' && !r.removedParaStatus) {
               var autor = r.removedByAdminName ? 'Admin — ' + r.removedByAdminName : 'Não registrado';
               var destino = r.movedToEspera ? 'Lista de espera' : (r.removedParaTurmaLabel || 'Saiu');
               entries.push({ ts: r.removedDate || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.removedDate), fmtHora(r.removedDate), 'Removido da turma', autor, r.removedReason || '', destino] });
@@ -5020,8 +5170,30 @@
           entries.forEach(function (e) { rows.push([e.row[0]].concat(colsT, e.row.slice(1))); });
         });
 
+        /* Saídas da lista de espera — a fila não é de turma, então a linha leva a turma de onde a pessoa veio para a fila
+           (com as colunas dela) ou "Lista de espera — EVENTO" quando entrou direto pelo card. Sair da fila nunca apaga o
+           registro (fica removed), e é isso que se lê aqui; o "excluir registro" apaga de vez e não aparece. */
+        var saidasFila = [];
+        Object.keys(esperaData).forEach(function (eKey) {
+          window.faTurmasUtil.esperaEntradas(esperaData[eKey]).forEach(function (e) {
+            if (!e.removed) return;
+            var deTurma = e._origem && !window.faTurmasUtil.ehOrigemDireta(e._origem) ? turmaPorKey(e._origem) : null;
+            var rotulo = deTurma ? deTurma.label : 'Lista de espera' + (e.eventoKey ? ' — ' + eventoLabel(e.eventoKey) : '');
+            var autor = e.removedByName ? 'Admin — ' + e.removedByName : e.removedBySelf ? 'Participante' : 'Não registrado';
+            var motivoF = e.motivoSaidaDetalhe || (e.motivoSaida ? motivoEsperaLabel(e.motivoSaida) : '') || (e.movedToTurma ? 'Movida para turma' : '');
+            var destinoF = e.movedToTurma
+              ? destinoPorExtenso(e.movedToTurma) + (e.movedToStatus ? ' · como ' + (e.movedToStatus === 'inscrito' ? 'Inscrita' : 'Interessada') : '')
+              : 'Saiu da fila';
+            saidasFila.push({ ts: e.removedDate || '', row: [rotulo].concat(colunasTurma(deTurma), [e.name || '', e.email || '', e.area || '', fmtData(e.removedDate), fmtHora(e.removedDate),
+              e.movedToTurma ? 'Saiu da lista de espera para uma turma' : 'Saiu da lista de espera', autor, motivoF, destinoF]) });
+          });
+        });
+        saidasFila.sort(function (a, b) { return (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0); });
+        saidasFila.forEach(function (x) { rows.push(x.row); });
+
         toXls(['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Data','Hora','Ação','Origem','Motivo','Destino']),
           rows, 'historico-' + new Date().toISOString().slice(0,10) + '.csv');
+      });
       });
     });
   }
@@ -5371,18 +5543,11 @@
       return box;
     }
 
-    /* dropdown "Mover para turma" — só turmas DESTE evento (órfã: qualquer
-       turma aberta, já que não sabemos para qual evento ela espera) */
-    var turmaOpts = Object.keys(turmasVal).filter(function (k) {
-      return evKeyOrNull === null || turmasVal[k].eventoKey === evKeyOrNull;
-    }).map(function (k) {
-      var cfg = cfgVal[k] || {};
-      return { key: k, label: turmasVal[k].label || k.toUpperCase(), encerrada: !!(cfg.encerrada) };
-    }).filter(function (t) { return !t.encerrada; });
-
-    var optsHtml = '<option value="">Selecione a turma…</option>' +
-      turmaOpts.map(function (t) { return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>'; }).join('');
-    var semTurmas = !turmaOpts.length;
+    /* dropdown "Mover para turma" — a mesma lista de destino da transferência: turmas não realizadas de TODOS os eventos,
+       agrupadas por evento, com datas, situação e vagas (mover para outro evento passa pelas regras do evento de destino) */
+    var opcoesDestino = opcoesTurmaDestino('');
+    var optsHtml = '<option value="">Selecione a turma…</option>' + opcoesDestino;
+    var semTurmas = !opcoesDestino;
 
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
@@ -5448,10 +5613,9 @@
           return function () {
             var turmaKey = selectEl.value;
             if (!turmaKey) { adminAlert('Selecione uma turma primeiro.'); return; }
-            var turmaLabelSel = selectEl.options[selectEl.selectedIndex].text;
             adminConfirm(
-              'Mover ' + person.name + ' para a turma ' + turmaLabelSel + ' como Inscrita?',
-              function () { moverParaTurma(person, turmaKey); }
+              'Mover ' + person.name + ' para ' + destinoPorExtenso(turmaKey) + ' como Inscrita?',
+              function () { moverParaTurma(person, turmaKey, evKeyOrNull); }
             );
           };
         })(p, sel));
@@ -5474,7 +5638,13 @@
                   ' registros na fila deste evento, um por turma de origem — e sai de todos eles.'
                 : ''),
             MOTIVOS_ESPERA_SAIDA,
-            function (motivo, detalhe, turmaEscolhida) {
+            function (motivo, detalhe, turmaEscolhida, para) {
+              /* saída com destino: a mesma porta da transferência (valida a turma antes de tirar da fila) */
+              if (para && para.tipo === 'turma') {
+                movimentarParaTurma({ pessoa: person, eKey: person._key, destino: para.turmaKey, status: para.status,
+                  origem: { tipo: 'espera', eventoKey: evKeyOrNull }, motivo: motivo, razao: detalhe || motivoEsperaLabel(motivo) }, adminAlert, loadInterests);
+                return;
+              }
               var agora = new Date().toISOString();
               /* Tirar da fila é sobre a pessoa NESTE evento — não sobre a
                  linha, mas também não sobre TODOS os eventos: se ela também
@@ -5501,7 +5671,7 @@
                 });
               });
             },
-            null,
+            { destinos: true, excluirTurma: '', padrao: 'nenhum' },
             /* A chave da fila é a mesma chave de e-mail usada nas turmas,
                então dá para sugerir a turma que ela já fez. A sugestão
                depende da aba Eventos ter carregado; sem isso a lista
@@ -5546,7 +5716,8 @@
         ? '<span class="espera-origem">↩ ' + esc(nomeTurma(p._origem)) + '</span>'
         : '<span class="espera-origem-card">Entrou pela lista</span>';
       var destino = p.movedToTurma
-        ? '<span class="destino-badge destino-turma">' + esc(nomeTurma(p.movedToTurma)) + '</span>'
+        ? '<span class="destino-badge destino-turma">' + esc(TURMAS_LIST.some(function (x) { return x.key === p.movedToTurma; }) ? destinoPorExtenso(p.movedToTurma) : nomeTurma(p.movedToTurma)) +
+          (p.movedToStatus ? ' · como ' + (p.movedToStatus === 'inscrito' ? 'Inscrita' : 'Interessada') : '') + '</span>'
         : '<span class="destino-badge destino-saiu">Saiu da fila</span>';
       var motivo = p.motivoSaidaDetalhe || (p.motivoSaida ? motivoEsperaLabel(p.motivoSaida) : '') ||
         (p.movedToTurma ? 'Movida para turma' : '<span class="removido-sem-motivo">motivo não registrado</span>');
@@ -5772,70 +5943,186 @@
     });
   }
 
-  function moverParaTurma(person, turmaKey) {
-    var sess = window.faAuth && window.faAuth.getSession();
-    /* Mesmo motivo do confirmarInscrito: sem sessão, confirmedByAdmin
-       viraria null (= campo apagado) e a pessoa entraria na turma como
-       inscrita pela metade — vista como confirmada no painel e sem
-       acesso nenhum na prática. */
-    if (!sess) {
-      adminAlert('Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo. Nada foi gravado.');
-      return;
-    }
-    var eKey = emailKeyFromEmail(person.email);
-    /* a porta única do painel: todas as regras que barram, a exceção com motivo e a lotação (acimaDasVagas) */
-    var excecaoAdmin = null;
-    portaDoAdmin(turmaKey, eKey, person.name, sess, null, adminAlert, function (res) {
-    excecaoAdmin = res.excecao;
-    conferirOutras(res.acima);
-    /* Mesma exclusividade do Confirmar: inscrita em outra turma, a outra inscrição sai (com aviso antes). Antes o Mover
-       não fazia isso e a pessoa podia ficar inscrita em duas turmas. */
-    function conferirOutras(acimaDasVagas) {
-      checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
-        if (!overlaps.length) { mover(acimaDasVagas, []); return; }
-        var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
-        adminConfirm('Mover ' + person.name + ' para "' + turmaLabel(turmaKey) + '"?\n\n' +
-          'Ela já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista,
-          function () { mover(acimaDasVagas, overlaps); });
-      });
-    }
-    function mover(acimaDasVagas, overlaps) {
-    var now  = new Date().toISOString();
-    var destEventoKey = turmaEventoKey(turmaKey);
-    var updates = {};
-    updates['turmas-interesse/' + turmaKey + '/' + eKey] = {
-      name: person.name, email: person.email, area: person.area || '',
-      date: now, removed: false, status: 'inscrito',
-      confirmedByAdmin: sess.email,
-      confirmedByAdminName: sess.name || sess.email,
-      confirmedDate: now,
-      fromEspera: true
+  /* "Mover para turma" da linha da fila: sai da fila do evento e entra como Inscrita — a mesma porta da transferência */
+  function moverParaTurma(person, turmaKey, evKeyFila) {
+    movimentarParaTurma({
+      pessoa: person, eKey: emailKeyFromEmail(person.email), destino: turmaKey, status: 'inscrito',
+      origem: { tipo: 'espera', eventoKey: evKeyFila === undefined ? turmaEventoKey(turmaKey) : evKeyFila },
+      motivo: 'movida_turma', razao: 'Movida para turma'
+    }, adminAlert, loadInterests);
+  }
+
+  /* ---- Escolha da turma de destino ------------------------------------------
+     Uma lista só para todo lugar que manda alguém PARA uma turma (Remover com destino, Remover da lista de espera, Mover
+     para turma da fila): agrupada por evento — há "Turma 1" em vários, e o nome sozinho é ambíguo —, cada opção com as
+     datas dos encontros, a situação e as vagas. Turma realizada (encerrada) não entra. Vagas = interesse + inscrição não
+     removidos, o mesmo critério da regra de lotação (regrasDeEntrada). */
+  function rotuloTurmaDestino(t) {
+    var ev = EVENTOS_LIST.filter(function (e) { return e.key === t.eventoKey; })[0];
+    var v = window.faTurmasUtil.vagasEfetivas(t, ev);
+    var ocup = Object.values((_interessesAdmin || {})[t.key] || {}).filter(function (r) { return r && !r.removed && r.status !== 'removido'; }).length;
+    var sit = ((_configTurmasAdmin || {})[t.key] || {}).finalizada ? 'interesse encerrado' : 'aberta';
+    var vagas = !v ? 'sem limite de vagas' : (ocup >= v ? 'lotada (' + ocup + '/' + v + ')' : (v - ocup) + ' vaga' + (v - ocup !== 1 ? 's' : '') + ' de ' + v);
+    return t.label + ' · ' + datasDaTurma(t) + ' · ' + sit + ' · ' + vagas;
+  }
+  function opcoesTurmaDestino(excluirKey) {
+    var cfgs = _configTurmasAdmin || {};
+    var serve = function (t) { return t.key !== excluirKey && !(cfgs[t.key] || {}).encerrada; };
+    var grupo = function (nome, ts) {
+      return ts.length ? '<optgroup label="' + esc(nome) + '">' + ts.map(function (t) {
+        return '<option value="' + esc(t.key) + '" data-label="' + esc(t.label) + '">' + esc(rotuloTurmaDestino(t)) + '</option>';
+      }).join('') + '</optgroup>' : '';
     };
-    if (acimaDasVagas) updates['turmas-interesse/' + turmaKey + '/' + eKey].acimaDasVagas = acimaDasVagas;
-    if (excecaoAdmin) updates['turmas-interesse/' + turmaKey + '/' + eKey].excecaoAdmin = excecaoAdmin;
-    (overlaps || []).forEach(function (o) {
-      updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
-      updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
-      updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(turmaKey) + '"';
-    });
-    /* Inscrita numa turma, ela não está mais esperando por ESTE evento —
-       sai de todas as origens desse evento (e das órfãs, sem evento
-       definido, já que arranjar vaga resolve a ambiguidade). Se ela também
-       espera por outro evento, essa espera continua — são coisas diferentes. */
-    firebase.database().ref('fa-espera/' + eKey).once('value', function (snapF) {
-      window.faTurmasUtil.esperaAtivas(snapF.val()).forEach(function (e) {
-        if (e.eventoKey && e.eventoKey !== destEventoKey) return;
-        var b = 'fa-espera/' + eKey + '/' + e._origem + '/';
-        updates[b + 'removed']      = true;
-        updates[b + 'removedDate']  = now;
-        updates[b + 'movedToTurma'] = turmaKey;
-      });
-      firebase.database().ref().update(updates, function (err) {
-        if (err) { adminAlert('Erro ao mover. Tente novamente.'); return; }
-        loadInterests();
-      });
-    });
-    }
+    var html = EVENTOS_LIST.map(function (ev) {
+      return grupo(ev.nome, TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key && serve(t); }));
+    }).join('');
+    return html + grupo('Sem evento', TURMAS_LIST.filter(function (t) {
+      return serve(t) && !EVENTOS_LIST.some(function (e) { return e.key === t.eventoKey; });
+    }));
+  }
+  /* o destino escrito por inteiro, para o resumo da escolha e para o registro: "EVENTO › Turma 3 · datas" */
+  function destinoPorExtenso(turmaKey) {
+    var t = TURMAS_LIST.filter(function (x) { return x.key === turmaKey; })[0];
+    if (!t) return turmaKey;
+    var ev = eventoLabel(t.eventoKey);
+    return (ev && ev !== t.eventoKey ? ev + ' › ' : '') + t.label + ' · ' + datasDaTurma(t);
+  }
+
+  /* ---- Movimentação: sair de uma turma (ou da fila) e entrar em outra turma ---------------------------------------
+     A porta única da transferência. Ordem fixa, e NADA é gravado antes do fim:
+       1. o destino passa pela porta do painel (portaDoAdmin: público, participação, uma turma por pessoa, lotação — com
+          exceção e motivo), sem contar contra ela a turma de onde está saindo (ignorarTurma);
+       2. relê do banco a origem (ainda está lá?) e o destino (já está lá? → recusa, sem duplicar);
+       3. Inscrita no destino tira a inscrição em outra turma, com aviso — a exclusividade do Confirmar;
+       4. UMA gravação multi-caminho: a saída da origem, a entrada no destino, a fila do evento de destino (quem arranja
+          vaga não espera mais por ele) e uma linha no histórico (turmas-interesse-log) de cada lado. O Realtime Database
+          aplica tudo ou nada: falhou, a pessoa continua exatamente onde estava.
+     A data do interesse ORIGINAL vai para o destino (a ordem de chegada não se perde); a da movimentação fica à parte
+     (movimentadaEm), assim como de onde veio, a situação, o motivo e quem fez (movimentadaDe).
+     mv = { pessoa: { name, email, area, date }, eKey, destino, status: 'interessado' | 'inscrito', motivo, razao, subst,
+            origem: { tipo: 'turma', turmaKey } | { tipo: 'espera', eventoKey (null = fila sem evento) } } */
+  var _movimentando = {};
+  function movimentarParaTurma(mv, onErro, onFeito) {
+    var sess = window.faAuth && window.faAuth.getSession();
+    var eKey = mv.eKey, dest = mv.destino, origem = mv.origem || {}, nome = (mv.pessoa && mv.pessoa.name) || 'Essa pessoa';
+    var deTurma = origem.tipo === 'turma' ? origem.turmaKey : '';
+    if (!sess) { onErro('Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo. Nada foi gravado.'); return; }
+    if (!dest || !TURMAS_LIST.some(function (t) { return t.key === dest; })) { onErro('Escolha a turma de destino. Nada foi gravado.'); return; }
+    if (dest === deTurma) { onErro('A turma de destino é a mesma de onde ela está saindo. Nada foi gravado.'); return; }
+    if (((_configTurmasAdmin || {})[dest] || {}).encerrada) { onErro('"' + turmaLabel(dest) + '" já foi realizada — não recebe mais ninguém. Nada foi gravado.'); return; }
+    if (mv.status !== 'interessado' && mv.status !== 'inscrito') { onErro('Escolha se ela entra como Interessada ou Inscrita. Nada foi gravado.'); return; }
+    /* dois cliques (ou duas confirmações seguidas) não fazem duas transferências da mesma pessoa: a trava vale da porta
+       aprovada até a gravação terminar (antes disso só há caixas de diálogo, que se cancelam sem gravar nada) */
+    if (_movimentando[eKey]) { onErro('Já há uma movimentação de ' + nome + ' em andamento. Aguarde terminar.'); return; }
+    var falhar = function (m) { delete _movimentando[eKey]; onErro(m); };
+    var db = firebase.database(), destEv = turmaEventoKey(dest);
+
+    portaDoAdmin(dest, eKey, nome, sess, { ignorarTurma: deTurma }, onErro, function (res) {
+      if (_movimentando[eKey]) { onErro('Já há uma movimentação de ' + nome + ' em andamento. Aguarde terminar.'); return; }
+      _movimentando[eKey] = true;
+      var lerOrigem = deTurma ? db.ref('turmas-interesse/' + deTurma + '/' + eKey).once('value') : Promise.resolve(null);
+      Promise.all([lerOrigem, db.ref('turmas-interesse/' + dest + '/' + eKey).once('value'), db.ref('fa-espera/' + eKey).once('value')]).then(function (s) {
+        var regOrigem = s[0] && s[0].val(), regDest = s[1].val(), fila = window.faTurmasUtil.esperaAtivas(s[2].val());
+        if (deTurma && (!regOrigem || regOrigem.removed)) { falhar(nome + ' já não está em "' + turmaLabel(deTurma) + '" — a tela estava desatualizada. Nada foi gravado.'); return; }
+        if (regDest && !regDest.removed && regDest.status !== 'removido') {
+          falhar(nome + ' já está em "' + turmaLabel(dest) + '" (' + (regDest.status === 'inscrito' ? 'inscrita' : 'interessada') + '). Nada foi gravado.'); return;
+        }
+        var daFila = origem.tipo === 'espera' ? fila.filter(function (e) {
+          return origem.eventoKey === null ? !e.eventoKey : e.eventoKey === origem.eventoKey;
+        }) : [];
+        if (origem.tipo === 'espera' && !daFila.length) { falhar(nome + ' já não está nesta lista de espera — a tela estava desatualizada. Nada foi gravado.'); return; }
+        if (mv.status !== 'inscrito') { gravar([]); return; }
+        checkOutrasTurmas(dest, [eKey], function (todas) {
+          var overlaps = todas.filter(function (o) { return o.turma !== deTurma; });
+          if (!overlaps.length) { gravar([]); return; }
+          var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
+          /* cancelar o aviso devolve a trava: a pessoa continua onde estava */
+          adminConfirm('Transferir ' + nome + ' para "' + turmaLabel(dest) + '" como Inscrita?\n\n' +
+            'Ela já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista,
+            function () { gravar(overlaps); }, function () { delete _movimentando[eKey]; });
+        });
+
+        function gravar(overlaps) {
+          var now = new Date().toISOString(), por = sess.name || sess.email, updates = {};
+          var dataOriginal = (origem.tipo === 'turma' ? (regOrigem && regOrigem.date) : daFila.map(function (e) { return e.date; }).filter(Boolean).sort()[0]) ||
+            (mv.pessoa && mv.pessoa.date) || now;
+          var situacaoOrigem = origem.tipo === 'espera' ? 'lista de espera'
+            : (regOrigem.status === 'inscrito' && regOrigem.confirmedByAdmin ? 'inscrita' : 'interessada');
+          var de = {
+            tipo: origem.tipo, turma: deTurma || null, turmaLabel: deTurma ? turmaLabel(deTurma) : null,
+            eventoKey: (deTurma ? turmaEventoKey(deTurma) : origem.eventoKey) || null,
+            evento: (deTurma ? eventoLabel(turmaEventoKey(deTurma)) : (origem.eventoKey ? eventoLabel(origem.eventoKey) : null)) || null,
+            situacao: situacaoOrigem, motivo: mv.motivo || null, motivoTexto: mv.razao || null, por: sess.email, porNome: por, em: now
+          };
+          var para = { turma: dest, turmaLabel: turmaLabel(dest), eventoKey: destEv || null, evento: eventoLabel(destEv) || null, situacao: mv.status };
+          var pessoa = { name: (regOrigem && regOrigem.name) || mv.pessoa.name, email: (regOrigem && regOrigem.email) || mv.pessoa.email, area: (regOrigem && regOrigem.area) || mv.pessoa.area || '' };
+
+          var reg = registroInscricaoAdmin(pessoa, mv.status, sess, dataOriginal);
+          if (mv.status === 'inscrito') reg.confirmedDate = now;
+          reg.movimentadaEm = now;
+          reg.movimentadaDe = de;
+          if (origem.tipo === 'espera') reg.fromEspera = true;
+          if (res.acima) reg.acimaDasVagas = res.acima;
+          if (res.excecao) reg.excecaoAdmin = res.excecao;
+          updates['turmas-interesse/' + dest + '/' + eKey] = reg;
+
+          if (deTurma) {
+            var b = 'turmas-interesse/' + deTurma + '/' + eKey + '/';
+            updates[b + 'removed'] = true;
+            updates[b + 'removedDate'] = now;
+            updates[b + 'removedReason'] = mv.razao || ('Transferida para ' + destinoPorExtenso(dest));
+            updates[b + 'removedMotivo'] = mv.motivo || null;
+            updates[b + 'removedParaTurma'] = dest;
+            updates[b + 'removedParaTurmaLabel'] = destinoPorExtenso(dest) + ' · como ' + (mv.status === 'inscrito' ? 'Inscrita' : 'Interessada');
+            updates[b + 'removedParaStatus'] = mv.status;
+            updates[b + 'removedByAdmin'] = sess.email;
+            updates[b + 'removedByAdminName'] = por;
+            if (mv.subst) {
+              updates[b + 'substituidaPor'] = mv.subst.email || null;
+              updates[b + 'substituidaPorNome'] = mv.subst.name || null;
+              updates[b + 'substituidaEm'] = now;
+              updates[b + 'substituidaPorAdmin'] = por;
+            }
+          }
+          overlaps.forEach(function (o) {
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(dest) + '"';
+          });
+          /* a fila de onde saiu e a do evento de destino (e as sem evento, que arranjar vaga resolve) — a de outro evento
+             continua: esperar por outro evento é outra coisa */
+          fila.forEach(function (e) {
+            var daOrigem = daFila.indexOf(e) !== -1;
+            if (!daOrigem && e.eventoKey && e.eventoKey !== destEv) return;
+            var f = 'fa-espera/' + eKey + '/' + e._origem + '/';
+            updates[f + 'removed'] = true;
+            updates[f + 'removedDate'] = now;
+            updates[f + 'movedToTurma'] = dest;
+            updates[f + 'movedToStatus'] = mv.status;
+            updates[f + 'removedByName'] = por;
+            if (daOrigem && mv.motivo && mv.motivo !== 'movida_turma') {
+              updates[f + 'motivoSaida'] = mv.motivo;
+              updates[f + 'motivoSaidaDetalhe'] = mv.razao || null;
+            }
+          });
+          /* histórico: uma linha de cada lado; o registro anterior que a pessoa tinha no destino (saída antiga) vai junto,
+             porque a entrada nova grava por cima dele */
+          var linha = function (action) {
+            return { name: pessoa.name, email: pessoa.email, area: pessoa.area, action: action, date: now, adminName: por,
+              de: de, para: para, motivo: mv.razao || null };
+          };
+          var logDest = linha('transferida_entrada');
+          if (regDest) logDest.registroAnterior = regDest;
+          updates['turmas-interesse-log/' + dest + '/' + eKey + '/' + db.ref('turmas-interesse-log/' + dest + '/' + eKey).push().key] = logDest;
+          if (deTurma) updates['turmas-interesse-log/' + deTurma + '/' + eKey + '/' + db.ref('turmas-interesse-log/' + deTurma + '/' + eKey).push().key] = linha('transferida_saida');
+
+          db.ref().update(updates, function (err) {
+            delete _movimentando[eKey];
+            if (err) { onErro('Erro ao gravar a movimentação de ' + nome + '. Nada foi gravado — ela continua onde estava. Tente novamente.'); return; }
+            onFeito();
+          });
+        }
+      }, function () { falhar('Não consegui ler a situação atual de ' + nome + ' no banco. Recarregue a página e tente de novo. Nada foi gravado.'); });
     });
   }
 

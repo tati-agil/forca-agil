@@ -214,7 +214,8 @@
      barrado por ela no card (app.js mostra o registro dela antes de perguntar aqui).
      "Ter" = registro em turmas-interesse/<turma>/<emailKey> não removido. Tudo lido do banco NA HORA. Leitura que falha →
      'erro' (quem chama não deixa gravar).
-     arg = { eventoKey, eKey, turmaKey (opcional: a turma pretendida, que não conta contra ela mesma) }.
+     arg = { eventoKey, eKey, turmaKey (opcional: a turma pretendida, que não conta contra ela mesma), ignorarTurma (opcional:
+     a turma de onde ela sai na mesma gravação — só a transferência do painel usa) }.
      cb({ estado: 'livre' | 'bloqueado' | 'erro', regra: 'cargo' | 'participacao' | 'umaTurma' | 'lotada', cargo, evento,
      turma: { key, label, dias, evento, inscrita }, vagas, ocupadas }). */
   function vagasDaTurma(t) { var n = Math.floor(Number(t && t.vagas)); return n > 0 ? n : 0; }
@@ -282,6 +283,9 @@
         function conferirEventos(seguir) {
           var alvo = Object.keys(turmas).filter(function (k) {
             var e = (turmas[k] || {}).eventoKey;
+            /* arg.ignorarTurma: a turma de onde a pessoa está SAINDO na mesma gravação (transferência do painel) — o
+               registro dela ali some junto, então não pode barrar a entrada no destino */
+            if (arg && arg.ignorarTurma && k === arg.ignorarTurma) return false;
             return anteriores.indexOf(e) !== -1 || (grupo.indexOf(e) !== -1 && k !== turmaKey);
           });
           if (!alvo.length) { seguir(); return; }

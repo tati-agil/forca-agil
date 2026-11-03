@@ -1427,6 +1427,25 @@
 /* display:flex acima vence o hidden do navegador — sem isto a caixa não some */
 .admin-motivo-check[hidden] { display: none; }
 
+/* "Para onde ela vai?" — destino ao remover da turma ou da fila (mesma caixa da pergunta extra acima) */
+.mov-destino {
+  display: flex; flex-direction: column; gap: 8px; margin: 0; min-width: 0;
+  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px; padding: 11px 13px;
+}
+.mov-destino legend { padding: 0 4px; }
+.mov-op { display: flex; align-items: flex-start; gap: 9px; flex-wrap: wrap; font-size: .84rem; line-height: 1.5; color: var(--ink); cursor: pointer; }
+.mov-op input { margin-top: 3px; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+.mov-op--off { color: var(--ink-3); cursor: not-allowed; }
+.mov-nota { font-size: .76rem; color: var(--ink-2); }
+.mov-turma { display: flex; flex-direction: column; gap: 8px; padding-left: 24px; min-width: 0; }
+.mov-turma[hidden], .mov-resumo[hidden], .mov-aviso[hidden] { display: none; }
+.mov-turma-select { max-width: 100%; }
+.mov-resumo { margin: 0; font-size: .8rem; line-height: 1.45; color: var(--cyan); overflow-wrap: anywhere; }
+.mov-situacao { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.mov-situacao > .mov-nota { flex-basis: 100%; }
+.mov-aviso { margin: 0; font-size: .78rem; line-height: 1.45; color: var(--gold); }
+@media (max-width: 480px) { .mov-turma { padding-left: 0; } }
+
 /* Destino de quem saiu da turma — coluna própria, para varrer com o olho */
 .destino-badge {
   display: inline-block; font-family: var(--font-mono); font-size: .68rem;

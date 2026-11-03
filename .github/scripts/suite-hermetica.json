@@ -541,6 +541,12 @@
       "sobre": "Toda exportação por turma traz Data da turma, Horário, Sala e Público (Quem participa do evento; vazio = Empregados) logo depois de Turma; a frequência sai como 1 de 2 (50%), nunca 1/2 (que o Excel lia como data); o cabeçalho da turma no painel mostra horário e público; o botão Turmas e parâmetros baixa um Excel com as abas Turmas e Eventos, sem nenhum nome ou e-mail; o critério de frequência do CSV é o percentual mínimo do evento; evento sem o campo de lista de espera aparece como aceitando; Mover da fila tira a inscrição em outra turma, como o Confirmar."
     },
     {
+      "arquivo": ".github/scripts/teste-movimentacao-turmas.js",
+      "nome": "Painel: remover da turma ou da fila com destino (outra turma, Interessada/Inscrita), período e datas nos cabeçalhos, lista de presença, desktop e celular",
+      "duracao": 40,
+      "sobre": "Cabeçalho fechado do evento com o período e da turma com as datas por extenso; lista de presença com evento, turma e datas dd/mm/aaaa; destino agrupado por evento com datas, situação e vagas (sem ambiguidade entre Turma 1 de eventos diferentes); transferência numa gravação só, com a data original do interesse, a movimentação à parte e o histórico dos dois lados; uma turma por pessoa não barra pela turma de origem; Inscrita tira a outra inscrição com aviso; destino restrito pede exceção e cancelar não grava; já estar no destino recusa; falha da gravação não aplica nada; fila desligada no evento aparece desligada; fila para turma lotada pede o motivo; saídas da fila e transferências no Histórico; 375 px sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",
       "nome": "Turmas: vagas (lotada) e público Só gerentes / Só técnicos, desktop",
       "duracao": 45,
