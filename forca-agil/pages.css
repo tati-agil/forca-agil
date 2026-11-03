@@ -1445,6 +1445,22 @@
 .mov-situacao > .mov-nota { flex-basis: 100%; }
 .mov-aviso { margin: 0; font-size: .78rem; line-height: 1.45; color: var(--gold); }
 @media (max-width: 480px) { .mov-turma { padding-left: 0; } }
+/* aba Gerentes: resumo por nível, filtro + exportar, nível na linha, classificação em lote */
+.gerentes-resumo { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px; font-size: .84rem; color: var(--ink-2); }
+.gerentes-resumo strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.gerentes-resumo .gerentes-sem-nivel, .gerentes-resumo .gerentes-sem-nivel strong { color: var(--gold); }
+.gerentes-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 0 0 12px; }
+.gerentes-filtro { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .82rem; color: var(--ink-2); }
+.gerentes-filtro .admin-motivo-select { width: auto; max-width: 100%; }
+.gerentes-nivel-sel { width: auto; min-width: 160px; }
+.gerentes-nivel-quando { display: block; margin-top: 4px; font-size: .72rem; color: var(--ink-3); }
+.gerentes-lote-resumo { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.gerentes-lote-resumo[hidden] { display: none; }
+.gerentes-lote-resumo ul { margin: 4px 0 0; padding-left: 18px; font-size: .82rem; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.gerentes-lote-titulo { margin: 0; font-size: .84rem; font-weight: 600; color: var(--ink); }
+.gerentes-lote-erro { margin: 0; font-size: .8rem; color: var(--red); }
+.gerentes-lote-erro[hidden] { display: none; }
+.gerentes-lote-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 /* filas de espera da pessoa na pergunta de entrada (＋ Participante, Confirmar, lote) */
 .fila-pessoa .mov-op { flex-wrap: nowrap; }
 .fila-pessoa .mov-op > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }

@@ -82,6 +82,8 @@ function publico(R) {
   const EVKn = Tn + ".child('eventoKey').val()";
   const En = R + ".child('eventos').child(" + EVKn + ')';
   const GER = R + ".child('fa-gerentes').child($userKey).exists()";
+  /* um nível de Gerentes: o campo nivel do MESMO registro (ausente = "Não informado", que não entra em público de nível) */
+  const NIVEL = (n) => R + ".child('fa-gerentes').child($userKey).child('nivel').val() === '" + n + "'";
   const DIR = R + ".child('fa-diretores').child($userKey).exists()";
   const OUTROS = R + ".child('fa-outros-publicos').child($userKey)";
   const ATIVO = R + ".child('publicos-config').child('ativo').val() === true";
@@ -89,6 +91,7 @@ function publico(R) {
      fa-outros-publicos só existe com ao menos uma categoria) */
   const TEC = '!' + GER + ' && ' + or(['!(' + ATIVO + ')', '(!' + DIR + ' && !' + OUTROS + '.exists())']);
   const atende = (p) => p.chave === 'gerentes' ? GER : p.chave === 'tecnicos' ? '(' + TEC + ')' : p.chave === 'diretores' ? DIR
+    : p.nivel ? NIVEL(p.nivel)
     : or(p.categorias.map((c) => OUTROS + ".child('categorias').child('" + c + "').val() === true"));
   const doEvento = and([
     or([En + ".child('publicoRestrito').val() !== true", R + ".child('eventos-publico').child(" + EVKn + ').child($userKey).exists()']),
@@ -99,7 +102,7 @@ function publico(R) {
       or([Tn + ".child('publicoRestrito').val() !== true", R + ".child('turmas-publico').child($turmaKey).child($userKey).exists()"]),
       or([Tn + ".child('publicoCargo').val() !== 'tecnicos'", '(' + TEC + ')']),
       or([Tn + ".child('publicoCargo').val() !== 'gerentes'", GER])
-    ],
+    ].concat(PUB.PUBLICOS.filter((p) => p.nivel).map((p) => or([Tn + ".child('publicoCargo').val() !== '" + p.chave + "'", NIVEL(p.nivel)]))),
     /* turma sem evento ('' ou ausente) não tem restrição de evento; com evento, todas as dele valem */
     evento: or(['!(' + Tn + ".child('eventoKey').isString() && " + EVKn + " !== '')", '(' + doEvento + ')'])
   };

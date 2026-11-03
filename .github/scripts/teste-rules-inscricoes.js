@@ -19,6 +19,10 @@
       registrada (excecaoAdmin; os casos sem ela estão em teste-rules-excecao-admin.js): ＋ Participante, Confirmar, Desconfirmar,
       Mover da fila, Mover para a espera, matrícula em massa, renomear, corrigir e-mail, excluir participante,
       excluir turma, editar turma/config/equipe, histórico;
+   G. níveis de Gerentes (fa-gerentes/<chave>/nivel): "Gerentes executivos" e "Gerentes de núcleo" só admitem o próprio
+      nível (Não informado e técnico ficam fora); "Gerentes" abrange os três; "Técnicos" e "Executivos" (descrição) não
+      mudam; turma de nível soma com o evento (contraditória = ninguém); só o admin grava o nível, só 'executivo' ou
+      'nucleo'; mudar o nível não toca inscrição; fora do nível, o admin só inclui com exceção de cargo;
    I. preservação: as tentativas recusadas não mudam nenhum registro existente;
    V. "Mostrar para todos" (eventos/<e>/visibilidade = 'todos') é SÓ vitrine: o banco não lê o campo — quem não é
       elegível continua recusado em evento de Gerentes, de diretores e de lista, e o elegível continua entrando; só o
@@ -39,6 +43,8 @@ const ADMIN = 'admin.geral@previ.com.br', ADMIN_FIXO = 'tatianefdirene@previ.com
 const TEC = 'tecnica.ok@previ.com.br', OUTRA = 'outra.pessoa@previ.com.br', GER = 'gerente.um@previ.com.br';
 const DIR = 'diretor.um@previ.com.br', ANTIGO = 'antigo.inscrito@previ.com.br', ANTIGA_INT = 'antiga.interessada@previ.com.br';
 const PRESERVADO = 'registro.preservado@previ.com.br';
+/* níveis de Gerentes: GER é o gerente "Não informado" (sem o campo nivel, como todos os de hoje) */
+const GEX = 'gerente.executivo@previ.com.br', GNU = 'gerente.nucleo@previ.com.br';
 const ESPECIAIS = { 'hífen': 'maria-silva@previ.com.br', '+': 'ana+turma@previ.com.br', 'apóstrofo': "joao.d'avila@previ.com.br",
   'mais de 64': 'd'.repeat(70) + '@previ.com.br' };
 const PERFIS = { 'facilitadora': ['fac@previ.com.br', 'fa-facilitadores'], 'diretor': [DIR, 'fa-diretores'],
@@ -69,6 +75,8 @@ async function main() {
       await a.ref('fa-admins/' + emailKey(ADMIN)).set({ email: ADMIN, name: 'ADMIN' });
       for (const t of Object.keys(PERFIS)) { const [e, no, v] = PERFIS[t]; if (no) await a.ref(no + '/' + emailKey(e)).set(Object.assign({ email: e, name: t.toUpperCase() }, v)); }
       await a.ref('fa-gerentes/' + emailKey(GER)).set({ email: GER, name: 'GERENTE UM' });
+      await a.ref('fa-gerentes/' + emailKey(GEX)).set({ email: GEX, name: 'GERENTE EXECUTIVO', nivel: 'executivo' });
+      await a.ref('fa-gerentes/' + emailKey(GNU)).set({ email: GNU, name: 'GERENTE NUCLEO', nivel: 'nucleo' });
       await a.ref('eventos').set({
         evLivre: { nome: 'LIVRE', publicado: true }, evTec: { nome: 'TECNICOS', publicoDesc: 'Técnicos' },
         evGer: { nome: 'GERENTES', publicoDesc: 'Gerentes' }, evLista: { nome: 'LISTA DO EVENTO', publicoRestrito: true },
@@ -76,6 +84,8 @@ async function main() {
         evGerTodos: { nome: 'GERENTES, VISÍVEL A TODOS', publicoDesc: 'Gerentes', visibilidade: 'todos' },
         evDirTodos: { nome: 'DIRETORES, VISÍVEL A TODOS', restritoADiretores: true, visibilidade: 'todos' },
         evListaTodos: { nome: 'LISTA, VISÍVEL A TODOS', publicoRestrito: true, visibilidade: 'todos' },
+        evGex: { nome: 'GERENTES EXECUTIVOS', publicoDesc: 'Gerentes executivos' }, evGnu: { nome: 'GERENTES DE NÚCLEO', publicoDesc: 'Gerentes de núcleo' },
+        evExecDesc: { nome: 'EXECUTIVOS (DESCRIÇÃO)', publicoDesc: 'Executivos' },
       });
       await a.ref('eventos-publico/evListaTodos/' + emailKey(TEC)).set({ email: TEC, name: 'TECNICA' });
       await a.ref('eventos-publico/evLista/' + emailKey(TEC)).set({ email: TEC, name: 'TECNICA' });
@@ -89,6 +99,8 @@ async function main() {
         tFinal: tu('evLivre'), tEnc: tu('evLivre'), tAntiga: tu('evLivre', { publicoRestrito: true }), tOutra: tu('evLivre'),
         tEventoSumiu: tu('evQueNaoExiste'),
         tGerTodos: tu('evGerTodos'), tDirTodos: tu('evDirTodos'), tListaTodos: tu('evListaTodos'),
+        tGex: tu('evGex'), tGnu: tu('evGnu'), tGerComGex: tu('evGer', { publicoCargo: 'gerentesExecutivos' }), tGexComGnu: tu('evGex', { publicoCargo: 'gerentesNucleo' }),
+        tLivreGnu: tu('evLivre', { publicoCargo: 'gerentesNucleo' }), tExecDesc: tu('evExecDesc'),
       });
       await a.ref('turmas-publico').set({
         tLista: { [emailKey(TEC)]: { email: TEC }, [emailKey(GER)]: { email: GER } },
@@ -223,6 +235,40 @@ async function main() {
   await pode('V6 admin grava a visibilidade de um evento', db(ADMIN).ref('eventos/evGer/visibilidade').set('todos'));
   await nega('V7 depois de o admin mostrar para todos, o técnico continua recusado', registrar(TEC, 'tGer'));
   await pode('V6 admin volta o evento ao padrão', db(ADMIN).ref('eventos/evGer/visibilidade').set('elegivel'));
+
+  console.log('\n== G. níveis de Gerentes (Gerentes executivos, Gerentes de núcleo) ==');
+  await pode('G1 gerente executivo em evento de Gerentes executivos', registrar(GEX, 'tGex'));
+  await nega('G1 gerente de núcleo em evento de Gerentes executivos', registrar(GNU, 'tGex'));
+  await nega('G1 gerente Não informado em evento de Gerentes executivos', registrar(GER, 'tGex'));
+  await nega('G1 técnico em evento de Gerentes executivos', registrar(TEC, 'tGex'));
+  await pode('G2 gerente de núcleo em evento de Gerentes de núcleo', registrar(GNU, 'tGnu'));
+  await nega('G2 gerente executivo em evento de Gerentes de núcleo', registrar(GEX, 'tGnu'));
+  await nega('G2 gerente Não informado em evento de Gerentes de núcleo', registrar(GER, 'tGnu'));
+  await pode('G3 "Gerentes" abrange os três níveis: executivo', registrar(GEX, 'tGer'));
+  await pode('G3 "Gerentes" abrange os três níveis: núcleo', registrar(GNU, 'tGer'));
+  await nega('G4 "Técnicos" não muda: gerente executivo continua fora', registrar(GEX, 'tTec'));
+  await nega('G4 "Técnicos" não muda: gerente de núcleo continua fora', registrar(GNU, 'tTec'));
+  await pode('G5 turma de nível num evento de Gerentes: o nível vale (executivo)', registrar(GEX, 'tGerComGex'));
+  await nega('G5 turma de nível num evento de Gerentes: o outro nível fica fora', registrar(GNU, 'tGerComGex'));
+  await nega('G6 turma contraditória (núcleo num evento de executivos): executivo', registrar(GEX, 'tGexComGnu'));
+  await nega('G6 turma contraditória (núcleo num evento de executivos): núcleo', registrar(GNU, 'tGexComGnu'));
+  await pode('G7 turma "Só gerentes de núcleo" num evento livre', registrar(GNU, 'tLivreGnu'));
+  await nega('G7 turma "Só gerentes de núcleo": Não informado fica fora', registrar(GER, 'tLivreGnu'));
+  await pode('G8 "Executivos" continua só descrição (técnico entra)', registrar(TEC, 'tExecDesc'));
+  await nega('G9 o gerente não muda o próprio nível', db(GNU).ref('fa-gerentes/' + emailKey(GNU) + '/nivel').set('executivo'));
+  const mpN = {}; mpN[ti('tGex', GNU)] = interesse(GNU); mpN['fa-gerentes/' + emailKey(GNU) + '/nivel'] = 'executivo';
+  await nega('G9 multipath: mudar o próprio nível junto com o interesse', db(GNU).ref().update(mpN));
+  await pode('G10 admin classifica o nível (executivo)', db(ADMIN).ref().update({ ['fa-gerentes/' + emailKey(GER) + '/nivel']: 'executivo',
+    ['fa-gerentes/' + emailKey(GER) + '/nivelEm']: AGORA, ['fa-gerentes/' + emailKey(GER) + '/nivelPor']: ADMIN }));
+  await pode('G10 depois de classificado, o gerente entra no evento do nível', registrar(GER, 'tGex'));
+  await nega('G11 nível fora da lista ("Executivo")', db(ADMIN).ref('fa-gerentes/' + emailKey(GER) + '/nivel').set('Executivo'));
+  await nega('G11 nível fora da lista ("diretor")', db(ADMIN).ref('fa-gerentes/' + emailKey(GER) + '/nivel').set('diretor'));
+  await pode('G12 admin volta a Não informado (apaga o campo)', db(ADMIN).ref('fa-gerentes/' + emailKey(GER) + '/nivel').remove());
+  anota('G12 mudar o nível não tocou a inscrição já registrada nem o registro de Gerentes',
+    ((await ler(ti('tGex', GER))) || {}).status === 'interessado' && (await ler('fa-gerentes/' + emailKey(GER) + '/email')) === GER);
+  const excN = { regras: { cargo: true }, motivo: 'Substitui o executivo nesta turma', por: ADMIN, porNome: 'ADMIN', em: AGORA, turma: 'tGex' };
+  await nega('G13 admin inclui gerente de núcleo em evento de executivos SEM exceção', db(ADMIN).ref(ti('tGex', GNU)).set(inscrita(GNU)));
+  await pode('G13 admin inclui gerente de núcleo em evento de executivos COM exceção de cargo', db(ADMIN).ref(ti('tGex', GNU)).set(Object.assign(inscrita(GNU), { excecaoAdmin: excN })));
 
   console.log('\n== I. preservação ==');
   const preservadoDepois = await ler(ti('tAntiga', PRESERVADO));

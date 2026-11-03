@@ -401,6 +401,7 @@
         admin: !!(email && window.faAuth && window.faAuth.isAdmin(email)),
         diretor: !!(email && window.faAuth && window.faAuth.isDiretor(email)),
         gerente: mesma ? _visao.gerente : null,
+        gerenteNivel: mesma ? _visao.gerenteNivel : null,
         /* o resto do perfil de público (turmas-util.js lerPerfilPublico): a ativação, Diretores e Outros públicos */
         ativo: mesma ? _visao.ativo : null,
         diretorCadastro: mesma ? _visao.diretorCadastro : null,
@@ -422,7 +423,7 @@
        redesenha na hora, sem esperar as leituras dos registros. */
     function carregarVisao(desenhar) {
       var email = _sess && _sess.email;
-      var v = { email: email || '', gerente: null, ativo: null, diretorCadastro: null, categorias: null, gerenteFalhou: false, registros: {}, vinculos: {} };
+      var v = { email: email || '', gerente: null, gerenteNivel: null, ativo: null, diretorCadastro: null, categorias: null, gerenteFalhou: false, registros: {}, vinculos: {} };
       _visao = v;
       if (!email) { desenhar(); return; }
       var db = firebase.database(), k = emailKey(email), pend = 1 + _turmasList.length, desenhou = false;
@@ -439,7 +440,7 @@
       /* o perfil de público (Gerentes, e — com a ativação — Diretores e Outros públicos): cada leitura que falha fica null,
          "não sei", e o que depende dela continua escondido (gerenteFalhou → aviso para recarregar) */
       window.faTurmasUtil.lerPerfilPublico(k, function (pf) {
-        v.ativo = pf.ativo; v.gerente = pf.gerente; v.diretorCadastro = pf.diretor; v.categorias = pf.categorias;
+        v.ativo = pf.ativo; v.gerente = pf.gerente; v.gerenteNivel = pf.gerenteNivel; v.diretorCadastro = pf.diretor; v.categorias = pf.categorias;
         v.gerenteFalhou = pf.gerente === null || pf.ativo === null || (pf.ativo === true && (pf.diretor === null || pf.categorias === null));
         um(true);
       });
