@@ -2482,7 +2482,7 @@
   /* ---- Helpers: modais visuais (substituem confirm/alert/prompt nativos) ---- */
   var AREAS_LIST = ['ASJUR','AUDIT','CONIN','DIPAR','DIPLA','DIRAD','DIRIN','DISEG',
     'GABIN','GEBEN','GECAP','GECAT','GECON','GEINT','GEPAR','GEPRO',
-    'GERAI','GERAT','GEROP','GESOP','GETHO','INFOR','OUVIR','PNSEG',
+    'GERAI','GERAT','GEROP','GESOP','GETHO','INFOR','INTEC','OUVIR','PNSEG',
     'PRESI','SECEX'];
 
   function adminAlert(mensagem, callbackOk) {
