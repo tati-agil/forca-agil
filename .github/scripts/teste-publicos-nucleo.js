@@ -58,13 +58,37 @@ anota('G4 Diretores pelo cadastro de Diretores; não lido = não verificado', P.
 
 console.log('\n== D. só descrição ==');
 ['', 'Executivos', 'Cedidos', 'Quadro próprio'].forEach((r) => anota('D1 "' + (r || 'Empregados') + '" nunca restringe', P.ehDescritivo(r) && P.publicoDoRotulo(r, true) === null && P.publicoDoRotulo(r, false) === null));
-anota('D2 não existe público "Executivos" nem cadastro de cargos', !P.PUBLICOS.some((p) => /execut/i.test(p.rotulo + p.chave)));
+anota('D2 "Executivos" continua só descrição (não é "Gerentes executivos") e não há cadastro de cargos', !P.PUBLICOS.some((p) => p.rotulo === 'Executivos' || p.chave === 'executivos') && P.ehDescritivo('Executivos') && P.DESCRITIVOS.indexOf('Executivos') !== -1);
 
 console.log('\n== R. o que cada rótulo faz ==');
 anota('R1 Gerentes e Técnicos restringem sempre (nada muda para os eventos de hoje)', P.restringeSempre('Gerentes') && P.restringeSempre('Técnicos') && P.publicoDoRotulo('Técnicos', false).chave === 'tecnicos');
 anota('R2 os públicos da ativação: Diretores + 7 categorias + 2 agrupados = 10, nenhum vale sem a ativação',
   P.PUBLICOS.filter((p) => p.ativacao).length === 10 && P.PUBLICOS.filter((p) => p.ativacao).every((p) => P.publicoDoRotulo(p.rotulo, false) === null && P.publicoDoRotulo(p.rotulo, null) === null));
 anota('R3 a ativação desconhecida (null) não é tratada como ligada', P.publicoDoRotulo('Assessores', null) === null);
+
+console.log('\n== N. níveis de Gerentes ==');
+const ger = (nivel) => pf({ gerente: true, gerenteNivel: nivel });
+anota('N1 Gerentes executivos e Gerentes de núcleo restringem sempre (sem depender da ativação)',
+  P.restringeSempre('Gerentes executivos') && P.restringeSempre('Gerentes de núcleo') && P.publicoDoRotulo('Gerentes executivos', false).chave === 'gerentesExecutivos' &&
+  P.publicoDoRotulo('Gerentes de núcleo', null).chave === 'gerentesNucleo');
+anota('N2 cada nível só admite o próprio nível; Não informado e não gerente não entram',
+  P.atende('gerentesExecutivos', ger('executivo')) === true && P.atende('gerentesExecutivos', ger('nucleo')) === false && P.atende('gerentesExecutivos', ger('')) === false &&
+  P.atende('gerentesNucleo', ger('nucleo')) === true && P.atende('gerentesNucleo', ger('executivo')) === false && P.atende('gerentesNucleo', pf()) === false);
+anota('N3 "Gerentes" continua abrangendo os três níveis', ['executivo', 'nucleo', ''].every((n) => P.atende('gerentes', ger(n)) === true));
+anota('N4 "Técnicos" não muda: gerente de qualquer nível não é técnico; quem não é gerente segue a regra de sempre',
+  ['executivo', 'nucleo', ''].every((n) => P.ehTecnico(ger(n)) === false && P.ehTecnico(Object.assign(ger(n), { ativo: false })) === false) &&
+  P.ehTecnico(pf()) === true && P.ehTecnico(pf({ ativo: false })) === true);
+anota('N5 nível não lido nunca vira "atende" (null), e gerente não lido também não',
+  P.atende('gerentesExecutivos', ger(null)) === null && P.atende('gerentesExecutivos', pf({ gerente: true })) === null && P.atende('gerentesNucleo', pf({ gerente: null })) === null);
+anota('N6 o nível vem só do campo gravado (executivo | nucleo); qualquer outro valor = Não informado',
+  P.nivelGerente({ nivel: 'executivo' }) === 'executivo' && P.nivelGerente({ nivel: 'nucleo' }) === 'nucleo' && P.nivelGerente({ nivel: 'Executivo' }) === '' &&
+  P.nivelGerente({}) === '' && P.nivelGerente(null) === '' && P.rotuloNivel('') === 'Não informado' && P.rotuloNivel('executivo') === 'Gerente executivo' &&
+  P.NIVEIS_GERENTE.map((n) => n.rotulo).join('|') === 'Gerente executivo|Gerente de núcleo|Não informado');
+anota('N7 soma turma × evento: iguais ou um só → ele; Gerentes + nível → o nível; níveis diferentes ou nível × Técnicos → conflito',
+  P.somarCargos('', '') === '' && P.somarCargos('gerentes', '') === 'gerentes' && P.somarCargos('', 'gerentesNucleo') === 'gerentesNucleo' &&
+  P.somarCargos('gerentes', 'gerentesExecutivos') === 'gerentesExecutivos' && P.somarCargos('gerentesNucleo', 'gerentes') === 'gerentesNucleo' &&
+  P.somarCargos('gerentesExecutivos', 'gerentesNucleo') === 'conflito' && P.somarCargos('tecnicos', 'gerentesExecutivos') === 'conflito' &&
+  P.somarCargos('gerentes', 'tecnicos') === 'conflito' && P.somarCargos('tecnicos', 'tecnicos') === 'tecnicos');
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);

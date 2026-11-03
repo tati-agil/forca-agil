@@ -745,7 +745,8 @@
      faTurmasUtil.lerPerfilPublico; null = não sei */
   function perfilDoPainel(k) {
     var cg = _cargosPublico || {};
-    return { ativo: cg.ativo === undefined ? null : cg.ativo, gerente: cg.gerentes ? !!cg.gerentes[k] : null, diretor: cg.diretores ? !!cg.diretores[k] : null,
+    return { ativo: cg.ativo === undefined ? null : cg.ativo, gerente: cg.gerentes ? !!cg.gerentes[k] : null,
+      gerenteNivel: cg.gerentes ? window.faPublicosNucleo.nivelGerente(cg.gerentes[k]) : null, diretor: cg.diretores ? !!cg.diretores[k] : null,
       categorias: cg.outros ? ((cg.outros[k] && cg.outros[k].categorias) || {}) : null };
   }
 
@@ -818,7 +819,7 @@
     var dispensadas = (r.excecaoAdmin && r.excecaoAdmin.regras) || {};
     var pf = perfilDoPainel(k);
     var res = window.faTurmasUtil.foraDoPublicoAtual(t, ev, {
-      gerente: pf.gerente, ativo: pf.ativo, diretorCadastro: pf.diretor, categorias: pf.categorias,
+      gerente: pf.gerente, gerenteNivel: pf.gerenteNivel, ativo: pf.ativo, diretorCadastro: pf.diretor, categorias: pf.categorias,
       diretor: cg.diretores ? !!cg.diretores[k] : null,
       naListaEvento: _publicoResolvido ? !!(ev && noPublicoDoEvento(ev.key, k)) : null,
       naListaTurma: _publicoResolvido ? noPublicoDaTurma(t.key, k) : null,
@@ -4002,7 +4003,8 @@
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
         '<div class="campo-com-ajuda"><label class="auth-label">Vagas <span style="opacity:.6;font-weight:400">(vazio = igual ao evento)</span><input type="number" id="turmaFormVagas" min="1" max="999" step="1" placeholder="Ex: 20" autocomplete="off" /></label>' + ajudaBtn('ajudaTuVagas', 'Vagas') + '</div>' +
         '<label class="auth-label" id="turmaFormPublicoCargoBox">Público da turma<select id="turmaFormPublicoCargo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
-          '<option value="">Igual ao evento (padrão)</option><option value="gerentes">Só gerentes</option><option value="tecnicos">Só técnicos</option>' +
+          '<option value="">Igual ao evento (padrão)</option><option value="gerentes">Só gerentes</option><option value="gerentesExecutivos">Só gerentes executivos</option>' +
+          '<option value="gerentesNucleo">Só gerentes de núcleo</option><option value="tecnicos">Só técnicos</option>' +
         '</select></label>' +
       '</div>' +
       ajudaTexto('ajudaTuVagas', 'Vagas: vazio segue as "Vagas por turma" do evento; preenchido, vale só para esta turma. Interesse + inscrição contam. Lotada, o card não aceita interesse novo (quem já está continua podendo remover) e aqui no painel incluir alguém a mais pede um motivo.') +
@@ -4095,7 +4097,7 @@
       cargoAviso.hidden = !conflito;
       cargoAviso.textContent = conflito
         ? '⚠ Contraditório: o evento é só para ' + window.faPublicosNucleo.definicao(window.faTurmasUtil.cargoDoEvento(ev, _publicosAtivo)).nome +
-          ' e esta turma só para ' + (cargoInput.value === 'gerentes' ? 'gerentes' : 'técnicos') +
+          ' e esta turma só para ' + window.faPublicosNucleo.definicao(cargoInput.value).nome +
           '. As regras se somam, então ninguém conseguiria entrar nesta turma. Escolha "Igual ao evento" ou ajuste o evento.'
         : '';
     }
@@ -8229,27 +8231,48 @@
   }
 
   /* ---- Gerentes ----
-     Lista por E-MAIL de quem é gerente: fa-gerentes/<chave do e-mail> = { email, name, addedAt, addedBy }. É a fonte
-     do público das turmas "Só gerentes" (só quem está aqui) e "Só técnicos" (só quem NÃO está) — ver regrasDeEntrada em
-     turmas-util.js. Não precisa de cadastro no site: a chave é a do e-mail, e quando a pessoa se cadastrar com ele já é
-     reconhecida. Por isso aceita uma lista colada de uma vez. Só admin grava (database.rules.json). */
+     Lista por E-MAIL de quem é gerente: fa-gerentes/<chave do e-mail> = { email, name, addedAt, addedBy, nivel?, nivelEm?,
+     nivelPor?, nivelPorNome? }. É a fonte do público "Gerentes" (todos os níveis), "Gerentes executivos" e "Gerentes de
+     núcleo" (o campo nivel: 'executivo' | 'nucleo'; ausente = Não informado) e "Técnicos" (só quem NÃO está aqui) — ver
+     regrasDeEntrada em turmas-util.js e publicos-nucleo.js. Uma lista só, um nível por pessoa (um campo só). O nível é
+     sempre o que a admin escolheu, nunca deduzido. Não precisa de cadastro no site: a chave é a do e-mail, e quando a
+     pessoa se cadastrar com ele já é reconhecida. Só admin grava (database.rules.json, que também confere o nível).
+     Mudar o nível não tira ninguém de turma nem cancela inscrição: só muda em quais turmas de um nível ela entra daqui
+     em diante (quem já está e deixou de atender aparece com o selo "Fora do público atual"). */
   function loadGerentes() {
     const c = document.getElementById('adminGerentes');
     if (!c) return;
+    const P = window.faPublicosNucleo;
+    /* o filtro sobrevive às recargas da aba: 'todos' | 'executivo' | 'nucleo' | '' (Não informado) */
+    let filtro = 'todos';
+    const opcoesNivel = function (atual) {
+      return P.NIVEIS_GERENTE.map(function (n) { return '<option value="' + n.valor + '"' + (n.valor === (atual || '') ? ' selected' : '') + '>' + esc(n.rotulo) + '</option>'; }).join('');
+    };
+    const lerEmails = function (txt) {
+      const brutos = (txt || '').split(/[\s,;]+/).map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean);
+      const unicos = brutos.filter(function (e, i) { return brutos.indexOf(e) === i; });
+      return { emails: unicos, invalidos: unicos.filter(function (e) { return !/^[^\s@]+@previ\.com\.br$/.test(e); }) };
+    };
+    const quemGrava = function (sess) { return { nivelEm: new Date().toISOString(), nivelPor: (sess && sess.email) || '', nivelPorNome: (sess && (sess.name || sess.email)) || '' }; };
 
     function render() {
       Promise.all([firebase.database().ref('fa-gerentes').once('value'), firebase.database().ref('fa-users').once('value')]).then(function (snaps) {
         const data = snaps[0].val() || {}, users = snaps[1].val() || {};
         const lista = Object.keys(data).map(function (k) {
-          const u = users[k] || null;
-          return { key: k, email: (data[k] && data[k].email) || '', name: (u && u.name) || (data[k] && data[k].name) || '', cadastrada: !!u, addedAt: data[k] && data[k].addedAt };
+          const u = users[k] || null, r = data[k] || {};
+          return { key: k, email: r.email || '', name: (u && u.name) || r.name || '', cadastrada: !!u, addedAt: r.addedAt,
+            nivel: P.nivelGerente(r), nivelEm: r.nivelEm || '', nivelPorNome: r.nivelPorNome || r.nivelPor || '' };
         }).sort(function (a, b) { return (a.name || a.email).localeCompare(b.name || b.email, 'pt'); });
+        const conta = { executivo: 0, nucleo: 0, '': 0 };
+        lista.forEach(function (p) { conta[p.nivel]++; });
         c.innerHTML = '';
 
         const info = document.createElement('p');
         info.className = 'admin-empty';
         info.style.marginBottom = '20px';
-        info.textContent = 'Quem está aqui é gerente para as turmas marcadas "Só gerentes" (só essas pessoas entram) e "Só técnicos" (essas pessoas não entram). A lista é por e-mail: vale mesmo para quem ainda não tem cadastro no site — quando se cadastrar com esse e-mail, já é reconhecida. Não dá acesso ao painel nem muda mais nada.';
+        info.textContent = 'Quem está aqui é gerente para as turmas "Só gerentes" (todos os níveis entram) e "Só técnicos" (ninguém daqui entra). ' +
+          'O Nível decide os públicos "Gerentes executivos" e "Gerentes de núcleo": "Não informado" continua sendo gerente, mas não entra num público de nível. ' +
+          'A lista é por e-mail: vale mesmo para quem ainda não tem cadastro no site — quando se cadastrar com esse e-mail, já é reconhecida. Não dá acesso ao painel nem muda mais nada.';
         c.appendChild(info);
 
         const hdr = document.createElement('h4');
@@ -8262,34 +8285,87 @@
           empty.textContent = 'Nenhum gerente cadastrado.';
           c.appendChild(empty);
         } else {
-          const tbl = document.createElement('table');
-          tbl.className = 'admin-table';
-          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Cadastro no site</th><th>Desde</th><th></th></tr></thead>';
-          const tbody = document.createElement('tbody');
-          lista.forEach(function (p) {
-            const tr = document.createElement('tr');
-            tr.innerHTML =
-              '<td>' + esc(p.name || '—') + '</td>' +
-              '<td>' + esc(p.email || '—') + '</td>' +
-              '<td>' + (p.cadastrada ? 'Sim' : '<span style="color:var(--ink-3)">Ainda sem cadastro</span>') + '</td>' +
-              '<td>' + fmtDate(p.addedAt) + '</td>' +
-              '<td><button class="admin-del-btn" data-key="' + esc(p.key) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
-            tbody.appendChild(tr);
-          });
-          tbl.appendChild(tbody);
-          const wrap = document.createElement('div');
-          wrap.className = 'table-scroll-wrap';
-          wrap.appendChild(tbl);
-          c.appendChild(wrap);
-          tbody.addEventListener('click', function (e) {
-            const btn = e.target.closest('.admin-del-btn');
-            if (!btn) return;
-            adminConfirm('Remover ' + btn.dataset.name + ' da lista de Gerentes?\n\nNão tira a pessoa de nenhuma turma: só muda em quais turmas ela pode entrar daqui em diante.', function () {
-              firebase.database().ref('fa-gerentes/' + btn.dataset.key).remove(function (err) {
-                if (err) { adminAlert('Erro ao remover. Nada foi alterado — tente novamente.'); return; }
-                render();
+          const resumo = document.createElement('p');
+          resumo.className = 'gerentes-resumo';
+          resumo.setAttribute('data-gerentes-resumo', '');
+          resumo.innerHTML = '<span>' + esc(P.rotuloNivel('executivo')) + ': <strong data-conta="executivo">' + conta.executivo + '</strong></span>' +
+            '<span>' + esc(P.rotuloNivel('nucleo')) + ': <strong data-conta="nucleo">' + conta.nucleo + '</strong></span>' +
+            '<span class="' + (conta[''] ? 'gerentes-sem-nivel' : '') + '">Sem classificação (Não informado): <strong data-conta="sem">' + conta[''] + '</strong></span>';
+          c.appendChild(resumo);
+
+          const barra = document.createElement('div');
+          barra.className = 'gerentes-barra';
+          barra.innerHTML = '<label class="gerentes-filtro">Mostrar <select id="gerentesFiltro" class="admin-motivo-select">' +
+            '<option value="todos">Todos os níveis</option>' + P.NIVEIS_GERENTE.map(function (n) { return '<option value="' + n.valor + '">' + esc(n.rotulo) + '</option>'; }).join('') +
+            '</select></label><button type="button" class="btn btn--sm" id="gerentesExportBtn">↓ Exportar lista</button>';
+          c.appendChild(barra);
+          const selFiltro = barra.querySelector('#gerentesFiltro');
+          selFiltro.value = filtro;
+          const visiveis = lista.filter(function (p) { return filtro === 'todos' || p.nivel === filtro; });
+
+          if (!visiveis.length) {
+            const vazio = document.createElement('p');
+            vazio.className = 'admin-empty';
+            vazio.textContent = 'Nenhum gerente com o nível "' + P.rotuloNivel(filtro) + '".';
+            c.appendChild(vazio);
+          } else {
+            const tbl = document.createElement('table');
+            tbl.className = 'admin-table';
+            tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Nível</th><th>Cadastro no site</th><th>Desde</th><th></th></tr></thead>';
+            const tbody = document.createElement('tbody');
+            visiveis.forEach(function (p) {
+              const tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td>' + esc(p.name || '—') + '</td>' +
+                '<td>' + esc(p.email || '—') + '</td>' +
+                '<td><select class="admin-motivo-select gerentes-nivel-sel" data-key="' + esc(p.key) + '" data-name="' + esc(p.name || p.email) + '" data-atual="' + p.nivel + '" aria-label="Nível de ' + esc(p.name || p.email) + '">' + opcoesNivel(p.nivel) + '</select>' +
+                  (p.nivelEm ? '<span class="gerentes-nivel-quando">' + esc(fmtDate(p.nivelEm)) + (p.nivelPorNome ? ' · ' + esc(p.nivelPorNome) : '') + '</span>' : '') + '</td>' +
+                '<td>' + (p.cadastrada ? 'Sim' : '<span style="color:var(--ink-3)">Ainda sem cadastro</span>') + '</td>' +
+                '<td>' + fmtDate(p.addedAt) + '</td>' +
+                '<td><button class="admin-del-btn" data-key="' + esc(p.key) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+              tbody.appendChild(tr);
+            });
+            tbl.appendChild(tbody);
+            const wrap = document.createElement('div');
+            wrap.className = 'table-scroll-wrap';
+            wrap.appendChild(tbl);
+            c.appendChild(wrap);
+            tbody.addEventListener('click', function (e) {
+              const btn = e.target.closest('.admin-del-btn');
+              if (!btn) return;
+              adminConfirm('Remover ' + btn.dataset.name + ' da lista de Gerentes?\n\nNão tira a pessoa de nenhuma turma: só muda em quais turmas ela pode entrar daqui em diante.', function () {
+                firebase.database().ref('fa-gerentes/' + btn.dataset.key).remove(function (err) {
+                  if (err) { adminAlert('Erro ao remover. Nada foi alterado — tente novamente.'); return; }
+                  render();
+                });
               });
             });
+            /* nível individual: confirma, grava só o nível (com quando e quem); cancelar ou erro voltam o seletor */
+            tbody.addEventListener('change', function (e) {
+              const sel = e.target.closest('.gerentes-nivel-sel');
+              if (!sel) return;
+              const antes = sel.dataset.atual, novo = sel.value;
+              const voltar = function () { sel.value = antes; };
+              const sess = window.faAuth && window.faAuth.getSession();
+              if (!sess) { voltar(); adminAlert('Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo. Nada foi gravado.'); return; }
+              adminConfirm('Mudar o nível de ' + sel.dataset.name + ' de "' + P.rotuloNivel(antes) + '" para "' + P.rotuloNivel(novo) + '"?\n\n' +
+                'Não tira a pessoa de nenhuma turma nem cancela inscrição: muda só em quais turmas de um nível ela pode entrar daqui em diante.', function () {
+                const updates = {}, b = 'fa-gerentes/' + sel.dataset.key + '/', q = quemGrava(sess);
+                updates[b + 'nivel'] = novo || null;
+                updates[b + 'nivelEm'] = q.nivelEm; updates[b + 'nivelPor'] = q.nivelPor; updates[b + 'nivelPorNome'] = q.nivelPorNome;
+                firebase.database().ref().update(updates, function (err) {
+                  if (err) { voltar(); adminAlert('Erro ao gravar o nível. Nada foi alterado — tente novamente.'); return; }
+                  render();
+                });
+              }, voltar);
+            });
+          }
+          selFiltro.addEventListener('change', function () { filtro = selFiltro.value; render(); });
+          /* exporta o que o filtro mostra, com o nível e quem o definiu */
+          barra.querySelector('#gerentesExportBtn').addEventListener('click', function () {
+            toXls(['Nome', 'E-mail', 'Nível', 'Cadastro no site', 'Na lista desde', 'Nível definido em', 'Nível definido por'],
+              visiveis.map(function (p) { return [p.name || '', p.email, P.rotuloNivel(p.nivel), p.cadastrada ? 'Sim' : 'Não', fmtDate(p.addedAt), p.nivelEm ? fmtDate(p.nivelEm) : '', p.nivelPorNome]; }),
+              'gerentes-' + new Date().toISOString().slice(0, 10) + '.csv');
           });
         }
 
@@ -8299,26 +8375,36 @@
           '<h4 style="margin-top:32px">Adicionar gerentes</h4>' +
           '<p style="font-size:.8rem;color:var(--ink-2);margin:0 0 8px">Cole um ou vários e-mails @previ.com.br — um por linha, ou separados por vírgula, ponto e vírgula ou espaço.</p>' +
           '<textarea id="gerentesEmails" rows="5" placeholder="fulana@previ.com.br&#10;ciclano@previ.com.br" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea>' +
+          '<label class="gerentes-filtro" style="margin-top:8px">Nível de quem entra <select id="gerentesNovoNivel" class="admin-motivo-select">' + opcoesNivel('') + '</select></label>' +
           '<div style="margin-top:8px"><button class="btn btn--primary" id="gerentesAddBtn">Adicionar</button></div>' +
-          '<p id="gerentesMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan);white-space:pre-line"></p>';
+          '<p id="gerentesMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan);white-space:pre-line"></p>' +
+          /* classificação em lote: confere, mostra o resumo, e só grava depois */
+          '<h4 style="margin-top:32px">Classificar o nível em lote</h4>' +
+          '<p style="font-size:.8rem;color:var(--ink-2);margin:0 0 8px">Cole os e-mails de quem já está na lista e escolha o nível. Nada é gravado antes de você conferir o resumo. Quem não está na lista de Gerentes não é incluído por aqui.</p>' +
+          '<textarea id="gerentesLoteEmails" rows="5" placeholder="fulana@previ.com.br&#10;ciclano@previ.com.br" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea>' +
+          '<label class="gerentes-filtro" style="margin-top:8px">Nível <select id="gerentesLoteNivel" class="admin-motivo-select"><option value="-">— escolha o nível —</option>' + opcoesNivel('-') + '</select></label>' +
+          '<div style="margin-top:8px"><button class="btn" id="gerentesLoteConferirBtn">Conferir</button></div>' +
+          '<div id="gerentesLoteResumo" class="gerentes-lote-resumo" hidden></div>';
         c.appendChild(form);
 
         document.getElementById('gerentesAddBtn').addEventListener('click', function () {
           const msg = document.getElementById('gerentesMsg');
           const sess = window.faAuth && window.faAuth.getSession();
-          const brutos = (document.getElementById('gerentesEmails').value || '').split(/[\s,;]+/).map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean);
-          if (!brutos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Cole pelo menos um e-mail.'; return; }
-          const invalidos = brutos.filter(function (e) { return !/^[^\s@]+@previ\.com\.br$/.test(e); });
-          if (invalidos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Só e-mails @previ.com.br. Corrija e tente de novo (nada foi gravado):\n' + invalidos.join('\n'); return; }
+          const lidos = lerEmails(document.getElementById('gerentesEmails').value);
+          const nivelNovo = document.getElementById('gerentesNovoNivel').value;
+          if (!lidos.emails.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Cole pelo menos um e-mail.'; return; }
+          if (lidos.invalidos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Só e-mails @previ.com.br. Corrija e tente de novo (nada foi gravado):\n' + lidos.invalidos.join('\n'); return; }
           const updates = {}, novos = [], ja = [];
-          brutos.forEach(function (e) {
+          lidos.emails.forEach(function (e) {
             const k = emailKey(e);
             if (data[k] || updates['fa-gerentes/' + k]) { if (ja.indexOf(e) === -1) ja.push(e); return; }
             const u = users[k];
-            updates['fa-gerentes/' + k] = { email: e, name: u ? window.faTurmasUtil.nomePessoa(u.name) : '', addedAt: new Date().toISOString(), addedBy: (sess && sess.email) || '' };
+            const reg = { email: e, name: u ? window.faTurmasUtil.nomePessoa(u.name) : '', addedAt: new Date().toISOString(), addedBy: (sess && sess.email) || '' };
+            if (nivelNovo) Object.assign(reg, { nivel: nivelNovo }, quemGrava(sess));
+            updates['fa-gerentes/' + k] = reg;
             novos.push(e);
           });
-          if (!novos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Todos esses e-mails já estão na lista.'; return; }
+          if (!novos.length) { msg.style.color = 'var(--accent)'; msg.textContent = 'Todos esses e-mails já estão na lista. Para mudar o nível deles, use a classificação em lote.'; return; }
           firebase.database().ref().update(updates, function (err) {
             if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar. Nada foi gravado — tente novamente.'; return; }
             document.getElementById('gerentesEmails').value = '';
@@ -8326,8 +8412,68 @@
             /* render() reconstrói a aba; a mensagem vai depois, no elemento novo */
             setTimeout(function () {
               const m = document.getElementById('gerentesMsg');
-              if (m) { m.style.color = 'var(--cyan)'; m.textContent = novos.length + ' adicionado(s).' + (ja.length ? ' Já estavam na lista: ' + ja.length + '.' : ''); }
+              if (m) { m.style.color = 'var(--cyan)'; m.textContent = novos.length + ' adicionado(s) como "' + P.rotuloNivel(nivelNovo) + '".' + (ja.length ? ' Já estavam na lista: ' + ja.length + ' (o nível delas não mudou).' : ''); }
             }, 400);
+          });
+        });
+
+        /* LOTE — conferir: quem muda (vem de Não informado), quem já tem OUTRO nível (só muda se marcar), quem já está com
+           esse nível, quem não está na lista (nada é gravado para eles) e e-mails inválidos (nada é conferido) */
+        document.getElementById('gerentesLoteConferirBtn').addEventListener('click', function () {
+          const out = document.getElementById('gerentesLoteResumo');
+          const lidos = lerEmails(document.getElementById('gerentesLoteEmails').value);
+          const alvo = document.getElementById('gerentesLoteNivel').value;
+          out.hidden = false;
+          const aviso = function (t) { out.innerHTML = '<p class="gerentes-lote-erro">' + esc(t) + '</p>'; };
+          if (alvo === '-') { aviso('Escolha o nível.'); return; }
+          if (!lidos.emails.length) { aviso('Cole pelo menos um e-mail.'); return; }
+          if (lidos.invalidos.length) { aviso('Só e-mails @previ.com.br. Corrija e confira de novo (nada foi gravado): ' + lidos.invalidos.join(', ')); return; }
+          const muda = [], outro = [], igual = [], fora = [];
+          lidos.emails.forEach(function (e) {
+            const k = emailKey(e), reg = data[k];
+            if (!reg) { fora.push(e); return; }
+            const atual = P.nivelGerente(reg), item = { k: k, email: e, nome: (users[k] && users[k].name) || reg.name || e, atual: atual };
+            if (atual === alvo) igual.push(item); else if (atual === '') muda.push(item); else outro.push(item);
+          });
+          const li = function (x, comAtual) { return '<li>' + esc(x.nome) + ' <span class="mov-nota">' + esc(x.email) + (comAtual ? ' · hoje: ' + esc(P.rotuloNivel(x.atual)) : '') + '</span></li>'; };
+          const bloco = function (attr, titulo, itens, html) { return itens.length ? '<div ' + attr + '><p class="gerentes-lote-titulo">' + titulo + ' (' + itens.length + ')</p><ul>' + html + '</ul></div>' : ''; };
+          out.innerHTML = '<p class="gerentes-lote-titulo">Resumo — nível "' + esc(P.rotuloNivel(alvo)) + '"</p>' +
+            bloco('data-lote="muda"', 'Passam para "' + esc(P.rotuloNivel(alvo)) + '"', muda, muda.map(function (x) { return li(x, true); }).join('')) +
+            bloco('data-lote="outro"', 'Já têm outro nível', outro, outro.map(function (x) { return li(x, true); }).join('')) +
+            (outro.length ? '<label class="mov-op"><input type="checkbox" id="gerentesLoteTrocar"> Trocar também o nível ' + (outro.length === 1 ? 'desta pessoa' : 'destas ' + outro.length + ' pessoas') + '</label>' : '') +
+            bloco('data-lote="igual"', 'Já estão com este nível (nada muda)', igual, igual.map(function (x) { return li(x, false); }).join('')) +
+            bloco('data-lote="fora"', 'Não estão na lista de Gerentes (nada é gravado — se forem gerentes, adicione primeiro)', fora, fora.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('')) +
+            '<p class="gerentes-lote-erro" id="gerentesLoteErro" hidden></p>' +
+            '<div class="gerentes-lote-acoes"><button type="button" class="btn" id="gerentesLoteCancelar">Cancelar</button>' +
+            '<button type="button" class="btn btn--primary" id="gerentesLoteGravar"' + (muda.length || outro.length ? '' : ' disabled') + '>Gravar classificação</button></div>';
+          out.querySelector('#gerentesLoteCancelar').addEventListener('click', function () { out.hidden = true; out.innerHTML = ''; });
+          out.querySelector('#gerentesLoteGravar').addEventListener('click', function () {
+            const erro = out.querySelector('#gerentesLoteErro');
+            const sess = window.faAuth && window.faAuth.getSession();
+            const trocar = !!(out.querySelector('#gerentesLoteTrocar') || {}).checked;
+            const vao = muda.concat(trocar ? outro : []);
+            if (!vao.length) { erro.hidden = false; erro.textContent = 'Ninguém para gravar: marque "Trocar também" ou cancele.'; return; }
+            if (!sess) { erro.hidden = false; erro.textContent = 'Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo. Nada foi gravado.'; return; }
+            /* a lista pode ter mudado noutra aba desde a conferência: relê e só grava se cada pessoa ainda está como conferida */
+            firebase.database().ref('fa-gerentes').once('value').then(function (snap) {
+              const agora = snap.val() || {};
+              const mudou = vao.filter(function (x) { return !agora[x.k] || P.nivelGerente(agora[x.k]) !== x.atual; });
+              if (mudou.length) { erro.hidden = false; erro.textContent = 'A lista mudou desde a conferência (' + mudou.map(function (x) { return x.email; }).join(', ') + '). Confira de novo. Nada foi gravado.'; return; }
+              const updates = {}, q = quemGrava(sess);
+              vao.forEach(function (x) {
+                const b = 'fa-gerentes/' + x.k + '/';
+                updates[b + 'nivel'] = alvo || null;
+                updates[b + 'nivelEm'] = q.nivelEm; updates[b + 'nivelPor'] = q.nivelPor; updates[b + 'nivelPorNome'] = q.nivelPorNome;
+              });
+              firebase.database().ref().update(updates, function (err) {
+                if (err) { erro.hidden = false; erro.textContent = 'Erro ao gravar. Nada foi alterado — tente novamente.'; return; }
+                render();
+                setTimeout(function () {
+                  const m = document.getElementById('gerentesMsg');
+                  if (m) { m.style.color = 'var(--cyan)'; m.textContent = vao.length + ' classificado(s) como "' + P.rotuloNivel(alvo) + '".'; }
+                }, 400);
+              });
+            }, function () { erro.hidden = false; erro.textContent = 'Não consegui ler a lista agora. Nada foi gravado — tente novamente.'; });
           });
         });
       }).catch(function (err) {
@@ -8379,7 +8525,7 @@
       let prev = null;
       if (cfg !== null && base.ger && base.dir && eventos && turmas && tcfg && ti) {
         const P = window.faPublicosNucleo, U = window.faTurmasUtil;
-        const perfil = function (k, at) { return { ativo: at, gerente: !!base.ger[k], diretor: !!base.dir[k], categorias: (base.outros[k] && base.outros[k].categorias) || {} }; };
+        const perfil = function (k, at) { return { ativo: at, gerente: !!base.ger[k], gerenteNivel: P.nivelGerente(base.ger[k]), diretor: !!base.dir[k], categorias: (base.outros[k] && base.outros[k].categorias) || {} }; };
         let tecHoje = 0, tecDepois = 0, porDir = 0, porOutros = 0;
         Object.keys(base.users || {}).forEach(function (k) {
           if (P.ehTecnico(perfil(k, false)) === true) tecHoje++;
@@ -8397,7 +8543,7 @@
           Object.keys(ti[tk] || {}).forEach(function (k) {
             const reg = ti[tk][k];
             if (!reg || reg.removed || reg.status === 'removido') return;
-            const p = function (at) { const x = perfil(k, at); return { gerente: x.gerente, ativo: at, diretorCadastro: x.diretor, categorias: x.categorias, diretor: true, naListaEvento: true, naListaTurma: true }; };
+            const p = function (at) { const x = perfil(k, at); return { gerente: x.gerente, gerenteNivel: x.gerenteNivel, ativo: at, diretorCadastro: x.diretor, categorias: x.categorias, diretor: true, naListaEvento: true, naListaTurma: true }; };
             const antes = U.foraDoPublicoAtual(t, ev, p(false)).estado, apos = U.foraDoPublicoAtual(t, ev, p(true)).estado;
             if (apos === 'incompativel' && antes !== 'incompativel' && !(reg.excecaoAdmin && reg.excecaoAdmin.regras && reg.excecaoAdmin.regras.cargo)) vinculos++;
           });

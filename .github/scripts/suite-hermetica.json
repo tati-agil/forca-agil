@@ -553,6 +553,12 @@
       "sobre": "A caixa lista as filas da pessoa (a do evento da turma marcada, a de outro evento desmarcada); confirmar tira só a marcada, com movedToTurma, situação e quem fez; desmarcada não é tocada; sem fila grava direto; leitura da fila que falha avisa e não trava a entrada; a linha da fila tem só Tirar da lista, dentro da célula de tabela, e o motivo Vai para uma turma marca Outra turma; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-gerentes-nivel.js",
+      "nome": "Níveis de Gerentes: aba (resumo, filtro, exportação, nível individual, lote com resumo), públicos Gerentes executivos e de núcleo na entrada, na vitrine, no Ver como e na Minha Área, desktop e celular",
+      "duracao": 45,
+      "sobre": "Uma lista só (fa-gerentes) com o campo nivel; resumo por nível e sem classificação; filtro; exportação com o nível; nível individual com confirmação (Cancelar não grava); lote com resumo (passa, outro nível só marcando, já está, fora da lista) antes de gravar; adicionar com nível; Gerentes executivos/de núcleo só o próprio nível, Gerentes abrange os três, Técnicos e Executivos como sempre; mensagem do ADMIN com o nível; vitrine, Ver como e Minha Área; mudar o nível não tira ninguém de turma; 375 px sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",
       "nome": "Turmas: vagas (lotada) e público Só gerentes / Só técnicos, desktop",
       "duracao": 45,

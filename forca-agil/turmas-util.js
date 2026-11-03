@@ -197,9 +197,11 @@
      Mover da fila — admin.js; o Sorteio tem regras próprias). Quatro regras, conferidas NESTA ordem (a primeira que barra é
      a que aparece — da mais definitiva para a mais passageira):
        1. público — o "Quem participa" do EVENTO (eventos/<ev>/publicoDesc) "Gerentes" ou "Técnicos" vale para todas as
-          turmas dele; a turma pode ter o próprio (turmas/<t>/publicoCargo = 'gerentes' | 'tecnicos'), que se SOMA ao do evento
-          (cargoEfetivo): a turma restringe mais, nunca amplia. Turma e evento contraditórios ('gerentes' × 'tecnicos') =
-          'conflito': ninguém entra, e o painel avisa. 'gerentes' só admite quem está em fa-gerentes/<emailKey>; 'tecnicos' só quem NÃO está
+          turmas dele; a turma pode ter o próprio (turmas/<t>/publicoCargo = 'gerentes' | 'gerentesExecutivos' | 'gerentesNucleo' |
+          'tecnicos'), que se SOMA ao do evento (cargoEfetivo = PUB.somarCargos): a turma restringe mais, nunca amplia; Gerentes +
+          um nível = o nível. Turma e evento contraditórios ('gerentes' × 'tecnicos', dois níveis diferentes) = 'conflito': ninguém
+          entra, e o painel avisa. 'gerentes' só admite quem está em fa-gerentes/<emailKey> (qualquer nível); um nível, só quem está
+          lá com esse nível (fa-gerentes/<emailKey>/nivel); 'tecnicos' só quem NÃO está
           (técnico = quem não é gerente). Lista por e-mail: vale mesmo para quem ainda não tem cadastro. As outras categorias
           do "Quem participa" (Empregados, Diretores…) são só descrição: não há lista que diga quem é quem;
        2. participação anterior — eventos/<ev>/bloqueiaParticipantesDe = { <outroEvento>: true }: quem tem interesse ou
@@ -222,7 +224,8 @@
   /* vagas por turma definidas no EVENTO (eventos/<ev>/vagasPorTurma); a turma pode ter o próprio número, que vale por cima */
   function vagasDoEvento(e) { var n = Math.floor(Number(e && e.vagasPorTurma)); return n > 0 ? n : 0; }
   function vagasEfetivas(t, e) { return vagasDaTurma(t) || vagasDoEvento(e); }
-  function cargoDaTurma(t) { var c = t && t.publicoCargo; return c === 'gerentes' || c === 'tecnicos' ? c : ''; }
+  /* o público próprio da turma: um dos públicos de cargo da tabela (Gerentes, Técnicos, um nível de Gerentes) */
+  function cargoDaTurma(t) { var c = t && t.publicoCargo, p = c && PUB.definicao(c); return p && p.fonte === 'cargo' ? c : ''; }
   /* PÚBLICO DO EVENTO — a tabela é do núcleo dos públicos (publicos-nucleo.js): Gerentes e Técnicos restringem sempre;
      Diretores, as sete categorias de Outros públicos e os dois agrupados só depois da ativação (ativo = true); o resto é
      descrição. Devolve a chave ('gerentes', 'tecnicos', 'diretores', 'estagiario', 'conselheiros'…) ou ''. */
@@ -231,20 +234,20 @@
   /* o público que vale para a turma: as duas restrições somadas. Iguais ou só uma → ela; diferentes → 'conflito'
      (ninguém entra). Antes o da turma valia POR CIMA do evento e podia ampliar o público dele. */
   function cargoEfetivo(t, e, ativo) {
-    var ct = cargoDaTurma(t), ce = cargoDoEvento(e, ativo);
-    return ct && ce && ct !== ce ? 'conflito' : (ct || ce);
+    return PUB.somarCargos(cargoDaTurma(t), cargoDoEvento(e, ativo));
   }
   /* PERFIL DE PÚBLICO de uma pessoa, lido do banco na hora: a ativação e os três cadastros (só o registro dela). Cada
-     leitura que falha vira null — "não sei", nunca "não está". cb({ ativo, gerente, diretor, categorias }). */
+     leitura que falha vira null — "não sei", nunca "não está". cb({ ativo, gerente, gerenteNivel, diretor, categorias });
+     gerenteNivel vem do MESMO registro de fa-gerentes ('' = não é gerente, ou é "Não informado"). */
   function lerPerfilPublico(eKey, cb) {
     var db = firebase.database();
     var ler = function (caminho, de) { return db.ref(caminho).once('value').then(function (s) { return de(s.val()); }, function () { return null; }); };
     Promise.all([
       ler('publicos-config/ativo', function (v) { return v === true; }),
-      ler('fa-gerentes/' + eKey, function (v) { return !!v; }),
+      ler('fa-gerentes/' + eKey, function (v) { return { gerente: !!v, nivel: PUB.nivelGerente(v) }; }),
       ler('fa-diretores/' + eKey, function (v) { return !!v; }),
       ler('fa-outros-publicos/' + eKey + '/categorias', function (v) { return v || {}; })
-    ]).then(function (r) { cb({ ativo: r[0], gerente: r[1], diretor: r[2], categorias: r[3] }); });
+    ]).then(function (r) { cb({ ativo: r[0], gerente: r[1] ? r[1].gerente : null, gerenteNivel: r[1] ? r[1].nivel : null, diretor: r[2], categorias: r[3] }); });
   }
   function regraValida(v) { return !!(v && !v.removed && v.status !== 'removido'); }
   function regrasDeEntrada(arg, cb) {
@@ -276,7 +279,8 @@
             if (cargo === 'conflito') { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo }); return; }
             var ok = PUB.atende(cargo, perfil);
             if (ok === null) { cb({ estado: 'erro', regra: 'cargo' }); return; }
-            if (!ok) { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo, ativo: perfil.ativo, foraPor: cargo === 'tecnicos' ? PUB.motivoNaoTecnico(perfil) : '' }); return; }
+            if (!ok) { cb({ estado: 'bloqueado', regra: 'cargo', cargo: cargo, ativo: perfil.ativo, foraPor: cargo === 'tecnicos' ? PUB.motivoNaoTecnico(perfil) : '',
+              gerente: perfil.gerente, gerenteNivel: perfil.gerenteNivel }); return; }
             seguir();
           });
         }
@@ -406,6 +410,10 @@
     if (!r || r.estado === 'erro') return 'Não consegui verificar as regras da turma para ' + quem + ' agora. Recarregue a página e tente de novo. Nada foi gravado.';
     if (r.regra === 'cargo' && r.cargo === 'conflito') return 'O público desta turma contradiz o "Quem participa" do evento (por exemplo, um é só gerentes e o outro só técnicos), então ninguém pode entrar. Ajuste o "Público" da turma ou o do evento. Nada foi gravado.';
     if (r.regra === 'cargo' && r.cargo === 'gerentes') return quem + ' não está na lista de Gerentes, e esta turma é só para gerentes. Se for gerente, inclua o e-mail na aba Gerentes primeiro. Nada foi gravado.';
+    if (r.regra === 'cargo' && (PUB.definicao(r.cargo) || {}).nivel) return quem + (r.gerente
+        ? ' está na lista de Gerentes com o nível "' + PUB.rotuloNivel(r.gerenteNivel) + '"'
+        : ' não está na lista de Gerentes') +
+      ', e esta turma é só para ' + PUB.definicao(r.cargo).nome + '. Se for o caso, ajuste o nível na aba Gerentes primeiro. Nada foi gravado.';
     if (r.regra === 'cargo' && r.cargo === 'tecnicos') return r.foraPor === 'diretores'
       ? quem + ' está na lista de Diretores, e esta turma é só para técnicos. Nada foi gravado.'
       : r.foraPor === 'outros' ? quem + ' está em Outros públicos (estagiários, aprendizes, COAUD, conselhos ou assessores), e esta turma é só para técnicos. Nada foi gravado.'
@@ -439,6 +447,7 @@
   /* o perfil de público que está em p (p.ativo ausente = como antes da ativação: só o cadastro de Gerentes conta) */
   function perfilDe(p) {
     return { ativo: p.ativo === undefined ? false : p.ativo, gerente: typeof p.gerente === 'boolean' ? p.gerente : null,
+      gerenteNivel: typeof p.gerenteNivel === 'string' ? p.gerenteNivel : null,
       diretor: typeof p.diretorCadastro === 'boolean' ? p.diretorCadastro : null, categorias: p.categorias === undefined ? null : p.categorias };
   }
   function foraDoPublicoDoEvento(e, p) {
