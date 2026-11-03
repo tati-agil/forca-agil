@@ -111,6 +111,15 @@ async function lerChipPublico(browser, publicoRestrito, categoria) {
     anota('categoria Técnicos: chip diz "aberta a todos os Técnicos da Previ"',
       /aberta a todos os\s*Técnicos da Previ/i.test(tecnicos.texto), `veio "${tecnicos.texto}"`);
     if (tecnicos.erros.length) anota('sem erro de JS (Técnicos)', false, tecnicos.erros[0]);
+    /* os públicos mais novos têm frase própria: sem ela, o chip cairia em "todos os empregados" */
+    for (const [cat, re] of [['Interno', /aberta ao\s*público interno da Previ/i], ['Externo', /aberta ao\s*público externo/i],
+      ['Gerentes executivos', /aberta a todos os\s*Gerentes executivos da Previ/i], ['Gerentes de núcleo', /aberta a todos os\s*Gerentes de núcleo da Previ/i]]) {
+      const chip = await lerChipPublico(browser, false, cat);
+      anota('categoria ' + cat + ': chip com a frase própria', re.test(chip.texto), `veio "${chip.texto}"`);
+      if (chip.erros.length) anota('sem erro de JS (' + cat + ')', false, chip.erros[0]);
+    }
+    const externoLista = await lerChipPublico(browser, true, 'Externo');
+    anota('categoria Externo com público restrito: "restrita a uma lista"', /restrita a uma lista do\s*público externo/i.test(externoLista.texto), `veio "${externoLista.texto}"`);
   } catch (e) {
     falhas++;
     console.error('  FALHA inesperada: ' + e.message);

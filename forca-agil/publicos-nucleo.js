@@ -11,7 +11,7 @@
      - RESTRINGE DEPOIS DA ATIVAÇÃO (publicos-config/ativo = true, só os super-admins ligam): Diretores (= aba Diretores,
        fa-diretores), as sete categorias de ADMIN › Outros públicos (fa-outros-publicos) e os dois agrupados. Antes da
        ativação, continuam só descrição — exatamente como eram;
-     - SÓ DESCRIÇÃO (não há fonte confiável de quem é quem): Empregados (o vazio), Executivos, Cedidos, Quadro próprio.
+     - SÓ DESCRIÇÃO (não há fonte confiável de quem é quem): Empregados (o vazio), Executivos, Cedidos, Quadro próprio, Interno, Externo.
    TÉCNICOS: antes da ativação, como sempre foi — quem não está em Gerentes. Depois: quem não está em Gerentes, nem em
    Diretores, nem em nenhuma das sete categorias. Classificação operacional, não comprova vínculo.
    NUNCA se conclui por falta de dado: perfil com leitura pendente ou que falhou (null) responde null ("não verificado"),
@@ -46,7 +46,7 @@
     { rotulo: 'Assessores', chave: 'assessor', nome: 'assessores', ativacao: true, categorias: ['assessor'] }
   ];
   /* só descrição: '' = Empregados (o padrão do formulário) */
-  var DESCRITIVOS = ['', 'Executivos', 'Cedidos', 'Quadro próprio'];
+  var DESCRITIVOS = ['', 'Executivos', 'Cedidos', 'Quadro próprio', 'Interno', 'Externo'];
   /* NÍVEIS de Gerentes (o campo nivel em fa-gerentes). '' = Não informado (o campo ausente). Um nível por pessoa: é um
      campo só no registro dela. */
   var NIVEIS_GERENTE = [

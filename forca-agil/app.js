@@ -295,6 +295,10 @@
       'Técnicos':       { aberta: 'aberta a todos os<br>Técnicos da Previ',          restrita: 'restrita a uma lista de<br>Técnicos da Previ' },
       'Cedidos':        { aberta: 'aberta a todos os<br>Cedidos da Previ',           restrita: 'restrita a uma lista de<br>Cedidos da Previ' },
       'Quadro próprio': { aberta: 'aberta a todo o<br>Quadro próprio da Previ',      restrita: 'restrita a uma lista do<br>Quadro próprio da Previ' },
+      'Interno':        { aberta: 'aberta ao<br>público interno da Previ',           restrita: 'restrita a uma lista do<br>público interno da Previ' },
+      'Externo':        { aberta: 'aberta ao<br>público externo',                    restrita: 'restrita a uma lista do<br>público externo' },
+      'Gerentes executivos': { aberta: 'aberta a todos os<br>Gerentes executivos da Previ', restrita: 'restrita a uma lista de<br>Gerentes executivos da Previ' },
+      'Gerentes de núcleo':  { aberta: 'aberta a todos os<br>Gerentes de núcleo da Previ',  restrita: 'restrita a uma lista de<br>Gerentes de núcleo da Previ' },
       /* públicos da ativação (publicos-nucleo.js) */
       'Estagiários':    { aberta: 'aberta a todos os<br>Estagiários da Previ',       restrita: 'restrita a uma lista de<br>Estagiários da Previ' },
       'Menores aprendizes': { aberta: 'aberta a todos os<br>Menores aprendizes da Previ', restrita: 'restrita a uma lista de<br>Menores aprendizes da Previ' },
