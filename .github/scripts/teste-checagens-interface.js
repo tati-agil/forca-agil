@@ -669,10 +669,10 @@ const CHECAGENS = [
             window.faGameReload();
           }
         } },
-  { id: "c-reg-area", grupo: "Cadastrar", label: "Campo área/setor com 26 áreas carregadas em ordem alfabética",
+  { id: "c-reg-area", grupo: "Cadastrar", label: "Campo área/setor com 27 áreas carregadas em ordem alfabética",
     run: function () {
             var items = Array.from(document.querySelectorAll('#regAreaSelect [data-val]'));
-            if (items.length !== 26) return false;
+            if (items.length !== 27) return false;
             var vals = items.map(function (el) { return el.dataset.val; });
             var sorted = vals.slice().sort();
             return JSON.stringify(vals) === JSON.stringify(sorted);
