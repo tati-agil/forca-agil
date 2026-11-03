@@ -53,7 +53,8 @@ function banco() {
     'fa-users': users, 'fa-admins': {},
     'fa-gerentes': { [chave(P.ger)]: { email: P.ger, name: nome(P.ger) }, [chave(P.ger2)]: { email: P.ger2, name: nome(P.ger2) }, [chave(P.part)]: { email: P.part, name: nome(P.part) } },
     'fa-diretores': {}, 'fa-outros-publicos': {}, 'fa-facilitadores': {}, 'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {},
-    'fa-espera': { [chave(P.sub)]: { 'lista:evD': { name: nome(P.sub), email: P.sub, area: 'TI', date: '2026-10-05T10:00:00.000Z', removed: false, eventoKey: 'evD' } } },
+    'fa-espera': { [chave(P.sub)]: { 'lista:evD': { name: nome(P.sub), email: P.sub, area: 'TI', date: '2026-10-05T10:00:00.000Z', removed: false, eventoKey: 'evD' } },
+      [chave(P.ger2)]: { 'lista:evG': { name: nome(P.ger2), email: P.ger2, area: 'TI', date: '2026-10-06T10:00:00.000Z', removed: false, eventoKey: 'evG' } } },
     eventos: {
       evG: ev('EVENTO DE GERENTES SINT', 1, { publicoDesc: 'Gerentes', bloqueiaParticipantesDe: { evAnt: true } }),
       evD: ev('EVENTO SO DIRETORES SINT', 2, { restritoADiretores: true, esperaAtiva: true }),
@@ -165,17 +166,21 @@ async function confirmarAte(page, caminho) {
     anota('3. técnico substituindo gerente: Confirmar grava a inscrição com a exceção { cargo }',
       t.status === 'inscrito' && !!t.confirmedByAdmin && JSON.stringify((t.excecaoAdmin || {}).regras) === JSON.stringify({ cargo: true }) && /Substitui o gerente/.test(t.excecaoAdmin.motivo), JSON.stringify(t));
 
-    /* 4. substituto de diretor — Mover da fila */
-    await esperarCondicao(page, (e) => Array.from(document.querySelectorAll('tr')).some((tr) => tr.textContent.indexOf(e) !== -1 && /Mover para turma/.test(tr.textContent)), nome(P.sub), { limite: 15000, descricao: 'a linha da fila' });
-    await page.evaluate((e) => { const tr = Array.from(document.querySelectorAll('tr')).find((x) => x.textContent.indexOf(e) !== -1 && /Mover para turma/.test(x.textContent));
-      const sel = tr.querySelector('select'); sel.value = 'tD'; sel.dispatchEvent(new Event('change'));
-      Array.from(tr.querySelectorAll('button')).find((b) => /Mover para turma/.test(b.textContent)).click(); }, nome(P.sub));
-    await confirmarAte(page, '__nada__');
+    /* 4. substituto de diretor — Tirar da lista de espera para a turma, como Inscrita */
+    await esperarCondicao(page, (e) => Array.from(document.querySelectorAll('tr')).some((tr) => tr.textContent.indexOf(e) !== -1 && /Tirar da lista/.test(tr.textContent)), nome(P.sub), { limite: 15000, descricao: 'a linha da fila' });
+    await page.evaluate((e) => { const tr = Array.from(document.querySelectorAll('tr')).find((x) => x.textContent.indexOf(e) !== -1 && /Tirar da lista/.test(x.textContent));
+      Array.from(tr.querySelectorAll('button')).find((b) => /Tirar da lista/.test(b.textContent)).click(); }, nome(P.sub));
+    await esperarCondicao(page, () => !!document.querySelector('.modal-box .mov-destino'), null, { limite: 8000, descricao: 'a caixa "Tirar da lista"' });
+    await page.evaluate((t) => { const box = document.querySelector('.modal-box .mov-destino').closest('.modal-box');
+      const m = box.querySelector('select.admin-motivo-select:not(.mov-turma-select)'); m.value = 'movida_turma'; m.dispatchEvent(new Event('change'));
+      const s = box.querySelector('.mov-turma-select'); s.value = t; s.dispatchEvent(new Event('change', { bubbles: true }));
+      const r = box.querySelector('input[name="movSituacao"][value="inscrito"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+      box.querySelector('.admin-modal-confirm-btn').click(); }, 'tD');
     await excecao(page, 'Substitui o diretor na turma');
     await confirmarAte(page, 'turmas-interesse/tD/' + chave(P.sub));
     await esperarCondicao(page, (k) => (window.__ESCRITAS || []).some((e) => e.path === 'turmas-interesse/tD/' + k), chave(P.sub), { limite: 10000, descricao: 'a gravação do substituto' });
     const sd = await lerNo(page, 'turmas-interesse/tD/' + chave(P.sub));
-    anota('4. substituto de diretor: Mover da fila grava com a exceção { diretores }',
+    anota('4. substituto de diretor: Tirar da lista → turma grava com a exceção { diretores }',
       sd && sd.status === 'inscrito' && JSON.stringify((sd.excecaoAdmin || {}).regras) === JSON.stringify({ diretores: true }), JSON.stringify(sd));
 
     /* 5. lote pelo Público restrito da turma */
@@ -194,6 +199,9 @@ async function confirmarAte(page, caminho) {
     anota('5. lote: quem passa entra sem exceção; cada exceção com as próprias regras e o mesmo motivo',
       !l1.excecaoAdmin && JSON.stringify(l2.excecaoAdmin.regras) === JSON.stringify({ cargo: true }) && JSON.stringify(l3.excecaoAdmin.regras) === JSON.stringify({ participacao: true }) &&
       l2.excecaoAdmin.motivo === 'Convidados da diretoria para esta turma' && l3.status === 'inscrito', JSON.stringify({ l1, l2, l3 }));
+    const filaG = await lerNo(page, 'fa-espera/' + chave(P.ger2) + '/lista:evG');
+    anota('5. lote: quem esperava pelo mesmo evento sai da fila na mesma gravação (movedToTurma, Inscrita)',
+      filaG && filaG.removed === true && filaG.movedToTurma === 'tG2' && filaG.movedToStatus === 'inscrito' && filaG.removedByName, JSON.stringify(filaG));
     await page.keyboard.press('Escape').catch(() => {});
 
     /* 6. selos no painel (depois da recarga da aba) */

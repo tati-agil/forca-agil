@@ -1445,6 +1445,12 @@
 .mov-situacao > .mov-nota { flex-basis: 100%; }
 .mov-aviso { margin: 0; font-size: .78rem; line-height: 1.45; color: var(--gold); }
 @media (max-width: 480px) { .mov-turma { padding-left: 0; } }
+/* filas de espera da pessoa na pergunta de entrada (＋ Participante, Confirmar, lote) */
+.fila-pessoa .mov-op { flex-wrap: nowrap; }
+.fila-pessoa .mov-op > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* ações da linha da lista de espera: dentro da célula, que continua célula de tabela */
+.espera-acoes { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.espera-tirar-btn { padding: 5px 12px; font-size: .75rem; white-space: nowrap; }
 
 /* Destino de quem saiu da turma — coluna própria, para varrer com o olho */
 .destino-badge {
