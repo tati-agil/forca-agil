@@ -7041,6 +7041,57 @@
      flutuante minúsculo perto do rodapé é uma armadilha de dedo. O modal
      também resolve o risco de errar de linha numa lista de centenas — ele
      começa dizendo de quem é a ação, com nome, e-mail e situação. */
+  /* Onde a pessoa está agora: as turmas em que ela é interessada ou inscrita e a lista de espera. Só consulta, lida do banco
+     ao abrir a caixa (a aba Eventos pode nem ter sido aberta). Registro removido não aparece. Rede que não responde em 8 s
+     ou leitura que falha nunca viram "não está em nenhuma": a caixa diz que não conseguiu ler, e as ações continuam. */
+  function mostrarVinculosDaPessoa(host, eKey) {
+    var db = firebase.database();
+    var linha = function (titulo, nota, situacao, classe) {
+      return '<li><span class="cad-vinculo-nome">' + esc(titulo) + '</span>' + (nota ? '<span class="cad-vinculo-nota">' + esc(nota) + '</span>' : '') +
+        '<span class="cad-vinculo-situacao' + (classe ? ' ' + classe : '') + '">' + esc(situacao) + '</span></li>';
+    };
+    var lerTurmas = Promise.all([db.ref('turmas').once('value'), db.ref('eventos').once('value'), db.ref('turmas-config').once('value')]).then(function (s) {
+      var turmas = s[0].val() || {};
+      return Promise.all(Object.keys(turmas).map(function (k) {
+        return db.ref('turmas-interesse/' + k + '/' + eKey).once('value').then(function (x) { return { k: k, r: x.val() }; }, function () { return { k: k, falhou: true }; });
+      })).then(function (regs) { return { turmas: turmas, eventos: s[1].val() || {}, config: s[2].val() || {}, regs: regs }; });
+    }).catch(function () { return null; });
+    var limite = new Promise(function (res) { setTimeout(function () { res(null); }, 8000); });
+    var lerFilas = new Promise(function (res) { lerFilasDe([eKey], res); });
+    Promise.all([Promise.race([lerTurmas, limite]), lerFilas]).then(function (r) {
+      var d = r[0], filas = r[1], html = '', avisos = [];
+      var nomeEv = function (k) { var e = d && d.eventos[k]; return (e && e.nome) || ''; };
+      if (d) {
+        var agora = new Date();
+        var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+        var primeiroDia = function (t) { return ((t && t.dias) || []).slice().sort()[0] || ''; };
+        if (d.regs.some(function (x) { return x.falhou; })) avisos.push('Não consegui ler todas as turmas: a lista pode estar incompleta.');
+        d.regs.filter(function (x) { return x.r && !x.r.removed && x.r.status !== 'removido'; })
+          .sort(function (a, b) { return primeiroDia(d.turmas[b.k]).localeCompare(primeiroDia(d.turmas[a.k])); })
+          .forEach(function (x) {
+            var t = d.turmas[x.k] || {}, ev = nomeEv(t.eventoKey);
+            var inscrita = x.r.status === 'inscrito';
+            var realizada = window.faTurmasUtil.turmaJaRealizada(t.dias, !!(d.config[x.k] || {}).encerrada, hoje);
+            html += linha((ev ? ev + ' › ' : '') + (t.label || x.k), datasDaTurma(t),
+              (inscricaoValida(x.r) ? 'Inscrita' : inscrita ? 'Inscrita sem confirmação' : 'Interessada') + (realizada ? ' · turma realizada' : ''),
+              inscricaoValida(x.r) ? 'cad-vinculo-situacao--inscrita' : '');
+          });
+      } else {
+        avisos.push('Não consegui ler as turmas agora. Feche e abra de novo.');
+      }
+      if (filas) {
+        filas.forEach(function (f) {
+          html += linha('Lista de espera' + (f.eventoKey ? ' — ' + (nomeEv(f.eventoKey) || f.eventoKey) : ' — sem evento'), f.desde ? 'na fila desde ' + fmtDate(f.desde) : '', 'Na fila', 'cad-vinculo-situacao--fila');
+        });
+      } else {
+        avisos.push('Não consegui ler a lista de espera agora. Feche e abra de novo.');
+      }
+      var corpo = host.querySelector('.cad-vinculos-corpo');
+      corpo.innerHTML = (html ? '<ul class="cad-vinculos-lista">' + html + '</ul>' : (avisos.length ? '' : '<p class="cad-vinculos-msg">Não está em nenhuma turma nem na lista de espera.</p>')) +
+        avisos.map(function (a) { return '<p class="cad-vinculos-msg cad-vinculos-msg--aviso">' + esc(a) + '</p>'; }).join('');
+    });
+  }
+
   function openCadastroAcoesModal(pessoa) {
     var eKey  = pessoa._key;
     var nome  = pessoa.name || pessoa.email || '—';
@@ -7085,6 +7136,8 @@
           (pessoa.area ? ' · ' + esc(pessoa.area) : '') + '</p>' +
         (bloqueado ? '<p style="font-size:.8rem;color:var(--red,#ff3b30);margin:6px 0 0">Cadastro bloqueado.</p>' : '') +
       '</div>' +
+      '<div class="cad-vinculos" data-cad-vinculos aria-live="polite"><p class="cad-vinculos-titulo">Turmas e lista de espera</p>' +
+        '<div class="cad-vinculos-corpo"><p class="cad-vinculos-msg">Carregando…</p></div></div>' +
       '<div class="cad-acoes-lista">' +
         acoes.map(function (a) {
           return '<button class="cad-acao-btn' + (a.perigo ? ' cad-acao-btn--perigo' : '') + '" data-acao="' + a.id + '">' +
@@ -7107,6 +7160,7 @@
     overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
     overlay.tabIndex = -1;
     overlay.focus();
+    mostrarVinculosDaPessoa(box.querySelector('[data-cad-vinculos]'), eKey);
 
     /* Fecha ANTES de agir: toda ação abre a própria confirmação, e duas
        camadas de modal empilhadas escondem qual pergunta é qual. */
