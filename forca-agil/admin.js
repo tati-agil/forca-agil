@@ -715,7 +715,7 @@
 
      Por isso o critério é UMA função, como manda a skill criterio-de-estado:
      as portas que produzem "estar na turma" — Confirmar, "＋ Participante" e
-     "Mover para turma" — perguntam todas aqui. Acrescentar uma exigência
+     a movimentação para uma turma (movimentarParaTurma) — perguntam todas aqui. Acrescentar uma exigência
      nova se faz mudando esta função, nunca as três cópias. O lado público
      (app.js) faz a mesma pergunta com os mesmos dois dados. */
   /* turmas-config da última carga do painel (encerrada etc.): o "Já realizado" das listas de eventos do formulário */
@@ -2508,15 +2508,18 @@
   }
 
   /* callbackNao (opcional): chamado quando a caixa fecha sem confirmar (Cancelar, clique fora, Esc) */
-  function adminConfirm(mensagem, callbackSim, callbackNao) {
+  /* htmlExtra: um bloco a mais entre o texto e os botões (as filas de espera da pessoa, em blocoFilasHtml); o "sim" recebe
+     a caixa, para ler o que foi marcado nela */
+  function adminConfirm(mensagem, callbackSim, callbackNao, htmlExtra) {
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
     var box = document.createElement('div');
     box.className = 'modal-box';
-    box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
+    box.style.cssText = 'max-width:' + (htmlExtra ? '480px' : '420px') + ';width:90%;padding:28px;display:flex;flex-direction:column;gap:18px;max-height:90vh;overflow-y:auto;box-sizing:border-box';
     box.innerHTML =
       '<p style="font-size:.95rem;line-height:1.6;color:var(--ink);white-space:pre-line">' + esc(mensagem) + '</p>' +
+      (htmlExtra || '') +
       '<div style="display:flex;justify-content:flex-end;gap:8px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
         '<button class="btn btn--primary admin-modal-confirm-btn">Confirmar</button>' +
@@ -2532,7 +2535,7 @@
     overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); desistir(); } });
     box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
       closeConfirm();
-      if (callbackSim) callbackSim();
+      if (callbackSim) callbackSim(box);
     });
   }
 
@@ -2945,6 +2948,8 @@
     { key: 'outro',            label: 'Outro' },
   ];
   var MOTIVOS_ESPERA_SAIDA = [
+    /* com a pergunta de destino, este motivo marca "Outra turma" — e a pessoa entra de fato nela (movimentarParaTurma) */
+    { key: 'movida_turma',     label: 'Vai para uma turma', pedeTurma: true },
     { key: 'desistiu',         label: 'Desistiu / não tem mais interesse' },
     /* Mesma pergunta da saída da turma: dizer QUAL turma ela já fez. Aqui a
        fila não tem destino nenhum, então a turma vive só no motivo. */
@@ -3086,6 +3091,61 @@
         '</div>' +
         '<p class="mov-aviso" hidden></p>' +
       '</div></fieldset>';
+  }
+
+  /* ---- Filas de espera da pessoa, ao pô-la numa turma ------------------------
+     Quem entra numa turma pelo ＋ Participante, pelo Confirmar ou pelo lote pode continuar numa lista de espera — e a fila
+     passa a mostrar alguém que já tem lugar. Antes de gravar, o painel lê as filas da pessoa e pergunta, fila por fila, se
+     ela sai: vem marcada a do MESMO evento da turma (e a sem evento, de antes da separação por evento — a mesma regra da
+     transferência), desmarcada a de outro evento, porque esperar por outro evento é outra coisa. A saída vai na mesma
+     gravação da entrada, com movedToTurma e a situação, como no "Tirar da lista". Leitura que falha não trava a entrada:
+     a fila só não é alterada, e a caixa diz isso. */
+  function lerFilasDe(eKeys, cb) {
+    /* rede que não responde (4G da sala) não pode prender a entrada: depois de 8 s segue como leitura falha */
+    var respondeu = false, fim = function (v) { if (respondeu) return; respondeu = true; cb(v); };
+    setTimeout(function () { fim(null); }, 8000);
+    Promise.all(eKeys.map(function (k) { return firebase.database().ref('fa-espera/' + k).once('value'); })).then(function (snaps) {
+      var itens = [];
+      snaps.forEach(function (snap, i) {
+        var grupos = {};
+        window.faTurmasUtil.esperaAtivas(snap.val()).forEach(function (e) {
+          var g = e.eventoKey || '';
+          if (!grupos[g]) { grupos[g] = { eKey: eKeys[i], nome: e.name || '', eventoKey: g, entradas: [], desde: '' }; itens.push(grupos[g]); }
+          grupos[g].entradas.push(e);
+          if (e.date && (!grupos[g].desde || e.date < grupos[g].desde)) grupos[g].desde = e.date;
+        });
+      });
+      fim(itens);
+    }, function () { fim(null); });
+  }
+  function blocoFilasHtml(itens, turmaKey, comNome) {
+    if (itens === null) return '<p class="mov-aviso">Não consegui ler a lista de espera agora — se ela estiver em alguma, continua lá.</p>';
+    if (!itens.length) return '';
+    var destEv = turmaEventoKey(turmaKey) || '';
+    return '<fieldset class="mov-destino fila-pessoa"><legend class="admin-field-label">' + (comNome ? 'Estão na lista de espera' : 'Ela está na lista de espera') + '</legend>' +
+      itens.map(function (it, i) {
+        var marcada = !it.eventoKey || it.eventoKey === destEv;
+        return '<label class="mov-op"><input type="checkbox" class="fila-sair" value="' + i + '"' + (marcada ? ' checked' : '') + '> ' +
+          '<span>' + (comNome ? esc(it.nome || it.eKey) + ' — ' : '') + 'tirar da lista de espera ' + esc(it.eventoKey ? 'de ' + eventoLabel(it.eventoKey) : 'sem evento') +
+          ' <span class="mov-nota">na fila desde ' + esc(fmtDate(it.desde)) + (it.eventoKey && it.eventoKey !== destEv ? ' · outro evento' : '') + '</span></span></label>';
+      }).join('') +
+      '<p class="mov-nota">Marcada: sai da fila nesta mesma gravação, com o registro da turma para onde foi. Desmarcada: continua esperando.</p></fieldset>';
+  }
+  function filasMarcadas(box, itens) {
+    if (!box || !itens) return [];
+    return Array.prototype.map.call(box.querySelectorAll('.fila-sair:checked'), function (c) { return itens[+c.value]; }).filter(Boolean);
+  }
+  function saidaDasFilas(updates, marcadas, turmaKey, status, sess, now) {
+    marcadas.forEach(function (it) {
+      it.entradas.forEach(function (e) {
+        var b = 'fa-espera/' + it.eKey + '/' + e._origem + '/';
+        updates[b + 'removed'] = true;
+        updates[b + 'removedDate'] = now;
+        updates[b + 'movedToTurma'] = turmaKey;
+        updates[b + 'movedToStatus'] = status;
+        updates[b + 'removedByName'] = sess ? (sess.name || sess.email) : null;
+      });
+    });
   }
 
   function adminConfirmComMotivo(mensagem, motivos, callbackSim, pergunta, jaFezTurmas, motivoInicial) {
@@ -3499,7 +3559,7 @@
           errEl.textContent = 'Este participante já está na turma.'; errEl.style.display = ''; return;
         }
 
-        function save(overlaps) {
+        function save(overlaps, filasSaem) {
           var now = new Date().toISOString();
           var updates = {};
           /* Registro montado no lugar único (registroInscricaoAdmin): é ele
@@ -3515,6 +3575,7 @@
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(turmaKey) + '"';
           });
+          saidaDasFilas(updates, filasSaem || [], turmaKey, status, sess, now);
           firebase.database().ref().update(updates, function (err) {
             if (err) { errEl.textContent = 'Erro ao adicionar. Tente novamente.'; errEl.style.display = ''; return; }
             closeModal();
@@ -3526,19 +3587,21 @@
            "Confirmar" já garante — ninguém pode ficar inscrita em mais de
            uma turma. Como "Interessada" não tem esse limite, só checa
            sobreposição quando o status escolhido é "inscrito". */
-        if (status === 'inscrito') {
-          checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
-            if (!overlaps.length) { save(overlaps); return; }
-            var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
-            adminConfirm(
-              'Adicionar ' + name + ' como Inscrita em "' + turmaLabel(turmaKey) + '"?\n\n' +
-              'Ela já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista,
-              function () { save(overlaps); }
-            );
-          });
-        } else {
-          save([]);
-        }
+        /* As filas de espera da pessoa entram na mesma pergunta (lerFilasDe); sem fila e sem outra inscrição, grava direto. */
+        lerFilasDe([eKey], function (filas) {
+          var blocoFilas = blocoFilasHtml(filas, turmaKey);
+          var perguntar = function (overlaps) {
+            if (!overlaps.length && !blocoFilas) { save([], []); return; }
+            var msg = 'Adicionar ' + name + ' como ' + (status === 'inscrito' ? 'Inscrita' : 'Interessada') + ' em "' + turmaLabel(turmaKey) + '"?';
+            if (overlaps.length) {
+              msg += '\n\nEla já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' +
+                overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
+            }
+            adminConfirm(msg, function (caixa) { save(overlaps, filasMarcadas(caixa, filas)); }, null, blocoFilas);
+          };
+          if (status === 'inscrito') checkOutrasTurmas(turmaKey, [eKey], perguntar);
+          else perguntar([]);
+        });
       });
       }
       });
@@ -4397,7 +4460,7 @@
     }
 
     /* Porta nova para o estado "inscrita" — a quarta, ao lado de Confirmar,
-       "＋ Participante" e "Mover para turma". Por isso repete as exigências
+       "＋ Participante" e a movimentação para uma turma. Por isso repete as exigências
        das outras, e não um atalho por ser em massa:
          · sem sessão de admin não grava (registro pela metade é pior);
          · barradoPeloPublico pessoa por pessoa — estar na lista DA TURMA não
@@ -4464,6 +4527,8 @@
       }
       function gravarLote(entram, deFora, acimaDasVagas) {
       var podem = entram.map(function (x) { return x.k; });
+      /* as filas de espera de quem entra vêm na mesma pergunta, pessoa por pessoa (lerFilasDe) */
+      lerFilasDe(podem, function (filas) {
       checkOutrasTurmas(alvo.key, podem, function (overlaps) {
         var msg = 'Adicionar ' + podem.length + (podem.length > 1 ? ' pessoas' : ' pessoa') +
           ' à turma "' + alvo.label + '" como INSCRITAS?\n\n' +
@@ -4477,7 +4542,7 @@
           msg += '\n\nJá inscritas em outra turma — essa inscrição anterior será removida, porque ninguém fica em duas:\n' +
             overlaps.map(function (o) { return '• ' + o.name + ' — ' + turmaLabel(o.turma); }).join('\n');
         }
-        adminConfirm(msg, function () {
+        adminConfirm(msg, function (caixa) {
           var now = new Date().toISOString();
           var updates = {};
           entram.forEach(function (x) {
@@ -4491,11 +4556,13 @@
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(alvo.key) + '"';
           });
+          saidaDasFilas(updates, filasMarcadas(caixa, filas), alvo.key, 'inscrito', sess, now);
           firebase.database().ref().update(updates, function (err) {
             if (err) { adminAlert('Erro ao adicionar à turma. Nada foi gravado — tente novamente.'); return; }
             reload();
           });
-        });
+        }, null, blocoFilasHtml(filas, alvo.key, true));
+      });
       });
       }
     }
@@ -4737,6 +4804,8 @@
     var sessPorta = window.faAuth && window.faAuth.getSession();
     portaDoAdmin(turmaKey, eKey, pessoa && pessoa.name, sessPorta, { semVagas: true, jaDispensadas: (regAtual.excecaoAdmin && regAtual.excecaoAdmin.regras) || {} }, adminAlert, function (res) {
     var excecaoAdmin = res.excecao;
+    /* as filas de espera dela vêm na mesma pergunta (lerFilasDe) */
+    lerFilasDe([eKey], function (filas) {
     checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
       var msg = (eventoDispensaCmflex(turmaEventoKey(turmaKey))
           ? 'Confirmar a vaga de ' + pessoa.name + ' em "' + turmaLabel(turmaKey) + '"?'
@@ -4746,7 +4815,7 @@
         var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
         msg += '\n\nEla já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;
       }
-      adminConfirm(msg, function () {
+      adminConfirm(msg, function (caixa) {
         var sess = window.faAuth && window.faAuth.getSession();
         /* Sem sessão NÃO dá para confirmar ninguém. Gravar
            confirmedByAdmin: null aqui apagaria o campo (no Realtime
@@ -4776,6 +4845,7 @@
           updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
           updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(turmaKey) + '"';
         });
+        saidaDasFilas(updates, filasMarcadas(caixa, filas), turmaKey, 'inscrito', sess, now);
         firebase.database().ref().update(updates, function (err) {
           if (err) { adminAlert('Erro ao confirmar. Tente novamente.'); return; }
           firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + eKey).push({
@@ -4785,7 +4855,8 @@
           });
           loadInterests();
         });
-      });
+      }, null, blocoFilasHtml(filas, turmaKey));
+    });
     });
     });
   }
@@ -5500,7 +5571,7 @@
   }
 
   /* Monta a Lista de Espera de UM grupo (um evento, ou as órfãs). dataEv já
-     vem filtrado a esse grupo — inclusive "Remover da lista" só tira a
+     vem filtrado a esse grupo — inclusive "Tirar da lista" só tira a
      pessoa das origens DESTE grupo: se ela também espera por outro evento,
      essa espera não é tocada aqui. interesseEv já vem restrito às turmas
      deste evento (ou, nas órfãs, sem restrição — não tem evento para
@@ -5542,12 +5613,6 @@
       box.appendChild(saidosDaFila(dataEv, turmasVal));
       return box;
     }
-
-    /* dropdown "Mover para turma" — a mesma lista de destino da transferência: turmas não realizadas de TODOS os eventos,
-       agrupadas por evento, com datas, situação e vagas (mover para outro evento passa pelas regras do evento de destino) */
-    var opcoesDestino = opcoesTurmaDestino('');
-    var optsHtml = '<option value="">Selecione a turma…</option>' + opcoesDestino;
-    var semTurmas = !opcoesDestino;
 
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
@@ -5592,47 +5657,23 @@
         '<td>' + origem + '</td>' +
         '<td></td>';
 
-      var tdAcoes = tr.querySelector('td:last-child');
-      tdAcoes.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap';
+      /* A célula continua célula de tabela (display:flex nela desmontava a linha, e a coluna saía cortada pela rolagem).
+         Um botão só: a caixa pergunta o motivo e o destino — nenhum lugar, ou uma turma como Interessada ou Inscrita. O
+         antigo "Mover para turma" (seletor na linha, sempre como Inscrita) fazia a mesma coisa por outro caminho. */
+      var tdAcoes = document.createElement('div');
+      tdAcoes.className = 'espera-acoes';
+      tr.querySelector('td:last-child').appendChild(tdAcoes);
 
-      /* Select turma */
-      if (semTurmas) {
-        tdAcoes.insertAdjacentHTML('beforeend', '<span style="font-size:.75rem;color:var(--ink-3)">Sem turmas abertas</span>');
-      } else {
-        var sel = document.createElement('select');
-        sel.className = 'admin-status-btn';
-        sel.style.cssText = 'padding:5px 8px;font-size:.75rem;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);cursor:pointer';
-        sel.innerHTML = optsHtml;
-        tdAcoes.appendChild(sel);
-
-        var moverBtn = document.createElement('button');
-        moverBtn.className = 'btn btn--sm btn--primary';
-        moverBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
-        moverBtn.textContent = 'Mover para turma';
-        moverBtn.addEventListener('click', (function (person, selectEl) {
-          return function () {
-            var turmaKey = selectEl.value;
-            if (!turmaKey) { adminAlert('Selecione uma turma primeiro.'); return; }
-            adminConfirm(
-              'Mover ' + person.name + ' para ' + destinoPorExtenso(turmaKey) + ' como Inscrita?',
-              function () { moverParaTurma(person, turmaKey, evKeyOrNull); }
-            );
-          };
-        })(p, sel));
-        tdAcoes.appendChild(moverBtn);
-      }
-
-      /* Remover da lista */
+      /* Tirar da lista — com ou sem destino */
       var remBtn = document.createElement('button');
-      remBtn.className = 'btn btn--sm';
-      remBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
-      remBtn.textContent = 'Remover da lista';
+      remBtn.className = 'btn btn--sm espera-tirar-btn';
+      remBtn.textContent = 'Tirar da lista';
       remBtn.addEventListener('click', (function (person) {
         return function () {
           var sessRem = window.faAuth && window.faAuth.getSession();
           var registrosPessoa = window.faTurmasUtil.esperaAtivas(dataEv[person._key]).length;
           adminConfirmComMotivo(
-            'Remover ' + person.name + ' da lista de espera?' +
+            'Tirar ' + person.name + ' da lista de espera?' +
               (registrosPessoa > 1
                 ? '\n\nEla tem ' + registrosPessoa +
                   ' registros na fila deste evento, um por turma de origem — e sai de todos eles.'
@@ -5943,18 +5984,9 @@
     });
   }
 
-  /* "Mover para turma" da linha da fila: sai da fila do evento e entra como Inscrita — a mesma porta da transferência */
-  function moverParaTurma(person, turmaKey, evKeyFila) {
-    movimentarParaTurma({
-      pessoa: person, eKey: emailKeyFromEmail(person.email), destino: turmaKey, status: 'inscrito',
-      origem: { tipo: 'espera', eventoKey: evKeyFila === undefined ? turmaEventoKey(turmaKey) : evKeyFila },
-      motivo: 'movida_turma', razao: 'Movida para turma'
-    }, adminAlert, loadInterests);
-  }
-
   /* ---- Escolha da turma de destino ------------------------------------------
-     Uma lista só para todo lugar que manda alguém PARA uma turma (Remover com destino, Remover da lista de espera, Mover
-     para turma da fila): agrupada por evento — há "Turma 1" em vários, e o nome sozinho é ambíguo —, cada opção com as
+     Uma lista só para todo lugar que manda alguém PARA uma turma (Remover com destino da turma e Tirar da
+     lista de espera): agrupada por evento — há "Turma 1" em vários, e o nome sozinho é ambíguo —, cada opção com as
      datas dos encontros, a situação e as vagas. Turma realizada (encerrada) não entra. Vagas = interesse + inscrição não
      removidos, o mesmo critério da regra de lotação (regrasDeEntrada). */
   function rotuloTurmaDestino(t) {

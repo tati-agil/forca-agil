@@ -16,14 +16,14 @@
  *   6. nenhum erro de JavaScript não tratado;
  *   8. a frequência mínima é o parâmetro do EVENTO (aqui 50%): o CSV da turma diz "Atingiu critério (50%)" e "Sim" com 1 de 2;
  *   9. Excel "Turmas e parâmetros": evento sem o campo de lista de espera aparece "Aceita lista de espera = Sim" (como no site);
- *  10. "Mover para turma" da lista de espera tira a inscrição da pessoa em outra turma (com aviso), como o Confirmar;
+ *  10. "Tirar da lista" → turma como Inscrita tira a inscrição da pessoa em outra turma (com aviso), como o Confirmar;
  *   7. "📊 Turmas e parâmetros": Excel com as abas Turmas (uma linha por turma, com os parâmetros dela e do evento) e
  *      Eventos (uma linha por evento) — sem pessoas: nenhum nome nem e-mail, só contagens. */
 const { chromium } = require('playwright');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { esperarSessaoAssentada } = require('./esperas');
+const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const XLSX = require(path.join(__dirname, '..', '..', 'forca-agil', 'xlsx.mini.min.js'));
 
 const BASE  = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
@@ -164,24 +164,26 @@ function lerCsv(texto) {
     anota('4. Sorteios: as colunas da turma sorteada', JSON.stringify(sort.cab.slice(0, 7)) === JSON.stringify(['Quando', 'Evento', 'Turma', 'Data da turma', 'Horário', 'Sala', 'Público']) && valoresX(sl) && sl['Nome sorteado'] === 'PRESENTE UM',
       sort.cab.join(' | ') + ' / ' + JSON.stringify(sl));
 
-    /* 10. Mover da fila tira a outra inscrição (como o Confirmar) */
+    /* 10. Tirar da fila para uma turma como Inscrita tira a outra inscrição (como o Confirmar) */
     await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).find((x) => /Eventos/i.test(x.textContent)).click());
-    await page.waitForFunction((e) => Array.from(document.querySelectorAll('tr')).some((tr) => tr.textContent.indexOf(e) !== -1 && /Mover para turma/.test(tr.textContent)), ESP, { timeout: 15000 });
-    await page.evaluate((e) => {
-      const tr = Array.from(document.querySelectorAll('tr')).find((x) => x.textContent.indexOf(e) !== -1 && /Mover para turma/.test(x.textContent));
-      const sel = tr.querySelector('select'); sel.value = 'tY'; sel.dispatchEvent(new Event('change'));
-      Array.from(tr.querySelectorAll('button')).find((b) => /Mover para turma/.test(b.textContent)).click();
-    }, ESP);
+    await esperarCondicao(page, (e) => Array.from(document.querySelectorAll('tr')).some((tr) => tr.textContent.indexOf(e) !== -1 && /Tirar da lista/.test(tr.textContent)), ESP, { limite: 15000, descricao: 'a linha da fila' });
+    await page.evaluate((e) => { const tr = Array.from(document.querySelectorAll('tr')).find((x) => x.textContent.indexOf(e) !== -1 && /Tirar da lista/.test(x.textContent));
+      Array.from(tr.querySelectorAll('button')).find((b) => /Tirar da lista/.test(b.textContent)).click(); }, ESP);
+    await esperarCondicao(page, () => !!document.querySelector('.modal-box .mov-destino'), null, { limite: 8000, descricao: 'a caixa "Tirar da lista"' });
+    await page.evaluate((t) => { const box = document.querySelector('.modal-box .mov-destino').closest('.modal-box');
+      const m = box.querySelector('select.admin-motivo-select:not(.mov-turma-select)'); m.value = 'movida_turma'; m.dispatchEvent(new Event('change'));
+      const s = box.querySelector('.mov-turma-select'); s.value = t; s.dispatchEvent(new Event('change', { bubbles: true }));
+      const r = box.querySelector('input[name="movSituacao"][value="inscrito"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true }));
+      box.querySelector('.admin-modal-confirm-btn').click(); }, 'tY');
     const confirmar = async (re) => {
       await page.waitForFunction((src) => Array.from(document.querySelectorAll('.modal-box')).some((b) => new RegExp(src).test(b.textContent) && b.querySelector('.admin-modal-confirm-btn')), re.source, { timeout: 10000 });
       const t = await page.evaluate((src) => { const b = Array.from(document.querySelectorAll('.modal-box')).filter((x) => new RegExp(src).test(x.textContent) && x.querySelector('.admin-modal-confirm-btn')).pop(); const txt = b.textContent; b.querySelector('.admin-modal-confirm-btn').click(); return txt; }, re.source);
       return t;
     };
-    await confirmar(/como Inscrita\?/);
     const aviso = await confirmar(/já é inscrita em outra turma/);
     await page.waitForFunction((k) => (window.__ESCRITAS || []).some((e) => e.path === 'turmas-interesse/tY/' + k), chave(ESP), { timeout: 10000 });
     const tirou = await page.evaluate((k) => (window.__ESCRITAS || []).some((e) => e.path === 'turmas-interesse/tX/' + k + '/removed' && e.valor === true), chave(ESP));
-    anota('10. "Mover para turma" avisa e tira a inscrição na outra turma (TURMA X), como o Confirmar', /TURMA X/.test(aviso) && tirou, aviso);
+    anota('10. "Tirar da lista" → turma avisa e tira a inscrição na outra turma (TURMA X), como o Confirmar', /TURMA X/.test(aviso) && tirou, aviso);
     anota('6. sem erro de JavaScript', !erros.length, erros[0]);
     await ctx.close();
   } catch (e) {

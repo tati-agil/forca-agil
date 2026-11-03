@@ -78,7 +78,7 @@ O estado vive em `turmas-interesse/<turma>/<emailKey>` e o critério completo é
 |---|---|
 | botão Confirmar | `admin.js` `confirmarInscrito` |
 | ＋ Participante como "Inscrita" | `admin.js` `openAddParticipantModal` |
-| Mover para turma (lista de espera) | `admin.js` `moverParaTurma` |
+| Movimentação para uma turma (Remover com destino, Tirar da lista de espera) | `admin.js` `movimentarParaTurma` |
 
 As três recusam sem sessão de admin ativa, em vez de gravar o registro pela
 metade — `confirmedByAdmin: null` no Realtime Database **apaga o campo**, é a
@@ -127,7 +127,7 @@ e `turmaVisivelPara()` em `app.js` / `aluno.js`.
 |---|---|
 | botão Confirmar | `admin.js` `confirmarInscrito` |
 | ＋ Participante | `admin.js` `addParticipante` (a busca já sai filtrada, e revalida ao gravar) |
-| Mover para turma | `admin.js` `moverParaTurma` |
+| Movimentação para uma turma | `admin.js` `movimentarParaTurma` (pela `portaDoAdmin`) |
 | "Tenho interesse" (a pessoa) | `app.js` `registerInterest` — revalida no clique |
 | "Adicionar à turma" em massa (modal da lista) | `admin.js` `matricularNaTurma` — lista do evento E público gerentes/técnicos (`regrasDeEntrada`, só a regra de cargo) |
 

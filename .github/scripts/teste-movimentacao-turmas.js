@@ -118,9 +118,9 @@ async function abrirRemover(page, turma, email) {
   await esperarCondicao(page, () => !!document.querySelector('.modal-box .mov-destino'), null, { limite: 8000, descricao: 'a caixa "Para onde ela vai?"' });
 }
 async function abrirRemoverDaFila(page, nome) {
-  await esperarCondicao(page, (n) => Array.from(document.querySelectorAll('.ev-espera-section tr')).some((tr) => tr.textContent.indexOf(n) !== -1 && /Remover da lista/.test(tr.textContent)), nome, { limite: 15000, descricao: 'a linha de ' + nome + ' na fila' });
-  await page.evaluate((n) => { const tr = Array.from(document.querySelectorAll('.ev-espera-section tr')).find((x) => x.textContent.indexOf(n) !== -1 && /Remover da lista/.test(x.textContent));
-    Array.from(tr.querySelectorAll('button')).find((b) => /Remover da lista/.test(b.textContent)).click(); }, nome);
+  await esperarCondicao(page, (n) => Array.from(document.querySelectorAll('.ev-espera-section tr')).some((tr) => tr.textContent.indexOf(n) !== -1 && /Tirar da lista/.test(tr.textContent)), nome, { limite: 15000, descricao: 'a linha de ' + nome + ' na fila' });
+  await page.evaluate((n) => { const tr = Array.from(document.querySelectorAll('.ev-espera-section tr')).find((x) => x.textContent.indexOf(n) !== -1 && /Tirar da lista/.test(x.textContent));
+    Array.from(tr.querySelectorAll('button')).find((b) => /Tirar da lista/.test(b.textContent)).click(); }, nome);
   await esperarCondicao(page, () => !!document.querySelector('.modal-box .mov-destino'), null, { limite: 8000, descricao: 'a caixa "Para onde ela vai?" da fila' });
 }
 /* preenche a caixa: motivo, destino e (se turma) a turma e a situação */
@@ -266,7 +266,7 @@ async function lerAlerta(page) {
     await abrirRemoverDaFila(page, NOMES.fila);
     const semFila = await page.evaluate(() => !document.querySelector('.modal-box input[name="movDestino"][value="espera"]'));
     anota('10. saindo da fila, a opção "Lista de espera" não aparece', semFila);
-    await preencher(page, { motivo: 'desistiu', destino: 'turma', turma: 'tB2', status: 'interessado' });
+    await preencher(page, { motivo: 'movida_turma', turma: 'tB2', status: 'interessado' });
     await confirmarCaixa(page);
     await esperarCondicao(page, () => !!document.querySelector('.admin-vagas-motivo'), null, { limite: 10000, descricao: 'o motivo da lotação' });
     await page.fill('.admin-vagas-motivo', 'Combinado com a gestão do evento B');
@@ -276,7 +276,7 @@ async function lerAlerta(page) {
     anota('10. fila → turma lotada de outro evento: motivo da lotação, data da FILA no destino, origem "lista de espera"',
       d10.status === 'interessado' && d10.date === '2026-08-05T09:00:00.000Z' && d10.fromEspera === true && /gestão do evento B/.test((d10.acimaDasVagas || {}).motivo) &&
       d10.movimentadaDe.tipo === 'espera' && d10.movimentadaDe.eventoKey === 'evA', JSON.stringify(d10));
-    anota('10. a fila registra a saída com o destino e a situação', f10.removed === true && f10.movedToTurma === 'tB2' && f10.movedToStatus === 'interessado' && f10.motivoSaida === 'desistiu' && f10.removedByName === 'ADMIN', JSON.stringify(f10));
+    anota('10. a fila registra a saída com o destino e a situação', f10.removed === true && f10.movedToTurma === 'tB2' && f10.movedToStatus === 'interessado' && !f10.motivoSaida && f10.removedByName === 'ADMIN', JSON.stringify(f10));
 
     /* 11. fila sem destino, como sempre */
     await esperarCondicao(page, () => !document.querySelector('.modal-overlay:not([hidden])'), null, { limite: 8000, descricao: 'a tela sem caixas' });
@@ -302,7 +302,7 @@ async function lerAlerta(page) {
       !de(NOMES.insc, 'Removido da turma').length && !de(NOMES.insc, 'Adicionado pelo admin').length, linhas.filter((l) => l.indexOf(NOMES.insc) !== -1).join('\n'));
     anota('12. Histórico: as saídas da lista de espera, com motivo, quem e destino',
       de(NOMES.fila2, 'Saiu da lista de espera').some((l) => /Não respondeu/.test(l) && /Admin — ADMIN/.test(l) && /Saiu da fila/.test(l)) &&
-      de(NOMES.fila, 'Saiu da lista de espera para uma turma').some((l) => /Turma 2 · .*como Interessada/.test(l) && /Desistiu/.test(l)),
+      de(NOMES.fila, 'Saiu da lista de espera para uma turma').some((l) => /Turma 2 · .*como Interessada/.test(l) && /Movida para turma/.test(l)),
       linhas.filter((l) => /FILA/.test(l)).join('\n'));
 
     anota('14. desktop: nenhum erro de JavaScript', !erros.length, erros.join(' | '));
