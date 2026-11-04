@@ -5621,7 +5621,7 @@
     box.appendChild(barraExportarEspera(list, turmasVal, evKeyOrNull));
 
     var wrap = document.createElement('div');
-    wrap.className = 'table-scroll-wrap';
+    wrap.className = 'table-scroll-wrap espera-tabela';
     var table = document.createElement('table');
     table.className = 'admin-table';
     table.innerHTML =
