@@ -147,6 +147,7 @@
     Object.keys(d.interesse).forEach(function (tk) {
       var reg = (d.interesse[tk] || {})[uKey];
       if (!reg || reg.removed || reg.status !== 'inscrito' || !reg.confirmedByAdmin) return;
+      if (window.faTurmasUtil.turmaCancelada(d.config[tk])) return; /* turma cancelada só aparece no ADMIN */
 
       var turma  = d.turmas[tk] || {};
       var cfg    = d.config[tk] || {};
@@ -165,8 +166,7 @@
          andamento  — o resto */
       var ordenados = dias.slice().sort();
       var primeiro  = ordenados[0] || '';
-      var fase = window.faTurmasUtil.turmaCancelada(cfg) ? 'cancelada'
-               : cfg.encerrada ? 'concluida'
+      var fase = cfg.encerrada ? 'concluida'
                : (primeiro && primeiro > todayISO()) ? 'programada'
                : 'andamento';
 
@@ -204,6 +204,7 @@
       if (!reg || reg.removed) return;
       if (reg.status === 'inscrito' && reg.confirmedByAdmin) return;  /* já é turma confirmada */
       if (reg.status === 'removido') return;
+      if (window.faTurmasUtil.turmaCancelada(d.config[tk])) return; /* turma cancelada só aparece no ADMIN */
 
       var turma  = d.turmas[tk] || {};
       var cfg    = d.config[tk] || {};
@@ -216,7 +217,6 @@
         evento: evento,
         desde: reg.date || '',
         encerrada: !!cfg.encerrada,
-        cancelada: window.faTurmasUtil.turmaCancelada(cfg),
       });
     });
     return out.sort(function (a, b) { return (a.label || '').localeCompare(b.label || '', 'pt'); });
@@ -348,16 +348,13 @@
   function cardTurma(t, idx, expandidoPorPadrao) {
     var selo = { concluida:  ['aluno-badge--ok',        'Concluída'],
                  programada: ['aluno-badge--programada', 'Programada'],
-                 andamento:  ['aluno-badge--andamento',  'Em andamento'],
-                 cancelada:  ['aluno-badge--cancelada',  'Cancelada'] }[t.fase];
+                 andamento:  ['aluno-badge--andamento',  'Em andamento'] }[t.fase];
 
     /* Chip de resumo no cabeçalho — o que dá pra saber sem abrir. */
     var resumo;
     if (t.fase === 'programada') {
       var falta = t.faltam;
       resumo = falta === 0 ? 'É hoje' : falta === 1 ? 'Amanhã' : 'Em ' + falta + ' dias';
-    } else if (t.fase === 'cancelada') {
-      resumo = 'Não realizada';
     } else {
       resumo = String(t.freq).replace('.', ',') + '%';
     }
@@ -365,7 +362,7 @@
        fechada não esconde um certificado liberado ou uma avaliação em
        aberto atrás de um clique a mais. */
     var acao = '';
-    if (t.fase !== 'programada' && t.fase !== 'cancelada') {
+    if (t.fase !== 'programada') {
       if (t.encerrada && t.atingiu) acao = '<span class="aluno-card-toggle-acao">🎉 Certificado</span>';
       else if (t.avaliacaoLiberada && !t.avaliacaoRespondida) acao = '<span class="aluno-card-toggle-acao">📝 Avaliar</span>';
     }
@@ -398,13 +395,6 @@
         t.dias.forEach(function (dia) { h += '<span class="aluno-dia">' + fmtDia(dia) + '</span>'; });
         h += '</div>';
       }
-      h += '</div></details>';
-      return h;
-    }
-
-    /* Turma cancelada: não foi realizada. Nem frequência nem certificado fazem sentido aqui. */
-    if (t.fase === 'cancelada') {
-      h += '<div class="aluno-prox"><p class="aluno-prox-msg">Esta turma foi cancelada e não será realizada, então não há certificado. Sua participação em outras turmas não é afetada.</p></div>';
       h += '</div></details>';
       return h;
     }
@@ -507,8 +497,7 @@
       var primeiraTurma = true;
       [['andamento',  'Em andamento'],
        ['programada', 'Programadas'],
-       ['concluida',  'Concluídas'],
-       ['cancelada',  'Canceladas']].forEach(function (g) {
+       ['concluida',  'Concluídas']].forEach(function (g) {
         var doGrupo = turmas.filter(function (t) { return t.fase === g[0]; });
         if (!doGrupo.length) return;
         html += '<h4 class="aluno-grupo">' + g[1] + ' <span class="aluno-grupo-qtd">' + doGrupo.length + ' turma' + (doGrupo.length !== 1 ? 's' : '') + '</span></h4>';
@@ -535,7 +524,6 @@
           '<p class="aluno-info-msg">⏳ Interesse registrado' +
             (p.desde ? ' em ' + new Date(p.desde).toLocaleDateString('pt-BR') : '') +
             '. A confirmação da vaga é feita pela organização — quando ela sair, esta turma passa para “Minhas turmas” com sua frequência e o certificado.</p>' +
-          (p.cancelada ? '<p class="aluno-info-obs">Esta turma foi cancelada e não será realizada.</p>' : '') +
           (p.encerrada ? '<p class="aluno-info-obs">Esta turma já foi encerrada. Se você não foi confirmado, procure a organização pela página <a href="#ajuda">Ajuda</a>.</p>' : '') +
         '</div>';
       });

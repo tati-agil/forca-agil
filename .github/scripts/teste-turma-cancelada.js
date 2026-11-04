@@ -5,14 +5,15 @@
  *      data e responsável: nem encerrada, nem dataConclusao, nem pessoas, nem histórico, nem fila;
  *   2. o cartão mostra TURMA CANCELADA, motivo, data e responsável, sem nada que ponha gente na turma; a turma encerrada antes
  *      aparece como TURMA CONCLUÍDA e não pode ser cancelada;
- *   3. página Turmas: "Turma cancelada", sem botão, mesmo com a data já passada; a concluída continua "Turma realizada";
- *   4. Minha Área: "Canceladas", sem certificado e sem frequência; a turma concluída continua com certificado; a cancelada não é
- *      oferecida como aberta;
+ *   3. página Turmas: a cancelada não aparece, nem o evento só com turmas canceladas (salvo com a fila ligada); a concluída
+ *      continua "Turma realizada";
+ *   4. Minha Área: a cancelada não aparece, nem como inscrição, nem como interesse, nem como aberta; a turma concluída continua
+ *      com certificado;
  *   5. regras de entrada: registro em turma cancelada não impede outra turma nem evento (regrasDeEntrada e
  *      conflitosDeParticipacao concordam); em turma não cancelada continua impedindo;
  *   6. confirmar em outra turma não mexe na inscrição da cancelada; a cancelada não é destino de movimentação;
  *   7. Dashboard: quem está em turma cancelada não conta como participante;
- *   8. check-in recusa; a área do facilitador mostra "Canceladas";
+ *   8. check-in recusa; a área do facilitador não mostra a cancelada;
  *   9. os motivos do site são os mesmos das regras do banco;
  *  10. sem rolagem lateral; nenhum erro de JavaScript. */
 const { chromium } = require('playwright');
@@ -40,7 +41,7 @@ function banco() {
     tAntesCanc: { [chave(ANA)]: inscrita(ANA, 'ANA LIMA') },
     tAntesVale: { [chave(BIA)]: inscrita(BIA, 'BIA NEVES') },
     /* inscrita só em turma cancelada, e na fila: para a Visão por pessoa do Excel completo */
-    tSoCanc: { [chave(CAIO)]: inscrita(CAIO, 'CAIO REIS') }
+    tSoCanc: { [chave(CAIO)]: inscrita(CAIO, 'CAIO REIS'), [chave(ANA)]: interesse(ANA, 'ANA LIMA') }
   };
   return {
     'fa-users': { [chave(ADM)]: { name: 'ADMIN', email: ADM, area: 'INFOR' }, [chave(ANA)]: { name: 'ANA LIMA', email: ANA, area: 'GECAT' }, [chave(BIA)]: { name: 'BIA NEVES', email: BIA, area: 'GECAT' } },
@@ -51,7 +52,8 @@ function banco() {
       evGrupo: { nome: 'EPISÓDIO GRUPO', order: 1, publicado: true, cargaHoraria: '3', umaTurmaPorPessoa: true, percentualMinimo: 0 },
       evAntes: { nome: 'EPISÓDIO ANTES', order: 2, publicado: true, cargaHoraria: '3' },
       evDepois: { nome: 'EPISÓDIO DEPOIS', order: 3, publicado: true, cargaHoraria: '3', bloqueiaParticipantesDe: { evAntes: true } },
-      evSoCanc: { nome: 'EPISÓDIO SÓ CANCELADO', order: 4, publicado: true, cargaHoraria: '3' },
+      evSoCanc: { nome: 'EPISÓDIO SÓ CANCELADO', order: 4, publicado: true, cargaHoraria: '3', esperaAtiva: false },
+      evFilaCanc: { nome: 'EPISÓDIO FILA LIGADA', order: 6, publicado: true, cargaHoraria: '3', esperaAtiva: true },
       evConcl: { nome: 'EPISÓDIO CONCLUÍDO', order: 5, publicado: true, cargaHoraria: '3', percentualMinimo: 0 }
     },
     turmas: {
@@ -62,7 +64,8 @@ function banco() {
       tAntesCanc: { label: 'ANTES CANCELADA', eventoKey: 'evAntes', order: 5, dias: ['2027-05-01'] },
       tAntesVale: { label: 'ANTES VALE', eventoKey: 'evAntes', order: 6, dias: ['2027-05-02'] },
       tDepois: { label: 'TURMA DEPOIS', eventoKey: 'evDepois', order: 7, dias: ['2027-11-05'] },
-      tSoCanc: { label: 'TURMA SO CANCELADA', eventoKey: 'evSoCanc', order: 8, dias: ['2027-11-06'] }
+      tSoCanc: { label: 'TURMA SO CANCELADA', eventoKey: 'evSoCanc', order: 8, dias: ['2027-11-06'] },
+      tFilaCanc: { label: 'TURMA FILA CANCELADA', eventoKey: 'evFilaCanc', order: 9, dias: ['2027-11-07'] }
     },
     'turmas-interesse': ti,
     'turmas-interesse-log': {},
@@ -70,10 +73,11 @@ function banco() {
       tJaCanc: { cancelamento: CANC },
       tConcl: { finalizada: true, encerrada: true, dataConclusao: '2026-01-11' },
       tAntesCanc: { cancelamento: CANC },
-      tSoCanc: { cancelamento: CANC }
+      tSoCanc: { cancelamento: CANC },
+      tFilaCanc: { cancelamento: CANC }
     },
     'turmas-checkin': { tConcl: {} }, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-sorteio': {}, avaliacoes: {}, pedidos: {}, holocron: {},
-    'turmas-equipe': { tJaCanc: { [chave(ANA)]: { email: ANA, name: 'ANA LIMA', papel: 'facilitador' } } }
+    'turmas-equipe': { tJaCanc: { [chave(ANA)]: { email: ANA, name: 'ANA LIMA', papel: 'facilitador' } }, tConcl: { [chave(ANA)]: { email: ANA, name: 'ANA LIMA', papel: 'facilitador' } } }
   };
 }
 
@@ -132,6 +136,17 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
         await tocar(page, '.turma-cancelar-confirmar');
         const erroSem = await page.evaluate(() => { const e = document.querySelector('[data-cancelar-turma] .admin-motivo-erro'); return !e.hidden && /motivo/i.test(e.textContent); });
         await page.selectOption('.turma-cancelar-motivo', 'outro');
+        const campo = await page.evaluate(() => {
+          const j = document.querySelector('.turma-cancelar-just'), s = document.querySelector('.turma-cancelar-motivo'), rj = j.getBoundingClientRect(), rs = s.getBoundingClientRect(), cj = getComputedStyle(j), cs = getComputedStyle(s);
+          const rot = document.querySelector('.turma-cancelar-just-campo'), r = document.createRange(); r.selectNode(rot.firstChild);
+          return { largura: Math.abs(rj.width - rs.width) <= 1, fundo: cj.backgroundColor === cs.backgroundColor, cor: cj.color === cs.color, abaixoDoRotulo: rj.top >= r.getBoundingClientRect().bottom - 1, fonte: cj.fontFamily === cs.fontFamily };
+        });
+        anota(nome + ': a justificativa segue o padrão do campo de motivo: mesma largura, fundo, cor e fonte, abaixo do rótulo', Object.values(campo).every(Boolean), JSON.stringify(campo));
+        if (process.env.FA_SHOTS) {
+          await page.fill('.turma-cancelar-just', 'Decisão da GETHO de priorizar a Turma de Gerentes Executivos');
+          await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'canc-just-' + opt.viewport.width + '.png') });
+          await page.fill('.turma-cancelar-just', '');
+        }
         await tocar(page, '.turma-cancelar-confirmar');
         const erroJust = await page.evaluate(() => { const e = document.querySelector('[data-cancelar-turma] .admin-motivo-erro'); return !e.hidden && /justificativa/i.test(e.textContent) && !document.querySelector('.turma-cancelar-just-campo').hidden; });
         const nada = await page.evaluate((a) => (window.__ESCRITAS || []).length === a, antes);
@@ -200,31 +215,24 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
       /* ── a página Turmas e a Minha Área, como a pessoa ── */
       {
         const { ctx, page, erros } = await abrir(browser, opt, ANA, 'turmas');
-        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tJaCanc"]'), null, { limite: 15000, descricao: 'os cards' });
+        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tOutra"]'), null, { limite: 15000, descricao: 'os cards' });
         const cards = await page.evaluate(() => {
-          const c = (k) => { const e = document.querySelector('[data-turma-key="' + k + '"]'); return e ? { t: e.innerText, botao: !!e.querySelector('.btn--interest') } : null; };
-          return { canc: c('tJaCanc'), concl: c('tConcl'), aberta: c('tOutra'), divisores: Array.from(document.querySelectorAll('.turmas-periodo-divisor')).map((x) => x.textContent) };
+          const c = (k) => { const e = document.querySelector('[data-turma-key="' + k + '"]'); return e ? e.innerText : null; };
+          const grupo = (k) => !!document.querySelector('.turmas-evento-grupo[data-evento-key="' + k + '"]');
+          return { canc: c('tJaCanc'), cancFila: c('tFilaCanc'), concl: c('tConcl'), aberta: c('tOutra'), corpo: document.body.innerText, evSoCanc: grupo('evSoCanc'), evFila: grupo('evFilaCanc'),
+            divisores: Array.from(document.querySelectorAll('.turmas-periodo-divisor')).map((x) => x.textContent) };
         });
-        anota(nome + ': página Turmas: "Turma cancelada", sem botão, mesmo com a data passada', cards.canc && /Turma cancelada/i.test(cards.canc.t) && !/realizada/i.test(cards.canc.t.replace('não será realizada', '')) && !cards.canc.botao, JSON.stringify(cards.canc));
-        anota(nome + ': página Turmas: a concluída continua "Turma realizada"', cards.concl && /Turma realizada/i.test(cards.concl.t), JSON.stringify(cards.concl));
-        anota(nome + ': página Turmas: evento só com turma cancelada fica em "Eventos cancelados", não em realizados', cards.divisores.includes('Eventos cancelados'), cards.divisores.join(' | '));
-        anota(nome + ': a página não mostra o motivo a quem participa', !/quórum/i.test(await page.evaluate(() => document.querySelector('[data-turma-key="tJaCanc"]').innerText)));
-
-        if (process.env.FA_SHOTS) {
-          await page.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; document.querySelector('[data-turma-key="tJaCanc"]').scrollIntoView({ block: 'center' }); });
-          await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'canc-card-' + opt.viewport.width + '.png') });
-        }
+        anota(nome + ': página Turmas: a cancelada não aparece; as outras do evento, sim', cards.canc === null && cards.aberta !== null && !/Turma cancelada/i.test(cards.corpo), JSON.stringify(cards.canc));
+        anota(nome + ': página Turmas: a concluída continua "Turma realizada"', cards.concl && /Turma realizada/i.test(cards.concl), JSON.stringify(cards.concl));
+        anota(nome + ': página Turmas: evento só com canceladas some; com a fila ligada, fica sem a turma', !cards.evSoCanc && cards.evFila && cards.cancFila === null && !cards.divisores.includes('Eventos cancelados'), JSON.stringify([cards.evSoCanc, cards.evFila, cards.divisores]));
+        if (process.env.FA_SHOTS) await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'canc-turmas-' + opt.viewport.width + '.png') });
         await page.evaluate(() => { location.hash = '#minha-area'; });
         await esperarCondicao(page, () => document.querySelectorAll('.aluno-grupo').length > 0, null, { limite: 15000, descricao: 'a Minha Área' });
         const area = await page.evaluate(() => ({ grupos: Array.from(document.querySelectorAll('.aluno-grupo')).map((g) => g.textContent),
           cards: Array.from(document.querySelectorAll('.aluno-card--expansivel')).map((c) => c.textContent), corpo: document.body.innerText }));
-        const cardCanc = area.cards.find((c) => c.includes('TURMA JA CANCELADA')) || '', cardConcl = area.cards.find((c) => c.includes('TURMA CONCLUIDA')) || '';
-        anota(nome + ': Minha Área: grupo "Canceladas", sem certificado e sem frequência', area.grupos.some((g) => g.includes('Canceladas')) && /foi cancelada/.test(cardCanc) && !/Certificado liberado|Baixar PNG|Sua frequência/.test(cardCanc), cardCanc.slice(0, 200));
+        const cardConcl = area.cards.find((c) => c.includes('TURMA CONCLUIDA')) || '';
+        anota(nome + ': Minha Área: a cancelada não aparece, nem como inscrição, nem como interesse', !/TURMA JA CANCELADA|ANTES CANCELADA|TURMA SO CANCELADA|Canceladas/.test(area.corpo), area.grupos.join(' | '));
         anota(nome + ': Minha Área: a concluída continua com o certificado', area.grupos.some((g) => g.includes('Concluídas')) && /Certificado/.test(cardConcl), cardConcl.slice(0, 200));
-        if (process.env.FA_SHOTS) {
-          await page.evaluate(() => { const g = Array.from(document.querySelectorAll('.aluno-grupo')).find((x) => x.textContent.includes('Canceladas')); document.documentElement.style.scrollBehavior = 'auto'; g.nextElementSibling.querySelector('summary').click(); g.scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); });
-          await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'canc-area-' + opt.viewport.width + '.png') });
-        }
         anota(nome + ': pessoa: sem rolagem lateral; nenhum erro de JavaScript', !erros.length && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), erros.join(' | '));
         await ctx.close();
       }
@@ -235,8 +243,8 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
         await esperarCondicao(page, () => /foi cancelada/.test(document.body.innerText), null, { limite: 15000, descricao: 'a recusa do check-in' });
         anota(nome + ': check-in recusa em turma cancelada', true);
         await page.evaluate(() => { location.hash = '#facilitador'; });
-        await esperarCondicao(page, () => /Canceladas \(1\)/.test(document.body.innerText), null, { limite: 15000, descricao: 'o grupo Canceladas do facilitador' });
-        anota(nome + ': área do facilitador: grupo "Canceladas"', true);
+        await esperarCondicao(page, () => /Concluídas \(1\)/.test(document.body.innerText), null, { limite: 15000, descricao: 'a área do facilitador' });
+        anota(nome + ': área do facilitador: a cancelada não aparece', await page.evaluate(() => !/TURMA JA CANCELADA|Canceladas/.test(document.body.innerText)));
         anota(nome + ': check-in e facilitador: nenhum erro de JavaScript', !erros.length, erros.join(' | '));
         await ctx.close();
       }

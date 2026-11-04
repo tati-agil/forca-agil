@@ -4833,14 +4833,14 @@
     box.style.cssText = 'max-width:480px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto';
     box.innerHTML =
       '<p style="font-size:.95rem;line-height:1.55;color:var(--ink);margin:0">Cancelar a turma "' + esc(t.label) + '"?</p>' +
-      '<p style="font-size:.84rem;line-height:1.55;color:var(--ink-2);margin:0">Ela não será realizada: o card público mostra "Turma cancelada", ninguém novo entra e não há certificado. ' +
+      '<p style="font-size:.84rem;line-height:1.55;color:var(--ink-2);margin:0">Ela não será realizada: some da página Turmas, da Minha Área e da área do facilitador (só o ADMIN continua vendo), ninguém novo entra e não há certificado. ' +
         (nAtivos ? (nAtivos === 1 ? 'A pessoa registrada continua' : 'As ' + nAtivos + ' pessoas registradas continuam') + ' na turma, com o histórico preservado; ninguém vai para a lista de espera. ' : '') +
         'Essa ação não pode ser desfeita pelo painel.</p>' +
       '<label class="admin-field-label">Motivo do cancelamento<select class="admin-motivo-select turma-cancelar-motivo">' +
         '<option value="">Escolha…</option>' +
         window.faTurmasUtil.MOTIVOS_CANCELAMENTO.map(function (m) { return '<option value="' + esc(m.key) + '">' + esc(m.label) + '</option>'; }).join('') +
       '</select></label>' +
-      '<label class="admin-field-label turma-cancelar-just-campo" hidden>Justificativa<textarea class="admin-excecao-motivo turma-cancelar-just" rows="3" maxlength="500"></textarea></label>' +
+      '<label class="admin-field-label turma-cancelar-just-campo" hidden>Justificativa<textarea class="admin-motivo-outro turma-cancelar-just" rows="3" maxlength="500" style="display:block;box-sizing:border-box;resize:vertical"></textarea></label>' +
       '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
         '<button type="button" class="btn admin-modal-cancel-btn">Voltar</button>' +

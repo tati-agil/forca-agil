@@ -66,13 +66,14 @@
       Object.keys(equipeTudo).forEach(function (turmaKey) {
         var membro = (equipeTudo[turmaKey] || {})[minhaKey];
         if (!membro) return;
+        if (window.faTurmasUtil.turmaCancelada(config[turmaKey])) return; /* turma cancelada só aparece no ADMIN */
         var t = turmas[turmaKey];
         if (!t) return;
         var ev = t.eventoKey ? (eventos[t.eventoKey] || {}) : {};
         var cfg = config[turmaKey] || {};
         var diasOrd = (t.dias || []).slice().sort();
         var primeiro = diasOrd[0] || '';
-        var fase = window.faTurmasUtil.turmaCancelada(cfg) ? 'cancelada' : cfg.encerrada ? 'concluida' : (primeiro && primeiro > todayISO()) ? 'programada' : 'andamento';
+        var fase = cfg.encerrada ? 'concluida' : (primeiro && primeiro > todayISO()) ? 'programada' : 'andamento';
         minhas.push({
           turmaKey: turmaKey, turma: Object.assign({ key: turmaKey }, t),
           eventoNome: ev.nome || 'Evento', papel: membro.papel,
@@ -94,7 +95,7 @@
       return;
     }
 
-    var GRUPOS = [['andamento', 'Em andamento'], ['programada', 'Programadas'], ['concluida', 'Concluídas'], ['cancelada', 'Canceladas']];
+    var GRUPOS = [['andamento', 'Em andamento'], ['programada', 'Programadas'], ['concluida', 'Concluídas']];
     GRUPOS.forEach(function (g) {
       var doGrupo = minhas.filter(function (m) { return m.fase === g[0]; })
         .sort(function (a, b) { return (a.primeiro || '').localeCompare(b.primeiro || ''); });
