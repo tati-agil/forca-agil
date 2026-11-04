@@ -858,6 +858,18 @@
 
 /* Ações do menu "⋯" — rótulo por extenso e uma linha dizendo o que faz. */
 .cad-acoes-lista { display: flex; flex-direction: column; gap: 8px; }
+/* ⋯ de Cadastrados: onde a pessoa está (só consulta) */
+.cad-vinculos { background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.cad-vinculos-titulo { margin: 0 0 6px; font-size: .82rem; font-weight: 600; color: var(--ink); }
+.cad-vinculos-msg { margin: 0; font-size: .8rem; line-height: 1.45; color: var(--ink-2); }
+.cad-vinculos-msg--aviso { color: var(--gold); }
+.cad-vinculos-lista { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cad-vinculos-lista li { display: flex; flex-direction: column; gap: 1px; min-width: 0; overflow-wrap: anywhere; }
+.cad-vinculo-nome { font-size: .82rem; line-height: 1.4; color: var(--ink); }
+.cad-vinculo-nota { font-size: .76rem; color: var(--ink-3); }
+.cad-vinculo-situacao { font-size: .76rem; font-weight: 600; color: var(--ink-2); }
+.cad-vinculo-situacao--inscrita { color: var(--cyan); }
+.cad-vinculo-situacao--fila { color: var(--gold); }
 .cad-acao-btn {
   display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left;
   padding: 11px 14px; border-radius: 9px; cursor: pointer;
