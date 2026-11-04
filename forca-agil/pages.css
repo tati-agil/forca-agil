@@ -1473,6 +1473,19 @@
 .gerentes-lote-erro { margin: 0; font-size: .8rem; color: var(--red); }
 .gerentes-lote-erro[hidden] { display: none; }
 .gerentes-lote-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+/* Títulos das colunas sempre à vista, fundo opaco. A partir de 1180 px (a mesma regra de Cadastrados) a tabela cabe na caixa:
+   sai o overflow do contêiner, que anularia o sticky, e os títulos param logo abaixo do menu. Abaixo disso a tabela rola por
+   dentro nos dois sentidos, e os títulos param no topo do próprio quadro. */
+#adminGerentes .admin-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel-2); box-shadow: 0 1px 0 var(--line-strong); }
+#adminGerentes .admin-table { overflow: visible; }
+#adminGerentes .table-scroll-wrap { max-height: 70vh; overflow: auto; }
+#adminGerentes .admin-table tbody :is(button, select) { scroll-margin-top: 56px; }
+@media (min-width: 1180px) {
+  #adminGerentes .table-scroll-wrap { max-height: none; overflow: visible; }
+  #adminGerentes .admin-table thead th { top: var(--nav-h, 73px); }
+  #adminGerentes .admin-table tbody :is(button, select) { scroll-margin-top: calc(var(--nav-h, 73px) + 56px); }
+  #adminGerentes .admin-table td { overflow-wrap: anywhere; }
+}
 /* filas de espera da pessoa na pergunta de entrada (＋ Participante, Confirmar, lote) */
 .fila-pessoa .mov-op { flex-wrap: nowrap; }
 .fila-pessoa .mov-op > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }

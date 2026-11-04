@@ -565,6 +565,12 @@
       "sobre": "A caixa do ⋯ lista as turmas em que a pessoa é interessada ou inscrita (evento, turma, datas, situação, turma realizada) e as listas de espera com a data; removido não aparece; quem não tem nada vê a frase certa; leitura que falha ou incompleta avisa e nunca vira não está em nenhuma; nada é gravado; 375 px sem rolagem lateral."
     },
     {
+      "arquivo": ".github/scripts/teste-gerentes-cabecalho-fixo.js",
+      "nome": "Aba Gerentes: os títulos das colunas ficam à vista ao descer a lista, desktop, tela média e celular",
+      "duracao": 15,
+      "sobre": "No desktop os títulos param logo abaixo do menu, sem rolagem interna; em tela média e no celular a tabela rola por dentro e os títulos param no topo do quadro; fundo opaco; títulos acompanham as colunas na rolagem lateral; sem rolagem lateral da página."
+    },
+    {
       "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",
       "nome": "Turmas: vagas (lotada) e público Só gerentes / Só técnicos, desktop",
       "duracao": 45,
