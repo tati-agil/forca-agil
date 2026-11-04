@@ -547,6 +547,12 @@
       "sobre": "Toda exportação por turma traz Data da turma, Horário, Sala e Público (Quem participa do evento; vazio = Empregados) logo depois de Turma; a frequência sai como 1 de 2 (50%), nunca 1/2 (que o Excel lia como data); o cabeçalho da turma no painel mostra horário e público; o botão Turmas e parâmetros baixa um Excel com as abas Turmas e Eventos, sem nenhum nome ou e-mail; o critério de frequência do CSV é o percentual mínimo do evento; evento sem o campo de lista de espera aparece como aceitando; Tirar da fila para uma turma como Inscrita tira a inscrição em outra turma, como o Confirmar."
     },
     {
+      "arquivo": ".github/scripts/teste-excel-completo.js",
+      "nome": "ADMIN › Eventos: Excel completo, três abas com o estado atual, a lista de espera e o histórico",
+      "duracao": 20,
+      "sobre": "Um XLSX com as abas Estado atual, Lista de espera e Histórico; quem saiu fica fora do estado e da fila; a coluna Fonte do dado separa a linha do histórico do registro atual; entrada na fila e confirmação sem linha aparecem pelo registro; o Histórico em CSV não muda; aba vazia mantém o cabeçalho; falha ao gerar avisa e devolve o botão; nada é gravado; desktop e 375 px."
+    },
+    {
       "arquivo": ".github/scripts/teste-movimentacao-turmas.js",
       "nome": "Painel: remover da turma ou da fila com destino (outra turma, Interessada/Inscrita), período e datas nos cabeçalhos, lista de presença, desktop e celular",
       "duracao": 40,
@@ -581,6 +587,12 @@
       "nome": "Cadastrados, menu ⋯: seções Participações e Ações administrativas com 0, 1, 2 e muitas participações, desktop, 375 px e celular baixo",
       "duracao": 25,
       "sobre": "Seção Participações com o total e Ações administrativas à parte; muitas participações rolam por dentro, nenhuma some, e as ações não são empurradas; descrições das ações preservadas; duas colunas de ações no desktop e uma no celular; sem rolagem lateral; padrão visual verificado; nada é gravado."
+    },
+    {
+      "arquivo": ".github/scripts/teste-fila-espera-cabecalho-fixo.js",
+      "nome": "Lista de espera no ADMIN: os títulos das colunas ficam à vista ao descer a lista, desktop, tela média e celular",
+      "duracao": 15,
+      "sobre": "No desktop os títulos param logo abaixo do menu, sem rolagem interna e sem cortar a coluna Ações, mesmo com e-mail comprido; em tela média e no celular a tabela rola por dentro e os títulos param no topo do quadro; fundo opaco; títulos acompanham as colunas na rolagem lateral; sem rolagem lateral da página."
     },
     {
       "arquivo": ".github/scripts/teste-fila-espera-exportar.js",

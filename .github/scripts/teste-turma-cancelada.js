@@ -249,6 +249,15 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
       const n = await page.evaluate(() => (document.body.innerText.match(/(\d+) inscritos?/i) || [])[1]);
       /* confirmadas fora de turma cancelada: tConcl (ANA) e tAntesVale (BIA). tJaCanc (2) e tAntesCanc (1) não contam */
       anota('Dashboard: quem está em turma cancelada não conta como participante', n === '2', 'lido: ' + n);
+      /* Excel completo: as pessoas continuam na turma, e a situação diz que ela foi cancelada */
+      await abaAdmin(page, 'Eventos');
+      await esperarCondicao(page, () => !!document.querySelector('#exportExcelCompletoBtn'), null, { limite: 15000, descricao: 'o botão Excel completo' });
+      const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.evaluate(() => document.querySelector('#exportExcelCompletoBtn').click())]);
+      const XLSX = require(path.join(__dirname, '..', '..', 'forca-agil', 'xlsx.mini.min.js'));
+      const wb = XLSX.read(fs.readFileSync(await dl.path()), { type: 'buffer' });
+      const est = XLSX.utils.sheet_to_json(wb.Sheets['Estado atual'], { defval: '' });
+      const canc = est.filter((x) => x.Turma === 'TURMA JA CANCELADA'), concl = est.filter((x) => x.Turma === 'TURMA CONCLUIDA');
+      anota('Excel completo: as pessoas seguem na turma cancelada, com a situação "Cancelada"; a concluída segue "Realizada"', canc.length === 2 && canc.every((x) => x['Situação da turma'] === 'Cancelada') && concl.length === 1 && concl[0]['Situação da turma'] === 'Realizada', JSON.stringify(canc.concat(concl).map((x) => x['Situação da turma'])));
       anota('Dashboard: nenhum erro de JavaScript', !erros.length, erros.join(' | '));
       await ctx.close();
     }

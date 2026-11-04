@@ -1718,6 +1718,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
    página nem sair pela borda de baixo. */
 .dash-filtro-lista { display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow-y: auto; }
 .dash-filtro-opt {
+  flex: 0 0 auto; /* a lista tem altura limitada: sem isto, com muitas opções, elas eram espremidas e os textos se sobrepunham */
   display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
   background: none; border: none; color: var(--ink-2); cursor: pointer;
   font-family: inherit; font-size: .82rem; padding: 8px 8px; border-radius: 6px;

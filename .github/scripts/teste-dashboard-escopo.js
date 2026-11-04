@@ -101,7 +101,7 @@ function bancoGrande(nEv, nTu) {
   const admins = {}; admins[chave(ADM)] = { email: ADM, name: 'ADMIN' };
   const eventos = {}, turmas = {}, interesse = {};
   for (let e = 1; e <= nEv; e++) {
-    eventos['ev' + e] = { nome: 'FORÇA ÁGIL · EVENTO ' + e, order: e, publicado: true, cargaHoraria: '8' };
+    eventos['ev' + e] = { nome: 'EPISÓDIO ' + e + ' - A REBELIÃO SE ESPALHA', order: e, publicado: true, cargaHoraria: '8' };
     for (let t = 1; t <= nTu; t++) {
       const k = 'ev' + e + 't' + t;
       turmas[k] = { label: 'Turma ' + t + ' do evento ' + e + ' — 2026', eventoKey: 'ev' + e, dias: ['2026-01-01'] };
@@ -376,6 +376,19 @@ const FORMATOS = [
     if (filtrou.depois.length !== 2 || !filtrou.depois.some((t) => t.indexOf('Turma 7 do evento 2') !== -1)) {
       p.push('buscar não reduziu a lista à turma procurada (sobrou: ' + JSON.stringify(filtrou.depois) + ')');
     }
+    /* Com muitas opções a lista tem altura limitada: nenhuma opção pode ser espremida a ponto de o nome do evento invadir a
+       turma de baixo. */
+    const legivel = await doze.page.evaluate(() => {
+      const filtro = document.querySelector('.dash-filtro[data-campo="turma"]'), busca = filtro.querySelector('.dash-filtro-busca');
+      if (!filtro.classList.contains('aberto')) filtro.querySelector('.dash-filtro-btn').click();
+      busca.value = ''; busca.dispatchEvent(new Event('input', { bubbles: true }));
+      const ops = Array.from(filtro.querySelectorAll('.dash-filtro-opt:not([hidden])'));
+      const lista = filtro.querySelector('.dash-filtro-lista');
+      return { total: ops.length, rolavel: lista.scrollHeight > lista.clientHeight + 1,
+        invadem: ops.filter((o, i) => { const t = o.querySelector('.dash-filtro-texto'); const prox = ops[i + 1];
+          return t && prox && t.getBoundingClientRect().bottom > prox.getBoundingClientRect().top + 1; }).length };
+    });
+    if (legivel.total < 30 || !legivel.rolavel || legivel.invadem) p.push('a lista do filtro ficou ilegível: ' + JSON.stringify(legivel));
     anotaCompacto(formato.nome + ' · o filtro não cresce quando os eventos e turmas aumentam', p, falhas);
     await doze.ctx.close();
   }
