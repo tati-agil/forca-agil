@@ -7059,7 +7059,7 @@
     var limite = new Promise(function (res) { setTimeout(function () { res(null); }, 8000); });
     var lerFilas = new Promise(function (res) { lerFilasDe([eKey], res); });
     Promise.all([Promise.race([lerTurmas, limite]), lerFilas]).then(function (r) {
-      var d = r[0], filas = r[1], html = '', avisos = [];
+      var d = r[0], filas = r[1], html = '', avisos = [], total = 0;
       var nomeEv = function (k) { var e = d && d.eventos[k]; return (e && e.nome) || ''; };
       if (d) {
         var agora = new Date();
@@ -7069,6 +7069,7 @@
         d.regs.filter(function (x) { return x.r && !x.r.removed && x.r.status !== 'removido'; })
           .sort(function (a, b) { return primeiroDia(d.turmas[b.k]).localeCompare(primeiroDia(d.turmas[a.k])); })
           .forEach(function (x) {
+            total++;
             var t = d.turmas[x.k] || {}, ev = nomeEv(t.eventoKey);
             var inscrita = x.r.status === 'inscrito';
             var realizada = window.faTurmasUtil.turmaJaRealizada(t.dias, !!(d.config[x.k] || {}).encerrada, hoje);
@@ -7081,14 +7082,27 @@
       }
       if (filas) {
         filas.forEach(function (f) {
+          total++;
           html += linha('Lista de espera' + (f.eventoKey ? ' — ' + (nomeEv(f.eventoKey) || f.eventoKey) : ' — sem evento'), f.desde ? 'na fila desde ' + fmtDate(f.desde) : '', 'Na fila', 'cad-vinculo-situacao--fila');
         });
       } else {
         avisos.push('Não consegui ler a lista de espera agora. Feche e abra de novo.');
       }
       var corpo = host.querySelector('.cad-vinculos-corpo');
-      corpo.innerHTML = (html ? '<ul class="cad-vinculos-lista">' + html + '</ul>' : (avisos.length ? '' : '<p class="cad-vinculos-msg">Não está em nenhuma turma nem na lista de espera.</p>')) +
+      corpo.innerHTML = (html ? '<ul class="cad-vinculos-lista">' + html + '</ul><p class="cad-vinculos-msg cad-vinculos-dica" hidden>Role a lista para ver todas.</p>' : (avisos.length ? '' : '<p class="cad-vinculos-msg">Não está em nenhuma turma nem na lista de espera.</p>')) +
         avisos.map(function (a) { return '<p class="cad-vinculos-msg cad-vinculos-msg--aviso">' + esc(a) + '</p>'; }).join('');
+      /* leitura incompleta não tem total: um número ali afirmaria o que não se sabe */
+      var contador = host.querySelector('.cad-vinculos-contador');
+      contador.textContent = String(total);
+      contador.hidden = !!avisos.length;
+      /* a lista tem altura limitada, para as ações não serem empurradas. No celular a barra de rolagem não aparece: a dica
+         diz que há mais, e pelo teclado a lista recebe foco para rolar */
+      var lista = corpo.querySelector('.cad-vinculos-lista');
+      if (lista && lista.scrollHeight > lista.clientHeight + 1) {
+        lista.tabIndex = 0;
+        lista.setAttribute('aria-label', 'Lista de participações, com rolagem');
+        corpo.querySelector('.cad-vinculos-dica').hidden = false;
+      }
     });
   }
 
@@ -7105,7 +7119,7 @@
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
     var box = document.createElement('div');
     box.className = 'modal-box cad-acoes-modal';
-    box.style.cssText = 'max-width:420px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:85vh;overflow:auto';
+    box.style.cssText = 'max-width:640px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow:auto';
 
     var acoes = [
       { id: 'editar',   rotulo: '&#x270E; Editar cadastro',
@@ -7136,8 +7150,9 @@
           (pessoa.area ? ' · ' + esc(pessoa.area) : '') + '</p>' +
         (bloqueado ? '<p style="font-size:.8rem;color:var(--red,#ff3b30);margin:6px 0 0">Cadastro bloqueado.</p>' : '') +
       '</div>' +
-      '<div class="cad-vinculos" data-cad-vinculos aria-live="polite"><p class="cad-vinculos-titulo">Turmas e lista de espera</p>' +
-        '<div class="cad-vinculos-corpo"><p class="cad-vinculos-msg">Carregando…</p></div></div>' +
+      '<section class="cad-vinculos" data-cad-vinculos aria-live="polite"><h4 class="cad-secao-titulo">Participações <span class="admin-badge cad-vinculos-contador" hidden></span></h4>' +
+        '<div class="cad-vinculos-corpo"><p class="cad-vinculos-msg">Carregando…</p></div></section>' +
+      '<section class="cad-acoes-secao"><h4 class="cad-secao-titulo">Ações administrativas</h4>' +
       '<div class="cad-acoes-lista">' +
         acoes.map(function (a) {
           return '<button class="cad-acao-btn' + (a.perigo ? ' cad-acao-btn--perigo' : '') + '" data-acao="' + a.id + '">' +
@@ -7145,7 +7160,7 @@
                    '<span class="cad-acao-ajuda">' + esc(a.ajuda) + '</span>' +
                  '</button>';
         }).join('') +
-      '</div>' +
+      '</div></section>' +
       '<div style="display:flex;justify-content:flex-end">' +
         '<button class="btn admin-modal-cancel-btn">Fechar</button>' +
       '</div>';
