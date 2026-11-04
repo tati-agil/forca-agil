@@ -1509,6 +1509,18 @@
 .espera-tirar-btn { padding: 5px 12px; font-size: .75rem; white-space: nowrap; }
 /* exportar a lista de espera: recorte + Excel + PDF, acima da tabela */
 .espera-exportar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+/* Lista de espera: títulos das colunas sempre à vista, como em Gerentes. A partir de 1180 px a tabela cabe na caixa e os
+   títulos param logo abaixo do menu; abaixo disso ela rola por dentro e eles param no topo do próprio quadro. */
+.espera-tabela .admin-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel-2); box-shadow: 0 1px 0 var(--line-strong); }
+.espera-tabela .admin-table { overflow: visible; }
+.espera-tabela { max-height: 70vh; overflow: auto; }
+.espera-tabela .admin-table tbody button { scroll-margin-top: 56px; }
+@media (min-width: 1180px) {
+  .espera-tabela { max-height: none; overflow: visible; }
+  .espera-tabela .admin-table thead th { top: var(--nav-h, 73px); }
+  .espera-tabela .admin-table tbody button { scroll-margin-top: calc(var(--nav-h, 73px) + 56px); }
+  .espera-tabela .admin-table td:nth-child(2) { overflow-wrap: anywhere; } /* só o e-mail parte no meio: Área, nunca */
+}
 
 /* Destino de quem saiu da turma — coluna própria, para varrer com o olho */
 .destino-badge {
