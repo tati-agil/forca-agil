@@ -261,7 +261,7 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
       const canc = est.filter((x) => x.Turma === 'TURMA JA CANCELADA'), concl = est.filter((x) => x.Turma === 'TURMA CONCLUIDA');
       anota('Excel completo: as pessoas seguem na turma cancelada, com a situação "Cancelada"; a concluída segue "Realizada"', canc.length === 2 && canc.every((x) => x['Situação da turma'] === 'Cancelada') && concl.length === 1 && concl[0]['Situação da turma'] === 'Realizada', JSON.stringify(canc.concat(concl).map((x) => x['Situação da turma'])));
       const vis = XLSX.utils.sheet_to_json(wb.Sheets['Visão por pessoa'], { defval: '' }), vCaio = vis.find((x) => x['E-mail'] === CAIO) || {};
-      anota('Excel completo: Visão por pessoa mostra a inscrição como de turma cancelada, e ela não conta como "inscrita e na espera"', vCaio['Inscrita em'] === 'EPISÓDIO SÓ CANCELADO › TURMA SO CANCELADA (turma cancelada)' && vCaio['Na lista de espera de'] === 'EPISÓDIO GRUPO (Entrou pela lista)' && vCaio['Inscrita e na espera?'] === 'Não', JSON.stringify(vCaio));
+      anota('Excel completo: Visão por pessoa mostra a inscrição como de turma cancelada, e ela não conta na classificação', vCaio['Inscrita em'] === 'EPISÓDIO SÓ CANCELADO › TURMA SO CANCELADA (turma cancelada)' && vCaio['Na lista de espera de'] === 'EPISÓDIO GRUPO (Entrou pela lista)' && vCaio['Interessada/Inscrita e na lista de espera?'] === 'Não', JSON.stringify(vCaio));
       anota('Dashboard: nenhum erro de JavaScript', !erros.length, erros.join(' | '));
       await ctx.close();
     }

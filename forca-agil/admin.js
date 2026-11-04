@@ -5225,7 +5225,7 @@
            evento ao mesmo tempo. Mesmos critérios das abas Estado atual e Lista de espera. */
         var pessoas = {};
         var pessoaDe = function (k, r) {
-          var p = pessoas[k] = pessoas[k] || { name: '', email: '', area: '', inscrita: [], interessada: [], fila: [], evInscrita: {}, evFila: {} };
+          var p = pessoas[k] = pessoas[k] || { name: '', email: '', area: '', inscrita: [], interessada: [], fila: [], temInscricao: false, temInteresse: false };
           if (!p.name) p.name = r.name || ''; if (!p.email) p.email = r.email || ''; if (!p.area) p.area = r.area || '';
           return p;
         };
@@ -5235,20 +5235,20 @@
             if (!r || r.removed === true) return;
             var cancelada = window.faTurmasUtil.turmaCancelada(config[t.key]);
             var p = pessoaDe(k, r), onde = nomeEvento(t.eventoKey) + ' › ' + t.label + (cancelada ? ' (turma cancelada)' : '');
-            if (getStatus(r) === 'inscrito') { p.inscrita.push(onde); if (!cancelada) p.evInscrita[t.eventoKey || ''] = true; } else p.interessada.push(onde);
+            /* o vínculo com turma cancelada aparece na coluna, mas não conta na classificação */
+            if (getStatus(r) === 'inscrito') { p.inscrita.push(onde); if (!cancelada) p.temInscricao = true; }
+            else { p.interessada.push(onde); if (!cancelada) p.temInteresse = true; }
           });
         });
         Object.keys(espera).forEach(function (k) {
           window.faTurmasUtil.esperaAtivas(espera[k]).forEach(function (e) {
             var p = pessoaDe(k, e);
             p.fila.push(nomeEvento(e.eventoKey) + ' (' + origemDaEspera(e, turmas).rotulo + ')');
-            p.evFila[e.eventoKey || ''] = true;
           });
         });
         var linhasPessoa = Object.keys(pessoas).map(function (k) { return pessoas[k]; }).sort(cmpNome).map(function (p) {
-          var mesmo = Object.keys(p.evFila).some(function (ev) { return p.evInscrita[ev]; });
           return [p.name, p.email, p.area, p.inscrita.join('; '), p.interessada.join('; '), p.fila.join('; '),
-            !Object.keys(p.evInscrita).length || !p.fila.length ? 'Não' : mesmo ? 'Sim, no mesmo evento' : 'Sim, em eventos diferentes'];
+            !p.fila.length ? 'Não' : p.temInscricao ? 'Sim, inscrita' : p.temInteresse ? 'Sim, interessada' : 'Não'];
         });
 
         function aba(cab, linhas) {
@@ -5260,7 +5260,7 @@
           return ws;
         }
         var wb = window.XLSX.utils.book_new();
-        window.XLSX.utils.book_append_sheet(wb, aba(['Nome', 'E-mail', 'Área', 'Inscrita em', 'Interessada em', 'Na lista de espera de', 'Inscrita e na espera?'], linhasPessoa), 'Visão por pessoa');
+        window.XLSX.utils.book_append_sheet(wb, aba(['Nome', 'E-mail', 'Área', 'Inscrita em', 'Interessada em', 'Na lista de espera de', 'Interessada/Inscrita e na lista de espera?'], linhasPessoa), 'Visão por pessoa');
         window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Turma'].concat(COLUNAS_TURMA, ['Situação da turma', 'Nome', 'E-mail', 'Área', 'Situação', 'Data do registro', 'Registrado por', 'Confirmado por', 'Data da confirmação', 'Frequência']), estado), 'Estado atual');
         window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Origem', 'Data da turma de origem', 'Motivo', 'Nome', 'E-mail', 'Área', 'Situação', 'Data interesse', 'Data remoção'], linhasFila), 'Lista de espera');
         window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Turma'].concat(COLUNAS_TURMA, ['Nome', 'E-mail', 'Área', 'Data', 'Hora', 'Ação', 'Responsável', 'Motivo', 'Destino', 'Fonte do dado']), linhasHist), 'Histórico');
