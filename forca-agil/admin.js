@@ -3724,7 +3724,7 @@
       }).join('') + '</optgroup>';
     }
     return html + '<optgroup label="Só descrição (não restringem)">' + opt('', 'Empregados') + opt('Executivos', 'Executivos') +
-      opt('Cedidos', 'Cedidos') + opt('Quadro próprio', 'Quadro próprio') + '</optgroup>';
+      opt('Cedidos', 'Cedidos') + opt('Quadro próprio', 'Quadro próprio') + opt('Interno', 'Interno') + opt('Externo', 'Externo') + '</optgroup>';
   }
 
   function openEventoFormModal(existing) {

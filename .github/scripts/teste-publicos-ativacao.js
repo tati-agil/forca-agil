@@ -153,7 +153,7 @@ const formulario = (page) => page.evaluate(() => {
       anota(f + ': A5 teclado: Enter abre; Esc fecha SÓ a explicação — o formulário fica, com o nome digitado', abriuTeclado && !fo.abertas.length && fo.aberto && fo.nome === 'EVENTO DIGITADO', JSON.stringify(fo));
       anota(f + ': A6 Público-alvo separa o que restringe do que só descreve; antes da ativação, os novos desabilitados e Diretores escolhível',
         /^Restringem quem participa:Gerentes\|Técnicos\|Gerentes executivos\|Gerentes de núcleo$/.test(fo.grupos[0]) && /Diretores \(hoje só descrição\)\|Estagiários \(após a ativação\)\[x\]/.test(fo.grupos[1]) &&
-        /Assessores \(após a ativação\)\[x\]/.test(fo.grupos[1]) && /^Só descrição \(não restringem\):Empregados\|Executivos\|Cedidos\|Quadro próprio$/.test(fo.grupos[2]), JSON.stringify(fo.grupos));
+        /Assessores \(após a ativação\)\[x\]/.test(fo.grupos[1]) && /^Só descrição \(não restringem\):Empregados\|Executivos\|Cedidos\|Quadro próprio\|Interno\|Externo$/.test(fo.grupos[2]), JSON.stringify(fo.grupos));
       anota(f + ': A7 antes da ativação, "Visível só para diretores" continua no formulário', fo.diretoresCaixa);
       anota(f + ': A8 o formulário cabe na tela; abrir/fechar ajuda não grava nada', !fo.largura && !(await escritas(page)).length, JSON.stringify(await escritas(page)));
       await page.evaluate(() => document.querySelector('#eventoFormNome').closest('.modal-box').querySelector('.admin-modal-cancel-btn').click());

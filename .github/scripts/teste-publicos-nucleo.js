@@ -6,7 +6,7 @@
    T. Técnicos: antes da ativação, "quem não é gerente" (como sempre foi); depois, fora de Gerentes, Diretores e das sete
       categorias; leitura que falta ou falhou NUNCA vira técnico (null);
    G. Gerentes e Diretores pelos cadastros de sempre; Diretores só restringe com a ativação;
-   D. os descritivos (Empregados, Executivos, Cedidos, Quadro próprio) nunca restringem; nada de "Executivos" como público;
+   D. os descritivos (Empregados, Executivos, Cedidos, Quadro próprio, Interno, Externo) nunca restringem; nada de "Executivos" como público;
    R. o rótulo de cada público e o que ele faz antes/depois da ativação (o que o formulário do evento mostra).
    ═════════════════════════════════════════════════════════════════ */
 'use strict';
@@ -57,8 +57,12 @@ anota('G3 Diretores só restringe com a ativação (antes: descrição)', P.publ
 anota('G4 Diretores pelo cadastro de Diretores; não lido = não verificado', P.atende('diretores', pf({ diretor: true })) === true && P.atende('diretores', pf()) === false && P.atende('diretores', pf({ diretor: null })) === null);
 
 console.log('\n== D. só descrição ==');
-['', 'Executivos', 'Cedidos', 'Quadro próprio'].forEach((r) => anota('D1 "' + (r || 'Empregados') + '" nunca restringe', P.ehDescritivo(r) && P.publicoDoRotulo(r, true) === null && P.publicoDoRotulo(r, false) === null));
+['', 'Executivos', 'Cedidos', 'Quadro próprio', 'Interno', 'Externo'].forEach((r) => anota('D1 "' + (r || 'Empregados') + '" nunca restringe', P.ehDescritivo(r) && P.publicoDoRotulo(r, true) === null && P.publicoDoRotulo(r, false) === null));
 anota('D2 "Executivos" continua só descrição (não é "Gerentes executivos") e não há cadastro de cargos', !P.PUBLICOS.some((p) => p.rotulo === 'Executivos' || p.chave === 'executivos') && P.ehDescritivo('Executivos') && P.DESCRITIVOS.indexOf('Executivos') !== -1);
+/* a frase do bloco "Como funciona" (PUBLICO_TXT em app.js): rótulo sem entrada cairia em "aberta a todos os empregados" */
+const APP = require('fs').readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'app.js'), 'utf8');
+const semFrase = P.PUBLICOS.map((p) => p.rotulo).concat(P.DESCRITIVOS.filter(Boolean)).filter((r) => !APP.includes("'" + r + "':"));
+anota('D3 todo público e todo descritivo têm a própria frase em "Como funciona"', !semFrase.length, semFrase.join(', '));
 
 console.log('\n== R. o que cada rótulo faz ==');
 anota('R1 Gerentes e Técnicos restringem sempre (nada muda para os eventos de hoje)', P.restringeSempre('Gerentes') && P.restringeSempre('Técnicos') && P.publicoDoRotulo('Técnicos', false).chave === 'tecnicos');
