@@ -23,7 +23,7 @@ const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const BASE  = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
-const ADM = 'adm@previ.com.br', ANA = 'ana@previ.com.br', BIA = 'bia@previ.com.br';
+const ADM = 'adm@previ.com.br', ANA = 'ana@previ.com.br', BIA = 'bia@previ.com.br', CAIO = 'caio@previ.com.br';
 const AGORA = '2026-10-01T10:00:00.000Z';
 const CANC = { motivo: 'falta-quorum', em: AGORA, por: ADM, porNome: 'ADMIN' };
 const inscrita = (e, n) => ({ name: n, email: e, area: 'GECAT', status: 'inscrito', confirmedByAdmin: ADM, confirmedByAdminName: 'ADMIN', confirmedDate: AGORA, removed: false, date: AGORA });
@@ -38,13 +38,15 @@ function banco() {
     tAberta: { [chave(BIA)]: interesse(BIA, 'BIA NEVES') },
     tOutra: { [chave(BIA)]: interesse(BIA, 'BIA NEVES') },
     tAntesCanc: { [chave(ANA)]: inscrita(ANA, 'ANA LIMA') },
-    tAntesVale: { [chave(BIA)]: inscrita(BIA, 'BIA NEVES') }
+    tAntesVale: { [chave(BIA)]: inscrita(BIA, 'BIA NEVES') },
+    /* inscrita só em turma cancelada, e na fila: para a Visão por pessoa do Excel completo */
+    tSoCanc: { [chave(CAIO)]: inscrita(CAIO, 'CAIO REIS') }
   };
   return {
     'fa-users': { [chave(ADM)]: { name: 'ADMIN', email: ADM, area: 'INFOR' }, [chave(ANA)]: { name: 'ANA LIMA', email: ANA, area: 'GECAT' }, [chave(BIA)]: { name: 'BIA NEVES', email: BIA, area: 'GECAT' } },
     'fa-admins': { [chave(ADM)]: { email: ADM, name: 'ADMIN' } }, 'fa-diretores': {}, 'fa-gerentes': {}, 'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {},
     'fa-facilitadores': { [chave(ANA)]: { email: ANA, name: 'ANA LIMA', ativo: true } },
-    'fa-espera': { [chave('fila@previ.com.br')]: { 'lista:evGrupo': { name: 'NA FILA', email: 'fila@previ.com.br', area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false } } },
+    'fa-espera': { [chave(CAIO)]: { 'lista:evGrupo': { name: 'CAIO REIS', email: CAIO, area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false } }, [chave('fila@previ.com.br')]: { 'lista:evGrupo': { name: 'NA FILA', email: 'fila@previ.com.br', area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false } } },
     eventos: {
       evGrupo: { nome: 'EPISÓDIO GRUPO', order: 1, publicado: true, cargaHoraria: '3', umaTurmaPorPessoa: true, percentualMinimo: 0 },
       evAntes: { nome: 'EPISÓDIO ANTES', order: 2, publicado: true, cargaHoraria: '3' },
@@ -258,6 +260,8 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
       const est = XLSX.utils.sheet_to_json(wb.Sheets['Estado atual'], { defval: '' });
       const canc = est.filter((x) => x.Turma === 'TURMA JA CANCELADA'), concl = est.filter((x) => x.Turma === 'TURMA CONCLUIDA');
       anota('Excel completo: as pessoas seguem na turma cancelada, com a situação "Cancelada"; a concluída segue "Realizada"', canc.length === 2 && canc.every((x) => x['Situação da turma'] === 'Cancelada') && concl.length === 1 && concl[0]['Situação da turma'] === 'Realizada', JSON.stringify(canc.concat(concl).map((x) => x['Situação da turma'])));
+      const vis = XLSX.utils.sheet_to_json(wb.Sheets['Visão por pessoa'], { defval: '' }), vCaio = vis.find((x) => x['E-mail'] === CAIO) || {};
+      anota('Excel completo: Visão por pessoa mostra a inscrição como de turma cancelada, e ela não conta como "inscrita e na espera"', vCaio['Inscrita em'] === 'EPISÓDIO SÓ CANCELADO › TURMA SO CANCELADA (turma cancelada)' && vCaio['Na lista de espera de'] === 'EPISÓDIO GRUPO (Entrou pela lista)' && vCaio['Inscrita e na espera?'] === 'Não', JSON.stringify(vCaio));
       anota('Dashboard: nenhum erro de JavaScript', !erros.length, erros.join(' | '));
       await ctx.close();
     }

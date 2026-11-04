@@ -1094,7 +1094,7 @@
           var exportCompletoBtn = document.createElement('button');
           exportCompletoBtn.className = 'btn btn--sm';
           exportCompletoBtn.id = 'exportExcelCompletoBtn';
-          exportCompletoBtn.title = 'Um arquivo com três abas, de todos os eventos: Estado atual, Lista de espera e Histórico';
+          exportCompletoBtn.title = 'Um arquivo com quatro abas, de todos os eventos: Visão por pessoa, Estado atual, Lista de espera e Histórico';
           exportCompletoBtn.innerHTML = '&#x1F4CA; Excel completo';
           exportCompletoBtn.addEventListener('click', function () { exportExcelCompleto(exportCompletoBtn); });
           globalBtnWrap.appendChild(exportCompletoBtn);
@@ -5163,7 +5163,7 @@
       : (vagas && ocupadas >= vagas) ? 'Lotada' : 'Aberta';
   }
 
-  /* "📊 Excel completo": um arquivo só, com três abas e todos os eventos. Estado atual (interessadas e inscritas, sem quem
+  /* "📊 Excel completo": um arquivo só, com quatro abas e todos os eventos. Visão por pessoa (tudo o que cada uma tem agora), Estado atual (interessadas e inscritas, sem quem
      saiu), Lista de espera (quem aguarda agora) e Histórico (linhasDoHistorico). A coluna "Fonte do dado" diz de onde veio
      cada movimentação, porque o histórico não cobre tudo: ver a função. Lido do banco na hora; nada é gravado. */
   function exportExcelCompleto(btn) {
@@ -5221,6 +5221,36 @@
           return [nomeEvento(l.eventoKey), l.row[0]].concat(colunasTurma(l.t), l.row.slice(1), [l.fonte]);
         });
 
+        /* Visão por pessoa: uma linha com tudo o que ela tem agora, para ver quem está inscrita numa turma e na fila de outro
+           evento ao mesmo tempo. Mesmos critérios das abas Estado atual e Lista de espera. */
+        var pessoas = {};
+        var pessoaDe = function (k, r) {
+          var p = pessoas[k] = pessoas[k] || { name: '', email: '', area: '', inscrita: [], interessada: [], fila: [], evInscrita: {}, evFila: {} };
+          if (!p.name) p.name = r.name || ''; if (!p.email) p.email = r.email || ''; if (!p.area) p.area = r.area || '';
+          return p;
+        };
+        turmasDaExportacao(interesse, log, true).forEach(function (t) {
+          Object.keys(interesse[t.key] || {}).forEach(function (k) {
+            var r = interesse[t.key][k];
+            if (!r || r.removed === true) return;
+            var cancelada = window.faTurmasUtil.turmaCancelada(config[t.key]);
+            var p = pessoaDe(k, r), onde = nomeEvento(t.eventoKey) + ' › ' + t.label + (cancelada ? ' (turma cancelada)' : '');
+            if (getStatus(r) === 'inscrito') { p.inscrita.push(onde); if (!cancelada) p.evInscrita[t.eventoKey || ''] = true; } else p.interessada.push(onde);
+          });
+        });
+        Object.keys(espera).forEach(function (k) {
+          window.faTurmasUtil.esperaAtivas(espera[k]).forEach(function (e) {
+            var p = pessoaDe(k, e);
+            p.fila.push(nomeEvento(e.eventoKey) + ' (' + origemDaEspera(e, turmas).rotulo + ')');
+            p.evFila[e.eventoKey || ''] = true;
+          });
+        });
+        var linhasPessoa = Object.keys(pessoas).map(function (k) { return pessoas[k]; }).sort(cmpNome).map(function (p) {
+          var mesmo = Object.keys(p.evFila).some(function (ev) { return p.evInscrita[ev]; });
+          return [p.name, p.email, p.area, p.inscrita.join('; '), p.interessada.join('; '), p.fila.join('; '),
+            !Object.keys(p.evInscrita).length || !p.fila.length ? 'Não' : mesmo ? 'Sim, no mesmo evento' : 'Sim, em eventos diferentes'];
+        });
+
         function aba(cab, linhas) {
           var ws = window.XLSX.utils.aoa_to_sheet([cab].concat(linhas));
           ws['!cols'] = cab.map(function (c, i) {
@@ -5230,6 +5260,7 @@
           return ws;
         }
         var wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, aba(['Nome', 'E-mail', 'Área', 'Inscrita em', 'Interessada em', 'Na lista de espera de', 'Inscrita e na espera?'], linhasPessoa), 'Visão por pessoa');
         window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Turma'].concat(COLUNAS_TURMA, ['Situação da turma', 'Nome', 'E-mail', 'Área', 'Situação', 'Data do registro', 'Registrado por', 'Confirmado por', 'Data da confirmação', 'Frequência']), estado), 'Estado atual');
         window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Origem', 'Data da turma de origem', 'Motivo', 'Nome', 'E-mail', 'Área', 'Situação', 'Data interesse', 'Data remoção'], linhasFila), 'Lista de espera');
         window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Turma'].concat(COLUNAS_TURMA, ['Nome', 'E-mail', 'Área', 'Data', 'Hora', 'Ação', 'Responsável', 'Motivo', 'Destino', 'Fonte do dado']), linhasHist), 'Histórico');

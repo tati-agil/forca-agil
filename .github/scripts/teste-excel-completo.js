@@ -1,7 +1,8 @@
 /* ADMIN › Eventos › "📊 Excel completo": um XLSX com Estado atual, Lista de espera e Histórico. Firebase falso; 1280 e 375 px.
  *
  * O QUE ELE EXIGE:
- *   1. um arquivo só, com as três abas nessa ordem;
+ *   1. um arquivo só, com as quatro abas nessa ordem; a Visão por pessoa junta inscrição, interesse e fila numa linha só e diz
+ *      quem está inscrita e na espera ao mesmo tempo, no mesmo evento ou em outro; quem saiu não conta;
  *   2. Estado atual: interessadas e inscritas de todos os eventos, sem quem saiu, com evento, turma e situação;
  *   3. Lista de espera: só quem aguarda agora, de todos os eventos, com a origem;
  *   4. Histórico: a coluna "Fonte do dado" separa o que foi gravado como histórico do que vem do registro atual; confirmação e
@@ -48,6 +49,10 @@ function banco(semFila) {
     tY: { [chave(mail('iris'))]: { a: { ...pessoa('iris'), action: 'registrado', date: '2026-10-07T10:00:00.000Z' } } }
   };
   const espera = semFila ? {} : {
+    /* inscrita na TURMA X (evX) e na fila de outro evento */
+    [chave(mail('ana'))]: { 'lista:evY': { ...pessoa('ana'), eventoKey: 'evY', date: '2026-09-05T10:00:00.000Z', removed: false } },
+    /* inscrita na TURMA X e na fila do mesmo evento */
+    [chave(mail('bia'))]: { 'lista:evX': { ...pessoa('bia'), eventoKey: 'evX', date: '2026-09-06T10:00:00.000Z', removed: false } },
     [chave(mail('elisa'))]: { tX: { ...pessoa('elisa'), eventoKey: 'evX', date: '2026-09-01T10:00:00.000Z', migratedAt: '2026-09-20T10:00:00.000Z', migratedFrom: 'tX', migratedByName: 'ADMIN', motivoEntrada: 'sem_vagas', removed: false } },
     [chave(mail('fabi'))]: { 'lista:evY': { ...pessoa('fabi'), eventoKey: 'evY', date: '2026-09-02T10:00:00.000Z', removed: false } },
     [chave(mail('gabi'))]: { 'lista:evY': { ...pessoa('gabi'), eventoKey: 'evY', date: '2026-09-03T10:00:00.000Z', removed: true, removedBySelf: true, removedDate: '2026-09-04T10:00:00.000Z' } }
@@ -103,10 +108,15 @@ const abaJson = (wb, n) => XLSX.utils.sheet_to_json(wb.Sheets[n] || {}, { defval
 
       const { nome: arq, b } = await baixar(page, '#exportExcelCompletoBtn', '.xlsx');
       const wb = XLSX.read(b, { type: 'buffer' });
-      anota(nome + ': um XLSX com as três abas, na ordem', /^forca-agil-excel-completo-\d{4}-\d{2}-\d{2}\.xlsx$/.test(arq) && JSON.stringify(wb.SheetNames) === JSON.stringify(['Estado atual', 'Lista de espera', 'Histórico']), arq + ' ' + wb.SheetNames);
+      anota(nome + ': um XLSX com as quatro abas, na ordem', /^forca-agil-excel-completo-\d{4}-\d{2}-\d{2}\.xlsx$/.test(arq) && JSON.stringify(wb.SheetNames) === JSON.stringify(['Visão por pessoa', 'Estado atual', 'Lista de espera', 'Histórico']), arq + ' ' + wb.SheetNames);
 
       const est = abaJson(wb, 'Estado atual'), fila = abaJson(wb, 'Lista de espera'), hist = abaJson(wb, 'Histórico');
       const emails = (l) => l.map((x) => x['E-mail'].split('@')[0]).join(',');
+      const vis = abaJson(wb, 'Visão por pessoa'), v = (n) => vis.find((x) => x['E-mail'] === mail(n)) || {};
+      anota(nome + ': Visão por pessoa: uma linha por pessoa, em ordem de nome, sem quem saiu', emails(vis) === 'ana,bia,elisa,fabi,hugo,iris', emails(vis));
+      anota(nome + ': inscrita numa turma e na fila de outro evento, na mesma linha', v('ana')['Inscrita em'] === 'EPISÓDIO X › TURMA X' && v('ana')['Na lista de espera de'] === 'EPISÓDIO Y (Entrou pela lista)' && v('ana')['Inscrita e na espera?'] === 'Sim, em eventos diferentes', JSON.stringify(v('ana')));
+      anota(nome + ': inscrita e na fila do mesmo evento', v('bia')['Inscrita e na espera?'] === 'Sim, no mesmo evento', JSON.stringify(v('bia')));
+      anota(nome + ': só na fila, ou interessada e na fila, não é apontada', v('elisa')['Inscrita e na espera?'] === 'Não' && v('elisa')['Na lista de espera de'] === 'EPISÓDIO X (TURMA X)' && v('iris')['Interessada em'] === 'EPISÓDIO Y › TURMA Y' && v('iris')['Inscrita e na espera?'] === 'Não', JSON.stringify([v('elisa'), v('iris')]));
       anota(nome + ': Estado atual traz todos os eventos, sem quem saiu', emails(est) === 'ana,bia,hugo,iris', emails(est));
       const ana = est[0] || {};
       anota(nome + ': a linha identifica evento, turma, situação e confirmação',
@@ -114,9 +124,10 @@ const abaJson = (wb, n) => XLSX.utils.sheet_to_json(wb.Sheets[n] || {}, { defval
       anota(nome + ': interessada aparece como Interessada; adição pelo painel mostra quem adicionou',
         est.find((x) => x['E-mail'] === mail('iris'))['Situação'] === 'Interessada' && est.find((x) => x['E-mail'] === mail('bia'))['Registrado por'] === 'Admin — ADMIN');
 
-      anota(nome + ': Lista de espera só com quem aguarda, de todos os eventos', emails(fila) === 'elisa,fabi', emails(fila));
+      anota(nome + ': Lista de espera só com quem aguarda, de todos os eventos', emails(fila) === 'bia,elisa,ana,fabi', emails(fila));
+      const fe = fila.find((x) => x['E-mail'] === mail('elisa')) || {}, ff = fila.find((x) => x['E-mail'] === mail('fabi')) || {};
       anota(nome + ': a fila mostra evento, origem e situação',
-        fila[0].Evento === 'EPISÓDIO X' && fila[0].Origem === 'TURMA X' && fila[0]['Situação'] === 'Aguardando' && !!fila[0]['Data remoção'] && fila[1].Evento === 'EPISÓDIO Y' && fila[1].Origem === 'Entrou pela lista' && fila[1]['Data remoção'] === '', JSON.stringify(fila));
+        fe.Evento === 'EPISÓDIO X' && fe.Origem === 'TURMA X' && fe['Situação'] === 'Aguardando' && !!fe['Data remoção'] && ff.Evento === 'EPISÓDIO Y' && ff.Origem === 'Entrou pela lista' && ff['Data remoção'] === '', JSON.stringify(fila));
 
       const de = (n, acao) => hist.filter((x) => x['E-mail'] === mail(n) && x['Ação'] === acao);
       anota(nome + ': confirmação com linha no histórico não se repete', de('ana', 'Confirmado como inscrita').length === 1 && de('ana', 'Confirmado como inscrita')[0]['Fonte do dado'] === 'Linha do histórico');
