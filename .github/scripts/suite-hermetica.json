@@ -542,9 +542,9 @@
     },
     {
       "arquivo": ".github/scripts/teste-excel-completo.js",
-      "nome": "ADMIN › Eventos: Excel completo, três abas com o estado atual, a lista de espera e o histórico",
+      "nome": "ADMIN › Eventos: Excel completo, com a visão por pessoa, o estado atual, a lista de espera e o histórico",
       "duracao": 20,
-      "sobre": "Um XLSX com as abas Estado atual, Lista de espera e Histórico; quem saiu fica fora do estado e da fila; a coluna Fonte do dado separa a linha do histórico do registro atual; entrada na fila e confirmação sem linha aparecem pelo registro; o Histórico em CSV não muda; aba vazia mantém o cabeçalho; falha ao gerar avisa e devolve o botão; nada é gravado; desktop e 375 px."
+      "sobre": "Um XLSX com as abas Visão por pessoa, Estado atual, Lista de espera e Histórico; a visão por pessoa junta inscrição, interesse e fila numa linha e aponta quem está inscrita e na espera; quem saiu fica fora do estado e da fila; a coluna Fonte do dado separa a linha do histórico do registro atual; entrada na fila e confirmação sem linha aparecem pelo registro; o Histórico em CSV não muda; aba vazia mantém o cabeçalho; falha ao gerar avisa e devolve o botão; nada é gravado; desktop e 375 px."
     },
     {
       "arquivo": ".github/scripts/teste-movimentacao-turmas.js",
