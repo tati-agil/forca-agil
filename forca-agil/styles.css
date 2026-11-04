@@ -764,8 +764,6 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .turma-andamento-msg strong { color: #64b5f6; }
 .turma-realizada-msg { color: var(--ink-3); }
 .turma-realizada-msg strong { color: var(--ink-2); }
-.turma-cancelada-msg { color: var(--ink-3); }
-.turma-cancelada-msg strong { color: #ff8080; }
 /* Inscrições encerradas: turma vai acontecer, mas não há mais vaga */
 .turma-lotada-msg { color: var(--ink-3); }
 .turma-lotada-msg strong { color: #ffb347; }
@@ -1318,7 +1316,6 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .aluno-badge--ok { color: #4caf7d; background: rgba(76,175,125,.12); }
 .aluno-badge--andamento { color: #42a5f5; background: rgba(66,165,245,.12); }
 .aluno-badge--programada { color: var(--accent); background: rgba(245,197,66,.12); }
-.aluno-badge--cancelada { color: #ff8080; background: rgba(255,80,80,.12); }
 .aluno-badge--analise { color: #b39ddb; background: rgba(179,157,219,.12); }
 .aluno-badge--espera { color: #ff8a65; background: rgba(255,138,101,.12); }
 
