@@ -174,6 +174,9 @@ Mesma disciplina se aplica, e cada um tem seu próprio inventário a levantar:
 - **facilitadora** — nó `fa-facilitadores`, que só libera a rota `#facilitador`;
   participar da equipe de uma turma é outra coisa, mora em `turmas-equipe`
   (ver `CLAUDE.md` e `roteiro.js`).
+- **turma cancelada** — `turmas-config/<turma>/cancelamento`, critério único `faTurmasUtil.turmaCancelada`. Não é `encerrada`:
+  quem decide "realizada", certificado e participação não pode tratar as duas como a mesma coisa. O acesso a Conteúdos e
+  Treinamento (`auth.js` `isInscrito`) não olha o cancelamento, por decisão: ninguém perde acesso.
 - **estado da turma** — `turmas-config/<turma>`: `finalizada` (interesse
   encerrado), `encerrada` + `dataConclusao` (turma realizada), `diaAtivo`
   (check-in aberto). Aqui há um segundo perigo, já corrigido no PR #109: datas

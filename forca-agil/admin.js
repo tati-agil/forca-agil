@@ -844,7 +844,7 @@
     var eventos = {}, turmas = {};
     EVENTOS_LIST.forEach(function (e) { eventos[e.key] = e; });
     TURMAS_LIST.forEach(function (x) { turmas[x.key] = { eventoKey: x.eventoKey, label: x.label }; });
-    var c = window.faTurmasUtil.conflitosDeParticipacao({ eventos: eventos, turmas: turmas, interesses: _interessesAdmin }, t.eventoKey, emailKey(r.email), t.key);
+    var c = window.faTurmasUtil.conflitosDeParticipacao({ eventos: eventos, turmas: turmas, interesses: _interessesAdmin, config: _configTurmasAdmin }, t.eventoKey, emailKey(r.email), t.key);
     var dispensadas = (r.excecaoAdmin && r.excecaoAdmin.regras) || {};
     var textos = [];
     if (c.participacao.length && !dispensadas.participacao) textos.push('já tem interesse ou inscrição em ' + c.participacao.map(function (e) { return e.nome; }).join(', '));
@@ -882,6 +882,7 @@
     'lista-evento': 'fora da lista de convidados do evento', 'lista-turma': 'fora da lista da turma', diretores: 'evento só para diretores',
     cargo: 'fora do público (cargo) do evento ou da turma', participacao: 'participação em evento impeditivo', umaTurma: 'já está em outra turma (uma turma por pessoa)'
   };
+  function turmaEstaCancelada(turmaKey) { return window.faTurmasUtil.turmaCancelada((_configTurmasAdmin || {})[turmaKey]); }
   function motivosDePublicoAdmin(turmaKey, eKey, nome) {
     var evKey = turmaEventoKey(turmaKey), ev = EVENTOS_LIST.filter(function (e) { return e.key === evKey; })[0] || null, motivos = [];
     if ((eventoRestrito(evKey) || turmaRestrita(turmaKey)) && !_publicoResolvido) {
@@ -900,6 +901,8 @@
      ignorarTurma (a turma de onde a pessoa sai na mesma gravação — transferência) } */
   function avaliarEntradaAdmin(turmaKey, eKey, nome, opcoes, cb) {
     nome = nome || 'Essa pessoa';
+    /* turma cancelada não recebe ninguém: não é regra que uma exceção dispense */
+    if (turmaEstaCancelada(turmaKey)) { cb({ erro: '"' + turmaLabel(turmaKey) + '" foi cancelada: não recebe mais ninguém. Nada foi gravado.' }); return; }
     var pub = motivosDePublicoAdmin(turmaKey, eKey, nome);
     if (pub.falha) { cb({ erro: pub.falha }); return; }
     var bloqueios = pub.motivos.slice(), dispensar = opcoes && opcoes.semVagas ? ['lotada'] : [];
@@ -1140,6 +1143,7 @@
             var cfg        = config[t.key] || {};
             var finalizada = !!cfg.finalizada;
             var encerrada  = !!cfg.encerrada;
+            var cancelada  = window.faTurmasUtil.turmaCancelada(cfg);
             var diaAtivo   = cfg.diaAtivo || null;
             var all        = (data[t.key] ? Object.values(data[t.key]) : []).sort(cmpNome);
             var active     = all.filter(function (r) { return !r.removed; });
@@ -1204,8 +1208,10 @@
                 '<span class="turma-admin-dates turma-admin-horario">&#x23F0; ' + esc(window.faTurmasUtil.formatHorario(t.horarioInicio, t.horarioFim)) + '</span>' +
                 (t.sala ? '<span class="turma-admin-dates turma-admin-sala">&#x1F4CD; ' + esc(t.sala) + '</span>' : '') +
                 (publicoDoEvento(t.eventoKey) ? '<span class="turma-admin-dates turma-admin-publico">&#x1F465; ' + esc(publicoDoEvento(t.eventoKey)) + '</span>' : '') +
-                '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
-                  (finalizada ? 'INTERESSE ENCERRADO' : 'ABERTA') + '</span>' +
+                '<span class="turma-status-badge ' + (cancelada ? 'badge-cancelada' : finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
+                  (cancelada ? 'TURMA CANCELADA' : encerrada ? 'TURMA CONCLUÍDA' : finalizada ? 'INTERESSE ENCERRADO' : 'ABERTA') + '</span>' +
+                (cancelada ? '<span class="turma-admin-dates turma-admin-cancelamento">' + esc(window.faTurmasUtil.motivoDoCancelamento(cfg.cancelamento)) +
+                  ' · ' + esc(fmtDate(cfg.cancelamento.em)) + ' · ' + esc(cfg.cancelamento.porNome || cfg.cancelamento.por || '') + '</span>' : '') +
                 '<span class="admin-badge">' + countLabel + '</span>' +
                 restritoBadge +
                 checkinBadge +
@@ -1236,7 +1242,9 @@
             var moreMenu = document.createElement('div');
             moreMenu.className = 'taa-dropdown';
 
-            if (!finalizada) {
+            if (cancelada) {
+              /* nada a abrir nem a encerrar: a turma fica para consulta */
+            } else if (!finalizada) {
               var finBtn = document.createElement('button');
               finBtn.className = 'btn btn--sm btn--primary';
               finBtn.style.cssText = 'padding:6px 12px;box-shadow:none;font-size:.72rem';
@@ -1358,14 +1366,14 @@
             })(t.key, t.label, t.apostaHabilitada));
             moreMenu.appendChild(apostaBtn);
 
-            if (finalizada && !encerrada) {
+            if (finalizada && !encerrada && !cancelada) {
               var encerrarBtn = document.createElement('button');
               encerrarBtn.className = 'btn btn--sm';
               encerrarBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,165,0,.4);color:#ffb347';
-              encerrarBtn.textContent = '✓ Encerrar turma';
+              encerrarBtn.textContent = '✓ Encerrar como concluída';
               encerrarBtn.addEventListener('click', (function (tk, tl) {
                 return function () {
-                  adminConfirm('Marcar a turma "' + tl + '" como encerrada?\n\nO card público passará a exibir "Turma realizada" — sem botão de inscrição.', function () {
+                  adminConfirm('Encerrar a turma "' + tl + '" como concluída?\n\nUse quando a turma foi realizada. O card público passará a exibir "Turma realizada" — sem botão de inscrição — e os certificados são liberados. Se a turma não vai acontecer, use "Cancelar turma".', function () {
                     var db = firebase.database();
                     db.ref('turmas-config/' + tk + '/dataConclusao').once('value', function (snap) {
                       var updates = {};
@@ -1382,6 +1390,18 @@
               moreMenu.appendChild(encerrarBtn);
             }
 
+            /* Vale também com o interesse aberto. Turma concluída não vira cancelada. */
+            if (!encerrada && !cancelada) {
+              var cancelarBtn = document.createElement('button');
+              cancelarBtn.className = 'btn btn--sm turma-cancelar-btn';
+              cancelarBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
+              cancelarBtn.textContent = '✕ Cancelar turma';
+              cancelarBtn.addEventListener('click', (function (tt, n) {
+                return function () { cancelarTurma(tt, n); };
+              })(t, active.length));
+              moreMenu.appendChild(cancelarBtn);
+            }
+
             /* Sorteio — só entra quem está confirmado na turma */
             var sorteioBtn = document.createElement('button');
             sorteioBtn.className = 'btn btn--sm';
@@ -1395,6 +1415,9 @@
               return function () { openSorteioModal(tt, conf); };
             })(t, inscritos));
             moreMenu.appendChild(sorteioBtn);
+
+            /* turma cancelada: sem nada que ponha gente nela nem que a faça acontecer. Ficam a consulta, os arquivos e a edição do cadastro. */
+            if (cancelada) [addBtn, avalBtn, apostaBtn, sorteioBtn].forEach(function (b) { if (b && b.parentNode) b.parentNode.removeChild(b); });
 
             var equipeBtn = document.createElement('button');
             equipeBtn.className = 'btn btn--sm';
@@ -1559,7 +1582,7 @@
             (function () {
               var foraOutros = [], semVerificar = 0;
               active.forEach(function (reg) {
-                var s = sinalizacaoForaDoPublico(t, reg, encerrada);
+                var s = sinalizacaoForaDoPublico(t, reg, encerrada || cancelada);
                 if (!s) return;
                 var outros = s.motivos.filter(function (m) { return m !== 'lista-evento' && m !== 'lista-turma'; });
                 if (outros.length) foraOutros.push((reg.name || reg.email) + ' (' + textoForaDoPublico(t, { motivos: outros }) + ')');
@@ -1647,7 +1670,7 @@
                   return;
                 }
                 if (g.key === 'todos') {
-                  tabelaWrap.appendChild(buildParticipantesTable(t, active, checkinT, finalizada, encerrada));
+                  tabelaWrap.appendChild(buildParticipantesTable(t, active, checkinT, finalizada, encerrada || cancelada));
                   if (removed.length) {
                     var nota = document.createElement('p');
                     nota.className = 'admin-empty';
@@ -1657,7 +1680,7 @@
                   }
                   return;
                 }
-                tabelaWrap.appendChild(buildParticipantesTable(t, g.lista, checkinT, finalizada, encerrada));
+                tabelaWrap.appendChild(buildParticipantesTable(t, g.lista, checkinT, finalizada, encerrada || cancelada));
               };
 
               /* A barra some quando há um grupo só: filtro de uma coisa
@@ -2067,6 +2090,7 @@
          três motivos viraram motivos de remoção. */
       var actionBtn = isInscrito
         ? '<button class="cf-unconfirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Desconfirmar</button>'
+        : turmaEstaCancelada(t.key) ? ''
         : '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Confirmar</button>';
 
       var dateOriginal = r.date || new Date().toISOString();
@@ -2978,7 +3002,7 @@
       var label = (turmasVal[tk] && turmasVal[tk].label) || tk;
       Object.keys(data[tk] || {}).forEach(function (k) {
         var r = data[tk][k];
-        if (!inscricaoValida(r)) return;
+        if (!inscricaoValida(r) || turmaEstaCancelada(tk)) return;
         (_turmasConfirmadas[k] = _turmasConfirmadas[k] || []).push({ tk: tk, label: label });
       });
     });
@@ -3183,7 +3207,7 @@
       '<input type="text" class="admin-motivo-outro" placeholder="Descreva o motivo" hidden />' +
       '<select class="admin-motivo-select admin-motivo-turma" hidden>' +
         '<option value="">— para qual turma? —</option>' +
-        TURMAS_LIST.map(function (t) {
+        TURMAS_LIST.filter(function (t) { return !turmaEstaCancelada(t.key); }).map(function (t) {
           return '<option value="' + esc(t.key) + '" data-label="' + esc(t.label) + '">' + esc(t.label) + (t.dates ? ' (' + esc(t.dates) + ')' : '') + '</option>';
         }).join('') +
       '</select>' +
@@ -3634,7 +3658,9 @@
     var norm = function (t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
     var realizado = function (ev) {
       var ts = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; });
-      return ts.length > 0 && ts.every(function (t) { return window.faTurmasUtil.turmaJaRealizada(t.dias, !!(_configTurmasAdmin[t.key] || {}).encerrada, hoje); });
+      /* já realizado = alguma turma aconteceu e nenhuma ainda vai acontecer; cancelada não aconteceu nem vai acontecer */
+      var feita = function (t) { return window.faTurmasUtil.turmaJaRealizada(t.dias, !!(_configTurmasAdmin[t.key] || {}).encerrada, hoje, turmaEstaCancelada(t.key)); };
+      return ts.some(feita) && ts.every(function (t) { return feita(t) || turmaEstaCancelada(t.key); });
     };
     var outros = EVENTOS_LIST.filter(function (ev) { return ev.key !== keyProprio; });
     var itens = outros.filter(function (ev) { return ev.publicado; }).concat(outros.filter(function (ev) { return !ev.publicado; })).map(function (ev) {
@@ -4755,7 +4781,8 @@
      problema, então não entra aqui. Ao confirmar/adicionar como Inscrita
      numa turma, só a inscrição já existente em outra é removida. */
   function checkOutrasTurmas(turmaKey, candidatos, cb) {
-    var outras = TURMAS_LIST.map(function (t) { return t.key; }).filter(function (k) { return k !== turmaKey; });
+    /* a inscrição numa turma cancelada fica como está: é histórico, não conflito */
+    var outras = TURMAS_LIST.map(function (t) { return t.key; }).filter(function (k) { return k !== turmaKey && !turmaEstaCancelada(k); });
     var pending = candidatos.length * outras.length;
     if (!pending) { cb([]); return; }
     var overlaps = [];
@@ -4789,6 +4816,72 @@
         });
       }
     );
+  }
+
+  /* Cancelar turma (turmas-config/<turma>/cancelamento): motivo, data e responsável. Não usa encerrada nem dataConclusao, que
+     significam "realizada". Fecha o check-in, a avaliação e a Construção da Aposta da turma, que deixam de fazer sentido. Não
+     toca em turmas-interesse, no histórico nem em fa-espera: quem estava na turma continua registrado, e ninguém é movido. */
+  function cancelarTurma(t, nAtivos) {
+    var sess = window.faAuth && window.faAuth.getSession();
+    if (!sess) { adminAlert('Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo. Nada foi gravado.'); return; }
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.setAttribute('data-cancelar-turma', '1');
+    box.style.cssText = 'max-width:480px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto';
+    box.innerHTML =
+      '<p style="font-size:.95rem;line-height:1.55;color:var(--ink);margin:0">Cancelar a turma "' + esc(t.label) + '"?</p>' +
+      '<p style="font-size:.84rem;line-height:1.55;color:var(--ink-2);margin:0">Ela não será realizada: o card público mostra "Turma cancelada", ninguém novo entra e não há certificado. ' +
+        (nAtivos ? (nAtivos === 1 ? 'A pessoa registrada continua' : 'As ' + nAtivos + ' pessoas registradas continuam') + ' na turma, com o histórico preservado; ninguém vai para a lista de espera. ' : '') +
+        'Essa ação não pode ser desfeita pelo painel.</p>' +
+      '<label class="admin-field-label">Motivo do cancelamento<select class="admin-motivo-select turma-cancelar-motivo">' +
+        '<option value="">Escolha…</option>' +
+        window.faTurmasUtil.MOTIVOS_CANCELAMENTO.map(function (m) { return '<option value="' + esc(m.key) + '">' + esc(m.label) + '</option>'; }).join('') +
+      '</select></label>' +
+      '<label class="admin-field-label turma-cancelar-just-campo" hidden>Justificativa<textarea class="admin-excecao-motivo turma-cancelar-just" rows="3" maxlength="500"></textarea></label>' +
+      '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="btn admin-modal-cancel-btn">Voltar</button>' +
+        '<button type="button" class="btn btn--primary turma-cancelar-confirmar">Cancelar turma</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var sel = box.querySelector('.turma-cancelar-motivo'), just = box.querySelector('.turma-cancelar-just'),
+      campoJust = box.querySelector('.turma-cancelar-just-campo'), erro = box.querySelector('.admin-motivo-erro'), ok = box.querySelector('.turma-cancelar-confirmar');
+    function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
+    function pedeJust() { return window.faTurmasUtil.MOTIVOS_CANCELAMENTO.some(function (m) { return m.key === sel.value && m.pedeJustificativa; }); }
+    function falhou(msg) { erro.textContent = msg; erro.hidden = false; ok.disabled = false; }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    sel.addEventListener('change', function () { campoJust.hidden = !pedeJust(); erro.hidden = true; });
+    ok.addEventListener('click', function () {
+      var texto = (just.value || '').trim();
+      if (!sel.value) { falhou('Escolha o motivo do cancelamento. Sem ele, nada é gravado.'); sel.focus(); return; }
+      if (pedeJust() && texto.length < 5) { falhou('Escreva a justificativa (pelo menos 5 caracteres). Sem ela, nada é gravado.'); just.focus(); return; }
+      ok.disabled = true;
+      var db = firebase.database();
+      /* lido na hora: outra pessoa pode ter encerrado ou cancelado com esta tela aberta */
+      db.ref('turmas-config/' + t.key).once('value', function (snap) {
+        var atual = snap.val() || {};
+        if (atual.encerrada) { falhou('Esta turma já foi concluída e não pode ser cancelada. Nada foi gravado.'); return; }
+        if (atual.cancelamento) { falhou('Esta turma já foi cancelada. Nada foi gravado.'); return; }
+        var c = { motivo: sel.value, em: new Date().toISOString(), por: sess.email, porNome: sess.name || sess.email };
+        if (pedeJust()) c.justificativa = texto;
+        var updates = {};
+        updates['turmas-config/' + t.key + '/cancelamento'] = c;
+        updates['turmas-config/' + t.key + '/diaAtivo'] = null;
+        if (t.avaliacaoHabilitada) updates['turmas/' + t.key + '/avaliacaoHabilitada'] = false;
+        if (t.apostaHabilitada) updates['turmas/' + t.key + '/apostaHabilitada'] = false;
+        db.ref().update(updates, function (err) {
+          if (err) { falhou('Não foi possível cancelar agora. Nada foi gravado. Tente novamente.'); return; }
+          fechar();
+          loadInterests();
+        });
+      }, function () { falhou('Não foi possível ler a turma agora. Nada foi gravado. Tente novamente.'); });
+    });
+    sel.focus();
   }
 
   function reopenTurma(turmaKey) {
@@ -5063,7 +5156,8 @@
   }
 
   function situacaoDaTurma(cfg, primeiro, ultimo, vagas, ocupadas, hojeISO) {
-    return cfg.encerrada || (ultimo && hojeISO > ultimo) ? 'Realizada'
+    return window.faTurmasUtil.turmaCancelada(cfg) ? 'Cancelada'
+      : cfg.encerrada || (ultimo && hojeISO > ultimo) ? 'Realizada'
       : (primeiro && hojeISO >= primeiro) ? 'Em andamento'
       : cfg.finalizada ? 'Inscrições encerradas'
       : (vagas && ocupadas >= vagas) ? 'Lotada' : 'Aberta';
@@ -5207,6 +5301,9 @@
               'Horário': (t.horarioInicio || '09:00') + '–' + (t.horarioFim || '13:00'),
               'Sala': t.sala || '',
               'Situação': situacao,
+              'Motivo do cancelamento': window.faTurmasUtil.motivoDoCancelamento(cfg.cancelamento),
+              'Cancelada em': cfg.cancelamento ? fmtDate(cfg.cancelamento.em) : '',
+              'Cancelada por': cfg.cancelamento ? (cfg.cancelamento.porNome || cfg.cancelamento.por || '') : '',
               'Vagas': vagas || 'Sem limite',
               'Ocupadas (interesse + inscrição)': regs.length,
               'Inscritas confirmadas': regs.filter(inscricaoValida).length,
@@ -6235,7 +6332,7 @@
   }
   function opcoesTurmaDestino(excluirKey) {
     var cfgs = _configTurmasAdmin || {};
-    var serve = function (t) { return t.key !== excluirKey && !(cfgs[t.key] || {}).encerrada; };
+    var serve = function (t) { return t.key !== excluirKey && !(cfgs[t.key] || {}).encerrada && !window.faTurmasUtil.turmaCancelada(cfgs[t.key]); };
     var grupo = function (nome, ts) {
       return ts.length ? '<optgroup label="' + esc(nome) + '">' + ts.map(function (t) {
         return '<option value="' + esc(t.key) + '" data-label="' + esc(t.label) + '">' + esc(rotuloTurmaDestino(t)) + '</option>';
@@ -6278,6 +6375,7 @@
     if (!dest || !TURMAS_LIST.some(function (t) { return t.key === dest; })) { onErro('Escolha a turma de destino. Nada foi gravado.'); return; }
     if (dest === deTurma) { onErro('A turma de destino é a mesma de onde ela está saindo. Nada foi gravado.'); return; }
     if (((_configTurmasAdmin || {})[dest] || {}).encerrada) { onErro('"' + turmaLabel(dest) + '" já foi realizada — não recebe mais ninguém. Nada foi gravado.'); return; }
+    if (turmaEstaCancelada(dest)) { onErro('"' + turmaLabel(dest) + '" foi cancelada: não recebe mais ninguém. Nada foi gravado.'); return; }
     if (mv.status !== 'interessado' && mv.status !== 'inscrito') { onErro('Escolha se ela entra como Interessada ou Inscrita. Nada foi gravado.'); return; }
     /* dois cliques (ou duas confirmações seguidas) não fazem duas transferências da mesma pessoa: a trava vale da porta
        aprovada até a gravação terminar (antes disso só há caixas de diálogo, que se cancelam sem gravar nada) */
@@ -7306,9 +7404,10 @@
             total++;
             var t = d.turmas[x.k] || {}, ev = nomeEv(t.eventoKey);
             var inscrita = x.r.status === 'inscrito';
-            var realizada = window.faTurmasUtil.turmaJaRealizada(t.dias, !!(d.config[x.k] || {}).encerrada, hoje);
+            var cancelada = window.faTurmasUtil.turmaCancelada(d.config[x.k]);
+            var realizada = window.faTurmasUtil.turmaJaRealizada(t.dias, !!(d.config[x.k] || {}).encerrada, hoje, cancelada);
             html += linha((ev ? ev + ' › ' : '') + (t.label || x.k), datasDaTurma(t),
-              (inscricaoValida(x.r) ? 'Inscrita' : inscrita ? 'Inscrita sem confirmação' : 'Interessada') + (realizada ? ' · turma realizada' : ''),
+              (inscricaoValida(x.r) ? 'Inscrita' : inscrita ? 'Inscrita sem confirmação' : 'Interessada') + (cancelada ? ' · turma cancelada' : realizada ? ' · turma realizada' : ''),
               inscricaoValida(x.r) ? 'cad-vinculo-situacao--inscrita' : '');
           });
       } else {
@@ -8841,7 +8940,7 @@
         const eventosAfetados = {};
         Object.keys(turmas).forEach(function (tk) {
           const t = Object.assign({ key: tk }, turmas[tk]), ev = eventos[t.eventoKey] || null;
-          if (U.turmaJaRealizada(t.dias, (tcfg[tk] || {}).encerrada, hoje)) return;
+          if (U.turmaCancelada(tcfg[tk]) || U.turmaJaRealizada(t.dias, (tcfg[tk] || {}).encerrada, hoje)) return;
           if (ev && P.dependeDaAtivacao(ev.publicoDesc)) eventosAfetados[t.eventoKey] = (eventosAfetados[t.eventoKey] || 0) + 1;
           Object.keys(ti[tk] || {}).forEach(function (k) {
             const reg = ti[tk][k];
@@ -9114,6 +9213,7 @@
   function faseTurmaFacilitacao(turma, cfg) {
     var diasOrd = (turma.dias || []).slice().sort();
     var primeiro = diasOrd[0] || '';
+    if (window.faTurmasUtil.turmaCancelada(cfg)) return 'cancelada';
     if (cfg && cfg.encerrada) return 'concluida';
     if (primeiro && primeiro > todayISO()) return 'programada';
     return 'andamento';
@@ -9160,7 +9260,7 @@
             if (!t) return;
             var ev = t.eventoKey ? (eventos[t.eventoKey] || {}) : {};
             out.push({
-              turmaKey: turmaKey, turmaLabel: t.label || turmaKey, eventoNome: ev.nome || '—',
+              turmaKey: turmaKey, turmaLabel: (t.label || turmaKey) + (window.faTurmasUtil.turmaCancelada(config[turmaKey]) ? ' (cancelada)' : ''), eventoNome: ev.nome || '—',
               papel: membro.papel, periodo: (t.dias || []).slice().sort(),
               fase: faseTurmaFacilitacao(t, config[turmaKey])
             });
@@ -9192,7 +9292,7 @@
           const tbody = document.createElement('tbody');
           dbList.forEach(function (p) {
             const ativo = p.ativo !== false;
-            const proximas = facilitacoesDe(p.key).filter(function (f) { return f.fase !== 'concluida'; }).length;
+            const proximas = facilitacoesDe(p.key).filter(function (f) { return f.fase !== 'concluida' && f.fase !== 'cancelada'; }).length;
             const tr = document.createElement('tr');
             tr.innerHTML =
               '<td>' + esc(p.name || '—') + '</td>' +
@@ -9294,8 +9394,8 @@
           }).join('') + '</tbody></table>';
       }
 
-      var futuras = facilitacoes.filter(function (f) { return f.fase !== 'concluida'; });
-      var anteriores = facilitacoes.filter(function (f) { return f.fase === 'concluida'; });
+      var futuras = facilitacoes.filter(function (f) { return f.fase !== 'concluida' && f.fase !== 'cancelada'; });
+      var anteriores = facilitacoes.filter(function (f) { return f.fase === 'concluida' || f.fase === 'cancelada'; });
 
       box.innerHTML =
         '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + esc(p.name || p.email) + '</h3>' +
@@ -9369,6 +9469,7 @@
     var _evento          = null;  /* { key, nome, cargaHoraria, percentualMinimo } */
     var _dataConclusao   = null;  /* 'YYYY-MM-DD' ou null */
     var _encerrada       = false; /* turma concluída → emissão habilitada */
+    var _cancelada       = false; /* turma cancelada → nunca há certificado */
     var _checkinTurma    = {};    /* { [dia]: { [emailKey]: true } } */
     var _diasTurma       = [];    /* array de ISO dates da turma */
     /* SELEÇÃO ATUAL. Cada escolha de evento ou turma abre uma seleção nova (_selecao + 1); as leituras de uma seleção
@@ -9412,7 +9513,7 @@
       _selecao++;
       _pronto = false;
       _previaSeq++;
-      _evento = null; _dataConclusao = null; _encerrada = false; _checkinTurma = {}; _diasTurma = [];
+      _evento = null; _dataConclusao = null; _encerrada = false; _cancelada = false; _checkinTurma = {}; _diasTurma = [];
       if (listEl) listEl.innerHTML = '';
       if (wrap) wrap.style.display = 'none';
       var cv = document.getElementById('certPreviewCanvas');
@@ -9433,7 +9534,9 @@
       } else {
         parts.push('<span style="color:var(--amber,#ffb347)">⚠ Turma sem evento vinculado — vincule um evento na aba Turmas</span>');
       }
-      if (_dataConclusao) {
+      if (_cancelada) {
+        parts.push('<span style="color:var(--amber,#ffb347)">⚠ Turma cancelada: não há certificado</span>');
+      } else if (_dataConclusao) {
         parts.push('Concluída em ' + fmtData(_dataConclusao));
       } else {
         parts.push('<span style="color:var(--amber,#ffb347)">⚠ Turma ainda não encerrada — data de emissão não definida</span>');
@@ -9715,6 +9818,7 @@
         var cfg = snap.val() || {};
         _dataConclusao = cfg.dataConclusao || null;
         _encerrada     = !!cfg.encerrada;
+        _cancelada     = window.faTurmasUtil.turmaCancelada(cfg);
         done();
       }, falhou);
       firebase.database().ref('turmas-checkin/' + key).once('value', function (snap) {
