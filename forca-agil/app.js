@@ -359,6 +359,7 @@
                 cmflexLink: val[key].cmflexLink || '',
                 finalizada: !!(cfg[key] && cfg[key].finalizada),
                 encerrada:  !!(cfg[key] && cfg[key].encerrada),
+                cancelada:  window.faTurmasUtil.turmaCancelada(cfg[key]),
                 publicoRestrito: !!val[key].publicoRestrito,
                 /* Ausente = 09:00–13:00: era o horário fixo do card antes
                    deste campo existir, então turma antiga não muda sozinha. */
@@ -477,6 +478,7 @@
        realizados na grade — os dois perguntam a mesma coisa. "Inscrições
        encerradas" (finalizada) NÃO entra: a turma ainda vai acontecer. */
     function turmaRealizada(t, hoje) {
+      if (t.cancelada) return false; /* cancelada não é realizada, mesmo com a data já passada */
       var dias = (t.dias || []).slice().sort();
       var ultimoDia = dias[dias.length - 1] || '';
       return !!(t.encerrada || (ultimoDia && hoje > ultimoDia));
@@ -486,7 +488,7 @@
        não olha quem vê; lotação e restrições de público/participação são da pessoa e ficam no botão. */
     function turmaAbertaAInteresse(t, hoje) {
       var primeiroDia = (t.dias || []).slice().sort()[0] || '';
-      return !turmaRealizada(t, hoje) && !(primeiroDia && hoje >= primeiroDia) && !t.finalizada;
+      return !t.cancelada && !turmaRealizada(t, hoje) && !(primeiroDia && hoje >= primeiroDia) && !t.finalizada;
     }
 
     function turmaCardHtml(t, hoje) {
@@ -503,6 +505,18 @@
       var horarioLabel = window.faTurmasUtil.formatHorario(t.horarioInicio, t.horarioFim);
       /* sala da turma (opcional): turma sem sala não mostra nada a mais */
       var salaHtml = t.sala ? '<div class="tc-horario tc-sala">&#x1F4CD; ' + esc(t.sala) + '</div>' : '';
+
+      if (t.cancelada) {
+        return (
+          '<div data-turma-key="' + t.key + '" class="turma-card-new reveal in turma-card-cancelada">' +
+            '<span class="tc-label">' + t.label + '</span>' +
+            '<div class="tc-month">' + fmt.mes + '</div>' +
+            '<div class="tc-dates">' + diasLabel + '</div>' +
+            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' + salaHtml +
+            '<div class="turma-status-msg turma-cancelada-msg"><strong>Turma cancelada</strong>Esta turma não será realizada. Fique de olho nas próximas.</div>' +
+          '</div>'
+        );
+      }
 
       /* encerrada pelo admin OU já passou do último dia → Realizada */
       if (turmaRealizada(t, hoje)) {
@@ -672,14 +686,16 @@
               do card), mesmo com a fila ligada.
          Critério geral, das turmas e das datas: não depende de quem vê poder
          participar. Evento sem turma (só fila) fica na parte 1. */
-      var atuais = [], encerrados = [], realizados = [];
+      var atuais = [], encerrados = [], realizados = [], cancelados = [];
       _eventosList.forEach(function (ev) {
         if (!eventoNaVitrine(ev, porEvento)) return;
         var turmasEv = porEvento[ev.key] || [];
         /* sem turma visível em "Mostrar para todos": o período vem das turmas do evento (só a posição; nada delas aparece) */
         if (!turmasEv.length && semTurmaVisivelEmTodos(ev, porEvento)) turmasEv = _turmasList.filter(function (t) { return t.eventoKey === ev.key; });
         if (!turmasEv.length || turmasEv.some(function (t) { return turmaAbertaAInteresse(t, hoje); })) atuais.push(ev);
-        else if (turmasEv.every(function (t) { return turmaRealizada(t, hoje); })) realizados.push(ev);
+        /* só turmas canceladas: não há o que esperar, e também nada foi realizado */
+        else if (turmasEv.every(function (t) { return t.cancelada; })) cancelados.push(ev);
+        else if (turmasEv.every(function (t) { return t.cancelada || turmaRealizada(t, hoje); })) realizados.push(ev);
         else (ev.esperaAtiva ? atuais : encerrados).push(ev);
       });
 
@@ -730,6 +746,10 @@
       if (realizados.length) {
         html += '<h2 class="turmas-periodo-divisor">Eventos já realizados</h2>';
         realizados.forEach(function (ev) { grupoHtml(ev, 'realizado'); });
+      }
+      if (cancelados.length) {
+        html += '<h2 class="turmas-periodo-divisor">Eventos cancelados</h2>';
+        cancelados.forEach(function (ev) { grupoHtml(ev, 'realizado'); });
       }
       if (semEvento.length) {
         html +=
@@ -1231,8 +1251,10 @@
       /* Checagem de segurança — o botão só existe se a turma não estava fechada
          no último carregamento da grade, mas a página pode estar aberta há um
          tempo e o admin ter encerrado o interesse nesse meio-tempo */
-      firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
-        if (cfgSnap.val()) { btn.disabled = false; showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
+      firebase.database().ref('turmas-config/' + turmaKey).once('value', function (cfgSnap) {
+        var cfgAgora = cfgSnap.val() || {};
+        if (window.faTurmasUtil.turmaCancelada(cfgAgora)) { btn.disabled = false; showMsg(turmaKey, 'Esta turma foi cancelada e não recebe novas inscrições.'); return; }
+        if (cfgAgora.finalizada) { btn.disabled = false; showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
         /* Mesma ideia da checagem acima: a turma (ou o evento dela) pode ter
            virado restrita, ou a pessoa pode ter saído da lista, depois de a
            página carregar. As duas restrições se somam: o evento é a mais

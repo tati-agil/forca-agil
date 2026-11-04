@@ -485,6 +485,7 @@
   padding: 2px 8px; border-radius: 4px; letter-spacing: .06em; }
 .badge-aberta    { background: rgba(24,194,186,.15); color: var(--cyan); border: 1px solid rgba(24,194,186,.3); }
 .badge-finalizada{ background: rgba(245,197,24,.15); color: var(--gold); border: 1px solid rgba(245,197,24,.3); }
+.badge-cancelada { background: rgba(255,80,80,.12); color: #ff8080; border: 1px solid rgba(255,80,80,.4); }
 
 .badge-checkin-aberto { background: rgba(100,220,100,.15); color: #64dc64; border: 1px solid rgba(100,220,100,.35); animation: pulse-green 2s ease-in-out infinite; }
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:.6} }
