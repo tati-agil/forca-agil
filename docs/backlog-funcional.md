@@ -102,6 +102,14 @@ funcional própria: o administrador precisa continuar podendo incluir substituto
 3. **Exceções administrativas para substitutos** (público-alvo ≠ participantes efetivos — PR 2 dos públicos) precisam de
    autorização e rastreabilidade (quem, quando, motivo), no mesmo espírito do "acima das vagas" (`acimaDasVagas`).
 
+## Segurança — leitura direta do cancelamento em `turmas-config`
+
+*Registrada em 2026-11-04 a pedido da responsável; sem implementação decidida.*
+
+As telas de participante não mostram motivo, justificativa nem responsável de uma turma cancelada. Mas `turmas-config` pode ser lido por qualquer login @previ (`montar-regras-inscricoes.js`), então quem consultar o banco diretamente lê `cancelamento.motivo`, `cancelamento.justificativa`, `cancelamento.por` (e-mail) e `cancelamento.porNome`.
+
+**Para fechar:** mover esses campos para um nó que só o admin leia, mantendo em `turmas-config` só o indicador de turma cancelada, o que muda regras do banco e os leitores do painel. Até lá, evitar justificativa sensível.
+
 ## Turmas — inconsistências de público na lista de espera
 
 *Registrada em 2026-11-01 (decisão 3 do planejamento de inconsistências de público). Fora da primeira entrega do selo

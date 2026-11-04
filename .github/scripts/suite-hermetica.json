@@ -435,8 +435,8 @@
     {
       "arquivo": ".github/scripts/teste-turma-cancelada.js",
       "nome": "Turma cancelada: motivo, data e responsável; não é realizada, não recebe ninguém, não dá certificado nem impede outra turma",
-      "duracao": 45,
-      "sobre": "Cancelar pede motivo e grava só o cancelamento (nem encerrada, nem pessoas, nem fila), também com o interesse aberto; a turma some da página Turmas, da Minha Área e da área do facilitador; check-in, Dashboard, destinos da movimentação e regras de entrada tratam a turma como cancelada; turma encerrada antes continua concluída, com certificado; confirmar em outra turma não mexe na inscrição da cancelada; desktop e 375 px."
+      "duracao": 110,
+      "sobre": "Cancelar pede motivo e grava só o cancelamento (nem encerrada, nem pessoas, nem fila), também com o interesse aberto; só quem tem vínculo ativo vê a turma, como cancelada e sem o motivo, na página Turmas e na Minha Área, e a equipe na área do facilitador, sem o roteiro; removida, transferida, sem vínculo e só na fila não veem; leitura lenta ou que falha deixa a turma escondida; check-in, Dashboard, destinos da movimentação e regras de entrada tratam a turma como cancelada; turma encerrada antes continua concluída, com certificado; confirmar em outra turma não mexe na inscrição da cancelada; desktop e 375 px."
     },
     {
       "arquivo": ".github/scripts/teste-converter-contar-turmas.js",

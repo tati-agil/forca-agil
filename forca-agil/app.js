@@ -230,6 +230,7 @@
        já foi confirmado como inscrito (não existe mais um card único de
        "turma confirmada" substituindo o grid inteiro). */
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
+    var _turmasCanceladas = []; // o mesmo formato; só aparecem para quem tem vínculo ativo nelas
     var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado, restritoADiretores, formato }]
     /* IDENTIDADE DE VISUALIZAÇÃO: de quem é a página Turmas que está sendo desenhada — a pessoa logada, ou a escolhida no
        "Ver esta tela como" (admin). É a ÚNICA entrada de pessoa de todo o fluxo de exibição: carregarVisao, vitrine
@@ -262,7 +263,7 @@
     /* O que a vitrine precisa saber de quem está vendo (_sess) para a visibilidade (faTurmasUtil.vitrineMostra*):
        se é gerente (null = ainda não sei → o cargo não esconde) e em quais turmas tem registro ATIVO (essas sempre
        aparecem). Lido por carregarVisao a cada pessoa — a real ou a do "Ver como". */
-    var _visao = { email: '', gerente: null, registros: {}, vinculos: {} };
+    var _visao = { email: '', gerente: null, registros: {}, vinculos: {}, vinculoCancelada: {} };
 
     /* Formato dos encontros do evento (eventos/<evento>/formato) — usado no
        chip "dia(s) de encontro(s)" do bloco "Como funciona". "hibrido" é os
@@ -349,11 +350,9 @@
                 formato: e.formato || 'presencial'
               };
             }).sort(function (a, b) { return a.order - b.order; });
-            /* Turma cancelada só aparece no ADMIN: fora da grade, da Missão e das contagens de vínculo daqui. Evento sem
-               nenhuma outra turma fica como evento sem turma: só aparece se a fila dele estiver ligada. */
-            _turmasList = Object.keys(val).filter(function (key) {
-              return !window.faTurmasUtil.turmaCancelada(cfg[key]);
-            }).map(function (key) {
+            /* Turma cancelada fica FORA de _turmasList: a grade, a Missão, as regras e as contagens de vínculo daqui seguem só com
+               as demais, sem mudar nada. Vai para _turmasCanceladas, e só aparece para quem tem vínculo ATIVO nela (carregarVisao). */
+            var todasAsTurmas = Object.keys(val).map(function (key) {
               return {
                 key: key,
                 label: val[key].label || key.toUpperCase(),
@@ -363,6 +362,7 @@
                 cmflexLink: val[key].cmflexLink || '',
                 finalizada: !!(cfg[key] && cfg[key].finalizada),
                 encerrada:  !!(cfg[key] && cfg[key].encerrada),
+                cancelada:  window.faTurmasUtil.turmaCancelada(cfg[key]),
                 publicoRestrito: !!val[key].publicoRestrito,
                 /* Ausente = 09:00–13:00: era o horário fixo do card antes
                    deste campo existir, então turma antiga não muda sozinha. */
@@ -374,6 +374,8 @@
                 publicoCargo: window.faTurmasUtil.cargoDaTurma(val[key])
               };
             }).sort(function (a, b) { return a.order - b.order; });
+            _turmasList = todasAsTurmas.filter(function (t) { return !t.cancelada; });
+            _turmasCanceladas = todasAsTurmas.filter(function (t) { return t.cancelada; });
             Promise.all([
               db.ref('turmas-publico').once('value'),
               db.ref('eventos-publico').once('value')
@@ -431,10 +433,10 @@
        redesenha na hora, sem esperar as leituras dos registros. */
     function carregarVisao(desenhar) {
       var email = _sess && _sess.email;
-      var v = { email: email || '', gerente: null, gerenteNivel: null, ativo: null, diretorCadastro: null, categorias: null, gerenteFalhou: false, registros: {}, vinculos: {} };
+      var v = { email: email || '', gerente: null, gerenteNivel: null, ativo: null, diretorCadastro: null, categorias: null, gerenteFalhou: false, vinculoCancelada: {}, registros: {}, vinculos: {} };
       _visao = v;
       if (!email) { desenhar(); return; }
-      var db = firebase.database(), k = emailKey(email), pend = 1 + _turmasList.length, desenhou = false;
+      var db = firebase.database(), k = emailKey(email), pend = 1 + _turmasList.length + _turmasCanceladas.length, desenhou = false;
       var limite = setTimeout(function () { if (_visao === v && !desenhou) { desenhou = true; desenhar(); } }, 4000);
       function um(redesenharJa) {
         if (--pend > 0 || _visao !== v) {
@@ -458,6 +460,15 @@
       var agora = new Date();
       var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
       var U = window.faTurmasUtil;
+      /* Turma cancelada: só o vínculo ATIVO faz a pessoa vê-la (interesse ou inscrição não removidos; quem saiu ou foi transferida
+         não vê, e fila de espera não é vínculo com turma). Fica num mapa à parte, sem entrar em registros nem em vinculos: não
+         muda elegibilidade nem nada da vitrine. Leitura lenta ou que falha = turma escondida. */
+      _turmasCanceladas.forEach(function (t) {
+        db.ref('turmas-interesse/' + t.key + '/' + k).once('value', function (s) {
+          if (U.registroAtivo(s.val())) v.vinculoCancelada[t.key] = true;
+          um();
+        }, function () { um(); });
+      });
       _turmasList.forEach(function (t) {
         db.ref('turmas-interesse/' + t.key + '/' + k).once('value', function (s) {
           var r = s.val(), realizada = turmaRealizada(t, hoje);
@@ -507,6 +518,19 @@
       var horarioLabel = window.faTurmasUtil.formatHorario(t.horarioInicio, t.horarioFim);
       /* sala da turma (opcional): turma sem sala não mostra nada a mais */
       var salaHtml = t.sala ? '<div class="tc-horario tc-sala">&#x1F4CD; ' + esc(t.sala) + '</div>' : '';
+
+      /* cancelada (só chega aqui para quem tem vínculo ativo): sem botão e sem o motivo, que é informação do ADMIN */
+      if (t.cancelada) {
+        return (
+          '<div data-turma-key="' + t.key + '" class="turma-card-new reveal in turma-card-cancelada">' +
+            '<span class="tc-label">' + t.label + '</span>' +
+            '<div class="tc-month">' + fmt.mes + '</div>' +
+            '<div class="tc-dates">' + diasLabel + '</div>' +
+            '<div class="tc-horario">&#x23F0; ' + horarioLabel + '</div>' + salaHtml +
+            '<div class="turma-status-msg turma-cancelada-msg"><strong>Turma cancelada</strong>Esta turma não será realizada.</div>' +
+          '</div>'
+        );
+      }
 
       /* encerrada pelo admin OU já passou do último dia → Realizada */
       if (turmaRealizada(t, hoje)) {
@@ -687,9 +711,25 @@
         else (ev.esperaAtiva ? atuais : encerrados).push(ev);
       });
 
+      /* Canceladas com vínculo ativo da pessoa: se o evento tem outra turma visível, na posição normal entre elas (a ordem manual);
+         senão, na seção final "Turmas canceladas". Evento despublicado fica fora da página, como sempre. As partes acima já foram
+         decididas só com as demais turmas: a cancelada não muda a seção de nenhum evento. */
+      var canceladasNoEvento = {}, canceladasNoFim = [];
+      if (_visao.email === email) {
+        _turmasCanceladas.forEach(function (t) {
+          if (!(_visao.vinculoCancelada || {})[t.key]) return;
+          var ev = eventoPorKey(t.eventoKey);
+          if (t.eventoKey && (!ev || !ev.publicado)) return;
+          if (ev && (porEvento[ev.key] || []).length && eventoNaVitrine(ev, porEvento)) (canceladasNoEvento[ev.key] = canceladasNoEvento[ev.key] || []).push(t);
+          else canceladasNoFim.push(t);
+        });
+      }
       var html = '';
       function grupoHtml(ev, periodo) {
         var turmasEv = porEvento[ev.key] || [];
+        var cardsEv = canceladasNoEvento[ev.key]
+          ? turmasEv.concat(canceladasNoEvento[ev.key]).sort(function (a, b) { return (a.order - b.order) || (prioridadeTurma(a) - prioridadeTurma(b)); })
+          : turmasEv;
         /* "Mostrar para todos" e a pessoa fora do público: o público permitido dito logo no título, antes das turmas
            (sem lista, sem nomes — só a categoria). Quem tem registro no evento não recebe o aviso: já participa. */
         var motivo = ev.visibilidade === 'todos' ? window.faTurmasUtil.foraDoPublicoDoEvento(ev, pessoaDaVitrine(_sess, ev.key, '')) : '';
@@ -723,7 +763,7 @@
                lugar dele é junto do título, e a grade de turmas (o que tem
                ação) fica sendo o fim da seção, não o meio. */
             '<div class="turmas-evento-missao"></div>' + semTurma +
-            '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
+            '<div class="turmas-grid">' + cardsEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
       }
       atuais.forEach(function (ev) { grupoHtml(ev, 'atual'); });
@@ -740,6 +780,19 @@
           '<div class="turmas-evento-grupo" data-evento-key="">' +
             '<div class="turmas-grid">' + semEvento.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
+      }
+      if (canceladasNoFim.length) {
+        html += '<h2 class="turmas-periodo-divisor">Turmas canceladas</h2>';
+        var evDoFim = [];
+        canceladasNoFim.forEach(function (t) { if (evDoFim.indexOf(t.eventoKey) === -1) evDoFim.push(t.eventoKey); });
+        evDoFim.forEach(function (ek) {
+          var ev = eventoPorKey(ek);
+          html +=
+            '<div class="turmas-evento-grupo" data-canceladas-evento="' + (ek || '') + '">' +
+              (ev ? '<div class="turmas-evento-cab"><span class="turmas-evento-eyebrow">Evento</span><h2 class="turmas-evento-titulo">' + ev.nome + '</h2></div>' : '') +
+              '<div class="turmas-grid">' + canceladasNoFim.filter(function (t) { return t.eventoKey === ek; }).map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
+            '</div>';
+        });
       }
       /* Cargo ainda não sabido: eventos/turmas de um cargo esperam escondidos — a página diz que está verificando (ou
          que a leitura falhou), em vez de parecer que não há nada para a pessoa. Some quando o cargo chega. */
