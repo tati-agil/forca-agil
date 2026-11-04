@@ -1088,6 +1088,13 @@
           exportParamBtn.innerHTML = '&#x1F4CA; Turmas e parâmetros';
           exportParamBtn.addEventListener('click', function () { exportTurmasParametros(exportParamBtn); });
           globalBtnWrap.appendChild(exportParamBtn);
+          var exportCompletoBtn = document.createElement('button');
+          exportCompletoBtn.className = 'btn btn--sm';
+          exportCompletoBtn.id = 'exportExcelCompletoBtn';
+          exportCompletoBtn.title = 'Um arquivo com três abas, de todos os eventos: Estado atual, Lista de espera e Histórico';
+          exportCompletoBtn.innerHTML = '&#x1F4CA; Excel completo';
+          exportCompletoBtn.addEventListener('click', function () { exportExcelCompleto(exportCompletoBtn); });
+          globalBtnWrap.appendChild(exportCompletoBtn);
           globalBtnWrap.appendChild(qrAcessoBtn);
           c.appendChild(globalBtnWrap);
 
@@ -5055,6 +5062,93 @@
       rows, 'turmas-estado-' + new Date().toISOString().slice(0,10) + '.csv');
   }
 
+  function situacaoDaTurma(cfg, primeiro, ultimo, vagas, ocupadas, hojeISO) {
+    return cfg.encerrada || (ultimo && hojeISO > ultimo) ? 'Realizada'
+      : (primeiro && hojeISO >= primeiro) ? 'Em andamento'
+      : cfg.finalizada ? 'Inscrições encerradas'
+      : (vagas && ocupadas >= vagas) ? 'Lotada' : 'Aberta';
+  }
+
+  /* "📊 Excel completo": um arquivo só, com três abas e todos os eventos. Estado atual (interessadas e inscritas, sem quem
+     saiu), Lista de espera (quem aguarda agora) e Histórico (linhasDoHistorico). A coluna "Fonte do dado" diz de onde veio
+     cada movimentação, porque o histórico não cobre tudo: ver a função. Lido do banco na hora; nada é gravado. */
+  function exportExcelCompleto(btn) {
+    if (btn.disabled) return;
+    var rotuloBtn = btn.innerHTML;
+    btn.disabled = true; btn.textContent = 'Gerando…';
+    function fim(msg) { btn.disabled = false; btn.innerHTML = rotuloBtn; if (msg) adminAlert(msg); }
+    var db = firebase.database();
+    var prazo = new Promise(function (_, falhar) { setTimeout(function () { falhar(new Error('sem-resposta')); }, 20000); });
+    Promise.race([Promise.all(['eventos', 'turmas', 'turmas-config', 'turmas-checkin', 'turmas-interesse', 'turmas-interesse-log', 'fa-espera'].map(function (n) { return db.ref(n).once('value'); })), prazo]).then(function (s) {
+      var eventos = s[0].val() || {}, turmas = s[1].val() || {}, config = s[2].val() || {}, checkin = s[3].val() || {},
+        interesse = s[4].val() || {}, log = s[5].val() || {}, espera = s[6].val() || {};
+      carregarXlsxAdmin(function (erro) {
+        if (erro || !window.XLSX) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); return; }
+        var h = new Date(), hojeISO = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-' + String(h.getDate()).padStart(2, '0');
+        var nomeEvento = function (k) { return k ? ((eventos[k] || {}).nome || k) : 'Sem evento'; };
+        var data = function (d) { return d ? fmtDate(d) : ''; };
+        var ordemEvento = {};
+        EVENTOS_LIST.forEach(function (e, i) { ordemEvento[e.key] = i; });
+        var posEvento = function (k) { return ordemEvento[k] === undefined ? 9999 : ordemEvento[k]; };
+
+        var estado = [];
+        turmasDaExportacao(interesse, log, true).forEach(function (t) {
+          var cfg = config[t.key] || {}, dias = (t.dias || []).slice().sort(), checkinT = checkin[t.key] || {};
+          var regs = Object.keys(interesse[t.key] || {}).map(function (k) { return interesse[t.key][k]; }).filter(function (r) { return r && r.removed !== true; });
+          var ocupadas = regs.filter(function (r) { return r.status !== 'removido'; }).length;
+          var vagas = turmas[t.key] ? window.faTurmasUtil.vagasEfetivas(turmas[t.key], eventos[t.eventoKey] || {}) : null;
+          var situacaoT = situacaoDaTurma(cfg, dias[0] || '', dias[dias.length - 1] || '', vagas, ocupadas, hojeISO);
+          regs.sort(cmpNome).forEach(function (r) {
+            var presentes = 0, eKey = emailKeyFromEmail(r.email);
+            dias.forEach(function (d) { if (checkinT[d] && checkinT[d][eKey]) presentes++; });
+            estado.push([nomeEvento(t.eventoKey), t.label].concat(colunasTurma(t), [situacaoT, r.name || '', r.email || '', r.area || '',
+              getStatus(r) === 'inscrito' ? 'Inscrita' : 'Interessada', data(r.date),
+              r.addedByAdmin ? 'Admin — ' + (r.addedByAdminName || r.addedByAdmin) : r.movimentadaEm ? 'Transferência' : 'Participante',
+              r.confirmedByAdminName || r.confirmedByAdmin || '', data(r.confirmedDate), cfg.finalizada ? textoFrequencia(presentes, dias.length) : '']));
+          });
+        });
+
+        var fila = [];
+        Object.keys(espera).forEach(function (eKey) {
+          window.faTurmasUtil.esperaAtivas(espera[eKey]).forEach(function (p) { fila.push(p); });
+        });
+        fila.sort(function (a, b) { return (posEvento(a.eventoKey) - posEvento(b.eventoKey)) || cmpNome(a, b) || (a.date || '').localeCompare(b.date || ''); });
+        var linhasFila = fila.map(function (p) {
+          var o = origemDaEspera(p, turmas);
+          return [nomeEvento(p.eventoKey), o.rotulo, o.dias, o.motivo, p.name || '', p.email || '', p.area || '', 'Aguardando', data(p.date), o.veioDeTurma ? data(p.migratedAt) : ''];
+        });
+
+        var posTurma = {};
+        TURMAS_LIST.forEach(function (t, i) { posTurma[t.key] = i; });
+        var pos = function (l) { return l.t && posTurma[l.t.key] !== undefined ? posTurma[l.t.key] : 9999; };
+        var linhasHist = linhasDoHistorico(log, interesse, espera, true).sort(function (a, b) {
+          return (posEvento(a.eventoKey) - posEvento(b.eventoKey)) || (pos(a) - pos(b)) || String(a.ts).localeCompare(String(b.ts));
+        }).map(function (l) {
+          return [nomeEvento(l.eventoKey), l.row[0]].concat(colunasTurma(l.t), l.row.slice(1), [l.fonte]);
+        });
+
+        function aba(cab, linhas) {
+          var ws = window.XLSX.utils.aoa_to_sheet([cab].concat(linhas));
+          ws['!cols'] = cab.map(function (c, i) {
+            return { wch: Math.min(48, Math.max.apply(null, [String(c).length + 2].concat(linhas.map(function (l) { return String(l[i] == null ? '' : l[i]).length + 2; })))) };
+          });
+          ws['!autofilter'] = { ref: window.XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: linhas.length, c: cab.length - 1 } }) };
+          return ws;
+        }
+        var wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Turma'].concat(COLUNAS_TURMA, ['Situação da turma', 'Nome', 'E-mail', 'Área', 'Situação', 'Data do registro', 'Registrado por', 'Confirmado por', 'Data da confirmação', 'Frequência']), estado), 'Estado atual');
+        window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Origem', 'Data da turma de origem', 'Motivo', 'Nome', 'E-mail', 'Área', 'Situação', 'Data interesse', 'Data remoção'], linhasFila), 'Lista de espera');
+        window.XLSX.utils.book_append_sheet(wb, aba(['Evento', 'Turma'].concat(COLUNAS_TURMA, ['Nome', 'E-mail', 'Área', 'Data', 'Hora', 'Ação', 'Responsável', 'Motivo', 'Destino', 'Fonte do dado']), linhasHist), 'Histórico');
+        window.XLSX.writeFile(wb, 'forca-agil-excel-completo-' + hojeISO + '.xlsx');
+        fim();
+      });
+    }).catch(function (e) {
+      fim(e && e.message === 'sem-resposta'
+        ? 'O banco de dados não respondeu em 20 segundos. Verifique a conexão (se continuar, tente outra rede), recarregue a página e tente de novo.'
+        : 'Não foi possível ler os dados agora. Recarregue a página e tente de novo.');
+    });
+  }
+
   /* "📊 Turmas e parâmetros": Excel com a lista de turmas por evento e TODOS os parâmetros — sem pessoas (das inscrições
      só entram contagens). Duas abas: "Turmas" (uma linha por turma, agrupada por evento e em ordem de data, com os
      parâmetros do evento repetidos para dar para filtrar) e "Eventos" (uma linha por evento). Lido do banco na hora. */
@@ -5105,10 +5199,7 @@
             var regs = Object.keys(interesse[tk] || {}).map(function (k) { return interesse[tk][k]; }).filter(function (r) { return r && !r.removed && r.status !== 'removido'; });
             var vagas = window.faTurmasUtil.vagasEfetivas(t, e);
             var ultimo = dias[dias.length - 1] || '', primeiro = dias[0] || '';
-            var situacao = cfg.encerrada || (ultimo && hojeISO > ultimo) ? 'Realizada'
-              : (primeiro && hojeISO >= primeiro) ? 'Em andamento'
-              : cfg.finalizada ? 'Inscrições encerradas'
-              : (vagas && regs.length >= vagas) ? 'Lotada' : 'Aberta';
+            var situacao = situacaoDaTurma(cfg, primeiro, ultimo, vagas, regs.length, hojeISO);
             linhasT.push(Object.assign({
               'Evento': e.nome || evk,
               'Turma': t.label || tk,
@@ -5172,9 +5263,32 @@
     db.ref('turmas-interesse-log').once('value', function (snapLog) {
       db.ref('turmas-interesse').once('value', function (snapI) {
       db.ref('fa-espera').once('value', function (snapE) {
-        var logData      = snapLog.val() || {};
-        var interestData = snapI.val()   || {};
-        var esperaData   = snapE.val()   || {};
+        var linhas = linhasDoHistorico(snapLog.val() || {}, snapI.val() || {}, snapE.val() || {}, false);
+        toXls(['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Data','Hora','Ação','Origem','Motivo','Destino']),
+          linhas.map(function (l) { return [l.row[0]].concat(colunasTurma(l.t), l.row.slice(1)); }),
+          'historico-' + new Date().toISOString().slice(0,10) + '.csv');
+      });
+      });
+    });
+  }
+
+  /* As turmas de uma exportação. No Excel completo entra também o que está no banco sob uma turma que não existe mais,
+     em vez de sumir do arquivo. */
+  function turmasDaExportacao(interestData, logData, completo) {
+    if (!completo) return TURMAS_LIST;
+    var extras = {};
+    Object.keys(interestData).concat(Object.keys(logData)).forEach(function (k) {
+      if (!turmaPorKey(k)) extras[k] = { key: k, label: k + ' (turma não cadastrada)', dias: [], eventoKey: '' };
+    });
+    return TURMAS_LIST.concat(Object.keys(extras).map(function (k) { return extras[k]; }));
+  }
+
+  /* As linhas do Histórico, uma por movimentação: { t, eventoKey, ts, fonte, row }.
+     Fonte: "Linha do histórico" (turmas-interesse-log) ou o registro atual da turma ou da fila. Nem toda movimentação tem
+     linha no histórico: ＋ Participante e remoção pelo painel só ficam no registro, e a entrada na fila só em fa-espera.
+     Com completo = true (Excel completo), acrescenta o que o CSV não traz e o registro prova: a entrada na fila, a
+     confirmação e o interesse sem linha no histórico. Só lê; nada é gravado. */
+  function linhasDoHistorico(logData, interestData, esperaData, completo) {
         var rows = [];
         /* "EVENTO › Turma 3 · como Inscrita" — um lado de uma transferência, como foi gravado no histórico */
         function ladoTransf(x, comSituacao) {
@@ -5189,7 +5303,7 @@
         function fmtData(iso) { if (!iso) return ''; var d = new Date(iso); return d.toLocaleDateString('pt-BR'); }
         function fmtHora(iso) { if (!iso) return ''; var d = new Date(iso); return d.toLocaleTimeString('pt-BR'); }
 
-        TURMAS_LIST.forEach(function (t) {
+        turmasDaExportacao(interestData, logData, completo).forEach(function (t) {
           var entries = [];
 
           /* Ações de usuário (log) */
@@ -5212,20 +5326,31 @@
                 destinoL = 'Veio de ' + ladoTransf(entry.de, false) + ' · entrou como ' + (entry.para && entry.para.situacao === 'inscrito' ? 'Inscrita' : 'Interessada');
                 var ant = entry.registroAnterior;
                 if (ant && ant.removed && ant.status !== 'removido') {
-                  entries.push({ ts: ant.removedDate || '', row: [t.label, ant.name||'', ant.email||'', ant.area||'', fmtData(ant.removedDate), fmtHora(ant.removedDate), 'Removido da turma',
+                  entries.push({ fonte: 'Linha do histórico', ts: ant.removedDate || '', row: [t.label, ant.name||'', ant.email||'', ant.area||'', fmtData(ant.removedDate), fmtHora(ant.removedDate), 'Removido da turma',
                     ant.removedByAdminName ? 'Admin — ' + ant.removedByAdminName : 'Não registrado', ant.removedReason || '', ant.movedToEspera ? 'Lista de espera' : (ant.removedParaTurmaLabel || 'Saiu')] });
                 }
               }
-              entries.push({ ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem, motivoL, destinoL] });
+              entries.push({ fonte: 'Linha do histórico', ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem, motivoL, destinoL] });
             });
           });
 
           /* Ações do admin lidas diretamente de turmas-interesse (add e remove) */
           var turmaI = interestData[t.key] || {};
-          Object.values(turmaI).forEach(function (r) {
+          Object.keys(turmaI).forEach(function (eKey) {
+            var r = turmaI[eKey];
+            if (completo) {
+              var doLog = Object.values(turmaLog[eKey] || {});
+              var temLinha = function (acao) { return doLog.some(function (x) { return x.action === acao; }); };
+              if (!r.addedByAdmin && !r.movimentadaEm && !temLinha('registrado')) {
+                entries.push({ fonte: 'Registro da turma', ts: r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.date), fmtHora(r.date), 'Interesse registrado', 'Não registrado', '', ''] });
+              }
+              if (r.confirmedByAdmin && !temLinha('confirmado') && !temLinha('transferida_entrada')) {
+                entries.push({ fonte: 'Registro da turma', ts: r.confirmedDate || r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.confirmedDate), fmtHora(r.confirmedDate), 'Confirmado como inscrita', 'Admin — ' + (r.confirmedByAdminName || r.confirmedByAdmin), '', ''] });
+              }
+            }
             /* entrada e saída por transferência já vieram do histórico acima, com origem e destino */
             if (r.addedByAdmin && r.addedByAdminName && !r.movimentadaEm) {
-              entries.push({ ts: r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.date), fmtHora(r.date), 'Adicionado pelo admin', 'Admin — ' + r.addedByAdminName, '', ''] });
+              entries.push({ fonte: 'Registro da turma', ts: r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.date), fmtHora(r.date), 'Adicionado pelo admin', 'Admin — ' + r.addedByAdminName, '', ''] });
             }
             /* Quem tirou o próprio interesse já entrou pelo log acima (é o
                único caminho que grava status "removido"), então aqui só entra
@@ -5234,13 +5359,12 @@
             if (r.removed && r.status !== 'removido' && !r.removedParaStatus) {
               var autor = r.removedByAdminName ? 'Admin — ' + r.removedByAdminName : 'Não registrado';
               var destino = r.movedToEspera ? 'Lista de espera' : (r.removedParaTurmaLabel || 'Saiu');
-              entries.push({ ts: r.removedDate || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.removedDate), fmtHora(r.removedDate), 'Removido da turma', autor, r.removedReason || '', destino] });
+              entries.push({ fonte: 'Registro da turma', ts: r.removedDate || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.removedDate), fmtHora(r.removedDate), 'Removido da turma', autor, r.removedReason || '', destino] });
             }
           });
 
           entries.sort(function (a, b) { return (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0); });
-          var colsT = colunasTurma(t);
-          entries.forEach(function (e) { rows.push([e.row[0]].concat(colsT, e.row.slice(1))); });
+          entries.forEach(function (e) { rows.push({ t: t, eventoKey: t.eventoKey, ts: e.ts, fonte: e.fonte, row: e.row }); });
         });
 
         /* Saídas da lista de espera — a fila não é de turma, então a linha leva a turma de onde a pessoa veio para a fila
@@ -5249,6 +5373,12 @@
         var saidasFila = [];
         Object.keys(esperaData).forEach(function (eKey) {
           window.faTurmasUtil.esperaEntradas(esperaData[eKey]).forEach(function (e) {
+            if (completo) {
+              var deT = e._origem && !window.faTurmasUtil.ehOrigemDireta(e._origem) ? turmaPorKey(e._origem) : null;
+              var quando = e.migratedAt || e.date || '';
+              saidasFila.push({ t: deT, eventoKey: e.eventoKey, fonte: 'Registro da fila', ts: quando, row: [deT ? deT.label : 'Lista de espera' + (e.eventoKey ? ' — ' + eventoLabel(e.eventoKey) : ''), e.name || '', e.email || '', e.area || '', fmtData(quando), fmtHora(quando),
+                'Entrou na lista de espera', e.migratedByName ? 'Admin — ' + e.migratedByName : (deT ? 'Não registrado' : 'Participante'), e.motivoEntradaDetalhe || (e.motivoEntrada ? motivoEsperaLabel(e.motivoEntrada) : ''), 'Lista de espera'] });
+            }
             if (!e.removed) return;
             var deTurma = e._origem && !window.faTurmasUtil.ehOrigemDireta(e._origem) ? turmaPorKey(e._origem) : null;
             var rotulo = deTurma ? deTurma.label : 'Lista de espera' + (e.eventoKey ? ' — ' + eventoLabel(e.eventoKey) : '');
@@ -5257,18 +5387,12 @@
             var destinoF = e.movedToTurma
               ? destinoPorExtenso(e.movedToTurma) + (e.movedToStatus ? ' · como ' + (e.movedToStatus === 'inscrito' ? 'Inscrita' : 'Interessada') : '')
               : 'Saiu da fila';
-            saidasFila.push({ ts: e.removedDate || '', row: [rotulo].concat(colunasTurma(deTurma), [e.name || '', e.email || '', e.area || '', fmtData(e.removedDate), fmtHora(e.removedDate),
+            saidasFila.push({ t: deTurma, eventoKey: e.eventoKey, fonte: 'Registro da fila', ts: e.removedDate || '', row: [rotulo].concat([e.name || '', e.email || '', e.area || '', fmtData(e.removedDate), fmtHora(e.removedDate),
               e.movedToTurma ? 'Saiu da lista de espera para uma turma' : 'Saiu da lista de espera', autor, motivoF, destinoF]) });
           });
         });
         saidasFila.sort(function (a, b) { return (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0); });
-        saidasFila.forEach(function (x) { rows.push(x.row); });
-
-        toXls(['Turma'].concat(COLUNAS_TURMA, ['Nome','E-mail','Área','Data','Hora','Ação','Origem','Motivo','Destino']),
-          rows, 'historico-' + new Date().toISOString().slice(0,10) + '.csv');
-      });
-      });
-    });
+        return rows.concat(saidasFila);
   }
 
   /* Colunas da TURMA que vão em toda exportação por turma (Estado atual, Exportar da turma, Histórico, Sorteios), logo
