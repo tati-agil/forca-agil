@@ -96,7 +96,7 @@ async function main() {
         tLista: tu('evLivre', { publicoRestrito: true }), tListaVazia: tu('evLivre', { publicoRestrito: true }),
         tTecLista: tu('evTec', { publicoRestrito: true }), tConflito: tu('evTec', { publicoCargo: 'gerentes' }),
         tCargoTec: tu('evLivre', { publicoCargo: 'tecnicos' }), tEvLista: tu('evLista'), tDir: tu('evDir'),
-        tFinal: tu('evLivre'), tEnc: tu('evLivre'), tAntiga: tu('evLivre', { publicoRestrito: true }), tOutra: tu('evLivre'),
+        tCanc: tu('evLivre'), tConfig: tu('evLivre'), tFinal: tu('evLivre'), tEnc: tu('evLivre'), tAntiga: tu('evLivre', { publicoRestrito: true }), tOutra: tu('evLivre'),
         tEventoSumiu: tu('evQueNaoExiste'),
         tGerTodos: tu('evGerTodos'), tDirTodos: tu('evDirTodos'), tListaTodos: tu('evListaTodos'),
         tGex: tu('evGex'), tGnu: tu('evGnu'), tGerComGex: tu('evGer', { publicoCargo: 'gerentesExecutivos' }), tGexComGnu: tu('evGex', { publicoCargo: 'gerentesNucleo' }),
@@ -106,7 +106,9 @@ async function main() {
         tLista: { [emailKey(TEC)]: { email: TEC }, [emailKey(GER)]: { email: GER } },
         tTecLista: { [emailKey(TEC)]: { email: TEC }, [emailKey(GER)]: { email: GER } },
       });
-      await a.ref('turmas-config').set({ tFinal: { finalizada: true }, tEnc: { encerrada: true, dataConclusao: '2026-10-01' } });
+      await a.ref('turmas-config').set({ tFinal: { finalizada: true }, tEnc: { encerrada: true, dataConclusao: '2026-10-01' },
+        tCanc: { cancelamento: { motivo: 'falta-quorum', em: AGORA, por: ADMIN, porNome: 'ADMIN' } } });
+      await a.ref(ti('tCanc', PRESERVADO)).set(interesse(PRESERVADO));
       await a.ref('turmas-equipe/tLivre/' + emailKey('fac@previ.com.br')).set({ email: 'fac@previ.com.br', papel: 'facilitador' });
       /* a lista da tAntiga mudou depois: estas pessoas já estavam lá e NÃO estão na lista */
       await a.ref(ti('tAntiga', ANTIGO)).set(inscrita(ANTIGO));
@@ -312,6 +314,35 @@ async function main() {
     await pode('A12 ' + qual + ' excluir turma (multipath de todos os nós dela)', a.ref().update({ 'turmas/tAntiga': null, 'turmas-config/tAntiga': null,
       'turmas-interesse/tAntiga': null, 'turmas-interesse-log/tAntiga': null, 'turmas-equipe/tAntiga': null, 'turmas-publico/tAntiga': null }));
   }
+
+  console.log('\n== C. turma cancelada ==');
+  await reiniciar();
+  await nega('C1 a pessoa não registra interesse em turma cancelada', registrar(TEC, 'tCanc'));
+  await nega('C2 o admin não inclui ninguém em turma cancelada', db(ADMIN).ref(ti('tCanc', TEC)).set(inscrita(TEC, ADMIN)));
+  await nega('C3 o admin não confirma ninguém em turma cancelada', db(ADMIN).ref().update({ [ti('tCanc', PRESERVADO) + '/status']: 'inscrito', [ti('tCanc', PRESERVADO) + '/confirmedByAdmin']: ADMIN }));
+  await pode('C4 a própria pessoa ainda sai da turma cancelada', db(PRESERVADO).ref(ti('tCanc', PRESERVADO)).update(REMOCAO));
+  await reiniciar();
+  await pode('C5 o admin ainda retira alguém da turma cancelada', db(ADMIN).ref(ti('tCanc', PRESERVADO)).update({ removed: true, removedDate: AGORA }));
+  await reiniciar();
+  await pode('C6 corrigir e-mail continua valendo em turma cancelada (o vínculo já existia)', db(ADMIN).ref().update({ [ti('tCanc', PRESERVADO)]: null,
+    [ti('tCanc', 'nova.chave@previ.com.br')]: interesse('nova.chave@previ.com.br'),
+    ['fa-users/' + emailKey('nova.chave@previ.com.br')]: { email: 'nova.chave@previ.com.br', name: 'PESSOA NOVA CHAVE', area: 'GECAT', emailCorrigidoDe: PRESERVADO } }));
+  await reiniciar();
+  const canc = (extra) => Object.assign({ motivo: 'decisao-organizacao', em: AGORA, por: ADMIN, porNome: 'ADMIN' }, extra || {});
+  const cfgC = (t) => 'turmas-config/' + t + '/cancelamento';
+  await nega('C7 quem não é admin não cancela', db(TEC).ref(cfgC('tConfig')).set(canc({ por: TEC })));
+  await nega('C8 sem motivo, recusado', db(ADMIN).ref(cfgC('tConfig')).set({ em: AGORA, por: ADMIN }));
+  await nega('C9 motivo inventado, recusado', db(ADMIN).ref(cfgC('tConfig')).set(canc({ motivo: 'qualquer' })));
+  await nega('C10 "Outro" sem justificativa, recusado', db(ADMIN).ref(cfgC('tConfig')).set(canc({ motivo: 'outro' })));
+  await nega('C11 em nome de outra pessoa, recusado', db(ADMIN).ref(cfgC('tConfig')).set(canc({ por: 'outra@previ.com.br' })));
+  await nega('C12 campo a mais, recusado', db(ADMIN).ref(cfgC('tConfig')).set(canc({ extra: 'x' })));
+  await nega('C13 turma concluída não vira cancelada', db(ADMIN).ref(cfgC('tEnc')).set(canc()));
+  await nega('C14 turma cancelada não vira concluída', db(ADMIN).ref('turmas-config/tCanc/encerrada').set(true));
+  await nega('C15 o cancelamento gravado não muda', db(ADMIN).ref(cfgC('tCanc') + '/motivo').set('outro'));
+  await pode('C16 o admin cancela, com o interesse aberto', db(ADMIN).ref(cfgC('tConfig')).set(canc()));
+  await pode('C17 "Outro" com justificativa', db(ADMIN).ref(cfgC('tLivre')).set(canc({ motivo: 'outro', justificativa: 'Reforma da sala' })));
+  await pode('C18 encerrar outra turma continua igual', db(ADMIN).ref().update({ 'turmas-config/tFinal/encerrada': true, 'turmas-config/tFinal/dataConclusao': '2026-11-01' }));
+  await pode('C19 excluir a turma cancelada continua valendo', db(ADMIN).ref('turmas-config/tCanc').set(null));
 
   await env.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

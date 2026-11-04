@@ -293,13 +293,20 @@
             return anteriores.indexOf(e) !== -1 || (grupo.indexOf(e) !== -1 && k !== turmaKey);
           });
           if (!alvo.length) { seguir(); return; }
-          var pend = alvo.length, falhou = false, achados = {};
-          alvo.forEach(function (tk) {
-            db.ref('turmas-interesse/' + tk + '/' + eKey).once('value', function (s) {
-              if (regraValida(s.val())) achados[tk] = s.val();
-              if (--pend === 0) fim();
-            }, function () { falhou = true; if (--pend === 0) fim(); });
-          });
+          var pend, falhou = false, achados = {};
+          /* quem está numa turma cancelada não participou dela: o registro não conta. Leitura que falha é erro, nunca "livre". */
+          db.ref('turmas-config').once('value', function (cSnap) {
+            var cfgs = cSnap.val() || {};
+            alvo = alvo.filter(function (tk) { return !turmaCancelada(cfgs[tk]); });
+            if (!alvo.length) { seguir(); return; }
+            pend = alvo.length;
+            alvo.forEach(function (tk) {
+              db.ref('turmas-interesse/' + tk + '/' + eKey).once('value', function (s) {
+                if (regraValida(s.val())) achados[tk] = s.val();
+                if (--pend === 0) fim();
+              }, function () { falhou = true; if (--pend === 0) fim(); });
+            });
+          }, falha);
           function fim() {
             var tks = Object.keys(achados);
             var anterior = tks.filter(function (tk) { return anteriores.indexOf(turmas[tk].eventoKey) !== -1; })[0];
@@ -346,6 +353,7 @@
      confere que ele concorda com regrasDeEntrada. */
   function conflitosDeParticipacao(dados, eventoKey, eKey, turmaKey) {
     var eventos = (dados && dados.eventos) || {}, turmas = (dados && dados.turmas) || {}, interesses = (dados && dados.interesses) || {};
+    var configs = (dados && dados.config) || {};
     var ev = eventos[eventoKey] || {};
     var marcadas = function (o) { return Object.keys(o || {}).filter(function (k) { return k !== eventoKey && o[k]; }); };
     var anteriores = marcadas(ev.bloqueiaParticipantesDe);
@@ -353,7 +361,7 @@
     var out = { participacao: [], umaTurma: [] }, vistos = {};
     Object.keys(turmas).forEach(function (tk) {
       var e = (turmas[tk] || {}).eventoKey, r = (interesses[tk] || {})[eKey];
-      if (!regraValida(r)) return;
+      if (!regraValida(r) || turmaCancelada(configs[tk])) return;
       if (anteriores.indexOf(e) !== -1) {
         if (!vistos[e]) { vistos[e] = { key: e, nome: (eventos[e] || {}).nome || '', inscrita: false }; out.participacao.push(vistos[e]); }
         if (r.status === 'inscrito' && r.confirmedByAdmin) vistos[e].inscrita = true;
@@ -549,7 +557,25 @@
   }
   /* turma j\u00e1 realizada: encerrada pelo admin OU j\u00e1 passou do \u00faltimo dia (o crit\u00e9rio do card "Turma realizada"). hoje =
      'AAAA-MM-DD' na data LOCAL de quem v\u00ea. */
-  function turmaJaRealizada(dias, encerrada, hoje) {
+  /* TURMA CANCELADA: turmas-config/<turma>/cancelamento = { motivo, justificativa?, em, por, porNome }. Outro estado, não
+     outro valor de "encerrada": encerrada continua dizendo que a turma foi realizada (certificado, "Turma realizada"), e os
+     registros antigos seguem assim. Cancelada não é realizada, não libera certificado, não recebe ninguém e não conta como
+     participa\u00e7\u00e3o nas regras de entrada; os registros das pessoas ficam como estão. As chaves est\u00e3o tamb\u00e9m nas regras do banco
+     (montar-regras-inscricoes.js). */
+  var MOTIVOS_CANCELAMENTO = [
+    { key: 'falta-quorum', label: 'Falta de qu\u00f3rum' },
+    { key: 'decisao-organizacao', label: 'Decis\u00e3o da organiza\u00e7\u00e3o' },
+    { key: 'imprevisto-operacional', label: 'Imprevisto operacional' },
+    { key: 'outro', label: 'Outro', pedeJustificativa: true }
+  ];
+  function turmaCancelada(cfg) { return !!(cfg && cfg.cancelamento); }
+  function motivoDoCancelamento(c) {
+    if (!c) return '';
+    var m = MOTIVOS_CANCELAMENTO.filter(function (x) { return x.key === c.motivo; })[0];
+    return (m ? m.label : (c.motivo || '')) + (c.justificativa ? ': ' + c.justificativa : '');
+  }
+  function turmaJaRealizada(dias, encerrada, hoje, cancelada) {
+    if (cancelada) return false;
     var d = (dias || []).slice().sort(), ultimo = d[d.length - 1] || '';
     return !!(encerrada || (ultimo && hoje > ultimo));
   }
@@ -565,6 +591,7 @@
     visibilidadeDoEvento: visibilidadeDoEvento, foraDoPublicoDoEvento: foraDoPublicoDoEvento, foraDoPublicoDaTurma: foraDoPublicoDaTurma,
     vitrineMostraEvento: vitrineMostraEvento, vitrineMostraTurma: vitrineMostraTurma, mensagemForaDoPublico: mensagemForaDoPublico,
     cargoPendente: cargoPendente, mensagemPublicoDoCargo: mensagemPublicoDoCargo, registroAtivo: registroAtivo, vinculoNaTurma: vinculoNaTurma,
-    foraDoPublicoAtual: foraDoPublicoAtual, textoMotivoForaDoPublico: textoMotivoForaDoPublico, turmaJaRealizada: turmaJaRealizada
+    foraDoPublicoAtual: foraDoPublicoAtual, textoMotivoForaDoPublico: textoMotivoForaDoPublico, turmaJaRealizada: turmaJaRealizada,
+    MOTIVOS_CANCELAMENTO: MOTIVOS_CANCELAMENTO, turmaCancelada: turmaCancelada, motivoDoCancelamento: motivoDoCancelamento
   };
 })();

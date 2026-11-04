@@ -57,10 +57,12 @@
      somando tudo; com o escopo por evento/turma ele precisa ser por turma,
      senão o "% de participação" de uma turma seria dividido pelo total de
      inscritos do programa inteiro. */
-  function participantesPorTurma(interesseData) {
+  function participantesPorTurma(interesseData, configData) {
     var out = {};
     Object.keys(interesseData).forEach(function (turmaKey) {
       var n = 0;
+      /* turma cancelada não foi realizada: quem estava nela não é participante */
+      if (window.faTurmasUtil.turmaCancelada((configData || {})[turmaKey])) { out[turmaKey] = 0; return; }
       Object.keys(interesseData[turmaKey] || {}).forEach(function (uKey) {
         var e = interesseData[turmaKey][uKey];
         if (e && !e.removed && e.status === 'inscrito' && e.confirmedByAdmin) n++;
@@ -77,8 +79,8 @@
      com o escopo passaria a ser descartada em silêncio — o total mudaria sem
      explicação. Então ela entra no catálogo como turma órfã, no grupo "sem
      evento", com o rótulo que ficou gravado na própria avaliação. */
-  function montarCatalogo(turmasData, eventosData, interesseData, avals) {
-    var porTurma = participantesPorTurma(interesseData);
+  function montarCatalogo(turmasData, eventosData, interesseData, avals, configData) {
+    var porTurma = participantesPorTurma(interesseData, configData);
     var turmas = Object.keys(turmasData).map(function (tk) {
       var t = turmasData[tk] || {};
       var evKey = t.eventoKey || SEM_EVENTO;
@@ -135,11 +137,13 @@
       firebase.database().ref('turmas').once('value'),
       firebase.database().ref('turmas-interesse').once('value'),
       firebase.database().ref('eventos').once('value'),
+      firebase.database().ref('turmas-config').once('value'),
     ]).then(function (res) {
       var avaliacoesRaw = res[0].val() || {};
       var turmasData    = res[1].val() || {};
       var interesseData = res[2].val() || {};
       var eventosData   = res[3].val() || {};
+      var configData    = res[4].val() || {};
 
       var avals = [];
       Object.keys(avaliacoesRaw).forEach(function (turmaKey) {
@@ -148,7 +152,7 @@
         });
       });
 
-      var cat = montarCatalogo(turmasData, eventosData, interesseData, avals);
+      var cat = montarCatalogo(turmasData, eventosData, interesseData, avals, configData);
       cb({ avals: avals, turmas: cat.turmas, eventos: cat.eventos });
     }).catch(function (err) {
       console.error('[dashboard]', err);
@@ -318,7 +322,7 @@
       ['🔍 O escopo (evento e turma)',
        'Os filtros no topo decidem de quais eventos e turmas são TODOS os números desta tela — cards, gráficos, destaques, temas e respostas individuais. Dá para marcar mais de um evento e mais de uma turma ao mesmo tempo, para comparar. Sem nada marcado, a tela mostra tudo junto, como sempre mostrou.'],
       ['👥 Participantes',
-       'Quantas pessoas estão confirmadas nas turmas do escopo. Conta quem tem inscrição confirmada pela organização e não foi removida. Quem só manifestou interesse não entra.'],
+       'Quantas pessoas estão confirmadas nas turmas do escopo. Conta quem tem inscrição confirmada pela organização e não foi removida. Quem só manifestou interesse não entra, e turma cancelada não conta.'],
       ['✅ Avaliações recebidas',
        'Quantas avaliações foram enviadas, somando todas as turmas. O percentual ao lado é esse número dividido pelo de Participantes. Atenção: quem responde sem estar confirmado — um admin testando, por exemplo — soma no primeiro número e não no segundo, então o percentual pode passar de 100%.'],
       ['⭐ Média geral',

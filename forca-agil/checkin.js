@@ -32,6 +32,10 @@
     cfgRef.once('value', function (cfgSnap) {
       var cfg = cfgSnap.val() || {};
 
+      if (cfg.cancelamento) {
+        render(msgError('Esta turma foi cancelada: não há check-in.'));
+        return;
+      }
       if (!cfg.finalizada) {
         render(msgError('Esta turma ainda não teve as inscrições finalizadas.'));
         return;

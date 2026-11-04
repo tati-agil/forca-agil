@@ -128,6 +128,9 @@ const EXIGE_EXCECAO = or(['!(' + ENTRADA + ')', publicoVerificavel(NOVO), "newDa
   /* a cópia feita pela correção de e-mail do ADMIN (chave nova, criada junto com o cadastro corrigido): o vínculo já existia */
   copiaDaCorrecaoDeEmail(NOVO)]);
 const REGRAS_DA_EXCECAO = ['lista-evento', 'lista-turma', 'diretores', 'cargo', 'participacao', 'umaTurma'];
+/* turma cancelada não recebe ninguém, nem pelo admin, nem com exceção. Sair continua valendo, e a cópia da correção de e-mail
+   também: o vínculo já existia. */
+const NAO_ENTRA_EM_CANCELADA = or(['!(' + ENTRADA + ')', '!' + CFG + ".child('cancelamento').exists()", copiaDaCorrecaoDeEmail(NOVO)]);
 const EXCECAO = {
   '.validate': and([ADM, "newData.hasChildren(['regras', 'motivo', 'por', 'em', 'turma'])", "newData.child('turma').val() === $turmaKey"]),
   regras: { '.validate': 'newData.hasChildren()', $regra: { '.validate': or(REGRAS_DA_EXCECAO.map((r) => "$regra === '" + r + "'")) + ' && newData.val() === true' } },
@@ -147,6 +150,7 @@ const PUBLICO_ATUAL = publico('root');
 const ELEGIVEL = and([T + '.exists()'].concat(PUBLICO_ATUAL.turma, [
   CFG + ".child('finalizada').val() !== true",
   CFG + ".child('encerrada').val() !== true",
+  '!' + CFG + ".child('cancelamento').exists()",
   PUBLICO_ATUAL.evento
 ]));
 
@@ -190,7 +194,7 @@ const blocoInteresse = {
     $userKey: {
       '.write': or([SO_ADMIN, PESSOA]),
       /* .validate não é vencido por .write de nó acima: vale também para gravações do admin na turma inteira */
-      '.validate': EXIGE_EXCECAO,
+      '.validate': and([EXIGE_EXCECAO, NAO_ENTRA_EM_CANCELADA]),
       excecaoAdmin: EXCECAO,
       name: campoDaPessoa('newData.isString() && newData.val().length <= 200'),
       email: campoDaPessoa('newData.isString() && newData.val().length <= 200'),
@@ -232,9 +236,29 @@ const blocoLog = {
 };
 
 const soAdmin = () => ({ '.read': LER, $turmaKey: { '.write': SO_ADMIN } });
+/* turmas-config: só o admin. O cancelamento (forca-agil/turmas-util.js, MOTIVOS_CANCELAMENTO) tem motivo, data e responsável,
+   não muda depois de gravado e não convive com encerrada, que quer dizer "realizada". */
+const MOTIVOS_CANCELAMENTO = ['falta-quorum', 'decisao-organizacao', 'imprevisto-operacional', 'outro'];
+const blocoConfig = {
+  '.read': LER,
+  $turmaKey: {
+    '.write': SO_ADMIN,
+    encerrada: { '.validate': "newData.val() !== true || !newData.parent().child('cancelamento').exists()" },
+    cancelamento: {
+      '.validate': and(["newData.hasChildren(['motivo', 'em', 'por'])", '!data.exists()', "newData.parent().child('encerrada').val() !== true",
+        or(["newData.child('motivo').val() !== 'outro'", "newData.child('justificativa').isString()"])]),
+      motivo: { '.validate': or(MOTIVOS_CANCELAMENTO.map((m) => "newData.val() === '" + m + "'")) },
+      justificativa: { '.validate': 'newData.isString() && newData.val().length >= 5 && newData.val().length <= 500' },
+      em: { '.validate': 'newData.isString() && newData.val().length <= 40' },
+      por: { '.validate': "newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase()" },
+      porNome: { '.validate': 'newData.isString() && newData.val().length <= 200' },
+      $outro: { '.validate': false }
+    }
+  }
+};
 const BLOCOS = {
   turmas: soAdmin(),
-  'turmas-config': soAdmin(),
+  'turmas-config': blocoConfig,
   'turmas-equipe': soAdmin(),
   'turmas-interesse': blocoInteresse,
   'turmas-interesse-log': blocoLog
