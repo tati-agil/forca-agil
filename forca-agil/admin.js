@@ -5582,8 +5582,10 @@
     var box = document.createElement('div');
 
     /* Uma linha por pessoa E por origem: quem passou por duas turmas aparece
-       duas vezes, com a data do interesse de cada uma. A ordem da fila
-       continua sendo a data do interesse, não a da saída. */
+       duas vezes, com a data do interesse de cada uma. Em ordem alfabética pelo
+       nome, para achar a pessoa; quem espera há mais tempo continua na coluna
+       "Data interesse". As linhas da mesma pessoa ficam juntas, da mais antiga
+       para a mais nova. */
     var list = [];
     Object.keys(dataEv).forEach(function (eKey) {
       window.faTurmasUtil.esperaAtivas(dataEv[eKey]).forEach(function (e) {
@@ -5591,7 +5593,7 @@
         list.push(e);
       });
     });
-    list.sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    list.sort(function (a, b) { return cmpNome(a, b) || (a.date || '').localeCompare(b.date || ''); });
 
     var pessoas = {};
     list.forEach(function (p) { pessoas[p._key] = true; });
@@ -5616,6 +5618,8 @@
       return box;
     }
 
+    box.appendChild(barraExportarEspera(list, turmasVal, evKeyOrNull));
+
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
     var table = document.createElement('table');
@@ -5638,17 +5642,16 @@
          para varrer a coluna e comparar quem espera há mais tempo. Quem
          entrou direto pelo card do site não saiu de turma nenhuma, então
          não tem data de remoção. */
-      var veioDeTurma = p._origem && !window.faTurmasUtil.ehOrigemDireta(p._origem);
+      var orig = origemDaEspera(p, turmasVal);
+      var veioDeTurma = orig.veioDeTurma;
       var remocaoFmt = veioDeTurma ? fmtDate(p.migratedAt) : '—';
       /* Quem veio de uma turma tem migratedFrom gravado na migração —
          mostra de qual turma saiu, em vez de deixar o dado invisível
          no banco. */
       var origem = '<span style="color:var(--ink-3)">Entrou pela lista</span>';
       if (veioDeTurma) {
-        var tLabel = (turmasVal[p._origem] && turmasVal[p._origem].label) || p._origem.toUpperCase();
-        var motivoTxt = p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada);
-        origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
-          (motivoTxt ? '<span class="espera-origem-motivo">' + esc(motivoTxt) + '</span>' : '');
+        origem = '<span class="espera-origem">↩ ' + esc(orig.rotulo) + '</span>' +
+          (orig.motivo ? '<span class="espera-origem-motivo">' + esc(orig.motivo) + '</span>' : '');
       }
       tr.innerHTML =
         '<td>' + esc(p.name || '—') + '</td>' +
@@ -5732,6 +5735,113 @@
     box.appendChild(wrap);
     box.appendChild(saidosDaFila(dataEv, turmasVal));
     return box;
+  }
+
+  /* De onde a pessoa veio para a fila: uma só leitura para a tabela e para as exportações. */
+  function origemDaEspera(p, turmasVal) {
+    var veioDeTurma = !!(p._origem && !window.faTurmasUtil.ehOrigemDireta(p._origem));
+    if (!veioDeTurma) return { veioDeTurma: false, chave: 'direta', rotulo: 'Entrou pela lista', motivo: '', dias: '' };
+    var t = turmasVal[p._origem] || {};
+    return { veioDeTurma: true, chave: p._origem, rotulo: t.label || p._origem.toUpperCase(),
+      motivo: p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada) || '',
+      dias: (t.dias || []).slice().sort().map(function (d) { var x = d.split('-'); return x[2] + '/' + x[1] + '/' + x[0]; }).join(', ') };
+  }
+
+  /* Excel e PDF da lista de espera: o evento inteiro ou um recorte por turma de origem. A fila é do EVENTO; a turma só
+     existe como a origem de quem saiu dela. Exporta o que está na tela, com a mesma ordem e só quem está esperando agora.
+     Nada é gravado. */
+  function barraExportarEspera(list, turmasVal, evKeyOrNull) {
+    var ev = evKeyOrNull ? EVENTOS_LIST.filter(function (e) { return e.key === evKeyOrNull; })[0] : null;
+    var nomeEvento = ev ? ev.nome : 'Sem evento';
+    var origens = {};
+    list.forEach(function (p) { var o = origemDaEspera(p, turmasVal); origens[o.chave] = o.rotulo; });
+    var chaves = Object.keys(origens).sort(function (a, b) {
+      if (a === 'direta' || b === 'direta') return a === b ? 0 : (a === 'direta' ? -1 : 1);
+      return origens[a].localeCompare(origens[b], 'pt-BR', { numeric: true, sensitivity: 'base' });
+    });
+
+    var barra = document.createElement('div');
+    barra.className = 'espera-exportar';
+    barra.innerHTML = '<label class="gerentes-filtro">Exportar <select class="admin-motivo-select espera-exp-recorte">' +
+      '<option value="todas">' + (ev ? 'Evento inteiro' : 'Todos') + '</option>' +
+      chaves.map(function (k) { return '<option value="' + esc(k) + '">' + esc(origens[k]) + '</option>'; }).join('') +
+      '</select></label>' +
+      '<button type="button" class="btn btn--sm espera-exp-excel">&#x1F4CA; Excel</button>' +
+      '<button type="button" class="btn btn--sm espera-exp-pdf">&#x1F5A8; Imprimir / PDF</button>';
+    var sel = barra.querySelector('.espera-exp-recorte');
+
+    function recorte() {
+      var v = sel.value;
+      return { rotulo: sel.options[sel.selectedIndex].text,
+        linhas: list.filter(function (p) { return v === 'todas' || origemDaEspera(p, turmasVal).chave === v; }) };
+    }
+    function hojeLocal() {
+      var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; };
+      return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate());
+    }
+    function slug(s) {
+      return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    }
+    barra.querySelector('.espera-exp-excel').addEventListener('click', function () {
+      var r = recorte();
+      toXls(['Evento', 'Origem', 'Data da turma de origem', 'Motivo', 'Nome', 'E-mail', 'Área', 'Data interesse', 'Data remoção'],
+        r.linhas.map(function (p) {
+          var o = origemDaEspera(p, turmasVal);
+          return [nomeEvento, o.rotulo, o.dias, o.motivo, p.name || '', p.email || '', p.area || '', p.date ? fmtDate(p.date) : '', o.veioDeTurma && p.migratedAt ? fmtDate(p.migratedAt) : ''];
+        }),
+        'lista-espera-' + slug(nomeEvento) + (sel.value === 'todas' ? '' : '-' + slug(r.rotulo)) + '-' + hojeLocal() + '.csv');
+    });
+    barra.querySelector('.espera-exp-pdf').addEventListener('click', function () {
+      var r = recorte();
+      imprimirListaEspera(nomeEvento, sel.value === 'todas' ? '' : r.rotulo, r.linhas, turmasVal);
+    });
+    return barra;
+  }
+
+  /* A folha sai sozinha, sem o painel ao lado: diz o evento, o recorte, o total e quando foi gerada. Mesma janela da lista de
+     presença: "Salvar como PDF" é o destino da impressão do navegador. */
+  function imprimirListaEspera(nomeEvento, nomeRecorte, linhas, turmasVal) {
+    var pessoas = {};
+    linhas.forEach(function (p) { pessoas[p._key] = true; });
+    var nP = Object.keys(pessoas).length;
+    var total = nP + ' pessoa' + (nP !== 1 ? 's' : '') + (linhas.length !== nP ? ' · ' + linhas.length + ' registros (quem passou por mais de uma turma aparece uma vez por turma)' : '');
+    var meta = [['Evento', nomeEvento], ['Origem', nomeRecorte], ['Total', total], ['Gerado em', new Date().toLocaleString('pt-BR')]]
+      .filter(function (l) { return l[1]; })
+      .map(function (l) { return '<div><span class="le-rot">' + esc(l[0]) + ':</span> ' + esc(l[1]) + '</div>'; }).join('');
+    var corpo = linhas.map(function (p, i) {
+      var o = origemDaEspera(p, turmasVal);
+      return '<tr><td>' + (i + 1) + '</td><td>' + esc(p.name) + '</td><td>' + esc(p.email) + '</td><td>' + esc(p.area) + '</td><td>' + esc(o.rotulo) +
+        (o.motivo ? '<div class="le-motivo">' + esc(o.motivo) + '</div>' : '') + '</td><td>' + esc(p.date ? fmtDate(p.date) : '') + '</td></tr>';
+    }).join('');
+    var titulo = 'Lista de espera — ' + nomeEvento + (nomeRecorte ? ' — ' + nomeRecorte : '');
+    var html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + esc(titulo) + '</title>' +
+      '<style>' +
+      'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}' +
+      'h1{font-size:1.3rem;margin:0 0 4px;}' +
+      '.le-meta{font-size:.85rem;color:#444;margin-bottom:16px;display:flex;flex-direction:column;gap:2px;}' +
+      '.le-rot{font-weight:bold;color:#111;}' +
+      '.le-tabela{overflow-x:auto;}' +
+      'table{border-collapse:collapse;width:100%;font-size:.78rem;}' +
+      'th,td{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top;}' +
+      'th{background:#eee;}' +
+      'thead{display:table-header-group;}' +
+      'tr{break-inside:avoid;}' +
+      '.le-motivo{font-size:.7rem;color:#444;font-style:italic;}' +
+      '.le-actions{margin-bottom:16px;}' +
+      '@media print{.le-actions{display:none;} body{margin:10px;} .le-tabela{overflow:visible;}}' +
+      '@page{size:A4 landscape;margin:14mm;}' +
+      '</style></head><body>' +
+      '<div class="le-actions"><button id="le-print-btn">Imprimir / salvar como PDF</button></div>' +
+      '<h1>Lista de espera</h1><div class="le-meta">' + meta + '</div>' +
+      '<div class="le-tabela"><table><thead><tr><th>#</th><th>Nome</th><th>E-mail</th><th>Área</th><th>Origem</th><th>Data interesse</th></tr></thead>' +
+      '<tbody>' + corpo + '</tbody></table></div></body></html>';
+    var win = window.open('', '_blank');
+    if (!win) { adminAlert('Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.'); return; }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    var printBtn = win.document.getElementById('le-print-btn');
+    if (printBtn) printBtn.addEventListener('click', function () { win.print(); });
   }
 
   /* Quem saiu da fila. A lista mostra só quem está esperando agora, então

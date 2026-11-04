@@ -577,6 +577,12 @@
       "sobre": "Seção Participações com o total e Ações administrativas à parte; muitas participações rolam por dentro, nenhuma some, e as ações não são empurradas; descrições das ações preservadas; duas colunas de ações no desktop e uma no celular; sem rolagem lateral; padrão visual verificado; nada é gravado."
     },
     {
+      "arquivo": ".github/scripts/teste-fila-espera-exportar.js",
+      "nome": "Lista de espera no ADMIN: ordem alfabética e exportação para Excel e PDF por evento ou turma de origem, desktop e 375 px",
+      "duracao": 20,
+      "sobre": "Tabela em ordem alfabética; recorte por evento inteiro, turma de origem ou entrada direta; planilha e folha de impressão com as mesmas linhas, sem quem saiu nem outro evento; texto escapado; pop-up bloqueado avisa; nada é gravado; sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",
       "nome": "Turmas: vagas (lotada) e público Só gerentes / Só técnicos, desktop",
       "duracao": 45,
