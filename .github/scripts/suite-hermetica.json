@@ -571,6 +571,12 @@
       "sobre": "No desktop os títulos param logo abaixo do menu, sem rolagem interna; em tela média e no celular a tabela rola por dentro e os títulos param no topo do quadro; fundo opaco; títulos acompanham as colunas na rolagem lateral; sem rolagem lateral da página."
     },
     {
+      "arquivo": ".github/scripts/teste-cadastro-modal-organizacao.js",
+      "nome": "Cadastrados, menu ⋯: seções Participações e Ações administrativas com 0, 1, 2 e muitas participações, desktop, 375 px e celular baixo",
+      "duracao": 25,
+      "sobre": "Seção Participações com o total e Ações administrativas à parte; muitas participações rolam por dentro, nenhuma some, e as ações não são empurradas; descrições das ações preservadas; duas colunas de ações no desktop e uma no celular; sem rolagem lateral; padrão visual verificado; nada é gravado."
+    },
+    {
       "arquivo": ".github/scripts/teste-turma-vagas-gerentes.js",
       "nome": "Turmas: vagas (lotada) e público Só gerentes / Só técnicos, desktop",
       "duracao": 45,

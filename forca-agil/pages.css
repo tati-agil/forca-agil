@@ -857,28 +857,43 @@
 .cad-linha-bloqueada td:not(:last-child) { opacity: .55; }
 
 /* Ações do menu "⋯" — rótulo por extenso e uma linha dizendo o que faz. */
-.cad-acoes-lista { display: flex; flex-direction: column; gap: 8px; }
+/* em duas colunas onde couber (a caixa tem até 640 px); no celular, uma */
+.cad-acoes-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.cad-secao-titulo { margin: 0 0 8px; font-family: var(--font-head); font-size: .92rem; font-weight: 500; letter-spacing: .04em; color: var(--ink); }
+.cad-acoes-secao { min-width: 0; }
+.cad-secao-titulo .admin-badge[hidden] { display: none; }
 /* ⋯ de Cadastrados: onde a pessoa está (só consulta) */
-.cad-vinculos { background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px; min-width: 0; }
-.cad-vinculos-titulo { margin: 0 0 6px; font-size: .82rem; font-weight: 600; color: var(--ink); }
+.cad-vinculos { background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px; padding: 10px 12px; min-width: 0; flex-shrink: 0; }
 .cad-vinculos-msg { margin: 0; font-size: .8rem; line-height: 1.45; color: var(--ink-2); }
+.cad-vinculos-msg[hidden] { display: none; }
 .cad-vinculos-msg--aviso { color: var(--gold); }
-.cad-vinculos-lista { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.cad-vinculos-lista li { display: flex; flex-direction: column; gap: 1px; min-width: 0; overflow-wrap: anywhere; }
-.cad-vinculo-nome { font-size: .82rem; line-height: 1.4; color: var(--ink); }
-.cad-vinculo-nota { font-size: .76rem; color: var(--ink-3); }
-.cad-vinculo-situacao { font-size: .76rem; font-weight: 600; color: var(--ink-2); }
+.cad-vinculos-dica { margin-top: 6px; color: var(--ink-3); }
+/* altura limitada: a lista cresce por dentro e as ações ficam sempre à vista, logo abaixo */
+.cad-vinculos-lista { list-style: none; margin: 0; padding: 0 6px 0 0; display: flex; flex-direction: column; max-height: clamp(110px, 28vh, 240px); overflow-y: auto; }
+.cad-vinculos-lista { scrollbar-width: thin; scrollbar-color: rgba(245,197,66,.35) transparent; }
+.cad-vinculos-lista:focus-visible, .cad-acoes-modal button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cad-vinculos-lista li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; padding: 7px 0; min-width: 0; overflow-wrap: anywhere; }
+.cad-vinculos-lista li + li { border-top: 1px solid var(--line); }
+.cad-vinculos-lista li:first-child { padding-top: 0; }
+.cad-vinculos-lista li:last-child { padding-bottom: 0; }
+.cad-vinculo-nome { grid-column: 1; font-size: .82rem; line-height: 1.4; color: var(--ink); }
+.cad-vinculo-nota { grid-column: 1; font-size: .8rem; color: var(--ink-3); }
+.cad-vinculo-situacao { grid-column: 2; grid-row: 1 / span 2; max-width: 130px; text-align: right; font-size: .8rem; font-weight: 600; color: var(--ink-2); }
 .cad-vinculo-situacao--inscrita { color: var(--cyan); }
 .cad-vinculo-situacao--fila { color: var(--gold); }
+@media (max-width: 480px) {
+  .cad-vinculos-lista li { grid-template-columns: minmax(0, 1fr); }
+  .cad-vinculo-situacao { grid-column: 1; grid-row: auto; max-width: none; text-align: left; }
+}
 .cad-acao-btn {
-  display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left;
-  padding: 11px 14px; border-radius: 9px; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: flex-start; gap: 3px; width: 100%; min-width: 0; text-align: left;
+  padding: 9px 12px; border-radius: 9px; cursor: pointer;
   background: var(--panel-2); border: 1px solid var(--line-strong); color: var(--ink);
   font-family: inherit; transition: border-color .2s, background .2s;
 }
 .cad-acao-btn:hover { border-color: var(--accent); }
-.cad-acao-rotulo { font-size: .9rem; }
-.cad-acao-ajuda  { font-size: .74rem; color: var(--ink-3); line-height: 1.4; }
+.cad-acao-rotulo { font-size: .88rem; }
+.cad-acao-ajuda  { font-size: .8rem; color: var(--ink-3); line-height: 1.35; overflow-wrap: anywhere; }
 .cad-acao-btn--perigo { border-color: rgba(255,59,48,.45); }
 .cad-acao-btn--perigo .cad-acao-rotulo { color: var(--red, #ff3b30); }
 .cad-acao-btn--perigo:hover { border-color: var(--red, #ff3b30); background: rgba(255,59,48,.08); }
