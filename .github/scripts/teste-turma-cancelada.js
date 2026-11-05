@@ -333,7 +333,7 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
       {
         const { ctx, page, erros } = await abrir(browser, opt, ANA, 'minha-area', { fail: ['turmas-interesse'] });
         await esperarCondicao(page, () => { const s = document.querySelector('#page-minha-area'); return !!s && !/Carregando/i.test(s.innerText); }, null, { limite: 20000, descricao: 'a Minha Área' });
-        const r = await page.evaluate(() => ({ canc: /TURMA JA CANCELADA/.test(document.body.textContent), rota: location.hash }));
+        const r = await page.evaluate(() => ({ canc: /TURMA JA CANCELADA/.test(document.querySelector('#page-minha-area').textContent), rota: location.hash }));
         anota(nome + ': Minha Área com leitura que falha: não mostra a turma, não expulsa, não quebra', !r.canc && /minha-area/.test(r.rota) && !erros.length, JSON.stringify(r) + erros.join(' | '));
         await ctx.close();
       }
