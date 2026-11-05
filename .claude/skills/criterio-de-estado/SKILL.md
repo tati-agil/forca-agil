@@ -175,8 +175,10 @@ Mesma disciplina se aplica, e cada um tem seu próprio inventário a levantar:
   participar da equipe de uma turma é outra coisa, mora em `turmas-equipe`
   (ver `CLAUDE.md` e `roteiro.js`).
 - **turma cancelada** — `turmas-config/<turma>/cancelamento`, critério único `faTurmasUtil.turmaCancelada`. Não é `encerrada`:
-  quem decide "realizada", certificado e participação não pode tratar as duas como a mesma coisa. Só o ADMIN vê a turma
-  cancelada: página Turmas, Minha Área e área do facilitador a filtram na origem. O acesso a Conteúdos e
+  quem decide "realizada", certificado e participação não pode tratar as duas como a mesma coisa. Quem vê a turma cancelada:
+  ADMIN sempre; na página Turmas e na Minha Área, só quem tem vínculo ATIVO (`registroAtivo`; removida, transferida e fila de
+  espera não contam); na área do facilitador, a equipe dela, sem o roteiro. Em `app.js` esse vínculo fica em
+  `_visao.vinculoCancelada`, à parte de `registros`, para não mudar elegibilidade. O acesso a Conteúdos e
   Treinamento (`auth.js` `isInscrito`) não olha o cancelamento, por decisão: ninguém perde acesso.
 - **estado da turma** — `turmas-config/<turma>`: `finalizada` (interesse
   encerrado), `encerrada` + `dataConclusao` (turma realizada), `diaAtivo`

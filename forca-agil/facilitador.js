@@ -66,14 +66,13 @@
       Object.keys(equipeTudo).forEach(function (turmaKey) {
         var membro = (equipeTudo[turmaKey] || {})[minhaKey];
         if (!membro) return;
-        if (window.faTurmasUtil.turmaCancelada(config[turmaKey])) return; /* turma cancelada só aparece no ADMIN */
         var t = turmas[turmaKey];
         if (!t) return;
         var ev = t.eventoKey ? (eventos[t.eventoKey] || {}) : {};
         var cfg = config[turmaKey] || {};
         var diasOrd = (t.dias || []).slice().sort();
         var primeiro = diasOrd[0] || '';
-        var fase = cfg.encerrada ? 'concluida' : (primeiro && primeiro > todayISO()) ? 'programada' : 'andamento';
+        var fase = window.faTurmasUtil.turmaCancelada(cfg) ? 'cancelada' : cfg.encerrada ? 'concluida' : (primeiro && primeiro > todayISO()) ? 'programada' : 'andamento';
         minhas.push({
           turmaKey: turmaKey, turma: Object.assign({ key: turmaKey }, t),
           eventoNome: ev.nome || 'Evento', papel: membro.papel,
@@ -95,7 +94,7 @@
       return;
     }
 
-    var GRUPOS = [['andamento', 'Em andamento'], ['programada', 'Programadas'], ['concluida', 'Concluídas']];
+    var GRUPOS = [['andamento', 'Em andamento'], ['programada', 'Programadas'], ['concluida', 'Concluídas'], ['cancelada', 'Canceladas']];
     GRUPOS.forEach(function (g) {
       var doGrupo = minhas.filter(function (m) { return m.fase === g[0]; })
         .sort(function (a, b) { return (a.primeiro || '').localeCompare(b.primeiro || ''); });
@@ -122,6 +121,11 @@
       (m.periodo ? '<span style="font-size:.82rem;color:var(--ink-2)">' + esc(m.periodo) + '</span>' : '') +
       '<span style="font-size:.82rem;color:' + (m.papel === 'responsavel' ? 'var(--gold)' : 'var(--ink-2)') + '">' +
         (m.papel === 'responsavel' ? '⭐ Você é o responsável por esta turma.' : 'Você participa como facilitador.') + '</span>';
+    /* cancelada: fica o contexto de quem estava na equipe, sem o roteiro de uma turma que não vai acontecer */
+    if (m.fase === 'cancelada') {
+      el.insertAdjacentHTML('beforeend', '<span class="turma-cancelada-aviso">Turma cancelada: não será realizada.</span>');
+      return el;
+    }
     var btnWrap = document.createElement('div');
     btnWrap.style.cssText = 'margin-top:8px';
     var roteiroBtn = document.createElement('button');

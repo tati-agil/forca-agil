@@ -5,15 +5,16 @@
  *      data e responsável: nem encerrada, nem dataConclusao, nem pessoas, nem histórico, nem fila;
  *   2. o cartão mostra TURMA CANCELADA, motivo, data e responsável, sem nada que ponha gente na turma; a turma encerrada antes
  *      aparece como TURMA CONCLUÍDA e não pode ser cancelada;
- *   3. página Turmas: a cancelada não aparece, nem o evento só com turmas canceladas (salvo com a fila ligada); a concluída
- *      continua "Turma realizada";
- *   4. Minha Área: a cancelada não aparece, nem como inscrição, nem como interesse, nem como aberta; a turma concluída continua
- *      com certificado;
+ *   3. página Turmas: quem tem vínculo ativo vê "Turma cancelada", sem botão e sem o motivo: na posição normal se o evento tem outra
+ *      turma à vista; senão, na seção final "Turmas canceladas". Sem vínculo, removida, transferida e só na fila não veem; evento
+ *      despublicado fica fora da página; a concluída continua "Turma realizada"; leitura lenta ou que falha deixa a turma escondida;
+ *   4. Minha Área: inscrição em "Canceladas" e interesse no mesmo agrupamento, com o aviso; sem certificado, sem frequência, sem o
+ *      motivo; quem não tem vínculo ativo não vê; a turma concluída continua com certificado;
  *   5. regras de entrada: registro em turma cancelada não impede outra turma nem evento (regrasDeEntrada e
  *      conflitosDeParticipacao concordam); em turma não cancelada continua impedindo;
  *   6. confirmar em outra turma não mexe na inscrição da cancelada; a cancelada não é destino de movimentação;
  *   7. Dashboard: quem está em turma cancelada não conta como participante;
- *   8. check-in recusa; a área do facilitador não mostra a cancelada;
+ *   8. check-in recusa; a área do facilitador mostra a cancelada em "Canceladas", sem "Abrir roteiro";
  *   9. os motivos do site são os mesmos das regras do banco;
  *  10. sem rolagem lateral; nenhum erro de JavaScript. */
 const { chromium } = require('playwright');
@@ -24,7 +25,8 @@ const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const BASE  = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
-const ADM = 'adm@previ.com.br', ANA = 'ana@previ.com.br', BIA = 'bia@previ.com.br', CAIO = 'caio@previ.com.br';
+const ADM = 'adm@previ.com.br', ANA = 'ana@previ.com.br', BIA = 'bia@previ.com.br', CAIO = 'caio@previ.com.br',
+  NOVO = 'novo@previ.com.br', REM = 'rem@previ.com.br', TRA = 'tra@previ.com.br', FILAO = 'filao@previ.com.br';
 const AGORA = '2026-10-01T10:00:00.000Z';
 const CANC = { motivo: 'falta-quorum', em: AGORA, por: ADM, porNome: 'ADMIN' };
 const inscrita = (e, n) => ({ name: n, email: e, area: 'GECAT', status: 'inscrito', confirmedByAdmin: ADM, confirmedByAdminName: 'ADMIN', confirmedDate: AGORA, removed: false, date: AGORA });
@@ -34,10 +36,13 @@ const interesse = (e, n) => ({ name: n, email: e, area: 'GECAT', status: 'intere
    tOutra: destino. evGrupo tem "uma turma por pessoa"; evDepois não aceita quem participou de evAntes. */
 function banco() {
   const ti = {
-    tJaCanc: { [chave(ANA)]: inscrita(ANA, 'ANA LIMA'), [chave(BIA)]: inscrita(BIA, 'BIA NEVES') },
+    tJaCanc: { [chave(ANA)]: inscrita(ANA, 'ANA LIMA'), [chave(BIA)]: inscrita(BIA, 'BIA NEVES'),
+      [chave(REM)]: Object.assign(inscrita(REM, 'REM SAIU'), { removed: true, removedDate: AGORA }),
+      [chave(TRA)]: Object.assign(interesse(TRA, 'TRA MOVIDA'), { removed: true, removedDate: AGORA, removedParaTurma: 'tOutra', removedParaTurmaLabel: 'TURMA OUTRA' }) },
+    tOffCanc: { [chave(ANA)]: interesse(ANA, 'ANA LIMA') },
     tConcl: { [chave(ANA)]: inscrita(ANA, 'ANA LIMA') },
     tAberta: { [chave(BIA)]: interesse(BIA, 'BIA NEVES') },
-    tOutra: { [chave(BIA)]: interesse(BIA, 'BIA NEVES') },
+    tOutra: { [chave(BIA)]: interesse(BIA, 'BIA NEVES'), [chave(TRA)]: interesse(TRA, 'TRA MOVIDA') },
     tAntesCanc: { [chave(ANA)]: inscrita(ANA, 'ANA LIMA') },
     tAntesVale: { [chave(BIA)]: inscrita(BIA, 'BIA NEVES') },
     /* inscrita só em turma cancelada, e na fila: para a Visão por pessoa do Excel completo */
@@ -47,13 +52,14 @@ function banco() {
     'fa-users': { [chave(ADM)]: { name: 'ADMIN', email: ADM, area: 'INFOR' }, [chave(ANA)]: { name: 'ANA LIMA', email: ANA, area: 'GECAT' }, [chave(BIA)]: { name: 'BIA NEVES', email: BIA, area: 'GECAT' } },
     'fa-admins': { [chave(ADM)]: { email: ADM, name: 'ADMIN' } }, 'fa-diretores': {}, 'fa-gerentes': {}, 'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {},
     'fa-facilitadores': { [chave(ANA)]: { email: ANA, name: 'ANA LIMA', ativo: true } },
-    'fa-espera': { [chave(CAIO)]: { 'lista:evGrupo': { name: 'CAIO REIS', email: CAIO, area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false } }, [chave('fila@previ.com.br')]: { 'lista:evGrupo': { name: 'NA FILA', email: 'fila@previ.com.br', area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false } } },
+    'fa-espera': { [chave(FILAO)]: { tJaCanc: { name: 'FILA SO', email: FILAO, area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false, migratedFrom: 'tJaCanc' } }, [chave(CAIO)]: { 'lista:evGrupo': { name: 'CAIO REIS', email: CAIO, area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false } }, [chave('fila@previ.com.br')]: { 'lista:evGrupo': { name: 'NA FILA', email: 'fila@previ.com.br', area: 'GECAT', eventoKey: 'evGrupo', date: AGORA, removed: false } } },
     eventos: {
       evGrupo: { nome: 'EPISÓDIO GRUPO', order: 1, publicado: true, cargaHoraria: '3', umaTurmaPorPessoa: true, percentualMinimo: 0 },
       evAntes: { nome: 'EPISÓDIO ANTES', order: 2, publicado: true, cargaHoraria: '3' },
       evDepois: { nome: 'EPISÓDIO DEPOIS', order: 3, publicado: true, cargaHoraria: '3', bloqueiaParticipantesDe: { evAntes: true } },
       evSoCanc: { nome: 'EPISÓDIO SÓ CANCELADO', order: 4, publicado: true, cargaHoraria: '3', esperaAtiva: false },
       evFilaCanc: { nome: 'EPISÓDIO FILA LIGADA', order: 6, publicado: true, cargaHoraria: '3', esperaAtiva: true },
+      evOff: { nome: 'EPISÓDIO DESPUBLICADO', order: 7, publicado: false, cargaHoraria: '3' },
       evConcl: { nome: 'EPISÓDIO CONCLUÍDO', order: 5, publicado: true, cargaHoraria: '3', percentualMinimo: 0 }
     },
     turmas: {
@@ -65,7 +71,8 @@ function banco() {
       tAntesVale: { label: 'ANTES VALE', eventoKey: 'evAntes', order: 6, dias: ['2027-05-02'] },
       tDepois: { label: 'TURMA DEPOIS', eventoKey: 'evDepois', order: 7, dias: ['2027-11-05'] },
       tSoCanc: { label: 'TURMA SO CANCELADA', eventoKey: 'evSoCanc', order: 8, dias: ['2027-11-06'] },
-      tFilaCanc: { label: 'TURMA FILA CANCELADA', eventoKey: 'evFilaCanc', order: 9, dias: ['2027-11-07'] }
+      tFilaCanc: { label: 'TURMA FILA CANCELADA', eventoKey: 'evFilaCanc', order: 9, dias: ['2027-11-07'] },
+      tOffCanc: { label: 'TURMA OFF CANCELADA', eventoKey: 'evOff', order: 10, dias: ['2027-11-08'] }
     },
     'turmas-interesse': ti,
     'turmas-interesse-log': {},
@@ -74,19 +81,20 @@ function banco() {
       tConcl: { finalizada: true, encerrada: true, dataConclusao: '2026-01-11' },
       tAntesCanc: { cancelamento: CANC },
       tSoCanc: { cancelamento: CANC },
-      tFilaCanc: { cancelamento: CANC }
+      tFilaCanc: { cancelamento: CANC },
+      tOffCanc: { cancelamento: CANC }
     },
     'turmas-checkin': { tConcl: {} }, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-sorteio': {}, avaliacoes: {}, pedidos: {}, holocron: {},
     'turmas-equipe': { tJaCanc: { [chave(ANA)]: { email: ANA, name: 'ANA LIMA', papel: 'facilitador' } }, tConcl: { [chave(ANA)]: { email: ANA, name: 'ANA LIMA', papel: 'facilitador' } } }
   };
 }
 
-async function abrir(browser, opt, email, rota) {
+async function abrir(browser, opt, email, rota, extra) {
   const ctx = await browser.newContext(opt);
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
-  await page.addInitScript('window.__CFG = ' + JSON.stringify({ db: banco(), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, delayDefault: 5 }) + ';');
+  await page.addInitScript('window.__CFG = ' + JSON.stringify({ db: banco(), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, delayDefault: 5, ...(extra || {}) }) + ';');
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
@@ -215,24 +223,46 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
       /* ── a página Turmas e a Minha Área, como a pessoa ── */
       {
         const { ctx, page, erros } = await abrir(browser, opt, ANA, 'turmas');
-        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tOutra"]'), null, { limite: 15000, descricao: 'os cards' });
+        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tSoCanc"]'), null, { limite: 15000, descricao: 'os cards' });
         const cards = await page.evaluate(() => {
-          const c = (k) => { const e = document.querySelector('[data-turma-key="' + k + '"]'); return e ? e.innerText : null; };
-          const grupo = (k) => !!document.querySelector('.turmas-evento-grupo[data-evento-key="' + k + '"]');
-          return { canc: c('tJaCanc'), cancFila: c('tFilaCanc'), concl: c('tConcl'), aberta: c('tOutra'), corpo: document.body.innerText, evSoCanc: grupo('evSoCanc'), evFila: grupo('evFilaCanc'),
-            divisores: Array.from(document.querySelectorAll('.turmas-periodo-divisor')).map((x) => x.textContent) };
+          const c = (k) => { const e = document.querySelector('[data-turma-key="' + k + '"]'); if (!e) return null;
+            const g = e.closest('.turmas-evento-grupo'); return { t: e.innerText, botao: !!e.querySelector('button, a'), ev: g && g.getAttribute('data-evento-key'), fim: g && g.getAttribute('data-canceladas-evento') }; };
+          const divs = Array.from(document.querySelectorAll('.turmas-periodo-divisor')), ult = divs[divs.length - 1];
+          const so = document.querySelector('[data-turma-key="tSoCanc"]');
+          return { canc: c('tJaCanc'), antes: c('tAntesCanc'), so: c('tSoCanc'), off: c('tOffCanc'), semVinculo: c('tFilaCanc'), concl: c('tConcl'), aberta: c('tOutra'), corpo: document.body.innerText,
+            evSoNormal: !!document.querySelector('.turmas-evento-grupo[data-evento-key="evSoCanc"]'), evFila: !!document.querySelector('.turmas-evento-grupo[data-evento-key="evFilaCanc"]'),
+            secaoUltima: !!ult && ult.textContent === 'Turmas canceladas' && !!(ult.compareDocumentPosition(so) & Node.DOCUMENT_POSITION_FOLLOWING) };
         });
-        anota(nome + ': página Turmas: a cancelada não aparece; as outras do evento, sim', cards.canc === null && cards.aberta !== null && !/Turma cancelada/i.test(cards.corpo), JSON.stringify(cards.canc));
-        anota(nome + ': página Turmas: a concluída continua "Turma realizada"', cards.concl && /Turma realizada/i.test(cards.concl), JSON.stringify(cards.concl));
-        anota(nome + ': página Turmas: evento só com canceladas some; com a fila ligada, fica sem a turma', !cards.evSoCanc && cards.evFila && cards.cancFila === null && !cards.divisores.includes('Eventos cancelados'), JSON.stringify([cards.evSoCanc, cards.evFila, cards.divisores]));
-        if (process.env.FA_SHOTS) await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'canc-turmas-' + opt.viewport.width + '.png') });
+        anota(nome + ': página Turmas: com vínculo ativo, "Turma cancelada", sem botão', /Turma cancelada/i.test(cards.canc && cards.canc.t) && /não será realizada/.test(cards.canc.t) && !cards.canc.botao, JSON.stringify(cards.canc));
+        anota(nome + ': evento com outra turma à vista: posição normal', cards.canc.ev === 'evGrupo' && cards.antes && cards.antes.ev === 'evAntes' && cards.aberta !== null, JSON.stringify([cards.canc.ev, cards.antes]));
+        anota(nome + ': sem outra turma à vista: seção final "Turmas canceladas", também para interesse', cards.so && cards.so.fim === 'evSoCanc' && !cards.so.botao && cards.secaoUltima && !cards.evSoNormal, JSON.stringify(cards.so));
+        anota(nome + ': sem vínculo nela, não aparece; evento despublicado fica fora da página', cards.semVinculo === null && cards.off === null && cards.evFila, JSON.stringify([cards.semVinculo, cards.off]));
+        anota(nome + ': a concluída continua "Turma realizada"; motivo e justificativa fora da tela', cards.concl && /Turma realizada/i.test(cards.concl.t) && !/quórum|Falta de/i.test(cards.corpo), JSON.stringify(cards.concl));
+        if (process.env.FA_SHOTS) {
+          await page.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; document.querySelector('[data-turma-key="tJaCanc"]').scrollIntoView({ block: 'center' }); });
+          await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'vinc-normal-' + opt.viewport.width + '.png') });
+          await page.evaluate(() => Array.from(document.querySelectorAll('.turmas-periodo-divisor')).pop().scrollIntoView({ block: 'start' }));
+          await page.evaluate(() => window.scrollBy(0, -90));
+          await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'vinc-fim-' + opt.viewport.width + '.png') });
+        }
         await page.evaluate(() => { location.hash = '#minha-area'; });
         await esperarCondicao(page, () => document.querySelectorAll('.aluno-grupo').length > 0, null, { limite: 15000, descricao: 'a Minha Área' });
-        const area = await page.evaluate(() => ({ grupos: Array.from(document.querySelectorAll('.aluno-grupo')).map((g) => g.textContent),
-          cards: Array.from(document.querySelectorAll('.aluno-card--expansivel')).map((c) => c.textContent), corpo: document.body.innerText }));
-        const cardConcl = area.cards.find((c) => c.includes('TURMA CONCLUIDA')) || '';
-        anota(nome + ': Minha Área: a cancelada não aparece, nem como inscrição, nem como interesse', !/TURMA JA CANCELADA|ANTES CANCELADA|TURMA SO CANCELADA|Canceladas/.test(area.corpo), area.grupos.join(' | '));
+        const area = await page.evaluate(() => {
+          const g = Array.from(document.querySelectorAll('.aluno-grupo')).find((x) => x.textContent.includes('Canceladas'));
+          return { grupos: Array.from(document.querySelectorAll('.aluno-grupo')).map((x) => x.textContent), cards: Array.from(document.querySelectorAll('.aluno-card--expansivel')).map((c) => c.textContent),
+            canceladas: g ? Array.from(g.nextElementSibling.querySelectorAll('.aluno-card--expansivel')).map((c) => c.textContent) : [], corpo: document.querySelector('#page-minha-area').textContent,
+            info: Array.from(document.querySelectorAll('.aluno-card--info')).map((c) => c.textContent), ocultar: Array.from(document.querySelectorAll('#page-minha-area button')).filter((b) => /ocultar|dispensar/i.test(b.textContent)).length };
+        });
+        const cardCanc = area.canceladas.find((c) => c.includes('TURMA JA CANCELADA')) || '', cardConcl = area.cards.find((c) => c.includes('TURMA CONCLUIDA')) || '';
+        anota(nome + ': Minha Área: inscrição em "Canceladas", identificada, sem certificado e sem frequência', area.canceladas.length === 2 && /Turma cancelada/.test(cardCanc) && /não será realizada/.test(cardCanc) && !/Certificado liberado|Baixar PNG|Sua frequência|Avaliar/.test(cardCanc), cardCanc.slice(0, 240));
+        const intCanc = area.info.find((c) => c.includes('TURMA SO CANCELADA')) || '', intOff = area.info.find((c) => c.includes('TURMA OFF CANCELADA')) || '';
+        anota(nome + ': Minha Área: interesse no mesmo agrupamento, com o aviso e sem "a confirmação da vaga"; evento despublicado continua aqui', /Turma cancelada/.test(intCanc) && /não será realizada/.test(intCanc) && !/confirmação da vaga|Em análise/i.test(intCanc) && /Turma cancelada/.test(intOff), intCanc.slice(0, 240));
+        anota(nome + ': Minha Área: sem o motivo e sem botão de ocultar', !/quórum|Falta de/i.test(area.corpo) && area.ocultar === 0);
         anota(nome + ': Minha Área: a concluída continua com o certificado', area.grupos.some((g) => g.includes('Concluídas')) && /Certificado/.test(cardConcl), cardConcl.slice(0, 200));
+        if (process.env.FA_SHOTS) {
+          await page.evaluate(() => { const g = Array.from(document.querySelectorAll('.aluno-grupo')).find((x) => x.textContent.includes('Canceladas')); document.documentElement.style.scrollBehavior = 'auto'; g.nextElementSibling.querySelector('summary').click(); g.scrollIntoView({ block: 'start' }); window.scrollBy(0, -90); });
+          await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'vinc-area-' + opt.viewport.width + '.png') });
+        }
         anota(nome + ': pessoa: sem rolagem lateral; nenhum erro de JavaScript', !erros.length && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), erros.join(' | '));
         await ctx.close();
       }
@@ -243,9 +273,68 @@ const cartao = (page, tk, fn) => page.evaluate(([k, f]) => {
         await esperarCondicao(page, () => /foi cancelada/.test(document.body.innerText), null, { limite: 15000, descricao: 'a recusa do check-in' });
         anota(nome + ': check-in recusa em turma cancelada', true);
         await page.evaluate(() => { location.hash = '#facilitador'; });
-        await esperarCondicao(page, () => /Concluídas \(1\)/.test(document.body.innerText), null, { limite: 15000, descricao: 'a área do facilitador' });
-        anota(nome + ': área do facilitador: a cancelada não aparece', await page.evaluate(() => !/TURMA JA CANCELADA|Canceladas/.test(document.body.innerText)));
+        await esperarCondicao(page, () => /Canceladas \(1\)/.test(document.body.innerText), null, { limite: 15000, descricao: 'o grupo Canceladas do facilitador' });
+        const fac = await page.evaluate(() => {
+          const h = Array.from(document.querySelectorAll('#page-facilitador h3')), grid = (n) => { const x = h.find((e) => e.textContent.startsWith(n)); return x ? x.nextElementSibling : null; };
+          return { canc: grid('Canceladas').innerText, roteiroCanc: Array.from(grid('Canceladas').querySelectorAll('button')).filter((b) => /roteiro/i.test(b.textContent)).length, roteiroConcl: Array.from(grid('Concluídas').querySelectorAll('button')).filter((b) => /roteiro/i.test(b.textContent)).length };
+        });
+        anota(nome + ': área do facilitador: "Canceladas", identificada e sem "Abrir roteiro"; a outra turma mantém o roteiro', /TURMA JA CANCELADA/.test(fac.canc) && /Turma cancelada/.test(fac.canc) && !/quórum/i.test(fac.canc) && fac.roteiroCanc === 0 && fac.roteiroConcl === 1, JSON.stringify(fac));
+        if (process.env.FA_SHOTS) {
+          await page.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; Array.from(document.querySelectorAll('#page-facilitador h3')).find((e) => e.textContent.startsWith('Canceladas')).scrollIntoView({ block: 'center' }); });
+          await page.screenshot({ path: path.join(process.env.FA_SHOTS, 'vinc-fac-' + opt.viewport.width + '.png') });
+        }
         anota(nome + ': check-in e facilitador: nenhum erro de JavaScript', !erros.length, erros.join(' | '));
+        await ctx.close();
+      }
+    }
+
+    /* ── quem não tem vínculo ativo: nada de turma cancelada ── */
+    for (const [nome, opt] of [
+      ['1280 px', { viewport: { width: 1280, height: 800 } }],
+      ['375 px', { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }]
+    ]) {
+      for (const [quem, email] of [['sem vínculo', NOVO], ['removida', REM], ['transferida', TRA], ['só na fila, vinda da turma', FILAO]]) {
+        const { ctx, page, erros } = await abrir(browser, opt, email, 'turmas');
+        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tOutra"]'), null, { limite: 15000, descricao: 'os cards' });
+        await page.waitForTimeout(400);
+        const pag = await page.evaluate(() => ({ cards: ['tJaCanc', 'tAntesCanc', 'tSoCanc', 'tFilaCanc', 'tOffCanc'].filter((k) => document.querySelector('[data-turma-key="' + k + '"]')), texto: /Turma cancelada|Turmas canceladas/i.test(document.body.innerText) }));
+        anota(nome + ' · ' + quem + ': a página Turmas não mostra turma cancelada', !pag.cards.length && !pag.texto, JSON.stringify(pag));
+        await page.evaluate(() => { location.hash = '#minha-area'; });
+        await esperarCondicao(page, () => { const s = document.querySelector('#page-minha-area'); return !!s && !/Carregando/i.test(s.innerText) && s.innerText.length > 60; }, null, { limite: 15000, descricao: 'a Minha Área' });
+        await page.waitForTimeout(300);
+        const ma = await page.evaluate(() => document.querySelector('#page-minha-area').textContent);
+        anota(nome + ' · ' + quem + ': a Minha Área não mostra turma cancelada', !/TURMA JA CANCELADA|Turma cancelada|Canceladas/.test(ma) && (email !== FILAO || /Lista de espera/.test(ma)), ma.slice(0, 200));
+        anota(nome + ' · ' + quem + ': nenhum erro de JavaScript', !erros.length, erros.join(' | '));
+        await ctx.close();
+      }
+    }
+
+    /* ── leitura lenta e leitura que falha ── */
+    for (const [nome, opt] of [
+      ['1280 px', { viewport: { width: 1280, height: 800 } }],
+      ['375 px', { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }]
+    ]) {
+      {
+        const { ctx, page, erros } = await abrir(browser, opt, ANA, 'turmas', { delays: { 'turmas-interesse/tSoCanc': 14000 } });
+        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tOutra"]'), null, { limite: 15000, descricao: 'os cards' });
+        const antes = await page.evaluate(() => !!document.querySelector('[data-turma-key="tSoCanc"]'));
+        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tSoCanc"]'), null, { limite: 25000, descricao: 'a cancelada depois da leitura lenta' });
+        anota(nome + ': leitura lenta: a turma espera escondida, as outras não esperam, e ela aparece quando a resposta chega', !antes && !erros.length, erros.join(' | '));
+        await ctx.close();
+      }
+      {
+        const { ctx, page, erros } = await abrir(browser, opt, ANA, 'turmas', { fail: ['turmas-interesse/tSoCanc'] });
+        await esperarCondicao(page, () => !!document.querySelector('[data-turma-key="tJaCanc"]'), null, { limite: 15000, descricao: 'a página' });
+        await page.waitForTimeout(600);
+        const r = await page.evaluate(() => ({ so: !!document.querySelector('[data-turma-key="tSoCanc"]'), outra: !!document.querySelector('[data-turma-key="tOutra"]'), rota: location.hash }));
+        anota(nome + ': leitura que falha: só aquela turma fica escondida, sem expulsar nem quebrar', !r.so && r.outra && /turmas/.test(r.rota) && !erros.length, JSON.stringify(r) + erros.join(' | '));
+        await ctx.close();
+      }
+      {
+        const { ctx, page, erros } = await abrir(browser, opt, ANA, 'minha-area', { fail: ['turmas-interesse'] });
+        await esperarCondicao(page, () => { const s = document.querySelector('#page-minha-area'); return !!s && !/Carregando/i.test(s.innerText); }, null, { limite: 20000, descricao: 'a Minha Área' });
+        const r = await page.evaluate(() => ({ canc: /TURMA JA CANCELADA/.test(document.querySelector('#page-minha-area').textContent), rota: location.hash }));
+        anota(nome + ': Minha Área com leitura que falha: não mostra a turma, não expulsa, não quebra', !r.canc && /minha-area/.test(r.rota) && !erros.length, JSON.stringify(r) + erros.join(' | '));
         await ctx.close();
       }
     }

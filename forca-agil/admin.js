@@ -4833,7 +4833,7 @@
     box.style.cssText = 'max-width:480px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto';
     box.innerHTML =
       '<p style="font-size:.95rem;line-height:1.55;color:var(--ink);margin:0">Cancelar a turma "' + esc(t.label) + '"?</p>' +
-      '<p style="font-size:.84rem;line-height:1.55;color:var(--ink-2);margin:0">Ela não será realizada: some da página Turmas, da Minha Área e da área do facilitador (só o ADMIN continua vendo), ninguém novo entra e não há certificado. ' +
+      '<p style="font-size:.84rem;line-height:1.55;color:var(--ink-2);margin:0">Ela não será realizada: só quem tem inscrição ou interesse ativo nela, e a equipe dela, continuam vendo, como "Turma cancelada", sem o motivo. Ninguém novo entra e não há certificado. ' +
         (nAtivos ? (nAtivos === 1 ? 'A pessoa registrada continua' : 'As ' + nAtivos + ' pessoas registradas continuam') + ' na turma, com o histórico preservado; ninguém vai para a lista de espera. ' : '') +
         'Essa ação não pode ser desfeita pelo painel.</p>' +
       '<label class="admin-field-label">Motivo do cancelamento<select class="admin-motivo-select turma-cancelar-motivo">' +
