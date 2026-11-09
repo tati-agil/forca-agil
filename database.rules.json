@@ -170,7 +170,7 @@
           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
         },
         "addedBy": {
-          ".validate": "newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase()"
+          ".validate": "newData.isString() && newData.val().matches(/^[^@ ]+@previ\\.com\\.br$/)"
         },
         "$outro": {
           ".validate": false

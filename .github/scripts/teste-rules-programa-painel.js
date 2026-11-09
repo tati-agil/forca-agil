@@ -51,7 +51,8 @@ async function main() {
   await pode('C2 admin de fa-admins inclui convidado', db(ADMIN).ref('fa-painel-convidados/' + emailKey('outro@previ.com.br')).set(conv('outro@previ.com.br', ADMIN)));
   await nega('C3 pessoa comum não se inclui', db(COMUM).ref('fa-painel-convidados/' + emailKey(COMUM)).set(conv(COMUM, COMUM)));
   await nega('C4 convidado não inclui outra pessoa', db(CONV).ref('fa-painel-convidados/' + emailKey('x@previ.com.br')).set(conv('x@previ.com.br', CONV)));
-  await nega('C5 admin não assina como outra pessoa', db(ADMIN).ref('fa-painel-convidados/' + emailKey('y@previ.com.br')).set(conv('y@previ.com.br', SUPER)));
+  await pode('C5 registro movido pela correção de e-mail mantém quem incluiu (outro admin)', db(ADMIN).ref('fa-painel-convidados/' + emailKey('y@previ.com.br')).set(conv('y@previ.com.br', SUPER)));
+  await nega('C5b quem incluiu precisa ser um e-mail @previ.com.br', db(ADMIN).ref('fa-painel-convidados/' + emailKey('y2@previ.com.br')).set(conv('y2@previ.com.br', 'x@gmail.com')));
   await nega('C6 e-mail fora de @previ.com.br recusado', db(ADMIN).ref('fa-painel-convidados/' + emailKey('z@gmail.com')).set(conv('z@gmail.com', ADMIN)));
   await nega('C7 campo inventado recusado', db(ADMIN).ref('fa-painel-convidados/' + emailKey('w@previ.com.br')).set(Object.assign(conv('w@previ.com.br', ADMIN), { admin: true })));
   await pode('C8 admin lê a lista inteira', db(ADMIN).ref('fa-painel-convidados').once('value'));
