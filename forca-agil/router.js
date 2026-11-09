@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','avaliacoes','minha-area','ajuda','admin','facilitador','checkin'];
+  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','avaliacoes','minha-area','ajuda','admin','facilitador','checkin','painel'];
 
   /* "Já dá pra confiar no false do isAdmin()?" — enquanto a lista de admins
      não terminou de carregar, ele responde false por não saber ainda, e isso
@@ -51,6 +51,16 @@
     return listaAdminsPronta() && avaliacoesPronta();
   }
 
+  /* #painel (Painel do Programa): admin geral OU convidado (fa-painel-convidados). Só expulsa quem se SABE sem acesso: as
+     duas leituras (lista de admins e o registro de convidado) voltaram e a do convidado não falhou — leitura que falha
+     fica na página, com o aviso de painel-programa.js. */
+  function painelDecidido() {
+    return listaAdminsPronta() && !!(window.faAuth && window.faAuth.isPainelReady && window.faAuth.isPainelReady()) &&
+      !(window.faAuth.painelLeituraFalhou && window.faAuth.painelLeituraFalhou());
+  }
+  function semAcessoPainel(s) {
+    return !!(s && window.faAuth && window.faAuth.podePainel && !window.faAuth.podePainel() && painelDecidido());
+  }
   /* #facilitador é como #admin — admin OU facilitador, nunca mais ninguém. */
   function podeVerFacilitador(s) {
     return !!(s && window.faAuth && (window.faAuth.isAdmin(s.email) || (window.faAuth.isFacilitador && window.faAuth.isFacilitador(s.email))));
@@ -89,6 +99,11 @@
     }
 
     if (page === 'facilitador' && !podeVerFacilitador(window.faAuth && window.faAuth.getSession())) {
+      location.hash = '#home';
+      return;
+    }
+
+    if (page === 'painel' && semAcessoPainel(window.faAuth && window.faAuth.getSession())) {
       location.hash = '#home';
       return;
     }
@@ -170,6 +185,14 @@
 
     if (page === 'avaliacoes' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       if (window.faAuth.getSession() && semAcessoAvaliacoes()) {
+        page = 'home';
+        history.replaceState(null, '', '#home');
+      }
+    }
+
+    if (page === 'painel' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
+      const sp = window.faAuth.getSession();
+      if (!sp || semAcessoPainel(sp)) {
         page = 'home';
         history.replaceState(null, '', '#home');
       }
@@ -719,6 +742,10 @@
   });
   window.addEventListener('fa-facilitador-ready', function () {
     if (route() === 'facilitador') show('facilitador', true);
+  });
+  /* O registro de convidado do Painel do Programa chegou: quem abriu #painel antes disso só agora sabe se fica ou sai. */
+  window.addEventListener('fa-painel-ready', function () {
+    if (route() === 'painel') show('painel', true);
   });
   /* O perfil na Avaliação de Produto/Serviço chegou: quem abriu #arquitetura
      (F5, link salvo) antes disso só agora sabe se fica ou sai. */

@@ -297,6 +297,7 @@
     loadSorteios();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
+    if (window.faInitPainelAdmin) window.faInitPainelAdmin();
     /* Avaliações e Mapa e Taxonomia: na Gestão da Floresta (avaliacao-produto.js sobe os módulos ao abrir #arquitetura?arq=…) */
     initCertificados();
     window.faAdminAtualizarVoltaInicio();
@@ -7178,6 +7179,7 @@
     { no: 'fa-diretores',         nivel: 1 },
     { no: 'fa-gerentes',          nivel: 1 },
     { no: 'fa-facilitadores',     nivel: 1 },
+    { no: 'fa-painel-convidados', nivel: 1 },   /* convidado do Painel do Programa: corrigir o e-mail não tira o acesso */
     { no: 'fa-reset-signal',      nivel: 1 },
     { no: 'turmas-interesse',     nivel: 2 },
     { no: 'turmas-interesse-log', nivel: 2 },

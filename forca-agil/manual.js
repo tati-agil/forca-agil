@@ -20,8 +20,8 @@
       texto: 'Todo o site exige entrar com e-mail @previ.com.br. Sem sessão a pessoa só vê a tela de entrar, cadastrar e recuperar senha.' },
     { id: 'participacao', nome: 'Participação no programa', valores: 'cadastrada · inscrita confirmada',
       texto: 'Com sessão, a pessoa é só cadastrada até o admin confirmar a inscrição dela numa turma. Manifestar interesse não muda o acesso; a confirmação é que libera Conteúdos, Treinamento e "Avaliar oficina". Admin conta como inscrita.' },
-    { id: 'perfil', nome: 'Perfil funcional', valores: 'Facilitador · Diretor · Avaliação · Avaliação + Configuração · equipe de turma',
-      texto: 'Listas próprias, independentes da participação e entre si. Cada uma libera só a sua área: Facilitador abre "Minhas Facilitações"; Diretor vê eventos reservados a diretores; Avaliação e Avaliação + Configuração abrem a Avaliação de Produto/Serviço; a equipe de uma turma (responsável ou facilitador) conduz aquela turma.' },
+    { id: 'perfil', nome: 'Perfil funcional', valores: 'Facilitador · Diretor · Avaliação · Avaliação + Configuração · equipe de turma · convidado do Painel do Programa',
+      texto: 'Listas próprias, independentes da participação e entre si. Cada uma libera só a sua área: Facilitador abre "Minhas Facilitações"; Diretor vê eventos reservados a diretores; Avaliação e Avaliação + Configuração abrem a Avaliação de Produto/Serviço; a equipe de uma turma (responsável ou facilitador) conduz aquela turma; o convidado do Painel do Programa só consulta o painel.' },
     { id: 'admin', nome: 'Privilégio administrativo', valores: 'Admin · super-admin',
       texto: 'Admin entra no painel ADMIN completo. Super-admin é admin que também gerencia a lista de administradores.' },
   ];
@@ -199,6 +199,20 @@
       ],
       fonte: ['admin.js e os módulos de cada aba', 'database.rules.json'],
       prova: ['teste-checagens-interface.js', 'teste-acoes-cadastrado.js', 'teste-editar-cadastro.js', 'teste-roteiro-texto-rico.js', 'teste-contas-teste.js', 'teste-rules-contas-teste.js', 'teste-admin-outros-publicos.js', 'teste-rules-outros-publicos.js'] },
+    { id: 'painel-programa', titulo: 'Painel do Programa',
+      oque: 'A visão executiva do programa (menu "Painel", endereço #painel): quanto do público-alvo já realizou, se as turmas e o calendário permitem chegar a 100% até a data-limite, o que impede e quais decisões tomar. Consultas por diretoria, mobilização, ausências, capacidade e evolução.',
+      quem: 'Admin geral e os convidados incluídos em ADMIN › Painel do Programa. Convidado só consulta: não vê o ADMIN e não grava nada. Precisa de conta no site (@previ.com.br).',
+      importante: [
+        'Os números são calculados na hora a partir das turmas, inscrições e presenças do site; "Atualizar dados" lê tudo de novo e mostra o horário da leitura. Se a leitura falhar, os números anteriores ficam, com o horário deles.',
+        'Público = a base oficial importada (versão vigente), menos os facilitadores configurados. Gestor = está na lista de Gerentes; técnico = o resto.',
+        'Realizou = inscrição confirmada numa turma encerrada com a frequência mínima do evento (a mesma regra do certificado). Dia de check-in sem nenhum registro não vira falta: a pessoa fica como "realização não verificável". Os certificados não mudam.',
+        'A ausência fica na turma; a pendência é da pessoa. Quem faltou e depois realizou conta uma vez e a falta continua no histórico.',
+        'Vagas livres = vagas − interesses e inscrições ativos (inclusive de quem está fora da base): nenhuma vaga ocupada no site é liberada pelo cálculo.',
+        'Turmas extras: o painel separa as necessárias, as que cabem no calendário (dias úteis, dias sem expediente, antecedência e limite de turmas simultâneas) e as já criadas. O que cabe é um cenário, nunca capacidade autorizada.',
+        'Em ADMIN › Painel do Programa: data-limite, eventos do programa, facilitadores, antecedência, limites e formato de turma nova (cada alteração fica no histórico), dias sem expediente e a importação da base — sempre com prévia e confirmação; cada importação vira uma versão nova, e a anterior fica guardada.',
+      ],
+      fonte: ['programa-cobertura-nucleo.js (todos os números)', 'painel-programa.js e painel-programa-admin.js', 'Nós fa-painel-convidados, programa-config, programa-calendario, programa-publico-alvo, programa-config-auditoria (database.rules.json)'],
+      prova: ['teste-programa-cobertura-nucleo.js', 'teste-painel-programa.js', 'teste-rules-programa-painel.js'] },
   ];
 
   function esc(s) {

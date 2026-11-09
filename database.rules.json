@@ -154,6 +154,192 @@
       }
     },
 
+    "fa-painel-convidados": {
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      "$userKey": {
+        ".read": "auth != null && ($userKey === auth.token.email.replace('@','_').replace('.','_') || auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+        ".validate": "newData.hasChildren(['email', 'name', 'addedAt', 'addedBy'])",
+        "email": {
+          ".validate": "newData.isString() && newData.val().matches(/^[^@ ]+@previ\\.com\\.br$/)"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+        },
+        "addedAt": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+        },
+        "addedBy": {
+          ".validate": "newData.isString() && newData.val().matches(/^[^@ ]+@previ\\.com\\.br$/)"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+
+    "programa-config": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/) && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists() || root.child('fa-painel-convidados').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      "prazo": {
+        ".validate": "newData.isString() && newData.val().matches(/^\\d{4}-\\d{2}-\\d{2}$/)"
+      },
+      "eventos": {
+        "$evento": {
+          ".validate": "newData.isBoolean() && newData.val() === true && root.child('eventos').child($evento).exists()"
+        }
+      },
+      "facilitadores": {
+        "$userKey": {
+          ".validate": "newData.isString() && newData.val().matches(/^[^@ ]+@[^@ ]+\\.[^@ ]+$/)"
+        }
+      },
+      "antecedenciaDiasUteis": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 60 && newData.val() % 1 === 0"
+      },
+      "limiteParalelo": {
+        "tecnicos": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10 && newData.val() % 1 === 0"
+        },
+        "gestores": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 10 && newData.val() % 1 === 0"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      },
+      "formatos": {
+        "$grupo": {
+          ".validate": "($grupo === 'tecnicos' || $grupo === 'gestores') && newData.hasChildren(['encontros', 'horarioInicio', 'horarioFim', 'vagas'])",
+          "encontros": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20 && newData.val() % 1 === 0"
+          },
+          "horarioInicio": {
+            ".validate": "newData.isString() && newData.val().matches(/^\\d{2}:\\d{2}$/)"
+          },
+          "horarioFim": {
+            ".validate": "newData.isString() && newData.val().matches(/^\\d{2}:\\d{2}$/) && newData.val() > newData.parent().child('horarioInicio').val()"
+          },
+          "vagas": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 500 && newData.val() % 1 === 0"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      },
+      "atualizadoEm": {
+        ".validate": "newData.isNumber() && newData.val() <= now"
+      },
+      "atualizadoPor": {
+        ".validate": "newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase()"
+      },
+      "$outro": {
+        ".validate": false
+      }
+    },
+
+    "programa-config-auditoria": {
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      "$registro": {
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && !data.exists()",
+        ".validate": "newData.hasChildren(['campo', 'em', 'por'])",
+        "campo": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+        },
+        "antes": {
+          ".validate": "newData.isString() && newData.val().length <= 4000"
+        },
+        "depois": {
+          ".validate": "newData.isString() && newData.val().length <= 4000"
+        },
+        "motivo": {
+          ".validate": "newData.isString() && newData.val().length <= 500"
+        },
+        "em": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "por": {
+          ".validate": "newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase()"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+
+    "programa-calendario": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/) && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists() || root.child('fa-painel-convidados').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      "$data": {
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+        ".validate": "$data.matches(/^\\d{4}-\\d{2}-\\d{2}$/) && newData.hasChildren(['motivo', 'em', 'por'])",
+        "motivo": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+        },
+        "em": {
+          ".validate": "newData.isNumber() && newData.val() <= now"
+        },
+        "por": {
+          ".validate": "newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase()"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+
+    "programa-publico-alvo": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/) && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists() || root.child('fa-painel-convidados').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      "vigente": {
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+        ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() % 1 === 0 && newData.parent().child('versoes').child(newData.val() + '').exists()"
+      },
+      "versoes": {
+        "$versao": {
+          ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) && !data.exists()",
+          ".validate": "$versao.matches(/^[1-9][0-9]{0,5}$/) && newData.hasChildren(['importadaEm', 'importadaPor', 'total', 'origem', 'pessoas'])",
+          "importadaEm": {
+            ".validate": "newData.isNumber() && newData.val() <= now"
+          },
+          "importadaPor": {
+            ".validate": "newData.isString() && newData.val().toLowerCase() === auth.token.email.toLowerCase()"
+          },
+          "total": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100000 && newData.val() % 1 === 0"
+          },
+          "origem": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+          },
+          "pessoas": {
+            "$userKey": {
+              ".validate": "newData.hasChildren(['email'])",
+              "email": {
+                ".validate": "newData.isString() && newData.val().length >= 3 && newData.val().length <= 200"
+              },
+              "nome": {
+                ".validate": "newData.isString() && newData.val().length <= 200"
+              },
+              "gerencia": {
+                ".validate": "newData.isString() && newData.val().length <= 60"
+              },
+              "diretoria": {
+                ".validate": "newData.isString() && newData.val().length <= 60"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            }
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      },
+      "$outro": {
+        ".validate": false
+      }
+    },
+
     "fa-avaliacao-acessos": {
       ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
       "$userKey": {

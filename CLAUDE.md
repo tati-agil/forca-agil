@@ -39,7 +39,7 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   importa** (cada um pendura funções em `window.fa*`). A ordem completa e o motivo de cada dependência estão em
   `docs/referencia-tecnica.md` e `docs/arquitetura-detalhada.md`; ao criar módulo, coloque-o depois do que ele usa e
   registre-o na tabela de módulos.
-- **Rotas** (`router.js`, hash): fixed page list (`home`, `turmas`, `conteudos`, `treinamento`, `repositorio`, `avaliacao`, `avaliacoes`, `minha-area`, `ajuda`, `admin`, `facilitador`, `checkin`).
+- **Rotas** (`router.js`, hash): fixed page list (`home`, `turmas`, `conteudos`, `treinamento`, `repositorio`, `avaliacao`, `avaliacoes`, `minha-area`, `ajuda`, `admin`, `facilitador`, `checkin`, `painel`).
   **A FLORESTA** (nome visível; tecnicamente o Núcleo de Arquitetura Organizacional) tem o endereço oficial `#arquitetura`
   — a página interna continua `avaliacoes` (`#page-avaliacoes`, permissões). O antigo `#avaliacoes…` (com os parâmetros)
   é reescrito para `#arquitetura…` por `head-init.js`, antes de qualquer outro script ler o endereço; gere sempre
@@ -90,6 +90,10 @@ Smoke) e dois projetos com `package.json` próprio, fora do site: `functions/` (
   um objeto é identificada por uma etapa ORIENTADA depois do P1–P16 (`identificacao-naturezas.js`; o motor não muda), com
   fundamento ou pendência (recorte, evidência insuficiente, reavaliação) no mesmo `objetos-natureza`. O cadastro desses
   conceitos (cartão em Taxonomia › Verificações, só admin geral) independe do marcador da E4.
+- **Painel do Programa** (`#painel`; `programa-cobertura-nucleo.js` puro + `painel-programa.js` + ADMIN › Painel do Programa em
+  `painel-programa-admin.js`): cobertura, capacidade e viabilidade da meta sobre a base oficial versionada
+  (`programa-publico-alvo`); só admin geral e convidados (`fa-painel-convidados`, só consulta); cálculo no navegador a cada
+  "Atualizar dados", sem serviço novo. Regras de entrada reutilizadas de `turmas-util.js`, nunca reescritas.
 - **Avaliação guiada (v22)** (`avaliacao-guiada.js`, puro, carregado antes de `avaliacao-produto.js`): é a experiência de
   perguntas de toda avaliação nova/cópia/reavaliação de Produto/Serviço. Só TRADUZ respostas para P1–P16 ("Não sei" nunca
   vira NÃO); quem classifica é o motor publicado. Grava `guiada` (com `textos`, a cópia da redação apresentada, lida por ficha/PDF/Excel) + a tradução em `respostas` (mesmo formato); P6/P7 podem
