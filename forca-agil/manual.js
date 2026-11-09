@@ -204,7 +204,7 @@
       quem: 'Admin geral e os convidados incluídos em ADMIN › Painel do Programa. Convidado só consulta: não vê o ADMIN e não grava nada. Precisa de conta no site (@previ.com.br).',
       importante: [
         'Os números são calculados na hora a partir das turmas, inscrições e presenças do site; "Atualizar dados" lê tudo de novo e mostra o horário da leitura. Se a leitura falhar, os números anteriores ficam, com o horário deles.',
-        'Público = a base oficial importada (versão vigente), menos os facilitadores configurados. Gestor = está na lista de Gerentes; técnico = o resto.',
+        'Público = a base oficial importada (versão vigente), menos os facilitadores configurados. Técnico, gestor, diretor ou assessor vem da coluna nível da planilha; sem ela, gestor = está na lista de Gerentes e o resto conta como técnico. Diretores e assessores só ocupam vaga em turma sem público de cargo e não geram turma extra de técnicos.',
         'Realizou = inscrição confirmada numa turma encerrada com a frequência mínima do evento (a mesma regra do certificado). Dia de check-in sem nenhum registro não vira falta: a pessoa fica como "realização não verificável". Os certificados não mudam.',
         'A ausência fica na turma; a pendência é da pessoa. Quem faltou e depois realizou conta uma vez e a falta continua no histórico.',
         'Meta e margem: a margem é quantas pessoas do público podem não realizar sem comprometer a meta (meta = público − margem). A composição confere a conta do público: total de pessoas = situação não ativa + cargo não compatível + público da base; se não fechar, o painel avisa com a diferença.',
