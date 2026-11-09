@@ -10,7 +10,7 @@
  *   1. Ninguém baixa manual.js só por abrir o site; o ADMIN só o busca quando a aba Manual abre.
  *   2. Rede lenta mostra "Carregando o Manual…"; arquivo que não chega mostra o erro com
  *      "Tentar novamente", que funciona.
- *   3. O Manual abre sem erro de JavaScript, com as quatro dimensões e as nove áreas, e o índice
+ *   3. O Manual abre sem erro de JavaScript, com as quatro dimensões e as dez áreas, e o índice
  *      leva até cada área (abre e rola até ela).
  *   4. Não sobra nada do modelo antigo: sem filtro de Persona, sem contagem de regras, sem export.
  *   5. "Avaliar oficina" e "Avaliação de Produto/Serviço" são áreas diferentes, com esses nomes.
@@ -83,7 +83,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
         abertas: document.querySelectorAll('#manualAreas > .man-area[open]').length,
       }));
       afirma(JSON.stringify(r.dims) === JSON.stringify(['Autenticação', 'Participação no programa', 'Perfil funcional', 'Privilégio administrativo']), 'as quatro dimensões de acesso, nesta ordem', r.dims.join(' / '));
-      afirma(r.areas.length === 9 && r.indice === 9, 'nove áreas e nove entradas no índice', r.areas.length + ' áreas, ' + r.indice + ' no índice');
+      afirma(r.areas.length === 10 && r.indice === 10, 'dez áreas e dez entradas no índice (Painel do Programa entrou em nov/2026)', r.areas.length + ' áreas, ' + r.indice + ' no índice');
       afirma(r.abertas === 0, 'as áreas começam fechadas (resumo antes do detalhe)');
 
       /* Índice: abre e rola até a área. */
@@ -190,6 +190,6 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
   }
 
   await browser.close();
-  console.log(falhas ? '\n' + falhas + ' FALHA(S)' : '\nOK — Manual carregado só ao abrir a aba, com as quatro dimensões, as nove áreas, estados de turma coerentes, fontes e provas, sem rolagem lateral (desktop e 375 px).');
+  console.log(falhas ? '\n' + falhas + ' FALHA(S)' : '\nOK — Manual carregado só ao abrir a aba, com as quatro dimensões, as dez áreas, estados de turma coerentes, fontes e provas, sem rolagem lateral (desktop e 375 px).');
   process.exit(falhas ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
