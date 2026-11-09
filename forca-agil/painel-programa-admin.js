@@ -93,10 +93,10 @@
       var lim = cfg.limiteParalelo || {}, fmt = cfg.formatos || {};
       var facil = Object.keys(cfg.facilitadores || {}).map(function (k) { return cfg.facilitadores[k]; }).join('\n');
       var campoFmt = function (g) { var f = fmt[g] || {}; return '<fieldset class="pnla-fmt"><legend>Turma nova de ' + GR[g].toLowerCase() + '</legend>' +
-        '<label>Encontros<input type="number" min="1" max="20" step="1" data-fmt="' + g + '" data-campo="encontros" value="' + esc(f.encontros || '') + '" /></label>' +
-        '<label>Início<input type="time" data-fmt="' + g + '" data-campo="horarioInicio" value="' + esc(f.horarioInicio || '') + '" /></label>' +
-        '<label>Término<input type="time" data-fmt="' + g + '" data-campo="horarioFim" value="' + esc(f.horarioFim || '') + '" /></label>' +
-        '<label>Vagas<input type="number" min="1" max="500" step="1" data-fmt="' + g + '" data-campo="vagas" value="' + esc(f.vagas || '') + '" /></label></fieldset>'; };
+        '<label>Encontros<input type="number" min="1" max="20" step="1" data-pnla-fmt="' + g + '" data-pnla-campo="encontros" value="' + esc(f.encontros || '') + '" /></label>' +
+        '<label>Início<input type="time" data-pnla-fmt="' + g + '" data-pnla-campo="horarioInicio" value="' + esc(f.horarioInicio || '') + '" /></label>' +
+        '<label>Término<input type="time" data-pnla-fmt="' + g + '" data-pnla-campo="horarioFim" value="' + esc(f.horarioFim || '') + '" /></label>' +
+        '<label>Vagas<input type="number" min="1" max="500" step="1" data-pnla-fmt="' + g + '" data-pnla-campo="vagas" value="' + esc(f.vagas || '') + '" /></label></fieldset>'; };
       var h = '<h4>Configuração do programa</h4>' + (cfg.atualizadoEm ? '<p class="pnla-ajuda">Última alteração: ' + quando(cfg.atualizadoEm) + ' · ' + esc(cfg.atualizadoPor || '') + '</p>' : '<p class="pnla-ajuda">Ainda não configurado: o painel avisa o que falta.</p>') +
         '<div class="pnla-campos">' +
         '<label class="pnla-campo"><span>Data-limite da meta</span><input type="date" id="pnlaPrazo" value="' + esc(cfg.prazo || '') + '" /><small>Até quando 100% do público precisa ter realizado. Turmas que terminam depois não contam na viabilidade.</small></label>' +
@@ -104,7 +104,7 @@
         '<label class="pnla-campo"><span>Turmas simultâneas de técnicos (máximo)</span><input type="number" id="pnlaLimT" min="1" max="10" step="1" value="' + esc(lim.tecnicos || '') + '" /></label>' +
         '<label class="pnla-campo"><span>Turmas simultâneas de gestores (máximo)</span><input type="number" id="pnlaLimG" min="1" max="10" step="1" value="' + esc(lim.gestores || '') + '" /><small>Simultâneas = no mesmo dia com horários que se sobrepõem.</small></label>' +
         '</div><fieldset class="pnla-eventos"><legend>Eventos que fazem parte do programa</legend>' + (evs.length ? evs.map(function (k) {
-          return '<label class="pnla-check"><input type="checkbox" data-evento="' + esc(k) + '"' + ((cfg.eventos || {})[k] ? ' checked' : '') + ' /> ' + esc(eventos[k].nome || k) + '</label>'; }).join('') : '<p class="admin-empty">Nenhum evento cadastrado.</p>') +
+          return '<label class="pnla-check"><input type="checkbox" data-pnla-evento="' + esc(k) + '"' + ((cfg.eventos || {})[k] ? ' checked' : '') + ' /> ' + esc(eventos[k].nome || k) + '</label>'; }).join('') : '<p class="admin-empty">Nenhum evento cadastrado.</p>') +
         '<small>Só turmas desses eventos contam na cobertura e na capacidade. Realizar um deles basta para a pessoa contar como atendida.</small></fieldset>' +
         '<label class="pnla-campo pnla-campo--largo"><span>Facilitadores fora do público (um e-mail por linha)</span><textarea id="pnlaFacil" rows="5" placeholder="nome@previ.com.br">' + esc(facil) + '</textarea><small>Saem do denominador, da cobertura e das pendências, mesmo que estejam na base oficial.</small></label>' +
         '<p class="pnla-ajuda">Formato de turma extra (opcional): deixe em branco para usar o da turma mais recente de cada público. Os encontros são simulados em dias úteis seguidos.</p>' +
@@ -124,14 +124,14 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(prazo)) erros.push('a data-limite');
     var antN = ant === '' ? 0 : int(ant, 0, 60); if (antN === null) erros.push('a antecedência (0 a 60 dias úteis)');
     var lt = int(limT, 1, 10), lg = int(limG, 1, 10); if (lt === null || lg === null) erros.push('os limites de turmas simultâneas (1 a 10)');
-    var evSel = {}; document.querySelectorAll('#pnlaConfig [data-evento]').forEach(function (c) { if (c.checked && eventos[c.getAttribute('data-evento')]) evSel[c.getAttribute('data-evento')] = true; });
+    var evSel = {}; document.querySelectorAll('#pnlaConfig [data-pnla-evento]').forEach(function (c) { if (c.checked && eventos[c.getAttribute('data-pnla-evento')]) evSel[c.getAttribute('data-pnla-evento')] = true; });
     if (!Object.keys(evSel).length) erros.push('pelo menos um evento do programa');
     var facil = {}, invalidos = [];
     String($('pnlaFacil').value || '').split(/[\s,;]+/).map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean).forEach(function (e) { if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) facil[NUC.emailKey(e)] = e; else invalidos.push(e); });
     if (invalidos.length) erros.push('os e-mails de facilitadores (' + invalidos.join(', ') + ')');
     var formatos = {};
     ['tecnicos', 'gestores'].forEach(function (g) {
-      var v = {}; document.querySelectorAll('#pnlaConfig [data-fmt="' + g + '"]').forEach(function (i) { v[i.getAttribute('data-campo')] = i.value; });
+      var v = {}; document.querySelectorAll('#pnlaConfig [data-pnla-fmt="' + g + '"]').forEach(function (i) { v[i.getAttribute('data-pnla-campo')] = i.value; });
       var preenchidos = Object.keys(v).filter(function (k) { return v[k] !== ''; }).length;
       if (!preenchidos) return;
       var enc = int(v.encontros, 1, 20), vag = int(v.vagas, 1, 500);
