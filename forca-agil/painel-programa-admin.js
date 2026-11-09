@@ -87,10 +87,15 @@
   /* ---------- 2. configuração ---------- */
   function configuracao() {
     var el = $('pnlaConfig');
-    Promise.all([db().ref('programa-config').once('value'), db().ref('eventos').once('value')]).then(function (s) {
-      var cfg = s[0].val() || {}, eventos = s[1].val() || {};
+    Promise.all([db().ref('programa-config').once('value'), db().ref('eventos').once('value'), db().ref('programa-publico-alvo/vigente').once('value')]).then(function (s) {
+      var cfg = s[0].val() || {}, eventos = s[1].val() || {}, vigente = s[2].val();
+      return (vigente ? db().ref('programa-publico-alvo/versoes/' + vigente + '/total').once('value').then(function (t) { return t.val(); }, function () { return null; }) : Promise.resolve(null)).then(function (totalBase) { desenharConfig(el, cfg, eventos, totalBase); });
+    }, function (e) { el.innerHTML = '<h4>Configuração do programa</h4><p class="pnla-msg pnla-msg--erro" role="alert">Não foi possível carregar a configuração (' + esc(e && (e.code || e.message)) + ').</p>'; });
+  }
+  function desenharConfig(el, cfg, eventos, totalBase) {
+    (function () {
       var evs = Object.keys(eventos).sort(function (a, b) { return (eventos[a].order || 0) - (eventos[b].order || 0); });
-      var lim = cfg.limiteParalelo || {}, fmt = cfg.formatos || {};
+      var lim = cfg.limiteParalelo || {}, fmt = cfg.formatos || {}, comp = cfg.composicao || {};
       var facil = Object.keys(cfg.facilitadores || {}).map(function (k) { return cfg.facilitadores[k]; }).join('\n');
       var campoFmt = function (g) { var f = fmt[g] || {}; return '<fieldset class="pnla-fmt"><legend>Turma nova de ' + GR[g].toLowerCase() + '</legend>' +
         '<label>Encontros<input type="number" min="1" max="20" step="1" data-pnla-fmt="' + g + '" data-pnla-campo="encontros" value="' + esc(f.encontros || '') + '" /></label>' +
@@ -107,15 +112,30 @@
           return '<label class="pnla-check"><input type="checkbox" data-pnla-evento="' + esc(k) + '"' + ((cfg.eventos || {})[k] ? ' checked' : '') + ' /> ' + esc(eventos[k].nome || k) + '</label>'; }).join('') : '<p class="admin-empty">Nenhum evento cadastrado.</p>') +
         '<small>Só turmas desses eventos contam na cobertura e na capacidade. Realizar um deles basta para a pessoa contar como atendida.</small></fieldset>' +
         '<label class="pnla-campo pnla-campo--largo"><span>Facilitadores fora do público (um e-mail por linha)</span><textarea id="pnlaFacil" rows="5" placeholder="nome@previ.com.br">' + esc(facil) + '</textarea><small>Saem do denominador, da cobertura e das pendências, mesmo que estejam na base oficial.</small></label>' +
+        '<fieldset class="pnla-eventos" data-pnla="composicao"><legend>Composição do público e margem</legend><div class="pnla-campos">' +
+        '<label class="pnla-campo"><span>Total de pessoas</span><input type="number" id="pnlaCompTotal" min="1" step="1" value="' + esc(comp.total || '') + '" /></label>' +
+        '<label class="pnla-campo"><span>Situação não ativa (fora do público)</span><input type="number" id="pnlaCompInativa" min="0" step="1" value="' + esc(comp.situacaoInativa == null ? '' : comp.situacaoInativa) + '" /></label>' +
+        '<label class="pnla-campo"><span>Cargo não compatível (fora do público)</span><input type="number" id="pnlaCompCargo" min="0" step="1" value="' + esc(comp.cargoIncompativel == null ? '' : comp.cargoIncompativel) + '" /></label>' +
+        '<label class="pnla-campo"><span>Margem (dentro do público)</span><input type="number" id="pnlaMargem" min="0" step="1" value="' + esc(cfg.margem == null ? '' : cfg.margem) + '" /><small>Quantas pessoas do público podem não realizar sem comprometer a meta. Meta = público − margem.</small></label>' +
+        '</div><p class="pnla-ajuda" id="pnlaCompConta" aria-live="polite"></p><small>A conta precisa fechar: total = situação não ativa + cargo não compatível + público da base vigente' + (totalBase ? ' (' + totalBase + ')' : ' (nenhuma base importada)') + '.</small></fieldset>' +
         '<p class="pnla-ajuda">Formato de turma extra (opcional): deixe em branco para usar o da turma mais recente de cada público. Os encontros são simulados em dias úteis seguidos.</p>' +
         '<div class="pnla-fmts">' + campoFmt('tecnicos') + campoFmt('gestores') + '</div>' +
         '<label class="pnla-campo pnla-campo--largo"><span>Motivo da alteração (opcional, fica na auditoria)</span><input type="text" id="pnlaMotivo" maxlength="500" /></label>' +
         '<button type="button" class="btn btn--primary" id="pnlaSalvarCfg">Salvar configuração</button><p id="pnlaCfgMsg" class="pnla-msg"></p>' +
         '<details class="pnla-aud"><summary>Histórico de alterações</summary><div id="pnlaAud"><p class="loading-msg">Carregando…</p></div></details>';
       el.innerHTML = h;
+      var conta = function () {
+        var t = Number($('pnlaCompTotal').value), i = Number($('pnlaCompInativa').value) || 0, c = Number($('pnlaCompCargo').value) || 0, m = Number($('pnlaMargem').value) || 0, p = $('pnlaCompConta');
+        if (!($('pnlaCompTotal').value) || !totalBase) { p.textContent = totalBase ? 'Informe o total para conferir a conta.' + (m ? ' Meta: ' + (totalBase - m) + ' pessoas.' : '') : 'Importe a base oficial para conferir a conta.'; p.className = 'pnla-ajuda'; return; }
+        var soma = i + c + totalBase, fecha = soma === t;
+        p.textContent = i + ' + ' + c + ' + ' + totalBase + ' = ' + soma + (fecha ? ' — a conta fecha com o total (' + t + ').' : ' — NÃO fecha com o total ' + t + ' (diferença de ' + Math.abs(t - soma) + ').') + (m ? ' Meta: ' + (totalBase - m) + ' pessoas (público ' + totalBase + ' − margem ' + m + ').' : '');
+        p.className = 'pnla-msg ' + (fecha ? 'pnla-msg--ok' : 'pnla-msg--erro');
+      };
+      ['pnlaCompTotal', 'pnlaCompInativa', 'pnlaCompCargo', 'pnlaMargem'].forEach(function (id) { $(id).addEventListener('input', conta); });
+      conta();
       el.querySelector('details.pnla-aud').addEventListener('toggle', function (e) { if (e.target.open) carregarAuditoria(); });
       $('pnlaSalvarCfg').addEventListener('click', function () { salvarConfig(cfg, eventos); });
-    }, function (e) { el.innerHTML = '<h4>Configuração do programa</h4><p class="pnla-msg pnla-msg--erro" role="alert">Não foi possível carregar a configuração (' + esc(e && (e.code || e.message)) + ').</p>'; });
+    })();
   }
   function salvarConfig(atual, eventos) {
     var m = $('pnlaCfgMsg'), erros = [];
@@ -138,12 +158,20 @@
       if (preenchidos < 4 || enc === null || vag === null || !/^\d{2}:\d{2}$/.test(v.horarioInicio) || !/^\d{2}:\d{2}$/.test(v.horarioFim) || v.horarioFim <= v.horarioInicio) { erros.push('o formato de turma de ' + GR[g].toLowerCase() + ' (preencha os quatro campos, término depois do início)'); return; }
       formatos[g] = { encontros: enc, horarioInicio: v.horarioInicio, horarioFim: v.horarioFim, vagas: vag };
     });
+    var compT = $('pnlaCompTotal').value, compI = $('pnlaCompInativa').value, compC = $('pnlaCompCargo').value, margemV = $('pnlaMargem').value, composicao = null, margemN = null;
+    if (compT !== '' || compI !== '' || compC !== '') {
+      var ct = int(compT, 1, 1000000), ci = compI === '' ? 0 : int(compI, 0, 1000000), cc = compC === '' ? 0 : int(compC, 0, 1000000);
+      if (ct === null || ci === null || cc === null) erros.push('a composição do público (números inteiros; o total é obrigatório quando houver composição)'); else composicao = { total: ct, situacaoInativa: ci, cargoIncompativel: cc };
+    }
+    if (margemV !== '') { margemN = int(margemV, 0, 100000); if (margemN === null) erros.push('a margem (número inteiro, 0 ou mais)'); }
     if (erros.length) { msg(m, 'Confira: ' + erros.join('; ') + '. Nada foi gravado.', true); return; }
     var novo = { prazo: prazo, eventos: evSel, antecedenciaDiasUteis: antN, limiteParalelo: { tecnicos: lt, gestores: lg }, atualizadoEm: TS(), atualizadoPor: eu() };
     if (Object.keys(facil).length) novo.facilitadores = facil;
     if (Object.keys(formatos).length) novo.formatos = formatos;
+    if (composicao) novo.composicao = composicao;
+    if (margemN !== null) novo.margem = margemN;
     var motivo = $('pnlaMotivo').value, upd = { 'programa-config': novo }, mudou = 0;
-    ['prazo', 'eventos', 'facilitadores', 'antecedenciaDiasUteis', 'limiteParalelo', 'formatos'].forEach(function (k) {
+    ['prazo', 'eventos', 'facilitadores', 'antecedenciaDiasUteis', 'limiteParalelo', 'formatos', 'composicao', 'margem'].forEach(function (k) {
       var a = JSON.stringify(atual[k] == null ? null : atual[k]), b = JSON.stringify(novo[k] == null ? null : novo[k]);
       if (a !== b) { mudou++; upd['programa-config-auditoria/' + chaveAud()] = auditoria(k, a === 'null' ? '' : a, b === 'null' ? '' : b, motivo); }
     });

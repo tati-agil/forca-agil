@@ -207,6 +207,7 @@
         'Público = a base oficial importada (versão vigente), menos os facilitadores configurados. Gestor = está na lista de Gerentes; técnico = o resto.',
         'Realizou = inscrição confirmada numa turma encerrada com a frequência mínima do evento (a mesma regra do certificado). Dia de check-in sem nenhum registro não vira falta: a pessoa fica como "realização não verificável". Os certificados não mudam.',
         'A ausência fica na turma; a pendência é da pessoa. Quem faltou e depois realizou conta uma vez e a falta continua no histórico.',
+        'Meta e margem: a margem é quantas pessoas do público podem não realizar sem comprometer a meta (meta = público − margem). A composição confere a conta do público: total de pessoas = situação não ativa + cargo não compatível + público da base; se não fechar, o painel avisa com a diferença.',
         'Vagas livres = vagas − interesses e inscrições ativos (inclusive de quem está fora da base): nenhuma vaga ocupada no site é liberada pelo cálculo.',
         'Turmas extras: o painel separa as necessárias, as que cabem no calendário (dias úteis, dias sem expediente, antecedência e limite de turmas simultâneas) e as já criadas. O que cabe é um cenário, nunca capacidade autorizada.',
         'Em ADMIN › Painel do Programa: data-limite, eventos do programa, facilitadores, antecedência, limites e formato de turma nova (cada alteração fica no histórico), dias sem expediente e a importação da base — sempre com prévia e confirmação; cada importação vira uma versão nova, e a anterior fica guardada.',

@@ -178,6 +178,14 @@ async function rodada(browser, rotulo, ctxOpts) {
   await x.page.waitForSelector('[data-pnl="pendencias"]', { timeout: 15000 });
   ok('P1 sem configuração nem base: diz o que falta e não mostra número', /data-limite/.test(await texto(x.page, '[data-pnl="pendencias"]')) && /base oficial/.test(await texto(x.page, '[data-pnl="pendencias"]')) && !(await x.page.$('[data-pnl="realizou"]')));
   await x.ctx.close();
+  /* M: margem e composição do público */
+  db = banco(); db['programa-config'].margem = 2; db['programa-config'].composicao = { total: 100, situacaoInativa: 6, cargoIncompativel: 72 };
+  r = esperado(db);
+  x = await abrir(browser, ctxOpts, { db, user: user(ADM) }, '#painel');
+  await esperarPainel(x);
+  ok('M1 meta exibida = público − margem, com o quanto falta (do núcleo)', new RegExp('Meta: ' + r.meta + ' \\(público − margem de 2\\) · faltam ' + r.faltamParaMeta).test(await texto(x.page, '[data-pnl="meta"]')), await texto(x.page, '[data-pnl="meta"]'));
+  ok('M2 composição que não fecha: aviso com a soma e a diferença', /não fecha/.test(await texto(x.page, '[data-pnl="composicao"]')) && new RegExp('= ' + (6 + 72 + r.N) + ' \\(diferença de ' + Math.abs(100 - (6 + 72 + r.N))).test(await texto(x.page, '[data-pnl="composicao"]')), await texto(x.page, '[data-pnl="composicao"]'));
+  await x.ctx.close();
 }
 
 async function admin(browser, ctxOpts) {
@@ -196,6 +204,11 @@ async function admin(browser, ctxOpts) {
   await x.page.fill('#pnlaPrazo', util(30)); await x.page.fill('#pnlaFacil', 'p0@previ.com.br');
   await x.page.click('#pnlaSalvarCfg'); await x.page.waitForTimeout(500);
   ok('D3 configuração válida grava e acrescenta auditoria', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; const a = window.__CFG.db['programa-config-auditoria'] || {}; return !!c && !!c.facilitadores && Object.keys(a).length >= 2; }));
+  await x.page.waitForSelector('#pnlaCompTotal');
+  await x.page.fill('#pnlaCompTotal', '592'); await x.page.fill('#pnlaCompInativa', '6'); await x.page.fill('#pnlaCompCargo', '72'); await x.page.fill('#pnlaMargem', '4');
+  ok('D3b sem base importada, a conta pede a base (não inventa número)', /Importe a base oficial/.test(await texto(x.page, '#pnlaCompConta')));
+  await x.page.click('#pnlaSalvarCfg'); await x.page.waitForTimeout(500);
+  ok('D3c total, situação não ativa, cargo não compatível e margem gravados', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; return c.margem === 4 && c.composicao && c.composicao.total === 592 && c.composicao.situacaoInativa === 6 && c.composicao.cargoIncompativel === 72; }));
   /* planilha com um e-mail repetido e um fora do domínio */
   const linhas = [['ANNOME', 'ANEMAIL', 'GERENCIA', 'DIRETORIA']];
   for (let i = 0; i < 24; i++) linhas.push(['P' + i, 'p' + i + '@previ.com.br', 'G' + (i % 3), i < 12 ? 'DIRA' : 'DIRB']);

@@ -247,6 +247,26 @@ console.log('\n== I. diagnóstico, expansão, conferências e decisões ==');
   ok('I12 não verificáveis ≥ 1 p.p. disparam o alerta executivo', r.qualidade.alertaExecutivo === true);
 }
 
+console.log('\n== K. margem e composição do público ==');
+{
+  const grande = (E) => { for (let i = 0; i < 40; i++) E.base.pessoas['z' + i] = { email: 'z' + i + '@previ.com.br', diretoria: 'D3', gerencia: 'G1' }; };
+  const r0 = calc(cenario(grande));
+  let r = calc(cenario((E) => { grande(E); E.programa.margem = 6; }));
+  ok('K1 meta = público − margem; faltam = meta − realizados', r.meta === r.N - 6 && r.margem === 6 && r.faltamParaMeta === r.meta - r.realizou);
+  ok('K2 a margem reduz o déficit que as turmas extras cobrem', r.cap.tecnicos.deficitMeta === r0.cap.tecnicos.deficitVagas - 6 && r.cap.tecnicos.margemUsada === 6, [r.cap.tecnicos.deficitMeta, r0.cap.tecnicos.deficitVagas]);
+  ok('K3 o déficit para 100% continua o mesmo (só a meta muda)', r.deficitVagas === r0.deficitVagas);
+  r = calc(cenario((E) => { E.programa.margem = 999; }));
+  ok('K4 margem maior que o público fica limitada ao público', r.margem === r.N && r.meta === 0);
+  r = calc(cenario((E) => { E.turmas.c.vagas = 1; E.turmas.d.vagas = 1; E.programa.margem = 2; }));
+  ok('K5 com a margem cobrindo o déficit, capacidade deixa de ser impedimento e nenhuma turma extra é pedida', r.deficitVagas === 2 && r.fatores.capacidade === false && r.cap.tecnicos.necessarias === 0);
+  r = calc(cenario((E) => { E.programa.composicao = { total: 82, situacaoInativa: 6, cargoIncompativel: 72 }; }));
+  ok('K6 composição que fecha (6 + 72 + 4 = 82)', r.composicao && r.composicao.fecha === true && !r.alertas.some((a) => a.tipo === 'composicao-nao-fecha'));
+  r = calc(cenario((E) => { E.programa.composicao = { total: 81, situacaoInativa: 6, cargoIncompativel: 72 }; }));
+  ok('K7 composição que não fecha: alerta com a diferença', r.composicao.fecha === false && r.composicao.diferenca === -1 && r.alertas.some((a) => a.tipo === 'composicao-nao-fecha'));
+  r = calc(cenario());
+  ok('K8 sem total configurado, nenhuma conferência; sem margem, meta = público', r.composicao === null && r.margem === 0 && r.meta === r.N);
+}
+
 console.log('\n== J. prévia da importação da base ==');
 {
   const linhas = [
