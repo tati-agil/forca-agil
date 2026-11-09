@@ -230,6 +230,7 @@
 
   /* ---------- 4. base oficial (prévia + confirmação) ---------- */
   var COLUNAS = { nome: ['ANNOME', 'NOME'], email: ['ANEMAIL', 'EMAIL', 'E-MAIL'], gerencia: ['GERENCIA'], diretoria: ['DIRETORIA'] };
+  var OPCIONAIS = { nivel: ['NIVEL', 'PUBLICO'] };   /* técnico, gerente, diretor ou assessor; sem a coluna, gestor = lista de Gerentes do site */
   function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase(); }
   function carregarXlsx(cb) {
     if (window.XLSX) { cb(); return; }
@@ -243,11 +244,11 @@
     for (var i = 0; i < Math.min(matriz.length, 10) && cab < 0; i++) {
       var r = (matriz[i] || []).map(norm), achou = {};
       Object.keys(COLUNAS).forEach(function (c) { var j = r.findIndex(function (x) { return COLUNAS[c].indexOf(x) !== -1; }); if (j !== -1) achou[c] = j; });
-      if (Object.keys(achou).length === 4) { cab = i; idx = achou; }
+      if (Object.keys(achou).length === 4) { cab = i; idx = achou; Object.keys(OPCIONAIS).forEach(function (c) { var j = r.findIndex(function (x) { return OPCIONAIS[c].indexOf(x) !== -1; }); if (j !== -1) idx[c] = j; }); }
     }
     if (cab < 0) return null;
     return matriz.slice(cab + 1).filter(function (r) { return r && r.some(function (x) { return String(x == null ? '' : x).trim(); }); })
-      .map(function (r) { return { nome: String(r[idx.nome] == null ? '' : r[idx.nome]).trim(), email: String(r[idx.email] == null ? '' : r[idx.email]).trim(), gerencia: String(r[idx.gerencia] == null ? '' : r[idx.gerencia]).trim(), diretoria: String(r[idx.diretoria] == null ? '' : r[idx.diretoria]).trim() }; });
+      .map(function (r) { return { nome: String(r[idx.nome] == null ? '' : r[idx.nome]).trim(), email: String(r[idx.email] == null ? '' : r[idx.email]).trim(), gerencia: String(r[idx.gerencia] == null ? '' : r[idx.gerencia]).trim(), diretoria: String(r[idx.diretoria] == null ? '' : r[idx.diretoria]).trim(), nivel: idx.nivel == null ? '' : String(r[idx.nivel] == null ? '' : r[idx.nivel]).trim() }; });
   }
   function base() {
     var el = $('pnlaBase');
@@ -293,12 +294,16 @@
       lista('E-mail fora de @previ.com.br — entra, sinalizado (não terá cadastro no site, que só aceita @previ)', P.foraDoDominio, function (x) { return x.email; }) +
       lista('Mesmo nome em linhas diferentes — entram as duas, conferir', P.nomeRepetido, function (x) { return x.nome + ' (linhas ' + x.linhas.join(', ') + ')'; }) +
       lista('Sem diretoria', P.semDiretoria, function (x) { return 'linha ' + x; }) + lista('Sem gerência', P.semGerencia, function (x) { return 'linha ' + x; }) +
-      lista('Cadastradas em Outros públicos — entram como técnicas no painel, conferir', pr.outrosPublicos, function (x) { return x; });
+      lista('Cadastradas em Outros públicos — conferir o nível', pr.outrosPublicos, function (x) { return x; }) +
+      lista('Nível que o painel não reconhece (use técnico, gerente, diretor ou assessor)', P.nivelDesconhecido || [], function (x) { return 'linha ' + x.linha + ' (' + x.nivel + ')'; }) +
+      lista('Gerente na planilha e fora da lista de Gerentes do site (as regras de inscrição não a tratam como gerente)', pr.gerenteForaDaLista, function (x) { return x; }) +
+      lista('Na lista de Gerentes do site, mas com outro nível na planilha', pr.naListaNaoGerente, function (x) { return x; });
     var d = pr.diferenca, dirs = Object.keys(pr.diretorias).sort();
     var h = '<div class="pnla-previa" data-pnla="previa"><h5>Prévia de ' + esc(nomeArq) + '</h5><div class="pnla-numeros">' +
-      [['Linhas lidas', pr.total], ['Pessoas válidas', pr.validas], ['Com cadastro no site', pr.cadastrados], ['Sem cadastro', pr.semCadastro], ['Gestores (lista de Gerentes)', pr.gestores], ['Técnicos', pr.tecnicos], ['Facilitadores na base', pr.facilitadoresNaBase.length], ['Público do painel', pr.publicoEfetivo]]
+      [['Linhas lidas', pr.total], ['Pessoas válidas', pr.validas], ['Com cadastro no site', pr.cadastrados], ['Sem cadastro', pr.semCadastro], ['Técnicos', pr.porPublico.tecnicos], ['Gestores', pr.porPublico.gestores], ['Diretores', pr.porPublico.diretores], ['Assessores', pr.porPublico.assessores], ['Facilitadores na base', pr.facilitadoresNaBase.length], ['Público do painel', pr.publicoEfetivo]]
         .map(function (x) { return '<div><small>' + x[0] + '</small><b>' + x[1] + '</b></div>'; }).join('') + '</div>' +
       (probs ? '<ul class="pnla-problemas">' + probs + '</ul>' : '<p class="pnla-msg pnla-msg--ok">Nenhum ponto a conferir.</p>') +
+      '<p class="pnla-ajuda">' + (pr.comNivel ? 'Público de cada pessoa pela coluna nível da planilha (' + pr.comNivel + ' de ' + pr.validas + ' com nível).' : 'Sem a coluna nível: gestor = está na lista de Gerentes do site; o resto conta como técnico.') + '</p>' +
       (semOutros ? '<p class="pnla-ajuda">A lista de Outros públicos só os super-admins leem: ela não foi conferida nesta prévia.</p>' : '') +
       (d ? '<p class="pnla-ajuda">Em relação à versão vigente: ' + d.entram.length + ' entram, ' + d.saem.length + ' saem, ' + d.mudam.length + ' mudam de nome, gerência ou diretoria.</p>' : '') +
       '<details><summary>Pessoas por diretoria (' + dirs.length + ')</summary><div class="table-scroll-wrap"><table class="admin-table"><tbody>' + dirs.map(function (k) { return '<tr><td>' + esc(k) + '</td><td>' + pr.diretorias[k] + '</td></tr>'; }).join('') + '</tbody></table></div></details>' +
@@ -310,7 +315,7 @@
       var m = $('pnlaImpMsg');
       if ($('pnlaConferi') && !$('pnlaConferi').checked) { msg(m, 'Marque que conferiu os pontos sinalizados.', true); return; }
       var nums = Object.keys(atual.versoes || {}).map(Number).filter(function (x) { return x > 0; }), n = (nums.length ? Math.max.apply(null, nums) : 0) + 1;
-      var pessoas = {}; Object.keys(pr.pessoas).forEach(function (k) { var p = pr.pessoas[k]; pessoas[k] = { email: p.email.slice(0, 200), nome: p.nome.slice(0, 200), gerencia: p.gerencia.slice(0, 60), diretoria: p.diretoria.slice(0, 60) }; });
+      var pessoas = {}; Object.keys(pr.pessoas).forEach(function (k) { var p = pr.pessoas[k]; pessoas[k] = { email: p.email.slice(0, 200), nome: p.nome.slice(0, 200), gerencia: p.gerencia.slice(0, 60), diretoria: p.diretoria.slice(0, 60) }; if (p.nivel) pessoas[k].nivel = p.nivel; });
       var upd = {};
       upd['programa-publico-alvo/versoes/' + n] = { importadaEm: TS(), importadaPor: eu(), total: pr.validas, origem: (nomeArq + ' (' + pr.total + ' linhas)').slice(0, 200), pessoas: pessoas };
       upd['programa-publico-alvo/vigente'] = n;

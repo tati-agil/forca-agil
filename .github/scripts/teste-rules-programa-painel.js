@@ -101,6 +101,8 @@ async function main() {
   await nega('B3 versão gravada não muda', db(ADMIN).ref('programa-publico-alvo/versoes/1/total').set(3));
   await nega('B4 versão gravada não se apaga', db(ADMIN).ref('programa-publico-alvo/versoes/1').remove());
   await nega('B5 convidado não importa', db(CONV).ref('programa-publico-alvo/versoes/2').set(versao));
+  await pode('B7 nível válido da pessoa aceito', db(ADMIN).ref('programa-publico-alvo/versoes/3').set(Object.assign({}, versao, { pessoas: { x: { email: 'x@previ.com.br', nivel: 'diretor' } } })));
+  await nega('B8 nível inventado recusado', db(ADMIN).ref('programa-publico-alvo/versoes/4').set(Object.assign({}, versao, { pessoas: { x: { email: 'x@previ.com.br', nivel: 'presidente' } } })));
   await nega('B6 pessoa com campo inventado recusada', db(ADMIN).ref('programa-publico-alvo/versoes/2').set(Object.assign({}, versao, { pessoas: { x: { email: 'x@previ.com.br', cpf: '1' } } })));
 
   console.log('\n== L. leitura dos dados do painel ==');

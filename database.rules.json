@@ -343,6 +343,9 @@
               "gerencia": {
                 ".validate": "newData.isString() && newData.val().length <= 60"
               },
+              "nivel": {
+                ".validate": "newData.val() === 'tecnico' || newData.val() === 'gestor' || newData.val() === 'diretor' || newData.val() === 'assessor'"
+              },
               "diretoria": {
                 ".validate": "newData.isString() && newData.val().length <= 60"
               },

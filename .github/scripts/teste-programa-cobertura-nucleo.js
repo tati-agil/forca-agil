@@ -265,6 +265,12 @@ console.log('\n== K. margem e composição do público ==');
   ok('K7 composição que não fecha: alerta com a diferença', r.composicao.fecha === false && r.composicao.diferenca === -1 && r.alertas.some((a) => a.tipo === 'composicao-nao-fecha'));
   r = calc(cenario());
   ok('K8 sem total configurado, nenhuma conferência; sem margem, meta = público', r.composicao === null && r.margem === 0 && r.meta === r.N);
+  r = calc(cenario((E) => { E.base.pessoas[k(P1)].nivel = 'diretor'; E.base.pessoas[k(Q)].nivel = 'assessor'; E.base.pessoas[k(R2)].nivel = 'gestor'; }));
+  ok('K9 o nível da base define o público (diretor, assessor, gestor), sem depender da lista de Gerentes', r.porGrupo.diretores.total === 1 && r.porGrupo.assessores.total === 1 && r.porGrupo.gestores.total === 1 && r.porGrupo.tecnicos.total === 1 && !r.inconsistencias.length, r.porGrupo);
+  ok('K10 diretor e assessor sem turma aberta ao público deles: "sem turma prevista", não viram turma de técnicos', r.cap.diretores.semTurmaPrevista === 1 && r.cap.assessores.semTurmaPrevista === 1 && r.cap.tecnicos.necessarias === 0 && r.decisoes.some((d) => d.tipo === 'turma-outros-publicos'), r.cap.tecnicos);
+  r = calc(cenario((E) => { E.base.pessoas[k(P1)].nivel = 'diretor'; E.turmas.td = { label: 'Diretores', eventoKey: 'evX', dias: ['2026-11-30'], horarioInicio: '14:00', horarioFim: '18:00', vagas: 10 }; E.programa.eventos.evX = true; }));
+  ok('K11 diretor cabe em turma sem público de cargo', r.cap.diretores.maximo === 1 && !r.cap.diretores.semTurmaPrevista);
+
 }
 
 console.log('\n== J. prévia da importação da base ==');
@@ -286,6 +292,9 @@ console.log('\n== J. prévia da importação da base ==');
   ok('J5 quem está em Outros públicos aparece para conferência', pr.outrosPublicos.length === 1);
   ok('J6 facilitadores na base saem do público efetivo', pr.facilitadoresNaBase.length === 1 && pr.publicoEfetivo === 3);
   ok('J7 diferença para a versão vigente (entram, saem, mudam)', pr.diferenca.entram.length === 3 && pr.diferenca.saem.length === 1 && pr.diferenca.mudam.length === 0);
+  const pn = N.previaBase([{ nome: 'A', email: 'a@previ.com.br', gerencia: 'G', diretoria: 'D', nivel: 'tecnico' }, { nome: 'B', email: 'b@previ.com.br', gerencia: 'G', diretoria: 'D', nivel: 'Gerente' }, { nome: 'C', email: 'c@previ.com.br', gerencia: 'G', diretoria: 'D', nivel: 'diretor' }, { nome: 'D', email: 'd@previ.com.br', gerencia: 'G', diretoria: 'D', nivel: 'assessor' }, { nome: 'E', email: 'e@previ.com.br', gerencia: 'G', diretoria: 'D', nivel: 'estagiario' }], { gerentes: { [k('c@previ.com.br')]: {} } });
+  ok('J9 nível da planilha: conta os quatro públicos e guarda o nível', pn.porPublico.tecnicos === 2 && pn.porPublico.gestores === 1 && pn.porPublico.diretores === 1 && pn.porPublico.assessores === 1 && pn.pessoas[k('c@previ.com.br')].nivel === 'diretor', pn.porPublico);
+  ok('J10 aponta gerente da planilha fora da lista do site, quem está na lista com outro nível e nível desconhecido', pn.gerenteForaDaLista.length === 1 && pn.naListaNaoGerente.length === 1 && (pn.problemas.nivelDesconhecido || []).length === 1);
   ok('J8 sigla em maiúsculas, e-mail em minúsculas', pr.pessoas[k('ana@previ.com.br')].diretoria === 'DIRAD' && pr.pessoas[k('bia@previ.com.br')].email === 'bia@previ.com.br');
 }
 
