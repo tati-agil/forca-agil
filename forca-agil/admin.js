@@ -297,6 +297,7 @@
     loadSorteios();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
+    if (window.faInitPainelAdmin) window.faInitPainelAdmin();
     /* Avaliações e Mapa e Taxonomia: na Gestão da Floresta (avaliacao-produto.js sobe os módulos ao abrir #arquitetura?arq=…) */
     initCertificados();
     window.faAdminAtualizarVoltaInicio();

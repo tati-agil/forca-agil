@@ -250,6 +250,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
     <a href="#arquitetura" data-nav-page="avaliacoes" class="nav-link-avaliacoes" hidden>A Floresta</a>
     <a href="#minha-area" data-nav-page="minha-area" class="nav-link-member" hidden>Minha Área</a>
     <a href="#facilitador" data-nav-page="facilitador" class="nav-link-facilitador" hidden>Facilitador</a>
+    <a href="#painel"      data-nav-page="painel" class="nav-link-painel" hidden>Painel</a>
     <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
   </div>
@@ -1278,6 +1279,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
         <button class="admin-tab-btn" data-panel="adminPanelGerentes">Gerentes</button>
         <button class="admin-tab-btn" data-panel="adminPanelOutrosPublicos">Outros públicos</button>
         <button class="admin-tab-btn" data-panel="adminPanelFacilitadores">Facilitadores</button>
+        <button class="admin-tab-btn" data-panel="adminPanelPainelPrograma">Painel do Programa</button>
         <button class="admin-tab-btn" data-panel="adminPanelManual">Manual</button>
         <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
         <button class="admin-tab-btn" data-panel="adminPanelSorteios">Sorteios</button>
@@ -1338,6 +1340,12 @@ body.aguardando-auth>#bootStatus{z-index:900}
       <div class="admin-tab-panel" id="adminPanelOutrosPublicos">
         <div id="adminOutrosPublicos">
           <p class="loading-msg">Carregando outros públicos…</p>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelPainelPrograma">
+        <div id="adminPainelPrograma">
+          <p class="loading-msg">Carregando o Painel do Programa…</p>
         </div>
       </div>
 
@@ -1438,6 +1446,19 @@ body.aguardando-auth>#bootStatus{z-index:900}
     </section>
   </div>
 </div><!-- /page-facilitador -->
+
+<!-- ======================================================
+     PAGE: PAINEL DO PROGRAMA
+     Só para o admin geral e os convidados (fa-painel-convidados; router.js/auth.js e as regras do banco). Convidado só
+     consulta. Conteúdo desenhado por painel-programa.js a partir de programa-cobertura-nucleo.js.
+     ====================================================== -->
+<div class="page-section" id="page-painel" hidden>
+  <div class="wrap">
+    <section class="section pnl-secao">
+      <div id="painelConteudo"><p class="loading-msg">Carregando…</p></div>
+    </section>
+  </div>
+</div><!-- /page-painel -->
 
 <!-- ======================================================
      PAGE: AJUDA
@@ -1811,6 +1832,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
 <script src="forca-agil/firebase.js"></script>
 <script src="forca-agil/publicos-nucleo.js"></script>
 <script src="forca-agil/turmas-util.js"></script>
+<script src="forca-agil/programa-cobertura-nucleo.js"></script>
 <script src="forca-agil/roteiro.js"></script>
 
 <!-- Router + Auth (antes dos módulos de página) -->
@@ -1832,6 +1854,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
 <script src="forca-agil/qrcode.min.js"></script>
 <script src="forca-agil/certif.js"></script>
 <script src="forca-agil/admin.js"></script>
+<script src="forca-agil/painel-programa-admin.js"></script>
 <script src="forca-agil/avaliacao.js"></script>
 <script src="forca-agil/checkin.js"></script>
 <script src="forca-agil/pedidos.js"></script>
@@ -1872,6 +1895,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
 <script src="forca-agil/relacoes-objetos.js"></script>
 <script src="forca-agil/aluno.js"></script>
 <script src="forca-agil/facilitador.js"></script>
+<script src="forca-agil/painel-programa.js"></script>
 <!-- Construção da Aposta: depende de auth (quem está confirmada) e do router
      (para montar a entrada quando o Treinamento abre), então entra depois deles. -->
 <script src="forca-agil/aposta.js"></script>

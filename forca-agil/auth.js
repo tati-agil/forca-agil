@@ -320,6 +320,31 @@
      facilitador" de "ainda não sei se é". */
   function isFacilitadorReady() { return _facilitadoresResolvidos; }
 
+  /* ---- PAINEL DO PROGRAMA (fa-painel-convidados) ----
+     Quem vê #painel: o admin geral e os convidados que o admin inclui na aba "Painel do Programa" do ADMIN. Convidado só
+     consulta: não ganha ADMIN nem grava nada (as regras do banco garantem). Lê SÓ o próprio registro — as regras deixam a
+     pessoa ler a própria chave, nunca a lista. Três estados, como nos outros perfis: "ainda não sei" (a leitura não voltou)
+     nunca expulsa; "não consegui saber" (a leitura falhou) mostra o aviso na página, não vira "sem acesso". */
+  var _painelConvidado = false, _painelResolvido = false, _painelFalhou = false;
+  firebase.auth().onAuthStateChanged(function (user) {
+    if (_criandoConta) return;
+    if (!user) { _painelConvidado = false; _painelFalhou = false; _painelResolvido = true; return; }
+    _painelResolvido = false; _painelFalhou = false;
+    firebase.database().ref('fa-painel-convidados/' + emailKey(user.email)).once('value', function (snap) {
+      _painelConvidado = !!snap.val();
+      _painelResolvido = true;
+      window.dispatchEvent(new CustomEvent('fa-painel-ready'));
+      updateNavState();
+    }, function () {
+      _painelConvidado = false; _painelFalhou = true; _painelResolvido = true;
+      window.dispatchEvent(new CustomEvent('fa-painel-ready'));
+      updateNavState();
+    });
+  });
+  function isPainelReady() { return _painelResolvido; }
+  function painelLeituraFalhou() { return _painelFalhou; }
+  function podePainel() { var s = _session; return !!(s && (isAdmin(s.email) || _painelConvidado)); }
+
   /* ---- ACESSO À AVALIAÇÃO (fa-avaliacao-autorizados) ----
      Lista própria de quem usa a aba AVALIAÇÃO e, opcionalmente, o ADMIN >
      ARQUITETURA. Dois tipos, independentes de qualquer outro acesso do site:
@@ -1063,6 +1088,10 @@
     document.querySelectorAll('.nav-link-facilitador').forEach(function (el) {
       el.hidden = !sess || !(isAdmin(sess.email) || isFacilitador(sess.email));
     });
+    /* Menu "Painel" (Painel do Programa): admin geral e convidados; escondido enquanto não se sabe */
+    document.querySelectorAll('.nav-link-painel').forEach(function (el) {
+      el.hidden = !sess || !podePainel();
+    });
     /* Menu "Avaliação" (Produto/Serviço): só para admin geral ou quem está na
        lista de autorizados. Enquanto não se sabe, fica escondido — aparece
        assim que a leitura do acesso volta. */
@@ -1421,6 +1450,7 @@
     isAvaliacaoReady: isAvaliacaoReady,
     isEnrolledReady: isEnrolledReady,
     isFacilitadorReady: isFacilitadorReady,
+    podePainel: podePainel, isPainelReady: isPainelReady, painelLeituraFalhou: painelLeituraFalhou,
     autoPreviDominio: autoPreviDominio
   };
 })();

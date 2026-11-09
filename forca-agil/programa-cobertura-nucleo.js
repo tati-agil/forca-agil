@@ -312,7 +312,7 @@
       var c = cap[g], f = formatos[g], e = encaixe[g];
       c.necessarias = c.deficitVagas > 0 ? (f && f.vagas ? Math.ceil(c.deficitVagas / f.vagas) : null) : 0;
       c.cabem = e.cabem; c.cabemExato = e.exato;
-      c.abrir = c.necessarias == null || e.cabem == null ? null : Math.min(c.necessarias, e.cabem);
+      c.abrir = c.necessarias === 0 ? 0 : c.necessarias == null || e.cabem == null ? null : Math.min(c.necessarias, e.cabem);
       c.deficitCalendario = c.necessarias == null || c.abrir == null ? null : c.necessarias - c.abrir;
       c.expansao = c.maximo + (c.abrir ? Math.min(c.deficitVagas, c.abrir * f.vagas) : 0);
       c.turmasAbrir = c.abrir ? e.novas.slice(0, c.abrir) : [];
