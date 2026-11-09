@@ -65,7 +65,7 @@ async function main() {
 
   console.log('\n== E/V. configuração ==');
   const cfg = { prazo: '2026-12-11', eventos: { evT: true }, facilitadores: { [emailKey('f@previ.com.br')]: 'f@previ.com.br' }, antecedenciaDiasUteis: 5,
-    limiteParalelo: { tecnicos: 2, gestores: 1 }, formatos: { tecnicos: { encontros: 4, horarioInicio: '09:00', horarioFim: '13:00', vagas: 25 } }, atualizadoEm: SERVER, atualizadoPor: ADMIN };
+    limiteParalelo: { tecnicos: 2, gestores: 1 }, margem: 6, composicao: { total: 592, situacaoInativa: 6, cargoIncompativel: 72 }, formatos: { tecnicos: { encontros: 4, horarioInicio: '09:00', horarioFim: '13:00', vagas: 25 } }, atualizadoEm: SERVER, atualizadoPor: ADMIN };
   await pode('E1 admin grava a configuração', db(ADMIN).ref('programa-config').set(cfg));
   await nega('E2 convidado não grava a configuração', db(CONV).ref('programa-config/prazo').set('2027-01-01'));
   await nega('E3 pessoa comum não grava a configuração', db(COMUM).ref('programa-config/prazo').set('2027-01-01'));
@@ -76,6 +76,9 @@ async function main() {
   await nega('V5 formato com término antes do início', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { formatos: { tecnicos: { encontros: 4, horarioInicio: '13:00', horarioFim: '09:00', vagas: 25 } } })));
   await nega('V6 formato de público inventado', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { formatos: { diretores: { encontros: 1, horarioInicio: '09:00', horarioFim: '10:00', vagas: 5 } } })));
   await nega('V7 campo inventado na configuração', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { publico: 430 })));
+  await nega('V9 margem negativa', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { margem: -1 })));
+  await nega('V10 composição sem o total', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { composicao: { situacaoInativa: 6 } })));
+  await nega('V11 campo inventado na composição', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { composicao: { total: 10, outro: 1 } })));
   await nega('V8 autoria com outro e-mail', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { atualizadoPor: SUPER })));
 
   console.log('\n== H. auditoria ==');

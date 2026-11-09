@@ -308,9 +308,16 @@
       var r = maximoDeJanelas(capDia, f.encontros, l);
       encaixe[g] = { cabem: r.total, exato: r.exato, novas: r.inicios.map(function (i) { return uteis.slice(i, i + f.encontros); }) };
     });
+    /* MARGEM (dentro do público): quantas pessoas do público podem não realizar sem comprometer a meta. Meta = público −
+       margem. Ela reduz o déficit que as turmas extras precisam cobrir — primeiro no público com o maior déficit (premissa
+       dita na tela de Capacidade). */
+    var margem = Math.min(N, Math.max(0, Math.floor(Number(cfgP.margem) || 0))), meta = N - margem, sobraMargem = margem;
+    GRUPOS.slice().sort(function (a, b) { return cap[b].deficitVagas - cap[a].deficitVagas; }).forEach(function (g) {
+      var usa = Math.min(sobraMargem, cap[g].deficitVagas); cap[g].margemUsada = usa; cap[g].deficitMeta = cap[g].deficitVagas - usa; sobraMargem -= usa;
+    });
     GRUPOS.forEach(function (g) {
       var c = cap[g], f = formatos[g], e = encaixe[g];
-      c.necessarias = c.deficitVagas > 0 ? (f && f.vagas ? Math.ceil(c.deficitVagas / f.vagas) : null) : 0;
+      c.necessarias = c.deficitMeta > 0 ? (f && f.vagas ? Math.ceil(c.deficitMeta / f.vagas) : null) : 0;
       c.cabem = e.cabem; c.cabemExato = e.exato;
       c.abrir = c.necessarias === 0 ? 0 : c.necessarias == null || e.cabem == null ? null : Math.min(c.necessarias, e.cabem);
       c.deficitCalendario = c.necessarias == null || c.abrir == null ? null : c.necessarias - c.abrir;
@@ -321,9 +328,18 @@
     var real = porSit.realizou;
 
     /* ---------- diagnóstico ---------- */
-    var indeterminado = GRUPOS.some(function (g) { return cap[g].deficitVagas > 0 && (cap[g].necessarias == null || cap[g].abrir == null); });
+    var indeterminado = GRUPOS.some(function (g) { return cap[g].deficitMeta > 0 && (cap[g].necessarias == null || cap[g].abrir == null); });
+    /* COMPOSIÇÃO DO TOTAL (conferência): total de pessoas = situação não ativa + cargo não compatível + público da base.
+       Só confere quando o total está configurado; não muda nenhum outro número. */
+    var comp = cfgP.composicao || {}, composicao = null;
+    if (comp.total > 0) {
+      var ina = Math.max(0, Math.floor(Number(comp.situacaoInativa) || 0)), car = Math.max(0, Math.floor(Number(comp.cargoIncompativel) || 0));
+      var somaComp = ina + car + N;
+      composicao = { total: Math.floor(comp.total), situacaoInativa: ina, cargoIncompativel: car, publico: N, soma: somaComp, fecha: somaComp === Math.floor(comp.total), diferenca: Math.floor(comp.total) - somaComp };
+      if (!composicao.fecha) alertas.push({ tipo: 'composicao-nao-fecha', total: composicao.total, soma: somaComp, diferenca: composicao.diferenca });
+    }
     var fatores = {
-      capacidade: real + maxPlanejado < N,
+      capacidade: real + maxPlanejado < meta,
       mobilizacao: vagasLivresTotal > 0 && pend.some(function (p) { return !p.vaga; }),
       calendario: GRUPOS.some(function (g) { return cap[g].deficitCalendario > 0; })
     };
@@ -386,7 +402,7 @@
     if (abrirTot > 0) dec.push({ tipo: 'abrir-turmas', tag: 'CAPACIDADE', titulo: 'Abrir ' + GRUPOS.filter(function (g) { return cap[g].abrir; }).map(function (g) { return cap[g].abrir + ' turma' + (cap[g].abrir > 1 ? 's' : '') + ' de ' + nomeG[g]; }).join(' e ') + ' até o prazo',
       texto: 'São as que cabem no calendário, respeitando o limite de turmas simultâneas. Elas levam o máximo possível de ' + R(pct1(real + maxPlanejado, N)) + '% para ' + R(pct1(real + maxExpansao, N)) + '%. É um cenário, não capacidade autorizada.' });
     if (fatores.calendario) dec.push({ tipo: 'prazo', tag: 'PRAZO', titulo: 'Decidir sobre o prazo ou o formato das turmas',
-      texto: 'Seriam necessárias ' + necTot + ' turmas extras e só ' + abrirTot + ' cabem até o prazo. Mesmo abrindo todas, ' + (N - real - maxExpansao) + ' pessoas ficam sem turma possível.' });
+      texto: 'Seriam necessárias ' + necTot + ' turmas extras e só ' + abrirTot + ' cabem até o prazo. Mesmo abrindo todas, faltariam ' + Math.max(0, meta - real - maxExpansao) + ' pessoas para a meta' + (margem ? ' (já descontada a margem de ' + margem + ')' : '') + '.' });
     if (qualidade.alertaExecutivo) dec.push({ tipo: 'conferir-presenca', tag: 'QUALIDADE DO REGISTRO', titulo: 'Conferir a presença das turmas sem check-in completo',
       texto: naoVerif + ' pessoas (' + R(naoVerif / N * 100) + '% do público) têm a realização não verificável: ' + qualidade.turmasSemRegistro.concat(qualidade.turmasParciais).join(', ') + '.' });
     if (qualidade.turmasPassadasAbertas.length) dec.push({ tipo: 'encerrar-turmas', tag: 'QUALIDADE DO REGISTRO', titulo: 'Encerrar as turmas que já aconteceram',
@@ -405,7 +421,8 @@
     if (vagasPresas > 0) dec.push({ tipo: 'duplicadas', tag: 'VAGAS', titulo: 'Liberar vagas presas por inscrição duplicada', texto: vagasPresas + ' vagas estão ocupadas por pessoas que já têm outra vaga até o prazo.' });
 
     return {
-      hoje: hoje, prazo: prazo, N: N, excluidosFacilitadores: excluidosFacil, pendencias: pendencias, alertas: alertas, inconsistencias: inconsistencias,
+      hoje: hoje, prazo: prazo, N: N, margem: margem, meta: meta, faltamParaMeta: Math.max(0, meta - porSit.realizou), metaAtingida: porSit.realizou >= meta && N > 0,
+      pctMeta: N ? Math.round(meta / N * 1000) / 10 : 0, composicao: composicao, excluidosFacilitadores: excluidosFacil, pendencias: pendencias, alertas: alertas, inconsistencias: inconsistencias,
       porSit: porSit, porGrupo: porGrupo, realizou: real, pendentes: pend.length,
       pct: { realizado: pct1(real, N), potencial: pct1(real + potencial, N), maxPlanejado: pct1(real + maxPlanejado, N), maxExpansao: pct1(real + maxExpansao, N) },
       potencial: potencial, maxPlanejado: maxPlanejado, maxExpansao: maxExpansao, deficitVagas: deficitVagas, vagasLivres: vagasLivresTotal, vagasPresas: vagasPresas,

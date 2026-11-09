@@ -95,16 +95,16 @@
       '<rect x="0" y="40" width="' + x(p.maxPlanejado) + '" height="24" rx="12" fill="rgba(122,240,232,.35)"/>' +
       '<rect x="0" y="40" width="' + x(p.realizado) + '" height="24" rx="12" fill="#7ee2a8"/>' +
       (p.maxExpansao < 100 ? '<rect x="' + x(p.maxExpansao) + '" y="40" width="' + (W - x(p.maxExpansao)) + '" height="24" fill="url(#pnlHach)"/>' : '') +
-      '<line x1="638" y1="30" x2="638" y2="74" stroke="#f5c518" stroke-width="3"/>' +
+      '<line x1="' + Math.min(638, x(r.pctMeta)) + '" y1="30" x2="' + Math.min(638, x(r.pctMeta)) + '" y2="74" stroke="#f5c518" stroke-width="3"/>' +
       '<g font-family="Oswald, sans-serif" font-size="14">' +
       '<text x="' + Math.max(40, x(p.realizado)) + '" y="26" fill="#7ee2a8" text-anchor="middle">Realizado ' + f1(p.realizado) + '%</text>' +
       '<text x="' + Math.min(560, Math.max(90, x(p.maxPlanejado))) + '" y="86" fill="#b8c6e4" text-anchor="middle">Planejadas ' + f1(p.maxPlanejado) + '%</text>' +
       '<text x="' + Math.min(540, Math.max(120, x(p.maxExpansao))) + '" y="26" fill="#7af0e8" text-anchor="middle">Com as que cabem ' + f1(p.maxExpansao) + '%</text>' +
-      '<text x="634" y="100" fill="#f5c518" text-anchor="end">Meta 100%</text></g></svg>';
+      '<text x="' + Math.min(634, x(r.pctMeta)) + '" y="100" fill="#f5c518" text-anchor="end">Meta ' + f1(r.pctMeta) + '%</text></g></svg>';
   }
   function executiva(r) {
     var c = r.cap, nec = (c.tecnicos.necessarias || 0) + (c.gestores.necessarias || 0), cabem = (c.tecnicos.abrir || 0) + (c.gestores.abrir || 0);
-    var semTurma = r.N - r.realizou - r.maxExpansao, ang = r.N ? r.realizou / r.N * 314.16 : 0;
+    var semTurma = Math.max(0, r.meta - r.realizou - r.maxExpansao), ang = r.N ? r.realizou / r.N * 314.16 : 0;
     var h = '<div class="pnl-grade">';
     /* 1. cobertura */
     h += '<article class="pnl-card" data-pnl="bloco-cobertura"><h2>1 · Cobertura</h2><div class="pnl-cob">' +
@@ -112,18 +112,18 @@
       '<circle cx="60" cy="60" r="50" fill="none" stroke="#7ee2a8" stroke-width="14" stroke-linecap="round" stroke-dasharray="' + ang + ' 314.2" transform="rotate(-90 60 60)"/>' +
       '<text x="60" y="64" text-anchor="middle" fill="#eaf1ff" font-family="Anton, sans-serif" font-size="24">' + pct(r.realizou, r.N) + '</text></svg>' +
       '<div><div class="pnl-big"><span data-pnl="realizou">' + r.realizou + '</span> <small>de <span data-pnl="publico">' + r.N + '</span></small></div><p class="pnl-sub">pessoas do público-alvo realizaram</p>' +
-      '<p class="pnl-pend"><span data-pnl="pendentes">' + r.pendentes + '</span> pendentes</p><p class="pnl-sub">Data-limite: <b class="pnl-ouro">' + brAno(r.prazo) + '</b></p></div></div>';
+      '<p class="pnl-pend"><span data-pnl="pendentes">' + r.pendentes + '</span> pendentes</p>' + (r.margem ? '<p class="pnl-sub" data-pnl="meta">Meta: <b>' + r.meta + '</b> (público − margem de ' + r.margem + ') · ' + (r.metaAtingida ? '<b class="pnl-ouro">meta atingida</b>' : 'faltam <b>' + r.faltamParaMeta + '</b>') + '</p>' : '') + '<p class="pnl-sub">Data-limite: <b class="pnl-ouro">' + brAno(r.prazo) + '</b></p></div></div>';
     if (r.qualidade.alertaExecutivo) h += '<div class="pnl-alerta" data-pnl="alerta-qualidade"><b>Registro de presença:</b> ' + r.qualidade.naoVerificaveisPendentes + ' pessoas estão em turma sem check-in completo; a realização delas não pode ser verificada.</div>';
     h += linkVista('mobilizacao', 'Quem falta e em que situação') + '</article>';
     /* 2. viabilidade */
-    var inviavel = r.pct.maxPlanejado < 100;
+    var inviavel = r.realizou + r.maxPlanejado < r.meta;
     var frase = r.indeterminado ? 'Não dá para estimar as turmas extras: falta o formato de turma (encontros, horário e vagas). Configure no ADMIN.'
-      : r.fatores.calendario ? 'Seriam necessárias ' + nec + ' turmas extras, mas só ' + cabem + ' cabem no calendário até o prazo. Mesmo abrindo todas, ' + semTurma + ' pessoas ficam sem turma possível.'
-      : inviavel ? 'Faltam ' + r.deficitVagas + ' vagas nas turmas planejadas. ' + (nec === 1 ? 'A turma extra necessária cabe' : 'As ' + nec + ' turmas extras necessárias cabem') + ' no calendário.'
+      : r.fatores.calendario ? 'Seriam necessárias ' + nec + ' turmas extras, mas só ' + cabem + ' cabem no calendário até o prazo. Mesmo abrindo todas, ' + semTurma + ' pessoas para a meta ficam sem turma possível.'
+      : inviavel ? 'Faltam ' + (r.meta - r.realizou - r.maxPlanejado) + ' vagas nas turmas planejadas para a meta' + (r.margem ? ' (com a margem de ' + r.margem + ')' : '') + '. ' + (nec === 1 ? 'A turma extra necessária cabe' : 'As ' + nec + ' turmas extras necessárias cabem') + ' no calendário.'
       : 'As turmas planejadas comportam todo o público pendente. O desafio é inscrever e garantir presença.';
     h += '<article class="pnl-card" data-pnl="bloco-viabilidade"><h2>2 · Viabilidade até ' + br(r.prazo) + '</h2>' +
-      '<div class="pnl-veredito' + (inviavel ? '' : ' pnl-veredito--ok') + '"><strong>' + (inviavel ? 'Meta inviável com a capacidade atualmente planejada' : 'As turmas planejadas comportam 100%') + '</strong><span>' + esc(frase) + '</span></div>' +
-      regua(r) + '<p class="pnl-regua-texto">Realizado <b>' + f1(r.pct.realizado) + '%</b> · com as turmas planejadas <b>' + f1(r.pct.maxPlanejado) + '%</b> · com as que cabem no calendário <b>' + f1(r.pct.maxExpansao) + '%</b> · meta 100%</p>' +
+      '<div class="pnl-veredito' + (inviavel ? '' : ' pnl-veredito--ok') + '"><strong>' + (inviavel ? 'Meta inviável com a capacidade atualmente planejada' : r.margem ? 'As turmas planejadas comportam a meta' : 'As turmas planejadas comportam 100%') + '</strong><span>' + esc(frase) + '</span></div>' +
+      regua(r) + '<p class="pnl-regua-texto">Realizado <b>' + f1(r.pct.realizado) + '%</b> · com as turmas planejadas <b>' + f1(r.pct.maxPlanejado) + '%</b> · com as que cabem no calendário <b>' + f1(r.pct.maxExpansao) + '%</b> · meta ' + f1(r.pctMeta) + '%</p>' +
       '<div class="pnl-linha"><span>Com as inscrições confirmadas: <b>' + f1(r.pct.potencial) + '%</b></span><span>Turmas extras: <b>' + (r.indeterminado ? 'indeterminado' : nec + (nec === 1 ? ' necessária · ' : ' necessárias · ') + cabem + (cabem === 1 ? ' cabe' : ' cabem') + ' até ' + br(r.prazo)) + '</b></span></div>' +
       '<div class="pnl-chips" data-pnl="fatores">' + (r.principal ? '<span class="pnl-sub">Impedimento principal:</span>' : '') +
       ['calendario', 'capacidade', 'mobilizacao'].filter(function (k) { return r.fatores[k]; }).map(function (k) { return '<span class="pnl-chip' + (k === r.principal ? ' pnl-chip--principal' : '') + '">' + FATOR[k] + '</span>'; }).join('') +
@@ -193,7 +193,7 @@
   function capacidade(r) {
     var c = r.cap, h = '<article class="pnl-card"><h2>Do déficit de vagas ao déficit de calendário</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th></th><th class="pnl-n">Técnicos</th><th class="pnl-n">Gestores</th></tr></thead><tbody>';
     var L = [['Pendentes', 'pendentes'], ['Com vaga por inscrição confirmada', 'comInscricao'], ['Com vaga própria (inscrição ou interesse)', 'comVaga'], ['Cabem nas vagas livres (pelas regras de entrada)', 'alocaveis'],
-      ['Máximo nas turmas planejadas', 'maximo'], ['Déficit de vagas', 'deficitVagas'], ['Turmas extras necessárias', 'necessarias'], ['Turmas novas que cabem no calendário', 'cabem'], ['Turmas a abrir (necessárias que cabem)', 'abrir'], ['Déficit de calendário (turmas)', 'deficitCalendario']];
+      ['Máximo nas turmas planejadas', 'maximo'], ['Déficit de vagas (para 100%)', 'deficitVagas'], ['Margem aplicada', 'margemUsada'], ['Déficit para a meta', 'deficitMeta'], ['Turmas extras necessárias (para a meta)', 'necessarias'], ['Turmas novas que cabem no calendário', 'cabem'], ['Turmas a abrir (necessárias que cabem)', 'abrir'], ['Déficit de calendário (turmas)', 'deficitCalendario']];
     L.forEach(function (l) { var v = function (g) { var x = c[g][l[1]]; return x == null ? 'indeterminado' : x + (l[1] === 'cabem' && x != null && !c[g].cabemExato ? ' (pelo menos)' : ''); }; h += '<tr><td>' + l[0] + '</td><td class="pnl-n">' + v('tecnicos') + '</td><td class="pnl-n">' + v('gestores') + '</td></tr>'; });
     h += '</tbody></table></div><p class="pnl-nota">Vagas livres = vagas − registros ativos (interesse e inscrição, inclusive de quem está fora da base): nenhuma vaga ocupada no sistema é liberada pelo cálculo. ' + (r.vagasPresas ? r.vagasPresas + ' vagas estão presas por inscrição duplicada.' : '') + '</p></article>';
     h += '<article class="pnl-card"><h2>Turmas do programa</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Turma</th><th>Datas</th><th>Público</th><th class="pnl-n">Vagas</th><th class="pnl-n">Ocupação</th><th class="pnl-n">Livres</th><th>Situação</th></tr></thead><tbody>' +
@@ -208,6 +208,7 @@
     h += '<article class="pnl-card"><h2>Premissas desta simulação</h2><ul class="pnl-lista">' +
       '<li>Turmas simultâneas: até <b>' + (r.limites.tecnicos || '—') + '</b> de técnicos e <b>' + (r.limites.gestores || '—') + '</b> de gestores. Simultâneo = mesmo dia com horários que se sobrepõem.</li>' +
       '<li>Premissa: turmas de técnicos e de gestores não disputam os mesmos facilitadores e salas.</li>' +
+      (r.margem ? '<li>Margem de ' + r.margem + ' pessoas: a meta é ' + r.meta + ' (público ' + r.N + ' − margem). A margem reduz primeiro o déficit do público que tem o maior déficit.</li>' : '') +
       ['tecnicos', 'gestores'].map(function (g) { var x = f[g]; return '<li>Turma nova de ' + NOMEG[g] + ': ' + (x ? x.encontros + ' encontros em dias úteis seguidos, ' + esc(x.horario) + ', ' + x.vagas + ' vagas (' + (x.origem === 'configurado' ? 'formato configurado no ADMIN' : 'como a turma mais recente, ' + esc(x.ref)) + ').' : 'sem formato: configure no ADMIN.') + '</li>'; }).join('') +
       '<li>Dias úteis: sem sábados, domingos e os dias sem expediente cadastrados. Primeira data para turma nova: ' + brAno(r.primeiraData) + ' (antecedência de ' + r.antecedencia + ' dias úteis).</li>' +
       '<li>Disponibilidade de facilitadores e salas não está cadastrada: o encaixe mostra o que o calendário comporta, nunca a garantia de execução.</li></ul></article>';
@@ -271,6 +272,7 @@
     else if (r.inconsistencias.length) h += '<div class="pnl-alerta" role="alert" data-pnl="inconsistencia"><b>Os números não fecharam</b> (' + esc(r.inconsistencias.join(', ')) + ') e não são exibidos. Use "Atualizar dados"; se continuar, avise a administração.</div>';
     else {
       if (r.pendencias.length) h += avisoPendencias(r);
+      if (r.composicao && !r.composicao.fecha) h += '<div class="pnl-alerta" role="alert" data-pnl="composicao"><b>A conta do público não fecha.</b> Total configurado: ' + r.composicao.total + '. Situação não ativa ' + r.composicao.situacaoInativa + ' + cargo não compatível ' + r.composicao.cargoIncompativel + ' + público da base ' + r.composicao.publico + ' = ' + r.composicao.soma + ' (diferença de ' + Math.abs(r.composicao.diferenca) + ' pessoa' + (Math.abs(r.composicao.diferenca) === 1 ? '' : 's') + '). Confira a base importada e os parâmetros em ADMIN › Painel do Programa.</div>';
       if (r.N) h += ({ executiva: executiva, diretorias: diretorias, mobilizacao: mobilizacao, ausencias: ausencias, capacidade: capacidade, evolucao: evolucao })[v](r);
     }
     el.innerHTML = h;

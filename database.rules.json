@@ -231,6 +231,24 @@
           }
         }
       },
+      "margem": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000 && newData.val() % 1 === 0"
+      },
+      "composicao": {
+        ".validate": "newData.hasChildren(['total'])",
+        "total": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 1000000 && newData.val() % 1 === 0"
+        },
+        "situacaoInativa": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000 && newData.val() % 1 === 0"
+        },
+        "cargoIncompativel": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000 && newData.val() % 1 === 0"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      },
       "atualizadoEm": {
         ".validate": "newData.isNumber() && newData.val() <= now"
       },
