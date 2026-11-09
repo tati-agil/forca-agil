@@ -39,7 +39,8 @@
     ".github/scripts/teste-rules-excecao-admin.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-publicos-ativacao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-fila-espera.js": "regras do banco: roda no emulador real (teste-rules.yml)",
-    ".github/scripts/teste-rules-outros-publicos.js": "regras do banco: roda no emulador real (teste-rules.yml)"
+    ".github/scripts/teste-rules-outros-publicos.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-programa-painel.js": "regras do banco: roda no emulador real (teste-rules.yml)"
   },
   "testes": [
     {
@@ -1294,6 +1295,12 @@
       "nome": "Repositório: leituras esperam a sessão, login tardio, recusa e \"Tentar novamente\" (desktop e celular)",
       "duracao": 48,
       "sobre": "As três leituras do Repositório exigem login; antes eram abertas antes do login e, recusadas, deixavam a tela em \"Carregando conteúdos…\" para sempre (achado do Smoke com o Firebase real no PR #304). Prova: login pelo formulário com a página aberta carrega; sessão guardada carrega; recusa e espera longa viram aviso com \"Tentar novamente\", que refaz a leitura. O Firebase falso imita a recusa sem sessão e o cancelamento da escuta (__CFG.exigeLogin)."
+    },
+    {
+      "arquivo": ".github/scripts/teste-programa-cobertura-nucleo.js",
+      "nome": "Painel do Programa: núcleo de cobertura, ocupação, capacidade, calendário e viabilidade",
+      "duracao": 2,
+      "sobre": "O cálculo do painel executivo (programa-cobertura-nucleo.js) com as funções reais de entrada em turma: classificação única, ausência por turma, histórico de inscrições removidas, check-in por pessoa, ocupação operacional × pessoas únicas, elegibilidade real, turmas que mudam, calendário útil com limite de simultâneas (encaixe exato provado contra força bruta), diagnóstico, decisões com os mesmos números e a prévia da importação da base oficial."
     }
   ]
 }
