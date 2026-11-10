@@ -58,8 +58,8 @@ function banco(opts) {
     'fa-painel-convidados': { [chave(CONV)]: { email: CONV, name: 'CONVIDADO', addedAt: '2026-11-01T00:00:00.000Z', addedBy: ADM } },
     'publicos-config': { ativo: true },
     eventos: { evT: { nome: 'Oficina Técnicos', publicoDesc: 'Técnicos', vagasPorTurma: 10, percentualMinimo: 75, order: 1 }, evX: { nome: 'Outro evento', order: 2 } },
-    turmas: { ta: { label: 'Turma A', eventoKey: 'evT', dias: [A1, A2], horarioInicio: '09:00', horarioFim: '13:00' }, tf: { label: 'Turma F', eventoKey: 'evT', dias: [F1, F2], horarioInicio: '09:00', horarioFim: '13:00' } },
-    'turmas-config': { ta: { encerrada: true, dataConclusao: A2 } }, 'turmas-interesse': interesse, 'turmas-interesse-log': {}, 'turmas-checkin': checkin,
+    turmas: { ta: { label: 'Turma A', eventoKey: 'evT', dias: [A1, A2], horarioInicio: '09:00', horarioFim: '13:00' }, tf: { label: 'Turma F', eventoKey: 'evT', dias: [F1, F2], horarioInicio: '09:00', horarioFim: '13:00' }, tc: { label: 'Turma C', eventoKey: 'evT', dias: [F1], horarioInicio: '14:00', horarioFim: '17:00' } },
+    'turmas-config': { ta: { encerrada: true, dataConclusao: A2 }, tc: { cancelamento: { motivo: 'outro', em: '2026-11-01T00:00:00.000Z', por: ADM } } }, 'turmas-interesse': interesse, 'turmas-interesse-log': {}, 'turmas-checkin': checkin,
     'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {}, 'turmas-sorteio': {}, avaliacoes: {}, pedidos: {}, holocron: {},
     'programa-config': opts.semConfig ? null : { prazo: util(40), eventos: { evT: true }, antecedenciaDiasUteis: 3, limiteParalelo: { tecnicos: 2, gestores: 1 } },
     'programa-calendario': {}, 'programa-config-auditoria': {},
@@ -138,6 +138,7 @@ async function rodada(browser, rotulo, ctxOpts) {
     await x.page.waitForTimeout(250);
     const h1 = await texto(x.page, '#painelConteudo h1');
     await foto(x.page, rotulo.slice(0, 3) + '-' + v);
+    if (v === 'capacidade') { const canc = await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--cancel', (l) => l.map((e) => [e.textContent, getComputedStyle(e).textDecorationLine])); ok('C capacidade: turma cancelada aparece no calendário riscada e com legenda própria', canc.length === 1 && canc[0][0] === 'Cancelada · Turma C' && /line-through/.test(canc[0][1]) && !!(await x.page.$('[data-pnl="leg-cancelada"]')) && !(await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--t', (l) => l.some((e) => /Turma C/.test(e.textContent)))), canc); }
     if (v === 'diretorias') ok('C diretorias: total projetado e gap = núcleo', (await texto(x.page, '[data-pnl="proj-total"]')) === (Math.round((r.realizou + 1 + r.potencial) / r.N * 1000) / 10).toFixed(1).replace('.', ',') + '%' && (await texto(x.page, '[data-pnl="gap-total"]')) === String(r.N - (r.realizou + 1) - r.potencial), [await texto(x.page, '[data-pnl="proj-total"]'), await texto(x.page, '[data-pnl="gap-total"]')]);
     pv = await verificarTela(x.page, { escopo: '#page-painel', largura: ctxOpts.viewport.width, focos: 0 });
     ok('V ' + v + ': padrão visual', !pv.length, pv.slice(0, 3));
