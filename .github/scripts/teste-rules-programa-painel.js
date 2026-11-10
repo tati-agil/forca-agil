@@ -82,6 +82,9 @@ async function main() {
   await nega('V12 ocupação esperada 0', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { ocupacaoEsperada: 0 })));
   await nega('V13 ocupação esperada acima de 100', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { ocupacaoEsperada: 101 })));
   await pode('E4 ocupação esperada 70 aceita', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { ocupacaoEsperada: 70 })));
+  await pode('E5 facilitação compartilhada aceita', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { facilitacao: { disponiveis: 2, tecnicos: 1, gestores: 2, aberta: 2 } })));
+  await nega('V14 facilitação sem um dos campos', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { facilitacao: { disponiveis: 2, tecnicos: 1, gestores: 2 } })));
+  await nega('V15 facilitação com campo inventado', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { facilitacao: { disponiveis: 2, tecnicos: 1, gestores: 2, aberta: 2, outro: 1 } })));
   await nega('V8 autoria com outro e-mail', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { atualizadoPor: SUPER })));
 
   console.log('\n== H. auditoria ==');
