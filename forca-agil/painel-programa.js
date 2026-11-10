@@ -231,7 +231,13 @@
   function calendario(r) {
     if (!r.uteis.length) return '<article class="pnl-card"><h2>Calendário útil</h2><p class="pnl-nota">Sem dias úteis entre a primeira data possível e o prazo.</p></article>';
     var marca = {}; function m(dia, txt, cls) { (marca[dia] = marca[dia] || []).push('<span class="pnl-t ' + cls + '" title="' + esc(txt) + '">' + esc(txt) + '</span>'); }
-    r.turmas.forEach(function (t) { if (t.cancelada || t.encerrada) return; t.dias.forEach(function (d) { m(d, t.label + (t.horario ? ' ' + t.horario : ''), t.grupo === 'gestores' ? 'pnl-t--g' : 'pnl-t--t'); }); });
+    var temCancelada = false;
+    r.turmas.forEach(function (t) {
+      if (t.encerrada) return;
+      // Turma cancelada continua no calendário, riscada e marcada, para não parecer dia livre nem turma que conta.
+      if (t.cancelada) { (t.dias || []).forEach(function (d) { temCancelada = true; m(d, 'Cancelada · ' + t.label, 'pnl-t--cancel'); }); return; }
+      t.dias.forEach(function (d) { m(d, t.label + (t.horario ? ' ' + t.horario : ''), t.grupo === 'gestores' ? 'pnl-t--g' : 'pnl-t--t'); });
+    });
     ['tecnicos', 'gestores'].forEach(function (g) { (r.cap[g].turmasAbrir || []).forEach(function (dias, i) { dias.forEach(function (d) { m(d, 'Nova ' + (g === 'gestores' ? 'G' : 'T') + (i + 1), g === 'gestores' ? 'pnl-t--ng' : 'pnl-t--nt'); }); }); });
     var ini = new Date(+r.primeiraData.slice(0, 4), +r.primeiraData.slice(5, 7) - 1, +r.primeiraData.slice(8)); ini.setDate(ini.getDate() - ((ini.getDay() + 6) % 7));
     var h = '<article class="pnl-card"><h2>Calendário útil até ' + br(r.prazo) + ' (simulação)</h2><div class="table-scroll-wrap"><div class="pnl-cal">' + ['seg', 'ter', 'qua', 'qui', 'sex'].map(function (x) { return '<div class="pnl-cal-cab">' + x + '</div>'; }).join('');
@@ -242,7 +248,7 @@
       var ind = r.indisponiveis[iso], fora = iso < r.primeiraData || iso > r.prazo;
       h += '<div class="pnl-dia' + (ind ? ' pnl-dia--ind' : '') + (fora ? ' pnl-dia--fora' : '') + '"><b>' + br(iso) + '</b>' + (ind ? '<span class="pnl-nota">' + esc(ind) + '</span>' : '') + (marca[iso] || []).join('') + '</div>';
     }
-    return h + '</div></div><div class="pnl-leg"><span><i class="pnl-t--t"></i>Turma de técnicos</span><span><i class="pnl-t--g"></i>Turma de gestores</span><span><i class="pnl-t--nt"></i>Nova de técnicos (simulada)</span><span><i class="pnl-t--ng"></i>Nova de gestores (simulada)</span><span><i class="pnl-dia--ind"></i>Dia sem expediente</span></div></article>';
+    return h + '</div></div><div class="pnl-leg"><span><i class="pnl-t--t"></i>Turma de técnicos</span><span><i class="pnl-t--g"></i>Turma de gestores</span><span><i class="pnl-t--nt"></i>Nova de técnicos (simulada)</span><span><i class="pnl-t--ng"></i>Nova de gestores (simulada)</span><span><i class="pnl-dia--ind"></i>Dia sem expediente</span>' + (temCancelada ? '<span data-pnl="leg-cancelada"><i class="pnl-t--cancel"></i>Turma cancelada (não conta)</span>' : '') + '</div></article>';
   }
   function evolucao(r) {
     if (!r.evolucao.length) return '<article class="pnl-card"><h2>Realizado acumulado</h2><p class="pnl-nota">Ainda não há turma encerrada com realização.</p></article>';
