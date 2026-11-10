@@ -138,6 +138,7 @@ async function rodada(browser, rotulo, ctxOpts) {
     await x.page.waitForTimeout(250);
     const h1 = await texto(x.page, '#painelConteudo h1');
     await foto(x.page, rotulo.slice(0, 3) + '-' + v);
+    if (v === 'diretorias') ok('C diretorias: total projetado e gap = núcleo', (await texto(x.page, '[data-pnl="proj-total"]')) === (Math.round((r.realizou + 1 + r.potencial) / r.N * 1000) / 10).toFixed(1).replace('.', ',') + '%' && (await texto(x.page, '[data-pnl="gap-total"]')) === String(r.N - (r.realizou + 1) - r.potencial), [await texto(x.page, '[data-pnl="proj-total"]'), await texto(x.page, '[data-pnl="gap-total"]')]);
     pv = await verificarTela(x.page, { escopo: '#page-painel', largura: ctxOpts.viewport.width, focos: 0 });
     ok('V ' + v + ': padrão visual', !pv.length, pv.slice(0, 3));
     ok('C ' + v + ': página própria com "← Voltar ao painel" e sem rolagem lateral', !!h1 && h1 !== 'Programa Força Ágil' && !!(await x.page.$('#painelConteudo a.avp-voltar-link[href="#painel"]')) && await semRolagem(x.page), h1);
