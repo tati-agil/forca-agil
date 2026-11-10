@@ -40,6 +40,39 @@
   function hora(ms) { var d = new Date(ms); return brAno(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')) + ', ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
   function vista() { var m = /[?&]v=([a-z]+)/.exec(location.hash || ''); return m && VISTAS[m[1]] ? m[1] : 'executiva'; }
   function linkVista(v, txt) { return '<a class="avp-voltar-link pnl-nav" href="#painel?v=' + v + '">' + esc(txt) + ' →</a>'; }
+  /* Parâmetros do endereço: d = diretoria a abrir em Diretorias e áreas; foco = bloco (data-pnl) a mostrar; de = bloco da
+     visão executiva de onde a pessoa veio (o "← Voltar ao painel" devolve a ela, não ao topo). */
+  function params() {
+    var o = {}; (String(location.hash || '').split('?')[1] || '').split('&').forEach(function (p) { var i = p.indexOf('='); if (i > 0) { try { o[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1)); } catch (e) { /* parâmetro malformado: ignorado */ } } });
+    return o;
+  }
+  function blocoValido(b) { return /^[a-z0-9-]+$/.test(b || '') ? b : ''; }
+  /* Cada decisão leva à consulta onde se age sobre ela. Decisão sem destino aqui fica sem link (etiqueta neutra). */
+  var DESTINO_DECISAO = {
+    'abrir-turmas': ['capacidade', '', 'Ver capacidade e calendário'], prazo: ['capacidade', '', 'Ver capacidade e calendário'],
+    'turma-outros-publicos': ['capacidade', '', 'Ver capacidade e calendário'], duplicadas: ['capacidade', '', 'Ver capacidade e vagas'],
+    mobilizar: ['mobilizacao', 'mob-sem-cadastro', 'Ver quem falta'], converter: ['mobilizacao', 'mob-interessada', 'Ver as interessadas'],
+    reconvocar: ['ausencias', 'aus-pendentes', 'Ver as ausências'], 'conferir-presenca': ['ausencias', '', 'Ver o registro de presença'],
+    'encerrar-turmas': ['ausencias', '', 'Ver o registro de presença']
+  };
+  function hrefDecisao(x) { var d = DESTINO_DECISAO[x.tipo]; return d ? '#painel?v=' + d[0] + (d[1] ? '&foco=' + d[1] : '') + '&de=bloco-decisoes' : ''; }
+  /* Depois de desenhar: abre a diretoria pedida (d) ou rola até o bloco pedido (foco). Uma vez por endereço, para que
+     "Atualizar dados" e os filtros não puxem a tela de volta. */
+  function aplicarFoco() {
+    if (!st.r || st.focoAplicado === location.hash) return;
+    var p = params(), alvo = null;
+    if (p.d && vista() === 'diretorias') {
+      [].some.call(document.querySelectorAll('#painelConteudo tr[data-pnl-dir-nome]'), function (tr) {
+        if (tr.getAttribute('data-pnl-dir-nome') !== p.d) return false;
+        var b = tr.querySelector('[data-pnl-abrir]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click();
+        alvo = tr; return true;
+      });
+    } else if (blocoValido(p.foco)) alvo = document.querySelector('#painelConteudo [data-pnl="' + p.foco + '"]');
+    st.focoAplicado = location.hash;
+    /* Imediato (não suave): o site tem scroll-behavior: smooth e a troca de endereço sobe ao topo; no celular, com a
+       página longa, as duas animações se atropelavam e o destino não aparecia. */
+    if (alvo) setTimeout(function () { alvo.scrollIntoView({ block: 'center', behavior: 'instant' }); }, 0);
+  }
 
   /* ---------- leitura (uma passada; nenhum ouvinte fica aberto) ---------- */
   function ler() {
@@ -76,7 +109,7 @@
 
   /* ---------- cabeçalho ---------- */
   function cabecalho(titulo, sub, comVoltar) {
-    var r = st.r, h = '<div class="pnl-topo"><div class="pnl-topo-titulo">' + (comVoltar ? '<a class="avp-voltar-link" href="#painel">← Voltar ao painel</a>' : '') +
+    var r = st.r, h = '<div class="pnl-topo"><div class="pnl-topo-titulo">' + (comVoltar ? '<a class="avp-voltar-link" href="#painel' + (blocoValido(params().de) ? '?foco=' + params().de : '') + '">← Voltar ao painel</a>' : '') +
       '<span class="eyebrow">Painel do Programa</span><h1>' + esc(titulo) + '</h1>' + (sub ? '<p class="pnl-sub">' + esc(sub) + '</p>' : '') + '</div>';
     h += '<div class="pnl-estado" aria-live="polite">';
     if (r && r.prazo) h += '<span class="pnl-prazo">Data-limite da meta: <b>' + brAno(r.prazo) + '</b></span>';
@@ -147,7 +180,10 @@
     var rec = recorte(r);
     var trilho = function (d) { return '<span class="pnl-trilho" role="img" aria-label="' + f1(d.cobertura) + '% realizado; ' + f1(d.coberturaProjetada) + '% com inscritos e interessados"><span style="width:' + d.cobertura + '%"></span><span class="pnl-trilho-proj" style="width:' + Math.max(0, d.coberturaProjetada - d.cobertura) + '%"></span></span>'; };
     var linhaGap = function (d, iCob, classe, attrs) {
-      return '<div class="pnl-gp' + (classe || '') + '"' + attrs + '><span class="pnl-gp-nome">' + esc(d.nome) + '</span>' + (classe ? '<span></span>' : trilho(d)) +
+      /* O nome da diretoria é o que parece clicável: leva a Diretorias e áreas com ela já aberta (as gerências). */
+      var nome = classe ? '<span class="pnl-gp-nome">' + esc(d.nome) + '</span>'
+        : '<a class="pnl-gp-nome pnl-gp-link" href="#painel?v=diretorias&amp;d=' + encodeURIComponent(d.nome) + '&amp;de=bloco-gaps" aria-label="' + esc(d.nome) + ': ver as gerências">' + esc(d.nome) + '</a>';
+      return '<div class="pnl-gp' + (classe || '') + '"' + attrs + '>' + nome + (classe ? '<span></span>' : trilho(d)) +
         '<span class="pnl-gp-real"><span class="pnl-gp-m">Realizado </span>' + d.realizou + '/' + d.total + ' · ' + (d.total ? f1(d.cobertura) + '%' : '—') + '</span><span class="pnl-gp-proj"><span class="pnl-gp-m">Com inscritos e interessados </span>' + (d.total ? f1(d.coberturaProjetada) + '%' : '—') + '</span><span class="pnl-gp-gap"><span class="pnl-gp-m">Gap </span><b>' + d.gap + '</b></span></div>';
     };
     var ordem = rec.diretorias.map(function (d, iCob) { return { d: d, i: iCob }; });
@@ -158,10 +194,13 @@
       ordem.map(function (x) { return linhaGap(x.d, x.i, '', ' data-pnl-dir="' + esc(x.d.nome) + '" data-gap="' + x.d.gap + '" data-ord-cob="' + x.i + '"'); }).join('') +
       linhaGap(rec.total, 0, ' pnl-gp--total', ' data-pnl="gaps-total"') + '</div>' +
       '<div class="pnl-leg" data-pnl="gaps-legenda"><span><i class="pnl-leg-real"></i>Realizado</span><span><i class="pnl-leg-proj"></i>Inscritos e interessados (se comparecerem)</span><span><i class="pnl-leg-gap"></i>Gap: sem inscrição nem interesse</span></div>' +
-      '<p class="pnl-nota" data-pnl="gaps-exemplo">Gap = pessoas sem inscrição nem interesse: onde mobilizar. "Com inscritos e interessados" = onde a diretoria chega se todos comparecerem.</p>' + linkVista('diretorias', 'Todas as diretorias e gerências' + (st.pub === 'todos' ? '' : ' (' + PUBS[st.pub].toLowerCase() + ')')) + '</article>';
+      '<p class="pnl-nota" data-pnl="gaps-exemplo">Gap = pessoas sem inscrição nem interesse: onde mobilizar. "Com inscritos e interessados" = onde a diretoria chega se todos comparecerem. Toque no nome da diretoria para ver as gerências dela.</p>' + linkVista('diretorias', 'Todas as diretorias e gerências' + (st.pub === 'todos' ? '' : ' (' + PUBS[st.pub].toLowerCase() + ')')) + '</article>';
     /* 4. decisões */
     h += '<article class="pnl-card" data-pnl="bloco-decisoes"><h2>4 · Decisões necessárias</h2>' + (r.decisoes.length ? '<ol class="pnl-decisoes">' + r.decisoes.map(function (x) {
-      return '<li data-pnl-decisao="' + x.tipo + '"><b>' + esc(x.titulo) + '</b><span>' + esc(x.texto) + '</span><span class="pnl-tag">' + esc(x.tag) + '</span></li>'; }).join('') + '</ol>'
+      /* O cartão inteiro leva à consulta da decisão; a etiqueta diz para onde. Sem destino, nada parece link. */
+      var href = hrefDecisao(x), d = DESTINO_DECISAO[x.tipo];
+      var miolo = '<b>' + esc(x.titulo) + '</b><span>' + esc(x.texto) + '</span><span class="pnl-decisao-pe"><span class="pnl-tag">' + esc(x.tag) + '</span>' + (href ? '<span class="pnl-decisao-ir">' + esc(d[2]) + ' →</span>' : '') + '</span>';
+      return '<li data-pnl-decisao="' + x.tipo + '"' + (href ? ' class="pnl-decisao--link"><a class="pnl-decisao-link" href="' + href + '">' + miolo + '</a>' : '>' + miolo) + '</li>'; }).join('') + '</ol>'
       : '<p class="admin-empty">Nenhuma decisão pendente pelos dados atuais.</p>') + '</article>';
     h += '</div><nav class="pnl-consultas" aria-label="Consultas"><span class="pnl-sub">Consultas:</span>' + Object.keys(VISTAS).map(function (v) { return linkVista(v, VISTAS[v]); }).join('') + '</nav>';
     return h;
@@ -256,7 +295,7 @@
     };
     rec.diretorias.forEach(function (d, i) {
       var gs = nomes ? d.gerenciasTodas : d.gerencias;
-      h += linha(d, gs.length ? '<button type="button" class="pnl-dir-abrir" data-pnl-abrir="' + i + '" aria-expanded="false"><span aria-hidden="true">▸</span> ' + esc(d.nome) + '</button>' : '<span class="pnl-dir-vazia">' + esc(d.nome) + '</span>', ' class="pnl-dir"');
+      h += linha(d, gs.length ? '<button type="button" class="pnl-dir-abrir" data-pnl-abrir="' + i + '" aria-expanded="false"><span aria-hidden="true">▸</span> ' + esc(d.nome) + '</button>' : '<span class="pnl-dir-vazia">' + esc(d.nome) + '</span>', ' class="pnl-dir" data-pnl-dir-nome="' + esc(d.nome) + '"');
       gs.forEach(function (g, j) {
         if (!nomes) { h += linha(g, '<span class="pnl-ger-nome">' + esc(g.nome) + '</span>', ' class="pnl-ger" data-pnl-ger="' + i + '" hidden'); return; }
         var id = i + '-' + j, ps = pessoasDe(d.nome, g.nome);
@@ -273,9 +312,9 @@
   function mobilizacao(r) {
     var a = r.ausencias;
     return '<article class="pnl-card"><h2>Pendentes por situação</h2>' + barraSituacoes(r) + '<div class="pnl-blocos">' +
-      bloco('Sem cadastro', r.porSit['sem-cadastro'], 'Estão na base oficial e não têm cadastro com o mesmo e-mail. Não prova desconhecimento do programa: pede investigação e comunicação.') +
+      bloco('Sem cadastro', r.porSit['sem-cadastro'], 'Estão na base oficial e não têm cadastro com o mesmo e-mail. Não prova desconhecimento do programa: pede investigação e comunicação.', 'mob-sem-cadastro') +
       bloco('Cadastradas sem engajamento', r.porSit['sem-engajamento'], 'Têm cadastro, nenhum interesse nem inscrição ativos, e nunca realizaram.') +
-      bloco('Interessadas sem inscrição', r.porSit.interessada, 'Interesse ativo numa turma do programa, sem confirmação. Há ' + r.vagasLivres + ' vagas livres até o prazo.') +
+      bloco('Interessadas sem inscrição', r.porSit.interessada, 'Interesse ativo numa turma do programa, sem confirmação. Há ' + r.vagasLivres + ' vagas livres até o prazo.', 'mob-interessada') +
       bloco('Inscritas sem realização', r.porSit.inscrita, r.potencial + ' em turmas que terminam até o prazo e ainda podem realizar.') +
       bloco('Faltaram e seguem pendentes', a.pendentes, a.pendentesComNovaInscricao + ' delas já têm nova inscrição.') +
       '</div><p class="pnl-nota">A lista de espera não entra em nenhum número do painel.</p>' + botaoExportar() + '</article>';
@@ -423,6 +462,7 @@
       if (r.N) h += ({ executiva: executiva, diretorias: diretorias, mobilizacao: mobilizacao, ausencias: ausencias, capacidade: capacidade, evolucao: evolucao })[v](r);
     }
     el.innerHTML = h;
+    aplicarFoco();
   }
 
   document.addEventListener('click', function (e) {
@@ -458,7 +498,7 @@
     linhas.forEach(function (tr) { var ok = Object.keys(f).every(function (k) { return tr.getAttribute('data-' + k) === f[k]; }); tr.hidden = !ok; if (ok) vis++; });
     var c = card.querySelector('[data-pnl="turmas-contagem"]'); if (c) c.textContent = vis + ' de ' + linhas.length + ' turmas';
   });
-  window.addEventListener('hashchange', function () { if (/^#painel/.test(location.hash)) { render(); window.scrollTo(0, 0); } });
+  window.addEventListener('hashchange', function () { if (/^#painel/.test(location.hash)) { st.focoAplicado = null; window.scrollTo(0, 0); render(); } });
   /* A primeira leitura sai assim que o acesso está decidido — a sessão, a lista de admins e o registro de convidado chegam
      em qualquer ordem (no celular, em segundos), então qualquer um dos três sinais tenta de novo. */
   function primeiraLeitura() {
