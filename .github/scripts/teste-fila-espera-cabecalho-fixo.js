@@ -24,11 +24,13 @@ function banco() {
     const e = i === 1 ? 'uma.pessoa.com.um.endereco.de.email.bem.comprido.para.testar@previ.com.br' : 'pessoa.' + i + '@previ.com.br';
     espera[chave(e)] = { 'lista:evA': { name: 'PESSOA ' + String(i).padStart(2, '0') + ' DA SILVA', email: e, area: 'GECAT', eventoKey: 'evA', date: '2026-08-05T09:00:00.000Z' } };
   }
+  /* quem saiu da fila para uma turma de outro evento, com o destino por extenso comprido ("Saíram da fila") */
+  espera[chave('saiu.para.turma@previ.com.br')] = { 'lista:evA': { name: 'RODRIGO CORREA LOPES DO NASCIMENTO', email: 'saiu.para.turma@previ.com.br', area: 'GESOP', eventoKey: 'evA', date: '2026-08-18T13:22:00.000Z', removed: true, removedDate: '2026-11-09T10:34:00.000Z', movedToTurma: 'tB1', movedToStatus: 'inscrito' } };
   return {
     'fa-users': { [chave(ADM)]: { name: 'ADMIN', email: ADM, area: 'INFOR' } }, 'fa-admins': { [chave(ADM)]: { email: ADM, name: 'ADMIN' } }, 'fa-diretores': {}, 'fa-facilitadores': {},
     'fa-gerentes': {}, 'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': espera,
-    eventos: { evA: { nome: 'EPISÓDIO A', order: 1, publicado: true, cargaHoraria: '12', esperaAtiva: false } },
-    turmas: { tA1: { label: 'Turma 1', eventoKey: 'evA', order: 1, dias: ['2026-09-11'] } },
+    eventos: { evA: { nome: 'EPISÓDIO A', order: 1, publicado: true, cargaHoraria: '12', esperaAtiva: false }, evB: { nome: 'EPISÓDIO III - A REBELIÃO SE ESPALHA', order: 2, publicado: true, cargaHoraria: '3' } },
+    turmas: { tA1: { label: 'Turma 1', eventoKey: 'evA', order: 1, dias: ['2026-09-11'] }, tB1: { label: 'Turma 8 - Técnicos', eventoKey: 'evB', order: 1, dias: ['2026-11-09'] } },
     'turmas-interesse': {}, 'turmas-interesse-log': {}, 'turmas-config': {}, 'turmas-checkin': {},
     'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {}, 'turmas-sorteio': {}, avaliacoes: {}, pedidos: {}, holocron: {}
   };
@@ -84,6 +86,14 @@ function banco() {
       else {
         anota(nome + ': os títulos param logo abaixo do menu, sem rolagem interna', m.top >= m.nav - 2 && m.top <= m.nav + 40 && !m.rolaDentro && m.primeiraPassou, JSON.stringify(m));
         anota(nome + ': com e-mail comprido, a tabela e o botão da coluna Ações ficam dentro da caixa, e a Área não parte no meio', m.tabRight <= m.wRight + 1 && m.botRight <= m.wRight + 1 && m.areaLinhas === 1, JSON.stringify(m));
+      }
+      if (!interna) {
+        const sd = await page.evaluate(() => {
+          const d = document.querySelector('[data-ev-key="evA"] .espera-saidos'); if (!d) return null; d.open = true;
+          const w = d.querySelector('.table-scroll-wrap'), b = d.querySelector('.destino-turma').getBoundingClientRect(), rw = w.getBoundingClientRect();
+          return { cabe: w.scrollWidth <= w.clientWidth + 1, badgeDentro: b.right <= rw.right + 1, texto: d.querySelector('.destino-turma').textContent };
+        });
+        anota(nome + ': "Saíram da fila" — destino por extenso comprido quebra linha e a tabela (com Motivo) cabe na caixa', !!sd && sd.cabe && sd.badgeDentro && /REBELIÃO/.test(sd.texto), JSON.stringify(sd));
       }
       anota(nome + ': os 7 títulos, por cima das linhas, com fundo opaco; sem rolagem lateral da página', m.titulos === 7 && m.opaco && m.porCima && m.pagina, JSON.stringify(m));
 
