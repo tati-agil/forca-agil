@@ -130,8 +130,8 @@
       '</div><p class="pnl-nota">O máximo com as turmas que cabem é um cenário, não capacidade autorizada.</p>' + linkVista('capacidade', 'Capacidade, calendário e premissas') + '</article>';
     /* 3. gaps */
     h += '<article class="pnl-card" data-pnl="bloco-gaps"><h2>3 · Principais gaps</h2><div class="pnl-rank">' + r.diretorias.slice(0, 5).map(function (d) {
-      return '<div class="pnl-rk"><span class="pnl-rk-nome">' + esc(d.nome) + '</span><span class="pnl-trilho" role="img" aria-label="' + f1(d.cobertura) + '% realizado"><span style="width:' + d.cobertura + '%"></span></span><span class="pnl-rk-info"><b>' + f1(d.cobertura) + '%</b> · ' + d.pendentes + ' pendentes</span></div>';
-    }).join('') + '</div><p class="pnl-nota">Menor cobertura primeiro; empate, mais pendências.</p>' + linkVista('diretorias', 'Todas as diretorias e gerências') + '</article>';
+      return '<div class="pnl-rk" data-pnl-dir="' + esc(d.nome) + '"><span class="pnl-rk-nome">' + esc(d.nome) + '</span><span class="pnl-trilho" role="img" aria-label="' + f1(d.cobertura) + '% realizado; ' + f1(d.coberturaProjetada) + '% com os inscritos"><span style="width:' + d.cobertura + '%"></span><span class="pnl-trilho-proj" style="width:' + Math.max(0, d.coberturaProjetada - d.cobertura) + '%"></span></span><span class="pnl-rk-info"><b>' + f1(d.cobertura) + '%</b> → ' + f1(d.coberturaProjetada) + '% · gap ' + d.gap + '</span></div>';
+    }).join('') + '</div><p class="pnl-nota">Verde: realizado. Ciano: inscritos que ainda podem realizar até o prazo (projeção, se comparecerem). Gap: quem fica sem nenhum dos dois. Menor cobertura primeiro; empate, mais pendências.</p>' + linkVista('diretorias', 'Todas as diretorias e gerências') + '</article>';
     /* 4. decisões */
     h += '<article class="pnl-card" data-pnl="bloco-decisoes"><h2>4 · Decisões necessárias</h2>' + (r.decisoes.length ? '<ol class="pnl-decisoes">' + r.decisoes.map(function (x) {
       return '<li data-pnl-decisao="' + x.tipo + '"><b>' + esc(x.titulo) + '</b><span>' + esc(x.texto) + '</span><span class="pnl-tag">' + esc(x.tag) + '</span></li>'; }).join('') + '</ol>'
@@ -150,14 +150,14 @@
   function bloco(titulo, valor, texto, chave) { return '<div class="pnl-bloco"' + (chave ? ' data-pnl="' + chave + '"' : '') + '><h3>' + esc(titulo) + '</h3><div class="pnl-v">' + valor + '</div><p>' + esc(texto) + '</p></div>'; }
   function diretorias(r) {
     var h = '<article class="pnl-card"><h2>Situação por diretoria</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
-      Object.keys(ROT).map(function (k) { return '<th class="pnl-n">' + ROT[k] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura</th></tr></thead><tbody>';
+      Object.keys(ROT).map(function (k) { return '<th class="pnl-n">' + ROT[k] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura</th><th class="pnl-n">Projetada (com inscritos)</th><th class="pnl-n">Gap (pessoas)</th></tr></thead><tbody>';
     r.diretorias.forEach(function (d) {
       var cor = d.cobertura < 15 ? 'rgba(255,59,48,.30)' : d.cobertura < 30 ? 'rgba(246,190,123,.25)' : 'rgba(126,226,168,.18)';
       h += '<tr><td><details><summary>' + esc(d.nome) + '</summary>' + d.gerencias.map(function (g) { return '<div class="pnl-nota">' + esc(g.nome) + ': ' + g.realizou + ' de ' + g.total + '</div>'; }).join('') + '</details></td><td class="pnl-n">' + d.total + '</td>' +
-        Object.keys(ROT).map(function (k) { return '<td class="pnl-n">' + d[k] + '</td>'; }).join('') + '<td class="pnl-n" style="background:' + cor + '">' + f1(d.cobertura) + '%</td></tr>';
+        Object.keys(ROT).map(function (k) { return '<td class="pnl-n">' + d[k] + '</td>'; }).join('') + '<td class="pnl-n" style="background:' + cor + '">' + f1(d.cobertura) + '%</td><td class="pnl-n">' + f1(d.coberturaProjetada) + '%</td><td class="pnl-n">' + d.gap + '</td></tr>';
     });
-    h += '<tr><td><b>Total</b></td><td class="pnl-n"><b>' + r.N + '</b></td>' + Object.keys(ROT).map(function (k) { return '<td class="pnl-n"><b>' + r.porSit[k] + '</b></td>'; }).join('') + '<td class="pnl-n"><b>' + pct(r.realizou, r.N) + '</b></td></tr></tbody></table></div>' +
-      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público. Gerências com menos de 5 pessoas aparecem agrupadas.</p></article>';
+    h += '<tr><td><b>Total</b></td><td class="pnl-n"><b>' + r.N + '</b></td>' + Object.keys(ROT).map(function (k) { return '<td class="pnl-n"><b>' + r.porSit[k] + '</b></td>'; }).join('') + '<td class="pnl-n"><b>' + pct(r.realizou, r.N) + '</b></td><td class="pnl-n" data-pnl="proj-total"><b>' + f1(r.pct.potencial) + '%</b></td><td class="pnl-n" data-pnl="gap-total"><b>' + r.gapProjetado + '</b></td></tr></tbody></table></div>' +
+      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público. Projetada = realizados + inscritos que ainda podem realizar até o prazo, se comparecerem com a frequência mínima (inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Gap = público − projetados. Gerências com menos de 5 pessoas aparecem agrupadas.</p></article>';
     return h;
   }
   function mobilizacao(r) {

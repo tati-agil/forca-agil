@@ -367,12 +367,16 @@
     /* ---------- diretorias e gerências (gerência com menos de 5 pessoas fica agrupada) ---------- */
     var dirs = {};
     pessoas.forEach(function (p) {
-      var o = dirs[p.diretoria] = dirs[p.diretoria] || { nome: p.diretoria, total: 0, realizou: 0, inscrita: 0, interessada: 0, 'sem-engajamento': 0, 'sem-cadastro': 0, ger: {} };
+      var o = dirs[p.diretoria] = dirs[p.diretoria] || { nome: p.diretoria, total: 0, realizou: 0, inscrita: 0, interessada: 0, 'sem-engajamento': 0, 'sem-cadastro': 0, inscritosValidos: 0, ger: {} };
       o.total++; o[p.situacao]++;
+      /* inscrita que ainda pode realizar até o prazo (a mesma regra da cobertura potencial do programa) */
+      if (p.situacao !== 'realizou' && p.vaga && p.vagaConfirmada) o.inscritosValidos++;
       var gg = o.ger[p.gerencia] = o.ger[p.gerencia] || { nome: p.gerencia, total: 0, realizou: 0 }; gg.total++; if (p.situacao === 'realizou') gg.realizou++;
     });
     var diretorias = Object.keys(dirs).map(function (k) {
       var o = dirs[k]; o.pendentes = o.total - o.realizou; o.cobertura = pct1(o.realizou, o.total); o.semMobilizacao = o['sem-engajamento'] + o['sem-cadastro'];
+      /* PROJEÇÃO: realizados + inscritos que ainda podem realizar até o prazo, se comparecerem; GAP = quem fica sem isso */
+      o.projetados = o.realizou + o.inscritosValidos; o.coberturaProjetada = pct1(o.projetados, o.total); o.gap = o.total - o.projetados;
       var gs = Object.keys(o.ger).map(function (x) { return o.ger[x]; }), grandes = gs.filter(function (x) { return x.total >= 5; }), peq = gs.filter(function (x) { return x.total < 5; });
       o.gerencias = grandes.sort(function (a, b) { return a.nome < b.nome ? -1 : 1; });
       if (peq.length) o.gerencias.push({ nome: 'Outras (gerências com menos de 5 pessoas)', total: peq.reduce(function (s, x) { return s + x.total; }, 0), realizou: peq.reduce(function (s, x) { return s + x.realizou; }, 0), agrupada: true });
@@ -446,7 +450,7 @@
       pctMeta: N ? Math.round(meta / N * 1000) / 10 : 0, composicao: composicao, excluidosFacilitadores: excluidosFacil, pendencias: pendencias, alertas: alertas, inconsistencias: inconsistencias,
       porSit: porSit, porGrupo: porGrupo, realizou: real, pendentes: pend.length,
       pct: { realizado: pct1(real, N), potencial: pct1(real + potencial, N), maxPlanejado: pct1(real + maxPlanejado, N), maxExpansao: pct1(real + maxExpansao, N) },
-      potencial: potencial, maxPlanejado: maxPlanejado, maxExpansao: maxExpansao, deficitVagas: deficitVagas, vagasLivres: vagasLivresTotal, vagasPresas: vagasPresas,
+      potencial: potencial, gapProjetado: N - porSit.realizou - potencial, maxPlanejado: maxPlanejado, maxExpansao: maxExpansao, deficitVagas: deficitVagas, vagasLivres: vagasLivresTotal, vagasPresas: vagasPresas,
       cap: cap, formatos: formatos, encaixe: encaixe, uteis: uteis, primeiraData: primeiraData, indisponiveis: indisp, limites: { tecnicos: lim.tecnicos, gestores: lim.gestores }, antecedencia: antecedencia,
       fatores: fatores, principal: principal, combinado: nFat >= 2, indeterminado: indeterminado,
       diretorias: diretorias, ausencias: aus, ausenciasPorTurma: ausPorTurma, qualidade: qualidade, evolucao: evolucao, decisoes: dec.slice(0, 3),
