@@ -4820,6 +4820,14 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-t--nt, .pnl-leg i.pnl-t--nt { background: rgba(122,240,232,.10); border-style: dashed; border-color: var(--cyan-soft); }
 .pnl-t--ng, .pnl-leg i.pnl-t--ng { background: rgba(231,220,255,.08); border-style: dashed; border-color: #cbbcff; }
 .pnl-evo { width: 100%; min-width: 560px; height: auto; display: block; }
+/* Situação por diretoria: a diretoria abre as gerências como linhas, com as mesmas colunas */
+.pnl-dir-abrir { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); cursor: pointer; text-align: left; white-space: nowrap; }
+.pnl-dir-abrir span { display: inline-block; width: 1em; color: var(--cyan-soft); }
+.pnl-dir-abrir:hover { color: var(--cyan-soft); }
+.pnl-tabela tr.pnl-ger td { background: rgba(122,240,232,.04); color: var(--ink-2); }
+.pnl-ger-nome { display: block; padding-left: 1.4em; }
+.pnl-evo-leg span { display: inline-flex; align-items: center; gap: 6px; }
+.pnl-evo-amostra { width: 34px; height: 10px; flex: none; }
 @media (max-width: 900px) { .pnl-grade { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) {
   .pnl-estado { align-items: flex-start; } .pnl-erro { text-align: left; }
