@@ -38,7 +38,17 @@
   function confirmada(r) { return !!(r && r.status === 'inscrito' && r.confirmedByAdmin); }
   function pct1(a, b) { return b ? Math.round(a / b * 1000) / 10 : 0; }
   function mediana(a) { a = a.slice().sort(function (x, y) { return x - y; }); return a.length ? a[Math.floor((a.length - 1) / 2)] : null; }
-  var GRUPOS = ['tecnicos', 'gestores'];
+  var GRUPOS = ['tecnicos', 'gestores'];   /* públicos com turma própria: formato, calendário e turmas extras */
+  var PUBLICOS = ['tecnicos', 'gestores', 'diretores', 'assessores'];   /* públicos da base (coluna nível da planilha) */
+  /* nível da base oficial → público do painel ('' = não informado: usa a lista de Gerentes do site) */
+  function publicoDoNivel(n) {
+    var x = String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    if (/^tecnic/.test(x)) return 'tecnicos';
+    if (/^(gerente|gestor)/.test(x)) return 'gestores';
+    if (/^diretor/.test(x)) return 'diretores';
+    if (/^assessor/.test(x)) return 'assessores';
+    return '';
+  }
 
   /* público de cargo de uma turma → grupo do programa ('tecnicos' | 'gestores' | null = aberta | 'conflito') */
   function grupoDoCargo(c) {
@@ -169,8 +179,11 @@
       return { ativo: ativo, gerente: !!g, gerenteNivel: P.nivelGerente(g), diretor: d, diretorCadastro: d, categorias: {},
         naListaEvento: !!(evPub[t.eventoKey] || {})[k], naListaTurma: !!(tPub[t.key] || {})[k] };
     }
-    function podeEntrar(k, t) {
+    function podeEntrar(p, t) {
+      var k = p.k;
       if (t.cargo === 'conflito') return false;
+      /* diretor e assessor (nível da base): só turma sem público de cargo — nunca a de técnicos ou de gestores */
+      if ((p.grupo === 'diretores' || p.grupo === 'assessores') && t.grupo) return false;
       var f = U.foraDoPublicoAtual(turmasDb[t.key], eventos[t.eventoKey], perfil(k, t));
       if (f.estado === 'incompativel') return false;
       var c = U.conflitosDeParticipacao({ eventos: eventos, turmas: turmasDb, interesses: interesse, config: config }, t.eventoKey, k, t.key);
@@ -182,7 +195,7 @@
     Object.keys(base || {}).forEach(function (k) {
       var b = base[k] || {};
       if (facil[k]) { excluidosFacil++; return; }
-      pessoas.push({ k: k, email: b.email || '', diretoria: b.diretoria || '—', gerencia: b.gerencia || '—', grupo: gerentes[k] ? 'gestores' : 'tecnicos',
+      pessoas.push({ k: k, email: b.email || '', diretoria: b.diretoria || '—', gerencia: b.gerencia || '—', grupo: publicoDoNivel(b.nivel) || (gerentes[k] ? 'gestores' : 'tecnicos'),
         cadastro: !!users[k], realizou: null, ausencias: [], naoVerificavel: [], incerto: [], inscricoes: [], interesses: [], realizouComRemocao: false });
     });
     var N = pessoas.length;
@@ -212,7 +225,7 @@
     var porSit = { realizou: 0, inscrita: 0, interessada: 0, 'sem-engajamento': 0, 'sem-cadastro': 0 };
     pessoas.forEach(function (p) { porSit[p.situacao]++; });
     var pend = pessoas.filter(function (p) { return p.situacao !== 'realizou'; });
-    var porGrupo = {}; GRUPOS.forEach(function (g) { var a = pessoas.filter(function (p) { return p.grupo === g; }); porGrupo[g] = { total: a.length, realizou: a.filter(function (p) { return p.situacao === 'realizou'; }).length }; porGrupo[g].pendentes = porGrupo[g].total - porGrupo[g].realizou; });
+    var porGrupo = {}; PUBLICOS.forEach(function (g) { var a = pessoas.filter(function (p) { return p.grupo === g; }); porGrupo[g] = { total: a.length, realizou: a.filter(function (p) { return p.situacao === 'realizou'; }).length }; porGrupo[g].pendentes = porGrupo[g].total - porGrupo[g].realizou; });
 
     /* ---------- capacidade planejada (turmas válidas até o prazo) ---------- */
     var validas = listaT.filter(function (t) { return !t.cancelada && !t.encerrada && !t.passadaAberta && t.terminaAtePrazo && t.cargo !== 'conflito'; });
@@ -236,7 +249,7 @@
     var semVaga = pend.filter(function (p) { return !p.vaga; });
     var abertas = validas.filter(function (t) { return livres[t.key] > 0; });
     var alocadoEm = {}; abertas.forEach(function (t) { alocadoEm[t.key] = []; });
-    var adj = semVaga.map(function (p) { return abertas.filter(function (t) { return podeEntrar(p.k, t); }); });
+    var adj = semVaga.map(function (p) { return abertas.filter(function (t) { return podeEntrar(p, t); }); });
     var donoDe = {};
     function tentar(i, visit) {
       var cands = adj[i];
@@ -254,18 +267,19 @@
     semVaga.forEach(function (p, i) { if (donoDe[i]) p.alocavel = donoDe[i]; });
 
     var cap = {};
-    GRUPOS.forEach(function (g) {
+    PUBLICOS.forEach(function (g) {
       var pg = pend.filter(function (p) { return p.grupo === g; });
       var comInscricao = pg.filter(function (p) { return p.vaga && p.vagaConfirmada; }).length;
       var comVaga = pg.filter(function (p) { return p.vaga; }).length;
       var alocaveis = pg.filter(function (p) { return !p.vaga && p.alocavel; }).length;
-      var vl = validas.filter(function (t) { return t.grupo === g || t.grupo === null; });
+      var vl = validas.filter(function (t) { return t.grupo === g || t.grupo === null; });   /* diretores e assessores: só turmas sem público de cargo */
       cap[g] = { pendentes: pg.length, comInscricao: comInscricao, comVaga: comVaga, alocaveis: alocaveis, maximo: comVaga + alocaveis,
         deficitVagas: pg.length - comVaga - alocaveis, turmasPlanejadas: vl.length,
         vagasNominais: vl.reduce(function (s, t) { return s + t.vagas; }, 0), vagasLivres: vl.reduce(function (s, t) { return s + livres[t.key]; }, 0) };
     });
-    var potencial = cap.tecnicos.comInscricao + cap.gestores.comInscricao, maxPlanejado = cap.tecnicos.maximo + cap.gestores.maximo;
-    var deficitVagas = cap.tecnicos.deficitVagas + cap.gestores.deficitVagas;
+    var somaCap = function (campo) { return PUBLICOS.reduce(function (s, g) { return s + (cap[g][campo] || 0); }, 0); };
+    var potencial = somaCap('comInscricao'), maxPlanejado = somaCap('maximo');
+    var deficitVagas = somaCap('deficitVagas');
     var vagasLivresTotal = validas.reduce(function (s, t) { return s + livres[t.key]; }, 0);
 
     /* ---------- formato de turma nova e calendário ---------- */
@@ -312,7 +326,7 @@
        margem. Ela reduz o déficit que as turmas extras precisam cobrir — primeiro no público com o maior déficit (premissa
        dita na tela de Capacidade). */
     var margem = Math.min(N, Math.max(0, Math.floor(Number(cfgP.margem) || 0))), meta = N - margem, sobraMargem = margem;
-    GRUPOS.slice().sort(function (a, b) { return cap[b].deficitVagas - cap[a].deficitVagas; }).forEach(function (g) {
+    PUBLICOS.slice().sort(function (a, b) { return cap[b].deficitVagas - cap[a].deficitVagas; }).forEach(function (g) {
       var usa = Math.min(sobraMargem, cap[g].deficitVagas); cap[g].margemUsada = usa; cap[g].deficitMeta = cap[g].deficitVagas - usa; sobraMargem -= usa;
     });
     GRUPOS.forEach(function (g) {
@@ -324,7 +338,11 @@
       c.expansao = c.maximo + (c.abrir ? Math.min(c.deficitVagas, c.abrir * f.vagas) : 0);
       c.turmasAbrir = c.abrir ? e.novas.slice(0, c.abrir) : [];
     });
-    var maxExpansao = cap.tecnicos.expansao + cap.gestores.expansao;
+    /* diretores e assessores: sem formato de turma própria — o que faltar fica como "sem turma prevista", nunca vira turma de técnicos */
+    ['diretores', 'assessores'].forEach(function (g) {
+      var c = cap[g]; c.necessarias = 0; c.cabem = null; c.cabemExato = true; c.abrir = 0; c.deficitCalendario = 0; c.expansao = c.maximo; c.turmasAbrir = []; c.semTurmaPrevista = c.deficitMeta;
+    });
+    var maxExpansao = somaCap('expansao');
     var real = porSit.realizou;
 
     /* ---------- diagnóstico ---------- */
@@ -390,7 +408,7 @@
     /* ---------- conferências (se falhar, a tela não mostra números) ---------- */
     var soma = Object.keys(porSit).reduce(function (s, k) { return s + porSit[k]; }, 0);
     if (soma !== N) inconsistencias.push('soma-das-situacoes');
-    if (porGrupo.tecnicos.total + porGrupo.gestores.total !== N) inconsistencias.push('soma-dos-publicos');
+    if (PUBLICOS.reduce(function (s, g) { return s + porGrupo[g].total; }, 0) !== N) inconsistencias.push('soma-dos-publicos');
     if (real + maxPlanejado > N || real + maxExpansao > N || real + potencial > N) inconsistencias.push('projecao-acima-do-publico');
     if (potencial > maxPlanejado || maxPlanejado > maxExpansao) inconsistencias.push('ordem-das-projecoes');
     if (diretorias.reduce(function (s, d) { return s + d.total; }, 0) !== N) inconsistencias.push('soma-das-diretorias');
@@ -403,6 +421,9 @@
       texto: 'São as que cabem no calendário, respeitando o limite de turmas simultâneas. Elas levam o máximo possível de ' + R(pct1(real + maxPlanejado, N)) + '% para ' + R(pct1(real + maxExpansao, N)) + '%. É um cenário, não capacidade autorizada.' });
     if (fatores.calendario) dec.push({ tipo: 'prazo', tag: 'PRAZO', titulo: 'Decidir sobre o prazo ou o formato das turmas',
       texto: 'Seriam necessárias ' + necTot + ' turmas extras e só ' + abrirTot + ' cabem até o prazo. Mesmo abrindo todas, faltariam ' + Math.max(0, meta - real - maxExpansao) + ' pessoas para a meta' + (margem ? ' (já descontada a margem de ' + margem + ')' : '') + '.' });
+    var semPrev = ['diretores', 'assessores'].filter(function (g) { return cap[g].semTurmaPrevista > 0; });
+    if (semPrev.length) dec.push({ tipo: 'turma-outros-publicos', tag: 'CAPACIDADE', titulo: 'Prever turma para ' + semPrev.map(function (g) { return cap[g].semTurmaPrevista + ' ' + g; }).join(' e '),
+      texto: 'Não há vaga em turma aberta a esse público até o prazo' + (margem ? ', já descontada a margem' : '') + '. Turmas de técnicos e de gestores não os recebem.' });
     if (qualidade.alertaExecutivo) dec.push({ tipo: 'conferir-presenca', tag: 'QUALIDADE DO REGISTRO', titulo: 'Conferir a presença das turmas sem check-in completo',
       texto: naoVerif + ' pessoas (' + R(naoVerif / N * 100) + '% do público) têm a realização não verificável: ' + qualidade.turmasSemRegistro.concat(qualidade.turmasParciais).join(', ') + '.' });
     if (qualidade.turmasPassadasAbertas.length) dec.push({ tipo: 'encerrar-turmas', tag: 'QUALIDADE DO REGISTRO', titulo: 'Encerrar as turmas que já aconteceram',
@@ -440,7 +461,7 @@
   function previaBase(linhas, ctx) {
     ctx = ctx || {};
     var out = { total: linhas.length, validas: 0, pessoas: {}, problemas: { semEmail: [], emailInvalido: [], emailRepetido: [], foraDoDominio: [], nomeRepetido: [], semDiretoria: [], semGerencia: [] },
-      cadastrados: 0, semCadastro: 0, gestores: 0, tecnicos: 0, outrosPublicos: [], facilitadoresNaBase: [], diretorias: {}, gerencias: {}, diferenca: null };
+      cadastrados: 0, semCadastro: 0, gestores: 0, tecnicos: 0, porPublico: { tecnicos: 0, gestores: 0, diretores: 0, assessores: 0 }, comNivel: 0, nivelDesconhecido: [], gerenteForaDaLista: [], naListaNaoGerente: [], outrosPublicos: [], facilitadoresNaBase: [], diretorias: {}, gerencias: {}, diferenca: null };
     var vistos = {}, nomes = {};
     linhas.forEach(function (l, i) {
       var linha = i + 2, email = String(l.email || '').trim().toLowerCase(), nome = String(l.nome || '').trim(), ger = String(l.gerencia || '').trim().toUpperCase(), dir = String(l.diretoria || '').trim().toUpperCase();
@@ -454,10 +475,16 @@
       if (!ger) out.problemas.semGerencia.push(linha);
       var nn = nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ');
       if (nn) (nomes[nn] = nomes[nn] || []).push(linha);
+      var nivelBruto = String(l.nivel || '').trim(), pub = publicoDoNivel(nivelBruto);
+      if (nivelBruto && !pub) out.problemas.nivelDesconhecido = (out.problemas.nivelDesconhecido || []).concat([{ linha: linha, nivel: nivelBruto }]);
       out.pessoas[k] = { email: email, nome: nome, gerencia: ger, diretoria: dir };
+      if (pub) { out.pessoas[k].nivel = { tecnicos: 'tecnico', gestores: 'gestor', diretores: 'diretor', assessores: 'assessor' }[pub]; out.comNivel++; }
+      var publico = pub || ((ctx.gerentes || {})[k] ? 'gestores' : 'tecnicos'); out.porPublico[publico]++;
+      if (pub === 'gestores' && !(ctx.gerentes || {})[k]) out.gerenteForaDaLista.push(email);
+      if (pub && pub !== 'gestores' && (ctx.gerentes || {})[k]) out.naListaNaoGerente.push(email + ' (' + nivelBruto + ')');
       out.validas++;
       if ((ctx.users || {})[k]) out.cadastrados++; else out.semCadastro++;
-      if ((ctx.gerentes || {})[k]) out.gestores++; else out.tecnicos++;
+      if (publico === 'gestores') out.gestores++; else if (publico === 'tecnicos') out.tecnicos++;
       if (ctx.outrosPublicos && ctx.outrosPublicos[k]) out.outrosPublicos.push(email);
       if ((ctx.facilitadores || {})[k]) out.facilitadoresNaBase.push(email);
       out.diretorias[dir || '—'] = (out.diretorias[dir || '—'] || 0) + 1;
@@ -466,7 +493,7 @@
     Object.keys(nomes).forEach(function (n) { if (nomes[n].length > 1) out.problemas.nomeRepetido.push({ nome: n, linhas: nomes[n] }); });
     if (ctx.vigente && ctx.vigente.pessoas) {
       var antes = ctx.vigente.pessoas, d = { entram: [], saem: [], mudam: [] };
-      Object.keys(out.pessoas).forEach(function (k) { var a = antes[k], b = out.pessoas[k]; if (!a) d.entram.push(b.email); else if (a.diretoria !== b.diretoria || a.gerencia !== b.gerencia || a.nome !== b.nome) d.mudam.push(b.email); });
+      Object.keys(out.pessoas).forEach(function (k) { var a = antes[k], b = out.pessoas[k]; if (!a) d.entram.push(b.email); else if (a.diretoria !== b.diretoria || a.gerencia !== b.gerencia || a.nome !== b.nome || (a.nivel || '') !== (b.nivel || '')) d.mudam.push(b.email); });
       Object.keys(antes).forEach(function (k) { if (!out.pessoas[k]) d.saem.push(antes[k].email); });
       out.diferenca = d;
     }
@@ -474,7 +501,7 @@
     return out;
   }
 
-  var api = { calcular: calcular, previaBase: previaBase, maximoDeJanelas: maximoDeJanelas, gulosoJanelas: gulosoJanelas, diasUteis: diasUteis, emailKey: emailKey, grupoDoCargo: grupoDoCargo };
+  var api = { PUBLICOS: PUBLICOS, publicoDoNivel: publicoDoNivel, calcular: calcular, previaBase: previaBase, maximoDeJanelas: maximoDeJanelas, gulosoJanelas: gulosoJanelas, diasUteis: diasUteis, emailKey: emailKey, grupoDoCargo: grupoDoCargo };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (raiz) raiz.faProgramaCobertura = api;
 })(typeof window !== 'undefined' ? window : null);

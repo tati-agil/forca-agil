@@ -210,20 +210,22 @@ async function admin(browser, ctxOpts) {
   await x.page.click('#pnlaSalvarCfg'); await x.page.waitForTimeout(500);
   ok('D3c total, situação não ativa, cargo não compatível e margem gravados', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; return c.margem === 4 && c.composicao && c.composicao.total === 592 && c.composicao.situacaoInativa === 6 && c.composicao.cargoIncompativel === 72; }));
   /* planilha com um e-mail repetido e um fora do domínio */
-  const linhas = [['ANNOME', 'ANEMAIL', 'GERENCIA', 'DIRETORIA']];
-  for (let i = 0; i < 24; i++) linhas.push(['P' + i, 'p' + i + '@previ.com.br', 'G' + (i % 3), i < 12 ? 'DIRA' : 'DIRB']);
-  linhas.push(['Repetida', 'p1@previ.com.br', 'G1', 'DIRA']); linhas.push(['Provisorio', 'prov@adcmflex.com.br', 'INFOR', 'DISEG']);
+  const linhas = [['ANNOME', 'ANEMAIL', 'GERENCIA', 'DIRETORIA', 'nivel']];
+  for (let i = 0; i < 24; i++) linhas.push(['P' + i, 'p' + i + '@previ.com.br', 'G' + (i % 3), i < 12 ? 'DIRA' : 'DIRB', i === 0 ? 'diretor' : i === 1 ? 'assessor' : 'tecnico']);
+  linhas.push(['Repetida', 'p1@previ.com.br', 'G1', 'DIRA', 'tecnico']); linhas.push(['Provisorio', 'prov@adcmflex.com.br', 'INFOR', 'DISEG', 'tecnico']);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linhas), 'base');
   const arq = path.join(require('os').tmpdir(), 'base-painel-teste.xlsx'); fs.writeFileSync(arq, XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   await x.page.setInputFiles('#pnlaArquivo', arq);
   await x.page.waitForSelector('[data-pnla="previa"]', { timeout: 10000 });
   const pv = await texto(x.page, '[data-pnla="previa"]');
   await foto(x.page, 'admin-' + (ctxOpts.viewport.width) + '-previa');
+  const pv2 = await texto(x.page, '[data-pnla="previa"]');
+  ok('D4b prévia separa técnicos, gestores, diretores e assessores pela coluna nível', /Técnicoss*23/.test(pv2) && /Diretoress*1/.test(pv2) && /Assessoress*1/.test(pv2) && /coluna nível da planilha/.test(pv2), pv2.slice(0, 400));
   ok('D4 prévia mostra os totais e sinaliza repetido e fora do domínio, sem gravar', /Pessoas válidas\s*25/.test(pv) && /E-mail repetido/.test(pv) && /fora de @previ/.test(pv) && await x.page.evaluate(() => !window.__CFG.db['programa-publico-alvo']), pv.slice(0, 300));
   await x.page.click('#pnlaImportar'); await x.page.waitForTimeout(200);
   ok('D5 com pontos sinalizados, pede a confirmação de que conferiu', /Marque/.test(await texto(x.page, '#pnlaImpMsg')) && await x.page.evaluate(() => !window.__CFG.db['programa-publico-alvo']));
   await x.page.check('#pnlaConferi'); await x.page.click('#pnlaImportar'); await x.page.waitForTimeout(600);
-  ok('D6 confirmada: versão 1 gravada e vigente, com 25 pessoas', await x.page.evaluate(() => { const b = window.__CFG.db['programa-publico-alvo']; return !!b && b.vigente === 1 && Object.keys(b.versoes['1'].pessoas).length === 25 && b.versoes['1'].total === 25; }));
+  ok('D6 confirmada: versão 1 gravada e vigente, com 25 pessoas', await x.page.evaluate(() => { const b = window.__CFG.db['programa-publico-alvo']; return !!b && b.vigente === 1 && Object.keys(b.versoes['1'].pessoas).length === 25 && b.versoes['1'].total === 25 && b.versoes['1'].pessoas['p0_previ_com_br'].nivel === 'diretor' && b.versoes['1'].pessoas['p1_previ_com_br'].nivel === 'assessor'; }));
   ok('D7 ADMIN sem rolagem lateral', await semRolagem(x.page));
   const pva = await verificarTela(x.page, { escopo: '#adminPainelPrograma', largura: ctxOpts.viewport.width, focos: 0 });
   ok('D9 padrão visual na aba do ADMIN', !pva.length, pva.slice(0, 3));
