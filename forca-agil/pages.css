@@ -4809,6 +4809,7 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-t { display: block; border-radius: 5px; padding: 2px 5px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); border: 1px solid; }
 .pnl-t--cancel, .pnl-leg i.pnl-t--cancel { background: rgba(255,59,48,.08); border-color: rgba(255,120,110,.7); border-style: dashed; }
 .pnl-t--cancel { color: var(--ink-2); text-decoration: line-through; text-decoration-color: rgba(255,120,110,.9); }
+.pnl-dia .pnl-t-qt, .pnl-t-qt { display: inline; margin: 0; font-family: var(--font-mono); font-weight: 700; color: var(--gold); }
 .pnl-t--t, .pnl-leg i.pnl-t--t { background: rgba(90,160,238,.22); border-color: rgba(90,160,238,.6); }
 .pnl-t--g, .pnl-leg i.pnl-t--g { background: rgba(185,163,255,.20); border-color: rgba(185,163,255,.6); }
 .pnl-t--nt, .pnl-leg i.pnl-t--nt { background: rgba(122,240,232,.10); border-style: dashed; border-color: var(--cyan-soft); }
