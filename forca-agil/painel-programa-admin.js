@@ -41,6 +41,41 @@
     convidados(); configuracao(); calendario(); base();
   }
 
+  /* Sugestões ao digitar no nome ou no e-mail: pessoas com conta no site (fa-users, já lido junto com os convidados),
+     @previ.com.br e ainda não convidadas. Escolher uma preenche nome e e-mail; nada é gravado até "Incluir convidado". */
+  function sugestoesConvidado(users, lista) {
+    var ul = $('pnlaConvSug'), nomeIn = $('pnlaConvNome'), emailIn = $('pnlaConvEmail');
+    if (!ul || !nomeIn || !emailIn) return;
+    var norm = function (s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); };
+    var pessoas = Object.keys(users).map(function (k) { var u = users[k] || {}; return { k: k, nome: String(u.name || '').trim(), email: String(u.email || '').trim().toLowerCase() }; })
+      .filter(function (p) { return /@previ\.com\.br$/.test(p.email) && !lista[p.k]; })
+      .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt'); });
+    var fechar = function () { ul.hidden = true; ul.innerHTML = ''; };
+    var mostrar = function (txt) {
+      var q = norm(txt).replace(/@previ\.com\.br$/, '').trim();
+      if (q.length < 2) { fechar(); return; }
+      var achados = pessoas.filter(function (p) { return norm(p.nome).indexOf(q) !== -1 || p.email.indexOf(q) !== -1; }).slice(0, 8);
+      if (!achados.length) { ul.innerHTML = '<li class="pnla-sug-vazio">Ninguém cadastrado com esse nome ou e-mail (ou já é convidado).</li>'; ul.hidden = false; return; }
+      ul.innerHTML = achados.map(function (p) { return '<li><button type="button" role="option" data-sug="' + esc(p.k) + '"><b>' + esc(p.nome || p.email) + '</b><span>' + esc(p.email) + '</span></button></li>'; }).join('');
+      ul.hidden = false;
+    };
+    [nomeIn, emailIn].forEach(function (inp) {
+      inp.setAttribute('autocomplete', 'off');
+      inp.addEventListener('input', function () { mostrar(inp.value); });
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Escape') fechar(); });
+    });
+    ul.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-sug]'); if (!b) return;
+      var p = pessoas.filter(function (x) { return x.k === b.getAttribute('data-sug'); })[0]; if (!p) return;
+      nomeIn.value = p.nome; emailIn.value = p.email; fechar(); $('pnlaConvAdd').focus();
+    });
+    /* tocar fora fecha a lista (o clique numa sugestão chega antes, pelo listener acima) */
+    document.addEventListener('click', function fora(e) {
+      if (!document.body.contains(ul)) { document.removeEventListener('click', fora); return; }
+      if (e.target !== nomeIn && e.target !== emailIn && !ul.contains(e.target)) fechar();
+    });
+  }
+
   /* ---------- 1. convidados ---------- */
   function convidados() {
     var el = $('pnlaConvidados');
@@ -54,9 +89,11 @@
           '<td class="pnla-acoes"><button type="button" class="admin-del-btn" data-conv-rem="' + esc(k) + '">Remover</button></td></tr>';
       }).join('') + '</tbody></table></div>' : '<p class="admin-empty">Nenhum convidado. O admin geral já vê o painel.</p>';
       h += '<div class="admin-colab-form"><div class="admin-colab-row"><input id="pnlaConvNome" type="text" placeholder="Nome completo" aria-label="Nome do convidado" />' +
-        '<input id="pnlaConvEmail" type="email" placeholder="e-mail @previ.com.br" aria-label="E-mail do convidado" /><button type="button" class="btn btn--primary" id="pnlaConvAdd">Incluir convidado</button></div><p id="pnlaConvMsg" class="pnla-msg"></p></div>';
+        '<input id="pnlaConvEmail" type="email" placeholder="e-mail @previ.com.br" aria-label="E-mail do convidado" /><button type="button" class="btn btn--primary" id="pnlaConvAdd">Incluir convidado</button></div>' +
+        '<ul id="pnlaConvSug" class="pnla-sug" role="listbox" aria-label="Pessoas cadastradas" hidden></ul><p id="pnlaConvMsg" class="pnla-msg"></p></div>';
       el.innerHTML = h;
       if (window.faAuth && window.faAuth.autoPreviDominio) window.faAuth.autoPreviDominio($('pnlaConvEmail'));
+      sugestoesConvidado(users, lista);
       $('pnlaConvAdd').addEventListener('click', function () {
         var nome = window.faTurmasUtil.nomePessoa($('pnlaConvNome').value), email = String($('pnlaConvEmail').value || '').trim().toLowerCase(), m = $('pnlaConvMsg');
         if (!nome || !email) { msg(m, 'Preencha nome e e-mail.', true); return; }
