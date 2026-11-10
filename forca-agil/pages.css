@@ -1134,6 +1134,10 @@
 }
 .espera-saidos summary:hover { color: var(--accent); }
 .espera-saidos[open] summary { color: var(--ink-2); margin-bottom: 6px; }
+/* "Saíram da fila": o destino por extenso (evento › turma · como …) quebra linha em vez de vazar do cartão, e o nome não
+   vira uma coluna de uma palavra por linha */
+.espera-saidos .admin-table td:first-child { min-width: 16ch; }
+.espera-saidos .destino-badge { white-space: normal; max-width: 30ch; overflow-wrap: anywhere; border-radius: 12px; line-height: 1.4; }
 .espera-origem-card { display: block; font-size: .78rem; color: var(--ink-3); font-style: italic; white-space: nowrap; }
 
 /* Lista de Espera — coluna "Origem": de qual turma a pessoa foi migrada */
