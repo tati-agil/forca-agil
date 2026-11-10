@@ -117,6 +117,7 @@
         '<label class="pnla-campo"><span>Situação não ativa (fora do público)</span><input type="number" id="pnlaCompInativa" min="0" step="1" value="' + esc(comp.situacaoInativa == null ? '' : comp.situacaoInativa) + '" /></label>' +
         '<label class="pnla-campo"><span>Cargo não compatível (fora do público)</span><input type="number" id="pnlaCompCargo" min="0" step="1" value="' + esc(comp.cargoIncompativel == null ? '' : comp.cargoIncompativel) + '" /></label>' +
         '<label class="pnla-campo"><span>Margem (dentro do público)</span><input type="number" id="pnlaMargem" min="0" step="1" value="' + esc(cfg.margem == null ? '' : cfg.margem) + '" /><small>Quantas pessoas do público podem não realizar sem comprometer a meta. Meta = público − margem.</small></label>' +
+        '<label class="pnla-campo"><span>Ocupação esperada das turmas (%)</span><input type="number" id="pnlaOcupacao" min="1" max="100" step="1" value="' + esc(cfg.ocupacaoEsperada == null ? '' : cfg.ocupacaoEsperada) + '" /><small>Opcional. Cenário realista ao lado do máximo: de quem tem lugar nas turmas, quantos % realizam (nas turmas já feitas: realizados ÷ vagas). Em branco = sem cenário realista.</small></label>' +
         '</div><p class="pnla-ajuda" id="pnlaCompConta" aria-live="polite"></p><small>A conta precisa fechar: total = situação não ativa + cargo não compatível + público da base vigente' + (totalBase ? ' (' + totalBase + ')' : ' (nenhuma base importada)') + '.</small></fieldset>' +
         '<p class="pnla-ajuda">Formato de turma extra (opcional): deixe em branco para usar o da turma mais recente de cada público. Os encontros são simulados em dias úteis seguidos.</p>' +
         '<div class="pnla-fmts">' + campoFmt('tecnicos') + campoFmt('gestores') + '</div>' +
@@ -158,20 +159,22 @@
       if (preenchidos < 4 || enc === null || vag === null || !/^\d{2}:\d{2}$/.test(v.horarioInicio) || !/^\d{2}:\d{2}$/.test(v.horarioFim) || v.horarioFim <= v.horarioInicio) { erros.push('o formato de turma de ' + GR[g].toLowerCase() + ' (preencha os quatro campos, término depois do início)'); return; }
       formatos[g] = { encontros: enc, horarioInicio: v.horarioInicio, horarioFim: v.horarioFim, vagas: vag };
     });
-    var compT = $('pnlaCompTotal').value, compI = $('pnlaCompInativa').value, compC = $('pnlaCompCargo').value, margemV = $('pnlaMargem').value, composicao = null, margemN = null;
+    var compT = $('pnlaCompTotal').value, compI = $('pnlaCompInativa').value, compC = $('pnlaCompCargo').value, margemV = $('pnlaMargem').value, composicao = null, margemN = null, ocupV = $('pnlaOcupacao').value, ocupN = null;
     if (compT !== '' || compI !== '' || compC !== '') {
       var ct = int(compT, 1, 1000000), ci = compI === '' ? 0 : int(compI, 0, 1000000), cc = compC === '' ? 0 : int(compC, 0, 1000000);
       if (ct === null || ci === null || cc === null) erros.push('a composição do público (números inteiros; o total é obrigatório quando houver composição)'); else composicao = { total: ct, situacaoInativa: ci, cargoIncompativel: cc };
     }
     if (margemV !== '') { margemN = int(margemV, 0, 100000); if (margemN === null) erros.push('a margem (número inteiro, 0 ou mais)'); }
+    if (ocupV !== '') { ocupN = int(ocupV, 1, 100); if (ocupN === null) erros.push('a ocupação esperada (número inteiro de 1 a 100)'); }
     if (erros.length) { msg(m, 'Confira: ' + erros.join('; ') + '. Nada foi gravado.', true); return; }
     var novo = { prazo: prazo, eventos: evSel, antecedenciaDiasUteis: antN, limiteParalelo: { tecnicos: lt, gestores: lg }, atualizadoEm: TS(), atualizadoPor: eu() };
     if (Object.keys(facil).length) novo.facilitadores = facil;
     if (Object.keys(formatos).length) novo.formatos = formatos;
     if (composicao) novo.composicao = composicao;
     if (margemN !== null) novo.margem = margemN;
+    if (ocupN !== null) novo.ocupacaoEsperada = ocupN;
     var motivo = $('pnlaMotivo').value, upd = { 'programa-config': novo }, mudou = 0;
-    ['prazo', 'eventos', 'facilitadores', 'antecedenciaDiasUteis', 'limiteParalelo', 'formatos', 'composicao', 'margem'].forEach(function (k) {
+    ['prazo', 'eventos', 'facilitadores', 'antecedenciaDiasUteis', 'limiteParalelo', 'formatos', 'composicao', 'margem', 'ocupacaoEsperada'].forEach(function (k) {
       var a = JSON.stringify(atual[k] == null ? null : atual[k]), b = JSON.stringify(novo[k] == null ? null : novo[k]);
       if (a !== b) { mudou++; upd['programa-config-auditoria/' + chaveAud()] = auditoria(k, a === 'null' ? '' : a, b === 'null' ? '' : b, motivo); }
     });

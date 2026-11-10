@@ -61,7 +61,7 @@ function banco(opts) {
     turmas: { ta: { label: 'Turma A', eventoKey: 'evT', dias: [A1, A2], horarioInicio: '09:00', horarioFim: '13:00' }, tf: { label: 'Turma F', eventoKey: 'evT', dias: [F1, F2], horarioInicio: '09:00', horarioFim: '13:00' }, tc: { label: 'Turma C', eventoKey: 'evT', dias: [F1], horarioInicio: '14:00', horarioFim: '17:00' } },
     'turmas-config': { ta: { encerrada: true, dataConclusao: A2 }, tc: { cancelamento: { motivo: 'outro', em: '2026-11-01T00:00:00.000Z', por: ADM } } }, 'turmas-interesse': interesse, 'turmas-interesse-log': {}, 'turmas-checkin': checkin,
     'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {}, 'turmas-sorteio': {}, avaliacoes: {}, pedidos: {}, holocron: {},
-    'programa-config': opts.semConfig ? null : { prazo: util(40), eventos: { evT: true }, antecedenciaDiasUteis: 3, limiteParalelo: { tecnicos: 2, gestores: 1 } },
+    'programa-config': opts.semConfig ? null : { prazo: util(40), eventos: { evT: true }, antecedenciaDiasUteis: 3, limiteParalelo: { tecnicos: 2, gestores: 1 }, ocupacaoEsperada: 70 },
     'programa-calendario': {}, 'programa-config-auditoria': {},
     'programa-publico-alvo': opts.semBase ? null : { vigente: 1, versoes: { 1: { importadaEm: 1, importadaPor: ADM, total: 24, origem: 'teste', pessoas } } }
   };
@@ -117,6 +117,7 @@ async function rodada(browser, rotulo, ctxOpts) {
   ok('N5 decisões = as do núcleo (no máximo três, na mesma ordem)', JSON.stringify(await x.page.$$eval('[data-pnl-decisao]', (l) => l.map((e) => e.getAttribute('data-pnl-decisao')))) === JSON.stringify(r.decisoes.map((d) => d.tipo)));
   ok('N7 principais gaps: legenda das três cores e exemplo de leitura com a primeira diretoria do núcleo', (await x.page.$$('[data-pnl="gaps-legenda"] i')).length === 3 && (await texto(x.page, '[data-pnl="gaps-exemplo"]')).startsWith('Como ler: ' + r.diretorias[0].nome + ' tem') && (await texto(x.page, '[data-pnl="gaps-exemplo"]')).includes('faltariam ' + r.diretorias[0].gap), await texto(x.page, '[data-pnl="gaps-exemplo"]'));
   ok('N8 gaps por diretoria: todas as diretorias do núcleo aparecem, nenhuma suprimida', (await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir]')).length === r.diretorias.length && r.diretorias.length > 0, [(await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir]')).length, r.diretorias.length]);
+  { const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r); const tx = await texto(x.page, '[data-pnl="realista"]'); ok('N9 cenário realista na Viabilidade (ocupação 70%) com o % e o que faltaria do núcleo', !!rp.realista && tx.includes('ocupação esperada de 70%') && tx.includes(String(rp.realista.pctEsperado).replace('.', ',')) && tx.includes('faltariam ' + rp.realista.falta), tx); }
   ok('N6 horário da leitura exibido', /Dados lidos em \d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}/.test(await texto(x.page, '[data-pnl="lido"]')));
   ok('L1 sem rolagem lateral (visão executiva)', await semRolagem(x.page));
   await foto(x.page, rotulo.slice(0, 3) + '-executiva');
@@ -216,10 +217,10 @@ async function admin(browser, ctxOpts) {
   await x.page.click('#pnlaSalvarCfg'); await x.page.waitForTimeout(500);
   ok('D3 configuração válida grava e acrescenta auditoria', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; const a = window.__CFG.db['programa-config-auditoria'] || {}; return !!c && !!c.facilitadores && Object.keys(a).length >= 2; }));
   await x.page.waitForSelector('#pnlaCompTotal');
-  await x.page.fill('#pnlaCompTotal', '592'); await x.page.fill('#pnlaCompInativa', '6'); await x.page.fill('#pnlaCompCargo', '72'); await x.page.fill('#pnlaMargem', '4');
+  await x.page.fill('#pnlaCompTotal', '592'); await x.page.fill('#pnlaCompInativa', '6'); await x.page.fill('#pnlaCompCargo', '72'); await x.page.fill('#pnlaMargem', '4'); await x.page.fill('#pnlaOcupacao', '70');
   ok('D3b sem base importada, a conta pede a base (não inventa número)', /Importe a base oficial/.test(await texto(x.page, '#pnlaCompConta')));
   await x.page.click('#pnlaSalvarCfg'); await x.page.waitForTimeout(500);
-  ok('D3c total, situação não ativa, cargo não compatível e margem gravados', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; return c.margem === 4 && c.composicao && c.composicao.total === 592 && c.composicao.situacaoInativa === 6 && c.composicao.cargoIncompativel === 72; }));
+  ok('D3c total, situação não ativa, cargo não compatível e margem gravados', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; return c.margem === 4 && c.ocupacaoEsperada === 70 && c.composicao && c.composicao.total === 592 && c.composicao.situacaoInativa === 6 && c.composicao.cargoIncompativel === 72; }));
   /* planilha com um e-mail repetido e um fora do domínio */
   const linhas = [['ANNOME', 'ANEMAIL', 'GERENCIA', 'DIRETORIA', 'nivel']];
   for (let i = 0; i < 24; i++) linhas.push(['P' + i, 'p' + i + '@previ.com.br', 'G' + (i % 3), i < 12 ? 'DIRA' : 'DIRB', i === 0 ? 'diretor' : i === 1 ? 'assessor' : 'tecnico']);

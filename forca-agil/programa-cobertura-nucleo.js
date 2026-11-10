@@ -343,6 +343,22 @@
       var c = cap[g]; c.necessarias = 0; c.cabem = null; c.cabemExato = true; c.abrir = 0; c.deficitCalendario = 0; c.expansao = c.maximo; c.turmasAbrir = []; c.semTurmaPrevista = c.deficitMeta;
     });
     var maxExpansao = somaCap('expansao');
+    /* CENÁRIO REALISTA (opcional): ocupação esperada p% — de quem tem lugar nas turmas planejadas, só p% realiza (a mesma
+       proporção das turmas já feitas, realizados ÷ vagas). Turma extra rende p% das vagas do formato. Não muda nenhum outro
+       número: é um segundo cenário ao lado do máximo (todas lotam e todos comparecem). */
+    var ocup = Math.floor(Number(cfgP.ocupacaoEsperada) || 0), realista = null;
+    if (ocup >= 1 && ocup <= 100) {
+      var pr = ocup / 100; realista = { ocupacao: ocup, esperado: 0, falta: 0, porGrupo: {} };
+      PUBLICOS.forEach(function (g) {
+        var c = cap[g], f = formatos[g], esperado = Math.round(c.maximo * pr), falta = Math.max(0, c.pendentes - (c.margemUsada || 0) - esperado);
+        var porTurma = GRUPOS.indexOf(g) !== -1 && f && f.vagas ? Math.max(1, Math.round(f.vagas * pr)) : null;
+        var turmas = falta === 0 ? 0 : porTurma ? Math.ceil(falta / porTurma) : null;
+        realista.porGrupo[g] = { esperado: esperado, falta: falta, porTurmaNova: porTurma, turmasExtras: turmas, cabem: GRUPOS.indexOf(g) !== -1 ? c.cabem : null };
+        realista.esperado += esperado; realista.falta += falta;
+      });
+      realista.pctEsperado = pct1(porSit.realizou + realista.esperado, N);
+      realista.turmasExtras = GRUPOS.some(function (g) { return realista.porGrupo[g].turmasExtras == null; }) ? null : GRUPOS.reduce(function (s, g) { return s + realista.porGrupo[g].turmasExtras; }, 0);
+    }
     var real = porSit.realizou;
 
     /* ---------- diagnóstico ---------- */
@@ -468,6 +484,7 @@
     }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR') || (a.email < b.email ? -1 : 1); });
 
     return {
+      realista: realista,
       lista: lista,
       hoje: hoje, prazo: prazo, N: N, margem: margem, meta: meta, faltamParaMeta: Math.max(0, meta - porSit.realizou), metaAtingida: porSit.realizou >= meta && N > 0,
       pctMeta: N ? Math.round(meta / N * 1000) / 10 : 0, composicao: composicao, excluidosFacilitadores: excluidosFacil, pendencias: pendencias, alertas: alertas, inconsistencias: inconsistencias,
