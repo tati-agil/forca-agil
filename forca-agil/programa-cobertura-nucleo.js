@@ -352,8 +352,9 @@
     var comp = cfgP.composicao || {}, composicao = null;
     if (comp.total > 0) {
       var ina = Math.max(0, Math.floor(Number(comp.situacaoInativa) || 0)), car = Math.max(0, Math.floor(Number(comp.cargoIncompativel) || 0));
-      var somaComp = ina + car + N;
-      composicao = { total: Math.floor(comp.total), situacaoInativa: ina, cargoIncompativel: car, publico: N, soma: somaComp, fecha: somaComp === Math.floor(comp.total), diferenca: Math.floor(comp.total) - somaComp };
+      /* a composição confere a BASE importada: os facilitadores estão nela e só saem do público depois (não são "fora do total") */
+      var somaComp = ina + car + N + excluidosFacil;
+      composicao = { total: Math.floor(comp.total), situacaoInativa: ina, cargoIncompativel: car, publico: N, facilitadores: excluidosFacil, base: N + excluidosFacil, soma: somaComp, fecha: somaComp === Math.floor(comp.total), diferenca: Math.floor(comp.total) - somaComp };
       if (!composicao.fecha) alertas.push({ tipo: 'composicao-nao-fecha', total: composicao.total, soma: somaComp, diferenca: composicao.diferenca });
     }
     var fatores = {
