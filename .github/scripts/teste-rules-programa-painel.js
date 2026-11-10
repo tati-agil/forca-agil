@@ -79,6 +79,9 @@ async function main() {
   await nega('V9 margem negativa', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { margem: -1 })));
   await nega('V10 composição sem o total', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { composicao: { situacaoInativa: 6 } })));
   await nega('V11 campo inventado na composição', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { composicao: { total: 10, outro: 1 } })));
+  await nega('V12 ocupação esperada 0', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { ocupacaoEsperada: 0 })));
+  await nega('V13 ocupação esperada acima de 100', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { ocupacaoEsperada: 101 })));
+  await pode('E4 ocupação esperada 70 aceita', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { ocupacaoEsperada: 70 })));
   await nega('V8 autoria com outro e-mail', db(ADMIN).ref('programa-config').set(Object.assign({}, cfg, { atualizadoPor: SUPER })));
 
   console.log('\n== H. auditoria ==');

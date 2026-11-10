@@ -234,6 +234,9 @@
       "margem": {
         ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000 && newData.val() % 1 === 0"
       },
+      "ocupacaoEsperada": {
+        ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100 && newData.val() % 1 === 0"
+      },
       "composicao": {
         ".validate": "newData.hasChildren(['total'])",
         "total": {

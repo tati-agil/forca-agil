@@ -124,6 +124,7 @@
     h += '<article class="pnl-card" data-pnl="bloco-viabilidade"><h2>2 · Viabilidade até ' + br(r.prazo) + '</h2>' +
       '<div class="pnl-veredito' + (inviavel ? '' : ' pnl-veredito--ok') + '"><strong>' + (inviavel ? 'Meta inviável com a capacidade atualmente planejada' : r.margem ? 'As turmas planejadas comportam a meta' : 'As turmas planejadas comportam 100%') + '</strong><span>' + esc(frase) + '</span></div>' +
       regua(r) + '<p class="pnl-regua-texto">Realizado <b>' + f1(r.pct.realizado) + '%</b> · com as turmas planejadas <b>' + f1(r.pct.maxPlanejado) + '%</b> · com as que cabem no calendário <b>' + f1(r.pct.maxExpansao) + '%</b> · meta ' + f1(r.pctMeta) + '%</p>' +
+      (r.realista ? '<p class="pnl-realista" data-pnl="realista"><b>Cenário realista</b> (ocupação esperada de ' + r.realista.ocupacao + '%): chega a <b>' + f1(r.realista.pctEsperado) + '%</b> com as turmas planejadas; faltariam <b>' + r.realista.falta + '</b> pessoas' + (r.realista.falta ? ' · turmas extras: <b>' + (r.realista.turmasExtras == null ? 'indeterminado' : r.realista.turmasExtras) + '</b>' + GRUPOS_TXT(r.realista) : '') + '.</p>' : '') +
       '<div class="pnl-linha"><span>Com as inscrições confirmadas: <b>' + f1(r.pct.potencial) + '%</b></span><span>Turmas extras: <b>' + (r.indeterminado ? 'indeterminado' : nec + (nec === 1 ? ' necessária · ' : ' necessárias · ') + cabem + (cabem === 1 ? ' cabe' : ' cabem') + ' até ' + br(r.prazo)) + '</b></span></div>' +
       '<div class="pnl-chips" data-pnl="fatores">' + (r.principal ? '<span class="pnl-sub">Impedimento principal:</span>' : '') +
       ['calendario', 'capacidade', 'mobilizacao'].filter(function (k) { return r.fatores[k]; }).map(function (k) { return '<span class="pnl-chip' + (k === r.principal ? ' pnl-chip--principal' : '') + '">' + FATOR[k] + '</span>'; }).join('') +
@@ -199,6 +200,10 @@
       } catch (e) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); }
     });
   }
+  function GRUPOS_TXT(re) {
+    var p = ['tecnicos', 'gestores'].filter(function (g) { return re.porGrupo[g].turmasExtras; }).map(function (g) { return re.porGrupo[g].turmasExtras + ' de ' + (g === 'gestores' ? 'gestores' : 'técnicos'); });
+    return p.length ? ' (' + p.join(' e ') + ')' : '';
+  }
   function diretorias(r) {
     var h = '<article class="pnl-card"><h2>Situação por diretoria</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
       Object.keys(ROT).map(function (k) { return '<th class="pnl-n">' + ROT[k] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura</th><th class="pnl-n">Projetada (com inscritos e interessados)</th><th class="pnl-n">Gap (pessoas)</th></tr></thead><tbody>';
@@ -251,6 +256,9 @@
     var L = [['Pendentes', 'pendentes'], ['Com vaga por inscrição confirmada', 'comInscricao'], ['Com vaga própria (inscrição ou interesse)', 'comVaga'], ['Cabem nas vagas livres (pelas regras de entrada)', 'alocaveis'],
       ['Máximo nas turmas planejadas', 'maximo'], ['Déficit de vagas (para 100%)', 'deficitVagas'], ['Margem aplicada', 'margemUsada'], ['Déficit para a meta', 'deficitMeta'], ['Turmas extras necessárias (para a meta)', 'necessarias'], ['Turmas novas que cabem no calendário', 'cabem'], ['Turmas a abrir (necessárias que cabem)', 'abrir'], ['Déficit de calendário (turmas)', 'deficitCalendario']];
     L.forEach(function (l) { var v = function (g) { var x = c[g][l[1]]; return x == null ? 'indeterminado' : x + (l[1] === 'cabem' && x != null && !c[g].cabemExato ? ' (pelo menos)' : ''); }; h += '<tr><td>' + l[0] + '</td>' + ['tecnicos', 'gestores', 'diretores', 'assessores'].map(function (g) { return '<td class="pnl-n">' + ((g === 'diretores' || g === 'assessores') && /necessarias|cabem|abrir|deficitCalendario/.test(l[1]) ? '—' : v(g)) + '</td>'; }).join('') + '</tr>'; });
+    if (r.realista) [['Realista (' + r.realista.ocupacao + '%): realizam nas turmas planejadas', 'esperado'], ['Realista: faltariam', 'falta'], ['Realista: turmas extras', 'turmasExtras']].forEach(function (l) {
+      h += '<tr class="pnl-realista-linha" data-pnl="realista-' + l[1] + '"><td>' + esc(l[0]) + '</td>' + ['tecnicos', 'gestores', 'diretores', 'assessores'].map(function (g) { var x = r.realista.porGrupo[g][l[1]]; return '<td class="pnl-n">' + ((g === 'diretores' || g === 'assessores') && l[1] === 'turmasExtras' ? '—' : x == null ? 'indeterminado' : x) + '</td>'; }).join('') + '</tr>';
+    });
     var semPrev = ['diretores', 'assessores'].filter(function (g) { return c[g] && c[g].semTurmaPrevista > 0; });
     h += '</tbody></table></div><p class="pnl-nota">Vagas livres = vagas − registros ativos (interesse e inscrição, inclusive de quem está fora da base): nenhuma vaga ocupada no sistema é liberada pelo cálculo. ' + (r.vagasPresas ? r.vagasPresas + ' vagas estão presas por inscrição duplicada.' : '') + ' Diretores e assessores não entram em turma de técnicos nem de gestores: só em turma sem público de cargo; turma extra só é estimada para técnicos e gestores.' + (semPrev.length ? ' <b>Sem turma prevista: ' + semPrev.map(function (g) { return c[g].semTurmaPrevista + ' ' + NOMEG[g]; }).join(' e ') + '.</b>' : '') + '</p></article>';
     var sitDe = function (t) { return t.cancelada ? 'cancelada' : t.encerrada ? 'encerrada' : t.passadaAberta ? 'já aconteceu, sem encerrar' : !t.terminaAtePrazo ? 'termina depois do prazo' : t.comecou ? 'em andamento' : 'planejada'; };

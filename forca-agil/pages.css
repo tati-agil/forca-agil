@@ -4788,6 +4788,8 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-consultas { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
 .pnl-consultas .avp-voltar-link { margin: 0; }
 .pnl-barra { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,.06); }
+.pnl-realista { margin: 10px 0 0; padding: 8px 12px; border-left: 3px solid var(--cyan-soft); background: rgba(122,240,232,.06); border-radius: 0 8px 8px 0; font-size: var(--arq-fs-texto); color: var(--ink); }
+.pnl-tabela tr.pnl-realista-linha td { background: rgba(122,240,232,.05); }
 .pnl-exportar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; }
 .pnl-leg { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--arq-fs-meta); color: var(--ink-2); margin-top: 8px; }
 .pnl-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid transparent; }
