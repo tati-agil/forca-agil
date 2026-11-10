@@ -273,6 +273,8 @@ console.log('\n== K. margem e composição do público ==');
   ok('K6 composição que fecha (6 + 72 + 4 = 82)', r.composicao && r.composicao.fecha === true && !r.alertas.some((a) => a.tipo === 'composicao-nao-fecha'));
   r = calc(cenario((E) => { E.programa.composicao = { total: 81, situacaoInativa: 6, cargoIncompativel: 72 }; }));
   ok('K7 composição que não fecha: alerta com a diferença', r.composicao.fecha === false && r.composicao.diferenca === -1 && r.alertas.some((a) => a.tipo === 'composicao-nao-fecha'));
+  r = calc(cenario((E) => { E.programa.facilitadores = { [k(S)]: S }; E.programa.composicao = { total: 82, situacaoInativa: 6, cargoIncompativel: 72 }; }));
+  ok('K7b facilitador da base tirado do público continua na conta da composição (6 + 72 + 3 do público + 1 facilitador = 82)', r.N === 3 && r.composicao.fecha === true && r.composicao.facilitadores === 1 && r.composicao.base === 4 && !r.alertas.some((a) => a.tipo === 'composicao-nao-fecha'), r.composicao);
   r = calc(cenario());
   ok('K8 sem total configurado, nenhuma conferência; sem margem, meta = público', r.composicao === null && r.margem === 0 && r.meta === r.N);
   r = calc(cenario((E) => { E.base.pessoas[k(P1)].nivel = 'diretor'; E.base.pessoas[k(Q)].nivel = 'assessor'; E.base.pessoas[k(R2)].nivel = 'gestor'; }));
