@@ -386,6 +386,8 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-pnl="atualizar"]');
     if (b && $('page-painel') && !$('page-painel').hidden) { e.preventDefault(); atualizar(); return; }
+    var ab = e.target.closest && e.target.closest('[data-pnl-abrir]');
+    if (ab) { var aberto = ab.getAttribute('aria-expanded') !== 'true'; ab.setAttribute('aria-expanded', aberto ? 'true' : 'false'); ab.firstChild.textContent = aberto ? '▾' : '▸'; document.querySelectorAll('[data-pnl-ger="' + ab.getAttribute('data-pnl-abrir') + '"]').forEach(function (tr) { tr.hidden = !aberto; }); return; }
     var ord = e.target.closest && e.target.closest('[data-pnl-ordem]');
     if (ord) {
       var bloco = ord.closest('[data-pnl="bloco-gaps"]'), modo = ord.getAttribute('data-pnl-ordem'); if (!bloco) return;
@@ -394,8 +396,6 @@
       bloco.querySelectorAll('[data-pnl-ordem]').forEach(function (b) { b.setAttribute('aria-pressed', b === ord ? 'true' : 'false'); });
       return;
     }
-    var ab = e.target.closest && e.target.closest('[data-pnl-abrir]');
-    if (ab) { var aberto = ab.getAttribute('aria-expanded') !== 'true'; ab.setAttribute('aria-expanded', aberto ? 'true' : 'false'); ab.firstChild.textContent = aberto ? '▾' : '▸'; document.querySelectorAll('[data-pnl-ger="' + ab.getAttribute('data-pnl-abrir') + '"]').forEach(function (tr) { tr.hidden = !aberto; }); return; }
     var ex = e.target.closest && e.target.closest('[data-pnl="exportar"]');
     if (ex) { e.preventDefault(); exportar(ex); return; }
     var a = e.target.closest && e.target.closest('[data-pnl-admin]');
