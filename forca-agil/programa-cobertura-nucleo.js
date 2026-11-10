@@ -310,12 +310,21 @@
       });
     });
     function conta(g, dia, ini, fim) { return compromissos.filter(function (c) { return c.dia === dia && (c.grupo === g || c.grupo === null) && c.ini < fim && ini < c.fim; }).length; }
-    GRUPOS.forEach(function (g) {
+    /* FACILITAÇÃO COMPARTILHADA (opcional, programa-config/facilitacao): os facilitadores são o recurso que limita — turma de
+       técnicos usa `tecnicos`, de gestores `gestores`, sem público de cargo `aberta` (ex.: 1, 2, 2 de 2 disponíveis). No mesmo
+       dia e horário, a soma não passa de `disponiveis`. Substitui os limites por público (que tratavam técnicos e gestores
+       como se não disputassem nada). */
+    var fac = cfgP.facilitacao || null, disp = fac ? Math.floor(Number(fac.disponiveis)) : 0, compart = disp > 0;
+    var custoDe = function (grupo) { var v = Math.floor(Number(grupo === 'tecnicos' ? fac.tecnicos : grupo === 'gestores' ? fac.gestores : fac.aberta)); return v > 0 ? v : 1; };
+    var reservas = [];
+    function usados(dia, ini, fim) { return compromissos.concat(reservas).filter(function (c) { return c.dia === dia && c.ini < fim && ini < c.fim; }).reduce(function (s, c) { return s + custoDe(c.grupo); }, 0); }
+    if (compart) { var vistosF = {}; compromissos.forEach(function (c) { var u = usados(c.dia, c.ini, c.fim); if (u > disp && !vistosF[c.dia]) { vistosF[c.dia] = 1; alertas.push({ tipo: 'facilitacao-excedida', dia: c.dia, usados: u, disponiveis: disp }); } }); }
+    if (!compart) GRUPOS.forEach(function (g) {
       var l = lim[g]; if (!(l > 0)) return; var vistos = {};
       compromissos.forEach(function (c) { if (c.grupo !== g && c.grupo !== null) return; var n = conta(g, c.dia, c.ini, c.fim); if (n > l && !vistos[c.dia]) { vistos[c.dia] = 1; alertas.push({ tipo: 'paralelismo-excedido', grupo: g, dia: c.dia, simultaneas: n, limite: l }); } });
     });
     var encaixe = {};
-    GRUPOS.forEach(function (g) {
+    if (!compart) GRUPOS.forEach(function (g) {
       var f = formatos[g], l = Math.floor(Number(lim[g]));
       if (!f || !(l > 0) || !uteis.length) { encaixe[g] = { cabem: f && l > 0 ? 0 : null, exato: true, novas: [], motivo: !f ? 'sem-formato' : !(l > 0) ? 'sem-limite' : 'sem-dias' }; return; }
       var capDia = uteis.map(function (dd) { return Math.max(0, l - conta(g, dd, f.ini, f.fim)); });
@@ -328,6 +337,17 @@
     var margem = Math.min(N, Math.max(0, Math.floor(Number(cfgP.margem) || 0))), meta = N - margem, sobraMargem = margem;
     PUBLICOS.slice().sort(function (a, b) { return cap[b].deficitVagas - cap[a].deficitVagas; }).forEach(function (g) {
       var usa = Math.min(sobraMargem, cap[g].deficitVagas); cap[g].margemUsada = usa; cap[g].deficitMeta = cap[g].deficitVagas - usa; sobraMargem -= usa;
+    });
+    /* modo compartilhado: encaixa primeiro o público cuja turma usa mais facilitadores (gestores), reserva as turmas extras
+       NECESSÁRIAS dele e só então encaixa o outro no que sobrou — "cabem" de técnicos já desconta as extras de gestores. */
+    if (compart) GRUPOS.slice().sort(function (a, b) { return custoDe(b) - custoDe(a); }).forEach(function (g) {
+      var f = formatos[g], k = custoDe(g);
+      if (!f || !uteis.length || k > disp) { encaixe[g] = { cabem: f ? 0 : null, exato: true, novas: [], motivo: !f ? 'sem-formato' : !uteis.length ? 'sem-dias' : 'sem-facilitadores' }; return; }
+      var capDia = uteis.map(function (dd) { return Math.max(0, Math.floor((disp - usados(dd, f.ini, f.fim)) / k)); });
+      var r = maximoDeJanelas(capDia, f.encontros, Math.max(1, Math.floor(disp / k)));
+      encaixe[g] = { cabem: r.total, exato: r.exato, novas: r.inicios.map(function (i) { return uteis.slice(i, i + f.encontros); }) };
+      var nec = cap[g].deficitMeta > 0 && f.vagas ? Math.ceil(cap[g].deficitMeta / f.vagas) : 0;
+      encaixe[g].novas.slice(0, Math.min(nec, r.total)).forEach(function (dias) { dias.forEach(function (dd) { reservas.push({ dia: dd, ini: f.ini, fim: f.fim, grupo: g, turma: 'nova' }); }); });
     });
     GRUPOS.forEach(function (g) {
       var c = cap[g], f = formatos[g], e = encaixe[g];
@@ -492,7 +512,7 @@
       porSit: porSit, porGrupo: porGrupo, realizou: real, pendentes: pend.length,
       pct: { realizado: pct1(real, N), potencial: pct1(real + potencial, N), comVaga: pct1(real + comVaga, N), maxPlanejado: pct1(real + maxPlanejado, N), maxExpansao: pct1(real + maxExpansao, N) },
       potencial: potencial, comVaga: comVaga, gapProjetado: N - porSit.realizou - comVaga, maxPlanejado: maxPlanejado, maxExpansao: maxExpansao, deficitVagas: deficitVagas, vagasLivres: vagasLivresTotal, vagasPresas: vagasPresas,
-      cap: cap, formatos: formatos, encaixe: encaixe, uteis: uteis, primeiraData: primeiraData, indisponiveis: indisp, limites: { tecnicos: lim.tecnicos, gestores: lim.gestores }, antecedencia: antecedencia,
+      cap: cap, formatos: formatos, encaixe: encaixe, uteis: uteis, primeiraData: primeiraData, indisponiveis: indisp, limites: { tecnicos: lim.tecnicos, gestores: lim.gestores }, facilitacao: compart ? { disponiveis: disp, tecnicos: custoDe('tecnicos'), gestores: custoDe('gestores'), aberta: custoDe(null) } : null, antecedencia: antecedencia,
       fatores: fatores, principal: principal, combinado: nFat >= 2, indeterminado: indeterminado,
       diretorias: diretorias, ausencias: aus, ausenciasPorTurma: ausPorTurma, qualidade: qualidade, evolucao: evolucao, decisoes: dec.slice(0, 3),
       turmas: listaT.map(function (t) { return { key: t.key, label: t.label, evento: t.evento, grupo: t.grupo, dias: t.dias, horario: t.horario, vagas: t.vagas, ocupacao: t.ocupacao, inscritos: t.inscritosAtivos,

@@ -219,10 +219,10 @@ async function admin(browser, ctxOpts) {
   await x.page.click('#pnlaSalvarCfg'); await x.page.waitForTimeout(500);
   ok('D3 configuração válida grava e acrescenta auditoria', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; const a = window.__CFG.db['programa-config-auditoria'] || {}; return !!c && !!c.facilitadores && Object.keys(a).length >= 2; }));
   await x.page.waitForSelector('#pnlaCompTotal');
-  await x.page.fill('#pnlaCompTotal', '592'); await x.page.fill('#pnlaCompInativa', '6'); await x.page.fill('#pnlaCompCargo', '72'); await x.page.fill('#pnlaMargem', '4'); await x.page.fill('#pnlaOcupacao', '70');
+  await x.page.fill('#pnlaCompTotal', '592'); await x.page.fill('#pnlaCompInativa', '6'); await x.page.fill('#pnlaCompCargo', '72'); await x.page.fill('#pnlaMargem', '4'); await x.page.fill('#pnlaOcupacao', '70'); await x.page.fill('#pnlaFacDisp', '2'); await x.page.fill('#pnlaFacTec', '1'); await x.page.fill('#pnlaFacGes', '2'); await x.page.fill('#pnlaFacAberta', '2');
   ok('D3b sem base importada, a conta pede a base (não inventa número)', /Importe a base oficial/.test(await texto(x.page, '#pnlaCompConta')));
   await x.page.click('#pnlaSalvarCfg'); await x.page.waitForTimeout(500);
-  ok('D3c total, situação não ativa, cargo não compatível e margem gravados', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; return c.margem === 4 && c.ocupacaoEsperada === 70 && c.composicao && c.composicao.total === 592 && c.composicao.situacaoInativa === 6 && c.composicao.cargoIncompativel === 72; }));
+  ok('D3c total, situação não ativa, cargo não compatível e margem gravados', await x.page.evaluate(() => { const c = window.__CFG.db['programa-config']; return c.margem === 4 && c.ocupacaoEsperada === 70 && c.facilitacao && c.facilitacao.disponiveis === 2 && c.facilitacao.gestores === 2 && c.facilitacao.aberta === 2 && c.composicao && c.composicao.total === 592 && c.composicao.situacaoInativa === 6 && c.composicao.cargoIncompativel === 72; }));
   /* planilha com um e-mail repetido e um fora do domínio */
   const linhas = [['ANNOME', 'ANEMAIL', 'GERENCIA', 'DIRETORIA', 'nivel']];
   for (let i = 0; i < 24; i++) linhas.push(['P' + i, 'p' + i + '@previ.com.br', 'G' + (i % 3), i < 12 ? 'DIRA' : 'DIRB', i === 0 ? 'diretor' : i === 1 ? 'assessor' : 'tecnico']);

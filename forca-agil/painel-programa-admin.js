@@ -95,7 +95,7 @@
   function desenharConfig(el, cfg, eventos, totalBase) {
     (function () {
       var evs = Object.keys(eventos).sort(function (a, b) { return (eventos[a].order || 0) - (eventos[b].order || 0); });
-      var lim = cfg.limiteParalelo || {}, fmt = cfg.formatos || {}, comp = cfg.composicao || {};
+      var lim = cfg.limiteParalelo || {}, fmt = cfg.formatos || {}, comp = cfg.composicao || {}, fac = cfg.facilitacao || {};
       var facil = Object.keys(cfg.facilitadores || {}).map(function (k) { return cfg.facilitadores[k]; }).join('\n');
       var campoFmt = function (g) { var f = fmt[g] || {}; return '<fieldset class="pnla-fmt"><legend>Turma nova de ' + GR[g].toLowerCase() + '</legend>' +
         '<label>Encontros<input type="number" min="1" max="20" step="1" data-pnla-fmt="' + g + '" data-pnla-campo="encontros" value="' + esc(f.encontros || '') + '" /></label>' +
@@ -108,7 +108,13 @@
         '<label class="pnla-campo"><span>Antecedência mínima de turma nova (dias úteis)</span><input type="number" id="pnlaAntecedencia" min="0" max="60" step="1" value="' + esc(cfg.antecedenciaDiasUteis == null ? '' : cfg.antecedenciaDiasUteis) + '" /><small>Quantos dias úteis depois de hoje uma turma extra poderia começar (convocação e inscrição). 0 = a partir do próximo dia útil.</small></label>' +
         '<label class="pnla-campo"><span>Turmas simultâneas de técnicos (máximo)</span><input type="number" id="pnlaLimT" min="1" max="10" step="1" value="' + esc(lim.tecnicos || '') + '" /></label>' +
         '<label class="pnla-campo"><span>Turmas simultâneas de gestores (máximo)</span><input type="number" id="pnlaLimG" min="1" max="10" step="1" value="' + esc(lim.gestores || '') + '" /><small>Simultâneas = no mesmo dia com horários que se sobrepõem.</small></label>' +
-        '</div><fieldset class="pnla-eventos"><legend>Eventos que fazem parte do programa</legend>' + (evs.length ? evs.map(function (k) {
+        '</div><fieldset class="pnla-eventos" data-pnla="facilitacao"><legend>Facilitação compartilhada (opcional)</legend><div class="pnla-campos">' +
+        '<label class="pnla-campo"><span>Facilitadores disponíveis ao mesmo tempo</span><input type="number" id="pnlaFacDisp" min="1" max="20" step="1" value="' + esc(fac.disponiveis || '') + '" /></label>' +
+        '<label class="pnla-campo"><span>Facilitadores por turma de técnicos</span><input type="number" id="pnlaFacTec" min="1" max="20" step="1" value="' + esc(fac.tecnicos || '') + '" /></label>' +
+        '<label class="pnla-campo"><span>Facilitadores por turma de gestores</span><input type="number" id="pnlaFacGes" min="1" max="20" step="1" value="' + esc(fac.gestores || '') + '" /></label>' +
+        '<label class="pnla-campo"><span>Facilitadores por turma sem público de cargo</span><input type="number" id="pnlaFacAberta" min="1" max="20" step="1" value="' + esc(fac.aberta || '') + '" /></label>' +
+        '</div><small>Preenchido, substitui os limites de turmas simultâneas: no mesmo dia e horário, a soma dos facilitadores das turmas não passa do disponível (ex.: 2 disponíveis; técnicos 1, gestores 2, sem público de cargo 2 = ou duas de técnicos ou uma de gestores). Em branco = usa os limites acima.</small></fieldset>' +
+        '<fieldset class="pnla-eventos"><legend>Eventos que fazem parte do programa</legend>' + (evs.length ? evs.map(function (k) {
           return '<label class="pnla-check"><input type="checkbox" data-pnla-evento="' + esc(k) + '"' + ((cfg.eventos || {})[k] ? ' checked' : '') + ' /> ' + esc(eventos[k].nome || k) + '</label>'; }).join('') : '<p class="admin-empty">Nenhum evento cadastrado.</p>') +
         '<small>Só turmas desses eventos contam na cobertura e na capacidade. Realizar um deles basta para a pessoa contar como atendida.</small></fieldset>' +
         '<label class="pnla-campo pnla-campo--largo"><span>Facilitadores fora do público (um e-mail por linha)</span><textarea id="pnlaFacil" rows="5" placeholder="nome@previ.com.br">' + esc(facil) + '</textarea><small>Saem do denominador, da cobertura e das pendências, mesmo que estejam na base oficial.</small></label>' +
@@ -145,6 +151,8 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(prazo)) erros.push('a data-limite');
     var antN = ant === '' ? 0 : int(ant, 0, 60); if (antN === null) erros.push('a antecedência (0 a 60 dias úteis)');
     var lt = int(limT, 1, 10), lg = int(limG, 1, 10); if (lt === null || lg === null) erros.push('os limites de turmas simultâneas (1 a 10)');
+    var facV = ['pnlaFacDisp', 'pnlaFacTec', 'pnlaFacGes', 'pnlaFacAberta'].map(function (id) { return $(id).value; }), facilitacao = null;
+    if (facV.some(function (v) { return v !== ''; })) { var fn = facV.map(function (v) { return int(v, 1, 20); }); if (fn.some(function (v) { return v === null; })) erros.push('a facilitação compartilhada (os quatro campos, números inteiros de 1 a 20)'); else facilitacao = { disponiveis: fn[0], tecnicos: fn[1], gestores: fn[2], aberta: fn[3] }; }
     var evSel = {}; document.querySelectorAll('#pnlaConfig [data-pnla-evento]').forEach(function (c) { if (c.checked && eventos[c.getAttribute('data-pnla-evento')]) evSel[c.getAttribute('data-pnla-evento')] = true; });
     if (!Object.keys(evSel).length) erros.push('pelo menos um evento do programa');
     var facil = {}, invalidos = [];
@@ -173,8 +181,9 @@
     if (composicao) novo.composicao = composicao;
     if (margemN !== null) novo.margem = margemN;
     if (ocupN !== null) novo.ocupacaoEsperada = ocupN;
+    if (facilitacao) novo.facilitacao = facilitacao;
     var motivo = $('pnlaMotivo').value, upd = { 'programa-config': novo }, mudou = 0;
-    ['prazo', 'eventos', 'facilitadores', 'antecedenciaDiasUteis', 'limiteParalelo', 'formatos', 'composicao', 'margem', 'ocupacaoEsperada'].forEach(function (k) {
+    ['prazo', 'eventos', 'facilitadores', 'antecedenciaDiasUteis', 'limiteParalelo', 'formatos', 'composicao', 'margem', 'ocupacaoEsperada', 'facilitacao'].forEach(function (k) {
       var a = JSON.stringify(atual[k] == null ? null : atual[k]), b = JSON.stringify(novo[k] == null ? null : novo[k]);
       if (a !== b) { mudou++; upd['programa-config-auditoria/' + chaveAud()] = auditoria(k, a === 'null' ? '' : a, b === 'null' ? '' : b, motivo); }
     });

@@ -272,12 +272,14 @@
         return '<tr data-ev="' + esc(t.evento || '—') + '" data-pub="' + esc(pubDe(t)) + '" data-sit="' + esc(sit) + '"><td data-pnl="turma-evento">' + esc(t.evento || '—') + '</td><td>' + esc(t.label) + '</td><td>' + t.dias.map(br).join(', ') + (t.horario ? ' · ' + esc(t.horario) : '') + '</td><td>' + (t.grupo === 'conflito' ? 'em conflito' : t.grupo ? NOMEG[t.grupo] : 'aberto') + '</td><td class="pnl-n">' + (t.vagas || '—') + '</td><td class="pnl-n">' + t.ocupacao + '</td><td class="pnl-n">' + (t.valida ? t.livres : '—') + '</td><td>' + sit + '</td></tr>';
       }).join('') + '</tbody></table></div></article>';
     h += calendario(r);
-    var al = r.alertas.filter(function (a) { return /paralelismo|horario|indisponivel|vagas|lotacao|conflito|datas/.test(a.tipo); });
+    var al = r.alertas.filter(function (a) { return /paralelismo|facilitacao|horario|indisponivel|vagas|lotacao|conflito|datas/.test(a.tipo); });
     if (al.length) h += '<article class="pnl-card"><h2>Alertas de planejamento</h2><ul class="pnl-lista">' + al.map(function (a) { return '<li>' + esc(textoAlerta(a)) + '</li>'; }).join('') + '</ul></article>';
     var f = r.formatos;
     h += '<article class="pnl-card"><h2>Premissas desta simulação</h2><ul class="pnl-lista">' +
-      '<li>Turmas simultâneas: até <b>' + (r.limites.tecnicos || '—') + '</b> de técnicos e <b>' + (r.limites.gestores || '—') + '</b> de gestores. Simultâneo = mesmo dia com horários que se sobrepõem.</li>' +
-      '<li>Premissa: turmas de técnicos e de gestores não disputam os mesmos facilitadores e salas.</li>' +
+      (r.facilitacao ? '<li data-pnl="premissa-facilitacao">Facilitadores disponíveis: <b>' + r.facilitacao.disponiveis + '</b> ao mesmo tempo. Turma de técnicos usa <b>' + r.facilitacao.tecnicos + '</b>, de gestores <b>' + r.facilitacao.gestores + '</b>, sem público de cargo <b>' + r.facilitacao.aberta + '</b>. Simultâneo = mesmo dia com horários que se sobrepõem.</li>' +
+        '<li>Turmas extras de gestores são encaixadas primeiro; as de técnicos, no que sobra (técnicos e gestores disputam os mesmos facilitadores).</li>'
+      : '<li>Turmas simultâneas: até <b>' + (r.limites.tecnicos || '—') + '</b> de técnicos e <b>' + (r.limites.gestores || '—') + '</b> de gestores. Simultâneo = mesmo dia com horários que se sobrepõem.</li>' +
+        '<li>Premissa: turmas de técnicos e de gestores não disputam os mesmos facilitadores e salas (configure a facilitação compartilhada em ADMIN se disputam).</li>') +
       (r.margem ? '<li>Margem de ' + r.margem + ' pessoas: a meta é ' + r.meta + ' (público ' + r.N + ' − margem). A margem reduz primeiro o déficit do público que tem o maior déficit.</li>' : '') +
       ['tecnicos', 'gestores'].map(function (g) { var x = f[g]; return '<li>Turma nova de ' + NOMEG[g] + ': ' + (x ? x.encontros + ' encontros em dias úteis seguidos, ' + esc(x.horario) + ', ' + x.vagas + ' vagas (' + (x.origem === 'configurado' ? 'formato configurado no ADMIN' : 'como a turma mais recente, ' + esc(x.ref)) + ').' : 'sem formato: configure no ADMIN.') + '</li>'; }).join('') +
       '<li>Dias úteis: sem sábados, domingos e os dias sem expediente cadastrados. Primeira data para turma nova: ' + brAno(r.primeiraData) + ' (antecedência de ' + r.antecedencia + ' dias úteis).</li>' +
@@ -286,6 +288,7 @@
   }
   function textoAlerta(a) {
     switch (a.tipo) {
+      case 'facilitacao-excedida': return 'Já planejado: ' + a.usados + ' facilitadores necessários ao mesmo tempo em ' + brAno(a.dia) + ' (disponíveis: ' + a.disponiveis + ').';
       case 'paralelismo-excedido': return 'Já planejado: ' + a.simultaneas + ' turmas de ' + NOMEG[a.grupo] + ' ao mesmo tempo em ' + brAno(a.dia) + ' (limite ' + a.limite + ').';
       case 'turma-sem-horario': return a.turma + ': sem horário registrado (conta como o dia inteiro ocupado).';
       case 'encontro-em-dia-indisponivel': return a.turma + ': encontro em ' + brAno(a.dia) + ', dia sem expediente cadastrado.';

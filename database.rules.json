@@ -237,6 +237,14 @@
       "ocupacaoEsperada": {
         ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100 && newData.val() % 1 === 0"
       },
+      "facilitacao": {
+        ".validate": "newData.hasChildren(['disponiveis', 'tecnicos', 'gestores', 'aberta'])",
+        "disponiveis": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20 && newData.val() % 1 === 0" },
+        "tecnicos": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20 && newData.val() % 1 === 0" },
+        "gestores": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20 && newData.val() % 1 === 0" },
+        "aberta": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20 && newData.val() % 1 === 0" },
+        "$outro": { ".validate": false }
+      },
       "composicao": {
         ".validate": "newData.hasChildren(['total'])",
         "total": {
