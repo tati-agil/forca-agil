@@ -303,12 +303,45 @@
     var el = $('pnlaBase');
     db().ref('programa-publico-alvo').once('value').then(function (s) {
       var v = s.val() || {}, vig = v.vigente, ver = vig && (v.versoes || {})[vig];
-      var h = '<h4>Base oficial do público-alvo</h4>' + (ver ? '<p class="pnla-ajuda">Vigente: <b>versão ' + vig + '</b> · ' + ver.total + ' pessoas · importada em ' + quando(ver.importadaEm) + ' por ' + esc(ver.importadaPor) + ' · ' + esc(ver.origem) + '. Versões anteriores ficam guardadas.</p>' : '<p class="pnla-ajuda">Nenhuma base importada: o painel não calcula sem ela.</p>') +
+      /* O arquivo de origem em destaque e a base vigente para baixar: a dúvida "qual planilha o site está lendo?" se
+         resolve baixando exatamente o que ele usa; para corrigir, edita-se esse arquivo e importa-se de novo. */
+      var h = '<h4>Base oficial do público-alvo</h4>' + (ver ? '<p class="pnla-ajuda" data-pnla="base-vigente">Vigente: <b>versão ' + vig + '</b> · ' + ver.total + ' pessoas · arquivo <b>' + esc(ver.origem) + '</b> · importada em ' + quando(ver.importadaEm) + ' por ' + esc(ver.importadaPor) + '. Versões anteriores ficam guardadas.</p>' +
+        '<div class="pnla-botoes"><button type="button" class="btn btn--sm" id="pnlaBaixarBase">Baixar a base vigente (Excel)</button></div><p id="pnlaBaixarMsg" class="pnla-msg"></p>' +
+        '<p class="pnla-ajuda">O arquivo baixado é exatamente o que o painel usa (versão ' + vig + '). Para corrigir alguém: edite a primeira aba, salve e importe aqui; a prévia mostra quem entra, sai ou muda antes de gravar.</p>' : '<p class="pnla-ajuda">Nenhuma base importada: o painel não calcula sem ela.</p>') +
         '<p class="pnla-ajuda">Planilha (.xlsx ou .csv) com as colunas <b>nome</b> (ou ANNOME), <b>e-mail</b> (ou ANEMAIL), <b>gerência</b> e <b>diretoria</b>, na primeira aba. Primeiro aparece a prévia; nada é gravado até você confirmar. Nada é corrigido nem excluído: os pontos estranhos são só sinalizados.</p>' +
         '<label class="pnla-arquivo">Escolher planilha<input type="file" id="pnlaArquivo" accept=".xlsx,.csv" /></label><p id="pnlaBaseMsg" class="pnla-msg"></p><div id="pnlaPrevia"></div>';
       el.innerHTML = h;
       $('pnlaArquivo').addEventListener('change', function (e) { var f = e.target.files && e.target.files[0]; if (f) ler(f, v); });
+      if (ver) $('pnlaBaixarBase').addEventListener('click', function () { baixarBase(vig, ver); });
     }, function (e) { el.innerHTML = '<h4>Base oficial do público-alvo</h4><p class="pnla-msg pnla-msg--erro" role="alert">Não foi possível carregar (' + esc(e && (e.code || e.message)) + ').</p>'; });
+  }
+  /* Planilha da versão vigente, no mesmo formato que o importador lê (primeira aba, colunas ANNOME, ANEMAIL, GERENCIA,
+     DIRETORIA, nivel): baixar, corrigir e importar de novo devolve as mesmas pessoas. Só leitura; nada é gravado. */
+  function planilhaBase(vig, ver) {
+    var ps = Object.keys(ver.pessoas || {}).map(function (k) { return ver.pessoas[k]; }).sort(function (a, b) {
+      return String(a.diretoria || '').localeCompare(String(b.diretoria || ''), 'pt-BR') || String(a.gerencia || '').localeCompare(String(b.gerencia || ''), 'pt-BR') || String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+    });
+    return {
+      base: [['ANNOME', 'ANEMAIL', 'GERENCIA', 'DIRETORIA', 'nivel']].concat(ps.map(function (p) { return [p.nome || '', p.email || '', p.gerencia || '', p.diretoria || '', p.nivel || '']; })),
+      sobre: [['Base oficial do público-alvo — Painel do Programa'], ['Versão', vig], ['Pessoas', ps.length], ['Arquivo de origem', ver.origem || ''], ['Importada em', quando(ver.importadaEm)], ['Importada por', ver.importadaPor || ''], [''],
+        ['Para corrigir: edite a aba "publico alvo" (a primeira), salve e importe em ADMIN › Painel do Programa › Base oficial do público-alvo.'],
+        ['O site guarda nome, e-mail, gerência, diretoria e nível; outras colunas da planilha original (como a descrição do cargo) não vêm neste arquivo.']]
+    };
+  }
+  function baixarBase(vig, ver) {
+    var m = $('pnlaBaixarMsg'), b = $('pnlaBaixarBase'); b.disabled = true; msg(m, 'Gerando o arquivo…');
+    carregarXlsx(function (falha) {
+      b.disabled = false;
+      if (falha) { msg(m, 'Não foi possível carregar o gerador de planilhas. Recarregue a página.', true); return; }
+      try {
+        var X = window.XLSX, pl = planilhaBase(vig, ver), wb = X.utils.book_new();
+        X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(pl.base), 'publico alvo');
+        X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(pl.sobre), 'Sobre esta base');
+        var d = new Date(), hoje = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        X.writeFile(wb, 'base-oficial-versao-' + vig + '-' + hoje + '.xlsx');
+        msg(m, 'Arquivo gerado: versão ' + vig + ', ' + (pl.base.length - 1) + ' pessoas.');
+      } catch (e) { msg(m, 'Não foi possível gerar o arquivo (' + (e && e.message) + ').', true); }
+    });
   }
   function ler(arquivo, atual) {
     var m = $('pnlaBaseMsg'), alvo = $('pnlaPrevia'); alvo.innerHTML = ''; msg(m, 'Lendo a planilha…');

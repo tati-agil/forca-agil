@@ -304,6 +304,22 @@ async function admin(browser, ctxOpts) {
   ok('D5 com pontos sinalizados, pede a confirmação de que conferiu', /Marque/.test(await texto(x.page, '#pnlaImpMsg')) && await x.page.evaluate(() => !window.__CFG.db['programa-publico-alvo']));
   await x.page.check('#pnlaConferi'); await x.page.click('#pnlaImportar'); await x.page.waitForTimeout(600);
   ok('D6 confirmada: versão 1 gravada e vigente, com 25 pessoas', await x.page.evaluate(() => { const b = window.__CFG.db['programa-publico-alvo']; return !!b && b.vigente === 1 && Object.keys(b.versoes['1'].pessoas).length === 25 && b.versoes['1'].total === 25 && b.versoes['1'].pessoas['p0_previ_com_br'].nivel === 'diretor' && b.versoes['1'].pessoas['p1_previ_com_br'].nivel === 'assessor'; }));
+  /* D10: baixar a base vigente — é o que o painel usa, no formato do importador; baixar e importar de novo não muda ninguém */
+  await x.page.waitForSelector('#pnlaBaixarBase', { timeout: 8000 });
+  ok('D10 a base vigente diz de qual arquivo veio', /arquivo base-painel-teste\.xlsx \(26 linhas\)/.test(await texto(x.page, '[data-pnla="base-vigente"]')), await texto(x.page, '[data-pnla="base-vigente"]'));
+  {
+    const [dl] = await Promise.all([x.page.waitForEvent('download', { timeout: 15000 }), x.page.click('#pnlaBaixarBase')]);
+    const baixado = path.join(require('os').tmpdir(), 'base-painel-baixada.xlsx'); await dl.saveAs(baixado);
+    const wbB = XLSX.read(fs.readFileSync(baixado), { type: 'buffer' }), aba = wbB.SheetNames[0], m = XLSX.utils.sheet_to_json(wbB.Sheets[aba], { header: 1, defval: '' });
+    const p0 = m.find((l) => l[1] === 'p0@previ.com.br'), p5 = m.find((l) => l[1] === 'p5@previ.com.br');
+    ok('D11 o arquivo baixado tem a 1ª aba no formato do importador, com as 25 pessoas da versão vigente e o nível de cada uma', /^base-oficial-versao-1-\d{4}-\d{2}-\d{2}\.xlsx$/.test(dl.suggestedFilename()) && aba === 'publico alvo' && JSON.stringify(m[0]) === JSON.stringify(['ANNOME', 'ANEMAIL', 'GERENCIA', 'DIRETORIA', 'nivel']) && m.length === 26 && p0 && p0[4] === 'diretor' && p5 && p5[4] === 'tecnico' && wbB.SheetNames[1] === 'Sobre esta base' && /Arquivo gerado: versão 1, 25 pessoas/.test(await texto(x.page, '#pnlaBaixarMsg')), { nome: dl.suggestedFilename(), aba, n: m.length, cab: m[0] });
+    const antes = await x.page.evaluate(() => (window.__ESCRITAS || []).length);
+    await x.page.setInputFiles('#pnlaArquivo', baixado);
+    await x.page.waitForSelector('[data-pnla="previa"]', { timeout: 10000 });
+    const pvB = await texto(x.page, '[data-pnla="previa"]');
+    ok('D12 importar o arquivo baixado: prévia com as mesmas 25 pessoas, ninguém entra, sai ou muda, e nada gravado sem confirmar', /Pessoas válidas\s*25/.test(pvB) && /0 entram, 0 saem, 0 mudam/.test(pvB) && await x.page.evaluate((a) => (window.__ESCRITAS || []).length === a, antes), pvB.slice(0, 400));
+    await x.page.click('#pnlaDescartar');
+  }
   ok('D7 ADMIN sem rolagem lateral', await semRolagem(x.page));
   const pva = await verificarTela(x.page, { escopo: '#adminPainelPrograma', largura: ctxOpts.viewport.width, focos: 0 });
   ok('D9 padrão visual na aba do ADMIN', !pva.length, pva.slice(0, 3));

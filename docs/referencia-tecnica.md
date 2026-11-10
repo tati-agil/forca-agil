@@ -82,7 +82,7 @@ alguém precisa).
 | `forca-agil/qrcode.min.js` | index.html | Biblioteca de QR Code (vendorizada). |
 | `forca-agil/certif.js` | index.html | Geração do certificado sobre `cert-template-v3.png`. |
 | `forca-agil/admin.js` | index.html | Painel ADMIN (eventos, turmas, participantes, cadastros, admins, diretores, facilitadores, sorteios, roteiro); exportações CSV (`toXls`). Carrega o Manual sob demanda. |
-| `forca-agil/painel-programa-admin.js` | index.html | ADMIN › Painel do Programa (`window.faInitPainelAdmin`, chamado por `admin.js` ao abrir o ADMIN): convidados, configuração do programa com auditoria, dias sem expediente e importação da base oficial (.xlsx/.csv pela `xlsx.mini.min.js` sob demanda) com prévia e confirmação. |
+| `forca-agil/painel-programa-admin.js` | index.html | ADMIN › Painel do Programa (`window.faInitPainelAdmin`, chamado por `admin.js` ao abrir o ADMIN): convidados, configuração do programa com auditoria, dias sem expediente e importação da base oficial (.xlsx/.csv pela `xlsx.mini.min.js` sob demanda) com prévia e confirmação; a base vigente mostra o arquivo de origem e pode ser baixada ("Baixar a base vigente (Excel)", só leitura) no mesmo formato do importador, para corrigir e importar de novo. |
 | `forca-agil/avaliacao.js` | index.html | "Avaliar oficina" (`#avaliacao`): formulário da oficina por turma. |
 | `forca-agil/checkin.js` | index.html | Check-in por QR Code (`#checkin`). |
 | `forca-agil/pedidos.js` | index.html | "Faça um pedido" (Ajuda) e aba Pedidos do ADMIN. |
