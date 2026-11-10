@@ -179,6 +179,36 @@ async function rodada(browser, rotulo, ctxOpts) {
   }
   await x.page.click('#painelConteudo a.avp-voltar-link[href="#painel"]'); await x.page.waitForTimeout(250);
   ok('C voltar leva à visão executiva', !!(await x.page.$('[data-pnl="bloco-cobertura"]')));
+  /* G: o que parece clicável leva a algum lugar — o nome da diretoria nos Gaps e os cartões de Decisões necessárias */
+  {
+    const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r);
+    const naTela = (sel) => x.page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; const b = e.getBoundingClientRect(); return b.bottom > 0 && b.top < innerHeight; }, sel);
+    const links = await x.page.$$eval('[data-pnl="bloco-gaps"] [data-pnl-dir] a.pnl-gp-link', (l) => l.map((a) => a.getAttribute('href')));
+    ok('G1 nos Gaps, o nome de cada diretoria é link para as gerências dela (o total não)', links.length === rp.diretorias.length && links.every((h) => /^#painel\?v=diretorias&d=[^&]+&de=bloco-gaps$/.test(h)) && !(await x.page.$('[data-pnl="gaps-total"] a')) && /Toque no nome da diretoria/.test(await texto(x.page, '[data-pnl="gaps-exemplo"]')), links);
+    const ultimo = await x.page.$$eval('[data-pnl="bloco-gaps"] [data-pnl-dir] a.pnl-gp-link', (l) => l[l.length - 1].textContent);
+    const linksGap = await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir] a.pnl-gp-link');
+    await linksGap[linksGap.length - 1].click();
+    await x.page.waitForTimeout(400);
+    const ab = await x.page.evaluate((n) => { const tr = [...document.querySelectorAll('tr[data-pnl-dir-nome]')].find((t) => t.getAttribute('data-pnl-dir-nome') === n); if (!tr) return { tr: false }; const b = tr.querySelector('[data-pnl-abrir]'), i = b && b.getAttribute('data-pnl-abrir'), r = tr.getBoundingClientRect(); return { exp: b && b.getAttribute('aria-expanded'), ger: [...document.querySelectorAll('tr.pnl-ger[data-pnl-ger="' + i + '"]')].length > 0 && [...document.querySelectorAll('tr.pnl-ger[data-pnl-ger="' + i + '"]')].every((g) => !g.hidden), visivel: r.top >= 0 && r.bottom <= innerHeight, h1: document.querySelector('#painelConteudo h1').textContent, outras: document.querySelectorAll('[data-pnl-abrir][aria-expanded="true"]').length }; }, ultimo);
+    ok('G2 tocar na diretoria abre Diretorias e áreas com ela aberta (gerências à vista, só ela) e rola até ela', ab.h1 === 'Diretorias e áreas' && ab.exp === 'true' && ab.ger && ab.visivel && ab.outras === 1, Object.assign({ ultimo }, ab));
+    await foto(x.page, rotulo.slice(0, 3) + '-gaps-diretoria-aberta');
+    const volta = await x.page.getAttribute('#painelConteudo a.avp-voltar-link', 'href');
+    await x.page.click('#painelConteudo a.avp-voltar-link'); await x.page.waitForTimeout(400);
+    ok('G3 "← Voltar ao painel" devolve ao cartão de Gaps, não ao topo', volta === '#painel?foco=bloco-gaps' && await naTela('[data-pnl="bloco-gaps"]') && !!(await x.page.$('[data-pnl="bloco-cobertura"]')), volta);
+    const dec = await x.page.$$eval('[data-pnl-decisao]', (l) => l.map((li) => { const a = li.querySelector('a.pnl-decisao-link'); return { t: li.getAttribute('data-pnl-decisao'), href: a ? a.getAttribute('href') : null, ir: (li.querySelector('.pnl-decisao-ir') || {}).textContent || '', tagCor: getComputedStyle(li.querySelector('.pnl-tag')).color }; }));
+    ok('G4 cada decisão é um cartão-link para a consulta dela, com a etiqueta "Ver … →"; a categoria fica neutra (não ciano)', dec.length > 0 && dec.every((d) => d.href && /^#painel\?v=(capacidade|mobilizacao|ausencias)(&foco=[a-z-]+)?&de=bloco-decisoes$/.test(d.href) && /^Ver .+ →$/.test(d.ir) && d.tagCor !== 'rgb(122, 240, 232)'), dec);
+    for (let i = 0; i < dec.length; i++) {
+      const v = /v=([a-z]+)/.exec(dec[i].href)[1], foco = (/foco=([a-z-]+)/.exec(dec[i].href) || [])[1];
+      await x.page.evaluate((i) => document.querySelectorAll('[data-pnl-decisao] a.pnl-decisao-link')[i].scrollIntoView({ block: 'center' }), i);
+      await x.page.click('[data-pnl-decisao]:nth-child(' + (i + 1) + ') a.pnl-decisao-link'); await x.page.waitForTimeout(400);
+      const h1 = await texto(x.page, '#painelConteudo h1');
+      ok('G5 decisão "' + dec[i].t + '" leva a ' + v + (foco ? ' e mostra o bloco ' + foco : ''), h1 === ({ capacidade: 'Capacidade e calendário', mobilizacao: 'Mobilização', ausencias: 'Ausências e registros de presença' })[v] && (!foco || await naTela('[data-pnl="' + foco + '"]')), { h1, foco });
+      await x.page.click('#painelConteudo a.avp-voltar-link'); await x.page.waitForTimeout(400);
+      ok('G6 voltar da decisão "' + dec[i].t + '" devolve às Decisões', await naTela('[data-pnl="bloco-decisoes"]'));
+    }
+    const pvG = await verificarTela(x.page, { escopo: '#page-painel', largura: ctxOpts.viewport.width, focos: 0 });
+    ok('G7 padrão visual da visão executiva com os links novos', !pvG.length, pvG.slice(0, 3));
+  }
   ok('L2 nenhum erro de JavaScript (admin)', !x.erros.length, x.erros);
   await x.ctx.close();
 

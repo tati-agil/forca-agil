@@ -4815,7 +4815,20 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-decisoes li::before { content: counter(pnld); grid-row: span 3; font-family: var(--font-display); font-size: 1.6rem; line-height: 1; color: var(--gold); }
 .pnl-decisoes b { font-family: var(--font-head); font-weight: 600; font-size: 1rem; }
 .pnl-decisoes span { color: var(--ink-2); font-size: var(--arq-fs-aux); }
-.pnl-decisoes .pnl-tag { margin-top: 6px; font-family: var(--font-mono); font-size: var(--arq-fs-meta); letter-spacing: .05em; color: var(--cyan-soft); }
+/* categoria da decisão: selo neutro (não parece link); o destino, quando existe, vem ao lado em ciano de navegação */
+.pnl-decisoes .pnl-decisao-pe { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-top: 6px; }
+.pnl-decisoes .pnl-tag { font-family: var(--font-mono); font-size: var(--arq-fs-meta); letter-spacing: .05em; color: var(--ink-3); }
+.pnl-decisoes .pnl-decisao-ir { font-family: var(--font-mono); font-size: var(--arq-fs-meta); letter-spacing: .05em; color: var(--cyan); }
+/* decisão com destino: o cartão inteiro é o link (padrão visual §3-A: navegação em ciano; visitado igual ao normal) */
+.pnl-decisoes li.pnl-decisao--link { display: block; padding: 0; transition: border-color .15s, background-color .15s; }
+.pnl-decisoes li.pnl-decisao--link::before { content: none; }
+.pnl-decisao-link, .pnl-decisao-link:visited { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 10px; padding: 12px 14px; border-radius: 12px; color: var(--ink); text-decoration: none; }
+.pnl-decisao-link::before { content: counter(pnld); grid-row: span 3; font-family: var(--font-display); font-size: 1.6rem; line-height: 1; color: var(--gold); }
+.pnl-decisoes li.pnl-decisao--link:hover { border-color: var(--cyan); background-color: rgba(122,240,232,.04); }
+.pnl-decisao-link:hover .pnl-decisao-ir { text-decoration: underline; }
+/* nome da diretoria nos Gaps: link textual (ciano claro, sublinhado no hover) para as gerências dela */
+#page-painel a.pnl-gp-link, #page-painel a.pnl-gp-link:visited { color: var(--cyan-soft); text-decoration: none; }
+#page-painel a.pnl-gp-link:hover { text-decoration: underline; }
 .pnl-consultas { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
 .pnl-consultas .avp-voltar-link { margin: 0; }
 .pnl-barra { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,.06); }
