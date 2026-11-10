@@ -254,8 +254,14 @@
     [0, 25, 50, 75, 100].forEach(function (p) { var y = dy(r.N * p / 100); s += '<line x1="' + x0 + '" y1="' + y + '" x2="' + (W - 30) + '" y2="' + y + '" stroke="rgba(120,160,220,.16)"/><text x="' + (x0 - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + p + '%</text>'; });
     s += '<text x="' + dx(ini) + '" y="250">' + br(ini) + '</text><text x="' + dx(r.hoje) + '" y="250" fill="#eaf1ff">hoje</text><text x="' + dx(fim) + '" y="250" text-anchor="end" fill="#f5c518">' + br(r.prazo) + '</text></g>';
     s += '<line x1="' + x0 + '" y1="' + dy(r.N) + '" x2="' + (W - 30) + '" y2="' + dy(r.N) + '" stroke="#f5c518" stroke-width="2"/><polyline fill="none" stroke="#7ee2a8" stroke-width="3" points="' + pts.map(function (p) { return p.join(','); }).join(' ') + '"/>';
-    if (r.prazo > r.hoje) [[r.realizou + r.potencial, '7 5', 'Com inscritos'], [r.realizou + r.maxPlanejado, '2 4', 'Planejadas'], [r.realizou + r.maxExpansao, '10 3 2 3', 'Com as que cabem']].forEach(function (l) {
-      s += '<line x1="' + dx(r.hoje) + '" y1="' + dy(r.realizou) + '" x2="' + dx(fim) + '" y2="' + dy(l[0]) + '" stroke="#7af0e8" stroke-width="2" stroke-dasharray="' + l[1] + '"/><text x="' + (dx(fim) - 6) + '" y="' + (dy(l[0]) - 6) + '" fill="#7af0e8" font-family="Oswald, sans-serif" font-size="13" text-anchor="end">' + l[2] + ' ' + pct(l[0], r.N) + '</text>'; });
+    if (r.prazo > r.hoje) {
+      var lim = [[r.realizou + r.potencial, '7 5', 'Com inscritos'], [r.realizou + r.maxPlanejado, '2 4', 'Planejadas'], [r.realizou + r.maxExpansao, '10 3 2 3', 'Com as que cabem']];
+      // Rótulos com valores próximos não se sobrepõem: do mais alto para o mais baixo, cada um fica ao menos 15 abaixo do anterior.
+      var rot = lim.map(function (l) { return { y: dy(l[0]) - 6, l: l }; }).sort(function (a, b) { return a.y - b.y; });
+      rot.forEach(function (o, i) { if (i && o.y < rot[i - 1].y + 15) o.y = rot[i - 1].y + 15; });
+      lim.forEach(function (l) { s += '<line x1="' + dx(r.hoje) + '" y1="' + dy(r.realizou) + '" x2="' + dx(fim) + '" y2="' + dy(l[0]) + '" stroke="#7af0e8" stroke-width="2" stroke-dasharray="' + l[1] + '"/>'; });
+      rot.forEach(function (o) { s += '<text data-pnl="evo-rotulo" x="' + (dx(fim) - 6) + '" y="' + o.y + '" fill="#7af0e8" font-family="Oswald, sans-serif" font-size="13" text-anchor="end">' + o.l[2] + ' ' + pct(o.l[0], r.N) + '</text>'; });
+    }
     s += '</svg>';
     return '<article class="pnl-card"><h2>Realizado acumulado e limites até o prazo</h2><div class="table-scroll-wrap">' + s + '</div><p class="pnl-nota">À esquerda de "hoje": o realizado, pela data de conclusão de cada turma. À direita: limites, não tendência — se todas as inscritas realizarem, o teto das turmas planejadas e o teto com as turmas que cabem no calendário.</p></article>';
   }
@@ -299,5 +305,5 @@
 
   function init() { primeiraLeitura(); }
   if (window.faRouter && window.faRouter.onPageInit) window.faRouter.onPageInit('painel', init);
-  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; } };
+  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; }, _evolucao: evolucao };
 })();
