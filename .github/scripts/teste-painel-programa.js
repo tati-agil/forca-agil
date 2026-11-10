@@ -230,6 +230,13 @@ async function admin(browser, ctxOpts) {
   await x.page.waitForSelector('.admin-tab-btn[data-panel="adminPanelPainelPrograma"]', { timeout: 15000 });
   await x.page.click('.admin-tab-btn[data-panel="adminPanelPainelPrograma"]');
   await x.page.waitForSelector('#pnlaConvAdd', { timeout: 10000 });
+  /* sugestões das pessoas cadastradas ao digitar (nome ou e-mail); escolher preenche os dois campos, sem gravar */
+  await x.page.fill('#pnlaConvNome', 'p1');
+  { const sug = await x.page.$$eval('#pnlaConvSug:not([hidden]) [data-sug]', (l) => l.map((e) => e.getAttribute('data-sug')));
+    await x.page.click('#pnlaConvSug [data-sug="p12_previ_com_br"]');
+    const nome = await x.page.inputValue('#pnlaConvNome'), email = await x.page.inputValue('#pnlaConvEmail'), fechou = await x.page.$eval('#pnlaConvSug', (u) => u.hidden);
+    await x.page.fill('#pnlaConvEmail', 'p13'); const porEmail = await x.page.$$eval('#pnlaConvSug:not([hidden]) [data-sug]', (l) => l.map((e) => e.getAttribute('data-sug'))); await x.page.press('#pnlaConvEmail', 'Escape');
+    ok('D0 convidado: ao digitar, sugere quem tem conta no site (pelo nome ou e-mail); escolher preenche nome e e-mail e não grava nada', sug.includes('p1_previ_com_br') && sug.includes('p12_previ_com_br') && sug.length <= 8 && nome === 'P12' && email === 'p12@previ.com.br' && fechou && JSON.stringify(porEmail) === '["p13_previ_com_br"]' && await x.page.$eval('#pnlaConvSug', (u) => u.hidden) &&await x.page.evaluate(() => !(window.__CFG.db['fa-painel-convidados'] || {})['p12_previ_com_br']), { sug, nome, email, fechou, porEmail }); }
   await x.page.fill('#pnlaConvNome', 'Nova Pessoa'); await x.page.evaluate(() => { const i = document.getElementById('pnlaConvEmail'); i.value = 'nova@previ.com.br'; });  /* como colar: o campo completa "@previ.com.br" ao receber o foco */ await x.page.click('#pnlaConvAdd');
   await x.page.waitForTimeout(400);
   ok('D1 incluir convidado grava o registro com a autoria de quem incluiu', await x.page.evaluate(() => { const v = window.__CFG.db['fa-painel-convidados']['nova_previ_com_br']; return !!v && v.addedBy === 'adm@previ.com.br' && v.name === 'NOVA PESSOA'; }), { msg: await texto(x.page, '#pnlaConvMsg'), email: await x.page.inputValue('#pnlaConvEmail').catch(() => '?'), conv: await x.page.evaluate(() => Object.keys(window.__CFG.db['fa-painel-convidados'] || {})) });
