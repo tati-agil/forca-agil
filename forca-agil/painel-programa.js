@@ -253,10 +253,15 @@
     L.forEach(function (l) { var v = function (g) { var x = c[g][l[1]]; return x == null ? 'indeterminado' : x + (l[1] === 'cabem' && x != null && !c[g].cabemExato ? ' (pelo menos)' : ''); }; h += '<tr><td>' + l[0] + '</td>' + ['tecnicos', 'gestores', 'diretores', 'assessores'].map(function (g) { return '<td class="pnl-n">' + ((g === 'diretores' || g === 'assessores') && /necessarias|cabem|abrir|deficitCalendario/.test(l[1]) ? '—' : v(g)) + '</td>'; }).join('') + '</tr>'; });
     var semPrev = ['diretores', 'assessores'].filter(function (g) { return c[g] && c[g].semTurmaPrevista > 0; });
     h += '</tbody></table></div><p class="pnl-nota">Vagas livres = vagas − registros ativos (interesse e inscrição, inclusive de quem está fora da base): nenhuma vaga ocupada no sistema é liberada pelo cálculo. ' + (r.vagasPresas ? r.vagasPresas + ' vagas estão presas por inscrição duplicada.' : '') + ' Diretores e assessores não entram em turma de técnicos nem de gestores: só em turma sem público de cargo; turma extra só é estimada para técnicos e gestores.' + (semPrev.length ? ' <b>Sem turma prevista: ' + semPrev.map(function (g) { return c[g].semTurmaPrevista + ' ' + NOMEG[g]; }).join(' e ') + '.</b>' : '') + '</p></article>';
-    h += '<article class="pnl-card"><h2>Turmas do programa</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Turma</th><th>Datas</th><th>Público</th><th class="pnl-n">Vagas</th><th class="pnl-n">Ocupação</th><th class="pnl-n">Livres</th><th>Situação</th></tr></thead><tbody>' +
+    var sitDe = function (t) { return t.cancelada ? 'cancelada' : t.encerrada ? 'encerrada' : t.passadaAberta ? 'já aconteceu, sem encerrar' : !t.terminaAtePrazo ? 'termina depois do prazo' : t.comecou ? 'em andamento' : 'planejada'; };
+    var pubDe = function (t) { return t.grupo === 'conflito' ? 'em conflito' : t.grupo ? NOMEG[t.grupo] : 'aberto'; };
+    var opcoes = function (vals) { return '<option value="">Todos</option>' + vals.filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); }).map(function (v) { return '<option>' + esc(v) + '</option>'; }).join(''); };
+    var filtro = function (id, rot, campo, vals) { return '<div class="avp-filtro"><label class="avp-filtro-rotulo" for="pnlF' + id + '">' + rot + '</label><select class="avp-select" id="pnlF' + id + '" data-pnl-filtro="' + campo + '">' + opcoes(vals) + '</select></div>'; };
+    h += '<article class="pnl-card" data-pnl="turmas-programa"><h2>Turmas do programa</h2><div class="avp-filters">' + filtro('Ev', 'Evento', 'ev', r.turmas.map(function (t) { return t.evento || '—'; })) + filtro('Pub', 'Público', 'pub', r.turmas.map(pubDe)) + filtro('Sit', 'Situação', 'sit', r.turmas.map(sitDe)) +
+      '</div><p class="pnl-nota" data-pnl="turmas-contagem" aria-live="polite">' + r.turmas.length + ' de ' + r.turmas.length + ' turmas</p><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Evento</th><th>Turma</th><th>Datas</th><th>Público</th><th class="pnl-n">Vagas</th><th class="pnl-n">Ocupação</th><th class="pnl-n">Livres</th><th>Situação</th></tr></thead><tbody>' +
       r.turmas.map(function (t) {
-        var sit = t.cancelada ? 'cancelada' : t.encerrada ? 'encerrada' : t.passadaAberta ? 'já aconteceu, sem encerrar' : !t.terminaAtePrazo ? 'termina depois do prazo' : t.comecou ? 'em andamento' : 'planejada';
-        return '<tr><td>' + esc(t.label) + '</td><td>' + t.dias.map(br).join(', ') + (t.horario ? ' · ' + esc(t.horario) : '') + '</td><td>' + (t.grupo === 'conflito' ? 'em conflito' : t.grupo ? NOMEG[t.grupo] : 'aberto') + '</td><td class="pnl-n">' + (t.vagas || '—') + '</td><td class="pnl-n">' + t.ocupacao + '</td><td class="pnl-n">' + (t.valida ? t.livres : '—') + '</td><td>' + sit + '</td></tr>';
+        var sit = sitDe(t);
+        return '<tr data-ev="' + esc(t.evento || '—') + '" data-pub="' + esc(pubDe(t)) + '" data-sit="' + esc(sit) + '"><td data-pnl="turma-evento">' + esc(t.evento || '—') + '</td><td>' + esc(t.label) + '</td><td>' + t.dias.map(br).join(', ') + (t.horario ? ' · ' + esc(t.horario) : '') + '</td><td>' + (t.grupo === 'conflito' ? 'em conflito' : t.grupo ? NOMEG[t.grupo] : 'aberto') + '</td><td class="pnl-n">' + (t.vagas || '—') + '</td><td class="pnl-n">' + t.ocupacao + '</td><td class="pnl-n">' + (t.valida ? t.livres : '—') + '</td><td>' + sit + '</td></tr>';
       }).join('') + '</tbody></table></div></article>';
     h += calendario(r);
     var al = r.alertas.filter(function (a) { return /paralelismo|horario|indisponivel|vagas|lotacao|conflito|datas/.test(a.tipo); });
@@ -367,6 +372,15 @@
     if (ex) { e.preventDefault(); exportar(ex); return; }
     var a = e.target.closest && e.target.closest('[data-pnl-admin]');
     if (a) { e.preventDefault(); location.hash = '#admin'; setTimeout(function () { var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelPainelPrograma"]'); if (t) t.click(); }, 300); }
+  });
+  /* Filtros da tabela Turmas do programa: só escondem linhas (os números do painel não mudam). */
+  document.addEventListener('change', function (e) {
+    var sel = e.target.closest && e.target.closest('[data-pnl-filtro]'); if (!sel) return;
+    var card = sel.closest('[data-pnl="turmas-programa"]'); if (!card) return;
+    var f = {}; card.querySelectorAll('[data-pnl-filtro]').forEach(function (x) { if (x.value) f[x.getAttribute('data-pnl-filtro')] = x.value; });
+    var linhas = card.querySelectorAll('tbody tr'), vis = 0;
+    linhas.forEach(function (tr) { var ok = Object.keys(f).every(function (k) { return tr.getAttribute('data-' + k) === f[k]; }); tr.hidden = !ok; if (ok) vis++; });
+    var c = card.querySelector('[data-pnl="turmas-contagem"]'); if (c) c.textContent = vis + ' de ' + linhas.length + ' turmas';
   });
   window.addEventListener('hashchange', function () { if (/^#painel/.test(location.hash)) { render(); window.scrollTo(0, 0); } });
   /* A primeira leitura sai assim que o acesso está decidido — a sessão, a lista de admins e o registro de convidado chegam
