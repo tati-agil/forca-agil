@@ -21,7 +21,14 @@
   var COR = { realizou: '#7ee2a8', inscrita: '#7af0e8', interessada: '#5aa0ee', 'sem-engajamento': '#f6be7b', 'sem-cadastro': '#ffa39b' };
   var FATOR = { capacidade: 'Capacidade insuficiente', mobilizacao: 'Mobilização insuficiente', calendario: 'Calendário insuficiente' };
   var NOMEG = { tecnicos: 'técnicos', gestores: 'gestores', diretores: 'diretores', assessores: 'assessores' };
-  var st = { r: null, lidoEm: null, carregando: false, erro: null, base: null };
+  var PUBS = { todos: 'Todos', tecnicos: 'Técnicos', gestores: 'Gestores', diretores: 'Diretores', assessores: 'Assessores' };
+  /* pub = filtro de público (Gaps por diretoria e Diretorias e áreas); ordem = ordem do bloco de gaps. Sobrevivem a "Atualizar dados". */
+  var st = { r: null, lidoEm: null, carregando: false, erro: null, base: null, pub: 'todos', ordem: 'gap' };
+  function recorte(r) { return (r.porPublico && r.porPublico[st.pub]) || r.porPublico.todos; }
+  function filtroPublico() {
+    return '<div class="pnl-ordem" role="group" aria-label="Público" data-pnl="filtro-publico">' + Object.keys(PUBS).map(function (k) {
+      return '<button type="button" class="btn btn--sm" data-pnl-pub="' + k + '" aria-pressed="' + (st.pub === k) + '">' + PUBS[k] + '</button>'; }).join('') + '</div>';
+  }
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -116,13 +123,16 @@
     if (r.qualidade.alertaExecutivo) h += '<div class="pnl-alerta" data-pnl="alerta-qualidade"><b>Registro de presença:</b> ' + r.qualidade.naoVerificaveisPendentes + ' pessoas estão em turma sem check-in completo; a realização delas não pode ser verificada.</div>';
     h += linkVista('mobilizacao', 'Quem falta e em que situação') + '</article>';
     /* 2. viabilidade */
-    var inviavel = r.realizou + r.maxPlanejado < r.meta;
+    /* Veredito em três tons: comporta (verde); depende de ações que cabem no calendário (dourado); depende de decisão sobre
+       prazo ou formato, porque nem o calendário comporta (vermelho). Os números são os mesmos de antes. */
+    var inviavel = r.realizou + r.maxPlanejado < r.meta, tom = !inviavel ? 'ok' : r.fatores.calendario ? 'decisao' : 'acao';
     var frase = r.indeterminado ? 'Não dá para estimar as turmas extras: falta o formato de turma (encontros, horário e vagas). Configure no ADMIN.'
       : r.fatores.calendario ? 'Seriam necessárias ' + nec + ' turmas extras, mas só ' + cabem + ' cabem no calendário até o prazo. Mesmo abrindo todas, ' + semTurma + ' pessoas para a meta ficam sem turma possível.'
-      : inviavel ? 'Faltam ' + (r.meta - r.realizou - r.maxPlanejado) + ' vagas nas turmas planejadas para a meta, mesmo se todas lotarem' + (r.margem ? ' (com a margem de ' + r.margem + ')' : '') + '. ' + (nec === 1 ? 'A turma extra necessária cabe' : 'As ' + nec + ' turmas extras necessárias cabem') + ' no calendário.'
+      : inviavel ? 'Faltam ' + (r.meta - r.realizou - r.maxPlanejado) + ' vagas nas turmas planejadas, mesmo se todas lotarem' + (r.margem ? ' (com a margem de ' + r.margem + ')' : '') + '. ' + (nec === 1 ? 'A turma extra necessária cabe no calendário: atingir a meta depende de abri-la' : 'As ' + nec + ' turmas extras necessárias cabem no calendário: atingir a meta depende de abri-las') + ' e de garantir inscrição e presença.'
       : 'Se todas as turmas planejadas lotarem, elas comportam todo o público pendente. O desafio é inscrever e garantir presença.';
+    var titV = { ok: r.margem ? 'As turmas planejadas comportam a meta' : 'As turmas planejadas comportam 100%', acao: 'Atingir a meta depende de ações', decisao: 'Meta depende de decisão sobre prazo ou formato' }[tom];
     h += '<article class="pnl-card" data-pnl="bloco-viabilidade"><h2>2 · Viabilidade até ' + br(r.prazo) + '</h2>' +
-      '<div class="pnl-veredito' + (inviavel ? '' : ' pnl-veredito--ok') + '"><strong>' + (inviavel ? 'Meta inviável com a capacidade atualmente planejada' : r.margem ? 'As turmas planejadas comportam a meta' : 'As turmas planejadas comportam 100%') + '</strong><span>' + esc(frase) + '</span></div>' +
+      '<div class="pnl-veredito' + (tom === 'decisao' ? '' : ' pnl-veredito--' + tom) + '" data-pnl="veredito" data-tom="' + tom + '"><strong>' + titV + '</strong><span>' + esc(frase) + '</span></div>' +
       '<p class="pnl-premissa" data-pnl="premissa-maximo"><b>Premissa:</b> cenário máximo — todas as turmas planejadas lotam e todos os inscritos comparecem' + (r.realista ? '. O cenário realista está logo abaixo.' : '. Para um cenário mais próximo do real, configure a ocupação esperada em ADMIN › Painel do Programa.') + '</p>' +
       regua(r) + '<p class="pnl-regua-texto">Realizado <b>' + f1(r.pct.realizado) + '%</b> · com as turmas planejadas <b>' + f1(r.pct.maxPlanejado) + '%</b> · com as que cabem no calendário <b>' + f1(r.pct.maxExpansao) + '%</b> · meta ' + f1(r.pctMeta) + '%</p>' +
       (r.realista ? '<p class="pnl-realista" data-pnl="realista"><b>Cenário realista</b> (ocupação esperada de ' + r.realista.ocupacao + '%): chega a <b>' + f1(r.realista.pctEsperado) + '%</b> com as turmas planejadas; faltariam <b>' + r.realista.falta + '</b> pessoas' + (r.realista.falta ? ' · turmas extras: <b>' + (r.realista.turmasExtras == null ? 'indeterminado' : r.realista.turmasExtras) + '</b>' + GRUPOS_TXT(r.realista) : '') + '.</p>' : '') +
@@ -133,19 +143,22 @@
     /* 3. gaps */
     /* Colunas alinhadas, em pessoas e %, com total. Ordem padrão: maior gap em pessoas (onde agir primeiro); o botão troca
        para menor cobertura. Nenhuma diretoria é suprimida. */
+    /* O filtro de público recorta as linhas e o total (faProgramaCobertura.porPublico); o mesmo filtro vale em Diretorias e áreas. */
+    var rec = recorte(r);
     var trilho = function (d) { return '<span class="pnl-trilho" role="img" aria-label="' + f1(d.cobertura) + '% realizado; ' + f1(d.coberturaProjetada) + '% com inscritos e interessados"><span style="width:' + d.cobertura + '%"></span><span class="pnl-trilho-proj" style="width:' + Math.max(0, d.coberturaProjetada - d.cobertura) + '%"></span></span>'; };
-    var linhaGap = function (d, iCob) {
-      return '<div class="pnl-gp" data-pnl-dir="' + esc(d.nome) + '" data-gap="' + d.gap + '" data-ord-cob="' + iCob + '"><span class="pnl-gp-nome">' + esc(d.nome) + '</span>' + trilho(d) +
-        '<span class="pnl-gp-real"><span class="pnl-gp-m">Realizado </span>' + d.realizou + '/' + d.total + ' · ' + f1(d.cobertura) + '%</span><span class="pnl-gp-proj"><span class="pnl-gp-m">Com inscritos e interessados </span>' + f1(d.coberturaProjetada) + '%</span><span class="pnl-gp-gap"><span class="pnl-gp-m">Gap </span><b>' + d.gap + '</b></span></div>';
+    var linhaGap = function (d, iCob, classe, attrs) {
+      return '<div class="pnl-gp' + (classe || '') + '"' + attrs + '><span class="pnl-gp-nome">' + esc(d.nome) + '</span>' + (classe ? '<span></span>' : trilho(d)) +
+        '<span class="pnl-gp-real"><span class="pnl-gp-m">Realizado </span>' + d.realizou + '/' + d.total + ' · ' + (d.total ? f1(d.cobertura) + '%' : '—') + '</span><span class="pnl-gp-proj"><span class="pnl-gp-m">Com inscritos e interessados </span>' + (d.total ? f1(d.coberturaProjetada) + '%' : '—') + '</span><span class="pnl-gp-gap"><span class="pnl-gp-m">Gap </span><b>' + d.gap + '</b></span></div>';
     };
-    var porGap = r.diretorias.map(function (d, iCob) { return { d: d, i: iCob }; }).sort(function (a, b) { return b.d.gap - a.d.gap || a.i - b.i; });
-    h += '<article class="pnl-card" data-pnl="bloco-gaps"><h2>3 · Gaps por diretoria</h2>' +
-      '<div class="pnl-ordem" role="group" aria-label="Ordem das diretorias"><button type="button" class="btn btn--sm" data-pnl-ordem="gap" aria-pressed="true">Por gap (pessoas)</button><button type="button" class="btn btn--sm" data-pnl-ordem="cob" aria-pressed="false">Por cobertura (%)</button></div>' +
+    var ordem = rec.diretorias.map(function (d, iCob) { return { d: d, i: iCob }; });
+    if (st.ordem !== 'cob') ordem.sort(function (a, b) { return b.d.gap - a.d.gap || a.i - b.i; });
+    h += '<article class="pnl-card" data-pnl="bloco-gaps"><h2>3 · Gaps por diretoria</h2>' + filtroPublico() +
+      '<div class="pnl-ordem" role="group" aria-label="Ordem das diretorias">' + [['gap', 'Por gap (pessoas)'], ['cob', 'Por cobertura (%)']].map(function (o) { return '<button type="button" class="btn btn--sm" data-pnl-ordem="' + o[0] + '" aria-pressed="' + ((st.ordem === 'cob') === (o[0] === 'cob')) + '">' + o[1] + '</button>'; }).join('') + '</div>' +
       '<div class="pnl-gps" data-pnl="gaps-linhas"><div class="pnl-gp pnl-gp--cab" aria-hidden="true"><span>Diretoria</span><span></span><span>Realizado</span><span>Com inscritos e interessados</span><span>Gap</span></div>' +
-      porGap.map(function (x) { return linhaGap(x.d, x.i); }).join('') +
-      '<div class="pnl-gp pnl-gp--total" data-pnl="gaps-total"><span class="pnl-gp-nome">Total</span><span></span><span class="pnl-gp-real"><span class="pnl-gp-m">Realizado </span>' + r.realizou + '/' + r.N + ' · ' + pct(r.realizou, r.N) + '</span><span class="pnl-gp-proj"><span class="pnl-gp-m">Com inscritos e interessados </span>' + f1(r.pct.comVaga) + '%</span><span class="pnl-gp-gap"><span class="pnl-gp-m">Gap </span><b>' + r.gapProjetado + '</b></span></div></div>' +
+      ordem.map(function (x) { return linhaGap(x.d, x.i, '', ' data-pnl-dir="' + esc(x.d.nome) + '" data-gap="' + x.d.gap + '" data-ord-cob="' + x.i + '"'); }).join('') +
+      linhaGap(rec.total, 0, ' pnl-gp--total', ' data-pnl="gaps-total"') + '</div>' +
       '<div class="pnl-leg" data-pnl="gaps-legenda"><span><i class="pnl-leg-real"></i>Realizado</span><span><i class="pnl-leg-proj"></i>Inscritos e interessados (se comparecerem)</span><span><i class="pnl-leg-gap"></i>Gap: sem inscrição nem interesse</span></div>' +
-      '<p class="pnl-nota" data-pnl="gaps-exemplo">Gap = pessoas sem inscrição nem interesse: onde mobilizar. "Com inscritos e interessados" = onde a diretoria chega se todos comparecerem.</p>' + linkVista('diretorias', 'Todas as diretorias e gerências') + '</article>';
+      '<p class="pnl-nota" data-pnl="gaps-exemplo">Gap = pessoas sem inscrição nem interesse: onde mobilizar. "Com inscritos e interessados" = onde a diretoria chega se todos comparecerem.</p>' + linkVista('diretorias', 'Todas as diretorias e gerências' + (st.pub === 'todos' ? '' : ' (' + PUBS[st.pub].toLowerCase() + ')')) + '</article>';
     /* 4. decisões */
     h += '<article class="pnl-card" data-pnl="bloco-decisoes"><h2>4 · Decisões necessárias</h2>' + (r.decisoes.length ? '<ol class="pnl-decisoes">' + r.decisoes.map(function (x) {
       return '<li data-pnl-decisao="' + x.tipo + '"><b>' + esc(x.titulo) + '</b><span>' + esc(x.texto) + '</span><span class="pnl-tag">' + esc(x.tag) + '</span></li>'; }).join('') + '</ol>'
@@ -164,8 +177,10 @@
   function bloco(titulo, valor, texto, chave) { return '<div class="pnl-bloco"' + (chave ? ' data-pnl="' + chave + '"' : '') + '><h3>' + esc(titulo) + '</h3><div class="pnl-v">' + valor + '</div><p>' + esc(texto) + '</p></div>'; }
   /* Exportação com nomes: só o ADMIN geral vê o botão (convidados ficam com os números). */
   function podeExportar() { var A = window.faAuth, s = A && A.getSession(); return !!(s && A.isAdmin(s.email)); }
-  function botaoExportar() {
-    return podeExportar() ? '<div class="pnl-exportar"><button type="button" class="btn" data-pnl="exportar">Exportar Excel com os nomes</button><span class="pnl-nota" data-pnl="exportar-msg" role="status"></span></div>' : '';
+  /* pub: recorte da exportação (só Diretorias e áreas passa o filtro de público; as outras consultas exportam todos). */
+  function rotuloExportar(pub) { return 'Exportar Excel com os nomes' + (pub && pub !== 'todos' ? ' (' + PUBS[pub].toLowerCase() + ')' : ''); }
+  function botaoExportar(pub) {
+    return podeExportar() ? '<div class="pnl-exportar"><button type="button" class="btn" data-pnl="exportar" data-pub="' + (pub || 'todos') + '">' + rotuloExportar(pub) + '</button><span class="pnl-nota" data-pnl="exportar-msg" role="status"></span></div>' : '';
   }
   var SIT_NOME = { realizou: 'Realizou', inscrita: 'Inscrita', interessada: 'Interessada', 'sem-engajamento': 'Cadastrada sem engajamento', 'sem-cadastro': 'Sem cadastro' };
   var PUB_NOME = { tecnicos: 'Técnico', gestores: 'Gestor', diretores: 'Diretor', assessores: 'Assessor' };
@@ -177,10 +192,11 @@
     sc.onload = function () { cb(); }; sc.onerror = function () { cb(new Error('falha')); }; document.head.appendChild(sc);
   }
   /* Abas: Todas + uma por categoria do painel. Devolvida pronta para gravar (e conferível nos testes). */
-  function planilhaExportacao(r) {
+  function planilhaExportacao(r, pub) {
     var cab = ['Nome', 'E-mail', 'Diretoria', 'Gerência', 'Público', 'Situação', 'Realizou em', 'Data da realização', 'Inscrição em', 'Interesse em', 'Vaga até o prazo', 'Cabe em vaga livre de', 'Ausências'];
     var linha = function (p) { return [p.nome, p.email, p.diretoria, p.gerencia, PUB_NOME[p.publico] || p.publico, SIT_NOME[p.situacao] || p.situacao, p.realizouEm, p.realizouData ? br(p.realizouData) + '/' + p.realizouData.slice(0, 4) : '', p.inscricoes, p.interesses, p.vagaAtePrazo, p.cabeEmVagaLivre, p.ausencias]; };
-    var so = function (f) { return r.lista.filter(f).map(linha); };
+    var doRecorte = !pub || pub === 'todos' ? r.lista : r.lista.filter(function (p) { return p.publico === pub; });
+    var so = function (f) { return doRecorte.filter(f).map(linha); };
     return [
       ['Todas', so(function () { return true; })],
       ['Sem cadastro', so(function (p) { return p.situacao === 'sem-cadastro'; })],
@@ -193,21 +209,21 @@
     ].map(function (a) { return { nome: a[0], cab: cab, linhas: a[1] }; });
   }
   function exportar(btn) {
-    var msg = document.querySelector('[data-pnl="exportar-msg"]'), r = st.r;
-    var fim = function (t) { btn.disabled = false; btn.textContent = 'Exportar Excel com os nomes'; if (msg) msg.textContent = t || ''; };
+    var msg = document.querySelector('[data-pnl="exportar-msg"]'), r = st.r, pub = btn.getAttribute('data-pub') || 'todos';
+    var fim = function (t) { btn.disabled = false; btn.textContent = rotuloExportar(pub); if (msg) msg.textContent = t || ''; };
     if (!r || !r.lista || !podeExportar()) return;
     btn.disabled = true; btn.textContent = 'Gerando…'; if (msg) msg.textContent = '';
     carregarXlsx(function (erro) {
       if (erro || !window.XLSX) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); return; }
       try {
         var X = window.XLSX, wb = X.utils.book_new();
-        planilhaExportacao(r).forEach(function (a) {
+        planilhaExportacao(r, pub).forEach(function (a) {
           var ws = X.utils.aoa_to_sheet([a.cab].concat(a.linhas));
           ws['!cols'] = a.cab.map(function (c, i) { return { wch: Math.min(48, Math.max.apply(null, [String(c).length + 2].concat(a.linhas.map(function (l) { return String(l[i] == null ? '' : l[i]).length + 2; })))) }; });
           ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: a.linhas.length, c: a.cab.length - 1 } }) };
           X.utils.book_append_sheet(wb, ws, a.nome);
         });
-        X.writeFile(wb, 'painel-programa-pessoas-' + r.hoje + '.xlsx');
+        X.writeFile(wb, 'painel-programa-pessoas-' + (pub === 'todos' ? '' : pub + '-') + r.hoje + '.xlsx');
         fim('Arquivo gerado com os dados lidos em ' + (st.lidoEm ? new Date(st.lidoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—') + '.');
       } catch (e) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); }
     });
@@ -217,20 +233,38 @@
     return p.length ? ' (' + p.join(' e ') + ')' : '';
   }
   function diretorias(r) {
-    var h = '<article class="pnl-card"><h2>Situação por diretoria</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
+    /* Filtro de público (o mesmo do bloco de gaps). Quem pode ver nomes (admin geral) vê cada gerência e, ao tocar nela,
+       as pessoas com a situação; convidados veem só números, com as gerências de menos de 5 pessoas agrupadas. */
+    var rec = recorte(r), nomes = podeExportar(), nCol = 2 + Object.keys(ROT).length + 3;
+    var h = '<article class="pnl-card" data-pnl="diretorias"><h2>Situação por diretoria' + (st.pub === 'todos' ? '' : ' · ' + esc(PUBS[st.pub])) + '</h2>' + filtroPublico() +
+      '<div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
       Object.keys(ROT).map(function (k) { return '<th class="pnl-n">' + ROT[k] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura</th><th class="pnl-n">Projetada (com inscritos e interessados)</th><th class="pnl-n">Gap (pessoas)</th></tr></thead><tbody>';
-    // A mesma linha serve para a diretoria e para cada gerência dela (que abre logo abaixo, com as mesmas colunas).
-    var linha = function (o, nome, attrs) {
-      var cor = o.cobertura < 15 ? 'rgba(255,59,48,.30)' : o.cobertura < 30 ? 'rgba(246,190,123,.25)' : 'rgba(126,226,168,.18)';
-      return '<tr' + attrs + '><td>' + nome + '</td><td class="pnl-n">' + o.total + '</td>' + Object.keys(ROT).map(function (k) { return '<td class="pnl-n">' + o[k] + '</td>'; }).join('') +
-        '<td class="pnl-n" style="background:' + cor + '">' + f1(o.cobertura) + '%</td><td class="pnl-n">' + f1(o.coberturaProjetada) + '%</td><td class="pnl-n">' + o.gap + '</td></tr>';
+    // A mesma linha serve para a diretoria, para cada gerência dela (que abre logo abaixo, com as mesmas colunas) e para o total.
+    var linha = function (o, nome, attrs, neg) {
+      var b = function (x) { return neg ? '<b>' + x + '</b>' : x; };
+      var cor = !o.total || neg ? '' : ' style="background:' + (o.cobertura < 15 ? 'rgba(255,59,48,.30)' : o.cobertura < 30 ? 'rgba(246,190,123,.25)' : 'rgba(126,226,168,.18)') + '"';
+      return '<tr' + attrs + '><td>' + nome + '</td><td class="pnl-n">' + b(o.total) + '</td>' + Object.keys(ROT).map(function (k) { return '<td class="pnl-n">' + b(o[k]) + '</td>'; }).join('') +
+        '<td class="pnl-n"' + cor + '>' + b(o.total ? f1(o.cobertura) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="proj-total"' : '') + '>' + b(o.total ? f1(o.coberturaProjetada) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-total"' : '') + '>' + b(o.gap) + '</td></tr>';
     };
-    r.diretorias.forEach(function (d, i) {
-      h += linha(d, '<button type="button" class="pnl-dir-abrir" data-pnl-abrir="' + i + '" aria-expanded="false"><span aria-hidden="true">▸</span> ' + esc(d.nome) + '</button>', ' class="pnl-dir"');
-      d.gerencias.forEach(function (g) { h += linha(g, '<span class="pnl-ger-nome">' + esc(g.nome) + '</span>', ' class="pnl-ger" data-pnl-ger="' + i + '" hidden'); });
+    var ordemSit = Object.keys(ROT);
+    var pessoasDe = function (dir, ger) {
+      return r.lista.filter(function (p) { return p.diretoria === dir && p.gerencia === ger && (st.pub === 'todos' || p.publico === st.pub); })
+        .sort(function (a, b) { return ordemSit.indexOf(a.situacao) - ordemSit.indexOf(b.situacao) || a.nome.localeCompare(b.nome, 'pt-BR'); });
+    };
+    rec.diretorias.forEach(function (d, i) {
+      var gs = nomes ? d.gerenciasTodas : d.gerencias;
+      h += linha(d, gs.length ? '<button type="button" class="pnl-dir-abrir" data-pnl-abrir="' + i + '" aria-expanded="false"><span aria-hidden="true">▸</span> ' + esc(d.nome) + '</button>' : '<span class="pnl-dir-vazia">' + esc(d.nome) + '</span>', ' class="pnl-dir"');
+      gs.forEach(function (g, j) {
+        if (!nomes) { h += linha(g, '<span class="pnl-ger-nome">' + esc(g.nome) + '</span>', ' class="pnl-ger" data-pnl-ger="' + i + '" hidden'); return; }
+        var id = i + '-' + j, ps = pessoasDe(d.nome, g.nome);
+        h += linha(g, '<button type="button" class="pnl-ger-nome pnl-ger-abrir" data-pnl-nomes="' + id + '" aria-expanded="false"><span aria-hidden="true">▸</span> ' + esc(g.nome) + '</button>', ' class="pnl-ger" data-pnl-ger="' + i + '" hidden');
+        h += '<tr class="pnl-nomes" data-pnl-nomes-de="' + id + '" data-pnl-nomes-dir="' + i + '" hidden><td colspan="' + nCol + '"><ul class="pnl-nomes-lista">' + ps.map(function (p) {
+          return '<li data-sit="' + p.situacao + '"><span>' + esc(p.nome || p.email) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(SIT_NOME[p.situacao] || p.situacao) + (p.inscricoes || p.interesses ? ' · ' + esc(p.inscricoes || p.interesses) : '') + '</span></li>'; }).join('') + '</ul></td></tr>';
+      });
     });
-    h += '<tr><td><b>Total</b></td><td class="pnl-n"><b>' + r.N + '</b></td>' + Object.keys(ROT).map(function (k) { return '<td class="pnl-n"><b>' + r.porSit[k] + '</b></td>'; }).join('') + '<td class="pnl-n"><b>' + pct(r.realizou, r.N) + '</b></td><td class="pnl-n" data-pnl="proj-total"><b>' + f1(r.pct.comVaga) + '%</b></td><td class="pnl-n" data-pnl="gap-total"><b>' + r.gapProjetado + '</b></td></tr></tbody></table></div>' +
-      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público. Projetada = realizados + inscritos e interessados com vaga numa turma que termina até o prazo, se comparecerem com a frequência mínima (interesse ainda precisa da confirmação; inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Gap = público − projetados. Toque na diretoria para ver as gerências, com as mesmas colunas; gerências com menos de 5 pessoas aparecem agrupadas.</p></article>';
+    h += linha(rec.total, '<b>Total</b>', '', true) + '</tbody></table></div>' +
+      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público' + (st.pub === 'todos' ? '' : ' de ' + PUBS[st.pub].toLowerCase()) + '. Projetada = realizados + inscritos e interessados com vaga numa turma que termina até o prazo, se comparecerem com a frequência mínima (interesse ainda precisa da confirmação; inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Gap = público − projetados. Toque na diretoria para ver as gerências, com as mesmas colunas' +
+      (nomes ? '; toque na gerência para ver as pessoas e a situação de cada uma.' : '; gerências com menos de 5 pessoas aparecem agrupadas.') + '</p>' + botaoExportar(st.pub) + '</article>';
     return h;
   }
   function mobilizacao(r) {
@@ -394,15 +428,19 @@
     var sim = e.target.closest && e.target.closest('[data-pnl-sim]');
     if (sim) { var cal = sim.closest('[data-pnl="calendario"]'), sem = sim.getAttribute('data-pnl-sim') === 'sem'; if (cal) { cal.classList.toggle('pnl-cal--sem-sim', sem); cal.querySelectorAll('[data-pnl-sim]').forEach(function (b) { b.setAttribute('aria-pressed', (b.getAttribute('data-pnl-sim') === 'sem') === sem ? 'true' : 'false'); }); } return; }
     var ab = e.target.closest && e.target.closest('[data-pnl-abrir]');
-    if (ab) { var aberto = ab.getAttribute('aria-expanded') !== 'true'; ab.setAttribute('aria-expanded', aberto ? 'true' : 'false'); ab.firstChild.textContent = aberto ? '▾' : '▸'; document.querySelectorAll('[data-pnl-ger="' + ab.getAttribute('data-pnl-abrir') + '"]').forEach(function (tr) { tr.hidden = !aberto; }); return; }
-    var ord = e.target.closest && e.target.closest('[data-pnl-ordem]');
-    if (ord) {
-      var bloco = ord.closest('[data-pnl="bloco-gaps"]'), modo = ord.getAttribute('data-pnl-ordem'); if (!bloco) return;
-      var cont = bloco.querySelector('[data-pnl="gaps-linhas"]'), tot = cont.querySelector('[data-pnl="gaps-total"]');
-      [].slice.call(cont.querySelectorAll('[data-pnl-dir]')).sort(function (a, b) { var ia = +a.getAttribute('data-ord-cob'), ib = +b.getAttribute('data-ord-cob'); return modo === 'cob' ? ia - ib : (+b.getAttribute('data-gap')) - (+a.getAttribute('data-gap')) || ia - ib; }).forEach(function (el) { cont.insertBefore(el, tot); });
-      bloco.querySelectorAll('[data-pnl-ordem]').forEach(function (b) { b.setAttribute('aria-pressed', b === ord ? 'true' : 'false'); });
+    if (ab) {
+      var aberto = ab.getAttribute('aria-expanded') !== 'true', di = ab.getAttribute('data-pnl-abrir'); ab.setAttribute('aria-expanded', aberto ? 'true' : 'false'); ab.firstChild.textContent = aberto ? '▾' : '▸';
+      document.querySelectorAll('[data-pnl-ger="' + di + '"]').forEach(function (tr) { tr.hidden = !aberto; });
+      /* fechar a diretoria fecha também os nomes abertos das gerências dela */
+      if (!aberto) { document.querySelectorAll('[data-pnl-nomes-dir="' + di + '"]').forEach(function (tr) { tr.hidden = true; }); document.querySelectorAll('[data-pnl-ger="' + di + '"] [data-pnl-nomes]').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); b.firstChild.textContent = '▸'; }); }
       return;
     }
+    var nb = e.target.closest && e.target.closest('[data-pnl-nomes]');
+    if (nb) { var ab2 = nb.getAttribute('aria-expanded') !== 'true', lin = document.querySelector('[data-pnl-nomes-de="' + nb.getAttribute('data-pnl-nomes') + '"]'); nb.setAttribute('aria-expanded', ab2 ? 'true' : 'false'); nb.firstChild.textContent = ab2 ? '▾' : '▸'; if (lin) lin.hidden = !ab2; return; }
+    var pb = e.target.closest && e.target.closest('[data-pnl-pub]');
+    if (pb) { st.pub = pb.getAttribute('data-pnl-pub'); render(); return; }
+    var ord = e.target.closest && e.target.closest('[data-pnl-ordem]');
+    if (ord) { st.ordem = ord.getAttribute('data-pnl-ordem'); render(); return; }
     var ex = e.target.closest && e.target.closest('[data-pnl="exportar"]');
     if (ex) { e.preventDefault(); exportar(ex); return; }
     var a = e.target.closest && e.target.closest('[data-pnl-admin]');
@@ -430,5 +468,5 @@
 
   function init() { primeiraLeitura(); }
   if (window.faRouter && window.faRouter.onPageInit) window.faRouter.onPageInit('painel', init);
-  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; }, _evolucao: evolucao, _planilha: function () { return st.r ? planilhaExportacao(st.r) : null; } };
+  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; }, _evolucao: evolucao, _planilha: function (pub) { return st.r ? planilhaExportacao(st.r, pub) : null; } };
 })();
