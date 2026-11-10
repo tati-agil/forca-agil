@@ -138,6 +138,7 @@ async function rodada(browser, rotulo, ctxOpts) {
     await x.page.evaluate((v) => { location.hash = '#painel?v=' + v; }, v);
     await x.page.waitForTimeout(250);
     const h1 = await texto(x.page, '#painelConteudo h1');
+    if (v === 'mobilizacao') { const pl = await x.page.evaluate(() => window.faPainelPrograma._planilha()); const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r); const n = (nome) => (pl.find((a) => a.nome === nome) || { linhas: [] }).linhas.length; ok('X1 admin vê "Exportar Excel com os nomes"; abas = números do painel (Todas, cada situação, faltaram)', await x.page.isVisible('[data-pnl="exportar"]') && n('Todas') === rp.N && n('Sem cadastro') === rp.porSit['sem-cadastro'] && n('Cadastradas sem engajamento') === rp.porSit['sem-engajamento'] && n('Interessadas sem inscrição') === rp.porSit.interessada && n('Inscritas sem realização') === rp.porSit.inscrita && n('Realizaram') === rp.realizou && n('Faltaram e seguem pendentes') === rp.ausencias.pendentes && pl.every((a) => a.cab[0] === 'Nome' && a.cab[1] === 'E-mail'), pl.map((a) => [a.nome, a.linhas.length])); const [dl] = await Promise.all([x.page.waitForEvent('download', { timeout: 15000 }), x.page.click('[data-pnl="exportar"]')]); ok('X2 o clique baixa o arquivo .xlsx e avisa com o horário dos dados', /^painel-programa-pessoas-\d{4}-\d{2}-\d{2}\.xlsx$/.test(dl.suggestedFilename()) && /Arquivo gerado/.test(await texto(x.page, '[data-pnl="exportar-msg"]')), dl.suggestedFilename()); }
     await foto(x.page, rotulo.slice(0, 3) + '-' + v);
     if (v === 'capacidade') { const tf = r.turmas.find((t) => t.key === 'tf'); const qts = await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--t', (l) => l.filter((e) => /Turma F/.test(e.textContent)).map((e) => e.querySelector('[data-pnl="cal-ocupacao"]').textContent)); ok('C capacidade: calendário mostra interessados + inscritos / vagas da turma (= núcleo)', qts.length === 2 && qts.every((q) => q === tf.ocupacao + '/' + tf.vagas), [qts, tf.ocupacao, tf.vagas]); }
     if (v === 'capacidade') { const canc = await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--cancel', (l) => l.map((e) => [e.textContent, getComputedStyle(e).textDecorationLine])); ok('C capacidade: turma cancelada aparece no calendário riscada e com legenda própria', canc.length === 1 && canc[0][0] === 'Cancelada · Turma C' && /line-through/.test(canc[0][1]) && !!(await x.page.$('[data-pnl="leg-cancelada"]')) && !(await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--t', (l) => l.some((e) => /Turma C/.test(e.textContent)))), canc); }
@@ -158,6 +159,9 @@ async function rodada(browser, rotulo, ctxOpts) {
   await esperarPainel(x);
   ok('A3 convidado vê o painel com os mesmos números', (await texto(x.page, '[data-pnl="realizou"]')) === String(esperado(db).realizou));
   ok('A4 convidado não vê o ADMIN', await x.page.evaluate(() => document.getElementById('navAdmin').hidden));
+  await x.page.evaluate(() => { location.hash = '#painel?v=mobilizacao'; }); await x.page.waitForTimeout(250);
+  ok('A4b convidado não vê o botão de exportar com nomes', !(await x.page.$('[data-pnl="exportar"]')) && !!(await x.page.$('[data-pnl="bloco-gaps"], #painelConteudo h1')));
+  await x.page.evaluate(() => { location.hash = '#painel'; }); await x.page.waitForTimeout(250);
   ok('A5 convidado não grava nada ao abrir e atualizar', await x.page.evaluate(() => !(window.__ESCRITAS || []).some((w) => /^(programa|fa-painel)/.test(w.path))));
   await x.ctx.close();
   /* A: convidado com leitura lenta: não é expulso enquanto não se sabe */

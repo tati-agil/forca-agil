@@ -149,6 +149,56 @@
     return s + '</div>';
   }
   function bloco(titulo, valor, texto, chave) { return '<div class="pnl-bloco"' + (chave ? ' data-pnl="' + chave + '"' : '') + '><h3>' + esc(titulo) + '</h3><div class="pnl-v">' + valor + '</div><p>' + esc(texto) + '</p></div>'; }
+  /* Exportação com nomes: só o ADMIN geral vê o botão (convidados ficam com os números). */
+  function podeExportar() { var A = window.faAuth, s = A && A.getSession(); return !!(s && A.isAdmin(s.email)); }
+  function botaoExportar() {
+    return podeExportar() ? '<div class="pnl-exportar"><button type="button" class="btn" data-pnl="exportar">Exportar Excel com os nomes</button><span class="pnl-nota" data-pnl="exportar-msg" role="status"></span></div>' : '';
+  }
+  var SIT_NOME = { realizou: 'Realizou', inscrita: 'Inscrita', interessada: 'Interessada', 'sem-engajamento': 'Cadastrada sem engajamento', 'sem-cadastro': 'Sem cadastro' };
+  var PUB_NOME = { tecnicos: 'Técnico', gestores: 'Gestor', diretores: 'Diretor', assessores: 'Assessor' };
+  function carregarXlsx(cb) {
+    if (window.XLSX) { cb(); return; }
+    var src = 'forca-agil/xlsx.mini.min.js', ex = document.querySelector('script[data-avp-lib="' + src + '"]');
+    if (ex) { ex.addEventListener('load', function () { cb(); }); ex.addEventListener('error', function () { cb(new Error('falha')); }); return; }
+    var sc = document.createElement('script'); sc.src = src; sc.setAttribute('data-avp-lib', src);
+    sc.onload = function () { cb(); }; sc.onerror = function () { cb(new Error('falha')); }; document.head.appendChild(sc);
+  }
+  /* Abas: Todas + uma por categoria do painel. Devolvida pronta para gravar (e conferível nos testes). */
+  function planilhaExportacao(r) {
+    var cab = ['Nome', 'E-mail', 'Diretoria', 'Gerência', 'Público', 'Situação', 'Realizou em', 'Data da realização', 'Inscrição em', 'Interesse em', 'Vaga até o prazo', 'Cabe em vaga livre de', 'Ausências'];
+    var linha = function (p) { return [p.nome, p.email, p.diretoria, p.gerencia, PUB_NOME[p.publico] || p.publico, SIT_NOME[p.situacao] || p.situacao, p.realizouEm, p.realizouData ? br(p.realizouData) + '/' + p.realizouData.slice(0, 4) : '', p.inscricoes, p.interesses, p.vagaAtePrazo, p.cabeEmVagaLivre, p.ausencias]; };
+    var so = function (f) { return r.lista.filter(f).map(linha); };
+    return [
+      ['Todas', so(function () { return true; })],
+      ['Sem cadastro', so(function (p) { return p.situacao === 'sem-cadastro'; })],
+      ['Cadastradas sem engajamento', so(function (p) { return p.situacao === 'sem-engajamento'; })],
+      ['Interessadas sem inscrição', so(function (p) { return p.situacao === 'interessada'; })],
+      ['Inscritas sem realização', so(function (p) { return p.situacao === 'inscrita'; })],
+      ['Realizaram', so(function (p) { return p.situacao === 'realizou'; })],
+      ['Faltaram e seguem pendentes', so(function (p) { return p.faltouPendente; })],
+      ['Com ausência (histórico)', so(function (p) { return !!p.ausencias; })]
+    ].map(function (a) { return { nome: a[0], cab: cab, linhas: a[1] }; });
+  }
+  function exportar(btn) {
+    var msg = document.querySelector('[data-pnl="exportar-msg"]'), r = st.r;
+    var fim = function (t) { btn.disabled = false; btn.textContent = 'Exportar Excel com os nomes'; if (msg) msg.textContent = t || ''; };
+    if (!r || !r.lista || !podeExportar()) return;
+    btn.disabled = true; btn.textContent = 'Gerando…'; if (msg) msg.textContent = '';
+    carregarXlsx(function (erro) {
+      if (erro || !window.XLSX) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); return; }
+      try {
+        var X = window.XLSX, wb = X.utils.book_new();
+        planilhaExportacao(r).forEach(function (a) {
+          var ws = X.utils.aoa_to_sheet([a.cab].concat(a.linhas));
+          ws['!cols'] = a.cab.map(function (c, i) { return { wch: Math.min(48, Math.max.apply(null, [String(c).length + 2].concat(a.linhas.map(function (l) { return String(l[i] == null ? '' : l[i]).length + 2; })))) }; });
+          ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: a.linhas.length, c: a.cab.length - 1 } }) };
+          X.utils.book_append_sheet(wb, ws, a.nome);
+        });
+        X.writeFile(wb, 'painel-programa-pessoas-' + r.hoje + '.xlsx');
+        fim('Arquivo gerado com os dados lidos em ' + (st.lidoEm ? new Date(st.lidoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—') + '.');
+      } catch (e) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); }
+    });
+  }
   function diretorias(r) {
     var h = '<article class="pnl-card"><h2>Situação por diretoria</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
       Object.keys(ROT).map(function (k) { return '<th class="pnl-n">' + ROT[k] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura</th><th class="pnl-n">Projetada (com inscritos e interessados)</th><th class="pnl-n">Gap (pessoas)</th></tr></thead><tbody>';
@@ -174,7 +224,7 @@
       bloco('Interessadas sem inscrição', r.porSit.interessada, 'Interesse ativo numa turma do programa, sem confirmação. Há ' + r.vagasLivres + ' vagas livres até o prazo.') +
       bloco('Inscritas sem realização', r.porSit.inscrita, r.potencial + ' em turmas que terminam até o prazo e ainda podem realizar.') +
       bloco('Faltaram e seguem pendentes', a.pendentes, a.pendentesComNovaInscricao + ' delas já têm nova inscrição.') +
-      '</div><p class="pnl-nota">A lista de espera não entra em nenhum número do painel.</p></article>';
+      '</div><p class="pnl-nota">A lista de espera não entra em nenhum número do painel.</p>' + botaoExportar() + '</article>';
   }
   function ausencias(r) {
     var a = r.ausencias, q = r.qualidade;
@@ -194,7 +244,7 @@
       bloco('Recuperadas', a.recuperadas, 'Faltaram e depois realizaram; a falta continua no histórico.', 'aus-recuperadas') + bloco('Ainda pendentes', a.pendentes, a.pendentesComNovaInscricao + ' com nova inscrição.', 'aus-pendentes') + '</div>';
     if (r.ausenciasPorTurma.length) h += '<div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Turma</th><th class="pnl-n">Ausências</th><th>Registro de presença</th></tr></thead><tbody>' +
       r.ausenciasPorTurma.map(function (x) { return '<tr><td>' + esc(x.turma) + '</td><td class="pnl-n">' + x.ausencias + '</td><td>' + ({ completo: 'completo', parcial: 'incompleto', 'sem-registro': 'sem check-in' }[x.qualidade] || '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
-    return h + '</article>';
+    return h + botaoExportar() + '</article>';
   }
   function capacidade(r) {
     var c = r.cap, h = '<article class="pnl-card"><h2>Do déficit de vagas ao déficit de calendário</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th></th><th class="pnl-n">Técnicos</th><th class="pnl-n">Gestores</th><th class="pnl-n">Diretores</th><th class="pnl-n">Assessores</th></tr></thead><tbody>';
@@ -307,6 +357,8 @@
     if (b && $('page-painel') && !$('page-painel').hidden) { e.preventDefault(); atualizar(); return; }
     var ab = e.target.closest && e.target.closest('[data-pnl-abrir]');
     if (ab) { var aberto = ab.getAttribute('aria-expanded') !== 'true'; ab.setAttribute('aria-expanded', aberto ? 'true' : 'false'); ab.firstChild.textContent = aberto ? '▾' : '▸'; document.querySelectorAll('[data-pnl-ger="' + ab.getAttribute('data-pnl-abrir') + '"]').forEach(function (tr) { tr.hidden = !aberto; }); return; }
+    var ex = e.target.closest && e.target.closest('[data-pnl="exportar"]');
+    if (ex) { e.preventDefault(); exportar(ex); return; }
     var a = e.target.closest && e.target.closest('[data-pnl-admin]');
     if (a) { e.preventDefault(); location.hash = '#admin'; setTimeout(function () { var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelPainelPrograma"]'); if (t) t.click(); }, 300); }
   });
@@ -323,5 +375,5 @@
 
   function init() { primeiraLeitura(); }
   if (window.faRouter && window.faRouter.onPageInit) window.faRouter.onPageInit('painel', init);
-  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; }, _evolucao: evolucao };
+  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; }, _evolucao: evolucao, _planilha: function () { return st.r ? planilhaExportacao(st.r) : null; } };
 })();
