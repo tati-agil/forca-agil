@@ -235,15 +235,18 @@
   function diretorias(r) {
     /* Filtro de público (o mesmo do bloco de gaps). Quem pode ver nomes (admin geral) vê cada gerência e, ao tocar nela,
        as pessoas com a situação; convidados veem só números, com as gerências de menos de 5 pessoas agrupadas. */
-    var rec = recorte(r), nomes = podeExportar(), nCol = 2 + Object.keys(ROT).length + 3;
+    /* colunas de situação: inscrita e interessada somadas numa só (as duas ainda precisam comparecer; a soma fecha o público) */
+    var COLS = [['realizou', 'Realizou'], ['insInt', 'Inscrita ou interessada'], ['sem-engajamento', 'Cadastrada sem engajamento'], ['sem-cadastro', 'Sem cadastro']];
+    var val = function (o, c) { return c === 'insInt' ? o.inscrita + o.interessada : o[c]; };
+    var rec = recorte(r), nomes = podeExportar(), nCol = 2 + COLS.length + 3;
     var h = '<article class="pnl-card" data-pnl="diretorias"><h2>Situação por diretoria' + (st.pub === 'todos' ? '' : ' · ' + esc(PUBS[st.pub])) + '</h2>' + filtroPublico() +
       '<div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
-      Object.keys(ROT).map(function (k) { return '<th class="pnl-n">' + ROT[k] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura</th><th class="pnl-n">Projetada (com inscritos e interessados)</th><th class="pnl-n">Gap (pessoas)</th></tr></thead><tbody>';
+      COLS.map(function (c) { return '<th class="pnl-n">' + c[1] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura (realizado)</th><th class="pnl-n" title="Com inscritos e interessados">Projetada</th><th class="pnl-n" title="Pessoas sem inscrição nem interesse">Gap</th></tr></thead><tbody>';
     // A mesma linha serve para a diretoria, para cada gerência dela (que abre logo abaixo, com as mesmas colunas) e para o total.
     var linha = function (o, nome, attrs, neg) {
       var b = function (x) { return neg ? '<b>' + x + '</b>' : x; };
       var cor = !o.total || neg ? '' : ' style="background:' + (o.cobertura < 15 ? 'rgba(255,59,48,.30)' : o.cobertura < 30 ? 'rgba(246,190,123,.25)' : 'rgba(126,226,168,.18)') + '"';
-      return '<tr' + attrs + '><td>' + nome + '</td><td class="pnl-n">' + b(o.total) + '</td>' + Object.keys(ROT).map(function (k) { return '<td class="pnl-n">' + b(o[k]) + '</td>'; }).join('') +
+      return '<tr' + attrs + '><td>' + nome + '</td><td class="pnl-n">' + b(o.total) + '</td>' + COLS.map(function (c) { return '<td class="pnl-n">' + b(val(o, c[0])) + '</td>'; }).join('') +
         '<td class="pnl-n"' + cor + '>' + b(o.total ? f1(o.cobertura) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="proj-total"' : '') + '>' + b(o.total ? f1(o.coberturaProjetada) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-total"' : '') + '>' + b(o.gap) + '</td></tr>';
     };
     var ordemSit = Object.keys(ROT);
