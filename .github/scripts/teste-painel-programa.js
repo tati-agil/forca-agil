@@ -116,6 +116,7 @@ async function rodada(browser, rotulo, ctxOpts) {
   ok('N4 os quatro blocos', (await x.page.$$('[data-pnl^="bloco-"]')).length === 4);
   ok('N5 decisões = as do núcleo (no máximo três, na mesma ordem)', JSON.stringify(await x.page.$$eval('[data-pnl-decisao]', (l) => l.map((e) => e.getAttribute('data-pnl-decisao')))) === JSON.stringify(r.decisoes.map((d) => d.tipo)));
   ok('N7 principais gaps: legenda das três cores e exemplo de leitura com a primeira diretoria do núcleo', (await x.page.$$('[data-pnl="gaps-legenda"] i')).length === 3 && (await texto(x.page, '[data-pnl="gaps-exemplo"]')).startsWith('Como ler: ' + r.diretorias[0].nome + ' tem') && (await texto(x.page, '[data-pnl="gaps-exemplo"]')).includes('faltariam ' + r.diretorias[0].gap), await texto(x.page, '[data-pnl="gaps-exemplo"]'));
+  ok('N8 gaps por diretoria: todas as diretorias do núcleo aparecem, nenhuma suprimida', (await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir]')).length === r.diretorias.length && r.diretorias.length > 0, [(await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir]')).length, r.diretorias.length]);
   ok('N6 horário da leitura exibido', /Dados lidos em \d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}/.test(await texto(x.page, '[data-pnl="lido"]')));
   ok('L1 sem rolagem lateral (visão executiva)', await semRolagem(x.page));
   await foto(x.page, rotulo.slice(0, 3) + '-executiva');
