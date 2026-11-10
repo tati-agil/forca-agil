@@ -454,7 +454,21 @@
       texto: (aus.pendentes - aus.pendentesComNovaInscricao) + ' pessoas faltaram e ainda não têm nova inscrição.' });
     if (vagasPresas > 0) dec.push({ tipo: 'duplicadas', tag: 'VAGAS', titulo: 'Liberar vagas presas por inscrição duplicada', texto: vagasPresas + ' vagas estão ocupadas por pessoas que já têm outra vaga até o prazo.' });
 
+    /* ---------- lista por pessoa (para a exportação; quem pode ver nomes é decisão da tela) ---------- */
+    var rotT = {}; listaT.forEach(function (t) { rotT[t.key] = t.label; });
+    var nomesT = function (ks) { return ks.map(function (x) { return rotT[x] || x; }).join('; '); };
+    var lista = pessoas.map(function (p) {
+      return { nome: (base[p.k] || {}).nome || '', email: p.email, diretoria: p.diretoria, gerencia: p.gerencia, publico: p.grupo, situacao: p.situacao, cadastro: p.cadastro,
+        realizouEm: p.realizou ? (rotT[p.realizou.turma] || p.realizou.turma) : '', realizouData: p.realizou ? p.realizou.data || '' : '',
+        inscricoes: nomesT(p.inscricoes), interesses: nomesT(p.interesses),
+        vagaAtePrazo: p.vaga ? (rotT[p.vaga] || p.vaga) + (p.vagaConfirmada ? ' (inscrição)' : ' (interesse)') : '',
+        cabeEmVagaLivre: !p.vaga && p.alocavel ? (rotT[p.alocavel] || p.alocavel) : '',
+        ausencias: p.ausencias.map(function (a) { return (rotT[a.turma] || a.turma) + (a.tipo === 'nao-compareceu' ? ' (não compareceu)' : ' (frequência insuficiente)'); }).join('; '),
+        faltouPendente: p.ausencias.length > 0 && p.situacao !== 'realizou' };
+    }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR') || (a.email < b.email ? -1 : 1); });
+
     return {
+      lista: lista,
       hoje: hoje, prazo: prazo, N: N, margem: margem, meta: meta, faltamParaMeta: Math.max(0, meta - porSit.realizou), metaAtingida: porSit.realizou >= meta && N > 0,
       pctMeta: N ? Math.round(meta / N * 1000) / 10 : 0, composicao: composicao, excluidosFacilitadores: excluidosFacil, pendencias: pendencias, alertas: alertas, inconsistencias: inconsistencias,
       porSit: porSit, porGrupo: porGrupo, realizou: real, pendentes: pend.length,
