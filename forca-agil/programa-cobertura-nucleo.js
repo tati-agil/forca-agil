@@ -145,7 +145,7 @@
       var ck = checkin[k] || {};
       var diasComRegistro = dias.filter(function (dd) { return ck[dd] && Object.keys(ck[dd]).length; });
       var x = {
-        key: k, label: t.label || k, eventoKey: t.eventoKey, evento: ev.nome || '', dias: dias, ini: minutos(t.horarioInicio), fim: minutos(t.horarioFim),
+        key: k, label: t.label || k, eventoKey: t.eventoKey, evento: ev.nome || '', publico: ev.publicoDesc || '', dias: dias, ini: minutos(t.horarioInicio), fim: minutos(t.horarioFim),
         horario: t.horarioInicio && t.horarioFim ? t.horarioInicio + '–' + t.horarioFim : '', vagas: U.vagasEfetivas(t, ev) || 0, pctMin: pctMin,
         cargo: cargo, grupo: grupo, cancelada: U.turmaCancelada(cfg), encerrada: !!cfg.encerrada && !U.turmaCancelada(cfg),
         primeiro: dias[0], ultimo: dias[dias.length - 1], conclusao: cfg.dataConclusao || dias[dias.length - 1],
@@ -495,7 +495,7 @@
       cap: cap, formatos: formatos, encaixe: encaixe, uteis: uteis, primeiraData: primeiraData, indisponiveis: indisp, limites: { tecnicos: lim.tecnicos, gestores: lim.gestores }, antecedencia: antecedencia,
       fatores: fatores, principal: principal, combinado: nFat >= 2, indeterminado: indeterminado,
       diretorias: diretorias, ausencias: aus, ausenciasPorTurma: ausPorTurma, qualidade: qualidade, evolucao: evolucao, decisoes: dec.slice(0, 3),
-      turmas: listaT.map(function (t) { return { key: t.key, label: t.label, evento: t.evento, grupo: t.grupo, dias: t.dias, horario: t.horario, vagas: t.vagas, ocupacao: t.ocupacao, inscritos: t.inscritosAtivos,
+      turmas: listaT.map(function (t) { return { key: t.key, label: t.label, evento: t.evento, publico: t.publico, grupo: t.grupo, dias: t.dias, horario: t.horario, vagas: t.vagas, ocupacao: t.ocupacao, inscritos: t.inscritosAtivos,
         livres: livres[t.key] || 0, valida: validas.indexOf(t) !== -1, cancelada: t.cancelada, encerrada: t.encerrada, passadaAberta: t.passadaAberta, terminaAtePrazo: t.terminaAtePrazo, comecou: t.comecou, qualidade: t.qualidade }; })
     };
   }

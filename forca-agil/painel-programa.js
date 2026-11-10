@@ -262,14 +262,14 @@
     var semPrev = ['diretores', 'assessores'].filter(function (g) { return c[g] && c[g].semTurmaPrevista > 0; });
     h += '</tbody></table></div><p class="pnl-nota">Vagas livres = vagas − registros ativos (interesse e inscrição, inclusive de quem está fora da base): nenhuma vaga ocupada no sistema é liberada pelo cálculo. ' + (r.vagasPresas ? r.vagasPresas + ' vagas estão presas por inscrição duplicada.' : '') + ' Diretores e assessores não entram em turma de técnicos nem de gestores: só em turma sem público de cargo; turma extra só é estimada para técnicos e gestores.' + (semPrev.length ? ' <b>Sem turma prevista: ' + semPrev.map(function (g) { return c[g].semTurmaPrevista + ' ' + NOMEG[g]; }).join(' e ') + '.</b>' : '') + '</p></article>';
     var sitDe = function (t) { return t.cancelada ? 'cancelada' : t.encerrada ? 'encerrada' : t.passadaAberta ? 'já aconteceu, sem encerrar' : !t.terminaAtePrazo ? 'termina depois do prazo' : t.comecou ? 'em andamento' : 'planejada'; };
-    var pubDe = function (t) { return t.grupo === 'conflito' ? 'em conflito' : t.grupo ? NOMEG[t.grupo] : 'aberto'; };
+    var pubDe = function (t) { return t.grupo === 'conflito' ? 'em conflito' : t.publico || (t.grupo ? NOMEG[t.grupo] : '—'); };   /* o próprio parâmetro do evento (Público-alvo); a restrição de cargo vem dele */
     var opcoes = function (vals) { return '<option value="">Todos</option>' + vals.filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); }).map(function (v) { return '<option>' + esc(v) + '</option>'; }).join(''); };
     var filtro = function (id, rot, campo, vals) { return '<div class="avp-filtro"><label class="avp-filtro-rotulo" for="pnlF' + id + '">' + rot + '</label><select class="avp-select" id="pnlF' + id + '" data-pnl-filtro="' + campo + '">' + opcoes(vals) + '</select></div>'; };
     h += '<article class="pnl-card" data-pnl="turmas-programa"><h2>Turmas do programa</h2><div class="avp-filters">' + filtro('Ev', 'Evento', 'ev', r.turmas.map(function (t) { return t.evento || '—'; })) + filtro('Pub', 'Público', 'pub', r.turmas.map(pubDe)) + filtro('Sit', 'Situação', 'sit', r.turmas.map(sitDe)) +
       '</div><p class="pnl-nota" data-pnl="turmas-contagem" aria-live="polite">' + r.turmas.length + ' de ' + r.turmas.length + ' turmas</p><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Evento</th><th>Turma</th><th>Datas</th><th>Público</th><th class="pnl-n">Vagas</th><th class="pnl-n">Ocupação</th><th class="pnl-n">Livres</th><th>Situação</th></tr></thead><tbody>' +
       r.turmas.map(function (t) {
         var sit = sitDe(t);
-        return '<tr data-ev="' + esc(t.evento || '—') + '" data-pub="' + esc(pubDe(t)) + '" data-sit="' + esc(sit) + '"><td data-pnl="turma-evento">' + esc(t.evento || '—') + '</td><td>' + esc(t.label) + '</td><td>' + t.dias.map(br).join(', ') + (t.horario ? ' · ' + esc(t.horario) : '') + '</td><td>' + (t.grupo === 'conflito' ? 'em conflito' : t.grupo ? NOMEG[t.grupo] : 'aberto') + '</td><td class="pnl-n">' + (t.vagas || '—') + '</td><td class="pnl-n">' + t.ocupacao + '</td><td class="pnl-n">' + (t.valida ? t.livres : '—') + '</td><td>' + sit + '</td></tr>';
+        return '<tr data-ev="' + esc(t.evento || '—') + '" data-pub="' + esc(pubDe(t)) + '" data-sit="' + esc(sit) + '"><td data-pnl="turma-evento">' + esc(t.evento || '—') + '</td><td>' + esc(t.label) + '</td><td>' + t.dias.map(br).join(', ') + (t.horario ? ' · ' + esc(t.horario) : '') + '</td><td>' + esc(pubDe(t)) + '</td><td class="pnl-n">' + (t.vagas || '—') + '</td><td class="pnl-n">' + t.ocupacao + '</td><td class="pnl-n">' + (t.valida ? t.livres : '—') + '</td><td>' + sit + '</td></tr>';
       }).join('') + '</tbody></table></div></article>';
     h += calendario(r);
     var al = r.alertas.filter(function (a) { return /paralelismo|horario|indisponivel|vagas|lotacao|conflito|datas/.test(a.tipo); });
@@ -316,7 +316,9 @@
     });
     ['tecnicos', 'gestores'].forEach(function (g) { (r.cap[g].turmasAbrir || []).forEach(function (dias, i) { dias.forEach(function (d) { m(d, 'Nova ' + (g === 'gestores' ? 'G' : 'T') + (i + 1), g === 'gestores' ? 'pnl-t--ng' : 'pnl-t--nt'); }); }); });
     var ini = new Date(+r.primeiraData.slice(0, 4), +r.primeiraData.slice(5, 7) - 1, +r.primeiraData.slice(8)); ini.setDate(ini.getDate() - ((ini.getDay() + 6) % 7));
-    var h = '<article class="pnl-card"><h2>Calendário útil até ' + br(r.prazo) + ' (simulação)</h2><div class="table-scroll-wrap"><div class="pnl-cal">' + ['seg', 'ter', 'qua', 'qui', 'sex'].map(function (x) { return '<div class="pnl-cal-cab">' + x + '</div>'; }).join('');
+    var h = '<article class="pnl-card" data-pnl="calendario"><h2>Calendário útil até ' + br(r.prazo) + ' (simulação)</h2>' +
+      '<div class="pnl-cal-visao" role="group" aria-label="Turmas simuladas no calendário"><button type="button" class="btn btn--sm" data-pnl-sim="com" aria-pressed="true">Com simulação</button><button type="button" class="btn btn--sm" data-pnl-sim="sem" aria-pressed="false">Sem simulação</button></div>' +
+      '<div class="table-scroll-wrap"><div class="pnl-cal">' + ['seg', 'ter', 'qua', 'qui', 'sex'].map(function (x) { return '<div class="pnl-cal-cab">' + x + '</div>'; }).join('');
     for (var x = new Date(ini); ; x.setDate(x.getDate() + 1)) {
       var w = x.getDay(), iso = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
       if (iso > r.prazo && w === 1) break;
@@ -324,7 +326,7 @@
       var ind = r.indisponiveis[iso], fora = iso < r.primeiraData || iso > r.prazo;
       h += '<div class="pnl-dia' + (ind ? ' pnl-dia--ind' : '') + (fora ? ' pnl-dia--fora' : '') + '"><b>' + br(iso) + '</b>' + (ind ? '<span class="pnl-nota">' + esc(ind) + '</span>' : '') + (marca[iso] || []).join('') + '</div>';
     }
-    return h + '</div></div><div class="pnl-leg"><span><i class="pnl-t--t"></i>Turma de técnicos</span><span><i class="pnl-t--g"></i>Turma de gestores</span><span><i class="pnl-t--nt"></i>Nova de técnicos (simulada)</span><span><i class="pnl-t--ng"></i>Nova de gestores (simulada)</span><span><i class="pnl-dia--ind"></i>Dia sem expediente</span><span><b class="pnl-t-qt">18/20</b>&nbsp;interessados + inscritos / vagas (só no 1º encontro; "2º de 5" = mesma turma, mesmas pessoas)</span>' + (temCancelada ? '<span data-pnl="leg-cancelada"><i class="pnl-t--cancel"></i>Turma cancelada (não conta)</span>' : '') + '</div></article>';
+    return h + '</div></div><div class="pnl-leg"><span><i class="pnl-t--t"></i>Turma de técnicos</span><span><i class="pnl-t--g"></i>Turma de gestores</span><span class="pnl-leg-sim"><i class="pnl-t--nt"></i>Nova de técnicos (simulada)</span><span class="pnl-leg-sim"><i class="pnl-t--ng"></i>Nova de gestores (simulada)</span><span><i class="pnl-dia--ind"></i>Dia sem expediente</span><span><b class="pnl-t-qt">18/20</b>&nbsp;interessados + inscritos / vagas (só no 1º encontro; "2º de 5" = mesma turma, mesmas pessoas)</span>' + (temCancelada ? '<span data-pnl="leg-cancelada"><i class="pnl-t--cancel"></i>Turma cancelada (não conta)</span>' : '') + '</div></article>';
   }
   function evolucao(r) {
     if (!r.evolucao.length) return '<article class="pnl-card"><h2>Realizado acumulado</h2><p class="pnl-nota">Ainda não há turma encerrada com realização.</p></article>';
@@ -374,6 +376,8 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-pnl="atualizar"]');
     if (b && $('page-painel') && !$('page-painel').hidden) { e.preventDefault(); atualizar(); return; }
+    var sim = e.target.closest && e.target.closest('[data-pnl-sim]');
+    if (sim) { var cal = sim.closest('[data-pnl="calendario"]'), sem = sim.getAttribute('data-pnl-sim') === 'sem'; if (cal) { cal.classList.toggle('pnl-cal--sem-sim', sem); cal.querySelectorAll('[data-pnl-sim]').forEach(function (b) { b.setAttribute('aria-pressed', (b.getAttribute('data-pnl-sim') === 'sem') === sem ? 'true' : 'false'); }); } return; }
     var ab = e.target.closest && e.target.closest('[data-pnl-abrir]');
     if (ab) { var aberto = ab.getAttribute('aria-expanded') !== 'true'; ab.setAttribute('aria-expanded', aberto ? 'true' : 'false'); ab.firstChild.textContent = aberto ? '▾' : '▸'; document.querySelectorAll('[data-pnl-ger="' + ab.getAttribute('data-pnl-abrir') + '"]').forEach(function (tr) { tr.hidden = !aberto; }); return; }
     var ex = e.target.closest && e.target.closest('[data-pnl="exportar"]');
