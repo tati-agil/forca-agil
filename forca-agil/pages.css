@@ -4862,6 +4862,14 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-dir-abrir span { display: inline-block; width: 1em; color: var(--cyan-soft); }
 .pnl-dir-abrir:hover { color: var(--cyan-soft); }
 .pnl-tabela tr.pnl-ger td { background: rgba(122,240,232,.04); color: var(--ink-2); }
+/* Situação por diretoria: as 10 colunas cabem no cartão do computador (padding menor, títulos curtos que quebram em
+   linhas); quando ainda não cabem (celular), a coluna Diretoria fica presa à esquerda enquanto a tabela rola de lado. */
+#page-painel [data-pnl="diretorias"] .pnl-tabela th, #page-painel [data-pnl="diretorias"] .pnl-tabela td { padding-left: 8px; padding-right: 8px; }
+#page-painel [data-pnl="diretorias"] .pnl-tabela th.pnl-n { max-width: 11ch; white-space: normal; }
+#page-painel [data-pnl="diretorias"] .pnl-tabela tr > :first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); box-shadow: 1px 0 0 var(--line); }
+#page-painel [data-pnl="diretorias"] .pnl-tabela thead tr > :first-child { z-index: 3; background: var(--panel-2); }
+#page-painel [data-pnl="diretorias"] .pnl-tabela tr.pnl-ger > :first-child { background: color-mix(in srgb, var(--panel) 96%, #7af0e8); }
+#page-painel [data-pnl="diretorias"] .pnl-tabela tr.pnl-nomes > :first-child { position: static; box-shadow: none; }
 .pnl-ger-nome { display: block; padding-left: 1.4em; }
 /* Admin geral: a gerência abre as pessoas (nome e situação). A lista fica presa à esquerda da tabela que rola de lado, para
    caber na tela do celular sem rolar junto com as colunas. */
