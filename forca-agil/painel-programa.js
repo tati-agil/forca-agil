@@ -213,7 +213,7 @@
     s += '</div><div class="pnl-leg">'; Object.keys(ROT).forEach(function (k) { s += '<span><i style="background:' + COR[k] + '"></i>' + ROT[k] + ' <b>' + r.porSit[k] + '</b></span>'; });
     return s + '</div>';
   }
-  function bloco(titulo, valor, texto, chave) { return '<div class="pnl-bloco"' + (chave ? ' data-pnl="' + chave + '"' : '') + '><h3>' + esc(titulo) + '</h3><div class="pnl-v">' + valor + '</div><p>' + esc(texto) + '</p></div>'; }
+  function bloco(titulo, valor, texto, chave, extra) { return '<div class="pnl-bloco"' + (chave ? ' data-pnl="' + chave + '"' : '') + '><h3>' + esc(titulo) + '</h3><div class="pnl-v">' + valor + '</div><p>' + esc(texto) + '</p>' + (extra || '') + '</div>'; }
   /* Exportação com nomes: só o ADMIN geral vê o botão (convidados ficam com os números). */
   function podeExportar() { var A = window.faAuth, s = A && A.getSession(); return !!(s && A.isAdmin(s.email)); }
   /* pub: recorte da exportação (só Diretorias e áreas passa o filtro de público; as outras consultas exportam todos). */
@@ -241,7 +241,7 @@
       ['Sem cadastro', so(function (p) { return p.situacao === 'sem-cadastro'; })],
       ['Cadastradas sem engajamento', so(function (p) { return p.situacao === 'sem-engajamento'; })],
       ['Interessadas sem inscrição', so(function (p) { return p.situacao === 'interessada'; })],
-      ['Inscritas sem realização', so(function (p) { return p.situacao === 'inscrita'; })],
+      ['Inscritas, ainda não realizaram', so(function (p) { return p.situacao === 'inscrita'; })],
       ['Realizaram', so(function (p) { return p.situacao === 'realizou'; })],
       ['Faltaram e seguem pendentes', so(function (p) { return p.faltouPendente; })],
       ['Com ausência (histórico)', so(function (p) { return !!p.ausencias; })]
@@ -309,15 +309,37 @@
       (nomes ? '; toque na gerência para ver as pessoas e a situação de cada uma.' : '; gerências com menos de 5 pessoas aparecem agrupadas.') + '</p>' + botaoExportar(st.pub) + '</article>';
     return h;
   }
+  /* Mobilização: cada número leva às pessoas dele (só admin geral, como a exportação; convidados ficam com os números).
+     Os mesmos critérios das abas da exportação, para a lista e o Excel nunca divergirem. */
+  var MOB = {
+    'sem-cadastro': ['Sem cadastro', function (p) { return p.situacao === 'sem-cadastro'; }],
+    'sem-engajamento': ['Cadastradas sem engajamento', function (p) { return p.situacao === 'sem-engajamento'; }],
+    interessada: ['Interessadas sem inscrição', function (p) { return p.situacao === 'interessada'; }],
+    inscrita: ['Inscritas, ainda não realizaram', function (p) { return p.situacao === 'inscrita'; }],
+    faltou: ['Faltaram e seguem pendentes', function (p) { return p.faltouPendente; }]
+  };
+  function verPessoas(cat, n) {
+    return podeExportar() && n ? '<button type="button" class="pnl-ver-pessoas" data-pnl-ver="' + cat + '" aria-expanded="false" aria-controls="pnlMobLista">' + (n === 1 ? 'Ver a pessoa' : 'Ver as ' + n + ' pessoas') + ' <span aria-hidden="true">▸</span></button>' : '';
+  }
+  function listaMob(cat) {
+    var r = st.r, m = MOB[cat]; if (!r || !r.lista || !m || !podeExportar()) return '';
+    var ps = r.lista.filter(m[1]).sort(function (a, b) { return (a.diretoria || '').localeCompare(b.diretoria || '', 'pt-BR') || (a.gerencia || '').localeCompare(b.gerencia || '', 'pt-BR') || (a.nome || a.email || '').localeCompare(b.nome || b.email || '', 'pt-BR'); });
+    return '<h3>' + esc(m[0]) + ' · ' + ps.length + (ps.length === 1 ? ' pessoa' : ' pessoas') + '</h3><p class="pnl-nota">Por diretoria e gerência. A mesma lista está na aba "' + esc(m[0]) + '" do Excel.</p>' +
+      '<ul class="pnl-nomes-lista pnl-nomes-lista--mob">' + ps.map(function (p) {
+        var det = [p.diretoria, p.gerencia].filter(function (x) { return x && x !== '—'; }).join(' · ') || 'sem diretoria e gerência na base';
+        var turma = p.inscricoes || p.interesses;
+        return '<li data-sit="' + p.situacao + '"><span>' + esc(p.nome || p.email) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(det) + (turma ? ' · ' + esc(turma) : '') + (cat === 'faltou' ? ' · ' + esc(SIT_NOME[p.situacao] || p.situacao) : '') + '</span></li>'; }).join('') + '</ul>';
+  }
   function mobilizacao(r) {
     var a = r.ausencias;
     return '<article class="pnl-card"><h2>Pendentes por situação</h2>' + barraSituacoes(r) + '<div class="pnl-blocos">' +
-      bloco('Sem cadastro', r.porSit['sem-cadastro'], 'Estão na base oficial e não têm cadastro com o mesmo e-mail. Não prova desconhecimento do programa: pede investigação e comunicação.', 'mob-sem-cadastro') +
-      bloco('Cadastradas sem engajamento', r.porSit['sem-engajamento'], 'Têm cadastro, nenhum interesse nem inscrição ativos, e nunca realizaram.') +
-      bloco('Interessadas sem inscrição', r.porSit.interessada, 'Interesse ativo numa turma do programa, sem confirmação. Há ' + r.vagasLivres + ' vagas livres até o prazo.', 'mob-interessada') +
-      bloco('Inscritas sem realização', r.porSit.inscrita, r.potencial + ' em turmas que terminam até o prazo e ainda podem realizar.') +
-      bloco('Faltaram e seguem pendentes', a.pendentes, a.pendentesComNovaInscricao + ' delas já têm nova inscrição.') +
-      '</div><p class="pnl-nota">A lista de espera não entra em nenhum número do painel.</p>' + botaoExportar() + '</article>';
+      bloco('Sem cadastro', r.porSit['sem-cadastro'], 'Estão na base oficial e não têm cadastro com o mesmo e-mail. Não prova desconhecimento do programa: pede investigação e comunicação.', 'mob-sem-cadastro', verPessoas('sem-cadastro', r.porSit['sem-cadastro'])) +
+      bloco('Cadastradas sem engajamento', r.porSit['sem-engajamento'], 'Têm cadastro, nenhum interesse nem inscrição ativos, e nunca realizaram.', '', verPessoas('sem-engajamento', r.porSit['sem-engajamento'])) +
+      bloco('Interessadas sem inscrição', r.porSit.interessada, 'Interesse ativo numa turma do programa, sem confirmação. Há ' + r.vagasLivres + ' vagas livres até o prazo.', 'mob-interessada', verPessoas('interessada', r.porSit.interessada)) +
+      bloco('Inscritas, ainda não realizaram', r.porSit.inscrita, r.potencial + ' em turmas que terminam até o prazo e ainda podem realizar.', '', verPessoas('inscrita', r.porSit.inscrita)) +
+      bloco('Faltaram e seguem pendentes', a.pendentes, a.pendentesComNovaInscricao + ' delas já têm nova inscrição.', '', verPessoas('faltou', a.pendentes)) +
+      '</div>' + (podeExportar() ? '<div class="pnl-mob-lista" id="pnlMobLista" data-pnl="mob-lista" role="region" aria-label="Pessoas da situação escolhida" hidden></div>' : '') +
+      '<p class="pnl-nota">A lista de espera não entra em nenhum número do painel.</p>' + botaoExportar() + '</article>';
   }
   function ausencias(r) {
     var a = r.ausencias, q = r.qualidade;
@@ -480,6 +502,18 @@
     }
     var nb = e.target.closest && e.target.closest('[data-pnl-nomes]');
     if (nb) { var ab2 = nb.getAttribute('aria-expanded') !== 'true', lin = document.querySelector('[data-pnl-nomes-de="' + nb.getAttribute('data-pnl-nomes') + '"]'); nb.setAttribute('aria-expanded', ab2 ? 'true' : 'false'); nb.firstChild.textContent = ab2 ? '▾' : '▸'; if (lin) lin.hidden = !ab2; return; }
+    var vp = e.target.closest && e.target.closest('[data-pnl-ver]');
+    if (vp) {
+      /* um cartão aberto por vez: abrir outro troca a lista; tocar no aberto fecha */
+      var painel = document.querySelector('[data-pnl="mob-lista"]'), abrir = vp.getAttribute('aria-expanded') !== 'true';
+      document.querySelectorAll('[data-pnl-ver]').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); b.lastChild.textContent = '▸'; });
+      if (!painel) return;
+      if (!abrir) { painel.hidden = true; painel.innerHTML = ''; return; }
+      vp.setAttribute('aria-expanded', 'true'); vp.lastChild.textContent = '▾';
+      painel.innerHTML = listaMob(vp.getAttribute('data-pnl-ver')); painel.hidden = false;
+      if (painel.scrollIntoView) painel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      return;
+    }
     var pb = e.target.closest && e.target.closest('[data-pnl-pub]');
     if (pb) { st.pub = pb.getAttribute('data-pnl-pub'); render(); return; }
     var ord = e.target.closest && e.target.closest('[data-pnl-ordem]');
