@@ -263,6 +263,15 @@ console.log('\n== I. diagnóstico, expansão, conferências e decisões ==');
   ok('I16 lista por pessoa: uma linha por pessoa do público, com nome da base, e as situações batem com os números do painel', r.lista.length === r.N && sits.every((x) => r.lista.filter((p) => p.situacao === x).length === r.porSit[x]) && r.lista.every((p) => typeof p.nome === 'string' && p.nome && p.email && p.diretoria) && r.lista.filter((p) => p.faltouPendente).length === r.ausencias.pendentes, r.lista.map((p) => [p.nome, p.situacao]));
   ok('I17 lista em ordem de nome; vaga até o prazo diz se é inscrição ou interesse', r.lista.every((p, i, a) => !i || a[i - 1].nome.localeCompare(p.nome, 'pt-BR') <= 0) && r.lista.filter((p) => p.vagaAtePrazo).length === r.comVaga && r.lista.filter((p) => / \((inscrição|interesse)\)$/.test(p.vagaAtePrazo)).length === r.comVaga);
   ok('I9 gerência com menos de 5 pessoas fica agrupada', r.diretorias.every((d) => d.gerencias.every((g) => g.total >= 5 || g.agrupada)));
+  {
+    const PUB = ['tecnicos', 'gestores', 'diretores', 'assessores'], pp = r.porPublico, nomesD = r.diretorias.map((d) => d.nome).sort();
+    ok('I18 recorte por público: "todos" é a mesma tabela do painel; cada público tem todas as diretorias; os públicos somam o programa em todas as colunas',
+      pp.todos.diretorias === r.diretorias && pp.todos.total.gap === r.gapProjetado && pp.todos.total.realizou === r.realizou && pp.todos.total.total === r.N &&
+      PUB.every((g) => JSON.stringify(pp[g].diretorias.map((d) => d.nome).sort()) === JSON.stringify(nomesD) && pp[g].total.total === r.porGrupo[g].total && pp[g].total.realizou === r.porGrupo[g].realizou) &&
+      cols.every((c) => PUB.reduce((a, g) => a + pp[g].total[c], 0) === pp.todos.total[c]), PUB.map((g) => [g, pp[g].total.total, pp[g].total.gap]));
+    ok('I19 gerenciasTodas: cada gerência sem agrupar, somando a diretoria em todas as colunas, em qualquer recorte; diretoria sem ninguém do recorte fica com 0 e por último',
+      ['todos'].concat(PUB).every((g) => pp[g].diretorias.every((d, i, a) => !d.gerenciasTodas.some((x) => x.agrupada) && cols.every((c) => d.gerenciasTodas.reduce((s, x) => s + x[c], 0) === d[c]) && (d.total || a.slice(i).every((y) => !y.total)))));
+  }
   r = calc(cenario((E) => { delete E.programa.prazo; }));
   ok('I10 sem prazo: pendência de configuração, sem número inventado', r.pendencias.indexOf('prazo') !== -1 && r.uteis.length === 0);
   r = calc(cenario((E) => { E.base.pessoas = {}; }));

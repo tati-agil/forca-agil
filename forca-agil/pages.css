@@ -4764,6 +4764,9 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-veredito span { color: var(--ink); font-size: var(--arq-fs-aux); }
 .pnl-veredito--ok { background: rgba(126,226,168,.08); border-color: rgba(126,226,168,.5); }
 .pnl-veredito--ok strong { color: #7ee2a8; }
+/* depende de ações que cabem no calendário: atenção, não impossibilidade */
+.pnl-veredito--acao { background: rgba(245,197,24,.07); border-color: rgba(245,197,24,.5); }
+.pnl-veredito--acao strong { color: var(--gold); }
 .pnl-regua { width: 100%; height: auto; display: block; }
 .pnl-linha { display: flex; flex-wrap: wrap; gap: 6px 24px; color: var(--ink-2); font-size: var(--arq-fs-aux); margin-top: 8px; }
 .pnl-linha b { color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -4778,6 +4781,10 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-ordem { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .pnl-ordem .btn { flex: 0 1 auto; width: auto; }
 .pnl-ordem .btn[aria-pressed="true"] { border-color: var(--gold); color: var(--ink); }
+/* filtro de público: cinco opções compactas em grade (no celular, 2 por linha em vez de uma por linha) */
+.pnl-ordem[data-pnl="filtro-publico"] { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.pnl-ordem[data-pnl="filtro-publico"] .btn { width: 100%; justify-content: center; text-align: center; min-height: 36px; padding: 6px 4px; letter-spacing: .04em; font-size: var(--arq-fs-meta); }
+@media (max-width: 600px) { .pnl-ordem[data-pnl="filtro-publico"] { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .pnl-gps { display: grid; gap: 8px; font-variant-numeric: tabular-nums; }
 .pnl-gp { display: grid; grid-template-columns: minmax(3.5em, auto) minmax(48px, 1fr) auto auto 2.6em; gap: 10px; align-items: center; font-size: var(--arq-fs-aux); color: var(--ink-2); }
 .pnl-gp > span:nth-child(n+3) { text-align: right; }
@@ -4856,6 +4863,17 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-dir-abrir:hover { color: var(--cyan-soft); }
 .pnl-tabela tr.pnl-ger td { background: rgba(122,240,232,.04); color: var(--ink-2); }
 .pnl-ger-nome { display: block; padding-left: 1.4em; }
+/* Admin geral: a gerência abre as pessoas (nome e situação). A lista fica presa à esquerda da tabela que rola de lado, para
+   caber na tela do celular sem rolar junto com as colunas. */
+.pnl-ger-abrir { background: none; border: 0; font: inherit; color: var(--ink-2); cursor: pointer; text-align: left; white-space: nowrap; }
+.pnl-ger-abrir span { display: inline-block; width: 1em; color: var(--cyan-soft); }
+.pnl-ger-abrir:hover { color: var(--cyan-soft); }
+.pnl-dir-vazia { color: var(--ink-2); white-space: nowrap; }
+.pnl-tabela tr.pnl-nomes td { background: rgba(122,240,232,.02); padding-top: 4px; padding-bottom: 10px; }
+.pnl-nomes-lista { position: sticky; left: 0; max-width: min(100%, calc(100vw - 64px)); list-style: none; margin: 0; padding: 0 0 0 2.4em; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
+.pnl-nomes-lista li { display: flex; flex-direction: column; gap: 2px; color: var(--ink); font-size: var(--arq-fs-aux); }
+.pnl-nomes-sit { border-left: 3px solid; padding-left: 6px; color: var(--ink-2); font-size: var(--arq-fs-meta); }
+@media (max-width: 600px) { .pnl-nomes-lista { padding-left: .6em; grid-template-columns: minmax(0, 1fr); } }
 .pnl-evo-leg span { display: inline-flex; align-items: center; gap: 6px; }
 .pnl-evo-amostra { width: 34px; height: 10px; flex: none; }
 @media (max-width: 900px) { .pnl-grade { grid-template-columns: minmax(0, 1fr); } }

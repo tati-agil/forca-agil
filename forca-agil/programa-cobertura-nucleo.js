@@ -416,18 +416,30 @@
       o.projetados = o.realizou + o.inscritosValidos + o.interessadosValidos; o.coberturaProjetada = pct1(o.projetados, o.total); o.gap = o.total - o.projetados;
       return o;
     };
-    var dirs = {};
-    pessoas.forEach(function (p) {
-      var o = dirs[p.diretoria] = dirs[p.diretoria] || Object.assign(novoCont(p.diretoria), { ger: {} });
-      conta(o, p); conta(o.ger[p.gerencia] = o.ger[p.gerencia] || novoCont(p.gerencia), p);
-    });
-    var diretorias = Object.keys(dirs).map(function (k) {
-      var o = fecha(dirs[k]);
-      var gs = Object.keys(o.ger).map(function (x) { return o.ger[x]; }), grandes = gs.filter(function (x) { return x.total >= 5; }), peq = gs.filter(function (x) { return x.total < 5; });
-      o.gerencias = grandes.sort(function (a, b) { return a.nome < b.nome ? -1 : 1; }).map(fecha);
-      if (peq.length) { var outras = novoCont('Outras (gerências com menos de 5 pessoas)'); peq.forEach(function (x) { CONTAS.forEach(function (c) { outras[c] += x[c]; }); }); outras.agrupada = true; o.gerencias.push(fecha(outras)); }
-      delete o.ger; return o;
-    }).sort(function (a, b) { return a.cobertura - b.cobertura || b.pendentes - a.pendentes || (a.nome < b.nome ? -1 : 1); });
+    /* Agrega um recorte do público por diretoria e gerência. Todas as diretorias da base aparecem em qualquer recorte (as
+       sem ninguém do recorte ficam com total 0, no fim). gerencias = as com menos de 5 pessoas agrupadas (o que os
+       convidados veem); gerenciasTodas = cada gerência, sem agrupar (para quem pode ver nomes — decisão da tela). */
+    var nomesDirs = {}; pessoas.forEach(function (p) { nomesDirs[p.diretoria] = 1; });
+    var agregar = function (recorte) {
+      var dirs = {}, total = novoCont('Total');
+      Object.keys(nomesDirs).forEach(function (k) { dirs[k] = Object.assign(novoCont(k), { ger: {} }); });
+      recorte.forEach(function (p) {
+        var o = dirs[p.diretoria]; conta(total, p);
+        conta(o, p); conta(o.ger[p.gerencia] = o.ger[p.gerencia] || novoCont(p.gerencia), p);
+      });
+      var ds = Object.keys(dirs).map(function (k) {
+        var o = fecha(dirs[k]), porNome = function (a, b) { return a.nome < b.nome ? -1 : 1; };
+        var gs = Object.keys(o.ger).map(function (x) { return o.ger[x]; }), grandes = gs.filter(function (x) { return x.total >= 5; }), peq = gs.filter(function (x) { return x.total < 5; });
+        o.gerenciasTodas = gs.slice().sort(porNome).map(fecha);
+        o.gerencias = grandes.sort(porNome);
+        if (peq.length) { var outras = novoCont('Outras (gerências com menos de 5 pessoas)'); peq.forEach(function (x) { CONTAS.forEach(function (c) { outras[c] += x[c]; }); }); outras.agrupada = true; o.gerencias.push(fecha(outras)); }
+        delete o.ger; return o;
+      }).sort(function (a, b) { return (!a.total) - (!b.total) || a.cobertura - b.cobertura || b.pendentes - a.pendentes || (a.nome < b.nome ? -1 : 1); });
+      return { total: fecha(total), diretorias: ds };
+    };
+    var porPublico = { todos: agregar(pessoas) };
+    PUBLICOS.forEach(function (g) { porPublico[g] = agregar(pessoas.filter(function (p) { return p.grupo === g; })); });
+    var diretorias = porPublico.todos.diretorias;
 
     /* ---------- ausências e qualidade ---------- */
     var aus = { ocorrencias: 0, naoCompareceu: 0, frequenciaInsuficiente: 0, pessoas: 0, recuperadas: 0, pendentes: 0, pendentesComNovaInscricao: 0 };
@@ -462,6 +474,7 @@
     if (real + maxPlanejado > N || real + maxExpansao > N || real + potencial > N) inconsistencias.push('projecao-acima-do-publico');
     if (potencial > maxPlanejado || maxPlanejado > maxExpansao) inconsistencias.push('ordem-das-projecoes');
     if (diretorias.reduce(function (s, d) { return s + d.total; }, 0) !== N) inconsistencias.push('soma-das-diretorias');
+    if (PUBLICOS.reduce(function (s, g) { return s + porPublico[g].total.total; }, 0) !== N || porPublico.todos.total.gap !== N - porSit.realizou - comVaga) inconsistencias.push('soma-dos-recortes-por-publico');
 
     /* ---------- decisões (no máximo três, nesta prioridade) ---------- */
     var R = function (v) { return (Math.round(v * 10) / 10).toFixed(1).replace('.', ','); };
@@ -514,7 +527,7 @@
       potencial: potencial, comVaga: comVaga, gapProjetado: N - porSit.realizou - comVaga, maxPlanejado: maxPlanejado, maxExpansao: maxExpansao, deficitVagas: deficitVagas, vagasLivres: vagasLivresTotal, vagasPresas: vagasPresas,
       cap: cap, formatos: formatos, encaixe: encaixe, uteis: uteis, primeiraData: primeiraData, indisponiveis: indisp, limites: { tecnicos: lim.tecnicos, gestores: lim.gestores }, facilitacao: compart ? { disponiveis: disp, tecnicos: custoDe('tecnicos'), gestores: custoDe('gestores'), aberta: custoDe(null) } : null, antecedencia: antecedencia,
       fatores: fatores, principal: principal, combinado: nFat >= 2, indeterminado: indeterminado,
-      diretorias: diretorias, ausencias: aus, ausenciasPorTurma: ausPorTurma, qualidade: qualidade, evolucao: evolucao, decisoes: dec.slice(0, 3),
+      diretorias: diretorias, porPublico: porPublico, ausencias: aus, ausenciasPorTurma: ausPorTurma, qualidade: qualidade, evolucao: evolucao, decisoes: dec.slice(0, 3),
       turmas: listaT.map(function (t) { return { key: t.key, label: t.label, evento: t.evento, publico: t.publico, grupo: t.grupo, dias: t.dias, horario: t.horario, vagas: t.vagas, ocupacao: t.ocupacao, inscritos: t.inscritosAtivos,
         livres: livres[t.key] || 0, valida: validas.indexOf(t) !== -1, cancelada: t.cancelada, encerrada: t.encerrada, passadaAberta: t.passadaAberta, terminaAtePrazo: t.terminaAtePrazo, comecou: t.comecou, qualidade: t.qualidade }; })
     };
