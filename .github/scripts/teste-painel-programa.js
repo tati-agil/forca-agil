@@ -236,11 +236,32 @@ async function rodada(browser, rotulo, ctxOpts) {
       const botoes = await x.page.$$eval('[data-pnl-ver]', (l) => l.map((b) => [b.getAttribute('data-pnl-ver'), b.textContent]));
       ok('MB1 cada cartão com número maior que zero tem "Ver as N pessoas" com o número do cartão', botoes.length > 0 && botoes.length === Object.values(espera).filter(Boolean).length && botoes.every(([c, t]) => espera[c] && (espera[c] === 1 ? /^Ver a pessoa/.test(t) : t.startsWith('Ver as ' + espera[c] + ' pessoas'))), { botoes, espera });
       ok('MB1b o cartão das inscritas diz que ainda falta realizar ("Inscritas, ainda não realizaram")', (await texto(x.page, '#painelConteudo .pnl-blocos')).includes('Inscritas, ainda não realizaram'));
+      /* MB7: os 5 cartões em 3 + 2 na tela larga (nenhum sozinho numa linha); no celular, um por linha */
+      const linhasCartoes = await x.page.$$eval('[data-pnl="mob-cartoes"] > .pnl-bloco', (l) => { const t = {}; l.forEach((b) => { const y = Math.round(b.getBoundingClientRect().top); t[y] = (t[y] || 0) + 1; }); return Object.keys(t).sort((a, b) => a - b).map((k) => t[k]); });
+      const largo = await x.page.evaluate(() => innerWidth >= 760);
+      ok('MB7 cartões da Mobilização: ' + (largo ? '3 + 2 na tela larga' : 'um por linha no celular'), JSON.stringify(linhasCartoes) === (largo ? '[3,2]' : '[1,1,1,1,1]'), linhasCartoes);
       for (const [c] of botoes) {
         await x.page.click('[data-pnl-ver="' + c + '"]'); await x.page.waitForTimeout(150);
         const lis = await x.page.$$eval('[data-pnl="mob-lista"] li', (l) => l.length);
         const abertos = await x.page.$$eval('[data-pnl-ver][aria-expanded="true"]', (l) => l.map((b) => b.getAttribute('data-pnl-ver')));
         ok('MB2 "' + c + '" abre a lista com as ' + espera[c] + ' pessoas, só ele aberto', lis === espera[c] && abertos.length === 1 && abertos[0] === c && await x.page.isVisible('[data-pnl="mob-lista"]'), { lis, abertos });
+        /* MB5: agrupada por diretoria (grupos em ordem), nomes em ordem alfabética dentro de cada uma; o filtro Diretoria
+           mostra só o grupo escolhido, com a contagem da opção, e "Todas" volta tudo */
+        const grupos = await x.page.$$eval('[data-pnl="mob-lista"] [data-pnl-mob-grupo]', (l) => l.map((g) => ({ d: g.getAttribute('data-pnl-mob-grupo'), nomes: [...g.querySelectorAll('li > span:first-child')].map((s) => s.textContent) })));
+        const emOrdem = (a) => a.every((v, i) => !i || a[i - 1].localeCompare(v, 'pt-BR') <= 0);
+        ok('MB5 "' + c + '": um grupo por diretoria, em ordem, e nomes em ordem alfabética em cada grupo', grupos.length > 0 && emOrdem(grupos.map((g) => g.d).filter((d) => d !== '-')) && grupos.every((g) => emOrdem(g.nomes)) && grupos.reduce((a, g) => a + g.nomes.length, 0) === espera[c], grupos);
+        const opcoes = await x.page.$$eval('#pnlMobDir option', (l) => l.map((o) => [o.value, o.textContent]));
+        if (grupos.length > 1) {
+          let filtroOk = opcoes.length === grupos.length + 1 && opcoes[0][1] === 'Todas (' + espera[c] + ')';
+          for (const [v, t] of opcoes.slice(1)) {
+            await x.page.selectOption('#pnlMobDir', v);
+            const vis = await x.page.$$eval('[data-pnl="mob-lista"] [data-pnl-mob-grupo]', (l) => l.filter((g) => !g.hidden).map((g) => [g.getAttribute('data-pnl-mob-grupo'), g.querySelectorAll('li').length]));
+            filtroOk = filtroOk && vis.length === 1 && vis[0][0] === v && t.endsWith('(' + vis[0][1] + ')');
+          }
+          await x.page.selectOption('#pnlMobDir', '');
+          filtroOk = filtroOk && (await x.page.$$eval('[data-pnl="mob-lista"] [data-pnl-mob-grupo]', (l) => l.every((g) => !g.hidden)));
+          ok('MB6 "' + c + '": filtro Diretoria mostra só a escolhida, com a contagem da opção; "Todas" volta tudo', filtroOk, opcoes);
+        } else ok('MB6 "' + c + '": uma diretoria só → sem filtro (nada a escolher)', !opcoes.length, opcoes);
         if (c === 'inscrita') await foto(x.page, rotulo.slice(0, 3) + '-mobilizacao-lista');
       }
       if (botoes.length) {

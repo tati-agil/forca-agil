@@ -367,16 +367,27 @@
   }
   function listaMob(cat) {
     var r = st.r, m = MOB[cat]; if (!r || !r.lista || !m || !podeExportar()) return '';
-    var ps = r.lista.filter(m[1]).sort(function (a, b) { return (a.diretoria || '').localeCompare(b.diretoria || '', 'pt-BR') || (a.gerencia || '').localeCompare(b.gerencia || '', 'pt-BR') || (a.nome || a.email || '').localeCompare(b.nome || b.email || '', 'pt-BR'); });
-    return '<h3>' + esc(m[0]) + ' · ' + ps.length + (ps.length === 1 ? ' pessoa' : ' pessoas') + '</h3><p class="pnl-nota">Por diretoria e gerência. A mesma lista está na aba "' + esc(m[0]) + '" do Excel.</p>' +
-      '<ul class="pnl-nomes-lista pnl-nomes-lista--mob">' + ps.map(function (p) {
-        var det = [p.diretoria, p.gerencia].filter(function (x) { return x && x !== '—'; }).join(' · ') || 'sem diretoria e gerência na base';
-        var turma = p.inscricoes || p.interesses;
-        return '<li data-sit="' + p.situacao + '"><span>' + esc(p.nome || p.email) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(det) + (turma ? ' · ' + esc(turma) : '') + (cat === 'faltou' ? ' · ' + esc(SIT_NOME[p.situacao] || p.situacao) : '') + '</span></li>'; }).join('') + '</ul>';
+    /* Agrupada por diretoria (um título por grupo), nomes em ordem alfabética dentro dela; o filtro Diretoria mostra um
+       grupo só (só esconde; a lista e a contagem vêm do mesmo cálculo). */
+    var nomeDe = function (p) { return p.nome || p.email || ''; };
+    var ps = r.lista.filter(m[1]), grupos = {};
+    ps.forEach(function (p) { var d = p.diretoria && p.diretoria !== '—' ? p.diretoria : ''; (grupos[d] = grupos[d] || []).push(p); });
+    var dirs = Object.keys(grupos).sort(function (a, b) { return (!a) - (!b) || a.localeCompare(b, 'pt-BR'); });
+    var rotDir = function (d) { return d || 'Sem diretoria na base'; };
+    var qtd = function (n) { return n + (n === 1 ? ' pessoa' : ' pessoas'); };
+    return '<h3>' + esc(m[0]) + ' · ' + qtd(ps.length) + '</h3><p class="pnl-nota">Por diretoria, em ordem alfabética. A mesma lista está na aba "' + esc(m[0]) + '" do Excel.</p>' +
+      (dirs.length > 1 ? '<div class="avp-filters"><div class="avp-filtro"><label class="avp-filtro-rotulo" for="pnlMobDir">Diretoria</label><select class="avp-select" id="pnlMobDir" data-pnl-mob-dir>' +
+        '<option value="">Todas (' + ps.length + ')</option>' + dirs.map(function (d) { return '<option value="' + esc(d || '-') + '">' + esc(rotDir(d)) + ' (' + grupos[d].length + ')</option>'; }).join('') + '</select></div></div>' : '') +
+      dirs.map(function (d) {
+        var gs = grupos[d].sort(function (a, b) { return nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'); });
+        return '<section class="pnl-mob-grupo" data-pnl-mob-grupo="' + esc(d || '-') + '"><h4>' + esc(rotDir(d)) + ' · ' + qtd(gs.length) + '</h4><ul class="pnl-nomes-lista pnl-nomes-lista--mob">' + gs.map(function (p) {
+          var turma = p.inscricoes || p.interesses, ger = p.gerencia && p.gerencia !== '—' ? p.gerencia : 'sem gerência na base';
+          return '<li data-sit="' + p.situacao + '"><span>' + esc(nomeDe(p)) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(ger) + (turma ? ' · ' + esc(turma) : '') + (cat === 'faltou' ? ' · ' + esc(SIT_NOME[p.situacao] || p.situacao) : '') + '</span></li>'; }).join('') + '</ul></section>';
+      }).join('');
   }
   function mobilizacao(r) {
     var a = r.ausencias;
-    return '<article class="pnl-card"><h2>Pendentes por situação</h2>' + barraSituacoes(r) + '<div class="pnl-blocos">' +
+    return '<article class="pnl-card"><h2>Pendentes por situação</h2>' + barraSituacoes(r) + '<div class="pnl-blocos pnl-blocos--mob" data-pnl="mob-cartoes">' +
       bloco('Sem cadastro', r.porSit['sem-cadastro'], 'Estão na base oficial e não têm cadastro com o mesmo e-mail. Não prova desconhecimento do programa: pede investigação e comunicação.', 'mob-sem-cadastro', verPessoas('sem-cadastro', r.porSit['sem-cadastro'])) +
       bloco('Cadastradas sem engajamento', r.porSit['sem-engajamento'], 'Têm cadastro, nenhum interesse nem inscrição ativos, e nunca realizaram.', '', verPessoas('sem-engajamento', r.porSit['sem-engajamento'])) +
       bloco('Interessadas sem inscrição', r.porSit.interessada, 'Interesse ativo numa turma do programa, sem confirmação. Há ' + r.vagasLivres + ' vagas livres até o prazo.', 'mob-interessada', verPessoas('interessada', r.porSit.interessada)) +
@@ -570,6 +581,11 @@
     if (ex) { e.preventDefault(); exportar(ex); return; }
     var a = e.target.closest && e.target.closest('[data-pnl-admin]');
     if (a) { e.preventDefault(); location.hash = '#admin'; setTimeout(function () { var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelPainelPrograma"]'); if (t) t.click(); }, 300); }
+  });
+  /* Filtro Diretoria da lista de pessoas da Mobilização: mostra só o grupo escolhido (vazio = todos). */
+  document.addEventListener('change', function (e) {
+    var sel = e.target.closest && e.target.closest('[data-pnl-mob-dir]'); if (!sel) return;
+    document.querySelectorAll('[data-pnl-mob-grupo]').forEach(function (g) { g.hidden = !!sel.value && g.getAttribute('data-pnl-mob-grupo') !== sel.value; });
   });
   /* Filtros da tabela Turmas do programa: só escondem linhas (os números do painel não mudam). */
   document.addEventListener('change', function (e) {

@@ -4884,6 +4884,8 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-leg { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--arq-fs-meta); color: var(--ink-2); margin-top: 8px; }
 .pnl-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid transparent; }
 .pnl-blocos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 14px; }
+/* Mobilização: 5 cartões em 3 + 2 na tela larga (no auto-fit sobrava um sozinho na segunda linha); no estreito, como antes */
+@media (min-width: 760px) { .pnl-blocos--mob { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .pnl-bloco { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
 .pnl-bloco h3 { font-family: var(--font-head); font-weight: 600; font-size: .98rem; color: var(--gold); margin: 0 0 2px; line-height: 1.3; }
 .pnl-bloco p { color: var(--ink-2); font-size: var(--arq-fs-aux); margin: 0; }
@@ -4953,6 +4955,10 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-mob-lista h3 { font-family: var(--font-head); font-weight: 600; font-size: .98rem; color: var(--gold); margin: 0 0 2px; }
 .pnl-mob-lista .pnl-nota { margin: 0 0 10px; }
 .pnl-nomes-lista--mob { position: static; max-width: none; padding-left: 0; }
+/* grupos por diretoria (título Oswald como os subtítulos do painel) e o filtro Diretoria acima deles */
+.pnl-mob-lista .avp-filters { margin: 0 0 10px; }
+.pnl-mob-grupo + .pnl-mob-grupo { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.pnl-mob-grupo h4 { margin: 0 0 8px; font-family: var(--font-head); font-weight: 600; font-size: .9rem; letter-spacing: .04em; color: var(--ink); }
 .pnl-evo-leg span { display: inline-flex; align-items: center; gap: 6px; }
 .pnl-evo-amostra { width: 34px; height: 10px; flex: none; }
 @media (max-width: 900px) { .pnl-grade { grid-template-columns: minmax(0, 1fr); } }
