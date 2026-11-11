@@ -4953,6 +4953,10 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-mob-lista h3 { font-family: var(--font-head); font-weight: 600; font-size: .98rem; color: var(--gold); margin: 0 0 2px; }
 .pnl-mob-lista .pnl-nota { margin: 0 0 10px; }
 .pnl-nomes-lista--mob { position: static; max-width: none; padding-left: 0; }
+/* grupos por diretoria (título Oswald como os subtítulos do painel) e o filtro Diretoria acima deles */
+.pnl-mob-lista .avp-filters { margin: 0 0 10px; }
+.pnl-mob-grupo + .pnl-mob-grupo { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.pnl-mob-grupo h4 { margin: 0 0 8px; font-family: var(--font-head); font-weight: 600; font-size: .9rem; letter-spacing: .04em; color: var(--ink); }
 .pnl-evo-leg span { display: inline-flex; align-items: center; gap: 6px; }
 .pnl-evo-amostra { width: 34px; height: 10px; flex: none; }
 @media (max-width: 900px) { .pnl-grade { grid-template-columns: minmax(0, 1fr); } }
