@@ -46,6 +46,7 @@ function banco(opts) {
     const e = 'p' + i + '@previ.com.br', k = chave(e);
     pessoas[k] = { email: e, nome: 'P' + i, gerencia: 'G' + (i % 3), diretoria: i < 12 ? 'DIRA' : 'DIRB', ...(i % 6 === 5 ? { nivel: 'gestor' } : {}) };
     if (i < 20) users[k] = { email: e, name: 'P' + i };
+    if (opts.grande && i === 0) for (let j = 0; j < 1400; j++) { const eg = 'g' + j + '@previ.com.br'; pessoas[chave(eg)] = { email: eg, nome: 'G' + j, gerencia: 'GX' + (j % 7), diretoria: j < 1100 ? 'DIRETORIA COM UM NOME MUITO LONGO PARA CONFERIR A QUEBRA' : 'DIRC' }; }
     if (i < 8) { interesse.ta[k] = { status: 'inscrito', confirmedByAdmin: ADM, email: e }; checkin.ta[A1][k] = true; checkin.ta[A2][k] = true; }
     else if (i < 10) { interesse.ta[k] = { status: 'inscrito', confirmedByAdmin: ADM, email: e }; checkin.ta[A1]['outro'] = true; }
     else if (i < 15) interesse.tf[k] = { status: 'inscrito', confirmedByAdmin: ADM, email: e };
@@ -100,7 +101,87 @@ async function esperarPainel(x) {
 }
 /* FA_FOTOS=<pasta>: guarda capturas para conferência visual (não muda nenhuma verificação) */
 const foto = async (page, nome) => { if (process.env.FA_FOTOS) await page.screenshot({ path: path.join(process.env.FA_FOTOS, nome + '.png'), fullPage: true }); };
+const fotoBloco = async (page, nome) => { if (process.env.FA_FOTOS) { const el = await page.$('[data-pnl="bloco-gaps"]'); if (el) await el.screenshot({ path: path.join(process.env.FA_FOTOS, nome + '.png') }); } };
 const semRolagem = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+
+/* GP: bloco 3 · Gaps por diretoria (v3). Para cada público e cada modo, o que a tela mostra é conferido com o recorte do
+   núcleo (porPublico[pub]): ordem, GAP, %, total, escala (limite redondo ≥ maior GAP), comprimento das barras, divisor da
+   cobertura do recorte, links para as gerências e o caso sem ninguém no recorte. */
+const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
+const escalaEsperada = (m) => { if (!(m > 0)) return 0; for (let p = 1; ; p *= 10) for (const c of (p > 1 ? [2, 4, 5, 6, 8, 10] : [2, 4, 6, 8, 10])) if (c * p >= m) return c * p; };
+const lerGaps = (page) => page.evaluate(() => {
+  const b = document.querySelector('[data-pnl="bloco-gaps"]'), lis = [...b.querySelectorAll('[data-pnl-dir]')], lista = b.querySelector('[data-pnl="gaps-linhas"]');
+  const razao = (el, base) => (el && base ? el.getBoundingClientRect().width / base : null);
+  return {
+    modo: b.getAttribute('data-modo'), vazio: !!b.querySelector('[data-pnl="gaps-vazio"]'), total: ((b.querySelector('[data-pnl="gaps-total"]') || {}).textContent || '').trim(),
+    escala: lista && lista.hasAttribute('data-escala') ? +lista.getAttribute('data-escala') : null, ref: (b.querySelector('[data-pnl="gaps-ref"]') || {}).textContent || null,
+    cardOk: b.scrollWidth <= b.clientWidth + 1,
+    linhas: lis.map((e) => {
+      const g = e.querySelector('.pnl-gaps-gbar'), c = e.querySelector('.pnl-gaps-cbar'), a = e.querySelector('a.pnl-gp-link'), num = g && g.querySelector('b');
+      const trilho = g ? parseFloat(getComputedStyle(g, '::before').width) : 0, cw = c ? c.getBoundingClientRect().width : 0;
+      return { nome: e.getAttribute('data-pnl-dir'), gap: +e.getAttribute('data-gap'), vazia: e.classList.contains('pnl-gaps-lin--vazia'), href: a ? a.getAttribute('href') : null,
+        rg: g ? razao(g.querySelector('i'), trilho) : null, numDentro: !num || num.getBoundingClientRect().right <= g.getBoundingClientRect().right + 1,
+        rr: c ? razao(c.querySelector('.pnl-gaps-real'), cw) : null, rp: c ? (c.querySelector('.pnl-gaps-pot') ? razao(c.querySelector('.pnl-gaps-pot'), cw) : 0) : null,
+        pct: ((e.querySelector('.pnl-gaps-pct') || {}).textContent || ''), proj: ((e.querySelector('.pnl-gaps-col-proj') || {}).textContent || ''),
+        antesRef: !!(e.previousElementSibling && e.previousElementSibling.matches('[data-pnl="gaps-ref"]')) };
+    })
+  };
+});
+async function verificarGaps(x, rotulo) {
+  const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r);
+  const vals = [0, 1, 2, 3, 9, 12, 33, 47, 171, 999, 1001];
+  const esc = await x.page.evaluate((v) => v.map((m) => window.faPainelPrograma._escalaGap(m)), vals);
+  ok('GP0 escala de pessoas: limite redondo ≥ maior GAP, com metade inteira (0→0, 1→2, 47→50, 171→200, 1001→2000)', JSON.stringify(esc) === JSON.stringify([0, 2, 2, 4, 10, 20, 40, 50, 200, 1000, 2000]), esc);
+  const perto = (a, b) => a !== null && Math.abs(a - b) <= 0.02;
+  for (const pub of ['todos', 'tecnicos', 'gestores', 'diretores', 'assessores']) {
+    await x.page.click('[data-pnl="bloco-gaps"] [data-pnl-pub="' + pub + '"]');
+    await x.page.click('[data-pnl-modo="gap"]');
+    const R = rp.porPublico[pub], T = R.total, g = await lerGaps(x.page);
+    if (!T.total) {
+      ok('GP1 ' + pub + ': ninguém no recorte → o bloco diz isso, sem barras nem números', g.vazio && !g.linhas.length && !g.total, g);
+      await x.page.click('[data-pnl-modo="cob"]'); const c0 = await lerGaps(x.page);
+      ok('GP2 ' + pub + ': ninguém no recorte, também no modo Cobertura', c0.vazio && !c0.linhas.length && c0.ref === null, c0);
+      continue;
+    }
+    const ordG = R.diretorias.map((d, i) => ({ d, i })).sort((a, b) => (!a.d.total) - (!b.d.total) || b.d.gap - a.d.gap || a.i - b.i).map((o) => o.d);
+    const max = escalaEsperada(Math.max(0, ...R.diretorias.map((d) => d.gap)));
+    ok('GP1 ' + pub + ' · Pessoas a alcançar: maior GAP primeiro, todas as diretorias, GAP e total do recorte, escala ' + max + ', barras na escala, número na ponta sem vazar',
+      g.modo === 'gap' && JSON.stringify(g.linhas.map((l) => [l.nome, l.gap])) === JSON.stringify(ordG.map((d) => [d.nome, d.gap])) &&
+      g.total.startsWith(String(T.gap)) && g.total.includes('de ' + T.total) && g.total.includes((T.projetados - T.realizou) + ' com participação potencial') && g.escala === max &&
+      g.linhas.every((l, i) => l.vazia === !ordG[i].total && (l.vazia || (perto(l.rg, max ? ordG[i].gap / max : 0) && l.numDentro))) &&
+      g.linhas.every((l, i) => l.href === '#painel?v=diretorias&d=' + encodeURIComponent(ordG[i].nome) + '&de=bloco-gaps') && g.cardOk, { g, max, T: { gap: T.gap, total: T.total } });
+    await x.page.click('[data-pnl-modo="cob"]');
+    const c = await lerGaps(x.page), ordC = R.diretorias;
+    let pos = -1; ordC.forEach((d, i) => { if (pos < 0 && i > 0 && d.total && d.cobertura >= T.cobertura && ordC[i - 1].cobertura < T.cobertura) pos = i; });
+    ok('GP2 ' + pub + ' · Cobertura (%): menor cobertura primeiro (a ordem do núcleo), realizado e projetada de cada diretoria, barras de 0 a 100%, total do recorte',
+      c.modo === 'cob' && (await x.page.getAttribute('[data-pnl-modo="cob"]', 'aria-pressed')) === 'true' && JSON.stringify(c.linhas.map((l) => l.nome)) === JSON.stringify(ordC.map((d) => d.nome)) &&
+      c.linhas.every((l, i) => { const d = ordC[i]; return !d.total ? l.vazia : l.pct.startsWith(f1(d.cobertura) + '%') && l.proj === f1(d.coberturaProjetada) + '%' && perto(l.rr, d.cobertura / 100) && perto(l.rp, (d.coberturaProjetada - d.cobertura) / 100); }) &&
+      c.total.startsWith(f1(T.cobertura) + '%') && c.total.includes('projetada ' + f1(T.coberturaProjetada) + '%') && c.cardOk, { c, T: { cob: T.cobertura, proj: T.coberturaProjetada } });
+    ok('GP3 ' + pub + ' · divisor na cobertura do recorte (' + f1(T.cobertura) + '%): entre quem está abaixo e quem está no nível ou acima',
+      pos < 0 ? c.ref === null : (c.ref || '').includes(f1(T.cobertura) + '%') && c.linhas.findIndex((l) => l.antesRef) === pos, { pos, ref: c.ref });
+  }
+  await x.page.click('[data-pnl="bloco-gaps"] [data-pnl-pub="todos"]'); await x.page.click('[data-pnl-modo="gap"]');
+  await x.page.click('[data-pnl-modo="cob"]'); await x.page.click('[data-pnl="atualizar"]'); await x.page.waitForTimeout(600);
+  ok('GP4 o modo escolhido sobrevive a "Atualizar dados"', (await x.page.getAttribute('[data-pnl="bloco-gaps"]', 'data-modo')) === 'cob');
+  await fotoBloco(x.page, rotulo.slice(0, 3) + '-gaps-cobertura');
+  await x.page.click('[data-pnl-modo="gap"]');
+  await fotoBloco(x.page, rotulo.slice(0, 3) + '-gaps-pessoas');
+}
+/* GP5: números grandes e nome longo de diretoria, no tamanho real (cartão da coluna no computador; tela de 375 px) */
+async function gapsGrandes(browser, rotulo, ctxOpts) {
+  const db = banco({ grande: true });
+  const x = await abrir(browser, ctxOpts, { db, user: user(ADM) }, '#painel');
+  await esperarPainel(x);
+  for (const modo of ['gap', 'cob']) {
+    await x.page.click('[data-pnl-modo="' + modo + '"]');
+    const g = await lerGaps(x.page);
+    ok('GP5 ' + rotulo + ' · ' + modo + ': com GAP de ' + Math.max(...g.linhas.map((l) => l.gap)) + ' e nome longo, nada vaza do cartão nem da página; escala ' + (g.escala === null ? '—' : g.escala),
+      g.cardOk && await semRolagem(x.page) && g.linhas.every((l) => l.numDentro) && (modo === 'cob' || g.escala === escalaEsperada(Math.max(...g.linhas.map((l) => l.gap)))), g);
+    await fotoBloco(x.page, rotulo.slice(0, 3) + '-gaps-grande-' + modo);
+  }
+  ok('GP6 ' + rotulo + ' · nenhum erro de JavaScript no cenário grande', !x.erros.length, x.erros);
+  await x.ctx.close();
+}
 
 async function rodada(browser, rotulo, ctxOpts) {
   console.log('\n== ' + rotulo + ' ==');
@@ -115,8 +196,8 @@ async function rodada(browser, rotulo, ctxOpts) {
   ok('N3 pendentes = núcleo', (await texto(x.page, '[data-pnl="pendentes"]')) === String(r.pendentes));
   ok('N4 os quatro blocos', (await x.page.$$('[data-pnl^="bloco-"]')).length === 4);
   ok('N5 decisões = as do núcleo (no máximo três, na mesma ordem)', JSON.stringify(await x.page.$$eval('[data-pnl-decisao]', (l) => l.map((e) => e.getAttribute('data-pnl-decisao')))) === JSON.stringify(r.decisoes.map((d) => d.tipo)));
-  { const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r); const gaps = () => x.page.$$eval('[data-pnl="bloco-gaps"] [data-pnl-dir]', (l) => l.map((e) => [e.getAttribute('data-pnl-dir'), +e.getAttribute('data-gap')])); const g1 = await gaps(); const totTxt = await texto(x.page, '[data-pnl="gaps-total"]'); ok('N7 gaps por diretoria: colunas em pessoas e %, maior gap primeiro, total = núcleo, legenda de três cores', (await x.page.$$('[data-pnl="gaps-legenda"] i')).length === 3 && g1.every((g, i) => !i || g1[i - 1][1] >= g[1]) && totTxt.includes(rp.realizou + '/' + rp.N) && totTxt.includes(String(rp.gapProjetado)) && g1.reduce((a, g) => a + g[1], 0) === rp.gapProjetado, { g1, totTxt }); await x.page.click('[data-pnl-ordem="cob"]'); const g2 = await gaps(); ok('N7b "Por cobertura (%)" reordena pela ordem do núcleo (menor cobertura primeiro)', JSON.stringify(g2.map((g) => g[0])) === JSON.stringify(rp.diretorias.map((d) => d.nome)) && (await x.page.getAttribute('[data-pnl-ordem="cob"]', 'aria-pressed')) === 'true', g2); await x.page.click('[data-pnl-ordem="gap"]'); }
-  { const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r); const gp = rp.porPublico.gestores; await x.page.click('[data-pnl="bloco-gaps"] [data-pnl-pub="gestores"]'); const tot = await texto(x.page, '[data-pnl="gaps-total"]'); const gs = await x.page.$$eval('[data-pnl="bloco-gaps"] [data-pnl-dir]', (l) => l.map((e) => +e.getAttribute('data-gap'))); ok('N11 gaps por diretoria com filtro Gestores: total = recorte do núcleo, soma dos gaps fecha, todas as diretorias', tot.includes(gp.total.realizou + '/' + gp.total.total) && tot.includes(String(gp.total.gap)) && gs.length === rp.diretorias.length && gs.reduce((a, g) => a + g, 0) === gp.total.gap, { tot, gs, gp: gp.total }); await x.page.click('[data-pnl="bloco-gaps"] [data-pnl-pub="todos"]'); }
+  { const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r); ok('N7 bloco 3 abre no modo Pessoas a alcançar; o total do resumo é o GAP do núcleo e os GAPs das diretorias somam ele', (await x.page.getAttribute('[data-pnl="bloco-gaps"]', 'data-modo')) === 'gap' && (await x.page.getAttribute('[data-pnl-modo="gap"]', 'aria-pressed')) === 'true' && (await texto(x.page, '[data-pnl="gaps-total"]')).startsWith(String(rp.gapProjetado)) && (await x.page.$$eval('[data-pnl="bloco-gaps"] [data-pnl-dir]', (l) => l.reduce((a, e) => a + +e.getAttribute('data-gap'), 0))) === rp.gapProjetado); }
+  await verificarGaps(x, rotulo);
   { const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r); const tom = rp.realizou + rp.maxPlanejado >= rp.meta ? 'ok' : rp.fatores.calendario ? 'decisao' : 'acao'; ok('N12 veredito da Viabilidade no tom do núcleo, sem "inviável"', (await x.page.getAttribute('[data-pnl="veredito"]', 'data-tom')) === tom && !/inviável/i.test(await texto(x.page, '[data-pnl="veredito"]')), [tom, await texto(x.page, '[data-pnl="veredito"]')]); }
   ok('N8 gaps por diretoria: todas as diretorias do núcleo aparecem, nenhuma suprimida', (await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir]')).length === r.diretorias.length && r.diretorias.length > 0, [(await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir]')).length, r.diretorias.length]);
   { const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r); const tx = await texto(x.page, '[data-pnl="realista"]'); ok('N9 cenário realista na Viabilidade (ocupação 70%) com o % e o que faltaria do núcleo', !!rp.realista && tx.includes('ocupação esperada de 70%') && tx.includes(String(rp.realista.pctEsperado).replace('.', ',')) && tx.includes('faltariam ' + rp.realista.falta), tx); }
@@ -206,7 +287,7 @@ async function rodada(browser, rotulo, ctxOpts) {
     const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r);
     const naTela = (sel) => x.page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; const b = e.getBoundingClientRect(); return b.bottom > 0 && b.top < innerHeight; }, sel);
     const links = await x.page.$$eval('[data-pnl="bloco-gaps"] [data-pnl-dir] a.pnl-gp-link', (l) => l.map((a) => a.getAttribute('href')));
-    ok('G1 nos Gaps, o nome de cada diretoria é link para as gerências dela (o total não)', links.length === rp.diretorias.length && links.every((h) => /^#painel\?v=diretorias&d=[^&]+&de=bloco-gaps$/.test(h)) && !(await x.page.$('[data-pnl="gaps-total"] a')) && /Toque no nome da diretoria/.test(await texto(x.page, '[data-pnl="gaps-exemplo"]')), links);
+    ok('G1 nos Gaps, o nome de cada diretoria é link para as gerências dela (o total não)', links.length === rp.diretorias.length && links.every((h) => /^#painel\?v=diretorias&d=[^&]+&de=bloco-gaps$/.test(h)) && !(await x.page.$('[data-pnl="gaps-total"] a')) && /Toque na sigla para ver as gerências/.test(await texto(x.page, '[data-pnl="gaps-exemplo"]')), links);
     const ultimo = await x.page.$$eval('[data-pnl="bloco-gaps"] [data-pnl-dir] a.pnl-gp-link', (l) => l[l.length - 1].textContent);
     const linksGap = await x.page.$$('[data-pnl="bloco-gaps"] [data-pnl-dir] a.pnl-gp-link');
     await linksGap[linksGap.length - 1].click();
@@ -353,6 +434,8 @@ async function admin(browser, ctxOpts) {
   const browser = await chromium.launch();
   await rodada(browser, 'Desktop', { viewport: { width: 1366, height: 900 } });
   await rodada(browser, 'Celular (375 px)', Object.assign({}, devices['iPhone 12'], { viewport: { width: 375, height: 800 } }));
+  await gapsGrandes(browser, 'Desktop', { viewport: { width: 1366, height: 900 } });
+  await gapsGrandes(browser, 'Celular (375 px)', Object.assign({}, devices['iPhone 12'], { viewport: { width: 375, height: 800 } }));
   await admin(browser, { viewport: { width: 1366, height: 900 } });
   await admin(browser, Object.assign({}, devices['iPhone 12'], { viewport: { width: 375, height: 800 } }));
   await browser.close();
