@@ -10,6 +10,10 @@
   let _dbDiretores = [];
   let _dbFacilitadores = [];
   let _session  = null;  // cache em memória — fonte de verdade: Firebase Auth
+  /* Limpa os formulários de entrar e de cadastro (definida quando o modal é montado). No computador compartilhado da
+     oficina, a página não recarrega entre uma pessoa e outra: sem limpar, o cadastro seguinte abria com o nome, o
+     e-mail, a senha e a área de quem se cadastrou antes. */
+  let _limparFormsAuth = null;
   let _authReady = false;
   let _accessLevel = 'member'; // 'member' | 'enrolled' (guest removido — login obrigatório)
   /* criarContaPorAdmin faz login como a conta nova (efeito colateral do
@@ -994,6 +998,7 @@
   /* ---- Logout ---- */
   function logout() {
     _session = null;
+    if (_limparFormsAuth) _limparFormsAuth('tudo');
     updateNavState();
     firebase.auth().signOut().then(function () {
       window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
@@ -1210,11 +1215,28 @@
           if (r.error) { if (loginErr) { loginErr.textContent = r.error; loginErr.hidden = false; } }
           else {
             /* O fa-auth-change cuida do painel de verificação se necessário */
+            limparForms('login');
             closeModal();
           }
         }
       );
     });
+
+    /* Limpar: 'cadastro', 'login' ou 'tudo'. Volta a área para "Selecione sua área…" e as senhas para ocultas. */
+    function limparForms(qual) {
+      const forms = qual === 'cadastro' ? ['registerForm'] : qual === 'login' ? ['loginForm'] : ['registerForm', 'loginForm', 'forgotForm'];
+      forms.forEach(function (id) {
+        const f = document.getElementById(id); if (!f) return;
+        if (typeof f.reset === 'function') f.reset();
+        f.querySelectorAll('input').forEach(function (i) { if (i.type === 'checkbox') i.checked = false; else i.value = ''; });
+        f.querySelectorAll('.pwd-eye').forEach(function (b) { const inp = document.getElementById(b.dataset.target); if (inp) inp.type = 'password'; b.textContent = '👁'; });
+      });
+      if (forms.indexOf('registerForm') !== -1) {
+        const area = document.getElementById('regArea'); if (area) area.value = '';
+        const trig = document.querySelector('#regAreaSelect .cs-trigger'); if (trig) { trig.textContent = 'Selecione sua área…'; trig.classList.remove('selected'); }
+      }
+    }
+    _limparFormsAuth = limparForms;
 
     /* Register form */
     const rf = document.getElementById('registerForm');
@@ -1246,8 +1268,10 @@
         optinTurmas: !!(document.getElementById('regOptin') && document.getElementById('regOptin').checked)
       }, function (r) {
         btn.disabled = false; btn.textContent = 'Ativar a Força →';
-        if (r.error) { if (regErr) { regErr.textContent = r.error; regErr.hidden = false; } }
-        else if (r.needsVerification) {
+        if (r.error) { if (regErr) { regErr.textContent = r.error; regErr.hidden = false; } return; }
+        /* Cadastro feito: a próxima pessoa começa do zero (os dados já foram enviados). Com erro, nada é apagado. */
+        limparForms('cadastro');
+        if (r.needsVerification) {
           /* Exibe painel de verificação de e-mail — "enviado" só quando o envio deu certo */
           document.querySelectorAll('.auth-panel').forEach(function (p) { p.hidden = true; });
           var vp = document.getElementById('auth-verificacao');
