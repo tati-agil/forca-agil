@@ -4884,6 +4884,8 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 .pnl-leg { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--arq-fs-meta); color: var(--ink-2); margin-top: 8px; }
 .pnl-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; border: 1px solid transparent; }
 .pnl-blocos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 14px; }
+/* Mobilização: 5 cartões em 3 + 2 na tela larga (no auto-fit sobrava um sozinho na segunda linha); no estreito, como antes */
+@media (min-width: 760px) { .pnl-blocos--mob { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .pnl-bloco { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
 .pnl-bloco h3 { font-family: var(--font-head); font-weight: 600; font-size: .98rem; color: var(--gold); margin: 0 0 2px; line-height: 1.3; }
 .pnl-bloco p { color: var(--ink-2); font-size: var(--arq-fs-aux); margin: 0; }

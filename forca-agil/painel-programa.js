@@ -387,7 +387,7 @@
   }
   function mobilizacao(r) {
     var a = r.ausencias;
-    return '<article class="pnl-card"><h2>Pendentes por situação</h2>' + barraSituacoes(r) + '<div class="pnl-blocos">' +
+    return '<article class="pnl-card"><h2>Pendentes por situação</h2>' + barraSituacoes(r) + '<div class="pnl-blocos pnl-blocos--mob" data-pnl="mob-cartoes">' +
       bloco('Sem cadastro', r.porSit['sem-cadastro'], 'Estão na base oficial e não têm cadastro com o mesmo e-mail. Não prova desconhecimento do programa: pede investigação e comunicação.', 'mob-sem-cadastro', verPessoas('sem-cadastro', r.porSit['sem-cadastro'])) +
       bloco('Cadastradas sem engajamento', r.porSit['sem-engajamento'], 'Têm cadastro, nenhum interesse nem inscrição ativos, e nunca realizaram.', '', verPessoas('sem-engajamento', r.porSit['sem-engajamento'])) +
       bloco('Interessadas sem inscrição', r.porSit.interessada, 'Interesse ativo numa turma do programa, sem confirmação. Há ' + r.vagasLivres + ' vagas livres até o prazo.', 'mob-interessada', verPessoas('interessada', r.porSit.interessada)) +

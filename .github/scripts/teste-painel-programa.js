@@ -236,6 +236,10 @@ async function rodada(browser, rotulo, ctxOpts) {
       const botoes = await x.page.$$eval('[data-pnl-ver]', (l) => l.map((b) => [b.getAttribute('data-pnl-ver'), b.textContent]));
       ok('MB1 cada cartão com número maior que zero tem "Ver as N pessoas" com o número do cartão', botoes.length > 0 && botoes.length === Object.values(espera).filter(Boolean).length && botoes.every(([c, t]) => espera[c] && (espera[c] === 1 ? /^Ver a pessoa/.test(t) : t.startsWith('Ver as ' + espera[c] + ' pessoas'))), { botoes, espera });
       ok('MB1b o cartão das inscritas diz que ainda falta realizar ("Inscritas, ainda não realizaram")', (await texto(x.page, '#painelConteudo .pnl-blocos')).includes('Inscritas, ainda não realizaram'));
+      /* MB7: os 5 cartões em 3 + 2 na tela larga (nenhum sozinho numa linha); no celular, um por linha */
+      const linhasCartoes = await x.page.$$eval('[data-pnl="mob-cartoes"] > .pnl-bloco', (l) => { const t = {}; l.forEach((b) => { const y = Math.round(b.getBoundingClientRect().top); t[y] = (t[y] || 0) + 1; }); return Object.keys(t).sort((a, b) => a - b).map((k) => t[k]); });
+      const largo = await x.page.evaluate(() => innerWidth >= 760);
+      ok('MB7 cartões da Mobilização: ' + (largo ? '3 + 2 na tela larga' : 'um por linha no celular'), JSON.stringify(linhasCartoes) === (largo ? '[3,2]' : '[1,1,1,1,1]'), linhasCartoes);
       for (const [c] of botoes) {
         await x.page.click('[data-pnl-ver="' + c + '"]'); await x.page.waitForTimeout(150);
         const lis = await x.page.$$eval('[data-pnl="mob-lista"] li', (l) => l.length);
