@@ -511,6 +511,8 @@
       return { nome: (base[p.k] || {}).nome || '', email: p.email, diretoria: p.diretoria, gerencia: p.gerencia, publico: p.grupo, situacao: p.situacao, cadastro: p.cadastro,
         realizouEm: p.realizou ? (rotT[p.realizou.turma] || p.realizou.turma) : '', realizouData: p.realizou ? p.realizou.data || '' : '',
         inscricoes: nomesT(p.inscricoes), interesses: nomesT(p.interesses),
+        /* chave da pessoa e turmas do interesse: a tela leva ao lugar onde a inscrição se confirma (não vão para o Excel) */
+        chave: p.k, turmasInteresse: p.interesses.map(function (x) { return { turma: x, rotulo: rotT[x] || x }; }),
         vagaAtePrazo: p.vaga ? (rotT[p.vaga] || p.vaga) + (p.vagaConfirmada ? ' (inscrição)' : ' (interesse)') : '',
         cabeEmVagaLivre: !p.vaga && p.alocavel ? (rotT[p.alocavel] || p.alocavel) : '',
         ausencias: p.ausencias.map(function (a) { return (rotT[a.turma] || a.turma) + (a.tipo === 'nao-compareceu' ? ' (não compareceu)' : ' (frequência insuficiente)'); }).join('; '),

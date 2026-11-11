@@ -669,6 +669,9 @@
 
 /* ---- Confirmar / Desconfirmar inscrição (CMFlex) ---- */
 .turma-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* pessoa pedida pelo endereço #admin?turma=…&p=… (link "Confirmar" do Painel do Programa) */
+tr.turma-linha-destaque > td { background: rgba(24,194,186,.12); }
+tr.turma-linha-destaque > td:first-child { box-shadow: inset 3px 0 0 var(--cyan); }
 .cf-confirm-btn, .cf-unconfirm-btn {
   font-size: .7rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;
   font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .05em;
@@ -4958,6 +4961,8 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 /* grupos por diretoria (título Oswald como os subtítulos do painel) e o filtro Diretoria acima deles */
 .pnl-mob-lista .avp-filters { margin: 0 0 10px; }
 .pnl-mob-grupo + .pnl-mob-grupo { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+/* interessada: navegação (ciano) até a turma onde se confirma — compacta, embaixo da gerência · turma */
+.pnl-mob-lista a.pnl-mob-confirmar, .pnl-mob-lista a.pnl-mob-confirmar:visited { align-self: flex-start; margin: 4px 0 0; padding: 6px 10px; font-size: var(--arq-fs-meta); color: var(--cyan); text-decoration: none; }
 .pnl-mob-grupo h4 { margin: 0 0 8px; font-family: var(--font-head); font-weight: 600; font-size: .9rem; letter-spacing: .04em; color: var(--ink); }
 .pnl-evo-leg span { display: inline-flex; align-items: center; gap: 6px; }
 .pnl-evo-amostra { width: 34px; height: 10px; flex: none; }
