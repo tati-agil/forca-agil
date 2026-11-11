@@ -365,6 +365,15 @@
   function verPessoas(cat, n) {
     return podeExportar() && n ? '<button type="button" class="pnl-ver-pessoas" data-pnl-ver="' + cat + '" aria-expanded="false" aria-controls="pnlMobLista">' + (n === 1 ? 'Ver a pessoa' : 'Ver as ' + n + ' pessoas') + ' <span aria-hidden="true">▸</span></button>' : '';
   }
+  /* Interessada: a confirmação é feita no ADMIN › Eventos, na turma do interesse. O link abre a turma e destaca a pessoa
+     (#admin?turma=<turma>&p=<pessoa>, admin.js); com interesse em mais de uma turma, um link por turma. */
+  function linksConfirmar(p) {
+    var ts = p.turmasInteresse || [];
+    return ts.map(function (t) {
+      return '<a class="avp-voltar-link pnl-mob-confirmar" data-pnl-confirmar="' + esc(t.turma) + '" href="#admin?turma=' + encodeURIComponent(t.turma) + (p.chave ? '&amp;p=' + encodeURIComponent(p.chave) : '') + '">' +
+        (ts.length > 1 ? 'Confirmar em ' + esc(t.rotulo) : 'Confirmar na turma') + ' →</a>';
+    }).join('');
+  }
   function listaMob(cat) {
     var r = st.r, m = MOB[cat]; if (!r || !r.lista || !m || !podeExportar()) return '';
     /* Agrupada por diretoria (um título por grupo), nomes em ordem alfabética dentro dela; o filtro Diretoria mostra um
@@ -382,7 +391,7 @@
         var gs = grupos[d].sort(function (a, b) { return nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'); });
         return '<section class="pnl-mob-grupo" data-pnl-mob-grupo="' + esc(d || '-') + '"><h4>' + esc(rotDir(d)) + ' · ' + qtd(gs.length) + '</h4><ul class="pnl-nomes-lista pnl-nomes-lista--mob">' + gs.map(function (p) {
           var turma = p.inscricoes || p.interesses, ger = p.gerencia && p.gerencia !== '—' ? p.gerencia : 'sem gerência na base';
-          return '<li data-sit="' + p.situacao + '"><span>' + esc(nomeDe(p)) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(ger) + (turma ? ' · ' + esc(turma) : '') + (cat === 'faltou' ? ' · ' + esc(SIT_NOME[p.situacao] || p.situacao) : '') + '</span></li>'; }).join('') + '</ul></section>';
+          return '<li data-sit="' + p.situacao + '"><span>' + esc(nomeDe(p)) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(ger) + (turma ? ' · ' + esc(turma) : '') + (cat === 'faltou' ? ' · ' + esc(SIT_NOME[p.situacao] || p.situacao) : '') + '</span>' + (cat === 'interessada' ? linksConfirmar(p) : '') + '</li>'; }).join('') + '</ul></section>';
       }).join('');
   }
   function mobilizacao(r) {

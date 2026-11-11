@@ -274,6 +274,26 @@ async function rodada(browser, rotulo, ctxOpts) {
     }
     if (v === 'capacidade') { const fixo =await x.page.evaluate(() => { const w = [...document.querySelectorAll('#painelConteudo .table-scroll-wrap')].filter((e) => e.querySelector('.pnl-tabela tbody')).sort((p, q) => q.querySelectorAll('tbody tr').length - p.querySelectorAll('tbody tr').length)[0]; const th = w.querySelector('thead th'); const alt = w.style.maxHeight; w.style.maxHeight = '140px'; w.scrollTop = w.scrollHeight; const rolou = w.scrollTop > 0, d = Math.abs(th.getBoundingClientRect().top - w.getBoundingClientRect().top); w.scrollTop = 0; w.style.maxHeight = alt; return { rolou, d, fundo: getComputedStyle(th).backgroundColor }; }); ok('C capacidade: ao rolar a tabela de turmas, os títulos das colunas continuam à vista, com fundo opaco', fixo.rolou && fixo.d < 2 && !/rgba(.*, 0)|transparent/.test(fixo.fundo), fixo); }
     await foto(x.page, rotulo.slice(0, 3) + '-' + v);
+    if (v === 'mobilizacao') {
+      /* MB8: cada interessada sem inscrição tem um link de verdade para o lugar onde se confirma — a turma do interesse no
+         ADMIN › Eventos (#admin?turma=…&p=…), que abre o evento e a turma e destaca a linha da pessoa, com o botão Confirmar */
+      await x.page.click('[data-pnl-ver="interessada"]'); await x.page.waitForTimeout(150);
+      if (process.env.FA_FOTOS) { const el = await x.page.$('[data-pnl="mob-lista"]'); if (el) await el.screenshot({ path: path.join(process.env.FA_FOTOS, rotulo.slice(0, 3) + '-mobilizacao-interessadas.png') }); }
+      const links = await x.page.$$eval('[data-pnl="mob-lista"] li', (l) => l.map((li) => { const a = li.querySelector('a.pnl-mob-confirmar'); return a && { href: a.getAttribute('href'), cor: getComputedStyle(a).color }; }));
+      const nInt = r.porSit.interessada, corNav = ['rgb(0, 0, 238)', 'rgb(85, 26, 139)'];
+      ok('MB8 cada interessada tem "Confirmar na turma" (nunca na cor do navegador), apontando para a turma e a pessoa', nInt > 0 && links.length === nInt && links.every((a) => a && /^#admin\?turma=tf&p=[^&]+$/.test(a.href) && !corNav.includes(a.cor)), links);
+      const alvo = links[0].href, pessoa = decodeURIComponent(alvo.split('&p=')[1]);
+      await x.page.click('[data-pnl="mob-lista"] a.pnl-mob-confirmar');
+      await x.page.waitForSelector('#turma-card-tf tr.turma-linha-destaque', { timeout: 10000 }).catch(() => null); await x.page.waitForTimeout(400);
+      const adm = await x.page.evaluate((pessoa) => {
+        const card = document.getElementById('turma-card-tf'), tr = card && card.querySelector('tr.turma-linha-destaque');
+        const q = tr && tr.getBoundingClientRect();
+        return { hash: location.hash, aba: !!document.querySelector('#adminPanelInteresses.active'), corpo: card && getComputedStyle(card.querySelector('.turma-admin-body')).display,
+          pessoa: !!(tr && tr.querySelector('[data-ekey="' + pessoa + '"]')), confirmar: !!(tr && tr.querySelector('.cf-confirm-btn')), naTela: !!(q && q.top >= 0 && q.bottom <= innerHeight) };
+      }, pessoa);
+      ok('MB9 o link abre ADMIN › Eventos na turma, aberta, com a linha da pessoa destacada e à vista, e o botão Confirmar nela', adm.hash === alvo && adm.aba && adm.corpo !== 'none' && adm.pessoa && adm.confirmar && adm.naTela, adm);
+      await foto(x.page, rotulo.slice(0, 3) + '-mobilizacao-confirmar-admin');
+    }
     if (v === 'capacidade') { const tf = r.turmas.find((t) => t.key === 'tf'); const qts = await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--t', (l) => l.filter((e) => /Turma F/.test(e.textContent) && e.querySelector('[data-pnl="cal-ocupacao"]')).map((e) => e.querySelector('[data-pnl="cal-ocupacao"]').textContent)); const encs = await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--t', (l) => l.filter((e) => /Turma F/.test(e.textContent)).map((e) => e.textContent)); ok('C capacidade: turma de 2 encontros — número só no 1º (= núcleo), o 2º diz "2º de 2" sem número; nome inteiro, sem corte', qts.length === 1 && qts[0] === tf.ocupacao + '/' + tf.vagas && encs.length === 2 && /1º de 2/.test(encs[0]) && /2º de 2/.test(encs[1]) && !encs[1].includes(tf.ocupacao + '/'), [qts, encs]); }
     if (v === 'capacidade') { const canc = await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--cancel', (l) => l.map((e) => [e.textContent, getComputedStyle(e).textDecorationLine])); ok('C capacidade: turma cancelada aparece no calendário riscada e com legenda própria', canc.length === 1 && canc[0][0] === 'Cancelada · Turma C' && /line-through/.test(canc[0][1]) && !!(await x.page.$('[data-pnl="leg-cancelada"]')) && !(await x.page.$$eval('#painelConteudo .pnl-cal .pnl-t--t', (l) => l.some((e) => /Turma C/.test(e.textContent)))), canc); }
     if (v === 'diretorias') {
