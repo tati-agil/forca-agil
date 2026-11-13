@@ -25,7 +25,11 @@
  *   4. dá para marcar mais de um evento e mais de uma turma ao mesmo tempo;
  *   5. cada turma aparece com o nome INTEIRO e agrupada sob seu evento;
  *   6. turma sem avaliação aparece com "—", nunca com nota zero;
- *   7. nada rola para o lado no celular, e nenhum erro de JavaScript.
+ *   7. nada rola para o lado no celular, e nenhum erro de JavaScript;
+ *   8. clicar numa turma (ou no nome de um evento) do painel de médias abre
+ *      as avaliações dela: a lista "Respostas individuais" fica filtrada e
+ *      aparece na tela; turma sem avaliação não é clicável (não há o que
+ *      abrir), e o convite "ver avaliações" não usa a cor do navegador.
  */
 
 const { chromium, devices } = require('playwright');
@@ -262,6 +266,61 @@ const FORMATOS = [
         if (vazia.n.indexOf('sem avaliação') === -1) p.push('não diz que a turma está sem avaliação (diz "' + vazia.n + '")');
       }
       registrar('turma sem avaliação não vira nota zero', p);
+    }
+
+    /* 2b. Clicar numa turma ou num evento do painel de médias abre as
+           avaliações dele. Antes o painel só mostrava a média: para ler as
+           respostas era preciso descer até a lista e procurar a turma no
+           filtro dela. */
+    {
+      const lerRespostas = () => page.evaluate(() => {
+        const sel = document.querySelector('.resp-f-turma');
+        const painel = document.querySelector('.dash-respostas');
+        const r = painel.getBoundingClientRect();
+        return {
+          valor: sel.value,
+          contagem: (document.querySelector('.resp-contagem') || {}).textContent || '',
+          turmasNosCards: Array.from(document.querySelectorAll('.resp-card .resp-turma')).map((x) => x.textContent.trim()),
+          naTela: r.top < window.innerHeight && r.bottom > 0,
+          /* Com o nome comprido da turma escolhido, a caixa crescia além da borda do cartão no celular. */
+          caixaPassaDaBorda: sel.getBoundingClientRect().right > r.right + 1,
+        };
+      });
+      const p = [];
+      const forma = await page.evaluate(() => {
+        const ver = document.querySelector('.dash-media-abre .dash-media-ver');
+        return {
+          t1: !!document.querySelector('button.dash-media-linha[data-resp="t1"]'),
+          t4: !!document.querySelector('[data-resp="t4"]'),
+          ev2: !!document.querySelector('button.dash-media-evento[data-resp="ev:ev2"]'),
+          corVer: ver ? getComputedStyle(ver).color : '',
+        };
+      });
+      if (!forma.t1) p.push('a turma com avaliação não virou botão');
+      if (forma.t4) p.push('a turma SEM avaliação ficou clicável — não há o que abrir');
+      if (!forma.ev2) p.push('o nome do evento com avaliação não virou botão');
+      if (forma.corVer !== 'rgb(122, 240, 232)') p.push('"ver avaliações" não está no ciano claro do padrão (cor ' + forma.corVer + ')');
+
+      await page.click('button.dash-media-linha[data-resp="t1"]');
+      await page.waitForTimeout(900);   /* rolagem suave */
+      let r = await lerRespostas();
+      if (r.valor !== 't1') p.push('clicar na turma não filtrou a lista pela turma (filtro = "' + r.valor + '")');
+      if (r.contagem.indexOf('3 ') !== 0) p.push('a lista deveria ter as 3 avaliações da turma, diz "' + r.contagem + '"');
+      if (r.turmasNosCards.some((x) => x.indexOf('SETEMBRO') === -1)) p.push('VAZOU: avaliação de outra turma na lista');
+      if (!r.naTela) p.push('a lista de respostas não apareceu na tela depois do clique');
+      if (r.caixaPassaDaBorda) p.push('a caixa "Turma", com o nome da turma escolhido, passa da borda do cartão');
+
+      await page.click('button.dash-media-evento[data-resp="ev:ev2"]');
+      await page.waitForTimeout(900);
+      r = await lerRespostas();
+      if (r.valor !== 'ev:ev2') p.push('clicar no evento não filtrou a lista pelo evento (filtro = "' + r.valor + '")');
+      if (r.contagem.indexOf('2 ') !== 0) p.push('a lista deveria ter as 2 avaliações do evento, diz "' + r.contagem + '"');
+      if (r.turmasNosCards.some((x) => x.indexOf('NOVEMBRO') === -1)) p.push('VAZOU: avaliação de outro evento na lista');
+      if (!r.naTela) p.push('a lista de respostas não apareceu na tela depois do clique no evento');
+      if ((await lerTela(page)).avaliacoes !== '7') p.push('abrir as avaliações mudou os números do topo — devia só filtrar a lista');
+      if ((await lerTela(page)).rolaLado) p.push('a página rola para o lado');
+      if (erros.length) p.push('erro JS: ' + erros[0]);
+      registrar('clicar na turma ou no evento abre as avaliações dele', p);
     }
 
     /* 3. Um evento. */

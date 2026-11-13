@@ -261,19 +261,29 @@
      dele ao lado — a visão por evento e a visão por turma na mesma leitura. */
   var CORES_BARRA = ['#9b7fff', '#4caf7d', '#42a5f5', '#f5c542', '#e8854a', '#e05c7f'];
 
+  function nAvaliacoes(n) { return n + ' avaliaç' + (n !== 1 ? 'ões' : 'ão'); }
+
+  /* Turma ou evento com avaliação é um botão que leva às respostas dele (lista
+     "Respostas individuais", já filtrada). Sem avaliação não há o que abrir:
+     a linha continua texto, porque o que parece clicável tem de levar a algum
+     lugar. */
   function linhaMedia(t, cor) {
     var semDado = t.media === null;
     var pct = semDado ? 0 : Math.max(0, Math.min(100, (t.media / 10) * 100));
+    var abre = t.n > 0;
+    var tag = abre ? 'button' : 'div';
     /* Nome em cima, barra embaixo: o painel é a coluna estreita do grid, e
        nome ao lado da barra obrigava a cortar o nome com reticências
        ("TURMA 1 — ..."), que é o mesmo problema de legibilidade de antes
        numa embalagem nova. */
-    return '<div class="dash-media-linha' + (semDado ? ' dash-media-linha--vazia' : '') + '">' +
+    return '<' + tag + ' class="dash-media-linha' + (semDado ? ' dash-media-linha--vazia' : '') + (abre ? ' dash-media-abre' : '') + '"' +
+      (abre ? ' type="button" data-resp="' + esc(t.key) + '" aria-label="' + esc('Ver as ' + nAvaliacoes(t.n) + ' de ' + t.label) + '"' : '') + '>' +
       '<span class="dash-media-nome">' + esc(t.label) + '</span>' +
       '<span class="dash-media-valor">' + (semDado ? '—' : fmt1(t.media)) + '</span>' +
       '<span class="dash-media-trilho"><i style="width:' + pct + '%;background:' + cor + '"></i></span>' +
-      '<span class="dash-media-n">' + (semDado ? 'sem avaliação' : t.n + ' avaliaç' + (t.n !== 1 ? 'ões' : 'ão')) + '</span>' +
-      '</div>';
+      '<span class="dash-media-n">' + (semDado ? 'sem avaliação' : nAvaliacoes(t.n) +
+        ' · <span class="dash-media-ver">ver avaliações ›</span>') + '</span>' +
+      '</' + tag + '>';
   }
 
   function barrasMedias(gruposArr) {
@@ -283,8 +293,13 @@
     gruposArr.forEach(function (g, gi) {
       h += '<div class="dash-media-grupo">';
       if (mostrarGrupo) {
-        h += '<p class="dash-media-evento">' + esc(g.nome) +
-             '<span>' + (g.media === null ? 'sem avaliação' : fmt1(g.media) + ' · ' + g.n + ' avaliaç' + (g.n !== 1 ? 'ões' : 'ão')) + '</span></p>';
+        var abreEv = g.n > 0;
+        h += (abreEv
+          ? '<button type="button" class="dash-media-evento dash-media-abre" data-resp="ev:' + esc(g.key) + '"' +
+            ' aria-label="' + esc('Ver as ' + nAvaliacoes(g.n) + ' de ' + g.nome) + '">'
+          : '<p class="dash-media-evento">') + esc(g.nome) +
+             '<span>' + (g.media === null ? 'sem avaliação' : fmt1(g.media) + ' · ' + nAvaliacoes(g.n)) + '</span>' +
+             (abreEv ? '<span class="dash-media-ver">ver avaliações ›</span></button>' : '</p>');
       }
       g.turmas.forEach(function (t, ti) {
         h += linhaMedia(t, CORES_BARRA[(mostrarGrupo ? gi : ti) % CORES_BARRA.length]);
@@ -460,8 +475,8 @@
     return h;
   }
 
-  function blocoRespostas(avals, turmasData) {
-    var h = '<div class="dash-panel dash-panel--full">' +
+  function blocoRespostas(avals, turmasArr, porEvento) {
+    var h = '<div class="dash-panel dash-panel--full dash-respostas">' +
       '<h4 class="dash-panel-title">Respostas individuais</h4>' +
       '<p class="dash-panel-sub">Tudo o que foi registrado em cada avaliação, pergunta a pergunta. ' +
       'Quem não marcou “Quero me identificar” aparece como Anônimo — as respostas aparecem, o nome não.</p>';
@@ -471,15 +486,40 @@
       return h;
     }
 
-    /* Filtro por turma — as turmas que têm avaliação */
-    var turmasComAval = {};
-    avals.forEach(function (a) { turmasComAval[a.turmaKey] = a.turmaLabel || (turmasData[a.turmaKey] || {}).label || a.turmaKey; });
+    /* Filtro por turma — as turmas que têm avaliação. Com mais de um evento na
+       tela, as turmas vêm agrupadas pelo evento, e cada grupo ganha a opção
+       "todas as turmas do evento": é o destino do clique no nome do evento no
+       painel de médias. */
+    var info = {};
+    turmasArr.forEach(function (t) { info[t.key] = t; });
+    var turmasComAval = {}, ordemTurmas = [];
+    avals.forEach(function (a) {
+      if (turmasComAval[a.turmaKey]) return;
+      turmasComAval[a.turmaKey] = a.turmaLabel || (info[a.turmaKey] || {}).label || a.turmaKey;
+      ordemTurmas.push(a.turmaKey);
+    });
+    function opcaoTurma(k) { return '<option value="' + esc(k) + '">' + esc(turmasComAval[k]) + '</option>'; }
+    var opcoes = '';
+    if (porEvento) {
+      var grupos = [], porEv = {};
+      turmasArr.forEach(function (t) {
+        if (!turmasComAval[t.key]) return;
+        if (!porEv[t.eventoKey]) { porEv[t.eventoKey] = { key: t.eventoKey, nome: t.eventoNome, turmas: [] }; grupos.push(porEv[t.eventoKey]); }
+        porEv[t.eventoKey].turmas.push(t.key);
+      });
+      grupos.forEach(function (g) {
+        opcoes += '<optgroup label="' + esc(g.nome) + '">' +
+          '<option value="ev:' + esc(g.key) + '">Todas as turmas deste evento</option>' +
+          g.turmas.map(opcaoTurma).join('') + '</optgroup>';
+      });
+      ordemTurmas.filter(function (k) { return !info[k]; }).forEach(function (k) { opcoes += opcaoTurma(k); });
+    } else {
+      opcoes = ordemTurmas.map(opcaoTurma).join('');
+    }
 
     h += '<div class="resp-filtros">' +
       '<label class="resp-filtro">Turma <select class="resp-f-turma"><option value="">Todas as turmas</option>' +
-        Object.keys(turmasComAval).map(function (k) {
-          return '<option value="' + esc(k) + '">' + esc(turmasComAval[k]) + '</option>';
-        }).join('') +
+        opcoes +
       '</select></label>' +
       '<label class="resp-filtro">Identificação <select class="resp-f-ident">' +
         '<option value="">Todas</option>' +
@@ -495,21 +535,27 @@
     return h;
   }
 
-  /* Liga os filtros depois que o HTML foi inserido */
-  function ligarRespostas(wrap, avals) {
+  /* Liga os filtros depois que o HTML foi inserido. Devolve a função que o
+     clique numa turma ou num evento do painel de médias usa para abrir as
+     respostas dele. */
+  function ligarRespostas(wrap, avals, turmasArr) {
     var lista = wrap.querySelector('.resp-lista');
-    if (!lista) return;
+    if (!lista) return null;
     var selT = wrap.querySelector('.resp-f-turma');
     var selI = wrap.querySelector('.resp-f-ident');
     var cont = wrap.querySelector('.resp-contagem');
+    var eventoDa = {};
+    (turmasArr || []).forEach(function (t) { eventoDa[t.key] = t.eventoKey; });
 
     var ordenadas = avals.slice().sort(function (a, b) {
       return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
     });
 
     function desenhar() {
+      var v = selT.value, ev = v.indexOf('ev:') === 0 ? v.slice(3) : null;
       var fs = ordenadas.filter(function (a) {
-        if (selT.value && a.turmaKey !== selT.value) return false;
+        if (ev !== null && eventoDa[a.turmaKey] !== ev) return false;
+        if (v && ev === null && a.turmaKey !== v) return false;
         if (selI.value === 'sim' && !a.identificado) return false;
         if (selI.value === 'nao' && a.identificado) return false;
         return true;
@@ -528,6 +574,18 @@
       lista.querySelectorAll('details').forEach(function (d) { d.open = false; });
     });
     desenhar();
+
+    return function abrir(valor) {
+      if (!Array.prototype.some.call(selT.options, function (o) { return o.value === valor; })) return;
+      selT.value = valor;
+      selI.value = '';
+      desenhar();
+      var painel = wrap.querySelector('.dash-respostas');
+      if (painel) painel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      /* O foco vai para o filtro que mudou: quem navega pelo teclado continua
+         de onde a lista começa, e o leitor de tela anuncia a turma escolhida. */
+      try { selT.focus({ preventScroll: true }); } catch (e) { selT.focus(); }
+    };
   }
 
   function htmlConteudo(dados) {
@@ -555,6 +613,8 @@
 
     html += '<div class="dash-panel"><h4 class="dash-panel-title">' +
             (dados.gruposArr.length > 1 ? 'Média por evento e turma' : 'Média por turma') + '</h4>' +
+            (dados.total ? '<p class="dash-media-dica">Clique ' + (dados.gruposArr.length > 1 ? 'num evento ou numa turma' : 'numa turma') +
+              ' para ver as avaliações.</p>' : '') +
             barrasMedias(dados.gruposArr) + '</div>';
 
     html += '<div class="dash-panel"><h4 class="dash-panel-title">Distribuição das notas (geral)</h4>';
@@ -628,10 +688,8 @@
     html += '</div>';
 
     /* O bloco de respostas monta o próprio filtro de turma a partir das
-       avaliações; o mapa serve só de reserva para o rótulo. */
-    var rotulos = {};
-    dados.turmasArr.forEach(function (t) { rotulos[t.key] = { label: t.label }; });
-    html += blocoRespostas(dados.avals || [], rotulos);
+       avaliações; as turmas do escopo dão o rótulo de reserva e o evento. */
+    html += blocoRespostas(dados.avals || [], dados.turmasArr, dados.gruposArr.length > 1);
 
     return html;
   }
@@ -772,6 +830,14 @@
     wrap.appendChild(barra);
     wrap.appendChild(conteudo);
 
+    /* Um ouvinte só, no contêiner que não é recriado: o conteúdo é redesenhado
+       a cada filtro, e ligar o clique em cada desenho acumularia ouvintes. */
+    var abrirRespostas = null;
+    conteudo.addEventListener('click', function (e) {
+      var alvo = e.target.closest('[data-resp]');
+      if (alvo && abrirRespostas) abrirRespostas(alvo.dataset.resp);
+    });
+
     function desenhar() {
       /* Uma turma escolhida que não pertence a nenhum evento escolhido não
          pode continuar filtrando em silêncio. */
@@ -798,7 +864,7 @@
 
       barra.innerHTML = htmlEscopo(ctx, dados);
       conteudo.innerHTML = htmlConteudo(dados);
-      ligarRespostas(conteudo, dados.avals || []);
+      abrirRespostas = ligarRespostas(conteudo, dados.avals || [], dados.turmasArr);
       ligarBusca(barra);
       /* O painel aberto continua aberto depois de escolher: quem marca um
          evento quase sempre vai marcar o próximo. Aí o foco volta para o

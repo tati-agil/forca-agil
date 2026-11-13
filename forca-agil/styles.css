@@ -1769,6 +1769,24 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .dash-media-n { grid-column: 1 / -1; font-size: .7rem; color: var(--ink-3); font-family: var(--font-mono); }
 .dash-media-linha--vazia .dash-media-nome,
 .dash-media-linha--vazia .dash-media-valor { color: var(--ink-3); }
+/* Turma ou evento com avaliação abre as respostas dele (lista "Respostas
+   individuais", filtrada). O botão herda a aparência da linha; o convite é o
+   "ver avaliações ›" em ciano claro (acesso complementar, §3-A do padrão
+   visual), sublinhado no hover e no foco. */
+.dash-media-dica { margin: -4px 0 12px; font-size: .74rem; color: var(--ink-3); }
+.dash-media-abre {
+  margin: 0; background: none; border: 0; border-radius: 6px;
+  padding: 4px 6px; margin-left: -6px; margin-right: -6px; width: calc(100% + 12px);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+button.dash-media-evento { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2);
+  flex-wrap: wrap; border-radius: 6px 6px 0 0; }
+.dash-media-ver { color: var(--cyan-soft); font-family: var(--font-mono); }
+.dash-media-evento .dash-media-ver { flex-basis: 100%; color: var(--cyan-soft); text-transform: none; letter-spacing: 0; }
+.dash-media-abre:hover, .dash-media-abre:focus-visible { background: rgba(122, 240, 232, .06); }
+.dash-media-abre:hover .dash-media-ver, .dash-media-abre:focus-visible .dash-media-ver { text-decoration: underline; }
+.dash-media-abre:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.dash-respostas { scroll-margin-top: calc(var(--nav-h, 73px) + 12px); }
 .dash-svg-gauge { width: 200px; height: auto; }
 .dash-gauge-value { font-family: var(--font-head); font-size: 2rem; color: var(--ink); margin-top: -8px; }
 .dash-gauge-value span { font-size: 1rem; color: var(--ink-3); }
@@ -1875,10 +1893,13 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .dash-panel--full { margin-top: 16px; }
 .dash-panel-sub { font-size: .8rem; color: var(--ink-3); line-height: 1.6; margin: 0 0 14px; }
 .resp-filtros { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-.resp-filtro { display: flex; flex-direction: column; gap: 5px; font-size: .74rem; color: var(--ink-2); }
+.resp-filtro { display: flex; flex-direction: column; gap: 5px; font-size: .74rem; color: var(--ink-2); min-width: 0; max-width: 100%; }
+/* max-width: com uma turma de nome comprido escolhida (o clique no painel de
+   médias escolhe), a caixa crescia até passar da borda do cartão no celular. */
 .resp-filtro select {
   background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 4px;
-  color: var(--ink); padding: 5px 8px; font-size: .82rem; cursor: pointer; min-width: 150px;
+  color: var(--ink); padding: 5px 8px; font-size: .82rem; cursor: pointer; min-width: 150px; max-width: 100%;
+  text-overflow: ellipsis;
 }
 .resp-contagem { font-family: var(--font-mono); font-size: .74rem; color: var(--ink-3); margin-left: auto; }
 .resp-lista { display: flex; flex-direction: column; gap: 8px; }
