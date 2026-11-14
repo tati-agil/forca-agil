@@ -287,6 +287,9 @@ async function rodada(browser, rotulo, ctxOpts) {
       const nomes = await x.page.$$eval('tr[data-pnl-nomes-de="0-0"]:not([hidden]) .pnl-nomes-lista li', (l) => l.map((e) => e.getAttribute('data-sit'))); await foto(x.page, rotulo.slice(0, 3) + '-diretorias-nomes');
       ok('L3 nomes abertos: sem rolagem lateral da página', await semRolagem(x.page));
       ok('C diretorias: admin toca na gerência e vê as pessoas dela (quantas = coluna Público, situações = núcleo)', nomes.length === rp.diretorias[0].gerenciasTodas[0].total && nomes.filter((x) => x === 'realizou').length === rp.diretorias[0].gerenciasTodas[0].realizou, { nomes, g: rp.diretorias[0].gerenciasTodas[0] });
+      const grupos = await x.page.$$eval('tr[data-pnl-nomes-de="0-0"]:not([hidden]) .pnl-nomes-sitgrupo', (l) => l.map((g) => ({ sit: g.getAttribute('data-pnl-nomes-sit'), tit: g.querySelector('h4').textContent, sits: [...g.querySelectorAll('li')].map((e) => e.getAttribute('data-sit')), nomes: [...g.querySelectorAll('li > span:first-child')].map((e) => e.textContent) })));
+      const ordemSit = ['realizou', 'inscrita', 'interessada', 'sem-engajamento', 'sem-cadastro'];
+      ok('C diretorias: nomes agrupados por situação (na ordem das colunas, título com a quantidade) e em ordem alfabética dentro de cada grupo', grupos.length > 0 && grupos.every((g, k) => g.sits.every((s) => s === g.sit) && g.tit.endsWith(' · ' + g.sits.length) && (!k || ordemSit.indexOf(grupos[k - 1].sit) < ordemSit.indexOf(g.sit)) && g.nomes.every((n, j) => !j || g.nomes[j - 1].localeCompare(n, 'pt-BR') <= 0)) && grupos.reduce((a, g) => a + g.sits.length, 0) === nomes.length, grupos);
       await x.page.click('[data-pnl-abrir="0"]');
       ok('C diretorias: fechar a diretoria esconde também os nomes', await x.page.$$eval('tr[data-pnl-nomes-dir="0"]', (l) => l.every((e) => e.hidden)));
       /* filtro de público */

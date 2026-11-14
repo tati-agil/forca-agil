@@ -344,8 +344,13 @@
         if (!nomes) { h += linha(g, '<span class="pnl-ger-nome">' + esc(g.nome) + '</span>', ' class="pnl-ger" data-pnl-ger="' + i + '" hidden'); return; }
         var id = i + '-' + j, ps = pessoasDe(d.nome, g.nome);
         h += linha(g, '<button type="button" class="pnl-ger-nome pnl-ger-abrir" data-pnl-nomes="' + id + '" aria-expanded="false"><span aria-hidden="true">▸</span> ' + esc(g.nome) + '</button>', ' class="pnl-ger" data-pnl-ger="' + i + '" hidden');
-        h += '<tr class="pnl-nomes" data-pnl-nomes-de="' + id + '" data-pnl-nomes-dir="' + i + '" hidden><td colspan="' + nCol + '"><ul class="pnl-nomes-lista">' + ps.map(function (p) {
-          return '<li data-sit="' + p.situacao + '"><span>' + esc(p.nome || p.email) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(SIT_NOME[p.situacao] || p.situacao) + (p.inscricoes || p.interesses ? ' · ' + esc(p.inscricoes || p.interesses) : '') + '</span></li>'; }).join('') + '</ul></td></tr>';
+        /* Agrupadas por situação (na ordem das colunas), com o nome em ordem alfabética dentro de cada grupo. */
+        h += '<tr class="pnl-nomes" data-pnl-nomes-de="' + id + '" data-pnl-nomes-dir="' + i + '" hidden><td colspan="' + nCol + '"><div class="pnl-nomes-grupos">' + ordemSit.map(function (s) {
+          var doGrupo = ps.filter(function (p) { return p.situacao === s; }); if (!doGrupo.length) return '';
+          return '<section class="pnl-nomes-sitgrupo" data-pnl-nomes-sit="' + s + '"><h4 style="border-color:' + COR[s] + '">' + esc(SIT_NOME[s] || s) + ' · ' + doGrupo.length + '</h4><ul class="pnl-nomes-lista">' + doGrupo.map(function (p) {
+            var turma = p.inscricoes || p.interesses;
+            return '<li data-sit="' + p.situacao + '"><span>' + esc(p.nome || p.email) + '</span>' + (turma ? '<span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(turma) + '</span>' : '') + '</li>'; }).join('') + '</ul></section>';
+        }).join('') + '</div></td></tr>';
       });
     });
     h += linha(rec.total, '<b>Total</b>', '', true) + '</tbody></table></div>' +
