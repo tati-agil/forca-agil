@@ -447,6 +447,23 @@ async function admin(browser, ctxOpts) {
     ok('D12 importar o arquivo baixado: prévia com as mesmas 25 pessoas, ninguém entra, sai ou muda, e nada gravado sem confirmar', /Pessoas válidas\s*25/.test(pvB) && /0 entram, 0 saem, 0 mudam/.test(pvB) && await x.page.evaluate((a) => (window.__ESCRITAS || []).length === a, antes), pvB.slice(0, 400));
     await x.page.click('#pnlaDescartar');
   }
+  /* D13: cadastro × base — área do cadastro (fa-users.area) contra a gerência/diretoria da base vigente; só leitura */
+  {
+    await x.page.evaluate(() => { const u = window.__CFG.db['fa-users'], a = { p2: 'G2', p3: 'dira', p4: 'INTEC', p5: ' g2 ', p7: 'INTEC', p12: 'INFOR' }; Object.keys(a).forEach((n) => { u[n + '_previ_com_br'].area = a[n]; }); });
+    const antes = await x.page.evaluate(() => (window.__ESCRITAS || []).length);
+    await x.page.click('#pnlaCxb'); await x.page.waitForSelector('[data-pnla="cxb-resumo"]', { timeout: 8000 });
+    const res = await texto(x.page, '[data-pnla="cxb-resumo"]');
+    const pares = await x.page.$$eval('[data-pnla="cxb-pares"] tbody tr', (l) => l.map((t) => [...t.children].map((c) => c.textContent).join('|')));
+    const nomes = await x.page.$$eval('[data-pnla="cxb-nomes"] tbody tr', (l) => l.map((t) => t.children[0].textContent));
+    /* p4 e p7 (G1/DIRA) e p12 (G0/DIRB) diferentes; p2, p3 e p5 coincidem (gerência ou diretoria, sem diferença de caixa e espaço); 14 sem área */
+    ok('D13 cadastro × base: lista quem tem a área do cadastro diferente da gerência e da diretoria da base, agrupado por combinação, sem gravar nada', /25 pessoas, 20 com cadastro/.test(res) && /3 com a área do cadastro diferente/.test(res) && /3 coincidem/.test(res) && /14 sem área/.test(res) &&
+      JSON.stringify(pares) === JSON.stringify(['INTEC|G1|DIRA|2', 'INFOR|G0|DIRB|1']) && JSON.stringify(nomes) === JSON.stringify(['P12', 'P4', 'P7']) && await x.page.evaluate((a) => (window.__ESCRITAS || []).length === a, antes), { res, pares, nomes });
+    await x.page.click('[data-pnla="cxb-nomes"] summary'); if (process.env.FA_FOTOS) await x.page.locator('[data-pnla="cxb"]').screenshot({ path: path.join(process.env.FA_FOTOS, 'admin-' + ctxOpts.viewport.width + '-cxb.png') }).catch(() => {});
+    const [dl] = await Promise.all([x.page.waitForEvent('download', { timeout: 15000 }), x.page.click('#pnlaCxbXlsx')]);
+    const arqC = path.join(require('os').tmpdir(), 'cadastro-x-base.xlsx'); await dl.saveAs(arqC);
+    const wbC = XLSX.read(fs.readFileSync(arqC), { type: 'buffer' }), dif = XLSX.utils.sheet_to_json(wbC.Sheets['Diferentes'], { header: 1, defval: '' });
+    ok('D13b Excel da conferência: abas Diferentes, Resumo e Sem área no cadastro, com as mesmas pessoas da tela', JSON.stringify(wbC.SheetNames) === JSON.stringify(['Diferentes', 'Resumo', 'Sem área no cadastro']) && dif.length === 4 && dif[1][0] === 'P12' && dif[1][2] === 'INFOR', { abas: wbC.SheetNames, dif });
+  }
   ok('D7 ADMIN sem rolagem lateral', await semRolagem(x.page));
   const pva = await verificarTela(x.page, { escopo: '#adminPainelPrograma', largura: ctxOpts.viewport.width, focos: 0 });
   ok('D9 padrão visual na aba do ADMIN', !pva.length, pva.slice(0, 3));
