@@ -321,16 +321,18 @@
     /* colunas de situação: inscrita e interessada somadas numa só (as duas ainda precisam comparecer; a soma fecha o público) */
     var COLS = [['realizou', 'Realizou'], ['insInt', 'Inscrita ou interessada'], ['sem-engajamento', 'Cadastrada sem engajamento'], ['sem-cadastro', 'Sem cadastro']];
     var val = function (o, c) { return c === 'insInt' ? o.inscrita + o.interessada : o[c]; };
-    var rec = recorte(r), nomes = podeExportar(), nCol = 2 + COLS.length + 3;
+    var rec = recorte(r), nomes = podeExportar(), nCol = 2 + COLS.length + 4;
     var h = '<article class="pnl-card" data-pnl="diretorias"><h2>Situação por diretoria' + (st.pub === 'todos' ? '' : ' · ' + esc(PUBS[st.pub])) + '</h2>' + filtroPublico() +
       '<div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
-      COLS.map(function (c) { return '<th class="pnl-n">' + c[1] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura (realizado)</th><th class="pnl-n" title="Com inscritos e interessados">Projetada</th><th class="pnl-n" title="Pessoas sem inscrição nem interesse">Gap</th></tr></thead><tbody>';
+      COLS.map(function (c) { return '<th class="pnl-n">' + c[1] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura (realizado)</th><th class="pnl-n" title="Com inscritos e interessados">Projetada</th><th class="pnl-n" title="Público − realizou">Gap (realizado)</th><th class="pnl-n" title="Público − realizados − inscritos e interessados com vaga">Gap (projetado)</th></tr></thead><tbody>';
+    /* Dois gaps (pedido da dona, 14/11): o do realizado (quem ainda não realizou) e o do projetado (quem falta mesmo
+       contando inscritos e interessados com vaga) — cada um ao lado da sua cobertura. */
     // A mesma linha serve para a diretoria, para cada gerência dela (que abre logo abaixo, com as mesmas colunas) e para o total.
     var linha = function (o, nome, attrs, neg) {
       var b = function (x) { return neg ? '<b>' + x + '</b>' : x; };
       var cor = !o.total || neg ? '' : ' style="background:' + (o.cobertura < 15 ? 'rgba(255,59,48,.30)' : o.cobertura < 30 ? 'rgba(246,190,123,.25)' : 'rgba(126,226,168,.18)') + '"';
       return '<tr' + attrs + '><td>' + nome + '</td><td class="pnl-n">' + b(o.total) + '</td>' + COLS.map(function (c) { return '<td class="pnl-n">' + b(val(o, c[0])) + '</td>'; }).join('') +
-        '<td class="pnl-n"' + cor + '>' + b(o.total ? f1(o.cobertura) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="proj-total"' : '') + '>' + b(o.total ? f1(o.coberturaProjetada) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-total"' : '') + '>' + b(o.gap) + '</td></tr>';
+        '<td class="pnl-n"' + cor + '>' + b(o.total ? f1(o.cobertura) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="proj-total"' : '') + '>' + b(o.total ? f1(o.coberturaProjetada) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-real-total"' : '') + '>' + b(o.total - o.realizou) + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-total"' : '') + '>' + b(o.gap) + '</td></tr>';
     };
     var ordemSit = Object.keys(ROT);
     var pessoasDe = function (dir, ger) {
@@ -354,7 +356,7 @@
       });
     });
     h += linha(rec.total, '<b>Total</b>', '', true) + '</tbody></table></div>' +
-      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público' + (st.pub === 'todos' ? '' : ' de ' + PUBS[st.pub].toLowerCase()) + '. Projetada = realizados + inscritos e interessados com vaga numa turma que termina até o prazo, se comparecerem com a frequência mínima (interesse ainda precisa da confirmação; inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Gap = público − projetados. Toque na diretoria para ver as gerências, com as mesmas colunas' +
+      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público' + (st.pub === 'todos' ? '' : ' de ' + PUBS[st.pub].toLowerCase()) + '. Gap (realizado) = público − realizou; Gap (projetado) = público − projetados. Projetada =realizados + inscritos e interessados com vaga numa turma que termina até o prazo, se comparecerem com a frequência mínima (interesse ainda precisa da confirmação; inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Toque na diretoria para ver as gerências, com as mesmas colunas' +
       (nomes ? '; toque na gerência para ver as pessoas e a situação de cada uma.' : '; gerências com menos de 5 pessoas aparecem agrupadas.') + '</p>' + botaoExportar(st.pub) + '</article>';
     return h;
   }
