@@ -307,13 +307,50 @@
          resolve baixando exatamente o que ele usa; para corrigir, edita-se esse arquivo e importa-se de novo. */
       var h = '<h4>Base oficial do público-alvo</h4>' + (ver ? '<p class="pnla-ajuda" data-pnla="base-vigente">Vigente: <b>versão ' + vig + '</b> · ' + ver.total + ' pessoas · arquivo <b>' + esc(ver.origem) + '</b> · importada em ' + quando(ver.importadaEm) + ' por ' + esc(ver.importadaPor) + '. Versões anteriores ficam guardadas.</p>' +
         '<div class="pnla-botoes"><button type="button" class="btn btn--sm" id="pnlaBaixarBase">Baixar a base vigente (Excel)</button></div><p id="pnlaBaixarMsg" class="pnla-msg"></p>' +
-        '<p class="pnla-ajuda">O arquivo baixado é exatamente o que o painel usa (versão ' + vig + '). Para corrigir alguém: edite a primeira aba, salve e importe aqui; a prévia mostra quem entra, sai ou muda antes de gravar.</p>' : '<p class="pnla-ajuda">Nenhuma base importada: o painel não calcula sem ela.</p>') +
+        '<p class="pnla-ajuda">O arquivo baixado é exatamente o que o painel usa (versão ' + vig + '). Para corrigir alguém: edite a primeira aba, salve e importe aqui; a prévia mostra quem entra, sai ou muda antes de gravar.</p>' +
+        '<div class="pnla-previa pnla-cxb" data-pnla="cxb"><h5>Cadastro × base</h5><p class="pnla-ajuda">O painel mostra cada pessoa na gerência e na diretoria da base oficial, não na área que ela informou no cadastro do site. Esta conferência lista quem tem as duas diferentes. Só consulta: nada é corrigido.</p>' +
+        '<div class="pnla-botoes"><button type="button" class="btn btn--sm" id="pnlaCxb">Conferir cadastro × base</button></div><p id="pnlaCxbMsg" class="pnla-msg"></p><div id="pnlaCxbRes"></div></div>' : '<p class="pnla-ajuda">Nenhuma base importada: o painel não calcula sem ela.</p>') +
         '<p class="pnla-ajuda">Planilha (.xlsx ou .csv) com as colunas <b>nome</b> (ou ANNOME), <b>e-mail</b> (ou ANEMAIL), <b>gerência</b> e <b>diretoria</b>, na primeira aba. Primeiro aparece a prévia; nada é gravado até você confirmar. Nada é corrigido nem excluído: os pontos estranhos são só sinalizados.</p>' +
         '<label class="pnla-arquivo">Escolher planilha<input type="file" id="pnlaArquivo" accept=".xlsx,.csv" /></label><p id="pnlaBaseMsg" class="pnla-msg"></p><div id="pnlaPrevia"></div>';
       el.innerHTML = h;
       $('pnlaArquivo').addEventListener('change', function (e) { var f = e.target.files && e.target.files[0]; if (f) ler(f, v); });
-      if (ver) $('pnlaBaixarBase').addEventListener('click', function () { baixarBase(vig, ver); });
+      if (ver) { $('pnlaBaixarBase').addEventListener('click', function () { baixarBase(vig, ver); }); $('pnlaCxb').addEventListener('click', function () { conferirCadastro(vig, ver); }); }
     }, function (e) { el.innerHTML = '<h4>Base oficial do público-alvo</h4><p class="pnla-msg pnla-msg--erro" role="alert">Não foi possível carregar (' + esc(e && (e.code || e.message)) + ').</p>'; });
+  }
+  /* Cadastro × base (só leitura): lê fa-users na hora e compara a área do cadastro com a gerência/diretoria da versão
+     vigente (critério em programa-cobertura-nucleo.js cadastroXBase). Resumo por combinação, lista com os nomes e Excel. */
+  function conferirCadastro(vig, ver) {
+    var m = $('pnlaCxbMsg'), res = $('pnlaCxbRes'), b = $('pnlaCxb'); b.disabled = true; res.innerHTML = ''; msg(m, 'Lendo os cadastros…');
+    db().ref('fa-users').once('value').then(function (s) {
+      b.disabled = false; m.textContent = ''; m.className = 'pnla-msg';
+      var c = NUC.cadastroXBase(s.val() || {}, ver.pessoas || {});
+      var linhaP = function (p) { return '<tr><td>' + esc(p.nome) + '</td><td>' + esc(p.email) + '</td><td>' + esc(p.cadastro || '—') + '</td><td>' + esc(p.gerencia || '—') + '</td><td>' + esc(p.diretoria || '—') + '</td></tr>'; };
+      var cab = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área no cadastro</th><th>Gerência na base</th><th>Diretoria na base</th></tr></thead>';
+      res.innerHTML = '<p class="pnla-ajuda" data-pnla="cxb-resumo">Base versão ' + vig + ': ' + c.naBase + ' pessoas, ' + c.comCadastro + ' com cadastro no site. <b>' + c.divergentes.length + '</b> com a área do cadastro diferente da base; ' + c.coincidem + ' coincidem; ' + c.semArea.length + ' sem área no cadastro.</p>' +
+        (c.divergentes.length ? '<div class="table-scroll-wrap"><table class="admin-table" data-pnla="cxb-pares"><thead><tr><th>Área no cadastro</th><th>Gerência na base</th><th>Diretoria na base</th><th class="pnl-n">Pessoas</th></tr></thead><tbody>' +
+          c.pares.map(function (p) { return '<tr><td>' + esc(p.cadastro) + '</td><td>' + esc(p.gerencia || '—') + '</td><td>' + esc(p.diretoria || '—') + '</td><td class="pnl-n">' + p.pessoas + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+          '<details data-pnla="cxb-nomes"><summary>Ver as ' + c.divergentes.length + ' pessoas</summary><div class="table-scroll-wrap"><table class="admin-table">' + cab + '<tbody>' + c.divergentes.map(linhaP).join('') + '</tbody></table></div></details>' : '<p class="pnla-msg pnla-msg--ok">Nenhuma diferença entre a área do cadastro e a base.</p>') +
+        (c.semArea.length ? '<details data-pnla="cxb-semarea"><summary>Sem área no cadastro (' + c.semArea.length + ')</summary><div class="table-scroll-wrap"><table class="admin-table">' + cab + '<tbody>' + c.semArea.map(linhaP).join('') + '</tbody></table></div></details>' : '') +
+        (c.divergentes.length || c.semArea.length ? '<div class="pnla-botoes"><button type="button" class="btn btn--sm" id="pnlaCxbXlsx">Baixar a conferência (Excel)</button></div><p id="pnlaCxbXlsxMsg" class="pnla-msg"></p>' : '') +
+        '<p class="pnla-ajuda">Para o painel mudar, corrija a base (baixar, editar, importar). Para o cadastro mudar, corrija em ADMIN › Cadastrados.</p>';
+      var bx = $('pnlaCxbXlsx'); if (bx) bx.addEventListener('click', function () { baixarCxb(vig, c); });
+    }, function (e) { b.disabled = false; msg(m, 'Não foi possível ler os cadastros (' + (e && (e.code || e.message)) + ').', true); });
+  }
+  function baixarCxb(vig, c) {
+    var m = $('pnlaCxbXlsxMsg');
+    carregarXlsx(function (falha) {
+      if (falha) { msg(m, 'Não foi possível carregar o gerador de planilhas. Recarregue a página.', true); return; }
+      try {
+        var X = window.XLSX, wb = X.utils.book_new(), cab = ['Nome', 'E-mail', 'Área no cadastro', 'Gerência na base', 'Diretoria na base'];
+        var lin = function (p) { return [p.nome, p.email, p.cadastro, p.gerencia, p.diretoria]; };
+        X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([cab].concat(c.divergentes.map(lin))), 'Diferentes');
+        X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([['Área no cadastro', 'Gerência na base', 'Diretoria na base', 'Pessoas']].concat(c.pares.map(function (p) { return [p.cadastro, p.gerencia, p.diretoria, p.pessoas]; }))), 'Resumo');
+        X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([cab].concat(c.semArea.map(lin))), 'Sem área no cadastro');
+        var d = new Date(), hoje = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        X.writeFile(wb, 'cadastro-x-base-versao-' + vig + '-' + hoje + '.xlsx');
+        msg(m, 'Arquivo gerado: ' + c.divergentes.length + ' diferentes, ' + c.semArea.length + ' sem área.');
+      } catch (e) { msg(m, 'Não foi possível gerar o arquivo (' + (e && e.message) + ').', true); }
+    });
   }
   /* Planilha da versão vigente, no mesmo formato que o importador lê (primeira aba, colunas ANNOME, ANEMAIL, GERENCIA,
      DIRETORIA, nivel): baixar, corrigir e importar de novo devolve as mesmas pessoas. Só leitura; nada é gravado. */

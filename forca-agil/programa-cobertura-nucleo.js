@@ -579,7 +579,30 @@
     return out;
   }
 
-  var api = { PUBLICOS: PUBLICOS, publicoDoNivel: publicoDoNivel, calcular: calcular, previaBase: previaBase, maximoDeJanelas: maximoDeJanelas, gulosoJanelas: gulosoJanelas, diasUteis: diasUteis, emailKey: emailKey, grupoDoCargo: grupoDoCargo };
+  /* Cadastro × base: a área que a pessoa declarou no cadastro do site (fa-users.area) contra a gerência e a diretoria da
+     base oficial (o que o painel usa). Mesma ligação do painel: a chave do e-mail. Só consulta; nada é corrigido.
+     Coincide = a área do cadastro é a gerência ou a diretoria da base (sem diferença de maiúsculas, acentos e espaços). */
+  function cadastroXBase(users, pessoas) {
+    users = users || {}; pessoas = pessoas || {};
+    var norm = function (s) { return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase(); };
+    var out = { naBase: 0, comCadastro: 0, coincidem: 0, semArea: [], divergentes: [], pares: [] }, pares = {};
+    Object.keys(pessoas).forEach(function (k) {
+      var p = pessoas[k] || {}, u = users[k]; out.naBase++; if (!u) return; out.comCadastro++;
+      var a = norm(u.area), g = norm(p.gerencia), d = norm(p.diretoria);
+      var item = { nome: String(p.nome || u.name || '').trim(), email: p.email || u.email || '', cadastro: a, gerencia: g, diretoria: d };
+      if (!a) { out.semArea.push(item); return; }
+      if (a === g || a === d) { out.coincidem++; return; }
+      out.divergentes.push(item);
+      var pk = a + '|' + g + '|' + d; (pares[pk] = pares[pk] || { cadastro: a, gerencia: g, diretoria: d, pessoas: 0 }).pessoas++;
+    });
+    var porNome = function (x, y) { return x.nome.localeCompare(y.nome, 'pt-BR'); };
+    out.divergentes.sort(function (x, y) { return x.cadastro.localeCompare(y.cadastro, 'pt-BR') || x.diretoria.localeCompare(y.diretoria, 'pt-BR') || x.gerencia.localeCompare(y.gerencia, 'pt-BR') || porNome(x, y); });
+    out.semArea.sort(function (x, y) { return x.diretoria.localeCompare(y.diretoria, 'pt-BR') || x.gerencia.localeCompare(y.gerencia, 'pt-BR') || porNome(x, y); });
+    out.pares = Object.keys(pares).map(function (k) { return pares[k]; }).sort(function (x, y) { return y.pessoas - x.pessoas || x.cadastro.localeCompare(y.cadastro, 'pt-BR') || x.gerencia.localeCompare(y.gerencia, 'pt-BR'); });
+    return out;
+  }
+
+  var api = { PUBLICOS: PUBLICOS, publicoDoNivel: publicoDoNivel, calcular: calcular, previaBase: previaBase, cadastroXBase: cadastroXBase, maximoDeJanelas: maximoDeJanelas, gulosoJanelas: gulosoJanelas, diasUteis: diasUteis, emailKey: emailKey, grupoDoCargo: grupoDoCargo };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (raiz) raiz.faProgramaCobertura = api;
 })(typeof window !== 'undefined' ? window : null);
