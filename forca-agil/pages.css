@@ -557,6 +557,8 @@
 .rico-html-view div, .rico-html-view p { margin: 0 0 4px; }
 .rico-html-view div:last-child, .rico-html-view p:last-child { margin-bottom: 0; }
 .rico-html-view blockquote { margin: 0 0 4px; }
+/* imagem colada num campo do roteiro: nunca passa da largura da caixa (celular incluído) */
+.roteiro-rico-area img, .rico-html-view img { display: block; max-width: 100%; height: auto; margin: 6px 0; border-radius: 4px; }
 
 /* ---- Tabela de presença por dia ---- */
 /* Com as colunas de dia a tabela fica mais larga que o painel e a coluna de

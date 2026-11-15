@@ -114,6 +114,13 @@
      como HTML de verdade quando o valor já contém alguma dessas tags). ---- */
   var RICO_TAGS_PERMITIDAS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, BLOCKQUOTE: 1 };
   var RICO_ALINHAMENTOS = ['left', 'center', 'right', 'justify'];
+  /* Imagem colada (ver colarImagem): só sobrevive como <img> cujo src é a
+     própria imagem embutida em base64 — nunca um endereço externo, um
+     blob: (que só existe na aba de quem colou) nem outro tipo de data:.
+     Qualquer outro <img> é removido inteiro (não desembrulhado: não tem
+     conteúdo). O site não tem Firebase Storage: a imagem fica gravada no
+     próprio texto do campo, já reduzida pelo navegador ao colar. */
+  var RICO_IMG_SRC = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+\/]+=*$/;
   function sanitizarHtmlRico(html) {
     var raiz = document.createElement('div');
     raiz.innerHTML = html || '';
@@ -124,6 +131,20 @@
           var rem = filho; filho = filho.nextSibling; no.removeChild(rem); continue;
         }
         if (filho.nodeType !== 1 /* elemento */) { filho = filho.nextSibling; continue; }
+        if (filho.tagName === 'IMG') {
+          var src = filho.getAttribute('src') || '';
+          var proxImg = filho.nextSibling;
+          if (RICO_IMG_SRC.test(src)) {
+            var img = document.createElement('img');
+            img.setAttribute('src', src);
+            img.setAttribute('alt', '');
+            no.replaceChild(img, filho);
+          } else {
+            no.removeChild(filho);
+          }
+          filho = proxImg;
+          continue;
+        }
         if (!RICO_TAGS_PERMITIDAS[filho.tagName]) {
           var proxDepois = filho.nextSibling;
           var primeiroPromovido = filho.firstChild;
@@ -159,6 +180,7 @@
     return raiz.innerHTML;
   }
   function ricoVazio(html) {
+    if (/<img\s/i.test(String(html || ''))) return false; /* só uma imagem, sem texto, também é conteúdo */
     var t = String(html || '').replace(/<br\s*\/?>/gi, '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').trim();
     return !t;
   }
@@ -168,7 +190,7 @@
      de alguma tag da lista permitida, e trata cada um do jeito certo. */
   function htmlRicoSeguro(valor) {
     if (!valor) return '';
-    var pareceHtml = /<\s*(b|strong|i|em|u|ul|ol|li|div|br|p|span)[\s>/]/i.test(valor);
+    var pareceHtml = /<\s*(b|strong|i|em|u|ul|ol|li|div|br|p|span|img)[\s>/]/i.test(valor);
     var html = pareceHtml ? valor : esc(valor).replace(/\n/g, '<br>');
     return sanitizarHtmlRico(html);
   }
@@ -306,13 +328,77 @@
   function colarComoTexto(e) {
     var dados = e.clipboardData || window.clipboardData;
     var texto = dados ? dados.getData('text/plain') : '';
-    if (!texto) return;
+    /* Texto tem prioridade: Excel e Word também põem uma FOTO da seleção
+       no clipboard junto com o texto — colar células tem de continuar
+       colando o texto. Só quando não vem texto nenhum (print de tela,
+       "copiar imagem") é que a imagem entra. Antes disso, o navegador
+       colava a imagem sozinho e o sanitizador a descartava ao salvar, sem
+       aviso nenhum. */
+    if (!texto) {
+      var arquivo = imagemDoClipboard(dados);
+      if (arquivo) { e.preventDefault(); colarImagem(arquivo, e.currentTarget); return; }
+      /* sem texto e sem imagem legível (ex: HTML só com <img src="http...">):
+         não deixa o navegador colar algo que o Salvar jogaria fora */
+      if (dados && dados.types && Array.prototype.indexOf.call(dados.types, 'text/html') !== -1) {
+        e.preventDefault();
+        alertDialog('Não foi possível colar esta imagem. Copie a imagem em si (botão direito › Copiar imagem, ou um print de tela) e cole de novo.');
+      }
+      return;
+    }
     e.preventDefault();
     var html = esc(texto)
       .replace(/\r\n/g, '\n')
       .replace(/\t/g, '\u00A0\u00A0\u00A0\u00A0')
       .replace(/\n/g, '<br>');
     document.execCommand('insertHTML', false, html);
+  }
+
+  function imagemDoClipboard(dados) {
+    var itens = dados && dados.items;
+    if (!itens) return null;
+    for (var i = 0; i < itens.length; i++) {
+      if (itens[i].kind === 'file' && /^image\//.test(itens[i].type)) return itens[i].getAsFile();
+    }
+    return null;
+  }
+  /* Reduz a imagem no navegador antes de inserir: o texto do campo (com a
+     imagem embutida) é gravado inteiro no banco e baixado por quem abre o
+     roteiro, muitas vezes no celular, na rede da Previ. Lado maior até
+     IMG_LADO_MAX px, JPEG; se ainda passar de IMG_BYTES_MAX, reduz mais. */
+  var IMG_LADO_MAX = 1200, IMG_BYTES_MAX = 350 * 1024;
+  function colarImagem(arquivo, area) {
+    var sel = window.getSelection();
+    var range = sel.rangeCount && area.contains(sel.getRangeAt(0).startContainer) ? sel.getRangeAt(0).cloneRange() : null;
+    var falhou = function () {
+      alertDialog('Não foi possível ler esta imagem. Tente copiar de novo ou salvar como PNG/JPEG e colar.');
+    };
+    /* FileReader (data:) e não URL.createObjectURL (blob:): a CSP do site
+       (firebase.json, img-src 'self' data:) bloqueia imagens blob:. */
+    var leitor = new FileReader();
+    var img = new Image();
+    leitor.onload = function () { img.src = leitor.result; };
+    leitor.onerror = falhou;
+    img.onload = function () {
+      var lado = Math.min(IMG_LADO_MAX, Math.max(img.naturalWidth, img.naturalHeight));
+      var dataUrl = '', qualidade = 0.82;
+      for (var tentativa = 0; tentativa < 6; tentativa++) {
+        var esc2 = lado / Math.max(img.naturalWidth, img.naturalHeight);
+        var cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(img.naturalWidth * esc2));
+        cv.height = Math.max(1, Math.round(img.naturalHeight * esc2));
+        var cx = cv.getContext('2d');
+        cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height); /* PNG transparente não vira fundo preto no JPEG */
+        cx.drawImage(img, 0, 0, cv.width, cv.height);
+        dataUrl = cv.toDataURL('image/jpeg', qualidade);
+        if (dataUrl.length * 0.75 <= IMG_BYTES_MAX) break;
+        lado = Math.round(lado * 0.8); qualidade = Math.max(0.6, qualidade - 0.06);
+      }
+      area.focus();
+      if (range) { sel.removeAllRanges(); sel.addRange(range); }
+      document.execCommand('insertHTML', false, '<img src="' + dataUrl + '" alt=""><br>');
+    };
+    img.onerror = falhou;
+    leitor.readAsDataURL(arquivo);
   }
 
   /* ---- Diálogos (mesmo visual do admin, duplicado aqui: roteiro.js é
@@ -1392,6 +1478,7 @@
       'body.rp-eco .rp-gap td{color:#a35a2a;}' +
       'body.rp-eco .rp-gap-bloco{color:#a35a2a;}' +
       '*{box-sizing:border-box;}' +
+      'img{display:block;max-width:100%;height:auto;margin:6px 0;break-inside:avoid;}' +
       'html,body{background:var(--pspace);}' +
       /* Sem max-width, o corpo esticava até a borda da janela — numa tela
          larga isso deixava a tabela/os cartões com colunas desproporcionais
