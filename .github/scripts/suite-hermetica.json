@@ -423,6 +423,12 @@
       "sobre": "Hermético. As caixas de texto rico do Roteiro decidem se um valor é HTML novo ou texto puro antigo olhando só se tem alguma tag — nunca se já tem uma entidade (&amp; &nbsp;). Um \"&\" sem tag nenhuma era escapado de novo TODA vez que a atividade era aberta e salva, mesmo sem editar aquele campo — depois de duas rodadas virava um \"&amp;nbsp;\" literal na tela, sem erro algum."
     },
     {
+      "arquivo": ".github/scripts/teste-roteiro-colar-imagem.js",
+      "nome": "Imagem colada no roteiro é reduzida e gravada (desktop e iPhone)",
+      "duracao": 15,
+      "sobre": "Hermético. Colar uma imagem (print de tela) num campo de texto rico do Roteiro mostrava a imagem, mas o Salvar a descartava sem aviso (o sanitizador só conhecia tags de texto). Agora a imagem é reduzida no navegador (até 1200 px, JPEG, até ~350 KB) e gravada no próprio campo como data:image; imagem externa continua descartada; colar texto + imagem (Excel) cola só o texto; reabrir mostra a imagem dentro da largura da caixa."
+    },
+    {
       "arquivo": ".github/scripts/teste-turmas-expansiveis.js",
       "nome": "Turmas e Minha Área — acordeão de turma não mistura uma com a outra (desktop e iPhone)",
       "duracao": 8,
