@@ -1024,6 +1024,59 @@
   var _uiFiltroStatus     = {};   /* { [turmaKey]: 'todos' | 'confirmados' | 'nao_confirmados' } */
   var _uiFiltroEvento     = '';   /* valor do select "Ver evento" */
 
+  /* Endereço direto para uma turma: #admin?turma=<turma>[&p=<chave da pessoa>] (o Painel do Programa leva as interessadas
+     sem inscrição até aqui, onde se confirma). Abre a aba Eventos, o evento e a turma, mostra "Todos os interessados" e
+     destaca a linha da pessoa. Vale uma vez por endereço: as recargas da aba depois de cada ação (confirmar, presença…)
+     devolvem a rolagem como sempre. Devolve true quando posicionou a tela. */
+  var _turmaEnderecoFeito = '';
+  function turmaDoEndereco() {
+    var m = /^#admin\?([^#]*)$/.exec(location.hash || ''), q = {};
+    if (!m) return null;
+    m[1].split('&').forEach(function (par) { var i = par.indexOf('='); if (i > 0) { try { q[par.slice(0, i)] = decodeURIComponent(par.slice(i + 1)); } catch (e) {} } });
+    return q.turma ? { turma: q.turma, pessoa: q.p || '' } : null;
+  }
+  function irParaTurmaDoEndereco() {
+    var alvo = turmaDoEndereco();
+    if (!alvo) { _turmaEnderecoFeito = ''; return false; }
+    if (_turmaEnderecoFeito === location.hash) return false;
+    var card = document.getElementById('turma-card-' + alvo.turma);
+    if (!card) return false;
+    _turmaEnderecoFeito = location.hash;
+    if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelInteresses');
+    var sec = card.closest('[data-ev-key]');
+    if (sec) {
+      var sel = document.querySelector('#adminInterests [data-filtro-evento]');
+      if (sel && sel.value && sel.value !== sec.getAttribute('data-ev-key')) { sel.value = ''; sel.dispatchEvent(new Event('change')); }
+      var tw = sec.querySelector('.ev-turmas-wrap'), ic = sec.querySelector('.ev-toggle-icon');
+      if (tw) tw.style.display = 'flex';
+      if (ic) ic.textContent = '▾';
+      _uiEventosAbertos[sec.getAttribute('data-ev-key')] = true;
+    }
+    var body = card.querySelector('.turma-admin-body'), ti = card.querySelector('.turma-toggle-icon');
+    if (body) body.style.display = '';
+    if (ti) ti.textContent = '▾';
+    _uiTurmasAbertas[alvo.turma] = true;
+    var linha = null;
+    if (alvo.pessoa) {
+      var achar = function () { var b = card.querySelector('[data-ekey="' + (window.CSS && CSS.escape ? CSS.escape(alvo.pessoa) : alvo.pessoa) + '"]'); return b && b.closest('tr'); };
+      linha = achar();
+      /* filtro da turma escondendo a pessoa (ex.: "Confirmados"): volta para "Todos os interessados" */
+      if (!linha) { var todos = card.querySelector('.turma-status-filtro-btn'); if (todos) { todos.click(); linha = achar(); } }
+      card.querySelectorAll('.turma-linha-destaque').forEach(function (x) { x.classList.remove('turma-linha-destaque'); });
+      if (linha) linha.classList.add('turma-linha-destaque');
+    }
+    var destino = linha || card;
+    requestAnimationFrame(function () { destino.scrollIntoView({ block: linha ? 'center' : 'start' }); });
+    return true;
+  }
+  /* já no ADMIN, um link para outra turma (#admin → #admin?turma=…) não recarrega a aba: posiciona na que está desenhada */
+  window.addEventListener('hashchange', function (e) {
+    if (!/^#admin\?/.test(location.hash || '')) { _turmaEnderecoFeito = ''; return; }
+    /* vindo de outra página, quem posiciona é a carga da aba (initAdmin → loadInterests), sobre a lista atualizada */
+    if (!/#admin(\?|$)/.test(String(e.oldURL || '').replace(/^[^#]*/, ''))) return;
+    setTimeout(irParaTurmaDoEndereco, 0);
+  });
+
   function loadInterests() {
     var c = document.getElementById('adminInterests');
     if (!c) return;
@@ -1109,6 +1162,7 @@
           filterLabel.style.cssText = 'color:var(--ink-2);font-size:.82rem;white-space:nowrap;flex-shrink:0';
           filterLabel.textContent = 'Ver evento:';
           var filterSel = document.createElement('select');
+          filterSel.setAttribute('data-filtro-evento', '1');   /* endereço de turma (irParaTurmaDoEndereco) limpa o filtro */
           filterSel.style.cssText = 'background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;color:var(--ink);padding:4px 8px;font-size:.82rem;cursor:pointer;max-width:240px;min-width:0;flex-shrink:1';
           var allOpt = document.createElement('option');
           allOpt.value = ''; allOpt.textContent = 'Todos';
@@ -1946,8 +2000,8 @@
             else aplicarFiltroEvento(false);
           }
 
-          /* Devolve a rolagem ao ponto onde a pessoa estava. */
-          if (!primeiraVez && scrollAntes) {
+          /* Devolve a rolagem ao ponto onde a pessoa estava — a não ser que o endereço peça uma turma (aí vai até ela). */
+          if (!irParaTurmaDoEndereco() && !primeiraVez && scrollAntes) {
             requestAnimationFrame(function () { window.scrollTo(0, scrollAntes); });
           }
         });
