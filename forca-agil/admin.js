@@ -8387,16 +8387,108 @@
         form.innerHTML =
           '<h4 style="margin-top:32px">Adicionar administrador</h4>' +
           '<div class="admin-colab-row">' +
-            '<input id="adminName"  type="text"  placeholder="Nome completo" />' +
-            '<input id="adminEmail" type="email" placeholder="e-mail" />' +
+            '<input id="adminName"  type="text"  placeholder="Nome completo" autocomplete="off" />' +
+            '<input id="adminEmail" type="email" placeholder="e-mail" autocomplete="off" />' +
             '<button class="btn btn--primary" id="adminAddBtn">Adicionar</button>' +
           '</div>' +
+          '<ul id="adminSugestoes" class="admin-sugestoes" style="display:none"></ul>' +
           '<p id="adminMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
         c.appendChild(form);
 
         if (window.faAuth && window.faAuth.autoPreviDominio) {
           window.faAuth.autoPreviDominio(document.getElementById('adminEmail'));
         }
+
+        /* Sugestões a partir de Cadastrados (fa-users) conforme se digita no
+           nome ou no e-mail: escolher uma preenche os dois campos. Quem não
+           tem cadastro continua podendo ser digitado à mão. Enquanto a
+           leitura não chega, a lista diz "Carregando" — nunca "nenhum". */
+        (function () {
+          const inpNome  = document.getElementById('adminName');
+          const inpEmail = document.getElementById('adminEmail');
+          const lista    = document.getElementById('adminSugestoes');
+          const jaAdmin  = {};
+          SUPER_ADMINS.forEach(function (e) { jaAdmin[e.toLowerCase()] = true; });
+          dbList.forEach(function (p) { if (p.email) jaAdmin[p.email.toLowerCase()] = true; });
+          let usuarios = [], carregado = false, falhou = false, origem = inpNome;
+
+          function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+
+          firebase.database().ref('fa-users').once('value', function (snap) {
+            usuarios = Object.values(snap.val() || {})
+              .filter(function (u) { return u && u.email && u.name; })
+              .map(function (u) { return { name: u.name, email: String(u.email).toLowerCase(), area: u.area || '', _n: norm(u.name) + ' ' + norm(u.email) }; })
+              .sort(function (a, b) { return a.name.localeCompare(b.name, 'pt'); });
+            carregado = true;
+            if (document.activeElement === inpNome || document.activeElement === inpEmail) desenhar();
+          }, function () { falhou = true; desenhar(); });
+
+          /* No e-mail, o "@previ.com.br" já vem escrito ao focar (autoPreviDominio) e o cursor
+             pode cair antes, depois ou no meio dele (no celular, onde o dedo tocou). O que a
+             pessoa digitou é o trecho inserido num ponto só do domínio: acha esse ponto. */
+          function digitadoNoEmail(v) {
+            const D = '@previ.com.br', s = String(v || '');
+            if (s.length >= D.length) {
+              for (let k = 0; k <= D.length; k++) {
+                if (s.slice(0, k).toLowerCase() === D.slice(0, k) && s.slice(s.length - (D.length - k)).toLowerCase() === D.slice(k)) {
+                  return s.slice(k, s.length - (D.length - k));
+                }
+              }
+            }
+            return s.split('@')[0];
+          }
+
+          function fechar() { lista.style.display = 'none'; lista.innerHTML = ''; }
+
+          function desenhar() {
+            const q = norm(origem === inpEmail ? digitadoNoEmail(origem.value) : origem.value).trim();
+            if (q.length < 2) { fechar(); return; }
+            lista.innerHTML = '';
+            const achados = usuarios.filter(function (u) { return u._n.indexOf(q) !== -1; }).slice(0, 8);
+            if (!achados.length) {
+              const li = document.createElement('li');
+              li.className = 'admin-sugestao-vazia';
+              li.textContent = falhou ? 'Não consegui ler os cadastros — digite nome e e-mail à mão.'
+                : !carregado ? 'Carregando cadastros…'
+                : 'Nenhum cadastro encontrado — digite nome e e-mail à mão.';
+              lista.appendChild(li);
+            } else {
+              achados.forEach(function (u) {
+                const li = document.createElement('li');
+                const admin = !!jaAdmin[u.email];
+                li.innerHTML = '<span class="admin-sugestao-nome">' + esc(u.name) + (admin ? ' <em>(já é admin)</em>' : '') + '</span>' +
+                  '<span class="admin-sugestao-info">' + esc(u.email) + (u.area ? ' · ' + esc(u.area) : '') + '</span>';
+                if (admin) { li.className = 'admin-sugestao-desativada'; }
+                else {
+                  li.tabIndex = 0;
+                  li.setAttribute('role', 'option');
+                  const escolher = function () {
+                    inpNome.value  = u.name;
+                    inpEmail.value = u.email;
+                    fechar();
+                    document.getElementById('adminAddBtn').focus();
+                  };
+                  /* mousedown: escolhe antes de o campo perder o foco e fechar a lista */
+                  li.addEventListener('mousedown', function (e) { e.preventDefault(); escolher(); });
+                  li.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); escolher(); } });
+                }
+                lista.appendChild(li);
+              });
+            }
+            lista.style.display = '';
+          }
+
+          [inpNome, inpEmail].forEach(function (inp) {
+            inp.addEventListener('input', function () { origem = inp; desenhar(); });
+            inp.addEventListener('keydown', function (e) {
+              if (e.key === 'Escape') fechar();
+              if (e.key === 'ArrowDown') { const p = lista.querySelector('li[tabindex]'); if (p) { e.preventDefault(); p.focus(); } }
+            });
+          });
+          form.addEventListener('focusout', function () {
+            setTimeout(function () { if (!form.contains(document.activeElement)) fechar(); }, 0);
+          });
+        })();
 
         document.getElementById('adminAddBtn').addEventListener('click', function () {
           const name  = window.faTurmasUtil.nomePessoa(document.getElementById('adminName').value);
