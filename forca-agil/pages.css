@@ -1186,6 +1186,23 @@
   display: flex; gap: 8px; align-items: center; width: 100%;
 }
 .admin-colab-row input { flex: 1; min-width: 0; }
+/* Sugestões de Cadastrados ao adicionar administrador (ADMIN › Administradores) */
+.admin-sugestoes {
+  margin: 4px 0 0; padding: 0; list-style: none; max-height: 240px; overflow-y: auto;
+  border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel-2);
+}
+.admin-sugestoes li {
+  padding: 9px 14px; font-size: .83rem; cursor: pointer; border-bottom: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.admin-sugestoes li:last-child { border-bottom: 0; }
+.admin-sugestoes li[tabindex]:hover, .admin-sugestoes li[tabindex]:focus { background: rgba(255,255,255,.06); outline: none; }
+.admin-sugestoes li[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.admin-sugestao-nome { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.admin-sugestao-nome em { color: var(--ink-3); font-weight: 400; font-style: normal; }
+.admin-sugestao-info { color: var(--ink-3); font-size: .78rem; overflow-wrap: anywhere; }
+.admin-sugestoes li.admin-sugestao-vazia, .admin-sugestoes li.admin-sugestao-desativada { cursor: default; color: var(--ink-3); }
+.admin-sugestao-desativada .admin-sugestao-nome { color: var(--ink-3); }
 
 .admin-status-btns { display: flex; flex-wrap: wrap; gap: 4px; } /* 4 filtros com contagem: no celular quebram linha em vez de sair da tela */
 .admin-status-btn {

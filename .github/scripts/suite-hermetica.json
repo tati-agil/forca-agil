@@ -591,6 +591,12 @@
       "sobre": "No desktop os títulos param logo abaixo do menu, sem rolagem interna; em tela média e no celular a tabela rola por dentro e os títulos param no topo do quadro; fundo opaco; títulos acompanham as colunas na rolagem lateral; sem rolagem lateral da página."
     },
     {
+      "arquivo": ".github/scripts/teste-admin-sugestao-cadastrados.js",
+      "nome": "Adicionar administrador: sugestões de Cadastrados conforme se digita, desktop e celular",
+      "duracao": 15,
+      "sobre": "Digitar parte do nome (sem acento) ou do e-mail (com o @previ.com.br já escrito, cursor em qualquer ponto) sugere quem combina, com e-mail e área; quem já é admin aparece marcado e não pode ser escolhido; escolher preenche nome e e-mail; sem cadastro, avisa e o preenchimento à mão continua gravando; 375 px sem rolagem lateral."
+    },
+    {
       "arquivo": ".github/scripts/teste-cadastro-modal-organizacao.js",
       "nome": "Cadastrados, menu ⋯: seções Participações e Ações administrativas com 0, 1, 2 e muitas participações, desktop, 375 px e celular baixo",
       "duracao": 25,
