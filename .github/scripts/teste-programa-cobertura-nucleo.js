@@ -194,7 +194,7 @@ console.log('\n== H. calendário e simultaneidade ==');
   const FMT = { tecnicos: { encontros: 2, horarioInicio: '09:00', horarioFim: '12:00', vagas: 10 }, gestores: { encontros: 2, horarioInicio: '09:00', horarioFim: '12:00', vagas: 5 } };
   const jan2 = (E) => { E.hoje = '2026-11-23'; E.programa.prazo = '2026-11-25'; E.programa.formatos = FMT; E.gerentes[k(P1)] = {}; E.gerentes[k(Q)] = {}; };
   r = calc(cenario((E) => { jan2(E); }));
-  ok('H13 sem facilitação: técnicos e gestores não disputam (1 de técnicos e 1 de gestores cabem ao lado da turma C)', r.cap.tecnicos.cabem === 1 && r.cap.gestores.cabem === 1 && r.facilitacao === null, [r.cap.tecnicos.cabem, r.cap.gestores.cabem]);
+  ok('H13 sem facilitação = regra padrão: turma C de técnicos usa 1 das 2 vagas do dia → 1 de técnicos cabe; gestores (dia inteiro) não cabem', r.cap.tecnicos.cabem === 1 && r.cap.gestores.cabem === 0 && r.facilitacao.padrao === true && r.facilitacao.disponiveis === 2, [r.cap.tecnicos.cabem, r.cap.gestores.cabem, r.facilitacao]);
   r = calc(cenario((E) => { jan2(E); E.programa.facilitacao = FAC; }));
   ok('H14 com facilitação: turma C de técnicos usa 1 dos 2 → turma de gestores (2) não cabe; 1 de técnicos cabe', r.cap.gestores.cabem === 0 && r.cap.tecnicos.cabem === 1 && r.facilitacao.disponiveis === 2, [r.cap.tecnicos.cabem, r.cap.gestores.cabem]);
   r = calc(cenario((E) => { jan2(E); delete E.turmas.c; E.programa.facilitacao = FAC; }));
@@ -207,7 +207,8 @@ r = calc(cenario((E) => { jan2(E); delete E.turmas.c; E.turmas.g1 = { label: 'G1
   r = calc(cenario((E) => { delete E.turmas.c.horarioInicio; delete E.turmas.c.horarioFim; }));
   ok('H8 turma sem horário ocupa o dia todo e gera aviso', r.alertas.some((a) => a.tipo === 'turma-sem-horario'));
   r = calc(cenario((E) => { E.turmas.c3 = { label: 'C3', eventoKey: 'evT', dias: ['2026-11-24'], horarioInicio: '09:00', horarioFim: '13:00' }; E.turmas.c4 = { label: 'C4', eventoKey: 'evT', dias: ['2026-11-24'], horarioInicio: '10:00', horarioFim: '12:00' }; }));
-  ok('H9 turmas já planejadas acima do limite: alerta, sem descartar', r.alertas.some((a) => a.tipo === 'paralelismo-excedido') && r.turmas.some((t) => t.key === 'c4' && t.valida));
+  ok('H9 turmas já planejadas acima do limite: alerta, sem descartar', r.alertas.some((a) => a.tipo === 'facilitacao-excedida' && a.padrao && a.dia === '2026-11-24') && r.turmas.some((t) => t.key === 'c4' && t.valida));
+r = calc(cenario((E) => { E.hoje = '2026-11-23'; E.programa.prazo = '2026-11-25'; E.programa.formatos = { tecnicos: { encontros: 1, horarioInicio: '14:00', horarioFim: '16:30', vagas: 10 } }; delete E.turmas.c; E.eventos.evD = { nome: 'Despertar', vagasPorTurma: 20 }; E.programa.eventos.evD = true; E.turmas.d1 = { label: 'D1', eventoKey: 'evD', dias: ['2026-11-24', '2026-11-25'], horarioInicio: '09:00', horarioFim: '13:00' }; }));  ok('H19 regra padrão: dia de turma sem público de cargo (Despertar) não recebe turma de técnicos, nem à tarde', r.uteis.length === 2 && r.cap.tecnicos.cabem === 0 && r.facilitacao.padrao, [r.cap.tecnicos, r.uteis]);
   r = calc(cenario((E) => { E.turmas = {}; E.config = {}; }));
   ok('H10 sem turma-modelo nem formato: turmas necessárias = indeterminado, não zero', r.cap.tecnicos.necessarias === null && r.indeterminado === true);
   /* programação dinâmica exata = força bruta, e nunca abaixo do guloso */

@@ -448,7 +448,9 @@
     if (al.length) h += '<article class="pnl-card"><h2>Alertas de planejamento</h2><ul class="pnl-lista">' + al.map(function (a) { return '<li>' + esc(textoAlerta(a)) + '</li>'; }).join('') + '</ul></article>';
     var f = r.formatos;
     h += '<article class="pnl-card"><h2>Premissas desta simulação</h2><ul class="pnl-lista">' +
-      (r.facilitacao ? '<li data-pnl="premissa-facilitacao">Facilitadores disponíveis: <b>' + r.facilitacao.disponiveis + '</b> ao mesmo tempo. Turma de técnicos usa <b>' + r.facilitacao.tecnicos + '</b>, de gestores <b>' + r.facilitacao.gestores + '</b>, sem público de cargo <b>' + r.facilitacao.aberta + '</b>. Simultâneo = mesmo dia, em qualquer horário (há um período de oficina por dia).</li>' +
+      (r.facilitacao && r.facilitacao.padrao ? '<li data-pnl="premissa-dia">Um período de oficina por dia: até <b>' + r.facilitacao.disponiveis + '</b> turmas de técnicos no mesmo dia (em qualquer horário); turma de gestores ou sem público de cargo (ex.: Despertar) ocupa o dia inteiro — nem outra de gestores nem de técnicos no mesmo dia.</li>' +
+        '<li>Turmas extras de gestores são encaixadas primeiro; as de técnicos, no que sobra. Para outro número de facilitadores, configure a facilitação compartilhada em ADMIN › Painel do Programa.</li>'
+      : r.facilitacao ? '<li data-pnl="premissa-facilitacao">Facilitadores disponíveis: <b>' + r.facilitacao.disponiveis + '</b> ao mesmo tempo. Turma de técnicos usa <b>' + r.facilitacao.tecnicos + '</b>, de gestores <b>' + r.facilitacao.gestores + '</b>, sem público de cargo <b>' + r.facilitacao.aberta + '</b>. Simultâneo = mesmo dia, em qualquer horário (há um período de oficina por dia).</li>' +
         '<li>Turmas extras de gestores são encaixadas primeiro; as de técnicos, no que sobra (técnicos e gestores disputam os mesmos facilitadores).</li>'
       : '<li>Turmas simultâneas: até <b>' + (r.limites.tecnicos || '—') + '</b> de técnicos e <b>' + (r.limites.gestores || '—') + '</b> de gestores. Simultâneo = mesmo dia, em qualquer horário (há um período de oficina por dia).</li>' +
         '<li>Premissa: turmas de técnicos e de gestores não disputam os mesmos facilitadores e salas (configure a facilitação compartilhada em ADMIN se disputam).</li>') +
@@ -460,7 +462,8 @@
   }
   function textoAlerta(a) {
     switch (a.tipo) {
-      case 'facilitacao-excedida': return 'Já planejado: ' + a.usados + ' facilitadores necessários ao mesmo tempo em ' + brAno(a.dia) + ' (disponíveis: ' + a.disponiveis + ').';
+      case 'facilitacao-excedida': if (a.padrao) return 'Já planejado: mais turmas do que o dia comporta em ' + brAno(a.dia) + ' (até ' + a.disponiveis + ' de técnicos por dia; gestores ou sem público de cargo, sozinhas no dia).';
+        return 'Já planejado: ' + a.usados + ' facilitadores necessários ao mesmo tempo em ' + brAno(a.dia) + ' (disponíveis: ' + a.disponiveis + ').';
       case 'paralelismo-excedido': return 'Já planejado: ' + a.simultaneas + ' turmas de ' + NOMEG[a.grupo] + ' ao mesmo tempo em ' + brAno(a.dia) + ' (limite ' + a.limite + ').';
       case 'turma-sem-horario': return a.turma + ': sem horário registrado (conta como o dia inteiro ocupado).';
       case 'encontro-em-dia-indisponivel': return a.turma + ': encontro em ' + brAno(a.dia) + ', dia sem expediente cadastrado.';
