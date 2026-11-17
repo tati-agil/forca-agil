@@ -186,7 +186,7 @@ console.log('\n== H. calendário e simultaneidade ==');
   r = calc(cenario(janela));
   ok('H5 terceira turma de técnicos no mesmo horário é recusada', r.cap.tecnicos.cabem === 0, r.cap.tecnicos);
   r = calc(cenario((E) => { janela(E); E.programa.formatos = { tecnicos: { encontros: 2, horarioInicio: '13:00', horarioFim: '17:00', vagas: 10 } }; }));
-  ok('H6 horários que só se encostam (13h/13h) não são simultâneos: 2 turmas novas à tarde', r.cap.tecnicos.cabem === 2, r.cap.tecnicos);
+  ok('H6 um período de oficina por dia: turma à tarde no mesmo dia de duas de manhã também é simultânea (nenhuma cabe)', r.cap.tecnicos.cabem === 0, r.cap.tecnicos);
   r = calc(cenario((E) => { E.turmas.g1 = { label: 'G1', eventoKey: 'evG', dias: ['2026-11-24', '2026-11-25'], horarioInicio: '09:00', horarioFim: '13:00' }; E.gerentes[k(P1)] = {}; E.gerentes[k(Q)] = {}; for (let i = 0; i < 12; i++) { E.base.pessoas['g' + i] = { email: 'g' + i + '@previ.com.br', diretoria: 'D3', gerencia: 'G9' }; E.gerentes['g' + i] = {}; } }));
   ok('H7 segunda turma de gestores sobreposta é recusada', !r.cap.gestores.turmasAbrir.some((t) => t.indexOf('2026-11-24') !== -1 || t.indexOf('2026-11-25') !== -1) && r.cap.gestores.abrir > 0);
   /* FACILITAÇÃO COMPARTILHADA: 2 facilitadores; técnicos usa 1, gestores 2, sem público de cargo 2 */
@@ -203,6 +203,7 @@ console.log('\n== H. calendário e simultaneidade ==');
   ok('H16 turma sem público de cargo (usa os 2) bloqueia os dias: nada de técnicos nem de gestores', r.cap.tecnicos.cabem === 0 && r.cap.gestores.cabem === 0, [r.cap.tecnicos.cabem, r.cap.gestores.cabem]);
   r = calc(cenario((E) => { jan2(E); E.turmas.g1 = { label: 'G1', eventoKey: 'evG', dias: ['2026-11-24', '2026-11-25'], horarioInicio: '09:00', horarioFim: '13:00' }; E.programa.facilitacao = FAC; }));
   ok('H17 já planejado acima dos facilitadores (C de técnicos + G1 de gestores = 3 de 2): alerta', r.alertas.some((a) => a.tipo === 'facilitacao-excedida' && a.dia === '2026-11-24' && a.usados === 3 && a.disponiveis === 2), r.alertas.filter((a) => /facilit|paralel/.test(a.tipo)));
+r = calc(cenario((E) => { jan2(E); delete E.turmas.c; E.turmas.g1 = { label: 'G1', eventoKey: 'evG', dias: ['2026-11-24', '2026-11-25'], horarioInicio: '09:00', horarioFim: '12:00' }; E.programa.formatos = { tecnicos: { encontros: 1, horarioInicio: '14:00', horarioFim: '16:30', vagas: 10 }, gestores: FMT.gestores }; E.programa.facilitacao = FAC; }));  ok('H18 um período por dia: turma de gestores de manhã (2 facilitadores) bloqueia técnicos à tarde no mesmo dia', r.cap.tecnicos.cabem === 0 && !r.cap.tecnicos.turmasAbrir.length, r.cap.tecnicos);
   r = calc(cenario((E) => { delete E.turmas.c.horarioInicio; delete E.turmas.c.horarioFim; }));
   ok('H8 turma sem horário ocupa o dia todo e gera aviso', r.alertas.some((a) => a.tipo === 'turma-sem-horario'));
   r = calc(cenario((E) => { E.turmas.c3 = { label: 'C3', eventoKey: 'evT', dias: ['2026-11-24'], horarioInicio: '09:00', horarioFim: '13:00' }; E.turmas.c4 = { label: 'C4', eventoKey: 'evT', dias: ['2026-11-24'], horarioInicio: '10:00', horarioFim: '12:00' }; }));
