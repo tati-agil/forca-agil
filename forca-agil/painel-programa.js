@@ -475,8 +475,12 @@
     if (!r.uteis.length) return '<article class="pnl-card"><h2>Calendário útil</h2><p class="pnl-nota">Sem dias úteis entre a primeira data possível e o prazo.</p></article>';
     var marca = {}; function m(dia, txt, cls, qt, dica) { (marca[dia] = marca[dia] || []).push('<span class="pnl-t ' + cls + '" title="' + esc((qt ? qt.titulo + ' · ' : '') + (dica || txt)) + '">' + (qt ? '<b class="pnl-t-qt" data-pnl="cal-ocupacao">' + esc(qt.curto) + '</b> ' : '') + esc(txt) + '</span>'); }
     var temCancelada = false;
+    /* início: a semana da primeira turma (as já realizadas também aparecem, esmaecidas como os dias que passaram) */
+    var inicioIso = r.primeiraData;
     r.turmas.forEach(function (t) {
-      if (t.encerrada) return;
+      var d0 = !t.cancelada && (t.dias || []).slice().sort()[0];
+      if (d0 && d0 < inicioIso) inicioIso = d0;
+      var fim = t.encerrada ? ' · encerrada' : '';
       // Turma cancelada continua no calendário, riscada e marcada, para não parecer dia livre nem turma que conta.
       if (t.cancelada) { (t.dias || []).forEach(function (d) { temCancelada = true; m(d, 'Cancelada · ' + t.label, 'pnl-t--cancel'); }); return; }
       // Interessados + inscritos (registros ativos) sobre as vagas, para ver de relance quanto cada turma já tem.
@@ -486,20 +490,24 @@
       var ds = t.dias.slice().sort(), n = ds.length, cls = t.grupo === 'gestores' ? 'pnl-t--g' : 'pnl-t--t';
       ds.forEach(function (d, i) {
         var enc = n > 1 ? ' · ' + (i + 1) + 'º de ' + n : '';
-        m(d, t.label + enc + (t.horario ? ' · ' + t.horario : ''), cls + (i ? ' pnl-t--cont' : ''), i ? null : qt, (t.evento ? t.evento + ' · ' : '') + t.label + enc + (t.horario ? ' · ' + t.horario : '') + (i ? ' (mesmas pessoas do 1º encontro: ' + qt.curto + ')' : ''));
+        m(d, t.label + enc + (t.horario ? ' · ' + t.horario : ''), cls + (i ? ' pnl-t--cont' : ''), i ? null : qt, (t.evento ? t.evento + ' · ' : '') + t.label + enc + (t.horario ? ' · ' + t.horario : '') + (i ? ' (mesmas pessoas do 1º encontro: ' + qt.curto + ')' : '') + fim);
       });
     });
     ['tecnicos', 'gestores'].forEach(function (g) { (r.cap[g].turmasAbrir || []).forEach(function (dias, i) { dias.forEach(function (d) { m(d, 'Nova ' + (g === 'gestores' ? 'G' : 'T') + (i + 1), g === 'gestores' ? 'pnl-t--ng' : 'pnl-t--nt'); }); }); });
-    var ini = new Date(+r.primeiraData.slice(0, 4), +r.primeiraData.slice(5, 7) - 1, +r.primeiraData.slice(8)); ini.setDate(ini.getDate() - ((ini.getDay() + 6) % 7));
+    var ini = new Date(+inicioIso.slice(0, 4), +inicioIso.slice(5, 7) - 1, +inicioIso.slice(8)); ini.setDate(ini.getDate() - ((ini.getDay() + 6) % 7));
     var h = '<article class="pnl-card" data-pnl="calendario"><h2>Calendário útil até ' + br(r.prazo) + ' (simulação)</h2>' +
       '<div class="pnl-cal-visao" role="group" aria-label="Turmas simuladas no calendário"><button type="button" class="btn btn--sm" data-pnl-sim="com" aria-pressed="true">Com simulação</button><button type="button" class="btn btn--sm" data-pnl-sim="sem" aria-pressed="false">Sem simulação</button></div>' +
       '<div class="table-scroll-wrap"><div class="pnl-cal">' + ['seg', 'ter', 'qua', 'qui', 'sex'].map(function (x) { return '<div class="pnl-cal-cab">' + x + '</div>'; }).join('');
+    /* semana inteiramente anterior à primeira data possível e sem nenhuma turma não aparece (o calendário não vira agosto a dezembro) */
+    var semana = '', semTurma = true, passada = true;
     for (var x = new Date(ini); ; x.setDate(x.getDate() + 1)) {
       var w = x.getDay(), iso = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
-      if (iso > r.prazo && w === 1) break;
+      if (w === 1) { if (!(semTurma && passada)) h += semana; semana = ''; semTurma = true; passada = true; if (iso > r.prazo) break; }
       if (w === 0 || w === 6) continue;
       var ind = r.indisponiveis[iso], fora = iso < r.primeiraData || iso > r.prazo;
-      h += '<div class="pnl-dia' + (ind ? ' pnl-dia--ind' : '') + (fora ? ' pnl-dia--fora' : '') + '"><b>' + br(iso) + '</b>' + (ind ? '<span class="pnl-nota">' + esc(ind) + '</span>' : '') + (marca[iso] || []).join('') + '</div>';
+      if (marca[iso]) semTurma = false;
+      if (iso >= r.primeiraData) passada = false;
+      semana += '<div class="pnl-dia' + (ind ? ' pnl-dia--ind' : '') + (fora ? ' pnl-dia--fora' : '') + '"><b>' + br(iso) + '</b>' + (ind ? '<span class="pnl-nota">' + esc(ind) + '</span>' : '') + (marca[iso] || []).join('') + '</div>';
     }
     return h + '</div></div><div class="pnl-leg"><span><i class="pnl-t--t"></i>Turma de técnicos</span><span><i class="pnl-t--g"></i>Turma de gestores</span><span class="pnl-leg-sim"><i class="pnl-t--nt"></i>Nova de técnicos (simulada)</span><span class="pnl-leg-sim"><i class="pnl-t--ng"></i>Nova de gestores (simulada)</span><span><i class="pnl-dia--ind"></i>Dia sem expediente</span><span><b class="pnl-t-qt">18/20</b>&nbsp;interessados + inscritos / vagas (só no 1º encontro; "2º de 5" = mesma turma, mesmas pessoas)</span>' + (temCancelada ? '<span data-pnl="leg-cancelada"><i class="pnl-t--cancel"></i>Turma cancelada (não conta)</span>' : '') + '</div></article>';
   }

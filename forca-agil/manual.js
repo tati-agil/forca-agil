@@ -218,6 +218,7 @@
         'Cenário realista (opcional, ocupação esperada em ADMIN › Painel do Programa): o máximo supõe que todas as turmas lotam e todos comparecem; o realista supõe que só essa % de quem tem lugar realiza (nas turmas já feitas: realizados ÷ vagas) e mostra quanto faltaria e quantas turmas extras seriam precisas.',
         'Vagas livres = vagas − interesses e inscrições ativos (inclusive de quem está fora da base): nenhuma vaga ocupada no site é liberada pelo cálculo.',
         'Turmas extras: o painel separa as necessárias, as que cabem no calendário (dias úteis, dias sem expediente, antecedência e limite de turmas simultâneas) e as já criadas. O que cabe é um cenário, nunca capacidade autorizada.',
+        'Calendário (Capacidade e calendário): começa na semana da primeira turma do programa e mostra também as turmas já realizadas (esmaecidas, "encerrada" na dica); semanas passadas sem nenhuma turma são omitidas.',
         'Em ADMIN › Painel do Programa: data-limite, eventos do programa, facilitadores, antecedência, limites e formato de turma nova (cada alteração fica no histórico), dias sem expediente e a importação da base — sempre com prévia e confirmação; cada importação vira uma versão nova, e a anterior fica guardada.',
       ],
       fonte: ['programa-cobertura-nucleo.js (todos os números)', 'painel-programa.js e painel-programa-admin.js', 'Nós fa-painel-convidados, programa-config, programa-calendario, programa-publico-alvo, programa-config-auditoria (database.rules.json)'],
