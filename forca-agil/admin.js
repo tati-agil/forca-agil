@@ -1730,7 +1730,12 @@
 
           /* ── Renderizar eventos com turmas agrupadas ────────────────────── */
           EVENTOS_LIST.forEach(function (ev) {
-            var turmasEvento = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; });
+            /* turmas do evento pela data de início (1º dia); sem data vão para o fim; empate = ordem de criação */
+            var turmasEvento = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; }).sort(function (a, b) {
+              var da = a.dias[0] || '', db = b.dias[0] || '';
+              if (da !== db) return !da ? 1 : !db ? -1 : da.localeCompare(db);
+              return a.order - b.order;
+            });
 
             var evSection = document.createElement('div');
             /* overflow:visible — não pode ser hidden: os cards de turma dentro

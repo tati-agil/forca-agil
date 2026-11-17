@@ -20,7 +20,7 @@
      segunda inscrição da mesma pessoa) — nunca libera vaga ocupada no sistema; pessoas únicas contam uma vez;
    - máximo com as turmas planejadas = emparelhamento máximo pessoa × vaga respeitando as regras de entrada;
    - calendário: dias úteis (sem sábado, domingo e dias indisponíveis cadastrados), antecedência mínima, limite de turmas
-     simultâneas por público (sobreposição de dia E horário), formato de turma nova configurado ou derivado da turma mais
+     simultâneas por público (mesmo dia, em qualquer horário: um período de oficina por dia), formato de turma nova configurado ou derivado da turma mais
      recente; o máximo de turmas que cabem é EXATO (programação dinâmica) quando o tamanho permite, senão "pelo menos".
    ============================================================ */
 (function (raiz) {
@@ -309,16 +309,22 @@
         compromissos.push({ dia: dd, ini: t.ini == null ? 0 : t.ini, fim: t.fim == null ? 1440 : t.fim, grupo: t.grupo, turma: t.label });
       });
     });
-    function conta(g, dia, ini, fim) { return compromissos.filter(function (c) { return c.dia === dia && (c.grupo === g || c.grupo === null) && c.ini < fim && ini < c.fim; }).length; }
+    function conta(g, dia, ini, fim) { return compromissos.filter(function (c) { return c.dia === dia && (c.grupo === g || c.grupo === null); }).length; }  /* um período de oficina por dia: mesmo dia = simultâneo, em qualquer horário */
     /* FACILITAÇÃO COMPARTILHADA (opcional, programa-config/facilitacao): os facilitadores são o recurso que limita — turma de
        técnicos usa `tecnicos`, de gestores `gestores`, sem público de cargo `aberta` (ex.: 1, 2, 2 de 2 disponíveis). No mesmo
-       dia e horário, a soma não passa de `disponiveis`. Substitui os limites por público (que tratavam técnicos e gestores
-       como se não disputassem nada). */
-    var fac = cfgP.facilitacao || null, disp = fac ? Math.floor(Number(fac.disponiveis)) : 0, compart = disp > 0;
+       dia (um período de oficina por dia), a soma não passa de `disponiveis`. Substitui os limites por público (que tratavam técnicos e gestores
+       como se não disputassem nada).
+       SEM facilitação configurada vale a regra PADRÃO da oficina (decisão da dona, 16/11/2026): técnicos até o limite de
+       turmas simultâneas de técnicos por dia; turma de gestores ou sem público de cargo (ex.: Despertar) ocupa o dia inteiro —
+       nem outra de gestores nem de técnicos no mesmo dia. É a facilitação com disponíveis = limite de técnicos, técnicos 1,
+       gestores e aberta = o dia todo. Sem limite de técnicos configurado, continua o modo antigo (sem encaixe). */
+    var facCfg = cfgP.facilitacao && Math.floor(Number(cfgP.facilitacao.disponiveis)) > 0 ? cfgP.facilitacao : null, limT = Math.floor(Number(lim.tecnicos));
+    var fac = facCfg || (limT > 0 ? { disponiveis: limT, tecnicos: 1, gestores: limT, aberta: limT, padrao: true } : null);
+    var disp = fac ? Math.floor(Number(fac.disponiveis)) : 0, compart = disp > 0;
     var custoDe = function (grupo) { var v = Math.floor(Number(grupo === 'tecnicos' ? fac.tecnicos : grupo === 'gestores' ? fac.gestores : fac.aberta)); return v > 0 ? v : 1; };
     var reservas = [];
-    function usados(dia, ini, fim) { return compromissos.concat(reservas).filter(function (c) { return c.dia === dia && c.ini < fim && ini < c.fim; }).reduce(function (s, c) { return s + custoDe(c.grupo); }, 0); }
-    if (compart) { var vistosF = {}; compromissos.forEach(function (c) { var u = usados(c.dia, c.ini, c.fim); if (u > disp && !vistosF[c.dia]) { vistosF[c.dia] = 1; alertas.push({ tipo: 'facilitacao-excedida', dia: c.dia, usados: u, disponiveis: disp }); } }); }
+    function usados(dia, ini, fim) { return compromissos.concat(reservas).filter(function (c) { return c.dia === dia; }).reduce(function (s, c) { return s + custoDe(c.grupo); }, 0); }
+    if (compart) { var vistosF = {}; compromissos.forEach(function (c) { var u = usados(c.dia, c.ini, c.fim); if (u > disp && !vistosF[c.dia]) { vistosF[c.dia] = 1; alertas.push({ tipo: 'facilitacao-excedida', dia: c.dia, usados: u, disponiveis: disp, padrao: !!fac.padrao }); } }); }
     if (!compart) GRUPOS.forEach(function (g) {
       var l = lim[g]; if (!(l > 0)) return; var vistos = {};
       compromissos.forEach(function (c) { if (c.grupo !== g && c.grupo !== null) return; var n = conta(g, c.dia, c.ini, c.fim); if (n > l && !vistos[c.dia]) { vistos[c.dia] = 1; alertas.push({ tipo: 'paralelismo-excedido', grupo: g, dia: c.dia, simultaneas: n, limite: l }); } });
@@ -525,7 +531,7 @@
       porSit: porSit, porGrupo: porGrupo, realizou: real, pendentes: pend.length,
       pct: { realizado: pct1(real, N), potencial: pct1(real + potencial, N), comVaga: pct1(real + comVaga, N), maxPlanejado: pct1(real + maxPlanejado, N), maxExpansao: pct1(real + maxExpansao, N) },
       potencial: potencial, comVaga: comVaga, gapProjetado: N - porSit.realizou - comVaga, maxPlanejado: maxPlanejado, maxExpansao: maxExpansao, deficitVagas: deficitVagas, vagasLivres: vagasLivresTotal, vagasPresas: vagasPresas,
-      cap: cap, formatos: formatos, encaixe: encaixe, uteis: uteis, primeiraData: primeiraData, indisponiveis: indisp, limites: { tecnicos: lim.tecnicos, gestores: lim.gestores }, facilitacao: compart ? { disponiveis: disp, tecnicos: custoDe('tecnicos'), gestores: custoDe('gestores'), aberta: custoDe(null) } : null, antecedencia: antecedencia,
+      cap: cap, formatos: formatos, encaixe: encaixe, uteis: uteis, primeiraData: primeiraData, indisponiveis: indisp, limites: { tecnicos: lim.tecnicos, gestores: lim.gestores }, facilitacao: compart ? { disponiveis: disp, tecnicos: custoDe('tecnicos'), gestores: custoDe('gestores'), aberta: custoDe(null), padrao: !!fac.padrao } : null, antecedencia: antecedencia,
       fatores: fatores, principal: principal, combinado: nFat >= 2, indeterminado: indeterminado,
       diretorias: diretorias, porPublico: porPublico, ausencias: aus, ausenciasPorTurma: ausPorTurma, qualidade: qualidade, evolucao: evolucao, decisoes: dec.slice(0, 3),
       turmas: listaT.map(function (t) { return { key: t.key, label: t.label, evento: t.evento, publico: t.publico, grupo: t.grupo, dias: t.dias, horario: t.horario, vagas: t.vagas, ocupacao: t.ocupacao, inscritos: t.inscritosAtivos,
