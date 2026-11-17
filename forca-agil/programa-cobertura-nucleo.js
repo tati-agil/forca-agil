@@ -150,7 +150,7 @@
         cargo: cargo, grupo: grupo, cancelada: U.turmaCancelada(cfg), encerrada: !!cfg.encerrada && !U.turmaCancelada(cfg),
         primeiro: dias[0], ultimo: dias[dias.length - 1], conclusao: cfg.dataConclusao || dias[dias.length - 1],
         diasSemRegistro: dias.filter(function (dd) { return diasComRegistro.indexOf(dd) === -1; }),
-        ocupacao: 0, registrosForaDaBase: 0
+        ocupacao: 0, registrosForaDaBase: 0, realizados: 0
       };
       x.terminaAtePrazo = ehData(prazo) && x.ultimo <= prazo;
       x.passadaAberta = !x.cancelada && !x.encerrada && x.ultimo < hoje;
@@ -212,7 +212,7 @@
           var ck = checkin[t.key] || {};
           var pres = t.dias.filter(function (dd) { return ck[dd] && ck[dd][p.k]; }).length, sem = t.diasSemRegistro.filter(function (dd) { return !(ck[dd] && ck[dd][p.k]); }).length;
           var minimo = Math.round(pres / t.dias.length * 1000) / 10, maximo = Math.round((pres + sem) / t.dias.length * 1000) / 10;
-          if (minimo >= t.pctMin) { if (!p.realizou || t.conclusao < p.realizou.data) p.realizou = { turma: t.key, data: t.conclusao }; if (!registroAtivo(r)) p.realizouComRemocao = true; }
+          if (minimo >= t.pctMin) { t.realizados++; /* pessoas da base que realizaram NESTA turma (mesma regra do realizado) */ if (!p.realizou || t.conclusao < p.realizou.data) p.realizou = { turma: t.key, data: t.conclusao }; if (!registroAtivo(r)) p.realizouComRemocao = true; }
           else if (maximo < t.pctMin) p.ausencias.push({ turma: t.key, tipo: pres === 0 ? 'nao-compareceu' : 'frequencia-insuficiente' });
           else p.naoVerificavel.push(t.key);
           return;
@@ -529,7 +529,7 @@
       fatores: fatores, principal: principal, combinado: nFat >= 2, indeterminado: indeterminado,
       diretorias: diretorias, porPublico: porPublico, ausencias: aus, ausenciasPorTurma: ausPorTurma, qualidade: qualidade, evolucao: evolucao, decisoes: dec.slice(0, 3),
       turmas: listaT.map(function (t) { return { key: t.key, label: t.label, evento: t.evento, publico: t.publico, grupo: t.grupo, dias: t.dias, horario: t.horario, vagas: t.vagas, ocupacao: t.ocupacao, inscritos: t.inscritosAtivos,
-        livres: livres[t.key] || 0, valida: validas.indexOf(t) !== -1, cancelada: t.cancelada, encerrada: t.encerrada, passadaAberta: t.passadaAberta, terminaAtePrazo: t.terminaAtePrazo, comecou: t.comecou, qualidade: t.qualidade }; })
+        livres: livres[t.key] || 0, valida: validas.indexOf(t) !== -1, cancelada: t.cancelada, encerrada: t.encerrada, passadaAberta: t.passadaAberta, terminaAtePrazo: t.terminaAtePrazo, comecou: t.comecou, qualidade: t.qualidade, realizados: t.encerrada ? t.realizados : null }; })
     };
   }
 
