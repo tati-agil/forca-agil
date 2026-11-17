@@ -92,15 +92,17 @@ async function abrirTurmas(browser, formato) {
       await ctx.close();
       if (erros.length) throw new Error('erro de JS não tratado: ' + erros[0]);
 
-      if (datas[0] !== 'dia 16') {
-        throw new Error(`turma de um dia só: esperava "dia 16", veio "${datas[0]}"`);
+      /* desde 17/11/2026 os cards do evento vêm pela data do primeiro encontro: a de vários dias (agosto) antes da de
+         um dia só (setembro) */
+      if (datas[1] !== 'dia 16') {
+        throw new Error(`turma de um dia só: esperava "dia 16", veio "${datas[1]}"`);
       }
-      console.log(`  ok    turma de um dia só: "${datas[0]}"`);
+      console.log(`  ok    turma de um dia só: "${datas[1]}"`);
 
-      if (datas[1] !== 'dias 11, 12 e 18') {
-        throw new Error(`turma de vários dias: esperava "dias 11, 12 e 18", veio "${datas[1]}"`);
+      if (datas[0] !== 'dias 11, 12 e 18') {
+        throw new Error(`turma de vários dias: esperava "dias 11, 12 e 18", veio "${datas[0]}"`);
       }
-      console.log(`  ok    turma de vários dias: "${datas[1]}"`);
+      console.log(`  ok    turma de vários dias: "${datas[0]}"`);
 
       if (!/será realizada no dia 20\b/.test(fraseEncerrada)) {
         throw new Error(`frase de inscrições encerradas sem "no dia 20": "${fraseEncerrada}"`);
