@@ -663,6 +663,15 @@
     function prioridadeTurma(t) {
       return t.publicoRestrito ? 0 : 1;
     }
+    /* Dentro do evento, depois da exclusividade: pela data do primeiro encontro (pedido da dona, 17/11/2026 — antes era
+       a ordem manual); a ordem manual só desempata (mesmo dia), e turma sem data fica no fim. Só exibição: nada é gravado. */
+    function primeiroDia(t) {
+      return (t.dias || []).filter(Boolean).slice().sort()[0] || '9999-99-99';
+    }
+    function compararTurmas(a, b) {
+      var da = primeiroDia(a), db = primeiroDia(b);
+      return (prioridadeTurma(a) - prioridadeTurma(b)) || (da < db ? -1 : da > db ? 1 : 0) || (a.order - b.order);
+    }
 
     function renderTurmasGrid() {
       var host = document.querySelector('.turmas-eventos');
@@ -682,7 +691,7 @@
         else semEvento.push(t);
       });
       Object.keys(porEvento).forEach(function (ek) {
-        porEvento[ek].sort(function (a, b) { return prioridadeTurma(a) - prioridadeTurma(b); });
+        porEvento[ek].sort(compararTurmas);
       });
 
       /* Três partes, cada uma depois de um título próprio — SÓ EXIBIÇÃO: nada
@@ -711,7 +720,7 @@
         else (ev.esperaAtiva ? atuais : encerrados).push(ev);
       });
 
-      /* Canceladas com vínculo ativo da pessoa: se o evento tem outra turma visível, na posição normal entre elas (a ordem manual);
+      /* Canceladas com vínculo ativo da pessoa: se o evento tem outra turma visível, na posição normal entre elas (pela data, como as demais);
          senão, na seção final "Turmas canceladas". Evento despublicado fica fora da página, como sempre. As partes acima já foram
          decididas só com as demais turmas: a cancelada não muda a seção de nenhum evento. */
       var canceladasNoEvento = {}, canceladasNoFim = [];
@@ -728,7 +737,7 @@
       function grupoHtml(ev, periodo) {
         var turmasEv = porEvento[ev.key] || [];
         var cardsEv = canceladasNoEvento[ev.key]
-          ? turmasEv.concat(canceladasNoEvento[ev.key]).sort(function (a, b) { return (a.order - b.order) || (prioridadeTurma(a) - prioridadeTurma(b)); })
+          ? turmasEv.concat(canceladasNoEvento[ev.key]).sort(compararTurmas)
           : turmasEv;
         /* "Mostrar para todos" e a pessoa fora do público: o público permitido dito logo no título, antes das turmas
            (sem lista, sem nomes — só a categoria). Quem tem registro no evento não recebe o aviso: já participa. */
