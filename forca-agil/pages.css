@@ -4954,6 +4954,16 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 #page-painel [data-pnl="diretorias"] .pnl-tabela thead tr > :first-child { z-index: 3; background: var(--panel-2); }
 #page-painel [data-pnl="diretorias"] .pnl-tabela tr.pnl-ger > :first-child { background: color-mix(in srgb, var(--panel) 96%, #7af0e8); }
 #page-painel [data-pnl="diretorias"] .pnl-tabela tr.pnl-nomes > :first-child { position: static; box-shadow: none; }
+/* Computador (a partir de 1180 px, como ADMIN › Gerentes): a Situação por diretoria rola com a PÁGINA, não por dentro do
+   quadro — com a rolagem interna, ao chegar ao fim do quadro a página seguia rolando e o quadro inteiro, com os títulos,
+   sumia embaixo do menu. Sem overflow no contêiner (que anularia o sticky), os títulos param logo abaixo do menu fixo. Para
+   a tabela nunca passar da largura do cartão, os nomes de diretoria e gerência quebram linha em vez de alargá-la. */
+@media (min-width: 1180px) {
+  #page-painel [data-pnl="diretorias"] .table-scroll-wrap { max-height: none; overflow: visible; }
+  #page-painel [data-pnl="diretorias"] .pnl-tabela thead th { top: var(--nav-h, 73px); }
+  #page-painel [data-pnl="diretorias"] :is(.pnl-dir-abrir, .pnl-ger-abrir, .pnl-dir-vazia) { display: inline-block; max-width: 16ch; white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+  #page-painel [data-pnl="diretorias"] .pnl-tabela tbody :is(button, a) { scroll-margin-top: calc(var(--nav-h, 73px) + 64px); }
+}
 .pnl-ger-nome { display: block; padding-left: 1.4em; }
 /* Admin geral: a gerência abre as pessoas (nome e situação). A lista fica presa à esquerda da tabela que rola de lado, para
    caber na tela do celular sem rolar junto com as colunas. */

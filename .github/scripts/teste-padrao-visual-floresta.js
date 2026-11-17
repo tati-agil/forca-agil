@@ -73,7 +73,13 @@ const pronta = (page, sel) => esperarCondicao(page, (s) => { const e = document.
       await pronta(page, '#avpInicioCartaoSquad');
       const limpo = await verificarTela(page, { largura: 1280, focos: 0 });
       afirma(limpo.length === 0, 'antes da injeção: Início conforme', limpo);
+      /* A tela Início pode se redesenhar logo depois de "pronta" (uma leitura que chega depois refaz o cartão) e apagar o que
+         foi injetado — aí nenhuma regra acha nada e os controles falham sem ser defeito (intermitente no CI, 16/11). Por isso a
+         injeção é refeita até continuar na página DEPOIS da verificação. */
+      let ps = [];
+      for (let tentativa = 0; tentativa < 4; tentativa++) {
       await page.evaluate(() => {
+        if (document.getElementById('rgLink')) return;
         const c = document.getElementById('avpInicioContinuar');
         c.insertAdjacentHTML('beforeend',
           '<p id="rgLink"><a href="#arquitetura?av=lista" style="color: revert">link sem cor do site</a></p>' + /* volta à cor do navegador (lilás/roxo) */
@@ -82,7 +88,10 @@ const pronta = (page, sel) => esperarCondicao(page, (s) => { const e = document.
           '<button type="button" class="btn btn--primary" id="rgAmarelo1">Ação A</button><button type="button" class="btn btn--primary" id="rgAmarelo2">Ação B</button>' +
           '<div style="width: 900px"><button type="button" class="btn" id="rgLargo" style="width: 100%">Botão esticado</button></div>');
       });
-      const ps = await verificarTela(page, { largura: 1280, focos: 0 });
+      ps = await verificarTela(page, { largura: 1280, focos: 0 });
+      if (await page.evaluate(() => ['rgLink', 'rgContraste', 'rgVoltar', 'rgAmarelo1', 'rgLargo'].every((id) => document.getElementById(id)))) break;
+      await page.waitForTimeout(300);
+      }
       const tem = (regra, id) => ps.some((p) => p.regra === regra && p.detalhe.indexOf(id) !== -1);
       afirma(tem('link-cor-do-navegador', 'link sem cor do site'), 'link na cor do navegador (o "roxo depois de visitado") → reprovado');
       afirma(tem('contraste', 'rgContraste'), 'texto com contraste baixo no fundo escuro → reprovado');
