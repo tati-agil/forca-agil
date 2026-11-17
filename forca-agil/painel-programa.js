@@ -423,13 +423,37 @@
       r.ausenciasPorTurma.map(function (x) { return '<tr><td>' + esc(x.turma) + '</td><td class="pnl-n">' + x.ausencias + '</td><td>' + ({ completo: 'completo', parcial: 'incompleto', 'sem-registro': 'sem check-in' }[x.qualidade] || '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
     return h + botaoExportar() + '</article>';
   }
+  var AJUDA_CAP = {
+    pendentes: 'Pessoas do público que ainda não realizaram a formação.',
+    comInscricao: 'Pendentes com inscrição confirmada numa turma planejada: a vaga já é delas.',
+    comVaga: 'Pendentes que já ocupam uma vaga numa turma planejada, por inscrição confirmada ou por interesse registrado.',
+    alocaveis: 'Pendentes sem vaga própria que ainda caberiam nas vagas livres das turmas planejadas, respeitando quem pode entrar em cada turma (regras de entrada).',
+    maximo: 'O máximo de pendentes que as turmas já planejadas conseguem atender: os que têm vaga própria mais os que cabem nas vagas livres.',
+    deficitVagas: 'Pendentes que ficam sem lugar mesmo enchendo todas as turmas planejadas (pendentes − máximo). É o que falta para chegar a 100% do público.',
+    margemUsada: 'Quantas pessoas deste público a margem configurada no ADMIN deixa de fora da meta (a margem é quantas pessoas do público podem não realizar sem comprometer a meta). Ela é descontada do déficit de vagas, primeiro no público com o maior déficit. Com margem 0, a meta é 100% e o déficit para a meta é igual ao déficit de vagas.',
+    deficitMeta: 'Pessoas que ainda precisam de vaga para a meta ser atingida: déficit de vagas − margem aplicada. São elas que as turmas extras precisam cobrir.',
+    necessarias: 'Turmas novas precisas para cobrir o déficit para a meta: o déficit dividido pelas vagas por turma do formato deste público, arredondado para cima.',
+    cabem: 'Quantas turmas novas ainda cabem nos dias úteis livres até a data final, pela regra do calendário (um período por dia; no máximo 2 turmas de técnicos juntas; gestores e turmas sem público de cargo sozinhas no dia). "(pelo menos)" quando o cálculo não é exato.',
+    abrir: 'O menor entre as turmas necessárias e as que cabem: o que dá para abrir de fato até a data final.',
+    deficitCalendario: 'Turmas que faltam para chegar à meta e que não cabem mais no calendário (necessárias − a abrir). Acima de 0, a meta não é alcançável só abrindo turmas: seria preciso estender a data, aumentar as vagas por turma ou ter mais facilitação.',
+    'realista-esperado': 'Quantos pendentes devem realizar nas turmas planejadas se a ocupação real for a configurada no ADMIN (e não 100%): o máximo nas turmas planejadas × a ocupação.',
+    'realista-falta': 'Quantos ainda faltariam para a meta nesse cenário: pendentes − margem aplicada − os que realizam pelo cenário realista.',
+    'realista-turmasExtras': 'Turmas novas precisas para cobrir os que faltariam, contando que cada turma nova também só enche pela ocupação configurada (vagas por turma × ocupação).'
+  };
   function capacidade(r) {
     var c = r.cap, h = '<article class="pnl-card"><h2>Do déficit de vagas ao déficit de calendário</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th></th><th class="pnl-n">Técnicos</th><th class="pnl-n">Gestores</th><th class="pnl-n">Diretores</th><th class="pnl-n">Assessores</th></tr></thead><tbody>';
     var L = [['Pendentes', 'pendentes'], ['Com vaga por inscrição confirmada', 'comInscricao'], ['Com vaga própria (inscrição ou interesse)', 'comVaga'], ['Cabem nas vagas livres (pelas regras de entrada)', 'alocaveis'],
       ['Máximo nas turmas planejadas', 'maximo'], ['Déficit de vagas (para 100%)', 'deficitVagas'], ['Margem aplicada', 'margemUsada'], ['Déficit para a meta', 'deficitMeta'], ['Turmas extras necessárias (para a meta)', 'necessarias'], ['Turmas novas que cabem no calendário', 'cabem'], ['Turmas a abrir (necessárias que cabem)', 'abrir'], ['Déficit de calendário (turmas)', 'deficitCalendario']];
-    L.forEach(function (l) { var v = function (g) { var x = c[g][l[1]]; return x == null ? 'indeterminado' : x + (l[1] === 'cabem' && x != null && !c[g].cabemExato ? ' (pelo menos)' : ''); }; h += '<tr><td>' + l[0] + '</td>' + ['tecnicos', 'gestores', 'diretores', 'assessores'].map(function (g) { return '<td class="pnl-n">' + ((g === 'diretores' || g === 'assessores') && /necessarias|cabem|abrir|deficitCalendario/.test(l[1]) ? '—' : v(g)) + '</td>'; }).join('') + '</tr>'; });
+    /* ⓘ por linha (17/11, pedido dela): a explicação fica numa linha escondida logo abaixo, uma aberta por vez — o mesmo
+       componente das ajudas de campo do ADMIN (.ajuda-campo-btn / .ajuda-campo). */
+    var rotulo = function (txt, k) { return '<td><span class="pnl-rotulo-ajuda">' + esc(txt) + ' <button type="button" class="ajuda-campo-btn" data-pnl-ajuda="' + k + '" aria-expanded="false" aria-controls="pnlAjuda-' + k + '" aria-label="Explicação: ' + esc(txt) + '" title="Explicação">ⓘ</button></span></td>'; };
+    var explicacao = function (k) { return '<tr class="pnl-ajuda-linha" data-pnl-ajuda-de="' + k + '" hidden><td colspan="5"><div class="ajuda-campo" id="pnlAjuda-' + k + '" role="note"><p>' + AJUDA_CAP[k] + '</p><button type="button" class="ajuda-campo-fechar" data-pnl-ajuda-fecha="' + k + '">Fechar explicação</button></div></td></tr>'; };
+    L.forEach(function (l) {
+      var v = function (g) { var x = c[g][l[1]]; return x == null ? 'indeterminado' : x + (l[1] === 'cabem' && x != null && !c[g].cabemExato ? ' (pelo menos)' : ''); };
+      h += '<tr>' + rotulo(l[0], l[1]) + ['tecnicos', 'gestores', 'diretores', 'assessores'].map(function (g) { return '<td class="pnl-n">' + ((g === 'diretores' || g === 'assessores') && /necessarias|cabem|abrir|deficitCalendario/.test(l[1]) ? '—' : v(g)) + '</td>'; }).join('') + '</tr>' + explicacao(l[1]);
+    });
     if (r.realista) [['Realista (' + r.realista.ocupacao + '%): realizam nas turmas planejadas', 'esperado'], ['Realista: faltariam', 'falta'], ['Realista: turmas extras', 'turmasExtras']].forEach(function (l) {
-      h += '<tr class="pnl-realista-linha" data-pnl="realista-' + l[1] + '"><td>' + esc(l[0]) + '</td>' + ['tecnicos', 'gestores', 'diretores', 'assessores'].map(function (g) { var x = r.realista.porGrupo[g][l[1]]; return '<td class="pnl-n">' + ((g === 'diretores' || g === 'assessores') && l[1] === 'turmasExtras' ? '—' : x == null ? 'indeterminado' : x) + '</td>'; }).join('') + '</tr>';
+      h += '<tr class="pnl-realista-linha" data-pnl="realista-' + l[1] + '">' + rotulo(l[0], 'realista-' + l[1]) + ['tecnicos', 'gestores', 'diretores', 'assessores'].map(function (g) { var x = r.realista.porGrupo[g][l[1]]; return '<td class="pnl-n">' + ((g === 'diretores' || g === 'assessores') && l[1] === 'turmasExtras' ? '—' : x == null ? 'indeterminado' : x) + '</td>'; }).join('') + '</tr>' + explicacao('realista-' + l[1]);
     });
     var semPrev = ['diretores', 'assessores'].filter(function (g) { return c[g] && c[g].semTurmaPrevista > 0; });
     h += '</tbody></table></div><p class="pnl-nota">Vagas livres = vagas − registros ativos (interesse e inscrição, inclusive de quem está fora da base): nenhuma vaga ocupada no sistema é liberada pelo cálculo. ' + (r.vagasPresas ? r.vagasPresas + ' vagas estão presas por inscrição duplicada.' : '') + ' Diretores e assessores não entram em turma de técnicos nem de gestores: só em turma sem público de cargo; turma extra só é estimada para técnicos e gestores.' + (semPrev.length ? ' <b>Sem turma prevista: ' + semPrev.map(function (g) { return c[g].semTurmaPrevista + ' ' + NOMEG[g]; }).join(' e ') + '.</b>' : '') + '</p></article>';
@@ -560,11 +584,27 @@
     aplicarFoco();
   }
 
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var b = document.querySelector('[data-pnl-ajuda][aria-expanded="true"]'), lin = b && document.querySelector('[data-pnl-ajuda-de="' + b.getAttribute('data-pnl-ajuda') + '"]');
+    if (!b) return;
+    if (lin) lin.hidden = true;
+    b.setAttribute('aria-expanded', 'false'); b.focus();
+  });
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-pnl="atualizar"]');
     if (b && $('page-painel') && !$('page-painel').hidden) { e.preventDefault(); atualizar(); return; }
     var sim = e.target.closest && e.target.closest('[data-pnl-sim]');
     if (sim) { var cal = sim.closest('[data-pnl="calendario"]'), sem = sim.getAttribute('data-pnl-sim') === 'sem'; if (cal) { cal.classList.toggle('pnl-cal--sem-sim', sem); cal.querySelectorAll('[data-pnl-sim]').forEach(function (b) { b.setAttribute('aria-pressed', (b.getAttribute('data-pnl-sim') === 'sem') === sem ? 'true' : 'false'); }); } return; }
+    var aj = e.target.closest && e.target.closest('[data-pnl-ajuda], [data-pnl-ajuda-fecha]');
+    if (aj) {
+      e.preventDefault();
+      var chave = aj.getAttribute('data-pnl-ajuda') || aj.getAttribute('data-pnl-ajuda-fecha'), abrir = aj.hasAttribute('data-pnl-ajuda') && aj.getAttribute('aria-expanded') !== 'true';
+      document.querySelectorAll('[data-pnl-ajuda][aria-expanded="true"]').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); var lin = document.querySelector('[data-pnl-ajuda-de="' + b.getAttribute('data-pnl-ajuda') + '"]'); if (lin) lin.hidden = true; });
+      var botao = document.querySelector('[data-pnl-ajuda="' + chave + '"]'), linha = document.querySelector('[data-pnl-ajuda-de="' + chave + '"]');
+      if (abrir && linha) { linha.hidden = false; botao.setAttribute('aria-expanded', 'true'); } else if (!abrir && botao && aj !== botao) botao.focus();
+      return;
+    }
     var ab = e.target.closest && e.target.closest('[data-pnl-abrir]');
     if (ab) {
       var aberto = ab.getAttribute('aria-expanded') !== 'true', di = ab.getAttribute('data-pnl-abrir'); ab.setAttribute('aria-expanded', aberto ? 'true' : 'false'); ab.firstChild.textContent = aberto ? '▾' : '▸';
