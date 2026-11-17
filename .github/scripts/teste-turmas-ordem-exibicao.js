@@ -28,7 +28,8 @@
  *      divisor "Eventos já realizados" e os realizados (cada parte na ordem
  *      manual), o grupo sem evento;
  *   2. TODAS as turmas do banco na tela, cada uma uma vez só, dentro do seu
- *      evento e na ordem manual dele;
+ *      evento e pela data do primeiro encontro (a ordem manual só desempata
+ *      no mesmo dia; desde 17/11/2026 — antes era a ordem manual);
  *   3. as informações de cada evento nascem abertas, com o controle
  *      "Ocultar informações"; pelo teclado (Tab até o controle + Enter) fecha
  *      e passa a "Ver informações do evento", e Enter de novo reabre; nada do
@@ -106,7 +107,7 @@ const REALIZADOS = ['evPassadoB', 'evPassadoA', 'evEncerrado', 'evPassadoFila'];
 const ORDEM_GRUPOS = ATUAIS.concat(['|divisor|'], ENCERRADOS, ['|divisor|'], REALIZADOS, ['']);
 const DIVISORES = ['Próximas turmas — inscrições encerradas', 'Eventos já realizados'];
 const TURMAS_DO_EVENTO = {
-  evPassadoA: ['PA TURMA 1', 'PA TURMA 2'], evMisto: ['MI TURMA 1', 'MI TURMA 2', 'MI TURMA 3'],
+  evPassadoA: ['PA TURMA 1', 'PA TURMA 2'], evMisto: ['MI TURMA 1', 'MI TURMA 3', 'MI TURMA 2'],
   evLotado: ['LO TURMA 1'], evFila: [], evSemDias: ['SD TURMA 1'], evEncerrado: ['EN TURMA 1'],
   evPassadoB: ['PB TURMA 1'], evFuturo: ['FU TURMA 1', 'FU TURMA 2'], evPassadoFila: ['PF TURMA 1'], '': ['TURMA SEM EVENTO'],
 };
@@ -207,15 +208,15 @@ function igual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
       const periodoErrado = periodos.filter((g) => g.periodo !== (REALIZADOS.indexOf(g.key) >= 0 ? 'realizado' : ENCERRADOS.indexOf(g.key) >= 0 ? 'encerrado' : 'atual'));
       if (periodoErrado.length) falha(f.nome, 'data-evento-periodo errado em ' + periodoErrado.map((g) => g.key + '=' + g.periodo).join(', '));
 
-      // 2. todas as turmas, uma vez só, no seu evento e na ordem manual
+      // 2. todas as turmas, uma vez só, no seu evento e pela data do primeiro encontro
       const todasNaTela = [].concat.apply([], e1.grupos.filter((g) => g.chaves).map((g) => g.chaves));
       const doBanco = Object.keys(banco().turmas).sort();
       const naTela = todasNaTela.slice().sort();
       if (!igual(naTela, doBanco)) falha(f.nome, 'turmas na tela ' + JSON.stringify(naTela) + ' ≠ banco ' + JSON.stringify(doBanco));
       else console.log('  ok    ' + doBanco.length + ' turmas do banco na tela, cada uma uma vez só');
       const foraDeOrdem = e1.grupos.filter((g) => g.turmas && TURMAS_DO_EVENTO[g.key] && !igual(g.turmas, TURMAS_DO_EVENTO[g.key]));
-      if (foraDeOrdem.length) falha(f.nome, 'turmas fora do evento ou da ordem manual: ' + foraDeOrdem.map((g) => g.key + '=' + JSON.stringify(g.turmas)).join('; '));
-      else console.log('  ok    cada turma no seu evento, na ordem manual');
+      if (foraDeOrdem.length) falha(f.nome, 'turmas fora do evento ou da ordem por data: ' + foraDeOrdem.map((g) => g.key + '=' + JSON.stringify(g.turmas)).join('; '));
+      else console.log('  ok    cada turma no seu evento, pela data (MI 3, de ontem, antes da MI 2, de ordem manual menor)');
       const fila = e1.grupos.find((g) => g.key === 'evFila');
       if (!fila || !fila.espera) falha(f.nome, 'evento só com fila perdeu o card de espera');
 
