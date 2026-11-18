@@ -16,7 +16,7 @@
   var NUC = window.faProgramaCobertura;
   var NOS = ['eventos', 'turmas', 'turmas-config', 'turmas-interesse', 'turmas-checkin', 'fa-users', 'fa-gerentes', 'fa-diretores',
     'eventos-publico', 'turmas-publico', 'programa-config', 'programa-calendario'];
-  var VISTAS = { diretorias: 'Diretorias e áreas', mobilizacao: 'Mobilização', ausencias: 'Ausências e registros de presença', capacidade: 'Capacidade e calendário', evolucao: 'Evolução' };
+  var VISTAS = { diretorias: 'Diretorias e áreas', mobilizacao: 'Mobilização', ausencias: 'Ausências e registros de presença', capacidade: 'Capacidade e calendário', evolucao: 'Evolução', relatorio: 'Relatório de pessoas' };
   var ROT = { realizou: 'Realizou', inscrita: 'Inscrita', interessada: 'Interessada', 'sem-engajamento': 'Cadastrada sem engajamento', 'sem-cadastro': 'Sem cadastro' };
   var COR = { realizou: '#7ee2a8', inscrita: '#7af0e8', interessada: '#5aa0ee', 'sem-engajamento': '#f6be7b', 'sem-cadastro': '#ffa39b' };
   var FATOR = { capacidade: 'Capacidade insuficiente', mobilizacao: 'Mobilização insuficiente', calendario: 'Calendário insuficiente' };
@@ -24,7 +24,8 @@
   var PUBS = { todos: 'Todos', tecnicos: 'Técnicos', gestores: 'Gestores', diretores: 'Diretores', assessores: 'Assessores' };
   /* pub = filtro de público (Gaps por diretoria e Diretorias e áreas); modo = o que o bloco de gaps mostra ('gap' pessoas a
      alcançar | 'cob' cobertura %). Sobrevivem a "Atualizar dados". */
-  var st = { r: null, lidoEm: null, carregando: false, erro: null, base: null, pub: 'todos', modo: 'gap' };
+  var st = { r: null, lidoEm: null, carregando: false, erro: null, base: null, pub: 'todos', modo: 'gap',
+    rel: { ev: null, sit: null } };   /* Relatório de pessoas: eventos e situações escolhidos (null = todos); sobrevivem a "Atualizar dados" */
   function recorte(r) { return (r.porPublico && r.porPublico[st.pub]) || r.porPublico.todos; }
   function filtroPublico() {
     return '<div class="pnl-ordem" role="group" aria-label="Público" data-pnl="filtro-publico">' + Object.keys(PUBS).map(function (k) {
@@ -183,7 +184,7 @@
       var miolo = '<b>' + esc(x.titulo) + '</b><span>' + esc(x.texto) + '</span><span class="pnl-decisao-pe"><span class="pnl-tag">' + esc(x.tag) + '</span>' + (href ? '<span class="pnl-decisao-ir">' + esc(d[2]) + ' →</span>' : '') + '</span>';
       return '<li data-pnl-decisao="' + x.tipo + '"' + (href ? ' class="pnl-decisao--link"><a class="pnl-decisao-link" href="' + href + '">' + miolo + '</a>' : '>' + miolo) + '</li>'; }).join('') + '</ol>'
       : '<p class="admin-empty">Nenhuma decisão pendente pelos dados atuais.</p>') + '</article>';
-    h += '</div><nav class="pnl-consultas" aria-label="Consultas"><span class="pnl-sub">Consultas:</span>' + Object.keys(VISTAS).map(function (v) { return linkVista(v, VISTAS[v]); }).join('') + '</nav>';
+    h += '</div><nav class="pnl-consultas" aria-label="Consultas"><span class="pnl-sub">Consultas:</span>' + Object.keys(VISTAS).filter(function (v) { return v !== 'relatorio' || podeExportar(); }).map(function (v) { return linkVista(v, VISTAS[v]); }).join('') + '</nav>';
     return h;
   }
 
@@ -299,16 +300,107 @@
     carregarXlsx(function (erro) {
       if (erro || !window.XLSX) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); return; }
       try {
-        var X = window.XLSX, wb = X.utils.book_new();
-        planilhaExportacao(r, pub).forEach(function (a) {
-          var ws = X.utils.aoa_to_sheet([a.cab].concat(a.linhas));
-          ws['!cols'] = a.cab.map(function (c, i) { return { wch: Math.min(48, Math.max.apply(null, [String(c).length + 2].concat(a.linhas.map(function (l) { return String(l[i] == null ? '' : l[i]).length + 2; })))) }; });
-          ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: a.linhas.length, c: a.cab.length - 1 } }) };
-          X.utils.book_append_sheet(wb, ws, a.nome);
-        });
-        X.writeFile(wb, 'painel-programa-pessoas-' + (pub === 'todos' ? '' : pub + '-') + r.hoje + '.xlsx');
+        gravarXlsx(planilhaExportacao(r, pub), 'painel-programa-pessoas-' + (pub === 'todos' ? '' : pub + '-') + r.hoje + '.xlsx');
         fim('Arquivo gerado com os dados lidos em ' + (st.lidoEm ? new Date(st.lidoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—') + '.');
       } catch (e) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); }
+    });
+  }
+  function gravarXlsx(abas, arquivo) {
+    var X = window.XLSX, wb = X.utils.book_new();
+    abas.forEach(function (a) {
+      var ws = X.utils.aoa_to_sheet([a.cab].concat(a.linhas));
+      ws['!cols'] = a.cab.map(function (c, i) { return { wch: Math.min(48, Math.max.apply(null, [String(c).length + 2].concat(a.linhas.map(function (l) { return String(l[i] == null ? '' : l[i]).length + 2; })))) }; });
+      ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: a.linhas.length, c: a.cab.length - 1 } }) };
+      X.utils.book_append_sheet(wb, ws, a.nome);
+    });
+    X.writeFile(wb, arquivo);
+  }
+
+  /* ---------- Relatório de pessoas (#painel?v=relatorio; só admin geral) ----------
+     Escolhe eventos do programa e situações. A situação de cada pessoa considera SÓ os eventos marcados
+     (faProgramaCobertura.situacaoNosEventos: mesma ordem e mesmos registros do painel). Com todos os eventos marcados, é a
+     situação do painel. A tela e o Excel saem da mesma lista (relDados). */
+  var REL_SITS = ['realizou', 'inscrita', 'interessada', 'sem-engajamento', 'sem-cadastro'];
+  function relEventos(r) {
+    var todos = r.eventosPrograma.map(function (e) { return e.key; });
+    return st.rel.ev === null ? todos : st.rel.ev.filter(function (k) { return todos.indexOf(k) >= 0; });
+  }
+  function relSituacoes() { return st.rel.sit === null ? REL_SITS.slice() : st.rel.sit.slice(); }
+  function relTrocarSituacao(s) {
+    if (s === 'todas') { st.rel.sit = null; return; }
+    var atual = relSituacoes(), i = atual.indexOf(s);
+    if (st.rel.sit === null) atual = [s];   /* com "Todas" ligado, tocar numa situação mostra só ela */
+    else if (i >= 0) atual.splice(i, 1); else atual.push(s);
+    st.rel.sit = atual.length === REL_SITS.length ? null : REL_SITS.filter(function (x) { return atual.indexOf(x) >= 0; });
+  }
+  function relDados(r) {
+    var ev = relEventos(r), sits = relSituacoes(), cont = {};
+    REL_SITS.forEach(function (x) { cont[x] = 0; });
+    var todas = ev.length ? r.lista.map(function (p) { var s = NUC.situacaoNosEventos(p, ev); cont[s.situacao]++; return { p: p, sit: s.situacao, turmas: s.turmas }; }) : [];
+    return { ev: ev, sits: sits, cont: cont, linhas: todas.filter(function (x) { return sits.indexOf(x.sit) >= 0; }) };
+  }
+  function relRedesenhar(focoSel) {
+    render();
+    var alvo = focoSel && document.querySelector(focoSel); if (alvo) alvo.focus({ preventScroll: true });
+  }
+  function relatorio(r) {
+    if (!podeExportar()) return '<article class="pnl-card"><h2>Relatório de pessoas</h2><p class="pnl-nota">O relatório com nomes é só da administração geral.</p></article>';
+    var d = relDados(r), nomesEv = {}; r.eventosPrograma.forEach(function (e) { nomesEv[e.key] = e.nome; });
+    var todasSits = st.rel.sit === null, todosEv = st.rel.ev === null;
+    var h = '<article class="pnl-card" data-pnl="relatorio"><h2>Escolha os eventos e as situações</h2>' +
+      '<p class="pnl-nota">A situação considera só os eventos marcados: quem realizou outro evento aparece pela situação que tem nestes. Com todos os eventos marcados, é a mesma situação do painel.</p>' +
+      '<fieldset class="pnl-rel-eventos" data-pnl="rel-eventos"><legend>Eventos do programa</legend>' +
+      '<div class="pnl-ordem pnl-rel-acoes"><button type="button" class="btn btn--sm" data-pnl-rel-todos="sim"' + (todosEv ? ' disabled' : '') + '>Marcar todos</button><button type="button" class="btn btn--sm" data-pnl-rel-todos="nao"' + (d.ev.length ? '' : ' disabled') + '>Desmarcar todos</button></div>' +
+      r.eventosPrograma.map(function (e) { return '<label class="pnl-rel-check"><input type="checkbox" data-pnl-rel-ev="' + esc(e.key) + '"' + (d.ev.indexOf(e.key) >= 0 ? ' checked' : '') + ' /> ' + esc(e.nome) + ' <small>(' + e.turmas + (e.turmas === 1 ? ' turma' : ' turmas') + ')</small></label>'; }).join('') +
+      '</fieldset>' +
+      '<div class="pnl-rel-sits"><span class="pnl-rel-rot" id="pnlRelSitRot">Situações</span><div class="pnl-ordem" role="group" aria-labelledby="pnlRelSitRot" data-pnl="rel-situacoes">' +
+      '<button type="button" class="btn btn--sm" data-pnl-rel-sit="todas" aria-pressed="' + todasSits + '">Todas (' + (d.ev.length ? r.lista.length : 0) + ')</button>' +
+      REL_SITS.map(function (x) { return '<button type="button" class="btn btn--sm" data-pnl-rel-sit="' + x + '" aria-pressed="' + (!todasSits && d.sits.indexOf(x) >= 0) + '"><span class="pnl-rel-cor" style="background:' + COR[x] + '" aria-hidden="true"></span>' + esc(SIT_NOME[x]) + ' (' + d.cont[x] + ')</button>'; }).join('') +
+      '</div></div>';
+    if (!d.ev.length) return h + '<p class="pnl-nota" role="status" data-pnl="rel-contagem">Marque pelo menos um evento.</p></article>';
+    if (!d.sits.length) return h + '<p class="pnl-nota" role="status" data-pnl="rel-contagem">Escolha pelo menos uma situação.</p></article>';
+    var qtd = function (n) { return n + (n === 1 ? ' pessoa' : ' pessoas'); }, nomeDe = function (x) { return x.p.nome || x.p.email || ''; };
+    var grupos = {}; d.linhas.forEach(function (x) { var dd = x.p.diretoria && x.p.diretoria !== '—' ? x.p.diretoria : ''; (grupos[dd] = grupos[dd] || []).push(x); });
+    var dirs = Object.keys(grupos).sort(function (a, b) { return (!a) - (!b) || a.localeCompare(b, 'pt-BR'); });
+    h += '<p class="pnl-rel-total" role="status" data-pnl="rel-contagem"><b>' + qtd(d.linhas.length) + '</b> · ' + esc(todosEv ? 'todos os eventos do programa' : d.ev.map(function (k) { return nomesEv[k]; }).join(', ')) + '</p>';
+    h += botaoRelatorio();
+    h += d.linhas.length ? '<div class="pnl-mob-lista" data-pnl="rel-lista">' + dirs.map(function (dd) {
+      var gs = grupos[dd].sort(function (a, b) { return nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'); });
+      return '<section class="pnl-mob-grupo"><h4>' + esc(dd || 'Sem diretoria na base') + ' · ' + qtd(gs.length) + '</h4><ul class="pnl-nomes-lista pnl-nomes-lista--mob">' + gs.map(function (x) {
+        var ger = x.p.gerencia && x.p.gerencia !== '—' ? x.p.gerencia : 'sem gerência na base';
+        return '<li data-sit="' + x.sit + '"><span>' + esc(nomeDe(x)) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[x.sit] + '">' + esc(SIT_NOME[x.sit]) + ' · ' + esc(ger) + (x.turmas.length ? ' · ' + esc(x.turmas.join('; ')) : '') + '</span></li>';
+      }).join('') + '</ul></section>';
+    }).join('') + '</div>' : '<p class="pnl-nota">Nenhuma pessoa nesta combinação.</p>';
+    return h + '</article>';
+  }
+  function botaoRelatorio() {
+    return '<div class="pnl-exportar"><button type="button" class="btn" data-pnl="rel-exportar">Exportar Excel deste relatório</button><span class="pnl-nota" data-pnl="rel-exportar-msg" role="status"></span></div>';
+  }
+  /* Duas abas: as pessoas (as mesmas da tela, na mesma ordem) e os filtros usados. */
+  function planilhaRelatorio(r) {
+    var d = relDados(r), nomesEv = {}; r.eventosPrograma.forEach(function (e) { nomesEv[e.key] = e.nome; });
+    var nomeDe = function (x) { return x.p.nome || x.p.email || ''; };
+    var linhas = d.linhas.slice().sort(function (a, b) { return (a.p.diretoria || '').localeCompare(b.p.diretoria || '', 'pt-BR') || nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'); })
+      .map(function (x) { return [x.p.nome, x.p.email, x.p.diretoria, x.p.gerencia, PUB_NOME[x.p.publico] || x.p.publico, SIT_NOME[x.sit] || x.sit, x.turmas.join('; ')]; });
+    return [
+      { nome: 'Relatório', cab: ['Nome', 'E-mail', 'Diretoria', 'Gerência', 'Público', 'Situação nos eventos escolhidos', 'Turmas (nos eventos escolhidos)'], linhas: linhas },
+      { nome: 'Filtros', cab: ['Filtro', 'Valor'], linhas: [
+        ['Eventos', st.rel.ev === null ? 'Todos os eventos do programa' : d.ev.map(function (k) { return nomesEv[k]; }).join('; ')],
+        ['Situações', st.rel.sit === null ? 'Todas' : d.sits.map(function (x) { return SIT_NOME[x]; }).join('; ')],
+        ['Pessoas', String(linhas.length)],
+        ['Dados lidos em', st.lidoEm ? new Date(st.lidoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'],
+        ['Regra', 'A situação considera só os eventos escolhidos, na ordem realizou > inscrita > interessada > cadastrada sem engajamento > sem cadastro.']] }
+    ];
+  }
+  function exportarRelatorio(btn) {
+    var msg = document.querySelector('[data-pnl="rel-exportar-msg"]'), r = st.r, rot = btn.textContent;
+    var fim = function (t) { btn.disabled = false; btn.textContent = rot; if (msg) msg.textContent = t || ''; };
+    if (!r || !r.lista || !podeExportar()) return;
+    btn.disabled = true; btn.textContent = 'Gerando…'; if (msg) msg.textContent = '';
+    carregarXlsx(function (erro) {
+      if (erro || !window.XLSX) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); return; }
+      try { gravarXlsx(planilhaRelatorio(r), 'painel-relatorio-pessoas-' + r.hoje + '.xlsx'); fim('Arquivo gerado com os dados lidos em ' + (st.lidoEm ? new Date(st.lidoEm).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—') + '.'); }
+      catch (e) { fim('Não foi possível gerar o arquivo agora. Tente de novo.'); }
     });
   }
   function GRUPOS_TXT(re) {
@@ -578,7 +670,7 @@
     else {
       if (r.pendencias.length) h += avisoPendencias(r);
       if (r.composicao && !r.composicao.fecha) h += '<div class="pnl-alerta" role="alert" data-pnl="composicao"><b>A conta do público não fecha.</b> Total configurado: ' + r.composicao.total + '. Situação não ativa ' + r.composicao.situacaoInativa + ' + cargo não compatível ' + r.composicao.cargoIncompativel + ' + base importada ' + r.composicao.base + (r.composicao.facilitadores ? ' (público ' + r.composicao.publico + ' + ' + r.composicao.facilitadores + ' facilitador' + (r.composicao.facilitadores === 1 ? '' : 'es') + ')' : '') + ' = ' + r.composicao.soma + ' (diferença de ' + Math.abs(r.composicao.diferenca) + ' pessoa' + (Math.abs(r.composicao.diferenca) === 1 ? '' : 's') + '). Confira a base importada e os parâmetros em ADMIN › Painel do Programa.</div>';
-      if (r.N) h += ({ executiva: executiva, diretorias: diretorias, mobilizacao: mobilizacao, ausencias: ausencias, capacidade: capacidade, evolucao: evolucao })[v](r);
+      if (r.N) h += ({ executiva: executiva, diretorias: diretorias, mobilizacao: mobilizacao, ausencias: ausencias, capacidade: capacidade, evolucao: evolucao, relatorio: relatorio })[v](r);
     }
     el.innerHTML = h;
     aplicarFoco();
@@ -635,10 +727,23 @@
       var nb = document.querySelector('[data-pnl-modo="' + st.modo + '"]'); if (nb) nb.focus({ preventScroll: true });
       return;
     }
+    var rs = e.target.closest && e.target.closest('[data-pnl-rel-sit]');
+    if (rs) { relTrocarSituacao(rs.getAttribute('data-pnl-rel-sit')); relRedesenhar('[data-pnl-rel-sit="' + rs.getAttribute('data-pnl-rel-sit') + '"]'); return; }
+    var rt = e.target.closest && e.target.closest('[data-pnl-rel-todos]');
+    if (rt) { st.rel.ev = rt.getAttribute('data-pnl-rel-todos') === 'sim' ? null : []; relRedesenhar('[data-pnl-rel-todos="' + rt.getAttribute('data-pnl-rel-todos') + '"]'); return; }
+    var rx = e.target.closest && e.target.closest('[data-pnl="rel-exportar"]');
+    if (rx) { e.preventDefault(); exportarRelatorio(rx); return; }
     var ex = e.target.closest && e.target.closest('[data-pnl="exportar"]');
     if (ex) { e.preventDefault(); exportar(ex); return; }
     var a = e.target.closest && e.target.closest('[data-pnl-admin]');
     if (a) { e.preventDefault(); location.hash = '#admin'; setTimeout(function () { var t = document.querySelector('.admin-tab-btn[data-panel="adminPanelPainelPrograma"]'); if (t) t.click(); }, 300); }
+  });
+  /* Relatório de pessoas: marcar ou desmarcar um evento refaz a situação de todos (só nos eventos marcados). */
+  document.addEventListener('change', function (e) {
+    var cb = e.target.closest && e.target.closest('[data-pnl-rel-ev]'); if (!cb || !st.r) return;
+    var marcados = []; document.querySelectorAll('[data-pnl-rel-ev]').forEach(function (x) { if (x.checked) marcados.push(x.getAttribute('data-pnl-rel-ev')); });
+    st.rel.ev = marcados.length === st.r.eventosPrograma.length ? null : marcados;
+    relRedesenhar('[data-pnl-rel-ev="' + cb.getAttribute('data-pnl-rel-ev') + '"]');
   });
   /* Filtro Diretoria da lista de pessoas da Mobilização: mostra só o grupo escolhido (vazio = todos). */
   document.addEventListener('change', function (e) {
@@ -667,5 +772,5 @@
 
   function init() { primeiraLeitura(); }
   if (window.faRouter && window.faRouter.onPageInit) window.faRouter.onPageInit('painel', init);
-  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; }, _escalaGap: escalaGap, _evolucao: evolucao, _planilha: function (pub) { return st.r ? planilhaExportacao(st.r, pub) : null; } };
+  window.faPainelPrograma = { atualizar: atualizar, _estado: function () { return st; }, _escalaGap: escalaGap, _evolucao: evolucao, _planilha: function (pub) { return st.r ? planilhaExportacao(st.r, pub) : null; }, _relatorio: function () { return st.r ? planilhaRelatorio(st.r) : null; } };
 })();
