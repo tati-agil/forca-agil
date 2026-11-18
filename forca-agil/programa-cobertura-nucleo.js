@@ -196,7 +196,7 @@
       var b = base[k] || {};
       if (facil[k]) { excluidosFacil++; return; }
       pessoas.push({ k: k, email: b.email || '', diretoria: b.diretoria || '—', gerencia: b.gerencia || '—', grupo: publicoDoNivel(b.nivel) || (gerentes[k] ? 'gestores' : 'tecnicos'),
-        cadastro: !!users[k], realizou: null, ausencias: [], naoVerificavel: [], incerto: [], inscricoes: [], interesses: [], realizouComRemocao: false });
+        cadastro: !!users[k], realizou: null, realizacoes: [], ausencias: [], naoVerificavel: [], incerto: [], inscricoes: [], interesses: [], realizouComRemocao: false });
     });
     var N = pessoas.length;
     pessoas.forEach(function (p) {
@@ -212,7 +212,7 @@
           var ck = checkin[t.key] || {};
           var pres = t.dias.filter(function (dd) { return ck[dd] && ck[dd][p.k]; }).length, sem = t.diasSemRegistro.filter(function (dd) { return !(ck[dd] && ck[dd][p.k]); }).length;
           var minimo = Math.round(pres / t.dias.length * 1000) / 10, maximo = Math.round((pres + sem) / t.dias.length * 1000) / 10;
-          if (minimo >= t.pctMin) { t.realizados++; /* pessoas da base que realizaram NESTA turma (mesma regra do realizado) */ if (!p.realizou || t.conclusao < p.realizou.data) p.realizou = { turma: t.key, data: t.conclusao }; if (!registroAtivo(r)) p.realizouComRemocao = true; }
+          if (minimo >= t.pctMin) { t.realizados++; p.realizacoes.push(t.key); /* pessoas da base que realizaram NESTA turma (mesma regra do realizado) */ if (!p.realizou || t.conclusao < p.realizou.data) p.realizou = { turma: t.key, data: t.conclusao }; if (!registroAtivo(r)) p.realizouComRemocao = true; }
           else if (maximo < t.pctMin) p.ausencias.push({ turma: t.key, tipo: pres === 0 ? 'nao-compareceu' : 'frequencia-insuficiente' });
           else p.naoVerificavel.push(t.key);
           return;
@@ -520,12 +520,19 @@
         vagaAtePrazo: p.vaga ? (rotT[p.vaga] || p.vaga) + (p.vagaConfirmada ? ' (inscrição)' : ' (interesse)') : '',
         cabeEmVagaLivre: !p.vaga && p.alocavel ? (rotT[p.alocavel] || p.alocavel) : '',
         ausencias: p.ausencias.map(function (a) { return (rotT[a.turma] || a.turma) + (a.tipo === 'nao-compareceu' ? ' (não compareceu)' : ' (frequência insuficiente)'); }).join('; '),
-        faltouPendente: p.ausencias.length > 0 && p.situacao !== 'realizou' };
+        faltouPendente: p.ausencias.length > 0 && p.situacao !== 'realizou',
+        /* Relatório de pessoas (nov/2026): os mesmos registros que decidem a situação, com o evento de cada turma */
+        registros: [].concat(
+          p.realizacoes.map(function (x) { return { tipo: 'realizou', eventoKey: (T[x] || {}).eventoKey, turma: rotT[x] || x, data: (T[x] || {}).conclusao || '' }; }),
+          p.inscricoes.map(function (x) { return { tipo: 'inscrita', eventoKey: (T[x] || {}).eventoKey, turma: rotT[x] || x }; }),
+          p.interesses.map(function (x) { return { tipo: 'interessada', eventoKey: (T[x] || {}).eventoKey, turma: rotT[x] || x }; })) };
     }).sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR') || (a.email < b.email ? -1 : 1); });
 
     return {
       realista: realista,
       lista: lista,
+      eventosPrograma: Object.keys(eventosPrograma).filter(function (k) { return eventosPrograma[k] && eventos[k]; }).map(function (k) { return { key: k, nome: eventos[k].nome || k, turmas: listaT.filter(function (t) { return t.eventoKey === k; }).length }; })
+        .sort(function (a, b) { return (Number((eventos[a.key] || {}).order) || 0) - (Number((eventos[b.key] || {}).order) || 0) || a.nome.localeCompare(b.nome, 'pt-BR'); }),
       hoje: hoje, prazo: prazo, N: N, margem: margem, meta: meta, faltamParaMeta: Math.max(0, meta - porSit.realizou), metaAtingida: porSit.realizou >= meta && N > 0,
       pctMeta: N ? Math.round(meta / N * 1000) / 10 : 0, composicao: composicao, excluidosFacilitadores: excluidosFacil, pendencias: pendencias, alertas: alertas, inconsistencias: inconsistencias,
       porSit: porSit, porGrupo: porGrupo, realizou: real, pendentes: pend.length,
@@ -608,7 +615,22 @@
     return out;
   }
 
-  var api = { PUBLICOS: PUBLICOS, publicoDoNivel: publicoDoNivel, calcular: calcular, previaBase: previaBase, cadastroXBase: cadastroXBase, maximoDeJanelas: maximoDeJanelas, gulosoJanelas: gulosoJanelas, diasUteis: diasUteis, emailKey: emailKey, grupoDoCargo: grupoDoCargo };
+  /* Relatório de pessoas (aprovado pela dona, nov/2026): a situação considerando SÓ os eventos escolhidos, com a mesma
+     ordem de prioridade do programa (realizou > inscrita > interessada > cadastrada sem engajamento > sem cadastro) e os
+     mesmos registros (os de `lista[i].registros`, que já seguem as regras de calcular). Com todos os eventos do programa
+     escolhidos, devolve exatamente a situação do painel. `turmas` = as turmas da situação, só dos eventos escolhidos. */
+  function situacaoNosEventos(pessoa, eventosEscolhidos) {
+    var sel = {}; (eventosEscolhidos || []).forEach(function (k) { sel[k] = true; });
+    var regs = (pessoa.registros || []).filter(function (x) { return sel[x.eventoKey]; });
+    var ordem = ['realizou', 'inscrita', 'interessada'];
+    for (var i = 0; i < ordem.length; i++) {
+      var doTipo = regs.filter(function (x) { return x.tipo === ordem[i]; });
+      if (doTipo.length) return { situacao: ordem[i], turmas: doTipo.map(function (x) { return x.turma; }) };
+    }
+    return { situacao: pessoa.cadastro ? 'sem-engajamento' : 'sem-cadastro', turmas: [] };
+  }
+
+  var api = { situacaoNosEventos: situacaoNosEventos, PUBLICOS: PUBLICOS, publicoDoNivel: publicoDoNivel, calcular: calcular, previaBase: previaBase, cadastroXBase: cadastroXBase, maximoDeJanelas: maximoDeJanelas, gulosoJanelas: gulosoJanelas, diasUteis: diasUteis, emailKey: emailKey, grupoDoCargo: grupoDoCargo };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (raiz) raiz.faProgramaCobertura = api;
 })(typeof window !== 'undefined' ? window : null);

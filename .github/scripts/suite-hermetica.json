@@ -1320,6 +1320,12 @@
       "nome": "Painel do Programa e ADMIN › Painel do Programa: acesso, números do núcleo, Atualizar dados, consultas e importação (desktop e celular)",
       "duracao": 60,
       "sobre": "A tela de verdade com o Firebase falso: admin e convidado veem o painel, pessoa comum não (leitura lenta não expulsa; leitura que falha avisa); os números dos quatro blocos e as decisões são os do núcleo calculado no Node; Atualizar dados relê o banco, mostra Atualizando e o horário, e falha mantém os números anteriores; consultas em páginas próprias com Voltar; configuração incompleta diz o que falta; ADMIN inclui convidado, valida e grava a configuração com auditoria, e importa a planilha só depois da prévia e da confirmação; padrão visual e sem rolagem lateral."
+    },
+    {
+      "arquivo": ".github/scripts/teste-painel-relatorio.js",
+      "nome": "Painel do Programa › Relatório de pessoas: eventos × situações, situação só nos eventos marcados, Excel e acesso (desktop e celular)",
+      "duracao": 30,
+      "sobre": "Hermético, dados sintéticos com dois eventos do programa e um de fora. Núcleo: com todos os eventos marcados a situação é exatamente a do painel; com um evento só, quem realizou o outro aparece pela situação que tem neste; o evento de fora não conta. Tela: contagens por situação = núcleo; desmarcar evento refaz as contagens com o foco na caixa; escolher situações filtra a lista; nenhum evento ou nenhuma situação diz o que falta; a escolha sobrevive a Atualizar dados; Excel com as abas Relatório e Filtros e as mesmas pessoas; convidado não vê o link nem nomes; padrão visual, sem rolagem lateral nem erro de JS."
     }
   ]
 }
