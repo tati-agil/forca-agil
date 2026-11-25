@@ -66,8 +66,9 @@ afirma(/npm ci --prefix functions/.test(df), 'dependências instaladas pelo lock
 const pkg = JSON.parse(ler('functions/package.json'));
 afirma(Object.values(pkg.dependencies).every((v) => /^\d+\.\d+\.\d+$/.test(v)) && fs.existsSync(path.join(RAIZ, 'functions', 'package-lock.json')) && pkg.engines.node === '20', 'versões exatas, package-lock e Node 20');
 afirma((fj.hosting.ignore || []).includes('functions/**'), 'o site não publica functions/ (código do servidor)');
-const csp = fj.hosting.headers.map((h) => h.headers.find((x) => x.key === 'Content-Security-Policy')).filter(Boolean);
-afirma(csp.length >= 1 && csp.every((h) => /connect-src[^;]*https:\/\/\*\.cloudfunctions\.net/.test(h.value)), 'a CSP permite chamar as funções');
+/* as páginas do site (a moldura do jogo, /forca-agil/*.html, não chama nada fora da própria origem) */
+const csp = fj.hosting.headers.filter((h) => h.source === '/' || h.source === '/index.html').map((h) => h.headers.find((x) => x.key === 'Content-Security-Policy')).filter(Boolean);
+afirma(csp.length === 2 && csp.every((h) => /connect-src[^;]*https:\/\/\*\.cloudfunctions\.net/.test(h.value)), 'a CSP permite chamar as funções');
 const tr = ler('.github/workflows/teste-rules.yml');
 afirma(/--only database,auth,functions/.test(tr) && /teste-fronteira-posicionamento\.js/.test(tr) && /copiar-modulos-fronteira\.js/.test(tr), 'o CI roda a fronteira nos emuladores');
 

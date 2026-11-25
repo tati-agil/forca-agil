@@ -129,7 +129,7 @@ const opcoes = async (page) => {
     const p2 = await ctx.newPage();
     await p2.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
     await p2.goto(BASE + '/forca-agil/jogo-ultima-transmissao.html');
-    await p2.waitForURL(/index\.html/, { timeout: 10000, waitUntil: 'commit' }).catch(() => {});
+    await p2.waitForURL(/index\.html/, { timeout: 10000, waitUntil: 'commit' });
     anota('aberto direto, volta ao site', /index\.html/.test(p2.url()), p2.url());
     anota('sem erro de JavaScript', !erros.length, erros.join(' | '));
     await ctx.close();
