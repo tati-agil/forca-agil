@@ -100,6 +100,20 @@ async function main() {
   await nega('K3 convidado não cadastra', db(CONV).ref('programa-calendario/2026-11-21').set({ motivo: 'x', em: SERVER, por: CONV }));
   await pode('K4 admin retira um dia', db(ADMIN).ref('programa-calendario/2026-11-20').remove());
 
+  console.log('\n== não vão fazer ==');
+  const nvK = emailKey('a@previ.com.br'), nv = (por, x) => ({ ['programa-nao-participa/' + nvK]: true, ['programa-nao-participa-detalhe/' + nvK]: Object.assign({ motivo: 'licenca', em: SERVER, por }, x) });
+  await pode('N1 admin indica (marca e motivo juntos)', db(ADMIN).ref().update(nv(ADMIN, { volta: '2027-01-05' })));
+  await nega('N2 convidado não indica', db(CONV).ref().update(nv(CONV)));
+  await nega('N3 motivo inventado recusado', db(ADMIN).ref().update(nv(ADMIN, { motivo: 'doenca' })));
+  await nega('N4 autoria de outra pessoa recusada', db(ADMIN).ref().update(nv(SUPER)));
+  await nega('N5 marca sem motivo recusada', db(ADMIN).ref('programa-nao-participa/' + emailKey('b@previ.com.br')).set(true));
+  await nega('N6 texto livre recusado', db(ADMIN).ref().update(nv(ADMIN, { obs: 'x' })));
+  await pode('N7 admin lê o motivo', db(ADMIN).ref('programa-nao-participa-detalhe').once('value'));
+  await nega('N8 convidado não lê o motivo', db(CONV).ref('programa-nao-participa-detalhe').once('value'));
+  await nega('N9 pessoa comum não lê o motivo', db(COMUM).ref('programa-nao-participa-detalhe').once('value'));
+  await nega('N10 convidado não retira', db(CONV).ref('programa-nao-participa/' + nvK).remove());
+  await pode('N11 admin retira os dois juntos', db(ADMIN).ref().update({ ['programa-nao-participa/' + nvK]: null, ['programa-nao-participa-detalhe/' + nvK]: null }));
+
   console.log('\n== base oficial ==');
   const versao = { importadaEm: SERVER, importadaPor: ADMIN, total: 2, origem: 'TOTAL.xlsx', pessoas: { [emailKey('a@previ.com.br')]: { email: 'a@previ.com.br', nome: 'A', gerencia: 'GECON', diretoria: 'DIRAD' }, [emailKey('b@adcmflex.com.br')]: { email: 'b@adcmflex.com.br', nome: 'B', gerencia: 'INFOR', diretoria: 'DISEG' } } };
   await nega('B1 "vigente" não aponta para versão que não existe', db(ADMIN).ref('programa-publico-alvo/vigente').set(1));
@@ -112,7 +126,7 @@ async function main() {
   await nega('B6 pessoa com campo inventado recusada', db(ADMIN).ref('programa-publico-alvo/versoes/2').set(Object.assign({}, versao, { pessoas: { x: { email: 'x@previ.com.br', cpf: '1' } } })));
 
   console.log('\n== L. leitura dos dados do painel ==');
-  for (const no of ['programa-config', 'programa-calendario', 'programa-publico-alvo']) {
+  for (const no of ['programa-config', 'programa-calendario', 'programa-publico-alvo', 'programa-nao-participa']) {
     await pode('L ' + no + ': admin lê', db(ADMIN).ref(no).once('value'));
     await pode('L ' + no + ': convidado lê', db(CONV).ref(no).once('value'));
     await nega('L ' + no + ': pessoa comum não lê', db(COMUM).ref(no).once('value'));

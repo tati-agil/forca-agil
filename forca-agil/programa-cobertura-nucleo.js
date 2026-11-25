@@ -191,6 +191,8 @@
     }
 
     /* ---------- pessoas ---------- */
+    /* quem a administração indicou que não vai fazer (férias, licença…): não muda público, meta nem capacidade; só a segunda conta */
+    var naoVai = E.naoParticipa || {};
     var excluidosFacil = 0, pessoas = [];
     Object.keys(base || {}).forEach(function (k) {
       var b = base[k] || {};
@@ -221,6 +223,7 @@
         if (confirmada(r)) p.inscricoes.push(t.key); else p.interesses.push(t.key);
       });
       p.situacao = p.realizou ? 'realizou' : p.inscricoes.length ? 'inscrita' : p.interesses.length ? 'interessada' : p.cadastro ? 'sem-engajamento' : 'sem-cadastro';
+      p.naoVai = !!naoVai[p.k] && p.situacao !== 'realizou';
     });
     var porSit = { realizou: 0, inscrita: 0, interessada: 0, 'sem-engajamento': 0, 'sem-cadastro': 0 };
     pessoas.forEach(function (p) { porSit[p.situacao]++; });
@@ -408,10 +411,11 @@
     var nFat = ['capacidade', 'mobilizacao', 'calendario'].filter(function (k) { return fatores[k]; }).length;
 
     /* ---------- diretorias e gerências (gerência com menos de 5 pessoas fica agrupada) ---------- */
-    var CONTAS = ['total', 'realizou', 'inscrita', 'interessada', 'sem-engajamento', 'sem-cadastro', 'inscritosValidos', 'interessadosValidos'];
+    var CONTAS = ['total', 'realizou', 'inscrita', 'interessada', 'sem-engajamento', 'sem-cadastro', 'inscritosValidos', 'interessadosValidos', 'naoVao'];
     var novoCont = function (nome) { var o = { nome: nome }; CONTAS.forEach(function (c) { o[c] = 0; }); return o; };
     var conta = function (o, p) {
       o.total++; o[p.situacao]++;
+      if (p.naoVai) o.naoVao++;
       /* inscrição ou interesse com vaga numa turma que ainda dá para realizar até o prazo (a mesma vaga da capacidade do programa):
          nos dois casos a pessoa ainda precisa comparecer */
       if (p.situacao !== 'realizou' && p.vaga) { if (p.vagaConfirmada) o.inscritosValidos++; else o.interessadosValidos++; }
@@ -420,6 +424,8 @@
       o.pendentes = o.total - o.realizou; o.cobertura = pct1(o.realizou, o.total); o.semMobilizacao = o['sem-engajamento'] + o['sem-cadastro'];
       /* PROJEÇÃO: realizados + inscritos e interessados com vaga até o prazo, se comparecerem; GAP = quem fica sem isso */
       o.projetados = o.realizou + o.inscritosValidos + o.interessadosValidos; o.coberturaProjetada = pct1(o.projetados, o.total); o.gap = o.total - o.projetados;
+      /* SEM QUEM NÃO VAI FAZER: quem foi indicado e ainda não realizou sai do denominador (quem já realizou continua contando) */
+      o.publicoPossivel = o.total - o.naoVao; o.coberturaPossivel = pct1(o.realizou, o.publicoPossivel); o.faltaPossivel = o.publicoPossivel - o.realizou;
       return o;
     };
     /* Agrega um recorte do público por diretoria e gerência. Todas as diretorias da base aparecem em qualquer recorte (as
@@ -520,6 +526,7 @@
         vagaAtePrazo: p.vaga ? (rotT[p.vaga] || p.vaga) + (p.vagaConfirmada ? ' (inscrição)' : ' (interesse)') : '',
         cabeEmVagaLivre: !p.vaga && p.alocavel ? (rotT[p.alocavel] || p.alocavel) : '',
         ausencias: p.ausencias.map(function (a) { return (rotT[a.turma] || a.turma) + (a.tipo === 'nao-compareceu' ? ' (não compareceu)' : ' (frequência insuficiente)'); }).join('; '),
+        naoVaiFazer: p.naoVai,
         faltouPendente: p.ausencias.length > 0 && p.situacao !== 'realizou',
         /* Relatório de pessoas (nov/2026): os mesmos registros que decidem a situação, com o evento de cada turma */
         registros: [].concat(
