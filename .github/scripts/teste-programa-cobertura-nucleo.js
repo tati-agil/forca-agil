@@ -348,6 +348,7 @@ console.log('\n== NV. não vão fazer ==');
   ok('NV1 quem não vai sai do denominador; quem já realizou e quem não está na base não descontam', t.total === 4 && t.naoVao === 1 && t.publicoPossivel === 3 && t.realizou === 1 && t.coberturaPossivel === 33.3 && t.faltaPossivel === 2, t);
   ok('NV2 por diretoria e gerência', d1.naoVao === 1 && d1.coberturaPossivel === 100 && d1.faltaPossivel === 0 && d1.gerenciasTodas.reduce((s, g) => s + g.naoVao, 0) === 1, d1);
   ok('NV3 público, meta, cobertura, gaps e capacidade não mudam', a.N === b.N && a.meta === b.meta && JSON.stringify(a.pct) === JSON.stringify(b.pct) && JSON.stringify(a.porSit) === JSON.stringify(b.porSit) && JSON.stringify(a.cap) === JSON.stringify(b.cap) && a.porPublico.todos.total.gap === t.gap && !b.inconsistencias.length);
+  ok('NV6 gap possível desconta só quem está no gap, no total e na soma das diretorias', t.gapPossivel === t.gap - b.lista.filter((p) => p.naoVaiFazer && !p.vagaAtePrazo).length && b.diretorias.reduce((s, d) => s + d.gapPossivel, 0) === t.gapPossivel && t.gapPossivel <= t.faltaPossivel && a.porPublico.todos.total.gapPossivel === a.porPublico.todos.total.gap, t);
   ok('NV4 sem indicação, as duas contas são iguais', a.porPublico.todos.total.coberturaPossivel === a.porPublico.todos.total.cobertura && a.porPublico.todos.total.naoVao === 0);
   ok('NV5 a lista marca a pessoa', b.lista.filter((p) => p.naoVaiFazer).map((p) => p.email).join() === Q);
 }

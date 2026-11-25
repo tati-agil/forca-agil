@@ -153,15 +153,15 @@
     var T = rec.total; if (!T.naoVao) return '';
     var linha = function (o, nome, cls, neg) {
       var b = function (x) { return neg ? '<b>' + x + '</b>' : x; };
-      return '<tr' + (cls ? ' class="' + cls + '"' : '') + (neg ? ' data-pnl="nao-vao-total"' : '') + '><td>' + nome + '</td>' + [o.total, o.naoVao, o.publicoPossivel, o.realizou, o.total ? f1(o.cobertura) + '%' : '—', o.publicoPossivel ? f1(o.coberturaPossivel) + '%' : '—', o.faltaPossivel]
+      return '<tr' + (cls ? ' class="' + cls + '"' : '') + (neg ? ' data-pnl="nao-vao-total"' : '') + '><td>' + nome + '</td>' + [o.total, o.naoVao, o.publicoPossivel, o.realizou, o.total ? f1(o.cobertura) + '%' : '—', o.publicoPossivel ? f1(o.coberturaPossivel) + '%' : '—', o.faltaPossivel, o.gapPossivel]
         .map(function (v) { return '<td class="pnl-n">' + b(v) + '</td>'; }).join('') + '</tr>';
     };
     return '<article class="pnl-card" data-pnl="nao-vao-tabela"><h2>Sem quem não vai fazer' + (st.pub === 'todos' ? '' : ' · ' + esc(PUBS[st.pub])) + '</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th>' +
-      ['Público', 'Não vão fazer', 'Público possível', 'Realizou', 'Cobertura (hoje)', 'Cobertura possível', 'Falta de verdade'].map(function (c) { return '<th class="pnl-n">' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      ['Público', 'Não vão fazer', 'Público possível', 'Realizou', 'Cobertura (hoje)', 'Cobertura possível', 'Gap possível (realizado)', 'Gap possível (projetado)'].map(function (c) { return '<th class="pnl-n">' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
       rec.diretorias.map(function (d) {
         return linha(d, esc(d.nome)) + (podeExportar() ? d.gerenciasTodas : d.gerencias).filter(function (g) { return g.naoVao; }).map(function (g) { return linha(g, '<span class="pnl-ger-nome">' + esc(g.nome) + '</span>', 'pnl-ger'); }).join('');
       }).join('') + linha(T, '<b>Total</b>', '', true) + '</tbody></table></div>' +
-      '<p class="pnl-nota">Não vão fazer = pessoas indicadas pela administração que ainda não realizaram; só aparecem as gerências que têm alguém indicado. Público possível = público − não vão fazer. Falta de verdade = público possível − realizou. O público, a meta e as outras contas do painel não mudam.</p></article>';
+      '<p class="pnl-nota">Não vão fazer = pessoas indicadas pela administração que ainda não realizaram; só aparecem as gerências que têm alguém indicado. Público possível = público − não vão fazer. Gap possível (realizado) = público possível − realizou; Gap possível (projetado) = Gap (projetado) sem essas pessoas. O público, a meta e as outras contas do painel não mudam.</p></article>';
   }
   function executiva(r) {
     var c = r.cap, nec = (c.tecnicos.necessarias || 0) + (c.gestores.necessarias || 0), cabem = (c.tecnicos.abrir || 0) + (c.gestores.abrir || 0);
@@ -248,15 +248,15 @@
       /* espaço reservado para o número na ponta da barra, pelo tamanho do maior número */
       var res = (String(max).length * 0.62 + 0.8).toFixed(2) + 'rem';
       h += '<div class="pnl-gaps-resumo" data-pnl="gaps-total"><b>' + T.gap + '</b><span class="pnl-gaps-rt">' + (T.gap === 1 ? 'pessoa falta' : 'pessoas faltam') + ' alcançar ' + ENTRE[st.pub] + '</span>' +
-        '<span class="pnl-gaps-rs">de ' + T.total + ' · ' + T.realizou + ' ' + (T.realizou === 1 ? 'realizou' : 'realizaram') + ' · ' + pot(T) + ' com participação potencial</span></div>' +
+        '<span class="pnl-gaps-rs">de ' + T.total + ' · ' + T.realizou + ' ' + (T.realizou === 1 ? 'realizou' : 'realizaram') + ' · ' + pot(T) + ' com participação potencial</span>' + (T.naoVao ? '<span class="pnl-gaps-rs" data-pnl="gaps-possivel">Sem quem não vai fazer (' + T.naoVao + '): <strong>' + T.gapPossivel + '</strong></span>' : '') + '</div>' +
         '<div class="pnl-gaps-lista" data-pnl="gaps-linhas" data-escala="' + max + '" style="--pnl-res:' + res + '"><div class="pnl-gaps-lin pnl-gaps-cab" aria-hidden="true"><span>Diretoria</span><span>Falta alcançar (pessoas)' +
         (max ? '<span class="pnl-gaps-eixo" data-pnl="gaps-eixo"><span style="left:0">0</span><span style="left:50%">' + max / 2 + '</span><span style="left:100%">' + max + '</span></span>' : '') + '</span></div>' +
         dirs.map(function (x) {
           var d = x.d; if (!d.total) return vazia(x);
           return abre(x) + sigla(d) + '<span class="pnl-gaps-gbar" role="img" aria-label="' + esc(d.nome) + ': faltam alcançar ' + d.gap + ' de ' + d.total + '"><i style="width:calc((100% - var(--pnl-res)) * ' + (max ? d.gap / max : 0) + ')"></i><b>' + d.gap + '</b></span>' +
-            '<span class="pnl-gaps-apoio">Realizado <strong>' + d.realizou + '</strong> · Participação potencial <strong>' + pot(d) + '</strong> · Público <strong>' + d.total + '</strong></span></div>';
+            '<span class="pnl-gaps-apoio">Realizado <strong>' + d.realizou + '</strong> · Participação potencial <strong>' + pot(d) + '</strong> · Público <strong>' + d.total + '</strong></span>' + (d.naoVao ? '<span class="pnl-gaps-apoio" data-pnl-gap-possivel="' + d.gapPossivel + '">Sem quem não vai fazer (' + d.naoVao + '): <strong>' + d.gapPossivel + '</strong></span>' : '') + '</div>';
         }).join('') + '</div>' +
-        '<p class="pnl-nota" data-pnl="gaps-exemplo">Falta alcançar = público − realizado − participação potencial (inscrição ou interesse com vaga numa turma que termina até o prazo). Toque na sigla para ver as gerências.</p>';
+        '<p class="pnl-nota" data-pnl="gaps-exemplo">Falta alcançar = público − realizado − participação potencial (inscrição ou interesse com vaga numa turma que termina até o prazo).' + (T.naoVao ? ' Sem quem não vai fazer = o mesmo número descontando as pessoas indicadas pela administração; quem tem vaga já não estava nele.' : '') + ' Toque na sigla para ver as gerências.</p>';
       return h + fim;
     }
     /* divisor da cobertura do recorte: entre a última diretoria abaixo dela e a primeira no nível dela ou acima */
@@ -433,10 +433,11 @@
     /* colunas de situação: inscrita e interessada somadas numa só (as duas ainda precisam comparecer; a soma fecha o público) */
     var COLS = [['realizou', 'Realizou'], ['insInt', 'Inscrita ou interessada'], ['sem-engajamento', 'Cadastrada sem engajamento'], ['sem-cadastro', 'Sem cadastro']];
     var val = function (o, c) { return c === 'insInt' ? o.inscrita + o.interessada : o[c]; };
-    var rec = recorte(r), nomes = podeExportar(), nCol = 2 + COLS.length + 4;
+    var rec = recorte(r), nomes = podeExportar(), nv = rec.total.naoVao > 0, nCol = 2 + COLS.length + (nv ? 6 : 4);
     var h = '<article class="pnl-card" data-pnl="diretorias"><h2>Situação por diretoria' + (st.pub === 'todos' ? '' : ' · ' + esc(PUBS[st.pub])) + '</h2>' + filtroPublico() +
-      '<div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
-      COLS.map(function (c) { return '<th class="pnl-n">' + c[1] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura (realizado)</th><th class="pnl-n" title="Com inscritos e interessados">Projetada</th><th class="pnl-n" title="Público − realizou">Gap (realizado)</th><th class="pnl-n" title="Público − realizados − inscritos e interessados com vaga">Gap (projetado)</th></tr></thead><tbody>';
+      '<div class="table-scroll-wrap"><table class="admin-table pnl-tabela' + (nv ? ' pnl-tabela--nv' : '') + '"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
+      COLS.map(function (c) { return '<th class="pnl-n">' + c[1] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura (realizado)</th><th class="pnl-n" title="Com inscritos e interessados">Projetada</th><th class="pnl-n" title="Público − realizou">Gap (realizado)</th><th class="pnl-n" title="Público − realizados − inscritos e interessados com vaga">Gap (projetado)</th>' +
+      (nv ? '<th class="pnl-n" title="Gap (realizado) sem quem não vai fazer">Gap possível (realizado)</th><th class="pnl-n" title="Gap (projetado) sem quem não vai fazer">Gap possível (projetado)</th>' : '') + '</tr></thead><tbody>';
     /* Dois gaps (pedido da dona, 14/11): o do realizado (quem ainda não realizou) e o do projetado (quem falta mesmo
        contando inscritos e interessados com vaga) — cada um ao lado da sua cobertura. */
     // A mesma linha serve para a diretoria, para cada gerência dela (que abre logo abaixo, com as mesmas colunas) e para o total.
@@ -444,7 +445,8 @@
       var b = function (x) { return neg ? '<b>' + x + '</b>' : x; };
       var cor = !o.total || neg ? '' : ' style="background:' + (o.cobertura < 15 ? 'rgba(255,59,48,.30)' : o.cobertura < 30 ? 'rgba(246,190,123,.25)' : 'rgba(126,226,168,.18)') + '"';
       return '<tr' + attrs + '><td>' + nome + '</td><td class="pnl-n">' + b(o.total) + '</td>' + COLS.map(function (c) { return '<td class="pnl-n">' + b(val(o, c[0])) + '</td>'; }).join('') +
-        '<td class="pnl-n"' + cor + '>' + b(o.total ? f1(o.cobertura) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="proj-total"' : '') + '>' + b(o.total ? f1(o.coberturaProjetada) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-real-total"' : '') + '>' + b(o.total - o.realizou) + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-total"' : '') + '>' + b(o.gap) + '</td></tr>';
+        '<td class="pnl-n"' + cor + '>' + b(o.total ? f1(o.cobertura) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="proj-total"' : '') + '>' + b(o.total ? f1(o.coberturaProjetada) + '%' : '—') + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-real-total"' : '') + '>' + b(o.total - o.realizou) + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-total"' : '') + '>' + b(o.gap) + '</td>' +
+        (nv ? '<td class="pnl-n"' + (neg ? ' data-pnl="gap-real-possivel-total"' : '') + '>' + b(o.faltaPossivel) + '</td><td class="pnl-n"' + (neg ? ' data-pnl="gap-possivel-total"' : '') + '>' + b(o.gapPossivel) + '</td>' : '') + '</tr>';
     };
     var ordemSit = Object.keys(ROT);
     var pessoasDe = function (dir, ger) {
@@ -468,7 +470,7 @@
       });
     });
     h += linha(rec.total, '<b>Total</b>', '', true) + '</tbody></table></div>' +
-      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público' + (st.pub === 'todos' ? '' : ' de ' + PUBS[st.pub].toLowerCase()) + '. Gap (realizado) = público − realizou; Gap (projetado) = público − projetados. Projetada =realizados + inscritos e interessados com vaga numa turma que termina até o prazo, se comparecerem com a frequência mínima (interesse ainda precisa da confirmação; inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Toque na diretoria para ver as gerências, com as mesmas colunas' +
+      '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público' + (st.pub === 'todos' ? '' : ' de ' + PUBS[st.pub].toLowerCase()) + '. Gap (realizado) = público − realizou; Gap (projetado) = público − projetados' + (nv ? '; Gap possível = o mesmo gap sem quem não vai fazer (no projetado, quem tem vaga já não estava no gap)' : '') + '. Projetada = realizados + inscritos e interessados com vaga numa turma que termina até o prazo, se comparecerem com a frequência mínima (interesse ainda precisa da confirmação; inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Toque na diretoria para ver as gerências, com as mesmas colunas' +
       (nomes ? '; toque na gerência para ver as pessoas e a situação de cada uma.' : '; gerências com menos de 5 pessoas aparecem agrupadas.') + '</p>' + botaoExportar(st.pub) + '</article>' + naoVaoTabela(rec);
     return h;
   }

@@ -422,9 +422,20 @@ async function naoVaoFazer(browser, rotulo, ctxOpts) {
     const x = await abrir(browser, ctxOpts, { db, user: user(quem) }, '#painel'); await esperarPainel(x);
     const res = await texto(x.page, '[data-pnl="nao-vao"]');
     ok('NV1 visão executiva mostra as duas contas', (await texto(x.page, '[data-pnl="publico"]')) === '24' && res === '1 pessoa não vai fazer. Sem ela: 34,8% realizado, faltam 15 pessoas', res);
+    const rp = await x.page.evaluate(() => window.faPainelPrograma._estado().r.porPublico.todos), T = rp.total;
+    const gps = await x.page.$$eval('[data-pnl-gap-possivel]', (l) => l.map((e) => [e.closest('[data-pnl-dir]').getAttribute('data-pnl-dir'), Number(e.getAttribute('data-pnl-gap-possivel'))]));
+    ok('NV7 bloco Gaps mostra também o gap sem quem não vai, no total e na diretoria', (await texto(x.page, '[data-pnl="gaps-possivel"]')) === 'Sem quem não vai fazer (1): ' + T.gapPossivel && JSON.stringify(gps) === JSON.stringify(rp.diretorias.filter((d) => d.naoVao).map((d) => [d.nome, d.gapPossivel])) && await semRolagem(x.page), gps);
+    if (process.env.FA_FOTOS && quem === ADM) await x.page.locator('[data-pnl="bloco-gaps"]').screenshot({ path: path.join(process.env.FA_FOTOS, 'nvg-' + ctxOpts.viewport.width + '.png') });
     await x.page.evaluate(() => { location.hash = '#painel?v=diretorias'; }); await x.page.waitForSelector('[data-pnl="nao-vao-total"]');
+    ok('NV8 Situação por diretoria: as duas colunas de gap possível, com os gaps de antes ao lado', (await texto(x.page, '[data-pnl="gap-real-total"]')) === '16' && (await texto(x.page, '[data-pnl="gap-total"]')) === String(T.gap) && (await texto(x.page, '[data-pnl="gap-real-possivel-total"]')) === '15' && (await texto(x.page, '[data-pnl="gap-possivel-total"]')) === String(T.gapPossivel));
+    if (ctxOpts.viewport.width > 1000) for (const w of [1180, 1366]) {
+      await x.page.setViewportSize({ width: w, height: 900 });
+      const m = await x.page.$eval('[data-pnl="diretorias"] table', (t) => [Math.round(t.getBoundingClientRect().right), Math.round(t.parentElement.getBoundingClientRect().right), [...t.querySelectorAll('th')].filter((h) => h.scrollWidth > h.clientWidth + 1).map((h) => h.textContent + ' ' + h.scrollWidth + '>' + h.clientWidth)]);
+      ok('NV9 ' + w + ' px: a tabela cabe no cartão e nenhum título invade o vizinho', m[0] <= m[1] + 1 && !m[2].length, m);
+    }
+    if (process.env.FA_FOTOS && quem === ADM) await x.page.locator('[data-pnl="diretorias"]').screenshot({ path: path.join(process.env.FA_FOTOS, 'nvd-' + ctxOpts.viewport.width + '.png') });
     const tot = await x.page.$$eval('[data-pnl="nao-vao-total"] td', (l) => l.map((e) => e.textContent).join('|'));
-    ok('NV2 tabela: total confere', tot === 'Total|24|1|23|8|33,3%|34,8%|15', tot);
+    ok('NV2 tabela: total confere', tot === 'Total|24|1|23|8|33,3%|34,8%|15|' + T.gapPossivel, tot);
     ok('NV3 sem rolagem lateral; motivo não aparece no painel', await semRolagem(x.page) && !/licen[cç]a/i.test(await texto(x.page, '#page-painel')));
     if (process.env.FA_FOTOS && quem === ADM) await x.page.locator('[data-pnl="nao-vao-tabela"]').screenshot({ path: path.join(process.env.FA_FOTOS, 'nv-' + ctxOpts.viewport.width + '.png') });
     const pv = await verificarTela(x.page, { escopo: '#page-painel', largura: ctxOpts.viewport.width, focos: 0 });

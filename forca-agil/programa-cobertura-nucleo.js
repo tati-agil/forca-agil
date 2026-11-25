@@ -411,11 +411,11 @@
     var nFat = ['capacidade', 'mobilizacao', 'calendario'].filter(function (k) { return fatores[k]; }).length;
 
     /* ---------- diretorias e gerências (gerência com menos de 5 pessoas fica agrupada) ---------- */
-    var CONTAS = ['total', 'realizou', 'inscrita', 'interessada', 'sem-engajamento', 'sem-cadastro', 'inscritosValidos', 'interessadosValidos', 'naoVao'];
+    var CONTAS = ['total', 'realizou', 'inscrita', 'interessada', 'sem-engajamento', 'sem-cadastro', 'inscritosValidos', 'interessadosValidos', 'naoVao', 'naoVaoNoGap'];
     var novoCont = function (nome) { var o = { nome: nome }; CONTAS.forEach(function (c) { o[c] = 0; }); return o; };
     var conta = function (o, p) {
       o.total++; o[p.situacao]++;
-      if (p.naoVai) o.naoVao++;
+      if (p.naoVai) { o.naoVao++; if (!p.vaga) o.naoVaoNoGap++; }
       /* inscrição ou interesse com vaga numa turma que ainda dá para realizar até o prazo (a mesma vaga da capacidade do programa):
          nos dois casos a pessoa ainda precisa comparecer */
       if (p.situacao !== 'realizou' && p.vaga) { if (p.vagaConfirmada) o.inscritosValidos++; else o.interessadosValidos++; }
@@ -426,6 +426,8 @@
       o.projetados = o.realizou + o.inscritosValidos + o.interessadosValidos; o.coberturaProjetada = pct1(o.projetados, o.total); o.gap = o.total - o.projetados;
       /* SEM QUEM NÃO VAI FAZER: quem foi indicado e ainda não realizou sai do denominador (quem já realizou continua contando) */
       o.publicoPossivel = o.total - o.naoVao; o.coberturaPossivel = pct1(o.realizou, o.publicoPossivel); o.faltaPossivel = o.publicoPossivel - o.realizou;
+      /* GAP projetado sem essas pessoas: só desconta quem está no gap (quem tem vaga já não estava) */
+      o.gapPossivel = o.gap - o.naoVaoNoGap;
       return o;
     };
     /* Agrega um recorte do público por diretoria e gerência. Todas as diretorias da base aparecem em qualquer recorte (as
