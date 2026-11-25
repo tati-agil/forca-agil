@@ -413,6 +413,26 @@ async function rodada(browser, rotulo, ctxOpts) {
   await x.ctx.close();
 }
 
+/* NV: não vão fazer — segunda conta na visão executiva e em Diretorias e áreas; o convidado vê números, nunca o motivo */
+async function naoVaoFazer(browser, rotulo, ctxOpts) {
+  console.log('\n== NV. não vão fazer (' + rotulo + ') ==');
+  for (const quem of [ADM, CONV]) {
+    const db = banco(); db['programa-nao-participa'] = { [chave('p21@previ.com.br')]: true, [chave('p0@previ.com.br')]: true };
+    db['programa-nao-participa-detalhe'] = { [chave('p21@previ.com.br')]: { motivo: 'licenca', em: 1, por: ADM } };
+    const x = await abrir(browser, ctxOpts, { db, user: user(quem) }, '#painel'); await esperarPainel(x);
+    const res = await texto(x.page, '[data-pnl="nao-vao"]');
+    ok('NV1 visão executiva mostra as duas contas', (await texto(x.page, '[data-pnl="publico"]')) === '24' && res === '1 pessoa não vai fazer. Sem ela: 34,8% realizado, faltam 15 pessoas', res);
+    await x.page.evaluate(() => { location.hash = '#painel?v=diretorias'; }); await x.page.waitForSelector('[data-pnl="nao-vao-total"]');
+    const tot = await x.page.$$eval('[data-pnl="nao-vao-total"] td', (l) => l.map((e) => e.textContent).join('|'));
+    ok('NV2 tabela: total confere', tot === 'Total|24|1|23|8|33,3%|34,8%|15', tot);
+    ok('NV3 sem rolagem lateral; motivo não aparece no painel', await semRolagem(x.page) && !/licen[cç]a/i.test(await texto(x.page, '#page-painel')));
+    if (process.env.FA_FOTOS && quem === ADM) await x.page.locator('[data-pnl="nao-vao-tabela"]').screenshot({ path: path.join(process.env.FA_FOTOS, 'nv-' + ctxOpts.viewport.width + '.png') });
+    const pv = await verificarTela(x.page, { escopo: '#page-painel', largura: ctxOpts.viewport.width, focos: 0 });
+    ok('NV4 padrão visual', !pv.length, pv.slice(0, 3));
+    if (quem === ADM) ok('NV5 Excel marca a pessoa e o nome recebe o selo', (await x.page.evaluate(() => window.faPainelPrograma._planilha('todos')[0].linhas.filter((l) => l[l.length - 1] === 'Sim').map((l) => l[0]).join())) === 'P21' && (await x.page.$$('[data-pnl-nao-vai]')).length === 1);
+    ok('NV6 sem erro de JavaScript', !x.erros.length, x.erros); await x.ctx.close();
+  }
+}
 async function admin(browser, ctxOpts) {
   console.log('\n== D. ADMIN › Painel do Programa ==');
   const x = await abrir(browser, ctxOpts, { db: banco({ semBase: true }), user: user(ADM) }, '#admin');
@@ -491,6 +511,14 @@ async function admin(browser, ctxOpts) {
     const wbC = XLSX.read(fs.readFileSync(arqC), { type: 'buffer' }), dif = XLSX.utils.sheet_to_json(wbC.Sheets['Diferentes'], { header: 1, defval: '' });
     ok('D13b Excel da conferência: abas Diferentes, Resumo e Sem área no cadastro, com as mesmas pessoas da tela', JSON.stringify(wbC.SheetNames) === JSON.stringify(['Diferentes', 'Resumo', 'Sem área no cadastro']) && dif.length === 4 && dif[1][0] === 'P12' && dif[1][2] === 'INFOR', { abas: wbC.SheetNames, dif });
   }
+  /* Não vão fazer: escolher na base, motivo obrigatório, grava marca + motivo + auditoria; retirar apaga os dois */
+  await x.page.waitForSelector('#pnlaNvNome'); await x.page.fill('#pnlaNvNome', 'p12'); await x.page.click('#pnlaNvSug [data-sug="p12_previ_com_br"]'); await x.page.click('#pnlaNvAdd');
+  ok('D14 sem motivo não grava', /motivo/.test(await texto(x.page, '#pnlaNvMsg')) && await x.page.evaluate(() => !(window.__CFG.db['programa-nao-participa'] || {}).p12_previ_com_br));
+  await x.page.selectOption('#pnlaNvMotivo', 'licenca'); await x.page.fill('#pnlaNvVolta', '2020-01-02'); await x.page.click('#pnlaNvAdd'); await x.page.waitForSelector('tr[data-nv="p12_previ_com_br"]');
+  ok('D14b indica: marca sem motivo num nó, motivo e volta no outro, auditoria; avisa volta antes da data-limite', await x.page.evaluate(() => { const b = window.__CFG.db, d = (b['programa-nao-participa-detalhe'] || {}).p12_previ_com_br || {}; return b['programa-nao-participa'].p12_previ_com_br === true && d.motivo === 'licenca' && d.volta === '2020-01-02' && d.por === 'adm@previ.com.br' && Object.values(b['programa-config-auditoria']).some((a) => a.campo === 'nao-vai-fazer' && /Licença/.test(a.depois)); }) && /ainda pode fazer/.test(await texto(x.page, 'tr[data-nv="p12_previ_com_br"]')));
+  if (process.env.FA_FOTOS) await x.page.locator('#pnlaNaoVao').screenshot({ path: path.join(process.env.FA_FOTOS, 'nv-admin-' + ctxOpts.viewport.width + '.png') });
+  await x.page.click('[data-nv-rem="p12_previ_com_br"]'); await x.page.click('#pnlaNaoVao [data-sim]'); await x.page.waitForSelector('tr[data-nv="p12_previ_com_br"]', { state: 'detached' });
+  ok('D14c retirar apaga a marca e o motivo', await x.page.evaluate(() => !(window.__CFG.db['programa-nao-participa'] || {}).p12_previ_com_br && !(window.__CFG.db['programa-nao-participa-detalhe'] || {}).p12_previ_com_br));
   ok('D7 ADMIN sem rolagem lateral', await semRolagem(x.page));
   const pva = await verificarTela(x.page, { escopo: '#adminPainelPrograma', largura: ctxOpts.viewport.width, focos: 0 });
   ok('D9 padrão visual na aba do ADMIN', !pva.length, pva.slice(0, 3));
@@ -504,6 +532,8 @@ async function admin(browser, ctxOpts) {
   await rodada(browser, 'Celular (375 px)', Object.assign({}, devices['iPhone 12'], { viewport: { width: 375, height: 800 } }));
   await gapsGrandes(browser, 'Desktop', { viewport: { width: 1366, height: 900 } });
   await gapsGrandes(browser, 'Celular (375 px)', Object.assign({}, devices['iPhone 12'], { viewport: { width: 375, height: 800 } }));
+  await naoVaoFazer(browser, 'Desktop', { viewport: { width: 1366, height: 900 } });
+  await naoVaoFazer(browser, 'Celular (375 px)', Object.assign({}, devices['iPhone 12'], { viewport: { width: 375, height: 800 } }));
   await admin(browser, { viewport: { width: 1366, height: 900 } });
   await admin(browser, Object.assign({}, devices['iPhone 12'], { viewport: { width: 375, height: 800 } }));
   await browser.close();

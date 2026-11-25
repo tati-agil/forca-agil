@@ -340,5 +340,17 @@ console.log('\n== J. prévia da importação da base ==');
   ok('J8 sigla em maiúsculas, e-mail em minúsculas', pr.pessoas[k('ana@previ.com.br')].diretoria === 'DIRAD' && pr.pessoas[k('bia@previ.com.br')].email === 'bia@previ.com.br');
 }
 
+console.log('\n== NV. não vão fazer ==');
+{
+  const faz = (E) => { reg(E, 'a', P1, INS); pres(E, 'a', ['2026-09-01', '2026-09-02'], P1); };
+  const a = calc(cenario(faz)), b = calc(cenario((E) => { faz(E); E.naoParticipa = { [k(P1)]: true, [k(Q)]: true, [k('fora@previ.com.br')]: true }; }));
+  const t = b.porPublico.todos.total, d1 = b.diretorias.find((d) => d.nome === 'D1');
+  ok('NV1 quem não vai sai do denominador; quem já realizou e quem não está na base não descontam', t.total === 4 && t.naoVao === 1 && t.publicoPossivel === 3 && t.realizou === 1 && t.coberturaPossivel === 33.3 && t.faltaPossivel === 2, t);
+  ok('NV2 por diretoria e gerência', d1.naoVao === 1 && d1.coberturaPossivel === 100 && d1.faltaPossivel === 0 && d1.gerenciasTodas.reduce((s, g) => s + g.naoVao, 0) === 1, d1);
+  ok('NV3 público, meta, cobertura, gaps e capacidade não mudam', a.N === b.N && a.meta === b.meta && JSON.stringify(a.pct) === JSON.stringify(b.pct) && JSON.stringify(a.porSit) === JSON.stringify(b.porSit) && JSON.stringify(a.cap) === JSON.stringify(b.cap) && a.porPublico.todos.total.gap === t.gap && !b.inconsistencias.length);
+  ok('NV4 sem indicação, as duas contas são iguais', a.porPublico.todos.total.coberturaPossivel === a.porPublico.todos.total.cobertura && a.porPublico.todos.total.naoVao === 0);
+  ok('NV5 a lista marca a pessoa', b.lista.filter((p) => p.naoVaiFazer).map((p) => p.email).join() === Q);
+}
+
 console.log('\n' + oks + ' ok, ' + falhas + ' falha(s)');
 process.exit(falhas ? 1 : 0);

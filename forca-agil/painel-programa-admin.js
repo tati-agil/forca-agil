@@ -1,6 +1,6 @@
 /* ============================================================
    Força Ágil — ADMIN › PAINEL DO PROGRAMA
-   Quatro seções, todas de edição de verdade para quem vê a aba (qualquer admin geral) — as mesmas pessoas que as regras do
+   Cinco seções, todas de edição de verdade para quem vê a aba (qualquer admin geral) — as mesmas pessoas que as regras do
    banco deixam gravar (fa-painel-convidados, programa-config, programa-calendario, programa-publico-alvo,
    programa-config-auditoria; teste-rules-programa-painel.js):
      1. Convidados: quem vê o painel além do admin geral (só consulta).
@@ -8,6 +8,8 @@
         simultâneas e formato de turma nova — cada alteração vai para a auditoria (só acréscimo).
      3. Dias sem expediente: o calendário útil do painel.
      4. Base oficial: importação da planilha com PRÉVIA e confirmação; cada importação é uma versão nova (a anterior fica).
+     5. Não vão fazer: pessoas da base que não vão fazer o programa e o motivo (programa-nao-participa, só a marca, que o
+        painel lê; programa-nao-participa-detalhe, motivo e data de volta, só do admin geral).
    Toda gravação confere o erro do Firebase e mostra o resultado; nada fecha como se tivesse dado certo.
    ============================================================ */
 (function () {
@@ -37,8 +39,9 @@
       '<section class="pnla-secao" id="pnlaConvidados"><h4>Convidados</h4><p class="loading-msg">Carregando…</p></section>' +
       '<section class="pnla-secao" id="pnlaConfig"><h4>Configuração do programa</h4><p class="loading-msg">Carregando…</p></section>' +
       '<section class="pnla-secao" id="pnlaCalendario"><h4>Dias sem expediente</h4><p class="loading-msg">Carregando…</p></section>' +
+      '<section class="pnla-secao" id="pnlaNaoVao"><h4>Não vão fazer</h4><p class="loading-msg">Carregando…</p></section>' +
       '<section class="pnla-secao" id="pnlaBase"><h4>Base oficial do público-alvo</h4><p class="loading-msg">Carregando…</p></section>';
-    convidados(); configuracao(); calendario(); base();
+    convidados(); configuracao(); calendario(); naoVao(); base();
   }
 
   /* Sugestões ao digitar no nome ou no e-mail: pessoas com conta no site (fa-users, já lido junto com os convidados),
@@ -277,6 +280,72 @@
     }, function (e) { el.innerHTML = '<h4>Dias sem expediente</h4><p class="pnla-msg pnla-msg--erro" role="alert">Não foi possível carregar (' + esc(e && (e.code || e.message)) + ').</p>'; });
   }
 
+  /* ---------- 5. não vão fazer ---------- */
+  var MOTIVOS = { ferias: 'Férias', licenca: 'Licença', outro: 'Outro motivo' };
+  function naoVao() {
+    var el = $('pnlaNaoVao'); if (!el) return;
+    var um = function (p) { return db().ref(p).once('value').then(function (s) { return s.val(); }); };
+    Promise.all([um('programa-nao-participa'), um('programa-nao-participa-detalhe'), um('programa-config/prazo'),
+      um('programa-publico-alvo/vigente').then(function (v) { return v ? um('programa-publico-alvo/versoes/' + v + '/pessoas') : null; })]).then(function (x) {
+      var marc = x[0] || {}, det = x[1] || {}, prazo = x[2] || '', pessoas = x[3] || {};
+      var nome = function (k) { var p = pessoas[k] || {}; return p.nome || p.email || k; };
+      var ks = Object.keys(marc).sort(function (a, b) { return nome(a).localeCompare(nome(b), 'pt-BR'); });
+      var h = '<h4>Não vão fazer <span class="admin-badge">' + ks.length + '</span></h4><p class="pnla-ajuda">Indique quem está na base oficial e não vai fazer o programa. O painel mantém as contas de hoje e mostra também o percentual sem essas pessoas. Quem já realizou continua contando como realizou. O motivo só aparece aqui, para o admin geral; nenhuma inscrição é alterada.</p>';
+      h += ks.length ? '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Nome</th><th>Diretoria</th><th>Gerência</th><th>Motivo</th><th>Volta em</th><th>Indicado por</th><th></th></tr></thead><tbody>' + ks.map(function (k) {
+        var p = pessoas[k], d = det[k] || {}, antes = d.volta && prazo && d.volta <= prazo;
+        return '<tr data-nv="' + esc(k) + '"><td>' + esc(nome(k)) + (p ? '' : ' <span class="pnla-atencao">fora da base vigente</span>') + '</td><td>' + esc(p && p.diretoria || '—') + '</td><td>' + esc(p && p.gerencia || '—') + '</td><td>' + esc(MOTIVOS[d.motivo] || '—') + '</td><td>' + brAno(d.volta) +
+          (antes ? ' <span class="pnla-atencao">volta até a data-limite: ainda pode fazer</span>' : '') + '</td><td>' + esc(d.por || '') + ' · ' + quando(d.em) + '</td><td class="pnla-acoes"><button type="button" class="admin-del-btn" data-nv-rem="' + esc(k) + '">Retirar</button></td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="admin-empty">Ninguém indicado.</p>';
+      h += Object.keys(pessoas).length ? '<div class="admin-colab-form"><div class="admin-colab-row"><input id="pnlaNvNome" type="text" autocomplete="off" placeholder="Buscar por nome ou e-mail na base" aria-label="Pessoa da base oficial" />' +
+        '<select id="pnlaNvMotivo" class="avp-select" aria-label="Motivo"><option value="">Motivo…</option>' + Object.keys(MOTIVOS).map(function (m) { return '<option value="' + m + '">' + MOTIVOS[m] + '</option>'; }).join('') + '</select>' +
+        '<label class="pnla-campo"><span>Volta em (opcional)</span><input id="pnlaNvVolta" type="date" /></label><button type="button" class="btn btn--primary" id="pnlaNvAdd">Indicar</button></div>' +
+        '<ul id="pnlaNvSug" class="pnla-sug" role="listbox" aria-label="Pessoas da base oficial" hidden></ul><p id="pnlaNvMsg" class="pnla-msg"></p></div>' : '<p class="pnla-ajuda">Importe a base oficial para indicar pessoas.</p>';
+      el.innerHTML = h;
+      var nvNome = $('pnlaNvNome'), ul = $('pnlaNvSug'), escolhida = null;
+      if (nvNome) {
+        var fechar = function () { ul.hidden = true; ul.innerHTML = ''; };
+        nvNome.addEventListener('input', function () {
+          escolhida = null;
+          var q = norm(nvNome.value).trim(); if (q.length < 2) { fechar(); return; }
+          var a = Object.keys(pessoas).filter(function (k) { return !marc[k] && (norm(pessoas[k].nome).indexOf(q) !== -1 || String(pessoas[k].email || '').toLowerCase().indexOf(q) !== -1); })
+            .sort(function (m, n) { return nome(m).localeCompare(nome(n), 'pt-BR'); }).slice(0, 8);
+          ul.innerHTML = a.length ? a.map(function (k) { return '<li><button type="button" role="option" data-sug="' + esc(k) + '"><b>' + esc(nome(k)) + '</b><span>' + esc([pessoas[k].gerencia, pessoas[k].diretoria].filter(Boolean).join(' · ')) + '</span></button></li>'; }).join('') : '<li class="pnla-sug-vazio">Ninguém na base com esse nome ou e-mail (ou já foi indicado).</li>';
+          ul.hidden = false;
+        });
+        nvNome.addEventListener('keydown', function (e) { if (e.key === 'Escape') fechar(); });
+        ul.addEventListener('click', function (e) {
+          var b = e.target.closest && e.target.closest('[data-sug]'); if (!b) return;
+          escolhida = b.getAttribute('data-sug'); nvNome.value = nome(escolhida); fechar(); $('pnlaNvMotivo').focus();
+        });
+        $('pnlaNvAdd').addEventListener('click', function () {
+          var m = $('pnlaNvMsg'), mot = $('pnlaNvMotivo').value, volta = $('pnlaNvVolta').value, k = escolhida, btn = this;
+          if (!k) { msg(m, 'Escolha a pessoa na lista que aparece ao digitar.', true); return; }
+          if (!MOTIVOS[mot]) { msg(m, 'Escolha o motivo.', true); return; }
+          var d = { motivo: mot, em: TS(), por: eu() }; if (volta) d.volta = volta;
+          var upd = {}; upd['programa-nao-participa/' + k] = true; upd['programa-nao-participa-detalhe/' + k] = d;
+          upd['programa-config-auditoria/' + chaveAud()] = auditoria('nao-vai-fazer', '', nome(k) + ' · ' + MOTIVOS[mot] + (volta ? ' · volta em ' + brAno(volta) : ''));
+          btn.disabled = true;
+          db().ref().update(upd, function (err) {
+            btn.disabled = false;
+            if (err) { msg(m, 'Não foi possível indicar (' + (err.code || err.message || 'erro') + '). Nada foi gravado.', true); return; }
+            naoVao(); setTimeout(function () { msg($('pnlaNvMsg'), nome(k) + ': indicação salva. O painel considera no próximo "Atualizar dados".'); }, 50);
+          });
+        });
+      }
+      el.querySelectorAll('[data-nv-rem]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var k = b.getAttribute('data-nv-rem'), td = b.parentNode, d = det[k] || {};
+          td.innerHTML = '<span class="pnla-confirma">Retirar a indicação?</span> <button type="button" class="admin-del-btn" data-sim>Confirmar</button> <button type="button" class="btn btn--sm" data-nao>Cancelar</button>';
+          td.querySelector('[data-nao]').addEventListener('click', naoVao);
+          td.querySelector('[data-sim]').addEventListener('click', function () {
+            var upd = {}; upd['programa-nao-participa/' + k] = null; upd['programa-nao-participa-detalhe/' + k] = null;
+            upd['programa-config-auditoria/' + chaveAud()] = auditoria('nao-vai-fazer', nome(k) + ' · ' + (MOTIVOS[d.motivo] || ''), '');
+            db().ref().update(upd, function (err) { if (err) { td.innerHTML = '<span class="pnla-msg pnla-msg--erro" role="alert">Não foi possível retirar (' + esc(err.code || err.message) + ').</span>'; return; } naoVao(); });
+          });
+        });
+      });
+    }).catch(function (e) { el.innerHTML = '<h4>Não vão fazer</h4><p class="pnla-msg pnla-msg--erro" role="alert">Não foi possível carregar (' + esc(e && (e.code || e.message)) + ').</p>'; });
+  }
+
   /* ---------- 4. base oficial (prévia + confirmação) ---------- */
   var COLUNAS = { nome: ['ANNOME', 'NOME'], email: ['ANEMAIL', 'EMAIL', 'E-MAIL'], gerencia: ['GERENCIA'], diretoria: ['DIRETORIA'] };
   var OPCIONAIS = { nivel: ['NIVEL', 'PUBLICO'] };   /* técnico, gerente, diretor ou assessor; sem a coluna, gestor = lista de Gerentes do site */
@@ -442,7 +511,7 @@
       $('pnlaImportar').disabled = true; msg(m, 'Gravando…');
       db().ref().update(upd, function (err) {
         if (err) { $('pnlaImportar').disabled = false; msg(m, 'Não foi possível gravar (' + (err.code || err.message || 'erro') + '). Nada foi gravado.', true); return; }
-        base(); setTimeout(function () { msg($('pnlaBaseMsg'), 'Versão ' + n + ' importada e vigente (' + pr.validas + ' pessoas).'); }, 50);
+        base(); naoVao(); setTimeout(function () { msg($('pnlaBaseMsg'), 'Versão ' + n + ' importada e vigente (' + pr.validas + ' pessoas).'); }, 50);
       });
     });
   }

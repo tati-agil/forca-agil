@@ -15,7 +15,7 @@
   'use strict';
   var NUC = window.faProgramaCobertura;
   var NOS = ['eventos', 'turmas', 'turmas-config', 'turmas-interesse', 'turmas-checkin', 'fa-users', 'fa-gerentes', 'fa-diretores',
-    'eventos-publico', 'turmas-publico', 'programa-config', 'programa-calendario'];
+    'eventos-publico', 'turmas-publico', 'programa-config', 'programa-calendario', 'programa-nao-participa'];
   var VISTAS = { diretorias: 'Diretorias e áreas', mobilizacao: 'Mobilização', ausencias: 'Ausências e registros de presença', capacidade: 'Capacidade e calendário', evolucao: 'Evolução', relatorio: 'Relatório de pessoas' };
   var ROT = { realizou: 'Realizou', inscrita: 'Inscrita', interessada: 'Interessada', 'sem-engajamento': 'Cadastrada sem engajamento', 'sem-cadastro': 'Sem cadastro' };
   var COR = { realizou: '#7ee2a8', inscrita: '#7af0e8', interessada: '#5aa0ee', 'sem-engajamento': '#f6be7b', 'sem-cadastro': '#ffa39b' };
@@ -95,7 +95,7 @@
     var d = l.dados;
     return { hoje: hojeLocal(), eventos: d.eventos, turmas: d.turmas, config: d['turmas-config'], interesse: d['turmas-interesse'], checkin: d['turmas-checkin'],
       users: d['fa-users'], gerentes: d['fa-gerentes'], diretores: d['fa-diretores'], eventosPublico: d['eventos-publico'], turmasPublico: d['turmas-publico'],
-      publicosAtivo: l.ativo, programa: d['programa-config'] || {}, calendario: d['programa-calendario'] || {}, base: l.base };
+      publicosAtivo: l.ativo, programa: d['programa-config'] || {}, calendario: d['programa-calendario'] || {}, naoParticipa: d['programa-nao-participa'] || {}, base: l.base };
   }
   function atualizar() {
     if (st.carregando) return;
@@ -144,6 +144,25 @@
       '<text x="' + Math.min(540, Math.max(120, x(p.maxExpansao))) + '" y="26" fill="#7af0e8" text-anchor="middle">Com as que cabem ' + f1(p.maxExpansao) + '%</text>' +
       '<text x="' + Math.min(634, x(r.pctMeta)) + '" y="100" fill="#f5c518" text-anchor="end">Meta ' + f1(r.pctMeta) + '%</text></g></svg>';
   }
+  /* Segunda conta: sem quem a administração indicou que não vai fazer. O público, a meta e a capacidade não mudam. */
+  function naoVaoResumo(r) {
+    var t = r.porPublico.todos.total; if (!t.naoVao) return '';
+    return '<p class="pnl-sub" data-pnl="nao-vao">' + (t.naoVao === 1 ? '1 pessoa não vai' : t.naoVao + ' pessoas não vão') + ' fazer. ' + (t.naoVao === 1 ? 'Sem ela' : 'Sem elas') + ': <b>' + f1(t.coberturaPossivel) + '%</b> realizado, <b>' + (t.faltaPossivel === 1 ? 'falta 1 pessoa' : 'faltam ' + t.faltaPossivel + ' pessoas') + '</b></p>';
+  }
+  function naoVaoTabela(rec) {
+    var T = rec.total; if (!T.naoVao) return '';
+    var linha = function (o, nome, cls, neg) {
+      var b = function (x) { return neg ? '<b>' + x + '</b>' : x; };
+      return '<tr' + (cls ? ' class="' + cls + '"' : '') + (neg ? ' data-pnl="nao-vao-total"' : '') + '><td>' + nome + '</td>' + [o.total, o.naoVao, o.publicoPossivel, o.realizou, o.total ? f1(o.cobertura) + '%' : '—', o.publicoPossivel ? f1(o.coberturaPossivel) + '%' : '—', o.faltaPossivel]
+        .map(function (v) { return '<td class="pnl-n">' + b(v) + '</td>'; }).join('') + '</tr>';
+    };
+    return '<article class="pnl-card" data-pnl="nao-vao-tabela"><h2>Sem quem não vai fazer' + (st.pub === 'todos' ? '' : ' · ' + esc(PUBS[st.pub])) + '</h2><div class="table-scroll-wrap"><table class="admin-table pnl-tabela"><thead><tr><th>Diretoria</th>' +
+      ['Público', 'Não vão fazer', 'Público possível', 'Realizou', 'Cobertura (hoje)', 'Cobertura possível', 'Falta de verdade'].map(function (c) { return '<th class="pnl-n">' + c + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rec.diretorias.map(function (d) {
+        return linha(d, esc(d.nome)) + (podeExportar() ? d.gerenciasTodas : d.gerencias).filter(function (g) { return g.naoVao; }).map(function (g) { return linha(g, '<span class="pnl-ger-nome">' + esc(g.nome) + '</span>', 'pnl-ger'); }).join('');
+      }).join('') + linha(T, '<b>Total</b>', '', true) + '</tbody></table></div>' +
+      '<p class="pnl-nota">Não vão fazer = pessoas indicadas pela administração que ainda não realizaram; só aparecem as gerências que têm alguém indicado. Público possível = público − não vão fazer. Falta de verdade = público possível − realizou. O público, a meta e as outras contas do painel não mudam.</p></article>';
+  }
   function executiva(r) {
     var c = r.cap, nec = (c.tecnicos.necessarias || 0) + (c.gestores.necessarias || 0), cabem = (c.tecnicos.abrir || 0) + (c.gestores.abrir || 0);
     var semTurma = Math.max(0, r.meta - r.realizou - r.maxExpansao), ang = r.N ? r.realizou / r.N * 314.16 : 0;
@@ -154,7 +173,7 @@
       '<circle cx="60" cy="60" r="50" fill="none" stroke="#7ee2a8" stroke-width="14" stroke-linecap="round" stroke-dasharray="' + ang + ' 314.2" transform="rotate(-90 60 60)"/>' +
       '<text x="60" y="64" text-anchor="middle" fill="#eaf1ff" font-family="Anton, sans-serif" font-size="24">' + pct(r.realizou, r.N) + '</text></svg>' +
       '<div><div class="pnl-big"><span data-pnl="realizou">' + r.realizou + '</span> <small>de <span data-pnl="publico">' + r.N + '</span></small></div><p class="pnl-sub">pessoas do público-alvo realizaram</p>' +
-      '<p class="pnl-pend"><span data-pnl="pendentes">' + r.pendentes + '</span> pendentes</p>' + (r.margem ? '<p class="pnl-sub" data-pnl="meta">Meta: <b>' + r.meta + '</b> (público − margem de ' + r.margem + ') · ' + (r.metaAtingida ? '<b class="pnl-ouro">meta atingida</b>' : 'faltam <b>' + r.faltamParaMeta + '</b>') + '</p>' : '') + '<p class="pnl-sub">Data-limite: <b class="pnl-ouro">' + brAno(r.prazo) + '</b></p></div></div>';
+      '<p class="pnl-pend"><span data-pnl="pendentes">' + r.pendentes + '</span> pendentes</p>' + naoVaoResumo(r) + (r.margem ? '<p class="pnl-sub" data-pnl="meta">Meta: <b>' + r.meta + '</b> (público − margem de ' + r.margem + ') · ' + (r.metaAtingida ? '<b class="pnl-ouro">meta atingida</b>' : 'faltam <b>' + r.faltamParaMeta + '</b>') + '</p>' : '') + '<p class="pnl-sub">Data-limite: <b class="pnl-ouro">' + brAno(r.prazo) + '</b></p></div></div>';
     if (r.qualidade.alertaExecutivo) h += '<div class="pnl-alerta" data-pnl="alerta-qualidade"><b>Registro de presença:</b> ' + r.qualidade.naoVerificaveisPendentes + ' pessoas estão em turma sem check-in completo; a realização delas não pode ser verificada.</div>';
     h += linkVista('mobilizacao', 'Quem falta e em que situação') + '</article>';
     /* 2. viabilidade */
@@ -263,6 +282,7 @@
   function podeExportar() { var A = window.faAuth, s = A && A.getSession(); return !!(s && A.isAdmin(s.email)); }
   /* pub: recorte da exportação (só Diretorias e áreas passa o filtro de público; as outras consultas exportam todos). */
   function rotuloExportar(pub) { return 'Exportar Excel com os nomes' + (pub && pub !== 'todos' ? ' (' + PUBS[pub].toLowerCase() + ')' : ''); }
+  function seloNaoVai(p) { return p.naoVaiFazer ? '<span class="pnl-nomes-sit" data-pnl-nao-vai>não vai fazer</span>' : ''; }
   function botaoExportar(pub) {
     return podeExportar() ? '<div class="pnl-exportar"><button type="button" class="btn" data-pnl="exportar" data-pub="' + (pub || 'todos') + '">' + rotuloExportar(pub) + '</button><span class="pnl-nota" data-pnl="exportar-msg" role="status"></span></div>' : '';
   }
@@ -277,8 +297,8 @@
   }
   /* Abas: Todas + uma por categoria do painel. Devolvida pronta para gravar (e conferível nos testes). */
   function planilhaExportacao(r, pub) {
-    var cab = ['Nome', 'E-mail', 'Diretoria', 'Gerência', 'Público', 'Situação', 'Realizou em', 'Data da realização', 'Inscrição em', 'Interesse em', 'Vaga até o prazo', 'Cabe em vaga livre de', 'Ausências'];
-    var linha = function (p) { return [p.nome, p.email, p.diretoria, p.gerencia, PUB_NOME[p.publico] || p.publico, SIT_NOME[p.situacao] || p.situacao, p.realizouEm, p.realizouData ? br(p.realizouData) + '/' + p.realizouData.slice(0, 4) : '', p.inscricoes, p.interesses, p.vagaAtePrazo, p.cabeEmVagaLivre, p.ausencias]; };
+    var cab = ['Nome', 'E-mail', 'Diretoria', 'Gerência', 'Público', 'Situação', 'Realizou em', 'Data da realização', 'Inscrição em', 'Interesse em', 'Vaga até o prazo', 'Cabe em vaga livre de', 'Ausências', 'Não vai fazer'];
+    var linha = function (p) { return [p.nome, p.email, p.diretoria, p.gerencia, PUB_NOME[p.publico] || p.publico, SIT_NOME[p.situacao] || p.situacao, p.realizouEm, p.realizouData ? br(p.realizouData) + '/' + p.realizouData.slice(0, 4) : '', p.inscricoes, p.interesses, p.vagaAtePrazo, p.cabeEmVagaLivre, p.ausencias, p.naoVaiFazer ? 'Sim' : '']; };
     var doRecorte = !pub || pub === 'todos' ? r.lista : r.lista.filter(function (p) { return p.publico === pub; });
     var so = function (f) { return doRecorte.filter(f).map(linha); };
     return [
@@ -443,13 +463,13 @@
           var doGrupo = ps.filter(function (p) { return p.situacao === s; }); if (!doGrupo.length) return '';
           return '<section class="pnl-nomes-sitgrupo" data-pnl-nomes-sit="' + s + '"><h4 style="border-color:' + COR[s] + '">' + esc(SIT_NOME[s] || s) + ' · ' + doGrupo.length + '</h4><ul class="pnl-nomes-lista">' + doGrupo.map(function (p) {
             var turma = p.inscricoes || p.interesses;
-            return '<li data-sit="' + p.situacao + '"><span>' + esc(p.nome || p.email) + '</span>' + (turma ? '<span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(turma) + '</span>' : '') + '</li>'; }).join('') + '</ul></section>';
+            return '<li data-sit="' + p.situacao + '"><span>' + esc(p.nome || p.email) + '</span>' + seloNaoVai(p) + (turma ? '<span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(turma) + '</span>' : '') + '</li>'; }).join('') + '</ul></section>';
         }).join('') + '</div></td></tr>';
       });
     });
     h += linha(rec.total, '<b>Total</b>', '', true) + '</tbody></table></div>' +
       '<p class="pnl-nota">Cada pessoa aparece numa situação só; as linhas somam o público' + (st.pub === 'todos' ? '' : ' de ' + PUBS[st.pub].toLowerCase()) + '. Gap (realizado) = público − realizou; Gap (projetado) = público − projetados. Projetada =realizados + inscritos e interessados com vaga numa turma que termina até o prazo, se comparecerem com a frequência mínima (interesse ainda precisa da confirmação; inscrição em turma depois do prazo, em turma passada sem encerrar ou em andamento sem chance de atingir o mínimo não entra). Toque na diretoria para ver as gerências, com as mesmas colunas' +
-      (nomes ? '; toque na gerência para ver as pessoas e a situação de cada uma.' : '; gerências com menos de 5 pessoas aparecem agrupadas.') + '</p>' + botaoExportar(st.pub) + '</article>';
+      (nomes ? '; toque na gerência para ver as pessoas e a situação de cada uma.' : '; gerências com menos de 5 pessoas aparecem agrupadas.') + '</p>' + botaoExportar(st.pub) + '</article>' + naoVaoTabela(rec);
     return h;
   }
   /* Mobilização: cada número leva às pessoas dele (só admin geral, como a exportação; convidados ficam com os números).
@@ -481,7 +501,7 @@
         var gs = grupos[d].sort(function (a, b) { return nomeDe(a).localeCompare(nomeDe(b), 'pt-BR'); });
         return '<section class="pnl-mob-grupo" data-pnl-mob-grupo="' + esc(d || '-') + '"><h4>' + esc(rotDir(d)) + ' · ' + qtd(gs.length) + '</h4><ul class="pnl-nomes-lista pnl-nomes-lista--mob">' + gs.map(function (p) {
           var turma = p.inscricoes || p.interesses, ger = p.gerencia && p.gerencia !== '—' ? p.gerencia : 'sem gerência na base';
-          return '<li data-sit="' + p.situacao + '"><span>' + esc(nomeDe(p)) + '</span><span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(ger) + (turma ? ' · ' + esc(turma) : '') + (cat === 'faltou' ? ' · ' + esc(SIT_NOME[p.situacao] || p.situacao) : '') + '</span></li>'; }).join('') + '</ul></section>';
+          return '<li data-sit="' + p.situacao + '"><span>' + esc(nomeDe(p)) + '</span>' + seloNaoVai(p) + '<span class="pnl-nomes-sit" style="border-color:' + COR[p.situacao] + '">' + esc(ger) + (turma ? ' · ' + esc(turma) : '') + (cat === 'faltou' ? ' · ' + esc(SIT_NOME[p.situacao] || p.situacao) : '') + '</span></li>'; }).join('') + '</ul></section>';
       }).join('');
   }
   function mobilizacao(r) {
