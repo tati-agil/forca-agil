@@ -428,6 +428,8 @@ async function naoVaoFazer(browser, rotulo, ctxOpts) {
     if (process.env.FA_FOTOS && quem === ADM) await x.page.locator('[data-pnl="bloco-gaps"]').screenshot({ path: path.join(process.env.FA_FOTOS, 'nvg-' + ctxOpts.viewport.width + '.png') });
     await x.page.evaluate(() => { location.hash = '#painel?v=diretorias'; }); await x.page.waitForSelector('[data-pnl="nao-vao-total"]');
     ok('NV8 Situação por diretoria: as duas colunas de gap possível, com os gaps de antes ao lado', (await texto(x.page, '[data-pnl="gap-real-total"]')) === '16' && (await texto(x.page, '[data-pnl="gap-total"]')) === String(T.gap) && (await texto(x.page, '[data-pnl="gap-real-possivel-total"]')) === '15' && (await texto(x.page, '[data-pnl="gap-possivel-total"]')) === String(T.gapPossivel));
+    /* letra tão larga quanto a Space Mono publicada (0,612 em), seja qual for a da máquina */
+    if (ctxOpts.viewport.width > 1000) await x.page.addStyleTag({ content: '#page-painel .pnl-tabela th { font-family: "Courier New", "Liberation Mono", "DejaVu Sans Mono", monospace !important; letter-spacing: .012em !important; }' });
     if (ctxOpts.viewport.width > 1000) for (const w of [1180, 1366]) {
       await x.page.setViewportSize({ width: w, height: 900 });
       const m = await x.page.$eval('[data-pnl="diretorias"] table', (t) => [Math.round(t.getBoundingClientRect().right), Math.round(t.parentElement.getBoundingClientRect().right), [...t.querySelectorAll('th')].filter((h) => h.scrollWidth > h.clientWidth + 1).map((h) => h.textContent + ' ' + h.scrollWidth + '>' + h.clientWidth)]);

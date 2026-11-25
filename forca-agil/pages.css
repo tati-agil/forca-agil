@@ -4955,8 +4955,8 @@ details.avp-motor-detalhe > summary:focus-visible, .avp-motor > details.avp-hist
 #page-painel [data-pnl="diretorias"] .pnl-tabela th, #page-painel [data-pnl="diretorias"] .pnl-tabela td { padding-left: 8px; padding-right: 8px; }
 #page-painel [data-pnl="diretorias"] .pnl-tabela th.pnl-n { max-width: 11ch; white-space: normal; }
 /* com as 2 colunas de Gap possível (12 ao todo) */
-#page-painel [data-pnl="diretorias"] .pnl-tabela--nv :is(th, td) { padding-left: 5px; padding-right: 5px; }
-#page-painel [data-pnl="diretorias"] .pnl-tabela--nv th { letter-spacing: 0; }
+#page-painel [data-pnl="diretorias"] .pnl-tabela--nv :is(th, td) { padding-left: 4px; padding-right: 4px; }
+#page-painel [data-pnl="diretorias"] .pnl-tabela--nv th.pnl-n { letter-spacing: 0; max-width: 14ch; }
 #page-painel [data-pnl="diretorias"] .pnl-tabela tr > :first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); box-shadow: 1px 0 0 var(--line); }
 #page-painel [data-pnl="diretorias"] .pnl-tabela thead tr > :first-child { z-index: 3; background: var(--panel-2); }
 #page-painel [data-pnl="diretorias"] .pnl-tabela tr.pnl-ger > :first-child { background: color-mix(in srgb, var(--panel) 96%, #7af0e8); }

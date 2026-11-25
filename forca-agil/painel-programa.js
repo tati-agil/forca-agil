@@ -437,7 +437,7 @@
     var h = '<article class="pnl-card" data-pnl="diretorias"><h2>Situação por diretoria' + (st.pub === 'todos' ? '' : ' · ' + esc(PUBS[st.pub])) + '</h2>' + filtroPublico() +
       '<div class="table-scroll-wrap"><table class="admin-table pnl-tabela' + (nv ? ' pnl-tabela--nv' : '') + '"><thead><tr><th>Diretoria</th><th class="pnl-n">Público</th>' +
       COLS.map(function (c) { return '<th class="pnl-n">' + c[1] + '</th>'; }).join('') + '<th class="pnl-n">Cobertura (realizado)</th><th class="pnl-n" title="Com inscritos e interessados">Projetada</th><th class="pnl-n" title="Público − realizou">Gap (realizado)</th><th class="pnl-n" title="Público − realizados − inscritos e interessados com vaga">Gap (projetado)</th>' +
-      (nv ? '<th class="pnl-n" title="Gap (realizado) sem quem não vai fazer">Gap possível (realizado)</th><th class="pnl-n" title="Gap (projetado) sem quem não vai fazer">Gap possível (projetado)</th>' : '') + '</tr></thead><tbody>';
+      (nv ? '<th class="pnl-n" title="Gap (realizado) sem quem não vai fazer">Gap possível (real.)</th><th class="pnl-n" title="Gap (projetado) sem quem não vai fazer">Gap possível (proj.)</th>' : '') + '</tr></thead><tbody>';
     /* Dois gaps (pedido da dona, 14/11): o do realizado (quem ainda não realizou) e o do projetado (quem falta mesmo
        contando inscritos e interessados com vaga) — cada um ao lado da sua cobertura. */
     // A mesma linha serve para a diretoria, para cada gerência dela (que abre logo abaixo, com as mesmas colunas) e para o total.
