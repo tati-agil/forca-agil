@@ -46,6 +46,15 @@
       : CONTRATO.normalizar(bruto);
   }
 
+  /* Treinamento do tipo JOGO (catálogo em game-data.js): sem quiz nem patente. */
+  function jogoDe(t) {
+    const c = t && t.conteudoKey && CATALOGO[t.conteudoKey];
+    return (c && c.JOGO) || null;
+  }
+  function jogoAtivo() {
+    return jogoDe(DISPONIVEIS.filter(x => x.key === TREINO_ATIVO)[0]);
+  }
+
   function aplicarConteudoResolvido(c) {
     BLOCOS = c.BLOCOS || [];
     LEVELS = c.LEVELS || [];
@@ -227,8 +236,52 @@
       treinoCard.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
     }
   }
-  if (treinoCardToggle)   treinoCardToggle.addEventListener('click', function () { abrirFecharCartao(!cardAberto); });
+  if (treinoCardToggle)   treinoCardToggle.addEventListener('click', function () {
+    const t = DISPONIVEIS.filter(x => x.key === TREINO_ATIVO)[0];
+    if (jogoDe(t)) { abrirJogo(t); return; }
+    abrirFecharCartao(!cardAberto);
+  });
   if (treinoCardRecolher) treinoCardRecolher.addEventListener('click', function () { abrirFecharCartao(false); });
+
+  /* ── Jogo em tela cheia ───────────────────────────────────────────
+     A página do jogo abre numa moldura própria: o estilo dela é de projetor
+     e não pode vazar para o site. Fecha pelo Voltar, por Esc, ao trocar de
+     rota e ao sair da conta. */
+  let telaJogo = null;
+  function fecharJogo() {
+    if (!telaJogo) return;
+    telaJogo.remove();
+    telaJogo = null;
+    document.body.classList.remove('jogo-aberto');
+    if (treinoCardToggle) treinoCardToggle.focus({ preventScroll: true });
+  }
+  function escFechaJogo(e) { if (e.key === 'Escape') fecharJogo(); }
+  function abrirJogo(t) {
+    fecharJogo();
+    telaJogo = document.createElement('div');
+    telaJogo.className = 'jogo-tela';
+    telaJogo.setAttribute('role', 'dialog');
+    telaJogo.setAttribute('aria-modal', 'true');
+    telaJogo.setAttribute('aria-label', t.nome);
+    telaJogo.innerHTML =
+      '<div class="jogo-tela-barra"><button type="button" class="avp-voltar-link">← Voltar</button></div>' +
+      '<p class="jogo-tela-carregando">Carregando o jogo…</p>' +
+      '<iframe class="jogo-tela-moldura" title="' + esc(t.nome) + '" allow="fullscreen" src="' + esc(jogoDe(t).url) + '"></iframe>';
+    document.body.appendChild(telaJogo);
+    document.body.classList.add('jogo-aberto');
+    telaJogo.querySelector('button').addEventListener('click', fecharJogo);
+    const moldura = telaJogo.querySelector('iframe');
+    moldura.addEventListener('load', function () {
+      const aviso = telaJogo && telaJogo.querySelector('.jogo-tela-carregando');
+      if (aviso) aviso.remove();
+      try {
+        moldura.contentWindow.addEventListener('keydown', escFechaJogo);
+        moldura.contentWindow.focus();
+      } catch (e) { /* sem foco automático, o clique resolve */ }
+    });
+  }
+  document.addEventListener('keydown', escFechaJogo);
+  window.addEventListener('hashchange', fecharJogo);
 
   /* O nome do treinamento ativo, para o título do cartão — sem
      treinamento cadastrado (modo legado) ou treinamento não encontrado,
@@ -257,6 +310,16 @@
     if (!treinoCard) return;
     const nome = nomeTreinoAtivo();
     if (treinoCardTitulo && nome) treinoCardTitulo.textContent = nome;
+    const jogo = jogoAtivo();
+    const tipo = $('treinoCardTipo');
+    if (tipo) tipo.textContent = jogo ? 'Jogo' : 'Autodiagnóstico';
+    if (jogo) {
+      if (treinoCardSub)    treinoCardSub.textContent = jogo.sub;
+      if (treinoCardStatus) treinoCardStatus.textContent = '';
+      if (treinoCardCorpo)  treinoCardCorpo.hidden = true;
+      if (treinoCardToggle) treinoCardToggle.textContent = 'Abrir jogo →';
+      return;
+    }
     if (treinoCardSub && TOTAL_AFIRM) {
       treinoCardSub.textContent = 'Responda as ' + TOTAL_AFIRM + ' afirmações e descubra sua patente.';
     }
@@ -500,7 +563,7 @@
          resultado sem patente: a pessoa responde tudo e não recebe nada, sem
          nenhum erro na tela. O painel mostra exatamente o que falta. */
       const prontos = lista.filter(function (t) {
-        if (!CONTRATO) return true;
+        if (!CONTRATO || jogoDe(t)) return true;
         return !CONTRATO.problemas(conteudoDe(t)).length;
       });
 
@@ -583,7 +646,7 @@
     if (!box) return;
     const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
     const isAdmin = !!(sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email));
-    const faltas = (CONTRATO && isAdmin) ? CONTRATO.problemas(conteudoDe(t)) : [];
+    const faltas = (CONTRATO && isAdmin && !jogoDe(t)) ? CONTRATO.problemas(conteudoDe(t)) : [];
     if (!faltas.length) { box.hidden = true; box.innerHTML = ''; return; }
     box.hidden = false;
     box.innerHTML =
@@ -603,6 +666,7 @@
     const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
 
     if (!sess) {
+      fecharJogo();
       setTreinoNavVisible(false);
       if (welcome)   welcome.hidden   = false;
       if (gameWrap)  gameWrap.hidden  = true;

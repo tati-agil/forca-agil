@@ -331,7 +331,20 @@
   _data.CONTEUDO_KEY = 'jedi';
   _data.NOME = 'Treinamento Jedi';
 
-  window.faGameConteudos = { jedi: _data };
+  window.faGameConteudos = {
+    jedi: _data,
+    /* Treinamento do tipo JOGO: não tem afirmações nem patentes. game.js abre
+       a página do jogo em tela cheia; quem vê é decidido pelos eventos do
+       registro em "treinamentos", como em qualquer outro. */
+    'ultima-transmissao': {
+      NOME: 'A Última Transmissão',
+      JOGO: {
+        url: 'forca-agil/jogo-ultima-transmissao.html',
+        sub: 'Jogo de revisão: responda aos pedidos de socorro do droide K-99 e salve a galáxia com as ferramentas da Força Ágil.'
+      },
+      BLOCOS: [], LEVELS: [], RANKS: []
+    }
+  };
 
   /* Mantido: game.js e os testes já liam daqui, e enquanto só existe o
      conteúdo "jedi" isto continua sendo ele. */
