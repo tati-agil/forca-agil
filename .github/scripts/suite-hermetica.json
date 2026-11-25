@@ -411,6 +411,12 @@
       "sobre": "Hermético. \"Resultado bloqueado. Para refazer, solicite ao admin o reset do seu progresso\" — pedido no uso real: a própria pessoa precisa conseguir refazer, sem apagar o histórico. Refazer é diferente de resetar (ação do admin, que apaga tudo)."
     },
     {
+      "arquivo": ".github/scripts/teste-treinamento-jogo.js",
+      "nome": "Treinamento do tipo jogo — A Última Transmissão (desktop e 375 px)",
+      "duracao": 30,
+      "sobre": "Hermético. Quem vê o jogo (inscrição confirmada no evento, admin), partida completa na moldura com a CSP publicada, fechar por Voltar/Esc/rota, página aberta direto e criação pelo painel."
+    },
+    {
       "arquivo": ".github/scripts/teste-treinamento-cartao.js",
       "nome": "Treinamento — o cartão fecha, mostra resumo, e abre sem perder progresso (desktop e iPhone)",
       "duracao": 9,

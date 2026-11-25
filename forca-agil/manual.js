@@ -96,6 +96,7 @@
       quem: 'Inscrita confirmada numa turma, e admin.',
       importante: [
         'O Treinamento pertence a eventos: a pessoa vê os treinamentos dos eventos em que está confirmada.',
+        'O jogo "A Última Transmissão" é um treinamento do tipo jogo: o admin o cria em ADMIN › Treinamentos, escolhendo esse conteúdo e os eventos. Ele abre em tela cheia e não grava respostas nem dá patente.',
         'Refazer o autodiagnóstico não apaga o resultado anterior: cada patente revelada fica no histórico.',
         'Quando a turma tem a Construção da Aposta liberada, o convite para a dinâmica aparece dentro do Treinamento.',
       ],
