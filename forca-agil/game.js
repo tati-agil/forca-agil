@@ -255,9 +255,11 @@
     document.body.classList.remove('jogo-aberto');
     if (treinoCardToggle) treinoCardToggle.focus({ preventScroll: true });
   }
-  function escFechaJogo(e) { if (e.key === 'Escape') fecharJogo(); }
+  function escFechaJogo(e) { if (e.key === 'Escape' && escFecha) fecharJogo(); }
+  let escFecha = true;
   function abrirJogo(t) {
     fecharJogo();
+    escFecha = !jogoDe(t).escNaoFecha;
     telaJogo = document.createElement('div');
     telaJogo.className = 'jogo-tela';
     telaJogo.setAttribute('role', 'dialog');
@@ -265,7 +267,7 @@
     telaJogo.setAttribute('aria-label', t.nome);
     telaJogo.innerHTML =
       '<div class="jogo-tela-barra"><button type="button" class="avp-voltar-link">← Voltar</button></div>' +
-      '<p class="jogo-tela-carregando">Carregando o jogo…</p>' +
+      '<p class="jogo-tela-carregando">' + esc(jogoDe(t).carregando || 'Carregando o jogo…') + '</p>' +
       '<iframe class="jogo-tela-moldura" title="' + esc(t.nome) + '" allow="fullscreen" src="' + esc(jogoDe(t).url) + '"></iframe>';
     document.body.appendChild(telaJogo);
     document.body.classList.add('jogo-aberto');
@@ -312,12 +314,12 @@
     if (treinoCardTitulo && nome) treinoCardTitulo.textContent = nome;
     const jogo = jogoAtivo();
     const tipo = $('treinoCardTipo');
-    if (tipo) tipo.textContent = jogo ? 'Jogo' : 'Autodiagnóstico';
+    if (tipo) tipo.textContent = jogo ? (jogo.tipo || 'Jogo') : 'Autodiagnóstico';
     if (jogo) {
       if (treinoCardSub)    treinoCardSub.textContent = jogo.sub;
       if (treinoCardStatus) treinoCardStatus.textContent = '';
       if (treinoCardCorpo)  treinoCardCorpo.hidden = true;
-      if (treinoCardToggle) treinoCardToggle.textContent = 'Abrir jogo →';
+      if (treinoCardToggle) treinoCardToggle.textContent = jogo.botao || 'Abrir jogo →';
       return;
     }
     if (treinoCardSub && TOTAL_AFIRM) {
@@ -563,6 +565,8 @@
          resultado sem patente: a pessoa responde tudo e não recebe nada, sem
          nenhum erro na tela. O painel mostra exatamente o que falta. */
       const prontos = lista.filter(function (t) {
+        /* apresentação de quem conduz a turma: só admin, que já recebe a lista inteira acima */
+        if (jogoDe(t) && jogoDe(t).soAdmin) return false;
         if (!CONTRATO || jogoDe(t)) return true;
         return !CONTRATO.problemas(conteudoDe(t)).length;
       });

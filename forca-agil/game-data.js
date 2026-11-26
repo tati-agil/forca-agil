@@ -343,6 +343,19 @@
         sub: 'Jogo de revisão: responda aos pedidos de socorro do droide K-99 e salve a galáxia com as ferramentas da Força Ágil.'
       },
       BLOCOS: [], LEVELS: [], RANKS: []
+    },
+    /* Apresentação do Episódio IV usada nas turmas dos Gerentes (versão de oficina de 08/11). Abre como o jogo, mas
+       SÓ PARA ADMIN (quem conduz a turma): quem está inscrita não a vê, mesmo com o evento marcado. O Esc dentro dela
+       para a fala do K-99 — não fecha a tela; quem fecha é o "← Voltar". */
+    'porto-lume': {
+      NOME: 'Guardiões da Força: Missão Porto Lume (apresentação, só admins)',
+      JOGO: {
+        url: 'forca-agil/apresentacao-porto-lume/index.html',
+        sub: 'Apresentação da oficina do Episódio IV, com o K-99. Tecla F: tela cheia. Avançar: seta para a direita, espaço, passador ou clique. S ou Esc: para a fala.',
+        tipo: 'Apresentação', botao: 'Abrir apresentação →', carregando: 'Carregando a apresentação…',
+        soAdmin: true, escNaoFecha: true
+      },
+      BLOCOS: [], LEVELS: [], RANKS: []
     }
   };
 
