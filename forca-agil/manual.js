@@ -97,6 +97,7 @@
       importante: [
         'O Treinamento pertence a eventos: a pessoa vê os treinamentos dos eventos em que está confirmada.',
         'O jogo "A Última Transmissão" é um treinamento do tipo jogo: o admin o cria em ADMIN › Treinamentos, escolhendo esse conteúdo e os eventos. Ele abre em tela cheia e não grava respostas nem dá patente.',
+        'A apresentação "Guardiões da Força: Missão Porto Lume" (Episódio IV) é do mesmo jeito, mas SÓ os admins a veem, mesmo com o evento marcado: é para quem conduz a turma projetar. Dentro dela, F = tela cheia, seta/espaço/passador = avançar, S ou Esc = parar a fala; para sair, "← Voltar".',
         'Refazer o autodiagnóstico não apaga o resultado anterior: cada patente revelada fica no histórico.',
         'Quando a turma tem a Construção da Aposta liberada, o convite para a dinâmica aparece dentro do Treinamento.',
       ],

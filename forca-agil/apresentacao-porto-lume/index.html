@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Guardiões da Força: Missão Porto Lume</title>
+<style>
+@font-face { font-family: Anton; src: url('fontes/anton-latin-400-normal.woff2'); font-display: block; }
+@font-face { font-family: Oswald; font-weight: 600; src: url('fontes/oswald-latin-600-normal.woff2'); font-display: block; }
+@font-face { font-family: 'Space Mono'; font-weight: 700; src: url('fontes/space-mono-latin-700-normal.woff2'); font-display: block; }
+@font-face { font-family: 'Space Mono'; font-weight: 400; src: url('fontes/space-mono-latin-400-normal.woff2'); font-display: block; }
+html, body { height: 100%; margin: 0; background: #000; overflow: hidden; cursor: none; }
+body { display: flex; align-items: center; justify-content: center; }
+canvas { display: block; }
+body.mouse { cursor: default; }
+#comandos { position: fixed; top: 14px; right: 14px; display: flex; gap: 8px; align-items: stretch; }
+#botao, #voltarB { height: 44px; padding: 0 18px; font: 700 15px 'Space Mono', monospace; border-radius: 8px; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
+#botao { color: #0b0f1a; background: #f5c518; border: 2px solid #f5c518; min-width: 170px; }
+#voltarB { color: #18c2ba; background: rgba(3,6,15,.85); border: 2px solid #18c2ba; }
+body.mouse #botao, body.mouse #voltarB { opacity: 1; pointer-events: auto; }
+#botao[disabled] { background: #f6be7b; border-color: #f6be7b; cursor: default; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div id="comandos"><button id="voltarB">← VOLTAR</button><button id="botao">AVANÇAR</button></div>
+<script src="js/desenho-regras.js"></script>
+<script src="js/desenho-planeta.js"></script>
+<script src="js/falas-dados.js"></script>
+<script src="js/cenas.js"></script>
+<script src="js/principal.js"></script>
+</body>
+</html>

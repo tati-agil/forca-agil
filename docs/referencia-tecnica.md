@@ -80,6 +80,7 @@ alguém precisa).
 | `forca-agil/game-data.js` | index.html | Catálogo de conteúdos de treinamento (blocos, níveis, patentes). |
 | `forca-agil/game.js` | index.html | Treinamento: autodiagnóstico, patente, histórico; treinamento do tipo jogo (abre a página do jogo em tela cheia). |
 | `forca-agil/jogo-ultima-transmissao.js` | jogo-ultima-transmissao.html | Jogo de revisão "A Última Transmissão" (página própria, com o seu CSS, aberta por `game.js` numa moldura; aberta direto, volta ao Treinamento). Não grava nada. |
+| pasta `apresentacao-porto-lume/` de forca-agil | (pasta própria) | Apresentação "Missão Porto Lume" do Episódio IV (versão de oficina de 08/11: `index.html`, `js/`, `audio/`, `fontes/`), aberta por `game.js` como o jogo, só para admin (`soAdmin` em game-data.js); o script que estava dentro do HTML foi para `js/principal.js` (CSP). Aberta direto, volta ao Treinamento. Não grava nada. |
 | `forca-agil/jogo-ultima-transmissao.css` | jogo-ultima-transmissao.html | Estilo do jogo: tela única de projetor; no celular, letra maior e rolagem. |
 | `forca-agil/qrcode.min.js` | index.html | Biblioteca de QR Code (vendorizada). |
 | `forca-agil/certif.js` | index.html | Geração do certificado sobre `cert-template-v3.png`. |

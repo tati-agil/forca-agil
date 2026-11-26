@@ -417,6 +417,12 @@
       "sobre": "Hermético. Quem vê o jogo (inscrição confirmada no evento, admin), partida completa na moldura com a CSP publicada, fechar por Voltar/Esc/rota, página aberta direto e criação pelo painel."
     },
     {
+      "arquivo": ".github/scripts/teste-treinamento-apresentacao.js",
+      "nome": "Treinamento do tipo apresentação — Missão Porto Lume, só admins (desktop e 375 px)",
+      "duracao": 20,
+      "sobre": "Hermético. Só admin vê (inscrita no evento não), abre na moldura com a CSP publicada, todos os áudios e fontes existem, Esc não fecha, Voltar fecha, aberta direto volta ao site."
+    },
+    {
       "arquivo": ".github/scripts/teste-treinamento-cartao.js",
       "nome": "Treinamento — o cartão fecha, mostra resumo, e abre sem perder progresso (desktop e iPhone)",
       "duracao": 9,
