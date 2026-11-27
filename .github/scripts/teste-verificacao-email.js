@@ -98,6 +98,14 @@ async function rodada(browser, viewport, rotulo) {
   afirma(!(await visivel(page, '#verificacaoErr')), 'nenhuma caixa de erro à vista');
   afirma(await larguraOk(page), 'painel sem rolagem lateral');
   afirma(!consoleTxt.some((t) => /previ\.com\.br/i.test(t)), 'console sem e-mail');
+  /* computador compartilhado da oficina: a próxima pessoa abre o cadastro sem os dados de quem acabou de se cadastrar */
+  await page.evaluate(() => window.faOpenAuthModal('register'));
+  await page.waitForSelector('#auth-register:not([hidden])');
+  const resto = await page.evaluate(() => ({ campos: ['regName', 'regEmail', 'regPassword', 'regPasswordConfirm', 'regArea'].map((id) => document.getElementById(id).value), marcas: ['regTerms', 'regOptin'].map((id) => !!(document.getElementById(id) || {}).checked), area: document.querySelector('#regAreaSelect .cs-trigger').textContent.trim(), tipos: ['regPassword', 'regPasswordConfirm'].map((id) => document.getElementById(id).type) }));
+  afirma(resto.campos.every((v) => v === '') && resto.marcas.every((m) => !m) && resto.area === 'Selecione sua área…' && resto.tipos.every((t) => t === 'password'), 'cadastro seguinte começa vazio: nome, e-mail, senhas, área e marcações da pessoa anterior não ficam no formulário', JSON.stringify(resto));
+  /* recusa antes de enviar (senhas diferentes): nada do que a pessoa digitou é apagado */
+  await page.evaluate(() => { const v = (id, x) => { document.getElementById(id).value = x; }; v('regName', 'Outra Pessoa'); v('regEmail', 'outra@previ.com.br'); v('regPassword', '12345678'); v('regPasswordConfirm', '87654321'); document.getElementById('regTerms').checked = true; document.getElementById('registerForm').requestSubmit(); });
+  afirma(await page.evaluate(() => document.getElementById('regName').value === 'Outra Pessoa' && document.getElementById('regEmail').value === 'outra@previ.com.br' && /não coincidem/.test(document.getElementById('registerErr').textContent)), 'cadastro recusado (senhas diferentes): mostra o erro e mantém o que foi digitado');
   afirma(!erros.length, 'nenhum erro de página', erros.join(' | '));
   await ctx.close();
 
